@@ -45,7 +45,6 @@ CLIENT_EVENT_NAMES = frozenset({
     "StarterIntentReached",
     "ProjectSaveOfferShown",
     "ProjectSaveIntentReached",
-    "ActivationReached",
     "OutcomeFeedbackSubmitted",
     "OutcomeIssueCategorized",
     "RecentWorkResumed",
@@ -111,7 +110,7 @@ ATTRIBUTION_PLACEMENTS = frozenset({
     "creator-cohort", "facebook-paid",
 })
 ATTRIBUTION_INTENTS = frozenset({
-    "document", "presentation", "resume", "video", "projects",
+    "document", "image", "presentation", "resume", "video", "projects",
 })
 ATTRIBUTION_CAMPAIGNS = {
     "presentation-proof-current": {

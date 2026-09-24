@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from .ai_service import AIService
+from .account_deletion_service import AccountDeletionService
 from .artifact_service import ArtifactService
 from .code_runner import CrumpCodeRunner
 from .code_service import CodeTaskService
@@ -23,6 +24,12 @@ settings = get_settings()
 db = SupabaseDB(settings)
 ai = AIService(settings, db)
 files = FileService(settings, db)
+account_deletions = AccountDeletionService(
+    db,
+    files,
+    revenuecat_secret_api_key=settings.revenuecat_secret_api_key,
+    revenuecat_required=settings.native_billing_enabled,
+)
 features = FeatureService(db)
 projects = ProjectService(db)
 code_tasks = CodeTaskService(db, projects)

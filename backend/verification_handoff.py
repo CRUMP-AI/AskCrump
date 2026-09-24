@@ -7,6 +7,7 @@ from urllib.parse import urlencode
 
 CREATION_INTENTS = frozenset({
     "document",
+    "image",
     "presentation",
     "resume",
     "video",

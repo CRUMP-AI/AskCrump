@@ -1,4 +1,4 @@
-"""Durable, owner-scoped control plane for Crump Code tasks."""
+"""Durable, owner-scoped control plane for Autonomous Crump tasks."""
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
@@ -135,7 +135,7 @@ def normalize_repo_source(url: Any, revision: Any = None) -> tuple[str, str | No
         or parsed.query
         or parsed.fragment
     ):
-        raise ValueError("Crump Code currently accepts public https://github.com repositories only.")
+        raise ValueError("Autonomous Crump currently accepts public https://github.com repositories only.")
     segments = [segment for segment in parsed.path.split("/") if segment]
     if len(segments) != 2:
         raise ValueError("Use the root URL of a public GitHub repository.")
@@ -195,10 +195,10 @@ class CodeTaskService:
         project = await self.projects.get(user_id, project_id)
         clean_objective = _clean_text(objective, 12_000)
         if not clean_objective:
-            raise ValueError("Describe what Crump Code should accomplish.")
+            raise ValueError("Describe what Autonomous Crump should accomplish.")
         normalized_mode = str(mode or "plan").strip().lower()
         if normalized_mode not in {"plan", "implement"}:
-            raise ValueError("Crump Code mode must be plan or implement.")
+            raise ValueError("Autonomous Crump mode must be plan or implement.")
         source_url, source_ref = normalize_repo_source(repo_url, revision)
         duration = max(30, min(240, int(max_duration_seconds or 180)))
         row = {
@@ -248,12 +248,12 @@ class CodeTaskService:
         try:
             normalized = normalize_chat_id(task_id)
         except Exception as exc:
-            raise CodeTaskNotFoundError("Crump Code task not found.") from exc
+            raise CodeTaskNotFoundError("Autonomous Crump task not found.") from exc
         task = await self.db.select_one(
             "code_tasks", filters={"id": eq(normalized), "user_id": eq(user_id)}
         )
         if not task:
-            raise CodeTaskNotFoundError("Crump Code task not found.")
+            raise CodeTaskNotFoundError("Autonomous Crump task not found.")
         task = await self.reconcile_task_expiry(task)
         if include_history:
             task = await self._attach_history(task)
@@ -287,7 +287,7 @@ class CodeTaskService:
         payload: dict[str, Any] | None = None,
     ) -> None:
         if event_type not in EVENT_TYPES:
-            raise ValueError("Unknown Crump Code event type.")
+            raise ValueError("Unknown Autonomous Crump event type.")
         await self.db.insert(
             "code_task_events",
             {
@@ -310,7 +310,7 @@ class CodeTaskService:
     ) -> dict[str, Any]:
         current = str(task.get("status") or "")
         if target not in TRANSITIONS.get(current, frozenset()):
-            raise CodeTaskConflictError(f"Crump Code task cannot move from {current} to {target}.")
+            raise CodeTaskConflictError(f"Autonomous Crump task cannot move from {current} to {target}.")
         payload = {"status": target, "updated_at": _now(), **(changes or {})}
         if target in TERMINAL_STATUSES or target in {"queued", "awaiting_approval"}:
             payload = {"lease_token": None, "lease_expires_at": None, **payload}
@@ -327,7 +327,7 @@ class CodeTaskService:
             filters=filters,
         )
         if not rows:
-            raise CodeTaskConflictError("Crump Code task changed while this request was running.")
+            raise CodeTaskConflictError("Autonomous Crump task changed while this request was running.")
         updated = rows[0]
         if event_type:
             await self.append_event(updated, event_type, event_payload)
@@ -387,7 +387,7 @@ class CodeTaskService:
         )
         rows = result if isinstance(result, list) else ([result] if result else [])
         if not rows:
-            raise CodeTaskConflictError("Crump Code task is no longer ready to run.")
+            raise CodeTaskConflictError("Autonomous Crump task is no longer ready to run.")
         return rows[0]
 
     async def update_fields(self, task: dict[str, Any], changes: dict[str, Any]) -> dict[str, Any]:
@@ -400,7 +400,7 @@ class CodeTaskService:
             filters=filters,
         )
         if not rows:
-            raise CodeTaskConflictError("Crump Code task changed while this request was running.")
+            raise CodeTaskConflictError("Autonomous Crump task changed while this request was running.")
         return rows[0]
 
     async def requeue_after_failure(
@@ -412,7 +412,7 @@ class CodeTaskService:
     ) -> dict[str, Any]:
         current = str(task.get("status") or "")
         if current not in {"provisioning", "running", "verifying"}:
-            raise CodeTaskConflictError("Crump Code task is no longer retryable.")
+            raise CodeTaskConflictError("Autonomous Crump task is no longer retryable.")
         filters = {
             "id": eq(task["id"]),
             "user_id": eq(task["user_id"]),
@@ -435,7 +435,7 @@ class CodeTaskService:
             filters=filters,
         )
         if not rows:
-            raise CodeTaskConflictError("Crump Code task changed before its retry was saved.")
+            raise CodeTaskConflictError("Autonomous Crump task changed before its retry was saved.")
         updated = rows[0]
         await self.append_event(
             updated,
@@ -472,7 +472,7 @@ class CodeTaskService:
             },
         )
         if not rows:
-            raise CodeTaskConflictError("Crump Code refund state changed while settling.")
+            raise CodeTaskConflictError("Autonomous Crump refund state changed while settling.")
         return rows[0]
 
     async def reconcile_task_expiry(self, task: dict[str, Any]) -> dict[str, Any]:
@@ -498,7 +498,7 @@ class CodeTaskService:
                 filters={"id": eq(task["id"]), "user_id": eq(task["user_id"])},
             )
             if not current:
-                raise CodeTaskNotFoundError("Crump Code task not found.")
+                raise CodeTaskNotFoundError("Autonomous Crump task not found.")
             return current
 
     async def ensure_not_expired(self, task: dict[str, Any]) -> dict[str, Any]:
@@ -508,7 +508,7 @@ class CodeTaskService:
             and current.get("failure_code") == "CODE_TASK_EXPIRED"
         ):
             raise CodeTaskExpiredError(
-                "This Crump Code task expired. Prepare a new task to continue."
+                "This Autonomous Crump task expired. Prepare a new task to continue."
             )
         return current
 
@@ -535,7 +535,7 @@ class CodeTaskService:
                 filters={"id": eq(task["id"]), "user_id": eq(task["user_id"])},
             )
             if not current:
-                raise CodeTaskNotFoundError("Crump Code task not found.")
+                raise CodeTaskNotFoundError("Autonomous Crump task not found.")
             return current
 
     async def reconcile_approval_expiry(
@@ -601,7 +601,7 @@ class CodeTaskService:
         details: str = "",
     ) -> dict[str, Any]:
         if action_type not in APPROVAL_ACTIONS:
-            raise ValueError("Unknown Crump Code approval type.")
+            raise ValueError("Unknown Autonomous Crump approval type.")
         clean_title = _clean_text(title, 200)
         if not clean_title:
             raise ValueError("Approval title is required.")

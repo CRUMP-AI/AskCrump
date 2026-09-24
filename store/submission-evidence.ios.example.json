@@ -1,12 +1,67 @@
 {
-  "schema": "ask-crump-store-submission-evidence/v2",
+  "schema": "ask-crump-store-submission-evidence/v3",
   "platform": "ios",
   "appVersion": "5.9.76",
-  "buildNumber": 50976,
+  "buildNumber": "REPLACE_WITH_APPLE_BUILD_VERSION",
   "observedAt": "REPLACE_WITH_UTC_TIMESTAMP",
+  "source": {
+    "repository": "https://github.com/CRUMP-AI/AskCrump",
+    "commit": "REPLACE_WITH_APPROVED_40_CHARACTER_GIT_SHA"
+  },
+  "ciReceipts": [
+    {
+      "workflow": "ci",
+      "runId": "REPLACE_WITH_CLEAN_CHECKOUT_RUN_ID",
+      "url": "REPLACE_WITH_CLEAN_CHECKOUT_RUN_URL",
+      "headSha": "REPLACE_WITH_APPROVED_40_CHARACTER_GIT_SHA",
+      "conclusion": "success"
+    },
+    {
+      "workflow": "ios-store-verify",
+      "runId": "REPLACE_WITH_IOS_RUN_ID",
+      "url": "REPLACE_WITH_IOS_RUN_URL",
+      "headSha": "REPLACE_WITH_APPROVED_40_CHARACTER_GIT_SHA",
+      "conclusion": "success"
+    },
+    {
+      "workflow": "video-provider-deletion-fence-postgres",
+      "runId": "REPLACE_WITH_POSTGRES_RUN_ID",
+      "url": "REPLACE_WITH_POSTGRES_RUN_URL",
+      "headSha": "REPLACE_WITH_APPROVED_40_CHARACTER_GIT_SHA",
+      "conclusion": "success"
+    }
+  ],
+  "operator": {
+    "kind": "REPLACE_WITH_OWNER_OR_RELEASE_SPECIALIST",
+    "id": "REPLACE_WITH_OPERATOR_ID",
+    "workOrderId": "REPLACE_WITH_WORK_ORDER_ID"
+  },
   "artifact": {
     "file": "REPLACE_WITH_SIGNED_IPA_FILENAME",
-    "sha256": "REPLACE_WITH_SIGNED_ARTIFACT_SHA256"
+    "sha256": "REPLACE_WITH_SIGNED_ARTIFACT_SHA256",
+    "signing": {
+      "certificateRole": "apple-distribution",
+      "certificateSha256": "REPLACE_WITH_PUBLIC_SIGNING_CERTIFICATE_SHA256"
+    }
+  },
+  "console": {
+    "appRecordId": "REPLACE_WITH_NUMERIC_APPLE_APP_ID",
+    "consoleRecordId": "REPLACE_WITH_NUMERIC_APPLE_APP_ID",
+    "buildIdentity": "REPLACE_WITH_VERSION_PLUS_BUILD_NUMBER",
+    "channel": "testflight",
+    "status": "available-to-testers",
+    "receiptUrl": "REPLACE_WITH_PRIVATE_APP_STORE_CONNECT_BUILD_URL"
+  },
+  "accessClosure": {
+    "consoleAccess": "REPLACE_WITH_NOT_USED_OR_REVOKED",
+    "signingAccess": "REPLACE_WITH_NOT_USED_REVOKED_OR_ROTATED",
+    "repositoryWriteAccess": "REPLACE_WITH_NOT_USED_OR_REVOKED",
+    "confirmedAt": "REPLACE_WITH_UTC_TIMESTAMP",
+    "confirmedBy": "REPLACE_WITH_OWNER_ID",
+    "evidence": {
+      "file": "REPLACE_WITH_ACCESS_CLOSEOUT_EVIDENCE_FILENAME",
+      "sha256": "REPLACE_WITH_ACCESS_CLOSEOUT_EVIDENCE_SHA256"
+    }
   },
   "screenshots": [
     {
@@ -33,12 +88,14 @@
     "compiledPrivacyReportReviewed": false,
     "ipadLayoutAndCoreJourneyVerified": false,
     "offlineReconnectVerified": false,
+    "ownerControlledSigningVerified": false,
     "physicalDeviceCoreJourneyVerified": false,
     "privacyFormsReconciled": false,
     "purchaseAndRestoreVerified": false,
     "pushForegroundBackgroundTerminatedVerified": false,
     "reviewerPathVerified": false,
     "sessionPersistenceVerified": false,
+    "specialistAccessRemovedOrNotUsed": false,
     "signedArchiveVerified": false,
     "storeConsoleScreenshotsAccepted": false
   }

@@ -16,10 +16,10 @@ DYNAMIC_BUTTON_PATTERN = re.compile(
     re.IGNORECASE,
 )
 EXPECTED_BUTTON_INVENTORY = {
-    "public/app.html": 48,
+    "public/app.html": 53,
     "public/credit-confirmation.js": 3,
-    "public/crump-5.0.js": 3,
-    "public/crump-5.2.js": 5,
+    "public/crump-5.0.js": 4,
+    "public/crump-5.2.js": 6,
     "public/crump-billing-5.1.js": 3,
     "public/crump-code-5.9.35.js": 4,
     "public/crump-library-5.7.js": 41,
@@ -35,7 +35,7 @@ DYNAMIC_BUTTON_INVENTORY = {
     "public/app.js": 2,
     "public/crump-4.3.js": 1,
     "public/crump-4.4.js": 3,
-    "public/crump-5.0.js": 22,
+    "public/crump-5.0.js": 24,
     "public/crump-5.2.js": 3,
     "public/crump-billing-5.1.js": 2,
     "public/crump-code-5.9.35.js": 5,
@@ -49,19 +49,19 @@ DYNAMIC_BUTTON_INVENTORY = {
     "public/ui-functions.js": 16,
 }
 INDIRECT_DYNAMIC_BUTTON_OWNERS = {
-    "public/crump-5.0.js:1420:close": (
+    "public/crump-5.0.js:1699:close": (
         "mountLightbox(box, close);",
         "closeButton.addEventListener('click', dismiss)",
     ),
-    "public/crump-5.0.js:1497:close": (
+    "public/crump-5.0.js:1776:close": (
         "mountLightbox(box, close);",
         "closeButton.addEventListener('click', dismiss)",
     ),
-    "public/crump-5.0.js:1717:project": (
+    "public/crump-5.0.js:2000:project": (
         "wireOutputProjectAction(project, {",
         "button.addEventListener('click', async () => {",
     ),
-    "public/crump-5.2.js:654:buy": (
+    "public/crump-5.2.js:676:buy": (
         "buy.dataset.crumpPack =",
         "modal.addEventListener('click', event => {",
         "event.target.closest?.('[data-crump-pack]')",
@@ -288,7 +288,7 @@ def test_rendered_button_inventory_requires_explicit_review() -> None:
             inventory[page.relative_to(ROOT).as_posix()] = len(parser.buttons)
 
     assert inventory == EXPECTED_BUTTON_INVENTORY
-    assert sum(inventory.values()) == 182
+    assert sum(inventory.values()) == 189
 
 
 def test_programmatically_created_button_inventory_requires_explicit_review() -> None:
@@ -299,8 +299,8 @@ def test_programmatically_created_button_inventory_requires_explicit_review() ->
             inventory[path.relative_to(ROOT).as_posix()] = count
 
     assert inventory == DYNAMIC_BUTTON_INVENTORY
-    assert sum(inventory.values()) == 94
-    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 276
+    assert sum(inventory.values()) == 96
+    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 285
 
 
 def test_programmatically_created_buttons_declare_type_and_runtime_owner() -> None:
@@ -634,10 +634,20 @@ def test_browser_control_matrix_is_fail_closed_and_one_command() -> None:
     package_lock = json.loads((ROOT / "package-lock.json").read_text(encoding="utf-8"))
     workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     verifier_names = sorted(path.name for path in (ROOT / "scripts").glob("verify-*.cjs"))
+    historical = {
+        "verify-autonomous-crump-cache-upgrade.cjs",
+        "verify-reference-fidelity-cache-upgrade.cjs",
+        "verify-server-authoritative-activation-cache-upgrade.cjs",
+    }
+    active_verifiers = [name for name in verifier_names if name not in historical]
 
-    assert len(verifier_names) == 48
+    assert len(verifier_names) == 55
+    assert len(active_verifiers) == 52
     for name in verifier_names:
         assert f"'{name}'" in runner
+    assert "const historicalVerifiers = Object.freeze([" in runner
+    assert ".filter(name => !historicalVerifiers.includes(name))" in runner
+    assert "Historical browser verifier is missing:" in runner
     assert "Browser verifier inventory drifted." in runner
     assert "Browser verifier ports are already occupied" in runner
     assert "await assertPortsAvailable();" in runner

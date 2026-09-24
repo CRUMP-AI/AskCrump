@@ -5,6 +5,7 @@ import random
 from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from .ai_consent import has_current_ai_data_sharing_consent
 from .ai_service import AIService
 from .db import SupabaseDB, eq, lte, lt
 from .push_service import PushService
@@ -246,18 +247,32 @@ async def run_check_ins(
             'users',
             columns=(
                 'id,email,full_name,subscription_tier,subscription_status,'
-                'subscription_current_period_end,internal_tier'
+                'subscription_current_period_end,internal_tier,'
+                'ai_data_sharing_consent_at,ai_data_sharing_consent_version,'
+                'ai_data_sharing_consent_revoked_at,deleted_at'
             ),
             filters={'id': eq(user_id)},
         ) or {}
+        if not has_current_ai_data_sharing_consent(user):
+            await db.update(
+                'check_in_preferences',
+                {
+                    'next_eligible_at': next_eligible_at(preferences, ignored_count),
+                    'ignored_count': ignored_count,
+                    'updated_at': iso_now(),
+                },
+                filters={'user_id': eq(user_id)},
+            )
+            summary['skipped'] += 1
+            continue
         user_settings = await db.select_one('user_settings', columns='assistant_name', filters={'user_id': eq(user_id)}) or {}
         content = await ai.generate_check_in(
             assistant_name=str(user_settings.get('assistant_name') or 'Crump'),
-            user_name=str(user.get('full_name') or str(user.get('email') or '').split('@')[0] or 'the user'),
+            user_name='',
             conversation=chat.get('messages') or [],
             categories=categories,
             user_tier=tier_name(user),
-            user_id=user_id,
+            user_id=None,
         )
         if not content:
             await db.update(

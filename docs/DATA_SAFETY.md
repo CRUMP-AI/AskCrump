@@ -12,8 +12,8 @@ Use this engineering inventory to complete Apple App Privacy and Google Play Dat
 | Generated video files | When generation succeeds | private playback, download, continuation, and cross-device library | Yes | copied from the generation provider into private Supabase Storage; provider output URLs are not used as permanent user assets |
 | Message delivery/seen metadata | Yes | reliable messaging experience | Yes | Supabase |
 | Check-in preferences/events | Optional | user-requested proactive follow-up | Yes | Supabase; free-plan check-ins may use Vercel AI Gateway and its selected provider; premium check-ins may use the configured premium AI provider |
-| Crump Code task objective and public repository reference | Only when the disabled feature is later enabled and requested | plan or implement repository work | Yes | Supabase task history; Anthropic for coding-agent reasoning; short-lived no-secret Vercel Sandbox for repository analysis and verification |
-| Crump Code result summary, patch, verification, and audit metadata | Only when the disabled feature is later enabled and requested | review, continuity, cost control, and safety audit | Yes | Supabase; audit events are content-free and public responses omit internal sandbox and usage identifiers |
+| Autonomous Crump task objective and public repository reference | Only when the disabled feature is later enabled and requested | plan or implement repository work | Yes | Supabase task history; Anthropic for coding-agent reasoning; short-lived no-secret Vercel Sandbox for repository analysis and verification |
+| Autonomous Crump result summary, patch, verification, and audit metadata | Only when the disabled feature is later enabled and requested | review, continuity, cost control, and safety audit | Yes | Supabase; audit events are content-free and public responses omit internal sandbox and usage identifiers |
 | Response text for premium voice | Only when the disabled feature is later enabled and the user selects Read aloud | generate temporary spoken audio | Yes during request | ElevenLabs; Ask Crump returns a private non-cacheable MP3 and does not store text or audio for this flow |
 | Native push token | Optional | deliver enabled check-ins | Yes/device linked | Supabase; APNs or FCM |
 | Device/session information | Yes | persistent login, security, revocation | Yes | Supabase |
@@ -47,13 +47,16 @@ closed when this inventory and the runtime dependency set diverge.
 
 ## User controls
 
+- Account creation and Terms acceptance do not grant AI-provider data-sharing permission. Before any provider-backed request, Ask Crump requires a separate, versioned, server-authoritative permission covering the current provider list and data categories.
+- Choosing “Not now” sends no request to an AI provider. Users can withdraw permission in Settings; future chat, image/video, voice, manuscript, Autonomous Crump, and scheduled check-in provider work then fails closed until permission is granted again.
+- Permission version `2026-09-17` covers Anthropic, OpenAI, Vercel AI Gateway/Groq, Google Gemini/Veo, Runway, ElevenLabs, Brave Search, OpenWeather, and Vercel Sandbox, and the categories disclosed in `backend/ai_consent.py`. A material provider or category change requires a version bump and renewed permission.
 - Check-ins are off by default.
 - Notifications require an explicit native permission decision and can be disabled independently.
 - Frequency, quiet hours, categories, and haptics are user-controlled.
 - Users can delete chats, export history, revoke sessions, clear history, and permanently delete the account in-app.
 - Every AI response has an in-app Report control. Reports contain the selected reason, optional comment, reported output, and limited preceding prompt context; they are deleted with the owning account.
 - Crump Voice is explicit-action only and falls back to device speech when unavailable; its provider path remains disabled until disclosure and production configuration are approved.
-- Crump Code accepts only public GitHub repositories in its initial disabled foundation; it does not receive private repository credentials or push source changes.
+- Autonomous Crump accepts only public GitHub repositories in its initial disabled foundation; it does not receive private repository credentials or push source changes.
 
 ## Security controls
 
@@ -66,7 +69,9 @@ session state into the platform backup service.
 
 Account/conversation/settings/presence data persists while the account is active unless deleted sooner. Provider, infrastructure backup, security, billing, fraud-prevention, and legally required records may follow separate schedules. Confirm production logs do not capture full credentials, prompts, attachment bodies, push private keys, or provider secrets. Video provider references used for native Veo continuation are server-only and short-lived; they are never exposed as permanent public media URLs. Runway-generated results are copied into private Supabase Storage before user access. Update declarations whenever an SDK, connector, analytics tool, notification provider, AI/video provider, or data type changes.
 
-Crump Code task history, result summaries, patches, and verification receipts remain account-linked
+The database stores the accepted AI-sharing permission timestamp, exact permission version, update time, and optional withdrawal time. It does not treat Terms acceptance as this permission. Withdrawal prevents future provider transfers but cannot recall content already sent for an authorized request; an accepted in-flight request may finish or remain available for status/output retrieval.
+
+Autonomous Crump task history, result summaries, patches, and verification receipts remain account-linked
 until the owning project/account is deleted under the application's deletion workflow. Confirm the
 new tables participate in production deletion tests before enabling the feature. Premium voice
 text and audio are transient in Ask Crump, but ElevenLabs processing and retention must be checked

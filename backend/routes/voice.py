@@ -4,6 +4,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, Response
 
+from ..ai_consent import require_ai_data_sharing_consent
 from ..auth_service import authenticate_request
 from ..feature_service import FeatureAccessError
 from ..rate_limit import enforce_user_rate_limit
@@ -42,6 +43,7 @@ def _voice_error(exc: VoiceServiceError) -> JSONResponse:
 async def synthesize(request: Request):
     """Create ephemeral audio only after a signed-in user explicitly requests it."""
     auth = await authenticate_request(request, db, settings)
+    require_ai_data_sharing_consent(auth.user)
     if not voice.configured:
         return _voice_error(VoiceServiceError(
             "Premium voice is not configured yet.", 503, "VOICE_NOT_CONFIGURED"

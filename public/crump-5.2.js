@@ -5,6 +5,7 @@
   window.__crump52Loaded = true;
 
   const $ = (selector, root = document) => root.querySelector(selector);
+  const nativeBilling = () => Boolean(window.BillingManager?.isNative?.());
   const recoverySources = Object.freeze({
     CREDITS_REQUIRED: 'recovery_credits',
     SUBSCRIPTION_REQUIRED: 'recovery_subscription',
@@ -609,15 +610,36 @@
   async function openCreditCheckout(packCode, trigger) {
     if (!packCode || state.checkoutOpening) return;
     state.checkoutOpening = true;
+    const installed = nativeBilling();
     const button = trigger?.closest?.('.billing51-buy') || trigger;
     const prior = button?.textContent || 'Add credits';
     const priorAccessibleLabel = button?.getAttribute?.('aria-label') || prior;
     if (button) {
       button.disabled = true;
-      button.textContent = 'Opening checkout…';
-      button.setAttribute('aria-label', `Opening secure checkout. ${priorAccessibleLabel}`);
+      button.textContent = installed ? 'Opening store…' : 'Opening checkout…';
+      button.setAttribute(
+        'aria-label',
+        `${installed ? 'Opening your device store' : 'Opening secure checkout'}. ${priorAccessibleLabel}`,
+      );
     }
     try {
+      if (installed) {
+        if (!window.BillingManager?.purchaseCredits) {
+          throw new Error('Mobile credit purchases are not available in this build yet.');
+        }
+        await window.BillingManager.purchaseCredits(packCode);
+        state.checkoutOpening = false;
+        if (button?.isConnected) {
+          button.disabled = false;
+          button.textContent = prior;
+          button.setAttribute('aria-label', priorAccessibleLabel);
+        }
+        window.showToast?.('Credits added', 'success');
+        window.dispatchEvent(new CustomEvent('crump:billing-refresh-requested', {
+          detail: {source: 'native_credit_purchase', pack: packCode},
+        }));
+        return;
+      }
       const attemptId = window.BillingManager?.creditCheckoutAttempt?.(packCode);
       const result = await jsonFetch('/api/billing/credits/checkout', {
         method: 'POST',
@@ -655,6 +677,9 @@
     buy.type = 'button';
     buy.className = 'billing51-buy';
     buy.dataset.crumpPack = String(pack.code || '');
+    if (nativeBilling()) {
+      buy.dataset.crumpStoreAvailable = pack.available === false ? 'false' : 'true';
+    }
     buy.disabled = pack.available === false;
     buy.textContent = pack.available === false ? 'Not configured' : 'Add credits';
     const accessibleLabel = pack.available === false
@@ -707,9 +732,13 @@
     const allowance = $('#billing52Allowance', modal);
     const history = $('#billing52History', modal);
     try {
-      const [creditData, usageData] = await Promise.all([
+      const installed = nativeBilling();
+      const [creditData, usageData, nativeCredits] = await Promise.all([
         jsonFetch('/api/billing/credits/status'),
         jsonFetch('/api/usage/check').catch(() => ({daily:{limit:0,used:0,remaining:0}})),
+        installed
+          ? Promise.resolve(window.BillingManager?.getCreditProducts?.() || {}).catch(() => ({}))
+          : Promise.resolve({}),
       ]);
       if (!modal.isConnected || state.billing !== modal) return;
       if (balance) balance.textContent = String(Math.max(0, Number(creditData.credits?.balance || 0)));
@@ -723,7 +752,14 @@
               {code:'credits_150', credits:150, price:'$9.99', available:false},
               {code:'credits_400', credits:400, price:'$19.99', available:false},
             ];
-        catalog.forEach(pack => packs.appendChild(creditPackCard(pack)));
+        catalog.forEach(pack => {
+          const storeProduct = nativeCredits?.[pack.code];
+          packs.appendChild(creditPackCard(installed ? {
+            ...pack,
+            price: storeProduct?.price || 'Store price unavailable',
+            available: Boolean(storeProduct?.package),
+          } : pack));
+        });
       }
       if (history) renderBillingHistory(history, creditData.history || []);
       const sidebarBadge = document.querySelector('#upgradeBtnSidebar .billing51-sidebar-balance');
@@ -741,10 +777,34 @@
     }
   }
 
+  async function restorePurchases52(button) {
+    if (!nativeBilling() || !window.BillingManager?.restore) return;
+    const prior = button?.textContent || 'Restore purchases';
+    if (button) {
+      button.disabled = true;
+      button.textContent = 'Restoring…';
+    }
+    try {
+      await window.BillingManager.restore();
+      window.showToast?.('Purchases restored', 'success');
+      window.dispatchEvent(new CustomEvent('crump:billing-refresh-requested', {
+        detail: {source: 'native_restore'},
+      }));
+    } catch (error) {
+      window.showToast?.(error.message || 'No purchases were restored.', 'error');
+    } finally {
+      if (button?.isConnected) {
+        button.disabled = false;
+        button.textContent = prior;
+      }
+    }
+  }
+
   function showBillingCenter52(options = {}) {
     closeBilling52({restoreFocus: false});
     state.billingTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const recovery = billingRecoveryContext(options);
+    const installed = nativeBilling();
     const modal = document.createElement('div');
     modal.className = 'billing51-modal is-visible crump52-billing-modal';
     modal.innerHTML = `
@@ -761,23 +821,23 @@
         </div>
         <section class="billing51-section">
           <div class="billing51-section-head"><div><span>KEEP GOING</span><h3>Add Crump Credits</h3></div><p>Credit use varies by feature. Ask Crump shows the exact charge before a paid action. Purchased credits never expire.</p></div>
-          <p class="billing51-rate-note"><strong>Current overflow rates, after any included allowance:</strong> messages 1; live research 1; Crump Voice or visual analysis 2; manuscript planning 4; image generation 6; manuscript chapter 8; image editing 10; Crump Code 12; video generation 60, extend or continue 80, HD 90, or 10-second cinematic 120 credits. The exact total always appears before a paid action.</p>
+          <p class="billing51-rate-note"><strong>Current overflow rates, after any included allowance:</strong> messages 1; live research 1; Crump Voice or visual analysis 2; manuscript planning 4; image generation 6; manuscript chapter 8; image editing 10; Autonomous Crump 12; video generation 60, extend or continue 80, HD 90, or 10-second cinematic 120 credits. The exact total always appears before a paid action.</p>
           <div class="billing51-packs" id="billing52Packs">
-            ${[50,150,400].map((credits, index) => `<article class="billing51-pack"><strong class="billing51-pack-amount">${credits}</strong><span class="billing51-pack-label">Crump Credits</span><div class="billing51-pack-price">${['$4.99','$9.99','$19.99'][index]}</div><button type="button" class="billing51-buy" aria-label="Loading availability for ${credits} Crump Credits" disabled>Loading…</button></article>`).join('')}
+            ${[50,150,400].map((credits, index) => `<article class="billing51-pack"><strong class="billing51-pack-amount">${credits}</strong><span class="billing51-pack-label">Crump Credits</span><div class="billing51-pack-price">${installed ? 'Loading store price…' : ['$4.99','$9.99','$19.99'][index]}</div><button type="button" class="billing51-buy" aria-label="Loading availability for ${credits} Crump Credits" disabled>Loading…</button></article>`).join('')}
           </div>
         </section>
         <section class="billing51-section">
-          <div class="billing51-section-head"><div><span>MONTHLY ACCESS</span><h3>Subscriptions</h3></div><p>Choose monthly access for more included usage. You can manage or cancel a web subscription at any time.</p></div>
+          <div class="billing51-section-head"><div><span>MONTHLY ACCESS</span><h3>Subscriptions</h3></div><p>${installed ? 'Choose monthly access through your device store. Manage or cancel it from your store subscription settings.' : 'Choose monthly access for more included usage. You can manage or cancel a web subscription at any time.'}</p></div>
           <div class="billing51-plans">
             <article class="billing51-plan is-featured" data-crump-plan="professional">
-              <div class="billing51-plan-top"><strong>Professional</strong><span>$20/month</span></div>
+              <div class="billing51-plan-top"><strong>Professional</strong><span>${installed ? 'Loading store price…' : '$20/month'}</span></div>
               <p class="billing51-plan-summary">For independent work you return to every day.</p>
               <ul class="billing51-plan-benefits"><li>500 included messages daily</li><li>25 private Projects</li><li>20 research · 1 image · 20 visual analyses daily</li><li>Advanced Intelligence: Think Longer + Always Review</li><li>Premium creation access</li></ul>
               <p class="billing51-plan-meter-note">Premium video and other high-compute generations use Crump Credits.</p>
               <button type="button" class="billing51-plan-button" disabled>Loading plan…</button>
             </article>
             <article class="billing51-plan" data-crump-plan="enterprise">
-              <div class="billing51-plan-top"><strong>Enterprise</strong><span>$50/month</span></div>
+              <div class="billing51-plan-top"><strong>Enterprise</strong><span>${installed ? 'Loading store price…' : '$50/month'}</span></div>
               <p class="billing51-plan-summary">For sustained work that needs the largest current individual limits.</p>
               <ul class="billing51-plan-benefits"><li>5,000 included messages daily</li><li>200 private Projects</li><li>50 research · 2 images · 100 visual analyses daily</li><li>Advanced Intelligence: Think Longer + Always Review</li><li>10-second Cinematic video access</li></ul>
               <p class="billing51-plan-meter-note">Premium video and other high-compute generations use Crump Credits.</p>
@@ -789,9 +849,12 @@
           <div class="billing51-section-head"><div><span>LEDGER</span><h3>Recent credit activity</h3></div><p>Every addition, request, and refund is recorded server-side.</p></div>
           <div id="billing52History"><p class="billing51-empty">Loading activity…</p></div>
         </section>
-        <footer class="billing51-footer"><div class="billing51-footer-actions"><span>Secure web payments are processed by Stripe.</span></div><p>Credits have no cash value and do not expire. Store purchases use the payment system required by your device. <a href="/legal.html#terms">Terms</a> · <a href="/legal.html#privacy">Privacy</a></p></footer>
+        <footer class="billing51-footer"><div class="billing51-footer-actions">${installed ? '<button type="button" id="billing52Restore">Restore purchases</button>' : '<span>Secure web payments are processed by Stripe.</span>'}</div><p>Credits have no cash value and do not expire. Store purchases use the payment system required by your device. Subscription terms and localized prices are shown before confirmation. <a href="/legal.html#terms">Terms</a> · <a href="/legal.html#privacy">Privacy</a></p></footer>
       </section>`;
     modal.querySelectorAll('[data-close]').forEach(node => node.addEventListener('click', closeBilling52));
+    modal.querySelector('#billing52Restore')?.addEventListener('click', event => {
+      void restorePurchases52(event.currentTarget);
+    });
     document.body.appendChild(modal);
     state.billing = modal;
     if (recovery?.plan) modal.dataset.crumpPlanIntent = recovery.plan;
@@ -853,6 +916,8 @@
     hookRenderer();
     ownAttachButton();
     ownBillingButton();
+    window.CrumpBillingCenter52Ready = true;
+    window.dispatchEvent(new Event('crump:billing-center-ready'));
 
     const observer = new MutationObserver(() => {
       hookRenderer();
@@ -865,6 +930,9 @@
     // afterward, then stop actively polling; the MutationObserver handles later UI changes.
     setTimeout(() => { ownAttachButton(); ownBillingButton(); enhanceMessageAttachments(); }, 1200);
     setTimeout(() => { ownAttachButton(); ownBillingButton(); enhanceMessageAttachments(); }, 2200);
+    window.addEventListener('crump:billing-refresh-requested', () => {
+      if (state.billing?.isConnected) void hydrateBilling52(state.billing);
+    });
   }
 
   if (document.readyState === 'complete') setTimeout(boot, 900);

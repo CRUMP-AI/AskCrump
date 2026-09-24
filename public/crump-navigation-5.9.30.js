@@ -7,7 +7,7 @@
   const byId = id => document.getElementById(id);
   const all = selector => [...document.querySelectorAll(selector)];
   const MODE_KEY = 'askcrump.navigation.mode';
-  const CREATION_HANDOFF_INTENTS = new Set(['document', 'presentation', 'resume', 'video', 'projects']);
+  const CREATION_HANDOFF_INTENTS = new Set(['document', 'presentation', 'resume', 'image', 'video', 'projects']);
   let lastFocus = null;
   let destinationBackgroundState = null;
   let destinationFocusOpener = null;
@@ -29,7 +29,7 @@
     },
     {
       id: 'code',
-      label: 'Code',
+      label: 'Autonomous Crump',
       icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 7-5 5 5 5M15 7l5 5-5 5M13 4l-2 16"/></svg>',
     },
     {
@@ -404,8 +404,8 @@
       return true;
     }
     if (action === 'image') {
-      if (window.CrumpImageStudio?.open) window.CrumpImageStudio.open();
-      else window.CrumpBodyV1?.command?.('image');
+      if (typeof window.CrumpImageStudio?.open !== 'function') return false;
+      window.CrumpImageStudio.open();
       return true;
     }
     if (action === 'video') {
@@ -425,6 +425,7 @@
   function continueCreationIntent(detail = {}) {
     const kind = String(detail.kind || '').trim().toLowerCase();
     if (!CREATION_HANDOFF_INTENTS.has(kind) || !openCreateTool(kind)) return false;
+    const capturedAt = Number(detail.capturedAt || 0);
     window.va?.('event', {
       name: 'CreationIntentContinued',
       data: {
@@ -433,7 +434,9 @@
         source: String(detail.source || 'unknown').slice(0, 32),
       },
     });
-    window.dispatchEvent(new CustomEvent('crump:creation-intent-consumed', {detail: {kind}}));
+    window.dispatchEvent(new CustomEvent('crump:creation-intent-consumed', {
+      detail: {kind, capturedAt},
+    }));
     return true;
   }
 

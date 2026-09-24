@@ -1,7 +1,9 @@
 from pathlib import Path
 
+import pytest
+
 from backend.intelligence_service import IntelligenceService
-from backend.routes.chat import _promote_explicit_document_delivery
+from backend.routes.chat import _promote_explicit_document_delivery, _video_creation_handoff
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -63,6 +65,106 @@ def test_explicit_document_delivery_cannot_be_downgraded_to_clarification():
     assert intent["format"] == "docx"
 
 
+@pytest.mark.parametrize(
+    ("selected_format", "message", "misclassified_kind"),
+    [
+        ("xlsx", "Create a production budget for this video campaign.", "video"),
+        ("pdf", "Create a PDF report analyzing this image.", "image"),
+        ("pptx", "Create a PowerPoint presentation about our video campaign.", "video"),
+        ("docx", "Create a Word document describing the book launch plan.", "manuscript"),
+        ("docx", "Create a Word report analyzing a 70,000-word novel.", "manuscript"),
+        ("pdf", "Write a 70,000-word novel and deliver it as a PDF.", "manuscript"),
+    ],
+)
+def test_picker_selected_document_format_wins_keyword_kind_conflicts(
+    selected_format, message, misclassified_kind,
+):
+    intent = _promote_explicit_document_delivery(
+        {
+            "kind": misclassified_kind,
+            "stage": "execute",
+            "confidence": 0.9,
+            "brief": message,
+            "question": "",
+            "format": "",
+        },
+        selected_format,
+        explicit_format=selected_format,
+        message=message,
+    )
+
+    assert intent["kind"] == "document"
+    assert intent["stage"] == "execute"
+    assert intent["question"] == ""
+    assert intent["format"] == selected_format
+
+
+@pytest.mark.parametrize(
+    ("detected_format", "message", "misclassified_kind"),
+    [
+        ("pdf", "Create a PDF report analyzing this image.", "image"),
+        ("pptx", "Create a PowerPoint presentation about our video campaign.", "video"),
+    ],
+)
+def test_natural_language_document_format_wins_keyword_kind_conflicts(
+    detected_format, message, misclassified_kind,
+):
+    intent = _promote_explicit_document_delivery(
+        {
+            "kind": misclassified_kind,
+            "stage": "execute",
+            "confidence": 0.9,
+            "brief": message,
+            "question": "",
+            "format": "",
+        },
+        detected_format,
+        message=message,
+    )
+
+    assert intent["kind"] == "document"
+    assert intent["stage"] == "execute"
+    assert intent["question"] == ""
+    assert intent["format"] == detected_format
+
+
+def test_picker_selected_docx_preserves_intentional_manuscript_creation():
+    original = {
+        "kind": "manuscript",
+        "stage": "execute",
+        "confidence": 0.9,
+        "brief": "Write a 70,000-word novel about two estranged sisters.",
+        "question": "",
+        "format": "docx",
+    }
+    intent = _promote_explicit_document_delivery(
+        original,
+        "docx",
+        explicit_format="docx",
+        message=original["brief"],
+    )
+
+    assert intent == original
+
+
+def test_natural_language_docx_preserves_intentional_manuscript_creation():
+    original = {
+        "kind": "manuscript",
+        "stage": "execute",
+        "confidence": 0.9,
+        "brief": "Write a 70,000-word novel as a Word manuscript.",
+        "question": "",
+        "format": "docx",
+    }
+    intent = _promote_explicit_document_delivery(
+        original,
+        "docx",
+        message=original["brief"],
+    )
+
+    assert intent == original
+
+
 def test_chat_route_uses_resolved_brief_and_avoids_reasking_forms():
     route = read("backend/routes/chat.py")
     assert "history=request_payload.get('history')" in route
@@ -95,6 +197,77 @@ def test_video_handoff_reuses_existing_guarded_video_engine():
     assert "idempotencyKey: key" in product
     assert "CrumpProduct53?.handleCreationHandoff" in composer
 
+
+def test_video_handoff_preserves_current_owned_image_descriptors_and_pauses_start():
+    image_id = "00000000-0000-4000-8000-000000000201"
+    handoff = _video_creation_handoff(
+        brief="Animate the supplied product and keep its appearance consistent.",
+        idempotency_key="chat-video:fixture",
+        current_file_rows=[
+            {
+                "id": image_id,
+                "file_name": "approved-product.png",
+                "mime_type": "image/png",
+                "size_bytes": 2048,
+                "kind": "upload",
+                "status": "ready",
+                "metadata": {},
+            },
+            {
+                "id": "00000000-0000-4000-8000-000000000202",
+                "file_name": "brief.pdf",
+                "mime_type": "application/pdf",
+                "size_bytes": 4096,
+                "kind": "upload",
+                "status": "ready",
+                "metadata": {},
+            },
+        ],
+    )
+
+    assert handoff["autoStart"] is False
+    assert handoff["referenceFiles"] == [{
+        "id": image_id,
+        "name": "approved-product.png",
+        "type": "image/png",
+        "size": 2048,
+        "kind": "upload",
+        "status": "ready",
+        "metadata": {},
+        "createdAt": None,
+        "updatedAt": None,
+        "url": f"/api/files/{image_id}/content",
+    }]
+
+    route = read("backend/routes/chat.py")
+    video_branch = route[
+        route.index("elif semantic_creation and creation_kind == 'video'"):
+        route.index("elif (", route.index("elif semantic_creation and creation_kind == 'video'"))
+    ]
+    assert "current_file_rows=current_file_rows" in video_branch
+    assert "'creationHandoff': creation_handoff" in video_branch
+
+
+def test_reference_handoff_requires_browser_review_before_generation():
+    product = read("public/crump-product-5.3.js")
+    handoff = product[
+        product.index("function hydrateVideoHandoffReferences"):
+        product.index("async function handleCreationHandoff")
+    ]
+    referenced_branch = handoff[
+        handoff.index("if (references.length)"):
+        handoff.index("if (!start)")
+    ]
+
+    assert "state.videoReferenceFiles = references" in handoff
+    assert "data-video-reference-role" in product
+    assert "referencePlan: videoReferencePlan()" in product
+    assert "press Create video to confirm" in referenced_branch
+    assert "Confirm each reference role" in referenced_branch
+    assert "await startVideo" not in referenced_branch
+    assert "Exact logos and readable text are not locked" in referenced_branch
+
+
 def test_crump_voice_avoids_generic_assistant_form_language():
     service = read("backend/ai_service.py")
     assert "Never default to canned assistant language" in service
@@ -104,9 +277,9 @@ def test_crump_voice_avoids_generic_assistant_form_language():
 def test_conversation_intelligence_advances_shell_cache():
     sw = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
-    assert "ask-crump-new-body-v1-r249" in sw
+    assert "ask-crump-new-body-v1-r259" in sw
     assert "CACHE_NAME = 'ask-crump-new-body-v1-r229'" not in sw
-    assert "ask-crump-new-body-v1-r249" in checker
+    assert "ask-crump-new-body-v1-r259" in checker
 
 
 def test_reload_opens_a_clean_conversation_without_discarding_history():
@@ -129,8 +302,8 @@ def test_reload_opens_a_clean_conversation_without_discarding_history():
     assert "chats = []" not in fresh_start
     assert "recordChatDeletion" not in fresh_start
     assert 'src="/app.js?v=5.9.76-intelligence-receipt-1"' not in shell
-    assert "['/app.js?v=5.9.76-settings-save-isolation-1', 'workspaceapp']" in runtime
-    assert "'/app.js?v=5.9.76-settings-save-isolation-1'" in worker
+    assert "['/app.js?v=5.9.76-reference-review-persistence-1', 'workspaceapp']" in runtime
+    assert "'/app.js?v=5.9.76-reference-review-persistence-1'" in worker
 
 def test_runtime_document_extraction_patch_accepts_project_pdf_keyword():
     compatibility = read("backend/crump52_patches.py")

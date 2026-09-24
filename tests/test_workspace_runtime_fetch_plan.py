@@ -50,11 +50,11 @@ def test_parallel_runtime_asset_is_versioned_for_web_pwa_and_native():
     worker = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
 
-    asset = "/runtime-body-v1.js?v=5.9.76-navigation-discovery-1"
+    asset = "/runtime-body-v1.js?v=5.9.76-artifact-card-open-1"
     assert asset in shell
     assert asset in worker
-    assert "ask-crump-new-body-v1-r249" in worker
-    assert "ask-crump-new-body-v1-r249" in checker
+    assert "ask-crump-new-body-v1-r259" in worker
+    assert "ask-crump-new-body-v1-r259" in checker
 
 
 def test_runtime_fetch_fixture_is_credential_free_and_measures_the_full_plan():
@@ -82,10 +82,10 @@ def test_runtime_fetch_fixture_is_credential_free_and_measures_the_full_plan():
     assert "password" not in fixture.lower()
     assert "askcrump.com" not in fixture.lower()
     assert "verify-workspace-runtime-fetch-plan.cjs" in matrix
-    assert "evidence.maxStyles, 17" in verifier
-    assert "evidence.preloadCount, 34" in verifier
-    assert "mode === 'style-retry' ? 18 : 17" in verifier
-    assert "mode === 'script-retry' ? 35 : 34" in verifier
+    assert "evidence.maxStyles, 18" in verifier
+    assert "evidence.preloadCount, 35" in verifier
+    assert "mode === 'style-retry' ? 19 : 18" in verifier
+    assert "mode === 'script-retry' ? 36 : 35" in verifier
     assert "evidence.styleAttempts, mode === 'style-retry' ? 2 : 1" in verifier
     assert "evidence.scriptAttempts, mode === 'script-retry' ? 2 : 1" in verifier
     assert "failureMessage: 'Ask Crump could not finish loading your workspace." in verifier
@@ -107,7 +107,95 @@ def test_returning_workspace_uses_precache_without_staling_the_shell():
     assert "async function cacheFirst(request)" in worker
     assert "bootCritical(request, url)\n      ? cacheFirst(request)" in worker
     assert "originAssetRequests" in verifier
+    assert "/crump-product-loader.js?v=5.9.76-reference-review-persistence-1" in verifier
+    assert "Boolean(window.CrumpProductLoader?.load)" in verifier
     assert "assert.equal(counts.get(fixturePath), 1" in verifier
     assert "verify-service-worker-returning-load.cjs" in matrix
     assert "askcrump.com" not in verifier.lower()
     assert "password" not in verifier.lower()
+
+
+def test_returning_workspace_activation_upgrade_uses_current_exact_fixture_proof():
+    worker = read("public/sw.js")
+    verifier = read("scripts/verify-server-authoritative-activation-cache-upgrade.cjs")
+    historical = read("scripts/verify-autonomous-crump-cache-upgrade.cjs")
+    matrix = read("scripts/verify-browser-control-matrix.mjs")
+
+    assert "ask-crump-new-body-v1-r259" in worker
+    assert "/runtime-body-v1.js?v=5.9.76-artifact-card-open-1" in worker
+    assert "/crump-navigation-5.9.30.js?v=5.9.76-image-intent-handoff-1" in worker
+    assert "/crump-code-loader.js?v=5.9.76-autonomous-crump-1" in worker
+    assert "/crump-billing-5.1.js?v=5.9.76-autonomous-crump-1" in worker
+    assert "/crump-5.2.js?v=5.9.76-owner-isolation-native-store-1" in worker
+    assert "async function deleteLegacyCaches()" in worker
+    assert "preCache()\n      .then(deleteLegacyCaches)" in worker
+    assert "deleteLegacyCaches()\n      .then(() => self.clients.claim())" in worker
+    assert "ask-crump-new-body-v1-r249" not in worker
+    assert "/crump-code-loader.js?v=5.9.76-code-lazy-load-1" not in worker
+    assert "verify-server-authoritative-activation-cache-upgrade.cjs" in matrix
+    assert "historicalVerifiers" in matrix
+    assert "verify-autonomous-crump-cache-upgrade.cjs" in matrix
+    assert "ask-crump-new-body-v1-r253" in verifier
+    assert "ask-crump-new-body-v1-r254" in verifier
+    assert "activation-cache-r253" in verifier
+    assert "legacyMessageState" in verifier
+    assert "ask-crump-new-body-v1-r252" in historical
+    assert "ask-crump-new-body-v1-r253" in historical
+    assert "askcrump.com" not in verifier.lower()
+    assert "password" not in verifier.lower()
+
+
+def test_reference_review_persistence_upgrade_replaces_r255_without_precaching_product_studio():
+    verifier = read("scripts/verify-reference-fidelity-cache-upgrade.cjs")
+    matrix = read("scripts/verify-browser-control-matrix.mjs")
+
+    assert "ask-crump-new-body-v1-r255" in verifier
+    assert "ask-crump-new-body-v1-r256" in verifier
+    assert "/runtime-body-v1.js?v=5.9.76-reference-review-persistence-1" in verifier
+    assert "/crump-5.0.js?v=5.9.76-reference-review-persistence-1" in verifier
+    assert "/crump-product-loader.js?v=5.9.76-reference-review-persistence-1" in verifier
+    assert "/crump-product-5.3.js?v=5.9.76-reference-review-persistence-1" in verifier
+    assert "/app.js?v=5.9.76-reference-review-persistence-1" in verifier
+    assert "referenceReviewPersistenceDelivered" in verifier
+    assert "productWasPrecached" in verifier
+    assert "verify-reference-fidelity-cache-upgrade.cjs" in matrix
+    assert "verify-server-authoritative-activation-cache-upgrade.cjs" in matrix
+    assert "password" not in verifier.lower()
+
+
+def test_image_intent_handoff_replaces_r258_and_preserves_unmodified_asset_tokens():
+    shell = read("public/app.html")
+    runtime = read("public/runtime-body-v1.js")
+    native = read("scripts/build-native.mjs")
+    worker = read("public/sw.js")
+    checker = read("scripts/check-javascript.mjs")
+    verifier = read("scripts/verify-image-intent-handoff-cache-upgrade.cjs")
+    matrix = read("scripts/verify-browser-control-matrix.mjs")
+
+    handoff_version = "5.9.76-image-intent-handoff-1"
+    landing_asset = f"/landing.js?v={handoff_version}"
+    auth_asset = f"/auth-controller.js?v={handoff_version}"
+    navigation_asset = f"/crump-navigation-5.9.30.js?v={handoff_version}"
+
+    assert "ask-crump-new-body-v1-r258" in verifier
+    assert "ask-crump-new-body-v1-r259" in verifier
+    assert "/landing.js?v=5.9.76-facebook-reel-attribution-1" in verifier
+    assert "/auth-controller.js?v=5.9.76-checkout-owner-reset-1" in verifier
+    assert "/crump-navigation-5.9.30.js?v=5.9.76-autonomous-crump-1" in verifier
+    assert landing_asset in verifier
+    assert auth_asset in verifier
+    assert navigation_asset in verifier
+    assert "/runtime-body-v1.js?v=5.9.76-artifact-card-open-1" in verifier
+    assert "/crump-5.0.js?v=5.9.76-artifact-card-open-1" in verifier
+    assert "/crump-5.0.css?v=5.9.76-exact-overlay-entry-1" in verifier
+    assert "/crump-precision-image-edit-loader.js?v=5.9.76-exact-overlay-entry-1" in verifier
+    assert "imageIntentHandoffDelivered" in verifier
+    assert "artifactCardTokenPreserved" in verifier
+    assert "exactOverlayTokenPreserved" in verifier
+    assert "precisionEditorRemainsLazy" in verifier
+    assert landing_asset in worker
+    assert auth_asset in shell and auth_asset in worker
+    assert navigation_asset in runtime and navigation_asset in native and navigation_asset in worker
+    assert f"${{releaseVersion}}-{handoff_version.removeprefix('5.9.76-')}" in checker
+    assert "verify-image-intent-handoff-cache-upgrade.cjs" in matrix
+    assert "verify-artifact-card-cache-upgrade.cjs" not in matrix

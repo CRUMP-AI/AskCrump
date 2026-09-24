@@ -9,7 +9,15 @@
   </style>
 </head>
 <body>
-  <div id="authContainer" style="display:none"></div>
+  <div id="authContainer" style="display:none">
+    <section id="registerForm" style="display:none">
+      <h1 id="registrationTitle"></h1>
+      <p id="registrationDescription"></p>
+      <button id="registrationSubmitBtn" type="button"></button>
+      <p id="registrationAssurance"></p>
+      <a id="registrationExploreLink" href="/"></a>
+    </section>
+  </div>
   <div id="tosModal" style="display:none"></div>
   <div id="onboardingModal" style="display:none"></div>
   <main id="appContainer" style="display:none">
@@ -19,14 +27,18 @@
 
   <output id="fixtureCalls" aria-label="Creation calls">[]</output>
   <output id="fixtureEvents" aria-label="Analytics events">[]</output>
+  <output id="fixtureForbidden" aria-label="Forbidden side effects">[]</output>
+  <output id="fixtureConsumed" aria-label="Consumed creation intents">[]</output>
   <output id="fixturePending" aria-label="Pending creation intent">waiting</output>
   <output id="fixtureErrors" aria-label="Browser errors">0</output>
 
   <script>
-    window.__fixture = {calls:[], events:[]};
+    window.__fixture = {calls:[], events:[], forbidden:[], consumed:[]};
     const render = () => {
       document.getElementById('fixtureCalls').textContent = JSON.stringify(window.__fixture.calls);
       document.getElementById('fixtureEvents').textContent = JSON.stringify(window.__fixture.events);
+      document.getElementById('fixtureForbidden').textContent = JSON.stringify(window.__fixture.forbidden);
+      document.getElementById('fixtureConsumed').textContent = JSON.stringify(window.__fixture.consumed);
       document.getElementById('fixturePending').textContent = localStorage.getItem('askcrump.pending-creation-intent') || 'cleared';
     };
     const recordError = () => {
@@ -35,7 +47,13 @@
     };
     window.addEventListener('error', recordError);
     window.addEventListener('unhandledrejection', recordError);
-    window.addEventListener('crump:creation-intent-consumed', () => setTimeout(render, 0));
+    window.addEventListener('crump:creation-intent-consumed', event => {
+      window.__fixture.consumed.push({
+        kind:event.detail?.kind,
+        capturedAt:Number(event.detail?.capturedAt || 0),
+      });
+      setTimeout(render, 0);
+    });
     window.addEventListener('crump:plan-intent', event => {
       const detail = event.detail || {};
       window.__fixture.calls.push({tool:'plan', action:'open', plan:detail.plan});
@@ -68,6 +86,16 @@
     window.initializeAuthenticatedApp = () => {};
     window.profileManager = {applyServerSubscription() {}, updateProfile() {}};
     window.CrumpAnalytics = {track: async () => true};
+    window.CrumpBodyV1 = {
+      command(action) { window.__fixture.forbidden.push({action:'body-command', value:action}); },
+    };
+    window.CrumpImageStudio = {
+      open() { window.__fixture.calls.push({tool:'image', action:'open'}); },
+      generate() { window.__fixture.forbidden.push({action:'generate'}); },
+    };
+    window.triggerImageGeneration = () => window.__fixture.forbidden.push({action:'legacy-generate'});
+    window.chargeCredits = () => window.__fixture.forbidden.push({action:'charge'});
+    window.startCheckout = () => window.__fixture.forbidden.push({action:'checkout'});
     window.CrumpDocumentStudio = {
       open() { window.__fixture.calls.push({tool:'document', action:'open'}); },
       select(format, placeholder, purpose) { window.__fixture.calls.push({tool:'document', action:'select', format, placeholder, purpose}); },
@@ -76,7 +104,7 @@
       open(tab) { window.__fixture.calls.push({tool:'product', action:'open', tab}); },
     };
   </script>
-  <script src="/public/crump-navigation-5.9.30.js?v=fixture-creation-intent-2"></script>
-  <script src="/public/auth-controller.js?v=fixture-creation-intent-2"></script>
+  <script src="/public/crump-navigation-5.9.30.js?v=fixture-image-intent-1"></script>
+  <script src="/public/auth-controller.js?v=fixture-image-intent-1"></script>
 </body>
 </html>

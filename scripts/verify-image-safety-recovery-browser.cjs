@@ -42,6 +42,13 @@ const { chromium } = require(playwrightModule);
 
   await page.locator('#userInput').fill('Create a gentle storybook portrait using this reference, with a blue garden background.');
   await page.locator('#sendButton').click();
+  await page.waitForFunction(() => document.querySelector('[aria-label="Image Studio"]'));
+  const beforeConfirmation = await page.evaluate(() => ({
+    ensureUsageCalls: window.__fixture.ensureUsageCalls,
+    sendCalls: window.__fixture.sendCalls,
+  }));
+  await page.getByRole('button', {name: 'Confirm reference plan'}).click();
+  await page.locator('#sendButton').click();
   await page.waitForFunction(() => window.__fixture.sendCalls === 1);
   const revised = await page.evaluate(() => ({
     ensureUsageCalls: window.__fixture.ensureUsageCalls,
@@ -80,6 +87,8 @@ const { chromium } = require(playwrightModule);
     && unchanged.ensureUsageCalls === 0
     && unchanged.sendCalls === 0
     && unchanged.lastToast.includes('Change the wording or reference image')
+    && beforeConfirmation.ensureUsageCalls === 0
+    && beforeConfirmation.sendCalls === 0
     && revised.ensureUsageCalls === 1
     && revised.sendCalls === 1
     && revised.message.includes('blue garden background')
@@ -96,8 +105,8 @@ const { chromium } = require(playwrightModule);
     && consoleErrors.length === 0
   );
   await browser.close();
-  if (!valid) throw new Error(JSON.stringify({restored, unchanged, revised, replacementRestored, replacementBlocked, consoleErrors}));
-  process.stdout.write(`${JSON.stringify({restored, unchanged, revised, replacementRestored, replacementBlocked, consoleErrors})}\n`);
+  if (!valid) throw new Error(JSON.stringify({restored, unchanged, beforeConfirmation, revised, replacementRestored, replacementBlocked, consoleErrors}));
+  process.stdout.write(`${JSON.stringify({restored, unchanged, beforeConfirmation, revised, replacementRestored, replacementBlocked, consoleErrors})}\n`);
 })().catch(error => {
   process.stderr.write(`${error.stack || error}\n`);
   process.exitCode = 1;

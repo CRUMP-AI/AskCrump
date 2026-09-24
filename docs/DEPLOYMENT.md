@@ -89,7 +89,7 @@ Create Stripe recurring prices and configure `/api/stripe/webhook`. Test checkou
 
 ### Native
 
-Create Apple and Google subscription products, then configure RevenueCat products, offerings, entitlements, webhook authentication, and the secret API key. Test purchase, restore, product change, cancellation, billing issue, transfer, and expiration behavior.
+Create Apple and Google subscription products, then configure RevenueCat products, offerings, entitlements, webhook authentication, and the secret API key. Set `CRUMP_ENABLE_NATIVE_BILLING=true` on the backend only after the non-placeholder `REVENUECAT_WEBHOOK_AUTH` and `REVENUECAT_SECRET_API_KEY` are both configured. The default `false` preserves web-only deployments; a staged webhook value alone does not activate provider cleanup for free-user deletion. Test purchase, restore, product change, cancellation, billing issue, transfer, expiration, and account deletion on signed devices.
 
 ## 8. Generate native projects
 
@@ -107,7 +107,7 @@ npm ci
 npm run store:prepare:ios
 ```
 
-These commands create a missing platform, sync Capacitor, generate branded assets, configure the release version and platform requirements, and run platform-specific validation. The generated `ios/` and `android/` directories are ignored; reviewed source and scripts reconstruct them. Use `STORE_BUILD_NUMBER` for a strictly increasing upload build number. See `docs/STORE_LAUNCH_RUNBOOK.md` for signing and store submission.
+These commands create a missing platform, sync Capacitor, generate branded assets, configure the release version and platform requirements, and run platform-specific validation. The generated `ios/` and `android/` directories are ignored; reviewed source and scripts reconstruct them. Use integer `STORE_ANDROID_BUILD_NUMBER` for Google Play and Apple-compatible `STORE_IOS_BUILD_NUMBER` for App Store Connect; each must increase independently. See `docs/STORE_LAUNCH_RUNBOOK.md` for signing and store submission.
 
 ## 9. Configure push notifications
 

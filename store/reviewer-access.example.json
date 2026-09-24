@@ -1,10 +1,16 @@
 {
-  "apple": {
+  "ios": {
     "username": "REPLACE_IN_UNTRACKED_FILE",
     "password": "REPLACE_IN_UNTRACKED_FILE",
+    "contact": {
+      "firstName": "REPLACE_IN_UNTRACKED_FILE",
+      "lastName": "REPLACE_IN_UNTRACKED_FILE",
+      "email": "REPLACE_IN_UNTRACKED_FILE",
+      "phone": "REPLACE_IN_UNTRACKED_FILE"
+    },
     "notes": "Dedicated non-expiring reviewer account; never use a real customer's credentials."
   },
-  "google": {
+  "android": {
     "username": "REPLACE_IN_UNTRACKED_FILE",
     "password": "REPLACE_IN_UNTRACKED_FILE",
     "notes": "Dedicated non-expiring reviewer account; never use a real customer's credentials."

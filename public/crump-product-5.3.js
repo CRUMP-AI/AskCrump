@@ -21,9 +21,13 @@
     videoPollTimer: null,
     videoPollSequence: 0,
     videoStarting: false,
+    videoStartingOwner: '',
     videoReferenceUploading: false,
+    videoReferenceUploadingOwner: '',
     videoReferenceFiles: [],
+    videoReferenceHandoffInvalid: false,
     activeVideoJob: null,
+    activeVideoJobOwner: '',
     libraryFiles: [],
     libraryFilter: 'all',
     libraryQuery: '',
@@ -39,12 +43,22 @@
   const VIDEO_JOB_STORAGE_KEY = 'askcrump.videoJob53';
   const VIDEO_REQUEST_STORAGE_KEY = 'askcrump.videoRequest53';
   const VIDEO_REQUEST_TTL_MS = 30 * 60 * 1000;
+  const VIDEO_REFERENCE_ROLE_OPTIONS = Object.freeze([
+    {value: 'subject', label: 'Subject / product'},
+    {value: 'mascot', label: 'Mascot / character'},
+    {value: 'logo', label: 'Logo / wordmark'},
+    {value: 'style', label: 'Style / palette'},
+  ]);
   const LIBRARY_PAGE_SIZE = 12;
   const conversationProjectCache = new Map();
   const conversationProjectRequests = new Map();
   let conversationContextSequence = 0;
   let storedProjectTargetPromise = null;
   let storedProjectTargetId = '';
+  let activeVideoOwner = String(window.currentUser?.id || '').trim();
+  let videoOwnerEpoch = 0;
+  let legacyVideoVerification = null;
+  const deletedVideoOwners = new Set();
   const FEATURE_ACCESS_CODES = new Set([
     'SUBSCRIPTION_REQUIRED',
     'CREDITS_REQUIRED',
@@ -118,23 +132,105 @@
     window.dispatchEvent(new Event('crump:project-target-changed'));
   }
 
-  function readStoredVideoJob() {
-    try { return localStorage.getItem(VIDEO_JOB_STORAGE_KEY) || ''; }
+  function videoOwner() {
+    return String(window.currentUser?.id || '').trim();
+  }
+
+  function videoStorageKey(base, owner = videoOwner()) {
+    return owner ? `${base}:${encodeURIComponent(owner)}` : '';
+  }
+
+  function isCurrentVideoOwner(owner) {
+    return Boolean(owner) && !deletedVideoOwners.has(owner) && owner === videoOwner();
+  }
+
+  function isCurrentVideoSession(owner, epoch) {
+    return isCurrentVideoOwner(owner) && epoch === videoOwnerEpoch;
+  }
+
+  function syncVideoOwner() {
+    const owner = videoOwner();
+    if (owner === activeVideoOwner) return owner;
+    activeVideoOwner = owner;
+    videoOwnerEpoch += 1;
+    window.CrumpCreditConfirmation?.cancelIfOwnerChanged?.();
+    if (state.videoPollTimer) window.clearTimeout(state.videoPollTimer);
+    state.videoPollTimer = null;
+    state.videoPollSequence += 1;
+    state.videoStarting = false;
+    state.videoStartingOwner = '';
+    state.videoReferenceUploading = false;
+    state.videoReferenceUploadingOwner = '';
+    state.videoReferenceFiles = [];
+    state.videoReferenceHandoffInvalid = false;
+    state.activeVideoJob = null;
+    state.activeVideoJobOwner = '';
+    state.libraryFiles = [];
+    state.libraryVisibleLimit = LIBRARY_PAGE_SIZE;
+    state.features = null;
+    state.projects = [];
+    state.activeProject = null;
+    state.rememberedProjectTarget = null;
+    state.projectConversations = [];
+    state.chatProject = null;
+    projectRefreshPromise = null;
+    projectRefreshOwner = '';
+    const prompt = byId('crump53VideoPrompt');
+    if (prompt) prompt.value = '';
+    const continuationPrompt = byId('crump53ContinuePrompt');
+    if (continuationPrompt) continuationPrompt.value = '';
+    const result = byId('crump53VideoResult');
+    if (result) result.innerHTML = '';
+    const libraryGrid = byId('crump53LibraryGrid');
+    if (libraryGrid) libraryGrid.innerHTML = '';
+    const projectList = byId('crump53ProjectList');
+    if (projectList) projectList.innerHTML = '';
+    for (const id of ['crump53ProjectName', 'crump53ProjectDescription', 'crump53ProjectInstructions']) {
+      const field = byId(id);
+      if (field) field.value = '';
+    }
+    for (const id of ['crump53ProjectHero', 'crump53ProjectContextCard', 'crump53ProjectConversationsCard']) {
+      const card = byId(id);
+      if (card) card.hidden = true;
+    }
+    setProjectView('index', {focus: false});
+    setStatus('crump53VideoStatus', '');
+    setStatus('crump53LibraryStatus', '');
+    renderVideoProjectDestination();
+    updateVideoStudio();
+    setVideoGenerationBusy(Boolean(readStoredVideoJob(owner) || readStoredVideoRequest(owner)?.reconciliationPending));
+    return owner;
+  }
+
+  function readStoredVideoJob(owner = videoOwner()) {
+    if (deletedVideoOwners.has(owner)) return '';
+    const key = videoStorageKey(VIDEO_JOB_STORAGE_KEY, owner);
+    if (!key) return '';
+    try { return localStorage.getItem(key) || ''; }
     catch (_) { return ''; }
   }
 
-  function storeVideoJob(value) {
+  function storeVideoJob(value, owner = videoOwner()) {
+    if (value && deletedVideoOwners.has(owner)) return;
+    const key = videoStorageKey(VIDEO_JOB_STORAGE_KEY, owner);
+    if (!key) return;
     try {
-      if (value) localStorage.setItem(VIDEO_JOB_STORAGE_KEY, value);
-      else localStorage.removeItem(VIDEO_JOB_STORAGE_KEY);
+      if (value) localStorage.setItem(key, value);
+      else localStorage.removeItem(key);
     } catch (_) { /* storage is optional */ }
   }
 
-  function readStoredVideoRequest() {
+  function readStoredVideoRequest(owner = videoOwner()) {
+    if (deletedVideoOwners.has(owner)) return null;
+    const key = videoStorageKey(VIDEO_REQUEST_STORAGE_KEY, owner);
+    if (!key) return null;
     try {
-      const value = JSON.parse(localStorage.getItem(VIDEO_REQUEST_STORAGE_KEY) || 'null');
-      if (!value?.idempotencyKey || Date.now() - Number(value.createdAt || 0) > VIDEO_REQUEST_TTL_MS) {
-        localStorage.removeItem(VIDEO_REQUEST_STORAGE_KEY);
+      const value = JSON.parse(localStorage.getItem(key) || 'null');
+      if (!value?.idempotencyKey || (
+        !value.reconciliationPending
+        && Date.now() - Number(value.createdAt || 0) > VIDEO_REQUEST_TTL_MS
+      )) {
+        localStorage.removeItem(key);
         return null;
       }
       return value;
@@ -143,11 +239,20 @@
     }
   }
 
-  function storeVideoRequest(value) {
+  function storeVideoRequest(value, owner = videoOwner()) {
+    if (value && deletedVideoOwners.has(owner)) return;
+    const key = videoStorageKey(VIDEO_REQUEST_STORAGE_KEY, owner);
+    if (!key) return;
     try {
-      if (value) localStorage.setItem(VIDEO_REQUEST_STORAGE_KEY, JSON.stringify(value));
-      else localStorage.removeItem(VIDEO_REQUEST_STORAGE_KEY);
+      if (value) localStorage.setItem(key, JSON.stringify(value));
+      else localStorage.removeItem(key);
     } catch (_) { /* storage is optional */ }
+  }
+
+  function clearVideoRequestIfMatches(owner, idempotencyKey) {
+    if (readStoredVideoRequest(owner)?.idempotencyKey === idempotencyKey) {
+      storeVideoRequest(null, owner);
+    }
   }
 
   function videoRequestFingerprint(request) {
@@ -159,6 +264,9 @@
       request.durationSeconds,
       request.projectId || '',
       ...(Array.isArray(request.referenceFileIds) ? request.referenceFileIds : []),
+      ...(Array.isArray(request.referencePlan)
+        ? request.referencePlan.map(reference => `${reference?.fileId || ''}:${reference?.role || ''}`)
+        : []),
     ]);
   }
 
@@ -177,12 +285,17 @@
     document.querySelectorAll('[data-video-reference-remove]').forEach(remove => {
       remove.disabled = Boolean(busy);
     });
+    document.querySelectorAll('[data-video-reference-role]').forEach(select => {
+      select.disabled = Boolean(busy);
+    });
   }
 
   async function apiOnce(path, options = {}) {
     const {
       timeoutMs: requestedTimeout = 0,
       signal: callerSignal,
+      owner: requestOwner,
+      ownerEpoch: requestOwnerEpoch,
       ...requestOptions
     } = options;
     const timeoutMs = Math.max(0, Number(requestedTimeout) || 0);
@@ -204,6 +317,11 @@
       requestOptions.body = JSON.stringify(requestOptions.body);
     }
     try {
+      // Credit confirmation may pause and re-run this executor later. Never
+      // send a video charge under a different account/session.
+      if (requestOwner && !isCurrentVideoSession(requestOwner, requestOwnerEpoch)) {
+        throw new Error('Your account changed before this video request. Return to Video Studio to resume safely.');
+      }
       const response = await nativeFetch(path, {
         credentials: 'include',
         ...requestOptions,
@@ -240,12 +358,23 @@
   async function api(path, options = {}) {
     const controller = window.CrumpCreditConfirmation;
     if (!controller?.run) return apiOnce(path, options);
-    return controller.run(confirmation => {
+    return controller.run(async confirmation => {
       const next = {...options};
       if (confirmation && next.body && typeof next.body === 'object') {
         next.body = {...next.body, creditConfirmation: confirmation};
       }
-      return apiOnce(path, next);
+      try {
+        // Return a successful in-flight A job to its caller so it can save
+        // A's scoped recovery handle, even if B signed in meanwhile.
+        return await apiOnce(path, next);
+      } catch (error) {
+        // A quote returned after an account switch must never open a modal
+        // displaying the previous account's balance to the new account.
+        if (options.owner && !isCurrentVideoSession(options.owner, options.ownerEpoch)) {
+          throw new Error('Your account changed before this video request. Return to Video Studio to resume safely.');
+        }
+        throw error;
+      }
     });
   }
 
@@ -736,7 +865,7 @@
                 <label class="crump53-label">Prompt<textarea id="crump53VideoPrompt" class="crump53-textarea" maxlength="3600" placeholder="Describe the scene, subject, camera movement, atmosphere, and sound..."></textarea></label>
                 <div class="crump53-video-reference">
                   <div class="crump53-video-reference-head">
-                    <div><strong id="crump53VideoReferenceLabel">Optional starting image</strong><span id="crump53VideoReferenceHelp">Quick animates one image as the opening frame.</span></div>
+                    <div><strong id="crump53VideoReferenceLabel">Optional starting frame</strong><span id="crump53VideoReferenceHelp">Quick uses one image as the starting frame; the selected role says what to emphasize.</span></div>
                     <button class="crump53-button" type="button" id="crump53AddVideoReference" aria-label="Add video reference image">Add image</button>
                     <input id="crump53VideoReferenceInput" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" hidden>
                   </div>
@@ -929,13 +1058,14 @@
       scheduleManuscriptPoll();
     }
     if (tab === 'video') {
+      syncVideoOwner();
       renderVideoProjectDestination();
       const pendingJob = readStoredVideoJob();
       if (pendingJob) {
         setStatus('crump53VideoStatus', 'Your video is still generating. Crump is checking its saved job now.');
         setVideoGenerationBusy(true);
         pollVideo(pendingJob);
-      }
+      } else void resumePendingVideoJob();
     }
     if (tab === 'library') void window.CrumpLibrary57?.refresh?.();
   }
@@ -953,30 +1083,73 @@
     return engine === 'extendable' ? 3 : 1;
   }
 
+  function normalizeVideoReferenceRole(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    return VIDEO_REFERENCE_ROLE_OPTIONS.some(option => option.value === normalized) ? normalized : 'subject';
+  }
+
+  function videoReferencePlan() {
+    return state.videoReferenceFiles.map(file => ({
+      fileId: String(file.id || ''),
+      role: normalizeVideoReferenceRole(file.role),
+    })).filter(reference => reference.fileId);
+  }
+
   function renderVideoReferences() {
     const grid = byId('crump53VideoReferenceGrid');
     if (!grid) return;
-    grid.innerHTML = state.videoReferenceFiles.map(file => `
-      <div class="crump53-video-reference-card">
+    grid.innerHTML = state.videoReferenceFiles.map(file => {
+      const role = normalizeVideoReferenceRole(file.role);
+      return `
+      <div class="crump53-video-reference-card" data-video-reference-id="${escapeHtml(file.id || '')}">
         <img src="${escapeHtml(file.url || '')}" alt="">
         <span title="${escapeHtml(file.name || 'Reference image')}">${escapeHtml(file.name || 'Reference image')}</span>
+        <label class="crump53-video-reference-role">Use as
+          <select data-video-reference-role="${escapeHtml(file.id || '')}" aria-label="Role for ${escapeHtml(file.name || 'reference image')}">
+            ${VIDEO_REFERENCE_ROLE_OPTIONS.map(option => `<option value="${option.value}"${option.value === role ? ' selected' : ''}>${option.label}</option>`).join('')}
+          </select>
+        </label>
         <button type="button" aria-label="Remove ${escapeHtml(file.name || 'reference image')}" data-video-reference-remove="${escapeHtml(file.id || '')}">Remove</button>
-      </div>`).join('');
+      </div>`;
+    }).join('');
+    grid.querySelectorAll('[data-video-reference-role]').forEach(select => {
+      select.addEventListener('change', () => {
+        const fileId = String(select.dataset.videoReferenceRole || '');
+        const file = state.videoReferenceFiles.find(item => String(item.id) === fileId);
+        if (!file) return;
+        file.role = normalizeVideoReferenceRole(select.value);
+        const engine = byId('crump53VideoEngine')?.value || 'quick';
+        setStatus(
+          'crump53VideoStatus',
+          engine === 'extendable'
+            ? 'Reference role updated. Extendable uses the role as best-effort appearance guidance; review every role, then press Create video to confirm.'
+            : 'Reference role updated. This engine still uses one image as its starting frame; the role tells Crump what to emphasize, not what can be pixel-locked.',
+        );
+      });
+    });
     grid.querySelectorAll('[data-video-reference-remove]').forEach(button => {
       button.addEventListener('click', () => {
         const fileId = String(button.dataset.videoReferenceRemove || '');
         state.videoReferenceFiles = state.videoReferenceFiles.filter(file => String(file.id) !== fileId);
-        renderVideoReferences();
+        updateVideoReferenceMode(byId('crump53VideoEngine')?.value || 'quick');
       });
     });
-    setVideoGenerationBusy(Boolean(state.videoStarting || state.videoReferenceUploading || readStoredVideoJob()));
+    const owner = videoOwner();
+    setVideoGenerationBusy(Boolean(
+      (state.videoStarting && state.videoStartingOwner === owner)
+      || (state.videoReferenceUploading && state.videoReferenceUploadingOwner === owner)
+      || readStoredVideoJob(owner)
+      || readStoredVideoRequest(owner)?.reconciliationPending,
+    ));
   }
 
   async function handleVideoReferenceUpload(event) {
+    const owner = syncVideoOwner();
+    const ownerEpoch = videoOwnerEpoch;
     const input = event?.currentTarget;
     const incoming = [...(input?.files || [])];
     if (input) input.value = '';
-    if (!incoming.length || state.videoReferenceUploading) return;
+    if (!owner || !incoming.length || (state.videoReferenceUploading && state.videoReferenceUploadingOwner === owner)) return;
     const engine = byId('crump53VideoEngine')?.value || 'quick';
     const available = Math.max(0, videoReferenceLimit(engine) - state.videoReferenceFiles.length);
     if (!available) {
@@ -984,6 +1157,7 @@
       return;
     }
     state.videoReferenceUploading = true;
+    state.videoReferenceUploadingOwner = owner;
     setVideoGenerationBusy(true);
     setStatus('crump53VideoStatus', 'Uploading the reference privately…');
     try {
@@ -992,45 +1166,63 @@
           throw new Error('Video references must be image files.');
         }
         if (!window.CrumpFileTools?.upload) throw new Error('Private file upload is still loading. Try again in a moment.');
-        const stored = await window.CrumpFileTools.upload(file);
+        const stored = await window.CrumpFileTools.upload(file, {expectedOwner: owner});
+        if (!isCurrentVideoSession(owner, ownerEpoch)) return;
         if (!stored?.id || !stored?.url) throw new Error('The reference upload did not finish.');
         if (!state.videoReferenceFiles.some(item => String(item.id) === String(stored.id))) {
-          state.videoReferenceFiles.push(stored);
+          state.videoReferenceFiles.push({...stored, role: 'subject'});
         }
       }
       renderVideoReferences();
       const count = state.videoReferenceFiles.length;
+      state.videoReferenceHandoffInvalid = false;
       setStatus('crump53VideoStatus', `${count} private reference image${count === 1 ? '' : 's'} ready.`);
       if (incoming.length > available) {
         window.showToast?.(`Only ${available} image${available === 1 ? '' : 's'} fit this engine's reference limit.`, 'warning');
       }
     } catch (error) {
-      setStatus('crump53VideoStatus', error.message || 'Could not upload that reference image.', true);
+      if (isCurrentVideoSession(owner, ownerEpoch)) setStatus('crump53VideoStatus', error.message || 'Could not upload that reference image.', true);
     } finally {
-      state.videoReferenceUploading = false;
-      setVideoGenerationBusy(Boolean(state.videoStarting || readStoredVideoJob()));
+      if (state.videoReferenceUploadingOwner === owner && isCurrentVideoSession(owner, ownerEpoch)) {
+        state.videoReferenceUploading = false;
+        state.videoReferenceUploadingOwner = '';
+      }
+      if (isCurrentVideoSession(owner, ownerEpoch)) {
+        setVideoGenerationBusy(Boolean(state.videoStarting || readStoredVideoJob(owner)));
+      }
     }
   }
 
   function updateVideoReferenceMode(engine) {
     const limit = videoReferenceLimit(engine);
+    const status = byId('crump53VideoStatus');
     if (state.videoReferenceFiles.length > limit) {
-      state.videoReferenceFiles = state.videoReferenceFiles.slice(0, limit);
-      window.showToast?.('Extra references remain safe in Files but were removed from this video request.', 'info');
+      if (status) status.dataset.videoReferenceLimitError = 'true';
+      setStatus(
+        'crump53VideoStatus',
+        `${engine === 'extendable' ? 'Extendable accepts up to three appearance references.' : 'This engine accepts one starting image.'} Remove ${state.videoReferenceFiles.length - limit} before creating.`,
+        true,
+      );
+    } else if (status?.dataset.videoReferenceLimitError === 'true') {
+      delete status.dataset.videoReferenceLimitError;
+      const count = state.videoReferenceFiles.length;
+      setStatus('crump53VideoStatus', count
+        ? `${count} private reference image${count === 1 ? '' : 's'} ready. Review the engine, then press Create video to confirm.`
+        : 'Add an optional reference image, or create the video from the prompt alone.');
     }
     const input = byId('crump53VideoReferenceInput');
     const label = byId('crump53VideoReferenceLabel');
     const help = byId('crump53VideoReferenceHelp');
     if (input) input.multiple = limit > 1;
     if (engine === 'extendable') {
-      if (label) label.textContent = 'Optional appearance references · up to 3';
-      if (help) help.textContent = 'Use a person, character, product, vehicle, or logo-on-product image to guide appearance across the scene.';
+      if (label) label.textContent = 'Optional appearance guidance · up to 3';
+      if (help) help.textContent = 'Veo Fast uses each assigned role as best-effort appearance guidance, not as a pixel-locked frame or layout.';
     } else if (engine === 'cinematic') {
-      if (label) label.textContent = 'Optional cinematic starting image';
-      if (help) help.textContent = 'Runway animates this image as the first frame of the 5- or 10-second scene.';
+      if (label) label.textContent = 'Optional cinematic starting frame';
+      if (help) help.textContent = 'Runway uses one image as the starting frame; the selected role says what to emphasize.';
     } else {
-      if (label) label.textContent = 'Optional starting image';
-      if (help) help.textContent = 'Veo Lite animates this image as the first frame of the 8-second scene.';
+      if (label) label.textContent = 'Optional starting frame';
+      if (help) help.textContent = 'Veo Lite uses one image as the starting frame; the selected role says what to emphasize.';
     }
     renderVideoReferences();
   }
@@ -1090,8 +1282,9 @@
         costNote.textContent = 'Quick uses Veo Lite. 720p costs 60 credits and 1080p costs 90 credits. Use Extendable when you know the scene needs to keep going.';
       }
     }
-    if (label && state.features) {
-      if (!feature?.configured) label.textContent = engine === 'cinematic' ? 'Runway is not configured yet' : 'Video provider not configured';
+    if (label) {
+      if (!state.features) label.textContent = 'Checking video access…';
+      else if (!feature?.configured) label.textContent = engine === 'cinematic' ? 'Runway is not configured yet' : 'Video provider not configured';
       else if (state.features.internalAccess) label.textContent = 'Founder Lab · metering bypassed';
       else if (!feature?.entitled) label.textContent = `${feature?.minimumTier === 'enterprise' ? 'Enterprise' : 'Professional'} plan required`;
       else label.textContent = `Ready · ${state.features.creditBalance ?? 0} credits`;
@@ -1099,22 +1292,31 @@
   }
 
   async function refreshFeatures() {
+    const owner = syncVideoOwner();
+    const ownerEpoch = videoOwnerEpoch;
     try {
       const data = await api('/api/features');
+      if (!isCurrentVideoSession(owner, ownerEpoch)) return;
       state.features = data;
       updateVideoStudio();
     } catch (_) {
-      state.features = null;
+      if (isCurrentVideoSession(owner, ownerEpoch)) state.features = null;
     }
   }
 
   let projectRefreshPromise = null;
+  let projectRefreshOwner = '';
 
   async function refreshProjects() {
-    if (projectRefreshPromise) return projectRefreshPromise;
-    projectRefreshPromise = (async () => {
+    const owner = syncVideoOwner();
+    if (!owner) return;
+    const ownerEpoch = videoOwnerEpoch;
+    if (projectRefreshPromise && projectRefreshOwner === owner) return projectRefreshPromise;
+    projectRefreshOwner = owner;
+    const requestPromise = (async () => {
       try {
-        const data = await api('/api/projects', {timeoutMs: PROJECT_READ_TIMEOUT_MS});
+        const data = await api('/api/projects', {timeoutMs: PROJECT_READ_TIMEOUT_MS, owner, ownerEpoch});
+        if (!isCurrentVideoSession(owner, ownerEpoch)) return;
         state.projects = Array.isArray(data.projects) ? data.projects : [];
         const stored = state.activeProject?.id || readStoredProject();
         state.activeProject = state.projects.find(item => item.id === stored) || null;
@@ -1139,6 +1341,7 @@
           renderActiveProjectWorkspace({open: false});
         }
       } catch (error) {
+        if (!isCurrentVideoSession(owner, ownerEpoch)) return;
         const message = error.message || 'Could not load Projects.';
         setStatus('crump53ProjectStatus', message, true);
         renderRetryableListError(
@@ -1149,10 +1352,14 @@
         );
       }
     })();
+    projectRefreshPromise = requestPromise;
     try {
-      return await projectRefreshPromise;
+      return await requestPromise;
     } finally {
-      projectRefreshPromise = null;
+      if (projectRefreshPromise === requestPromise) {
+        projectRefreshPromise = null;
+        projectRefreshOwner = '';
+      }
     }
   }
 
@@ -2542,19 +2749,25 @@
     });
     grid.querySelectorAll('[data-library-continue]').forEach(button => {
       button.addEventListener('click', async () => {
+        const owner = syncVideoOwner();
+        const ownerEpoch = videoOwnerEpoch;
+        if (!owner) return;
         const jobId = String(button.dataset.libraryContinue || '');
         if (!jobId) return;
         try {
-          const data = await api(`/api/media/video/${jobId}`);
+          const data = await api(`/api/media/video/${jobId}`, {owner, ownerEpoch});
+          if (!isCurrentVideoSession(owner, ownerEpoch)) return;
           const job = data.job || {};
           if (!job.canContinue) {
             window.showToast?.('That continuation window has closed or the next combined file would exceed the current storage guard.', 'info');
             return;
           }
           openStudio('video');
-          renderReadyVideo(job, true);
+          renderReadyVideo(job, true, owner);
         } catch (error) {
-          window.showToast?.(error.message || 'Could not reopen that video scene.', 'error');
+          if (isCurrentVideoSession(owner, ownerEpoch)) {
+            window.showToast?.(error.message || 'Could not reopen that video scene.', 'error');
+          }
         }
       });
     });
@@ -2570,6 +2783,9 @@
   }
 
   async function refreshLibrary() {
+    const owner = syncVideoOwner();
+    if (!owner) return;
+    const ownerEpoch = videoOwnerEpoch;
     const grid = byId('crump53LibraryGrid');
     if (!grid) return;
     state.libraryVisibleLimit = LIBRARY_PAGE_SIZE;
@@ -2578,10 +2794,12 @@
       grid.innerHTML = '<div class="crump53-library-empty">Loading saved files…</div>';
     }
     try {
-      const data = await api('/api/files?limit=200');
+      const data = await api('/api/files?limit=200', {owner, ownerEpoch});
+      if (!isCurrentVideoSession(owner, ownerEpoch)) return;
       state.libraryFiles = Array.isArray(data.files) ? data.files : [];
       renderLibrary();
     } catch (error) {
+      if (!isCurrentVideoSession(owner, ownerEpoch)) return;
       setStatus('crump53LibraryStatus', error.message || 'Could not load your saved files.', true);
       grid.innerHTML = '<div class="crump53-library-empty is-error">Your files could not be loaded.</div>';
     }
@@ -2589,16 +2807,33 @@
 
   async function startVideo(event, overrides = {}) {
     event?.preventDefault?.();
-    if (state.videoStarting) return;
-    if (state.videoReferenceUploading) {
+    const owner = syncVideoOwner();
+    if (!owner || deletedVideoOwners.has(owner)) return;
+    const ownerEpoch = videoOwnerEpoch;
+    if (state.videoStarting && state.videoStartingOwner === owner) return;
+    if (state.videoReferenceUploading && state.videoReferenceUploadingOwner === owner) {
       setStatus('crump53VideoStatus', 'Wait for the private reference upload to finish before creating the video.', true);
       return;
     }
-    const pendingJob = readStoredVideoJob();
+    if (state.videoReferenceHandoffInvalid) {
+      setStatus('crump53VideoStatus', 'One or more chat reference images could not be loaded. Reattach them before creating the video.', true);
+      return;
+    }
+    const unresolvedRequest = readStoredVideoRequest(owner);
+    const pendingJob = readStoredVideoJob(owner) || (
+      unresolvedRequest?.reconciliationPending ? String(unresolvedRequest.jobId || '') : ''
+    );
     if (pendingJob) {
-      setStatus('crump53VideoStatus', 'Your current video is still generating. Crump is checking that job instead of starting and charging for another.');
+      setStatus('crump53VideoStatus', unresolvedRequest?.reconciliationPending
+        ? 'Your previous video start is being reconciled. Crump is checking its status without starting or charging for another.'
+        : 'Your current video is still generating. Crump is checking that job instead of starting and charging for another.');
       setVideoGenerationBusy(true);
-      pollVideo(pendingJob);
+      pollVideo(pendingJob, owner);
+      return;
+    }
+    if (unresolvedRequest?.reconciliationPending) {
+      setStatus('crump53VideoStatus', 'Your previous video start needs reconciliation. A new video cannot start yet.', true);
+      setVideoGenerationBusy(true);
       return;
     }
     const prompt = String(overrides.prompt ?? byId('crump53VideoPrompt')?.value ?? '');
@@ -2606,6 +2841,18 @@
     const resolution = byId('crump53VideoResolution')?.value || '720p';
     const aspectRatio = byId('crump53VideoAspect')?.value || '16:9';
     const durationSeconds = Number(byId('crump53VideoDuration')?.value || 5);
+    const referenceLimit = videoReferenceLimit(engine);
+    if (state.videoReferenceFiles.length > referenceLimit) {
+      const status = byId('crump53VideoStatus');
+      if (status) status.dataset.videoReferenceLimitError = 'true';
+      setStatus(
+        'crump53VideoStatus',
+        `${engine === 'extendable' ? 'Extendable can use up to three appearance references.' : 'Quick and Cinematic use one starting image.'} Remove ${state.videoReferenceFiles.length - referenceLimit} before creating.`,
+        true,
+      );
+      byId('crump53VideoEngine')?.focus({preventScroll: true});
+      return;
+    }
     const request = {
       prompt,
       engine,
@@ -2614,15 +2861,17 @@
       durationSeconds,
       projectId: state.activeProject?.id || null,
       referenceFileIds: state.videoReferenceFiles.map(file => String(file.id || '')).filter(Boolean),
+      referencePlan: videoReferencePlan(),
     };
     const fingerprint = videoRequestFingerprint(request);
-    const storedRequest = readStoredVideoRequest();
+    const storedRequest = readStoredVideoRequest(owner);
     const idempotencyKey = String(overrides.idempotencyKey || '')
       || (storedRequest?.fingerprint === fingerprint ? storedRequest.idempotencyKey : '')
       || globalThis.crypto?.randomUUID?.()
       || `${Date.now()}-${Math.random()}`;
-    storeVideoRequest({idempotencyKey, fingerprint, createdAt: Date.now()});
+    storeVideoRequest({idempotencyKey, fingerprint, createdAt: Date.now()}, owner);
     state.videoStarting = true;
+    state.videoStartingOwner = owner;
     setVideoGenerationBusy(true);
     try {
       setStatus('crump53VideoStatus', 'Starting video generation…');
@@ -2632,24 +2881,69 @@
         method: 'POST',
         headers: {'X-Idempotency-Key': idempotencyKey},
         body: request,
+        owner,
+        ownerEpoch,
       });
-      storeVideoRequest(null);
-      storeVideoJob(data.job.id);
-      setStatus('crump53VideoStatus', 'Generating… this can take a few minutes. You can close this panel and return.');
-      pollVideo(data.job.id);
+      const currentRequest = readStoredVideoRequest(owner);
+      if (currentRequest && currentRequest.idempotencyKey !== idempotencyKey) return;
+      if (!readStoredVideoJob(owner)) storeVideoJob(data.job.id, owner);
+      if (data.job.reconciliationPending) {
+        storeVideoRequest({
+          idempotencyKey,
+          fingerprint,
+          createdAt: Date.now(),
+          reconciliationPending: true,
+          jobId: data.job.id,
+        }, owner);
+      } else {
+        clearVideoRequestIfMatches(owner, idempotencyKey);
+      }
+      if (!isCurrentVideoSession(owner, ownerEpoch) || readStoredVideoJob(owner) !== data.job.id) return;
+      setStatus('crump53VideoStatus', data.job.reconciliationPending
+        ? 'Your video start is being reconciled. Crump will keep checking without starting another.'
+        : 'Generating… this can take a few minutes. You can close this panel and return.');
+      pollVideo(data.job.id, owner);
     } catch (error) {
-      if (Number(error.status || 0) > 0) storeVideoRequest(null);
+      if (!isCurrentVideoSession(owner, ownerEpoch)) return;
+      const code = featureAccessCode(error);
+      const reconciliationPending = new Set([
+        'VIDEO_START_OUTCOME_UNKNOWN',
+        'VIDEO_JOB_TRACKING_FAILED',
+        'VIDEO_START_RECONCILIATION_PENDING',
+      ]).has(code);
+      if (reconciliationPending) {
+        const jobId = String(error.data?.jobId || '').trim();
+        storeVideoRequest({
+          idempotencyKey,
+          fingerprint,
+          createdAt: Date.now(),
+          reconciliationPending: true,
+          jobId,
+        }, owner);
+        if (jobId) storeVideoJob(jobId, owner);
+        setStatus('crump53VideoStatus',
+          'Your video start is being reconciled. Crump will keep checking; a new video cannot start yet.');
+        setVideoGenerationBusy(true);
+        if (jobId) pollVideo(jobId, owner);
+        return;
+      }
+      if (Number(error.status || 0) > 0) clearVideoRequestIfMatches(owner, idempotencyKey);
       const suffix = error.data?.creditsRequired
         ? ` Needs ${error.data.creditsRequired} credits; balance ${error.data.creditBalance ?? 0}.`
         : '';
       setFeatureAccessStatus('crump53VideoStatus', error, `${error.message}${suffix}`);
       setVideoGenerationBusy(false);
     } finally {
-      state.videoStarting = false;
+      if (state.videoStartingOwner === owner && isCurrentVideoSession(owner, ownerEpoch)) {
+        state.videoStarting = false;
+        state.videoStartingOwner = '';
+      }
     }
   }
 
-  async function retryVideoProjectAttachment(job) {
+  async function retryVideoProjectAttachment(job, owner = videoOwner()) {
+    if (!isCurrentVideoOwner(owner)) return;
+    const ownerEpoch = videoOwnerEpoch;
     const fileId = String(job?.file?.id || '').trim();
     const receipt = job?.projectAttachment || {};
     const projectId = String(receipt.projectId || '').trim();
@@ -2664,7 +2958,10 @@
         method: 'POST',
         body: {fileId, role: 'generated_video'},
         timeoutMs: PROJECT_SAVE_TIMEOUT_MS,
+        owner,
+        ownerEpoch,
       });
+      if (!isCurrentVideoSession(owner, ownerEpoch)) return;
       const updated = {
         ...job,
         file: data.file || job.file,
@@ -2676,19 +2973,22 @@
         },
       };
       window.showToast?.('Video added to its Project.', 'success');
-      renderReadyVideo(updated);
+      renderReadyVideo(updated, false, owner);
       void refreshProjects();
     } catch (error) {
-      window.showToast?.(error.message || 'The video is safe in Files, but its Project link still needs a retry.', 'error');
-      if (button) button.disabled = false;
+      if (isCurrentVideoSession(owner, ownerEpoch)) {
+        window.showToast?.(error.message || 'The video is safe in Files, but its Project link still needs a retry.', 'error');
+        if (button) button.disabled = false;
+      }
     } finally {
-      button?.removeAttribute('aria-busy');
+      if (isCurrentVideoSession(owner, ownerEpoch)) button?.removeAttribute('aria-busy');
     }
   }
 
-  function renderReadyVideo(job, openContinuation = false) {
-    if (!job?.file?.url) return;
+  function renderReadyVideo(job, openContinuation = false, owner = videoOwner()) {
+    if (!job?.file?.url || !isCurrentVideoOwner(owner)) return;
     state.activeVideoJob = job;
+    state.activeVideoJobOwner = owner;
     const attribution = job.attribution && job.attributionUrl
       ? `<a class="crump53-provider-attribution" href="${escapeHtml(job.attributionUrl)}" target="_blank" rel="noopener">${escapeHtml(job.attribution)}</a>`
       : '';
@@ -2731,8 +3031,10 @@
           <div class="crump53-note">Native continuation uses the previous Veo scene as the reference point, adds about 7 seconds, and returns one combined video. 80 credits per continuation.</div>
           <div class="crump53-actions"><button type="button" class="crump53-button is-primary" id="crump53SubmitContinuation">Continue · 80 credits</button><button type="button" class="crump53-button" id="crump53CancelContinuation">Cancel</button></div>
       </div>` : ''}`;
-    byId('crump53OpenVideoProject')?.addEventListener('click', () => void openProject(projectId));
-    byId('crump53RetryVideoProject')?.addEventListener('click', () => void retryVideoProjectAttachment(job));
+    byId('crump53OpenVideoProject')?.addEventListener('click', () => {
+      if (isCurrentVideoOwner(owner)) void openProject(projectId);
+    });
+    byId('crump53RetryVideoProject')?.addEventListener('click', () => void retryVideoProjectAttachment(job, owner));
     byId('crump53OpenLibraryFromVideo')?.addEventListener('click', openProjectFiles);
     byId('crump53ContinueScene')?.addEventListener('click', () => {
       const composer = byId('crump53VideoContinuation');
@@ -2743,13 +3045,16 @@
       const composer = byId('crump53VideoContinuation');
       if (composer) composer.hidden = true;
     });
-    byId('crump53SubmitContinuation')?.addEventListener('click', () => continueVideoScene(job));
+    byId('crump53SubmitContinuation')?.addEventListener('click', () => continueVideoScene(job, owner));
     if (openContinuation && job.canContinue) {
       byId('crump53ContinueScene')?.click();
     }
   }
 
-  async function continueVideoScene(parentJob) {
+  async function continueVideoScene(parentJob, expectedOwner = videoOwner()) {
+    const owner = syncVideoOwner();
+    if (!owner || deletedVideoOwners.has(owner) || owner !== expectedOwner) return;
+    const ownerEpoch = videoOwnerEpoch;
     const prompt = byId('crump53ContinuePrompt')?.value || '';
     const button = byId('crump53SubmitContinuation');
     const idempotencyKey = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
@@ -2760,12 +3065,16 @@
         method: 'POST',
         headers: {'X-Idempotency-Key': idempotencyKey},
         body: {prompt},
+        owner,
+        ownerEpoch,
       });
-      storeVideoJob(data.job.id);
+      if (!readStoredVideoJob(owner)) storeVideoJob(data.job.id, owner);
+      if (!isCurrentVideoSession(owner, ownerEpoch) || readStoredVideoJob(owner) !== data.job.id) return;
       state.activeVideoJob = data.job;
       setStatus('crump53VideoStatus', 'Extending… Crump is preserving the previous scene and building the next seven seconds.');
-      pollVideo(data.job.id);
+      pollVideo(data.job.id, owner);
     } catch (error) {
+      if (!isCurrentVideoSession(owner, ownerEpoch)) return;
       const suffix = error.data?.creditsRequired
         ? ` Needs ${error.data.creditsRequired} credits; balance ${error.data.creditBalance ?? 0}.`
         : '';
@@ -2774,20 +3083,33 @@
     }
   }
 
-  function pollVideo(jobId) {
+  function pollVideo(jobId, owner = videoOwner()) {
+    if (!isCurrentVideoOwner(owner) || !jobId) return;
+    syncVideoOwner();
+    const ownerEpoch = videoOwnerEpoch;
     if (state.videoPollTimer) window.clearTimeout(state.videoPollTimer);
     const sequence = ++state.videoPollSequence;
     setVideoGenerationBusy(true);
     const check = async () => {
-      if (sequence !== state.videoPollSequence) return;
+      if (sequence !== state.videoPollSequence || !isCurrentVideoSession(owner, ownerEpoch)) return;
       try {
-        const data = await api(`/api/media/video/${jobId}`);
-        if (sequence !== state.videoPollSequence) return;
+        const data = await api(`/api/media/video/${encodeURIComponent(jobId)}`, {owner, ownerEpoch});
+        if (sequence !== state.videoPollSequence || !isCurrentVideoSession(owner, ownerEpoch)) return;
         const job = data.job || {};
         state.activeVideoJob = job;
+        state.activeVideoJobOwner = owner;
+        const unresolvedRequest = readStoredVideoRequest(owner);
+        if (job.reconciliationPending) {
+          setStatus('crump53VideoStatus',
+            'Your video start is being reconciled. Crump will keep checking without starting another.');
+          state.videoPollTimer = window.setTimeout(check, 8000);
+          return;
+        }
+        if (unresolvedRequest?.reconciliationPending && unresolvedRequest.jobId === jobId) {
+          clearVideoRequestIfMatches(owner, unresolvedRequest.idempotencyKey);
+        }
         if (job.status === 'ready' && job.file?.url) {
-          storeVideoJob('');
-          storeVideoRequest(null);
+          if (readStoredVideoJob(owner) === jobId) storeVideoJob('', owner);
           setVideoGenerationBusy(false);
           setStatus('crump53VideoStatus', `Saved to Files · ${job.durationSeconds || 8}s · ${job.resolution || '720p'}`);
           renderReadyVideo(job);
@@ -2795,8 +3117,7 @@
           return;
         }
         if (job.status === 'failed') {
-          storeVideoJob('');
-          storeVideoRequest(null);
+          if (readStoredVideoJob(owner) === jobId) storeVideoJob('', owner);
           setVideoGenerationBusy(false);
           const billingMessage = job.chargeReturned
             ? ' Your generation charge was returned.'
@@ -2809,13 +3130,16 @@
           : 'Generating… Crump is checking the provider status.');
         state.videoPollTimer = window.setTimeout(check, 8000);
       } catch (error) {
-        if (sequence !== state.videoPollSequence) return;
+        if (sequence !== state.videoPollSequence || !isCurrentVideoSession(owner, ownerEpoch)) return;
         setStatus('crump53VideoStatus', error.message, true);
         if (error.data?.shouldRetry) {
           state.videoPollTimer = window.setTimeout(check, 10000);
+        } else if (Number(error.status || 0) === 404 && readStoredVideoRequest(owner)?.reconciliationPending) {
+          setStatus('crump53VideoStatus',
+            'Your video start is still being reconciled. Crump will check again before allowing another.', true);
+          state.videoPollTimer = window.setTimeout(check, 10000);
         } else if (Number(error.status || 0) === 404) {
-          storeVideoJob('');
-          storeVideoRequest(null);
+          if (readStoredVideoJob(owner) === jobId) storeVideoJob('', owner);
           setVideoGenerationBusy(false);
         }
       }
@@ -2823,12 +3147,56 @@
     void check();
   }
 
+  async function verifyLegacyVideoJob(owner, jobId) {
+    if (!isCurrentVideoOwner(owner) || !jobId) return;
+    const ownerEpoch = videoOwnerEpoch;
+    const verification = `${owner}:${ownerEpoch}:${jobId}`;
+    if (legacyVideoVerification === verification) return;
+    legacyVideoVerification = verification;
+    const sequence = state.videoPollSequence;
+    try {
+      // The old unscoped key has no owner. A protected GET must prove ownership
+      // before moving it; a different account's 404 must not erase it.
+      const data = await apiOnce(`/api/media/video/${encodeURIComponent(jobId)}`, {owner, ownerEpoch});
+      if (!isCurrentVideoSession(owner, ownerEpoch) || sequence !== state.videoPollSequence) return;
+      if (String(data.job?.id || '') !== jobId || readStoredVideoJob(owner)) return;
+      try {
+        if (localStorage.getItem(VIDEO_JOB_STORAGE_KEY) !== jobId) return;
+        storeVideoJob(jobId, owner);
+        if (readStoredVideoJob(owner) !== jobId) return;
+        localStorage.removeItem(VIDEO_JOB_STORAGE_KEY);
+      } catch (_) { return; }
+      pollVideo(jobId, owner);
+    } catch (_) {
+      // A 404, timeout, or account switch does not establish who owns the key.
+      // Keep it intact for its owner and do not show an error to this account.
+    } finally {
+      if (legacyVideoVerification === verification) legacyVideoVerification = null;
+    }
+  }
+
   function resumePendingVideoJob() {
-    if (!window.currentUser) return;
-    const jobId = readStoredVideoJob();
-    if (!jobId) return;
-    setStatus('crump53VideoStatus', 'Your saved video job is generating. Crump will keep its status current while you explore the app.');
-    pollVideo(jobId);
+    const owner = syncVideoOwner();
+    if (!owner || deletedVideoOwners.has(owner)) return;
+    const unresolvedRequest = readStoredVideoRequest(owner);
+    const jobId = readStoredVideoJob(owner) || (
+      unresolvedRequest?.reconciliationPending ? String(unresolvedRequest.jobId || '') : ''
+    );
+    if (jobId) {
+      setStatus('crump53VideoStatus', unresolvedRequest?.reconciliationPending
+        ? 'Your video start is being reconciled. Crump will keep checking while you explore the app.'
+        : 'Your saved video job is generating. Crump will keep its status current while you explore the app.');
+      pollVideo(jobId, owner);
+      return;
+    }
+    if (unresolvedRequest?.reconciliationPending) {
+      setStatus('crump53VideoStatus', 'Your video start needs reconciliation before another can begin.', true);
+      setVideoGenerationBusy(true);
+      return;
+    }
+    let legacyJob = '';
+    try { legacyJob = localStorage.getItem(VIDEO_JOB_STORAGE_KEY) || ''; } catch (_) {}
+    if (legacyJob) void verifyLegacyVideoJob(owner, legacyJob);
   }
 
   async function openManuscriptWorkspace(workspace) {
@@ -2879,11 +3247,73 @@
     return true;
   }
 
+  function hydrateVideoHandoffReferences(handoff) {
+    const requestedReferences = Array.isArray(handoff?.referenceFiles) ? handoff.referenceFiles : [];
+    const seen = new Set();
+    const references = requestedReferences.flatMap(file => {
+      const id = String(file?.id || '').trim();
+      const type = String(file?.type || '').toLowerCase();
+      if (!id || !type.startsWith('image/') || seen.has(id)) return [];
+      seen.add(id);
+      return [{
+        id,
+        name: String(file?.name || 'Reference image'),
+        type,
+        size: Math.max(0, Number(file?.size || 0)),
+        role: normalizeVideoReferenceRole(file?.role),
+        status: 'ready',
+        url: `/api/files/${encodeURIComponent(id)}/content`,
+      }];
+    });
+    state.videoReferenceFiles = references;
+    state.videoReferenceHandoffInvalid = false;
+    const status = byId('crump53VideoStatus');
+    if (status) delete status.dataset.videoReferenceLimitError;
+    renderVideoReferences();
+    return references;
+  }
+
   async function openVideoCreationHandoff(handoff, {start = false} = {}) {
     const brief = String(handoff?.brief || '').trim();
     openStudio('video');
     const prompt = byId('crump53VideoPrompt');
     if (prompt && brief) prompt.value = brief;
+    const requestedReferenceCount = Array.isArray(handoff?.referenceFiles) ? handoff.referenceFiles.length : 0;
+    const references = hydrateVideoHandoffReferences(handoff);
+    if (requestedReferenceCount !== references.length) {
+      state.videoReferenceHandoffInvalid = true;
+      setStatus(
+        'crump53VideoStatus',
+        `Only ${references.length} of ${requestedReferenceCount} chat reference images could be loaded. Reattach the missing images before creating; the video has not started.`,
+        true,
+      );
+      byId('crump53AddVideoReference')?.focus({preventScroll: true});
+      return true;
+    }
+    if (references.length) {
+      const engine = byId('crump53VideoEngine');
+      if (references.length > 1 && engine) {
+        engine.value = 'extendable';
+        updateVideoStudio();
+      }
+      const modeGuidance = references.length > videoReferenceLimit('extendable')
+        ? `Video engines accept at most three references, so remove ${references.length - videoReferenceLimit('extendable')} before creating.`
+        : references.length > 1
+          ? 'Extendable is selected because it can use up to three images as best-effort appearance references.'
+          : 'Choose Quick or Cinematic to animate this as a starting frame, or Extendable to use it as a best-effort appearance reference.';
+      const status = byId('crump53VideoStatus');
+      if (status) {
+        if (references.length > videoReferenceLimit('extendable')) status.dataset.videoReferenceLimitError = 'true';
+        else delete status.dataset.videoReferenceLimitError;
+      }
+      setStatus(
+        'crump53VideoStatus',
+        `${references.length} chat reference image${references.length === 1 ? '' : 's'} ready. ${modeGuidance} Confirm each reference role, review the engine and images, then press Create video to confirm. Exact logos and readable text are not locked by generative video; use an approved overlay when exact branding matters.`,
+        references.length > videoReferenceLimit('extendable'),
+      );
+      byId('crump53VideoEngine')?.focus({preventScroll: true});
+      return true;
+    }
     if (!start) {
       prompt?.focus({preventScroll: true});
       return true;
@@ -2990,7 +3420,7 @@
     });
     window.addEventListener('online', resumePendingVideoJob);
     window.addEventListener('storage', event => {
-      if (event.key === VIDEO_JOB_STORAGE_KEY && event.newValue) resumePendingVideoJob();
+      if (event.key === videoStorageKey(VIDEO_JOB_STORAGE_KEY) && event.newValue) resumePendingVideoJob();
     });
     const scrollButton = byId('scrollToEndBtn');
     if (scrollButton) scrollButton.title = 'Jump to newest message';
@@ -3026,6 +3456,18 @@
   window.addEventListener('crump:authenticated-ready', () => {
     hydrateAuthenticatedState();
     resumePendingVideoJob();
+  });
+  window.addEventListener('crump:account-deleted', event => {
+    const owner = String(event.detail?.userId || '').trim();
+    if (!owner) return;
+    deletedVideoOwners.add(owner);
+    storeVideoJob('', owner);
+    storeVideoRequest(null, owner);
+    if (videoOwner() === owner) {
+      if (state.videoPollTimer) window.clearTimeout(state.videoPollTimer);
+      state.videoPollTimer = null;
+      state.videoPollSequence += 1;
+    }
   });
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, {once: true});
   else init();

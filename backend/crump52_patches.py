@@ -31,7 +31,13 @@ _FILE_KINDS = {"upload", "generated_image", "generated_document"}
 _FILE_STATUS = {"pending", "ready", "failed"}
 _REQUEST_META_KEYS = {
     "creativeTool", "imageAspect", "imageQuality", "imageUseReference",
+    "imageReferencePlanConfirmed",
     "artifactFormat", "artifactPurpose", "needsSearch", "taskType", "longForm",
+}
+_IMAGE_REFERENCE_ROLES = {"base", "subject", "mascot", "logo", "typography", "style"}
+_REFERENCE_REVIEW_MESSAGES = {
+    "review-required": "Verify logos, wordmarks, readable text, and mascot details before publishing.",
+    "not-applicable": "",
 }
 _METADATA_STRING_LIMITS = {
     "prompt": 4000,
@@ -151,6 +157,56 @@ def _safe_artifact_recovery(value: Any) -> dict[str, Any] | None:
     if str(value.get("purpose") or "").strip().lower() == "resume" and fmt in {"docx", "pdf"}:
         recovery["purpose"] = "resume"
     return recovery
+
+
+def _safe_image_reference_plan(value: Any) -> list[dict[str, str]]:
+    if not isinstance(value, list) or not 1 <= len(value) <= 4:
+        return []
+    result: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for item in value:
+        if not isinstance(item, dict):
+            return []
+        try:
+            file_id = str(uuid.UUID(str(item.get("fileId") or "").strip()))
+        except (ValueError, TypeError, AttributeError):
+            return []
+        role = sync_module.clean_text(item.get("role"), 20).lower()
+        if file_id in seen or role not in _IMAGE_REFERENCE_ROLES:
+            return []
+        seen.add(file_id)
+        result.append({"fileId": file_id, "role": role})
+    return result
+
+
+def _safe_image_reference_receipt(value: Any) -> list[dict[str, Any]]:
+    plan = _safe_image_reference_plan(value)
+    return [
+        {**item, "input": index}
+        for index, item in enumerate(plan, start=1)
+    ]
+
+
+def _safe_reference_review(
+    value: Any,
+    reference_plan: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    if not isinstance(value, dict):
+        return None
+    status = sync_module.clean_text(value.get("status"), 30).lower()
+    if status not in _REFERENCE_REVIEW_MESSAGES:
+        return None
+    if status == "review-required" and not reference_plan:
+        return None
+    if status == "not-applicable" and reference_plan:
+        return None
+    return {
+        "status": status,
+        "method": "manual-review" if status == "review-required" else "none",
+        "humanReviewRequired": status == "review-required",
+        "message": _REFERENCE_REVIEW_MESSAGES[status],
+        "references": reference_plan,
+    }
 
 
 def _safe_project_attachments(value: Any) -> dict[str, dict[str, Any]]:
@@ -277,6 +333,17 @@ def _sanitize_message_v52(item: Any) -> dict[str, Any] | None:
     if manuscript_workspace:
         message["manuscriptWorkspace"] = manuscript_workspace
 
+    if message.get("role") == "assistant":
+        reference_plan = _safe_image_reference_receipt(item.get("referencePlan"))
+        if reference_plan:
+            message["referencePlan"] = reference_plan
+        reference_review = _safe_reference_review(
+            item.get("referenceReview"),
+            reference_plan,
+        )
+        if reference_review:
+            message["referenceReview"] = reference_review
+
     request_meta = item.get("requestMeta") or item.get("request_meta")
     if isinstance(request_meta, dict):
         clean_meta: dict[str, Any] = {}
@@ -294,6 +361,9 @@ def _sanitize_message_v52(item: Any) -> dict[str, Any] | None:
                 cleaned = sync_module.clean_text(value, 100)
                 if cleaned:
                     clean_meta[key] = cleaned
+        image_reference_plan = _safe_image_reference_plan(request_meta.get("imageReferencePlan"))
+        if image_reference_plan:
+            clean_meta["imageReferencePlan"] = image_reference_plan
         if clean_meta:
             message["requestMeta"] = clean_meta
 

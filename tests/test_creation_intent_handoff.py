@@ -57,11 +57,16 @@ def test_creation_intent_survives_auth_without_storing_user_content():
 
     assert "askcrump.pending-creation-intent" in controller
     assert "CREATION_INTENT_TTL_MS = 24 * 60 * 60 * 1000" in controller
-    assert "new Set(['document', 'presentation', 'resume', 'video', 'projects'])" in controller
+    assert "new Set(['document', 'presentation', 'resume', 'image', 'video', 'projects'])" in controller
+    assert "image: {href: '/#use-cases', label: 'See Image Studio details first'}" in controller
+    assert "title: 'Open your Image Studio.'" in controller
+    assert "'Create account & open Image Studio'" in controller
     assert "captureCreationIntent();" in controller
     assert "dispatchPendingCreationIntent();" in controller
     assert "crump:body-runtime-ready" in intent_slice
     assert "crump:creation-intent-consumed" in intent_slice
+    assert "params.has('intent')" in intent_slice
+    assert "Number(event.detail?.capturedAt || 0) !== intent.capturedAt" in intent_slice
     assert "localStorage.removeItem(CREATION_INTENT_KEY)" in intent_slice
     for forbidden in ("prompt", "filename", "email", "message", "response", "chatId"):
         assert forbidden not in intent_slice
@@ -74,18 +79,37 @@ def test_creation_intent_opens_the_exact_non_generating_workspace():
         navigation.index("function openAsk")
     ]
 
-    assert "CREATION_HANDOFF_INTENTS = new Set(['document', 'presentation', 'resume', 'video', 'projects'])" in navigation
+    assert "CREATION_HANDOFF_INTENTS = new Set(['document', 'presentation', 'resume', 'image', 'video', 'projects'])" in navigation
     assert "if (action === 'projects')" in handler
     assert "openProjects();" in handler
     assert "window.CrumpDocumentStudio?.open?.()" in handler
     assert "window.CrumpDocumentStudio?.select?.('pptx'" in handler
     assert "window.CrumpDocumentStudio?.select?.('docx'" in handler
     assert "job requirements you want to match…', 'resume')" in handler
+    assert "typeof window.CrumpImageStudio?.open !== 'function'" in handler
+    assert "window.CrumpImageStudio.open()" in handler
+    assert "window.CrumpBodyV1" not in handler
     assert "window.CrumpProduct53?.open?.('manuscripts')" in handler
     assert "openVideo();" in handler
     assert "CreationIntentContinued" in handler
     assert "crump:creation-intent-consumed" in handler
+    assert "detail: {kind, capturedAt}" in handler
     assert "fetch(" not in handler
+
+
+def test_image_creation_takes_precedence_over_plan_review_after_authentication():
+    controller = read("public/auth-controller.js")
+    precedence = controller[
+        controller.index("function discardPendingPlanIntent") :
+        controller.index("function profileNudgeKey")
+    ]
+
+    assert "localStorage.removeItem(PLAN_INTENT_KEY)" in precedence
+    assert "const creationKind = dispatchPendingCreationIntent();" in precedence
+    assert "if (creationKind === 'image') discardPendingPlanIntent();" in precedence
+    assert "else dispatchPendingPlanIntent();" in precedence
+    assert "url.searchParams.delete('intent')" in controller
+    assert "if (intent.kind === 'image') url.searchParams.delete('plan')" in controller
 
 
 def test_real_controller_fixture_covers_the_authenticated_handoff():
@@ -97,8 +121,27 @@ def test_real_controller_fixture_covers_the_authenticated_handoff():
     assert "get('auth') === '0'" in fixture
     assert "askcrump.pending-creation-intent" in fixture
     assert "fixtureCalls" in fixture
+    assert "fixtureForbidden" in fixture
+    assert "fixtureConsumed" in fixture
     assert "fixtureErrors" in fixture
     assert "format, placeholder, purpose" in fixture
+    assert "window.CrumpImageStudio" in fixture
+    assert "legacy-generate" in fixture
+    assert 'id="registrationSubmitBtn"' in fixture
+
+
+def test_image_auth_handoff_has_same_tab_cross_device_and_fail_closed_browser_proof():
+    verifier = read("scripts/verify-cross-device-verification-handoff.cjs")
+
+    assert "auth=0&signup=1&source=image&plan=professional&intent=image" in verifier
+    assert "verification=success&source=image&plan=professional&intent=image" in verifier
+    assert "verification=success&intent=private-prompt" in verifier
+    assert "Create account & open Image Studio" in verifier
+    assert "See Image Studio details first" in verifier
+    assert "assert.deepEqual(delivered.calls, [{tool: 'image', action: 'open'}])" in verifier
+    assert "assert.deepEqual(result.forbidden, [])" in verifier
+    assert "await current.page.reload" in verifier
+    assert "verifyExistingPresentationPlan" in verifier
 
 
 def test_campaign_attribution_fixture_uses_real_runtime_without_production_writes():

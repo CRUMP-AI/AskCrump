@@ -6,6 +6,8 @@
   let configurationPromise = null;
   let identityPromise = null;
   const CHECKOUT_RECOVERY_KEY = 'askcrump.pending-checkout-recovery';
+  const DELETION_DISCONNECT_KEY = 'askcrump.native-billing-deletion-disconnect-pending';
+  let deletionDisconnectPending = null;
   const CHECKOUT_RECOVERY_TTL_MS = 15 * 60 * 1000;
   const CREDIT_PACKS = new Set(['credits_50', 'credits_150', 'credits_400']);
   const PAID_PLANS = new Set(['professional', 'enterprise']);
@@ -18,6 +20,44 @@
   const platform = () => window.CrumpNative?.Capacitor?.getPlatform?.() || window.Capacitor?.getPlatform?.() || 'web';
   const purchases = () => window.CrumpNative?.Purchases;
   const config = () => window.CRUMP_CONFIG || {};
+
+  function pendingDeletionDisconnect() {
+    if (deletionDisconnectPending) return deletionDisconnectPending;
+    try { return localStorage.getItem(DELETION_DISCONNECT_KEY); } catch (_) { return null; }
+  }
+
+  function hasPendingAccountDeletion() {
+    return Boolean(pendingDeletionDisconnect());
+  }
+
+  function clearDeletionDisconnect() {
+    deletionDisconnectPending = null;
+    try { localStorage.removeItem(DELETION_DISCONNECT_KEY); } catch (_) {}
+  }
+
+  async function prepareAccountDeletion() {
+    if (!native()) return true;
+    const userId = String(window.currentUser?.id || '').trim();
+    if (!userId) return false;
+    deletionDisconnectPending = userId;
+    try {
+      localStorage.setItem(DELETION_DISCONNECT_KEY, userId);
+      return true;
+    } catch (_) {
+      // Without durable local state, disconnect before sending the irreversible
+      // server request. A later configure can realign if that request fails.
+      return disconnect();
+    }
+  }
+
+  function cancelAccountDeletion() {
+    clearDeletionDisconnect();
+  }
+
+  function completeAccountDeletion() {
+    // Called only after SDK logout and local authentication cleanup succeed.
+    clearDeletionDisconnect();
+  }
 
   function stripeDestination(value, kind = 'checkout') {
     const expectedHost = STRIPE_DESTINATION_HOSTS[kind];
@@ -102,6 +142,7 @@
 
   function activeAppUserId() {
     const userId = String(window.currentUser?.id || '').trim();
+    if (userId && userId === pendingDeletionDisconnect()) return null;
     return userId || null;
   }
 
@@ -128,14 +169,34 @@
     return true;
   }
 
+  async function disconnectUnconfirmedIdentity(plugin) {
+    // RevenueCat logout may create an anonymous SDK ID. This only prevents
+    // further use of the unconfirmed account; server deletion remains separate.
+    try {
+      if (typeof plugin.logOut !== 'function') return;
+      await plugin.logOut();
+      configuredUserId = null;
+    } catch (_) {
+      // Keep the last known SDK identity if logout failed. A later billing
+      // entry must still pass a fresh authenticated owner/fence check.
+    }
+  }
+
   async function performAppUserAlignment(plugin, nextUserId) {
     if (nextUserId === configuredUserId) return;
 
     try {
       if (nextUserId) {
+        if (!await recordNativeBillingIdentity(nextUserId)) {
+          throw new Error('Native billing identity was not recorded.');
+        }
         if (typeof plugin.logIn !== 'function') throw new Error('RevenueCat login is unavailable.');
         await plugin.logIn({appUserID: nextUserId});
         configuredUserId = nextUserId;
+        if (!await recordNativeBillingIdentity(nextUserId)) {
+          await disconnectUnconfirmedIdentity(plugin);
+          throw new Error('Native billing account was not confirmed after login.');
+        }
         return;
       }
       if (configuredUserId) {
@@ -151,7 +212,7 @@
   async function alignAppUser(plugin, requestedUserId = undefined) {
     const followsCurrentSession = requestedUserId === undefined;
     const desiredUserId = () => followsCurrentSession ? activeAppUserId() : requestedUserId;
-    while (desiredUserId() !== configuredUserId) {
+    while (identityPromise || desiredUserId() !== configuredUserId) {
       if (!identityPromise) {
         identityPromise = performAppUserAlignment(plugin, desiredUserId()).finally(() => {
           identityPromise = null;
@@ -161,30 +222,105 @@
     }
   }
 
+  async function serverNativeBillingReady() {
+    try {
+      const response = await fetch('/api/billing/native-readiness', {cache: 'no-store'});
+      if (!response.ok) return false;
+      const data = await response.json();
+      return data?.success === true && data?.ready === true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  async function recordNativeBillingIdentity(expectedUserId) {
+    if (!expectedUserId || activeAppUserId() !== expectedUserId) return false;
+    try {
+      const response = await fetch('/api/billing/native-identity', {
+        method: 'POST',
+        cache: 'no-store',
+      });
+      if (!response.ok) return false;
+      const data = await response.json();
+      return data?.success === true && data?.recorded === true &&
+        String(data?.userId || '').trim() === expectedUserId &&
+        activeAppUserId() === expectedUserId;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  async function requireCurrentNativeBillingOwner(expectedUserId) {
+    if (!expectedUserId || configuredUserId !== expectedUserId ||
+        !await recordNativeBillingIdentity(expectedUserId) ||
+        configuredUserId !== expectedUserId) {
+      throw new Error('Store billing could not confirm the signed-in account. Try again.');
+    }
+  }
+
   async function configure() {
     if (!native()) return false;
     await window.CrumpAPI?.ready;
     const plugin = purchases();
     const values = config();
     const key = platform() === 'ios' ? values.revenueCatAppleApiKey : values.revenueCatGoogleApiKey;
-    if (!plugin || !key) return false;
+    if (!plugin) return false;
+
+    const deletedUserId = pendingDeletionDisconnect();
+    if (deletedUserId) {
+      if (!await disconnect()) {
+        throw new Error('Store billing identity could not be cleared after account deletion.');
+      }
+      const currentUserId = String(window.currentUser?.id || '').trim();
+      if (!currentUserId || currentUserId === deletedUserId) return false;
+      clearDeletionDisconnect();
+    }
+
+    // Public SDK keys can ship in an unsigned/native bundle. Never create or
+    // restore a provider identity unless the server confirms it can remove
+    // that identity during account deletion and reconcile purchases.
+    if (!key || !await serverNativeBillingReady()) {
+      return false;
+    }
+    const appUserID = activeAppUserId();
+    // Record the authenticated account before SDK configure can create its
+    // RevenueCat customer. The server retains this evidence for deletion even
+    // if native billing is disabled in a later deployment.
+    if (!appUserID || !await recordNativeBillingIdentity(appUserID)) return false;
 
     if (!configured) {
       if (!configurationPromise) {
-        const appUserID = activeAppUserId();
         configurationPromise = (async () => {
           if (await adoptNativeConfiguration(plugin)) return;
-          await plugin.configure({apiKey: key, ...(appUserID ? {appUserID} : {})});
+          if (activeAppUserId() !== appUserID) {
+            throw new Error('Store billing account changed. Try again.');
+          }
+          // isConfigured can pause while account deletion fences this owner.
+          // Reauthenticate and reread the fence at the SDK boundary, then
+          // confirm again before allowing any billing result to escape.
+          if (!await recordNativeBillingIdentity(appUserID)) {
+            throw new Error('Store billing account is no longer available. Try again.');
+          }
+          await plugin.configure({apiKey: key, appUserID});
           configured = true;
           configuredUserId = appUserID;
+          if (!await recordNativeBillingIdentity(appUserID)) {
+            await disconnectUnconfirmedIdentity(plugin);
+            throw new Error('Store billing account could not be confirmed after configuration.');
+          }
         })().finally(() => {
           configurationPromise = null;
         });
       }
-      await configurationPromise;
     }
+    if (configurationPromise) await configurationPromise;
 
     await alignAppUser(plugin);
+    // Adoption of an already-configured SDK can skip both configure and logIn.
+    // The original marker may be stale after isConfigured/getAppUserID awaits.
+    // Only gate this caller: another authenticated owner may already be using
+    // the singleton, so a stale caller must not log that owner out.
+    await requireCurrentNativeBillingOwner(activeAppUserId());
     return true;
   }
 
@@ -205,6 +341,17 @@
     if (!configured) return true;
     await alignAppUser(plugin, null);
     return true;
+  }
+
+  async function disconnectAfterDeletion() {
+    if (!native()) return true;
+    if (!pendingDeletionDisconnect() && !await prepareAccountDeletion()) return false;
+    try {
+      const disconnected = await disconnect();
+      return disconnected;
+    } catch (_) {
+      return false;
+    }
   }
 
   function packageProduct(item = {}) {
@@ -318,11 +465,13 @@
   async function purchase(tier = 'professional') {
     if (!native()) throw new Error('Native billing is only available in the installed mobile app.');
     if (!(await configure())) {
-      throw new Error('App Store billing is not configured yet. Add the RevenueCat public SDK key before submission.');
+      throw new Error('Store billing is not available right now. Try again later.');
     }
+    const purchaseUserId = configuredUserId;
     const packages = await offeringPackages();
     const selected = packages.find(item => tierForPackage(item) === tier);
     if (!selected) throw new Error('That subscription package is not available from the store.');
+    await requireCurrentNativeBillingOwner(purchaseUserId);
     const result = await purchases().purchasePackage({ aPackage: selected });
     await synchronizeServerEntitlement();
     await refreshStatus();
@@ -332,11 +481,13 @@
   async function purchaseCredits(packCode) {
     if (!native()) throw new Error('Use secure web checkout to purchase credits on the web.');
     if (!(await configure())) {
-      throw new Error('App Store billing is not configured yet.');
+      throw new Error('Store billing is not available right now. Try again later.');
     }
+    const purchaseUserId = configuredUserId;
     const packages = await offeringPackages();
     const selected = packages.find(item => creditPackForPackage(item)?.code === packCode);
     if (!selected) throw new Error('That credit pack is not available from the store yet.');
+    await requireCurrentNativeBillingOwner(purchaseUserId);
     const result = await purchases().purchasePackage({ aPackage: selected });
     // RevenueCat records the consumable purchase. Ask Crump then queries the
     // server-side customer record and grants only transaction IDs it has never
@@ -347,7 +498,8 @@
   }
 
   async function restore() {
-    if (!(await configure())) throw new Error('Native billing is not configured.');
+    if (!(await configure())) throw new Error('Store billing is not available right now. Try again later.');
+    await requireCurrentNativeBillingOwner(configuredUserId);
     const result = await purchases().restorePurchases();
     await synchronizeServerEntitlement();
     await synchronizeServerCredits().catch(() => {});
@@ -381,6 +533,7 @@
   async function manageSubscription() {
     if (native()) {
       if (!(await configure())) throw new Error('Native billing is not configured.');
+      await requireCurrentNativeBillingOwner(configuredUserId);
       const result = await purchases().getCustomerInfo();
       const info = result?.customerInfo || result?.customer_info || result;
       const url = info?.managementURL || info?.managementUrl || info?.management_url;
@@ -488,6 +641,11 @@
     stripeDestination,
     requireStripeDestination,
     disconnect,
+    prepareAccountDeletion,
+    hasPendingAccountDeletion,
+    cancelAccountDeletion,
+    completeAccountDeletion,
+    disconnectAfterDeletion,
     isNative: native,
   };
 })();

@@ -15,6 +15,7 @@ from backend.media_service import (
     IMAGE_EDIT_PROVIDER_MAX_BYTES,
     MediaService,
 )
+from backend.product53_hooks import feature_for_request
 from backend.routes import files as file_routes
 from backend.video_service import VideoService, VideoServiceError
 
@@ -24,6 +25,34 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def read(relative: str) -> str:
     return (ROOT / relative).read_text(encoding="utf-8")
+
+
+def test_attached_image_reference_uses_edit_billing_route() -> None:
+    media = SimpleNamespace(
+        is_image_request=lambda _message, tool: tool == "image",
+        is_edit_request=lambda _message, _rows: False,
+        has_visual_files=lambda rows: bool(rows),
+    )
+    ai = SimpleNamespace(
+        settings=SimpleNamespace(brave_api_key=None, web_search_enabled=False),
+        needs_external_lookup=lambda _message: False,
+    )
+
+    referenced, _ = feature_for_request(
+        payload={"message": "Create a launch ad", "creativeTool": "image"},
+        file_rows=[{"mime_type": "image/png"}],
+        media=media,
+        ai=ai,
+    )
+    fresh, _ = feature_for_request(
+        payload={"message": "Create a launch ad", "creativeTool": "image"},
+        file_rows=[],
+        media=media,
+        ai=ai,
+    )
+
+    assert referenced == "image_edit"
+    assert fresh == "image"
 
 
 def test_edit_source_is_orientation_safe_provider_png() -> None:
@@ -437,7 +466,7 @@ async def test_precision_edit_full_path_sends_provider_mask_and_stores_protected
     )
 
     assert provider_request["endpoint"].endswith("/v1/images/edits")
-    assert set(provider_request["files"]) == {"image[]", "mask"}
+    assert [name for name, _ in provider_request["files"]] == ["image[]", "mask"]
     assert provider_request["data"]["size"] == "1024x1024"
     assert "Do not infer or label race or ethnicity" in provider_request["data"]["prompt"]
     assert "input_fidelity" not in provider_request["data"]
@@ -450,6 +479,106 @@ async def test_precision_edit_full_path_sends_provider_mask_and_stores_protected
         pixels = stored.convert("RGBA")
         assert pixels.getpixel((100, 100)) == source.getpixel((100, 100))
         assert pixels.getpixel((500, 500)) == generated.getpixel((500, 500))
+
+
+class MultiReferenceImageFiles(PrecisionImageFiles):
+    def __init__(self, sources: dict[str, bytes]) -> None:
+        super().__init__(next(iter(sources.values())))
+        self.sources = sources
+        self.downloaded: list[str] = []
+
+    async def download_bytes(self, *, row, max_bytes: int):
+        assert max_bytes == 25 * 1024 * 1024
+        self.downloaded.append(row["id"])
+        return self.sources[row["id"]]
+
+
+def test_explicit_image_reference_plan_requires_confirmation() -> None:
+    with pytest.raises(AIServiceError) as caught:
+        MediaService._image_reference_plan(
+            {
+                "imageReferencePlan": [
+                    {"fileId": "logo-image", "role": "logo"},
+                ],
+            },
+            [{"id": "logo-image", "mime_type": "image/png", "file_name": "logo.png"}],
+        )
+
+    assert caught.value.code == "IMAGE_REFERENCE_CONFIRMATION_REQUIRED"
+
+
+@pytest.mark.asyncio
+async def test_all_confirmed_image_references_reach_edits_in_order_with_roles(monkeypatch) -> None:
+    first = BytesIO()
+    second = BytesIO()
+    third = BytesIO()
+    Image.new("RGB", (64, 64), color=(20, 40, 60)).save(first, format="PNG")
+    Image.new("RGB", (64, 64), color=(210, 190, 120)).save(second, format="PNG")
+    Image.new("RGB", (64, 64), color=(120, 80, 160)).save(third, format="PNG")
+    generated = BytesIO()
+    Image.new("RGB", (64, 64), color=(70, 90, 110)).save(generated, format="PNG")
+    files = MultiReferenceImageFiles({
+        "base-image": first.getvalue(),
+        "logo-image": second.getvalue(),
+        "mascot-image": third.getvalue(),
+    })
+    service = MediaService(
+        SimpleNamespace(openai_api_key="test-only", image_generation_enabled=True, openai_image_model="gpt-image-2"),
+        files,
+    )
+    provider_request: dict = {}
+
+    async def fake_post(client, endpoint, **kwargs):
+        provider_request.update({"endpoint": endpoint, **kwargs})
+        return httpx.Response(
+            200,
+            request=httpx.Request("POST", endpoint),
+            json={"data": [{"b64_json": base64.b64encode(generated.getvalue()).decode("ascii")}]},
+        )
+
+    monkeypatch.setattr(MediaService, "_post_image_request", staticmethod(fake_post))
+    result = await service.generate_or_edit_image(
+        user_id="user-one",
+        payload={
+            "message": "Create a restrained launch ad using these assets",
+            "creativeTool": "image",
+            "imageReferencePlanConfirmed": True,
+            "imageReferencePlan": [
+                {"fileId": "base-image", "role": "base"},
+                {"fileId": "logo-image", "role": "logo"},
+                {"fileId": "mascot-image", "role": "mascot"},
+            ],
+        },
+        file_rows=[
+            {"id": "notes", "mime_type": "application/pdf", "file_name": "notes.pdf"},
+            {"id": "base-image", "mime_type": "image/png", "file_name": "base.png"},
+            {"id": "logo-image", "mime_type": "image/png", "file_name": "logo.png"},
+            {"id": "mascot-image", "mime_type": "image/png", "file_name": "mascot.png"},
+        ],
+        chat_id=None,
+        message_id=None,
+    )
+
+    assert provider_request["endpoint"].endswith("/v1/images/edits")
+    assert [name for name, _ in provider_request["files"]] == ["image[]", "image[]", "image[]"]
+    assert [part[0] for _, part in provider_request["files"]] == [
+        "Crump_Reference_01.png",
+        "Crump_Reference_02.png",
+        "Crump_Reference_03.png",
+    ]
+    assert files.downloaded == ["base-image", "logo-image", "mascot-image"]
+    assert "Input image 1: starting canvas and composition (base)" in provider_request["data"]["prompt"]
+    assert "Input image 2: logo or wordmark identity (logo)" in provider_request["data"]["prompt"]
+    assert "Input image 3: mascot or character identity and appearance (mascot)" in provider_request["data"]["prompt"]
+    assert "do not invent letters" in provider_request["data"]["prompt"]
+    assert files.stored["metadata"]["sourceFileId"] == "base-image"
+    assert files.stored["metadata"]["sourceFileIds"] == ["base-image", "logo-image", "mascot-image"]
+    assert result["referencePlan"] == [
+        {"fileId": "base-image", "role": "base", "input": 1},
+        {"fileId": "logo-image", "role": "logo", "input": 2},
+        {"fileId": "mascot-image", "role": "mascot", "input": 3},
+    ]
+    assert result["referenceReview"]["status"] == "review-required"
 
 
 @pytest.mark.asyncio
@@ -858,15 +987,18 @@ def test_image_studio_exposes_an_optional_reference_and_honest_fidelity_guidance
     studio = script[script.index("function showImageOptions()") : script.index("function showDocumentOptions()")]
 
     for contract in (
-        "Add an image to edit",
-        "Reference image ready",
+        "Add images to guide the result",
+        "reference image${currentReferences.length === 1 ? '' : 's'} ready",
         "Create without reference",
-        "Continue with reference",
-        "Describe what to keep and what to change",
-        "Select the pixels yourself",
+        "Confirm reference plan",
+        "Reference plan · confirm before generating",
+        "Crump sends every confirmed reference as a numbered visual constraint",
         "does not infer race or ethnicity",
-        "placed as overlays for exact fidelity",
+        "use Exact Overlay when original pixels must remain unchanged",
         "Edit one exact area",
+        "Add exact logo or wordmark",
+        "Use the first reference as the canvas, then place approved artwork without AI redrawing",
+        "entryMode: 'overlay'",
         "aria-label', 'Image Studio",
         "aria-label', 'Close Image Studio",
         "aria-modal', 'true",
@@ -877,6 +1009,7 @@ def test_image_studio_exposes_an_optional_reference_and_honest_fidelity_guidance
         assert contract in studio
     assert "reference.innerHTML" not in studio
     assert "referenceDescription.textContent = currentReference" in studio
+    assert "closeMenu();" in studio
     assert "crump50-reference-action" in styles
     assert "crump50-precision-entry" in styles
 
@@ -921,6 +1054,8 @@ def test_precision_editor_is_manual_private_and_pixel_protected() -> None:
         "No person is identified or classified",
         "LOCAL ADJUSTMENTS · NO AI OR CREDITS",
         "EXACT OVERLAY · NO AI OR CREDITS",
+        "Place an exact logo or wordmark",
+        "flattened PNG or WebP wordmark",
         "Place",
         "Add logo or image",
         "Exact overlay image",
@@ -989,22 +1124,37 @@ def test_precision_editor_is_manual_private_and_pixel_protected() -> None:
     assert "input.dispatchEvent(new Event('input', {bubbles: true}))" in composer
     assert "Edit area" in composer
     assert "Precision Edit area" in composer
+    assert "Exact logo" in composer
+    assert "Add exact logo or wordmark without AI redrawing" in composer
+    assert "entryMode: overlayEntry ? 'overlay' : 'precision'" in composer
+    assert "options.returnFocus instanceof HTMLElement" in composer
+    assert "Exact Overlay is unavailable right now. No AI request was started" in composer
+    assert "if (overlayEntry)" in composer
+    assert "restoreRequestedFocus();" in composer
     assert "reflectAppliedImage" in composer
     assert "onApplied: ({file: savedFile})" in composer
+    assert "entryMode = 'precision'" in editor
+    assert "returnFocus = null" in editor
+    assert "modal.dataset.entryMode = normalizedEntryMode" in editor
+    assert "addOverlayImage.focus({preventScroll: true})" in editor
+    assert "normalizedEntryMode === 'overlay'" in editor
+    assert "userNavigatedDuringLoad" in editor
+    assert "document.activeElement !== closeButton" in editor
+    assert "flex-wrap: wrap" in read("public/crump-5.0.css")
     assert "base.width = image.naturalWidth" in editor
     assert "base.height = image.naturalHeight" in editor
     assert "stage.clientWidth" in editor
     assert "stage.clientHeight" in editor
     assert "state.fitWidth = Math.max(1" in editor
     assert "state.fitHeight = Math.max(1" in editor
-    exact_script = "/crump-precision-image-edit.js?v=5.9.76-precision-studio-1"
-    exact_style = "/crump-precision-image-edit.css?v=5.9.76-precision-studio-1"
+    exact_script = "/crump-precision-image-edit.js?v=5.9.76-exact-overlay-entry-1"
+    exact_style = "/crump-precision-image-edit.css?v=5.9.76-exact-overlay-entry-1"
     for asset in (exact_script, exact_style):
         assert asset in loader
         assert asset not in runtime
         assert asset not in worker
         assert asset not in native
-    exact_loader = "/crump-precision-image-edit-loader.js?v=5.9.76-precision-lazy-load-1"
+    exact_loader = "/crump-precision-image-edit-loader.js?v=5.9.76-exact-overlay-entry-1"
     for source in (runtime, worker, native):
         assert exact_loader in source
     assert "CrumpPrecisionImageEditLoader?.load" in composer
@@ -1032,21 +1182,37 @@ def test_image_studio_close_restores_a_visible_opener_or_the_composer() -> None:
     assert "forwardWrapFocus !== 'Close Image Studio'" in verifier
 
 
-def test_image_reference_picker_is_single_image_private_state_and_replaces_only_images() -> None:
+def test_image_reference_picker_is_bounded_multi_image_private_state_with_roles() -> None:
     script = read("public/crump-5.0.js")
     picker = script[script.index("function isImageAttachment") : script.index("function showImageOptions()")]
 
-    assert "selected.slice(0, 1)" in picker
-    assert "const issue = validateFile(selected[0]);" in picker
-    assert "!isSupportedImageFile(selected[0])" in picker
-    assert "if (!replace && state.attachments.length >= MAX_FILES)" in picker
-    assert picker.index("const issue = validateFile(selected[0]);") < picker.index("if (replace) clearImageAttachments();")
+    assert "input.multiple = true" in picker
+    assert "for (const file of selected)" in picker
+    assert "IMAGE_REFERENCE_LIMIT - existingImages" in picker
+    assert "selected.slice(0, available)" in picker
+    assert "{imageReference: true}" in picker
+    assert picker.index("for (const file of selected)") < picker.index("if (replace) clearImageAttachments();")
     assert "if (replace) clearImageAttachments();" in picker
     assert "state.attachments.filter(item => !isImageAttachment(item))" in picker
+    assert "imageReferenceRoleFor" in picker
+    assert "imageReferencePlanConfirmed" in picker
     assert "localStorage" not in picker
     assert "sessionStorage" not in picker
     assert "fetch(" not in picker
     assert "input.accept = 'image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif'" in picker
+
+
+def test_generic_image_attachment_action_requires_plan_before_usage_check() -> None:
+    script = read("public/crump-5.0.js")
+    sender = script[script.index("async function studioSendMessage()") : script.index("async function retryMessage")]
+
+    assert "looksLikeReferenceImageAction(text)" in sender
+    assert "referenceImageAction" in sender
+    assert "draftReferences.length > IMAGE_REFERENCE_LIMIT" in sender
+    assert "Remove ${excess} image${excess === 1 ? '' : 's'} before generating." in sender
+    assert "state.tool = 'image'" in sender
+    assert "Confirm what each reference controls before Crump uses credits." in sender
+    assert sender.index("showImageOptions();") < sender.index("await ensureUsage();")
 
 
 def test_blocked_image_request_has_revision_instead_of_exact_retry_contract() -> None:
@@ -1101,12 +1267,12 @@ def test_video_job_survives_navigation_and_duplicate_submission() -> None:
     for contract in (
         "VIDEO_REQUEST_STORAGE_KEY",
         "videoRequestFingerprint",
-        "if (state.videoStarting) return",
+        "state.videoStartingOwner === owner) return",
         "Your current video is still generating",
         "resumePendingVideoJob",
         "document.addEventListener('visibilitychange'",
         "window.addEventListener('online', resumePendingVideoJob)",
-        "event.key === VIDEO_JOB_STORAGE_KEY",
+        "event.key === videoStorageKey(VIDEO_JOB_STORAGE_KEY)",
     ):
         assert contract in script
 

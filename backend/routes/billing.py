@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from enum import Enum
 import hashlib
 import hmac
 import logging
@@ -40,6 +41,10 @@ REVENUECAT_PROVIDER_STATE_EVENTS = {
     'REFUND_REVERSED',
     'SUBSCRIPTION_EXTENDED',
 }
+
+
+class RevenueCatSyncSkipped(Enum):
+    INACTIVE_ACCOUNT = 'inactive_account'
 
 # Stripe Price IDs are public identifiers, not credentials. Environment variables
 # remain authoritative; these production fallbacks prevent a missing deployment
@@ -837,7 +842,22 @@ async def stripe_webhook(request: Request):
     return {'received': True}
 
 
-async def sync_revenuecat_customer(user_id: str) -> dict[str, Any] | None:
+async def sync_revenuecat_customer(
+    user_id: str,
+) -> dict[str, Any] | RevenueCatSyncSkipped | None:
+    # RevenueCat's GET is get-or-create. Never call it for a missing or
+    # deletion-fenced local identity, including a late webhook delivery.
+    try:
+        active_user = await db.select_one(
+            'users',
+            columns='id',
+            filters={'id': eq(user_id), 'deleted_at': 'is.null'},
+        )
+    except Exception:
+        logger.exception('RevenueCat local identity check failed')
+        return None
+    if not active_user:
+        return RevenueCatSyncSkipped.INACTIVE_ACCOUNT
     if not settings.revenuecat_secret_api_key:
         return None
     import httpx
@@ -924,7 +944,11 @@ async def sync_revenuecat_customer(user_id: str) -> dict[str, Any] | None:
         'subscription_current_period_end': period_end.isoformat() if period_end else None,
         'updated_at': iso_now(),
     }
-    await db.update('users', values, filters={'id': eq(user_id)})
+    updated = await db.update(
+        'users', values, filters={'id': eq(user_id), 'deleted_at': 'is.null'}
+    )
+    if not updated:
+        return RevenueCatSyncSkipped.INACTIVE_ACCOUNT
     return values
 
 
@@ -932,6 +956,11 @@ async def sync_revenuecat_customer(user_id: str) -> dict[str, Any] | None:
 async def revenuecat_sync(request: Request):
     auth = await authenticate_request(request, db, settings)
     values = await sync_revenuecat_customer(auth.user['id'])
+    if values is RevenueCatSyncSkipped.INACTIVE_ACCOUNT:
+        return JSONResponse(
+            status_code=409,
+            content={'success': False, 'code': 'ACCOUNT_UNAVAILABLE'},
+        )
     if values is None:
         return JSONResponse(
             status_code=503,
@@ -943,6 +972,86 @@ async def revenuecat_sync(request: Request):
         )
     auth.user.update(values)
     return {'success': True, 'user': public_user(auth.user)}
+
+
+@router.post('/api/billing/native-identity')
+async def record_native_billing_identity(request: Request):
+    """Persist owner-scoped cleanup evidence before the native SDK starts."""
+    auth = await authenticate_request(request, db, settings)
+    if not settings.native_billing_enabled:
+        return JSONResponse(
+            status_code=503,
+            content={'success': False, 'code': 'NATIVE_BILLING_NOT_READY'},
+            headers={'Cache-Control': 'no-store'},
+        )
+
+    user_id = str(auth.user['id'])
+    marked_at = iso_now()
+    try:
+        await db.update(
+            'users',
+            {
+                'native_billing_identity_possible_at': marked_at,
+                'updated_at': marked_at,
+            },
+            filters={
+                'id': eq(user_id),
+                'deleted_at': 'is.null',
+                'account_deletion_token': 'is.null',
+                'native_billing_identity_possible_at': 'is.null',
+            },
+            retry_transient=True,
+        )
+    except Exception:
+        # A lost response is ambiguous: Postgres may have committed the write.
+        # Only a fresh owner-scoped readback can authorize SDK configuration.
+        logger.exception('Native billing identity marker write was ambiguous')
+
+    try:
+        current = await db.select_one(
+            'users',
+            columns=(
+                'id,deleted_at,account_deletion_token,'
+                'native_billing_identity_possible_at'
+            ),
+            filters={'id': eq(user_id)},
+        )
+    except Exception:
+        logger.exception('Native billing identity marker readback failed')
+        return JSONResponse(
+            status_code=503,
+            content={'success': False, 'code': 'NATIVE_IDENTITY_MARK_UNCONFIRMED'},
+            headers={'Cache-Control': 'no-store'},
+        )
+
+    if not current or current.get('deleted_at') or current.get('account_deletion_token'):
+        return JSONResponse(
+            status_code=409,
+            content={'success': False, 'code': 'ACCOUNT_UNAVAILABLE'},
+            headers={'Cache-Control': 'no-store'},
+        )
+    if current and current.get('native_billing_identity_possible_at'):
+        return JSONResponse(
+            content={'success': True, 'recorded': True, 'userId': user_id},
+            headers={'Cache-Control': 'no-store'},
+        )
+    return JSONResponse(
+        status_code=503,
+        content={'success': False, 'code': 'NATIVE_IDENTITY_MARK_UNCONFIRMED'},
+        headers={'Cache-Control': 'no-store'},
+    )
+
+
+@router.get('/api/billing/native-readiness')
+async def native_billing_readiness():
+    # Public, content-free release signal. The client must not initialize the
+    # RevenueCat SDK (which can create a customer) unless this backend has
+    # deliberately enabled native billing and its cleanup credentials passed
+    # startup validation. Do not expose the credentials or account state.
+    return JSONResponse(
+        content={'success': True, 'ready': settings.native_billing_enabled},
+        headers={'Cache-Control': 'no-store'},
+    )
 
 
 @router.get('/api/billing/status')
@@ -1042,6 +1151,8 @@ async def revenuecat_webhook(request: Request):
         return {'success': True}
 
     reconciled = await sync_revenuecat_customer(user_id)
+    if reconciled is RevenueCatSyncSkipped.INACTIVE_ACCOUNT:
+        return {'success': True}
     if reconciled is not None:
         return {'success': True}
 
@@ -1118,6 +1229,6 @@ async def revenuecat_webhook(request: Request):
             'subscription_current_period_end': period_end,
             'updated_at': iso_now(),
         },
-        filters={'id': eq(user_id)},
+        filters={'id': eq(user_id), 'deleted_at': 'is.null'},
     )
     return {'success': True}

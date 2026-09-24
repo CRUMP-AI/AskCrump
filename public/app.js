@@ -10,7 +10,6 @@ const BASE_STORAGE_KEYS = Object.freeze({
     WORK_START: 'crump_work_start',
     WORK_END: 'crump_work_end',
     HAS_ONBOARDED: 'crump_has_onboarded',
-    ACTIVATION_RECORDED: 'crump_activation_recorded',
     PROFILE_NUDGE_DISMISSED: 'crump_profile_nudge_dismissed'
 });
 const STORAGE_KEYS = { ...BASE_STORAGE_KEYS };
@@ -40,6 +39,7 @@ let chats = [];
 let currentChatId = null;
 let currentProfile = null;
 let selectedFiles = [];
+let composerFileOwner = String(window.currentUser?.id || '').trim();
 let isProcessing = false;
 let freshConversationRequested = false;
 let settingsBaselineSignature = '';
@@ -106,6 +106,7 @@ function isPristineChat(chat) {
 
 // Authenticated lifecycle
 window.initializeAuthenticatedApp = function(user) {
+    resetComposerFilesForOwner(user?.id);
     // Store user info globally and isolate this account's offline cache.
     window.currentUser = user;
     window.configureUserStorage?.(user.id);
@@ -590,7 +591,7 @@ function completeUserMessage(chat, userMessage, data) {
         origin: 'reply',
         inReplyTo: userMessage.id,
     };
-    for (const key of ['imageUrl', 'imagePrompt', 'imageFile', 'artifact', 'artifactRecovery', 'projectAttachments', 'manuscriptWorkspace', 'creationHandoff', 'intelligence']) {
+    for (const key of ['imageUrl', 'imagePrompt', 'imageFile', 'referencePlan', 'referenceReview', 'artifact', 'artifactRecovery', 'projectAttachments', 'manuscriptWorkspace', 'creationHandoff', 'intelligence']) {
         if (assistantMessage[key] == null && data[key] != null) assistantMessage[key] = data[key];
     }
     const existingIndex = chat.messages.findIndex(item =>
@@ -612,7 +613,6 @@ function completeUserMessage(chat, userMessage, data) {
     window.CrumpPresence?.haptic?.('success');
     runCompletedCreationHandoffInBackground(data);
     syncCompletedReplyInBackground();
-    void recordFirstSuccessfulResponse();
     setTimeout(() => { void window.CrumpLifecycle?.evaluate?.({force: true}); }, 1200);
 }
 
@@ -633,14 +633,6 @@ function applyCompletedReplySafely(chat, userMessage, data) {
         } catch (_) {}
         return false;
     }
-}
-
-async function recordFirstSuccessfulResponse() {
-    if (SafeStorage.getItem(STORAGE_KEYS.ACTIVATION_RECORDED) === 'true') return;
-    const recorded = await window.CrumpAnalytics?.track?.('ActivationReached', {
-        eventKey: 'first-successful-response',
-    });
-    if (recorded) SafeStorage.setItem(STORAGE_KEYS.ACTIVATION_RECORDED, 'true');
 }
 
 async function processUserMessage(chat, userMessage, attachment = null) {
@@ -951,6 +943,16 @@ function displayFilePreview() {
     preview.appendChild(summary);
 }
 
+function resetComposerFilesForOwner(userId) {
+    const owner = String(userId || '').trim();
+    if (owner === composerFileOwner) return;
+    composerFileOwner = owner;
+    selectedFiles = [];
+    const input = document.getElementById('fileInput');
+    if (input) input.value = '';
+    displayFilePreview();
+}
+
 window.removeFile = function removeFile(index) {
     selectedFiles.splice(index, 1);
     displayFilePreview();
@@ -1254,6 +1256,7 @@ function loadSettingsValues() {
 }
 
 window.addEventListener('crump:authenticated-ready', () => {
+    resetComposerFilesForOwner(window.currentUser?.id);
     const modal = document.getElementById('settingsModal');
     if (modal && getComputedStyle(modal).display !== 'none') scheduleSettingsIdentityPresentation();
 });

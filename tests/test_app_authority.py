@@ -13,6 +13,18 @@ from backend.security import hash_password
 client = TestClient(app_module.app)
 
 
+def consented_user(**values):
+    return {
+        'id': 'user-1',
+        'email': 'owner@example.com',
+        'full_name': 'Owner',
+        'ai_data_sharing_consent_at': '2026-09-17T23:55:00+00:00',
+        'ai_data_sharing_consent_version': '2026-09-17',
+        'ai_data_sharing_consent_revoked_at': None,
+        **values,
+    }
+
+
 class FakeDB:
     def __init__(self):
         self.rpc_calls = []
@@ -22,8 +34,10 @@ class FakeDB:
             return {'assistant_name': 'Server Crump', 'work_mode': True}
         return None
 
-    async def rpc(self, name, payload):
+    async def rpc(self, name, payload, **_kwargs):
         self.rpc_calls.append((name, payload))
+        if name == 'begin_video_account_deletion':
+            return True
         return None
 
 
@@ -75,18 +89,24 @@ class FakeFeatures:
 def test_chat_identity_and_settings_are_server_authoritative(monkeypatch):
     fake_db = FakeDB()
     fake_ai = FakeAI()
+    events = []
 
     async def fake_authenticate(*_args, **_kwargs):
         return SimpleNamespace(
-            user={'id': 'user-1', 'email': 'owner@example.com', 'full_name': 'Owner'},
+            user=consented_user(),
             session={'id': 'session-1'},
             token='token',
         )
+
+    async def record_event(*_args, **kwargs):
+        events.append(dict(kwargs))
+        return True
 
     monkeypatch.setattr(chat_routes, 'db', fake_db)
     monkeypatch.setattr(chat_routes, 'ai', fake_ai)
     monkeypatch.setattr(chat_routes, 'features', FakeFeatures())
     monkeypatch.setattr(chat_routes, 'authenticate_request', fake_authenticate)
+    monkeypatch.setattr(chat_routes, 'record_product_event', record_event)
 
     response = client.post('/api/chat', json={
         'message': 'hello',
@@ -98,12 +118,9 @@ def test_chat_identity_and_settings_are_server_authoritative(monkeypatch):
     assert response.status_code == 200
     assert fake_ai.payload['assistantName'] == 'Server Crump'
     assert fake_ai.payload['workMode'] == 'work'
-    assert fake_ai.payload['user'] == {
-        'id': 'user-1',
-        'email': 'owner@example.com',
-        'name': 'Owner',
-    }
+    assert 'user' not in fake_ai.payload
     assert fake_ai.payload['_userTier'] == 'free'
+    assert all(event.get('event_name') != 'ActivationReached' for event in events)
 
 
 def test_chat_packages_contextual_download_follow_up_when_semantic_router_is_unavailable(monkeypatch):
@@ -114,7 +131,7 @@ def test_chat_packages_contextual_download_follow_up_when_semantic_router_is_una
 
     async def fake_authenticate(*_args, **_kwargs):
         return SimpleNamespace(
-            user={'id': 'user-1', 'email': 'owner@example.com', 'full_name': 'Owner'},
+            user=consented_user(),
             session={'id': 'session-1'},
             token='token',
         )
@@ -215,10 +232,11 @@ def test_durable_document_reply_survives_chat_job_cache_finalization_failure(mon
     fake_db = FinalizationCacheFailureDB()
     fake_ai = FakeAI()
     refunds = AsyncMock(return_value=None)
+    events = []
 
     async def fake_authenticate(*_args, **_kwargs):
         return SimpleNamespace(
-            user={'id': 'user-1', 'email': 'owner@example.com', 'full_name': 'Owner'},
+            user=consented_user(),
             session={'id': 'session-1'},
             token='token',
         )
@@ -243,7 +261,10 @@ def test_durable_document_reply_survives_chat_job_cache_finalization_failure(mon
             'status': 'ready',
         }
 
-    async def ignore_event(*_args, **_kwargs):
+    async def record_event(*_args, **kwargs):
+        if kwargs.get('event_name') == 'ActivationReached':
+            assert fake_db.persisted_reply is not None
+        events.append(dict(kwargs))
         return True
 
     fake_intelligence = SimpleNamespace(
@@ -273,7 +294,7 @@ def test_durable_document_reply_survives_chat_job_cache_finalization_failure(mon
     monkeypatch.setattr(chat_routes, 'authenticate_request', fake_authenticate)
     monkeypatch.setattr(chat_routes, 'apply_project_context', AsyncMock(return_value=None))
     monkeypatch.setattr(chat_routes, 'mark_check_in_responded', AsyncMock(return_value=None))
-    monkeypatch.setattr(chat_routes, 'record_product_event', ignore_event)
+    monkeypatch.setattr(chat_routes, 'record_product_event', record_event)
     monkeypatch.setattr(chat_routes, 'refund_usage', refunds)
     monkeypatch.setattr(type(chat_routes.artifacts), 'create', fake_create)
 
@@ -292,11 +313,40 @@ def test_durable_document_reply_survives_chat_job_cache_finalization_failure(mon
     assert body['conversationRevision'] == 8
     assert fake_db.persisted_reply['p_assistant_message']['artifact']['id'] == body['artifact']['id']
     assert any(table == 'chat_jobs' and payload.get('status') == 'completed' for table, payload in fake_db.update_calls)
+    assert any(
+        event.get('event_name') == 'ActivationReached'
+        and event.get('event_key') == 'first-successful-response'
+        for event in events
+    )
     refunds.assert_not_awaited()
 
 
 def test_account_deletion_uses_atomic_database_rpc(monkeypatch):
     fake_db = FakeDB()
+    cleanup = AsyncMock(return_value=0)
+    job = {
+        'user_id': 'user-2',
+        'operation_token': '00000000-0000-4000-8000-000000000002',
+    }
+    begin = AsyncMock(return_value=job)
+
+    async def confirm_video_fence(*, user_id, operation_token):
+        return await fake_db.rpc(
+            'begin_video_account_deletion',
+            {'p_user_id': user_id, 'p_operation_token': operation_token},
+        )
+
+    async def process(operation):
+        assert operation == job
+        await cleanup(user_id='user-2')
+        await fake_db.rpc('delete_user_account', {'p_user_id': 'user-2'})
+        return SimpleNamespace(account_deleted=True, cleanup_complete=False)
+
+    deletion_service = SimpleNamespace(
+        confirm_video_fence=AsyncMock(side_effect=confirm_video_fence),
+        begin=begin,
+        process=AsyncMock(side_effect=process),
+    )
     password_hash = hash_password('StrongPassword123')
 
     async def fake_authenticate(*_args, **_kwargs):
@@ -307,6 +357,7 @@ def test_account_deletion_uses_atomic_database_rpc(monkeypatch):
         )
 
     monkeypatch.setattr(account_routes, 'db', fake_db)
+    monkeypatch.setattr(account_routes, 'account_deletions', deletion_service)
     monkeypatch.setattr(account_routes, 'authenticate_request', fake_authenticate)
 
     response = client.request('DELETE', '/api/account', json={
@@ -315,4 +366,11 @@ def test_account_deletion_uses_atomic_database_rpc(monkeypatch):
     })
 
     assert response.status_code == 200
-    assert fake_db.rpc_calls == [('delete_user_account', {'p_user_id': 'user-2'})]
+    assert [name for name, _ in fake_db.rpc_calls] == [
+        'begin_video_account_deletion', 'delete_user_account',
+    ]
+    assert fake_db.rpc_calls[0][1]['p_user_id'] == 'user-2'
+    token = fake_db.rpc_calls[0][1]['p_operation_token']
+    assert token
+    begin.assert_awaited_once_with(user_id='user-2', operation_token=token)
+    cleanup.assert_awaited_once_with(user_id='user-2')

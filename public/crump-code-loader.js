@@ -5,7 +5,7 @@
   window.__crumpCodeLoaderLoaded = true;
 
   const STYLE_URL = '/crump-code-5.9.35.css?v=5.9.76-intelligence-architecture-1';
-  const SCRIPT_URL = '/crump-code-5.9.35.js?v=5.9.76-credit-confirmation-1';
+  const SCRIPT_URL = '/crump-code-5.9.35.js?v=5.9.76-autonomous-crump-1';
   let featureStatus = null;
   let availabilityPromise = null;
   let workspacePromise = null;
@@ -14,7 +14,7 @@
     document.querySelectorAll('[data-crump-code-destination]').forEach(destination => {
       destination.hidden = true;
       destination.classList.remove('is-locked');
-      destination.setAttribute('aria-label', 'Code');
+      destination.setAttribute('aria-label', 'Autonomous Crump');
     });
     document.body.classList.remove('crump-code-configured');
   }

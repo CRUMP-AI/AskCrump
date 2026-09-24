@@ -1,0 +1,73 @@
+name: Video Provider Deletion Fence PostgreSQL
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/video-provider-deletion-fence-postgres.yml
+      - staging/video_provider_deletion_fence.sql
+      - scripts/verify-video-provider-deletion-fence-postgres.sh
+      - tests/postgres/video_provider_deletion_fence_bootstrap.sql
+      - tests/postgres/video_provider_deletion_fence_verify.sql
+      - tests/test_video_deletion_fence_postgres_harness.py
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/video-provider-deletion-fence-postgres.yml
+      - staging/video_provider_deletion_fence.sql
+      - scripts/verify-video-provider-deletion-fence-postgres.sh
+      - tests/postgres/video_provider_deletion_fence_bootstrap.sql
+      - tests/postgres/video_provider_deletion_fence_verify.sql
+      - tests/test_video_deletion_fence_postgres_harness.py
+
+concurrency:
+  group: video-provider-deletion-fence-postgres-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify-real-postgres:
+    name: PostgreSQL 17 race and security verification
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17-bookworm
+        env:
+          POSTGRES_DB: askcrump_video_fence_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d askcrump_video_fence_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      ASKCRUMP_DISPOSABLE_POSTGRES: "1"
+      PGHOST: 127.0.0.1
+      PGPORT: "5432"
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: askcrump_video_fence_test
+    steps:
+      - uses: actions/checkout@v7
+      - name: Record disposable PostgreSQL version
+        run: psql --no-psqlrc --set=ON_ERROR_STOP=1 --command "select version();"
+      - name: Verify deletion fence against real PostgreSQL
+        run: bash scripts/verify-video-provider-deletion-fence-postgres.sh
+      - name: Record verification scope
+        run: |
+          {
+            echo '## Video provider deletion-fence verification'
+            echo
+            echo '- Compiled the source-only candidate on an official disposable PostgreSQL 17 service.'
+            echo '- Exercised explicit legacy-data preflight rollback, backfill, fail-closed grants/RLS, trigger gates, and idempotent RPC responses.'
+            echo '- Observed both user-row lock orderings and both acceptance/delete orderings with separate connections.'
+            echo '- Proved reconciliation leases skip locked work and remain token-owned.'
+            echo '- Used only fixed local test credentials; no Supabase or production connection was available.'
+          } >> "$GITHUB_STEP_SUMMARY"

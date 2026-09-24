@@ -2,8 +2,7 @@ name: iOS Store Source Verification
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
+  pull_request:
     paths:
       - .github/workflows/ios-store-verify.yml
       - package.json
@@ -30,6 +29,36 @@ on:
       - resources/splash.png
       - store/submission-evidence.android.example.json
       - store/submission-evidence.ios.example.json
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/ios-store-verify.yml
+      - package.json
+      - package-lock.json
+      - capacitor.config.ts
+      - public/**
+      - backend/revenuecat_catalog.json
+      - store/**
+      - docs/STORE_LISTING_COPY.md
+      - docs/BILLING_5_1.md
+      - docs/DATA_SAFETY.md
+      - scripts/build-native.mjs
+      - scripts/check-javascript.mjs
+      - scripts/configure-native.mjs
+      - scripts/native-api-origin.mjs
+      - scripts/prepare-store-release.mjs
+      - scripts/production-build-preflight.mjs
+      - scripts/revenuecat-catalog.mjs
+      - scripts/verify-mobile-signing.mjs
+      - scripts/verify-native-release.mjs
+      - scripts/verify-native-privacy.mjs
+      - scripts/verify-store-metadata.mjs
+      - scripts/verify-store-submission-packet.mjs
+      - resources/PrivacyInfo.xcprivacy
+      - resources/icon.png
+      - resources/splash.png
+      - store/submission-evidence.android.example.json
+      - store/submission-evidence.ios.example.json
 
 concurrency:
   group: ios-store-source-${{ github.ref }}
@@ -40,8 +69,8 @@ permissions:
 
 jobs:
   verify-ios-source:
-    name: Generate and compile unsigned iOS candidate
-    runs-on: macos-15
+    name: Generate and compile unsigned iOS structural candidate (not release-ready)
+    runs-on: macos-26
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
@@ -49,11 +78,26 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-      - name: Record Apple toolchain
-        run: xcodebuild -version
+      - name: Require the current App Store toolchain
+        run: |
+          xcodebuild -version
+          xcode_version="$(xcodebuild -version | awk 'NR == 1 { print $2 }')"
+          xcode_major="${xcode_version%%.*}"
+          ios_sdk_version="$(xcrun --sdk iphoneos --show-sdk-version)"
+          ios_sdk_major="${ios_sdk_version%%.*}"
+          if [[ ! "$xcode_major" =~ ^[0-9]+$ ]] || (( xcode_major < 26 )); then
+            echo "App Store candidates require Xcode 26 or later; found ${xcode_version:-unknown}." >&2
+            exit 1
+          fi
+          if [[ ! "$ios_sdk_major" =~ ^[0-9]+$ ]] || (( ios_sdk_major < 26 )); then
+            echo "App Store candidates require the iOS 26 SDK or later; found ${ios_sdk_version:-unknown}." >&2
+            exit 1
+          fi
       - name: Install locked dependencies
         run: npm ci --no-audit --no-fund
-      - name: Generate and verify iOS release source
+      - name: Generate and verify unsigned iOS structural source (not release-ready)
+        env:
+          STORE_ALLOW_MISSING_PUBLIC_BILLING_KEYS: "1"
         run: npm run store:prepare:ios
       - name: Verify tracked signing controls
         run: npm run store:signing:check
@@ -93,8 +137,10 @@ jobs:
             echo '## Ask Crump iOS source verification'
             echo
             echo '- Generated from the reviewed Node 22 lockfile.'
+            echo '- Used Xcode 26.3 with an asserted Xcode 26+ and iOS 26+ SDK toolchain.'
             echo '- Native source verifier passed.'
             echo '- Xcode compiled the Release configuration without signing.'
             echo '- The compiled app and Capacitor bundles contain valid, reconciled privacy manifests.'
+            echo '- Missing RevenueCat public billing keys were explicitly allowed for structural CI; this output is not release-ready.'
             echo '- No certificate, provisioning profile, App Store credential, upload, or submission was used.'
           } >> "$GITHUB_STEP_SUMMARY"

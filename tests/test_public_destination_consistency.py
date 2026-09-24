@@ -102,7 +102,8 @@ def test_homepage_video_button_opens_video_studio_after_account_entry():
     controller = read("public/auth-controller.js")
     assert "title: 'Open your Video Studio.'" in controller
     assert "find completed clips in Projects → Files" in controller
-    assert "button.textContent = plan?.button || (creation ? 'Create account & continue' : 'Create free account');" in controller
+    assert "button.textContent = creationKind === 'image'" in controller
+    assert ": (plan?.button || (creation ? 'Create account & continue' : 'Create free account'));" in controller
 
 
 def test_truthful_destination_assets_and_sitemaps_share_one_release_boundary():
@@ -118,7 +119,7 @@ def test_truthful_destination_assets_and_sitemaps_share_one_release_boundary():
         assert f'/landing-5.6.css?v={version}' in read(relative)
 
     worker = read("public/sw.js")
-    assert "ask-crump-new-body-v1-r249" in worker
+    assert "ask-crump-new-body-v1-r259" in worker
     assert f"/landing-5.6.css?v={version}" in worker
     sitemap = read("public/sitemap.xml")
     assert sitemap.count("<lastmod>2026-08-30</lastmod>") == 6

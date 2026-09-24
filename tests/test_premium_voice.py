@@ -4,6 +4,7 @@ from types import SimpleNamespace
 import httpx
 import pytest
 
+from backend.ai_consent import CURRENT_AI_DATA_SHARING_CONSENT_VERSION
 from backend.routes import voice as voice_routes
 from backend.voice_service import (
     ElevenLabsVoiceService,
@@ -13,6 +14,18 @@ from backend.voice_service import (
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def consented_voice_user(**changes):
+    user = {
+        "id": "00000000-0000-0000-0000-000000000001",
+        "ai_data_sharing_consent_at": "2026-09-18T00:00:00+00:00",
+        "ai_data_sharing_consent_version": CURRENT_AI_DATA_SHARING_CONSENT_VERSION,
+        "ai_data_sharing_consent_revoked_at": None,
+        "deleted_at": None,
+    }
+    user.update(changes)
+    return user
 
 
 def read(relative: str) -> str:
@@ -112,11 +125,10 @@ async def test_voice_route_returns_private_ephemeral_audio_and_usage_receipt(mon
     calls = []
 
     async def authenticate(_request, _database, _settings):
-        return SimpleNamespace(user={
-            "id": "00000000-0000-0000-0000-000000000001",
-            "subscription_tier": "professional",
-            "subscription_status": "active",
-        })
+        return SimpleNamespace(user=consented_voice_user(
+            subscription_tier="professional",
+            subscription_status="active",
+        ))
 
     async def rate_limit(_database, **values):
         calls.append(("rate", values))
@@ -184,7 +196,7 @@ async def test_voice_route_refunds_usage_when_provider_fails(monkeypatch):
     refunds = []
 
     async def authenticate(_request, _database, _settings):
-        return SimpleNamespace(user={"id": "00000000-0000-0000-0000-000000000001"})
+        return SimpleNamespace(user=consented_voice_user())
 
     async def rate_limit(_database, **_values):
         return None

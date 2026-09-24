@@ -1,8 +1,10 @@
 from pathlib import Path
+import json
 
 import pytest
 
 from backend.routes import media as media_routes
+from backend.video_service import VideoServiceError
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -88,13 +90,20 @@ async def test_refund_state_write_failure_keeps_the_idempotent_status_recovery_o
     assert "private database diagnostic" not in caplog.text
 
 
-def test_failed_job_identity_is_private_and_both_start_paths_reconcile_once():
+def test_failed_job_id_is_public_only_for_owner_reconciliation():
     service = (ROOT / "backend" / "video_service.py").read_text(encoding="utf-8")
     route = (ROOT / "backend" / "routes" / "media.py").read_text(encoding="utf-8")
 
     assert service.count("mapped.failed_job_id = job_id") == 2
     assert route.count("job_id=exc.failed_job_id") == 2
     assert '"failedJobId"' not in route
-    assert "exc.failed_job_id" not in route.split("def _video_error", 1)[1].split(
-        "def _idempotency_key", 1
-    )[0]
+    generic = media_routes._video_error(
+        VideoServiceError("Provider rejected", "VIDEO_PROVIDER_REJECTED", 502, False, True, JOB_ID),
+        stage="generation",
+    )
+    assert json.loads(generic.body)["jobId"] is None
+    unknown = media_routes._video_error(
+        VideoServiceError("Reconcile first", "VIDEO_START_OUTCOME_UNKNOWN", 503, False, False, JOB_ID),
+        stage="generation",
+    )
+    assert json.loads(unknown.body)["jobId"] == JOB_ID

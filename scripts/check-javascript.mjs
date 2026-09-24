@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { createContext, runInContext } from 'node:vm';
 
 const expectedFiles = new Set([
-  'account-manager.js', 'app.js', 'auth-controller.js', 'auth-resilience.js', 'billing-manager.js', 'chat-resilience.js', 'chat-sync.js',
+  'account-manager.js', 'ai-data-sharing-consent.js', 'app.js', 'auth-controller.js', 'auth-resilience.js', 'billing-manager.js', 'chat-resilience.js', 'chat-sync.js',
   'crump-4.3.js', 'crump-4.4.js', 'crump-5.0.js', 'crump-billing-5.1.js',
   'crump-precision-image-edit.js', 'crump-precision-image-edit-loader.js',
   'crump-5.2.js', 'crump-5.2.2.js', 'crump-5.2.4.js', 'crump-navigation-5.2.5.js',
@@ -985,26 +985,31 @@ assertAttribution(storedAttribution(immutableStore), {
 const repoRoot = new URL('../', import.meta.url);
 const packageJson = JSON.parse(await readFile(new URL('package.json', repoRoot), 'utf8'));
 const releaseVersion = String(packageJson.version || '');
-const landingVersion = `${releaseVersion}-facebook-reel-attribution-1`;
+const autonomousCrumpVersion = `${releaseVersion}-autonomous-crump-1`;
+const nativeStoreBillingVersion = `${releaseVersion}-native-store-billing-1`;
+const nativeFreshIdentityVersion = `${releaseVersion}-native-identity-fresh-1`;
+const integratedStoreReliabilityVersion = `${releaseVersion}-owner-isolation-native-store-1`;
+const imageIntentHandoffVersion = `${releaseVersion}-image-intent-handoff-1`;
 const planRendererVersion = `${releaseVersion}-credit-pack-accessibility-1`;
 const commerceRecoveryVersion = `${releaseVersion}-commerce-recovery-1`;
 const nativeBillingIdentityVersion = `${releaseVersion}-native-billing-identity-1`;
-const stripeDestinationIntegrityVersion = `${releaseVersion}-stripe-destination-integrity-1`;
+const stripeDestinationIntegrityVersion = nativeFreshIdentityVersion;
+const ownerIsolationVersion = `${releaseVersion}-owner-isolation-1`;
 const checkoutDestinationLabelVersion = `${releaseVersion}-checkout-destination-label-1`;
 const creditPackTruthVersion = `${releaseVersion}-credit-pack-truth-1`;
 const creditTruthVersion = `${releaseVersion}-credit-truth-1`;
 const brandDeliveryVersion = `${releaseVersion}-brand-retina-1`;
 const attachCreationRoutingVersion = `${releaseVersion}-explicit-button-types-1`;
 const creditConfirmationVersion = `${releaseVersion}-credit-confirmation-1`;
-const settingsSaveIsolationVersion = `${releaseVersion}-settings-save-isolation-1`;
+const serverAuthoritativeActivationVersion = `${releaseVersion}-server-authoritative-activation-1`;
 const outputProjectActionVersion = `${releaseVersion}-output-project-action-1`;
-const studioActionLabelsVersion = `${releaseVersion}-studio-action-labels-1`;
-const productStudioLazyLoadVersion = `${releaseVersion}-product-studio-lazy-load-2`;
+const referenceFidelityVersion = `${releaseVersion}-reference-review-persistence-1`;
+const exactOverlayEntryVersion = `${releaseVersion}-exact-overlay-entry-1`;
+const artifactCardOpenVersion = `${releaseVersion}-artifact-card-open-1`;
 const visibleWorkspaceReturnVersion = `${releaseVersion}-visible-workspace-return-1`;
-const authControllerVersion = `${releaseVersion}-facebook-reel-attribution-1`;
 const continuityHandoffVersion = `${releaseVersion}-continuity-handoff-1`;
 const composerModeResetVersion = `${releaseVersion}-composer-mode-reset-1`;
-const accountDeletionBillingVersion = `${releaseVersion}-account-deletion-billing-1`;
+const accountDeletionBillingVersion = integratedStoreReliabilityVersion;
 const intelligenceReceiptVersion = `${releaseVersion}-intelligence-receipt-1`;
 const intelligenceArchitectureVersion = `${releaseVersion}-intelligence-architecture-1`;
 const composerActionabilityVersion = `${releaseVersion}-composer-actionability-1`;
@@ -1013,7 +1018,7 @@ const settingsProfileTrustVersion = `${releaseVersion}-settings-profile-trust-8`
 const precisionEditGuideLoaderVersion = `${releaseVersion}-live-image-preview-loader-1`;
 const fileLibraryWindowVersion = `${releaseVersion}-file-library-window-1`;
 const imageReferenceRecoveryVersion = `${releaseVersion}-image-reference-recovery-1`;
-const liveImagePreviewVersion = `${releaseVersion}-precision-studio-1`;
+const liveImagePreviewVersion = exactOverlayEntryVersion;
 const settingsSyncVersion = `${releaseVersion}-settings-sync-1`;
 const syncCursorVersion = `${releaseVersion}-sync-cursor-1`;
 const imageNodeStabilityVersion = `${releaseVersion}-image-node-stability-1`;
@@ -1029,16 +1034,18 @@ const newResponseCueVersion = `${releaseVersion}-new-response-cue-1`;
 const videoDestinationVersion = `${releaseVersion}-video-destination-1`;
 const mobileDrawerDestinationsVersion = `${releaseVersion}-mobile-drawer-destinations-1`;
 const destinationBackgroundGuardVersion = `${releaseVersion}-destination-background-guard-1`;
-const codeLazyLoadVersion = `${releaseVersion}-code-lazy-load-1`;
-const precisionLazyLoadVersion = `${releaseVersion}-precision-lazy-load-1`;
+const precisionLazyLoadVersion = exactOverlayEntryVersion;
 const libraryLazyLoadVersion = `${releaseVersion}-library-lazy-load-1`;
 const conversationActionLabelsVersion = `${releaseVersion}-conversation-action-labels-2`;
 const lifecycleIdleSendVersion = `${releaseVersion}-lifecycle-idle-send-1`;
 const settingsInviteVersion = `${releaseVersion}-settings-invite-1`;
-const precisionEditEntryVersion = `${releaseVersion}-precision-edit-entry-1`;
-const precisionEditStudioVersion = `${releaseVersion}-precision-studio-1`;
+const precisionEditEntryVersion = exactOverlayEntryVersion;
+const precisionEditStudioVersion = exactOverlayEntryVersion;
 const creationSheetContainmentVersion = `${releaseVersion}-creation-sheet-containment-1`;
+const aiDataSharingConsentVersion = `${releaseVersion}-ai-data-sharing-consent-1`;
 const requiredBodyFiles = [
+  'public/ai-data-sharing-consent.css',
+  'public/ai-data-sharing-consent.js',
   'public/crump-v1-body.css',
   'public/crump-v1-body.js',
   'public/crump-product-5.3.css',
@@ -1095,7 +1102,7 @@ const landingHtml = await readFile(new URL('public/ask-crump.html', repoRoot), '
 const authController = await readFile(new URL('public/auth-controller.js', repoRoot), 'utf8');
 const destinationLabels = Object.freeze(['Ask', 'Projects', 'Create', 'Video', 'Library', 'You']);
 const destinationIds = Object.freeze(destinationLabels.map(label => label.toLowerCase()));
-const internalNavigationLabels = Object.freeze(['Ask', 'Projects', 'Code', 'Create', 'Video', 'Library', 'You']);
+const internalNavigationLabels = Object.freeze(['Ask', 'Projects', 'Autonomous Crump', 'Create', 'Video', 'Library', 'You']);
 const onboardingSource = await readFile(new URL('public/onboarding.js', repoRoot), 'utf8');
 const navigationSource = await readFile(new URL('public/crump-navigation-5.9.30.js', repoRoot), 'utf8');
 const listingSource = JSON.parse(await readFile(new URL('store/listing.en-US.json', repoRoot), 'utf8'));
@@ -1132,7 +1139,7 @@ if (JSON.stringify(navigationLabels) !== JSON.stringify(internalNavigationLabels
   console.error('Navigation, workspace guide, and store-release sources disagree on the current six-destination product.');
   process.exit(1);
 }
-if (!releaseVersion || !landingHtml.includes(`/landing.js?v=${landingVersion}`)) {
+if (!releaseVersion || !landingHtml.includes(`/landing.js?v=${imageIntentHandoffVersion}`)) {
   console.error('Ask Crump marketing page is missing its release-versioned script.');
   process.exit(1);
 }
@@ -1238,8 +1245,8 @@ if (!referringAcquisitionSource ||
   process.exit(1);
 }
 const requiredHtmlSignals = [
-  `/runtime-body-v1.js?v=${navigationDiscoveryVersion}`,
-  `/auth-controller.js?v=${authControllerVersion}`,
+  `/runtime-body-v1.js?v=${artifactCardOpenVersion}`,
+  `/auth-controller.js?v=${imageIntentHandoffVersion}`,
   `/telemetry-config.js?v=${releaseVersion}`,
   '/_vercel/speed-insights/script.js',
   `/auth-resilience.js?v=${releaseVersion}`,
@@ -1296,13 +1303,14 @@ if (appHtml.includes('<span>Saved</span>')) {
 }
 
 const runtime = await readFile(new URL('public/runtime-body-v1.js', repoRoot), 'utf8');
+const precisionEditorLoader = await readFile(new URL('public/crump-precision-image-edit-loader.js', repoRoot), 'utf8');
 if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/billing-manager.js?v=${stripeDestinationIntegrityVersion}`) ||
     !runtime.includes(`/onboarding.css?v=${videoDestinationVersion}`) ||
     !runtime.includes(`/onboarding.js?v=${brandDeliveryVersion}`) ||
     !runtime.includes(`/conversation.css?v=${continuityHandoffVersion}`) ||
     !runtime.includes(`/credit-confirmation.css?v=${creditConfirmationVersion}`) ||
-    !runtime.includes(`/credit-confirmation.js?v=${creditConfirmationVersion}`) ||
+    !runtime.includes(`/credit-confirmation.js?v=${ownerIsolationVersion}`) ||
     !runtime.includes(`/chat-resilience.js?v=${creditConfirmationVersion}`) ||
     !runtime.includes(`/account-manager.js?v=${accountDeletionBillingVersion}`) ||
     !runtime.includes(`/scroll-manager.js?v=${userControlledScrollVersion}`) ||
@@ -1311,37 +1319,42 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/lifecycle-share.js?v=${settingsInviteVersion}`) ||
     !runtime.includes(`/lifecycle-manager.js?v=${lifecycleIdleSendVersion}`) ||
     !runtime.includes(`/chat-sync.js?v=${settingsSyncVersion}`) ||
-    !runtime.includes(`/product-analytics.js?v=${navigationDiscoveryVersion}`) ||
-    !runtime.includes(`/app.js?v=${settingsSaveIsolationVersion}`) ||
+    !runtime.includes(`/product-analytics.js?v=${serverAuthoritativeActivationVersion}`) ||
+    !runtime.includes(`/app.js?v=${referenceFidelityVersion}`) ||
     !runtime.includes(`/crump-v1-body.js?v=${navigationDiscoveryVersion}`) ||
     !runtime.includes(`/crump-v1-body.css?v=${brandDeliveryVersion}`) ||
     !runtime.includes(`/crump-5.0.css?v=${precisionEditEntryVersion}`) ||
-    !runtime.includes(`/crump-5.0.js?v=${projectSaveOfferVersion}`) ||
+    !runtime.includes(`/crump-5.0.js?v=${artifactCardOpenVersion}`) ||
     !runtime.includes(`/crump-precision-image-edit-loader.js?v=${precisionLazyLoadVersion}`) ||
     runtime.includes(`/crump-precision-image-edit.css?v=${precisionEditStudioVersion}`) ||
     runtime.includes(`/crump-precision-image-edit.js?v=${liveImagePreviewVersion}`) ||
-    !runtime.includes(`/crump-billing-5.1.js?v=${checkoutDestinationLabelVersion}`) ||
-    !runtime.includes(`/crump-5.2.js?v=${stripeDestinationIntegrityVersion}`) ||
+    !runtime.includes(`/crump-billing-5.1.js?v=${autonomousCrumpVersion}`) ||
+    !runtime.includes(`/crump-5.2.js?v=${integratedStoreReliabilityVersion}`) ||
     !runtime.includes(`/crump-5.2.2.css?v=${newResponseCueVersion}`) ||
-    !runtime.includes(`/crump-5.2.2.js?v=${stripeDestinationIntegrityVersion}`) ||
+    !runtime.includes(`/crump-5.2.2.js?v=${integratedStoreReliabilityVersion}`) ||
     !runtime.includes(`/crump-4.3.js?v=${composerActionabilityVersion}`) ||
     !runtime.includes(`/crump-4.4.js?v=${navigationDiscoveryVersion}`) ||
     !runtime.includes(`/crump-v1-stability.js?v=${intelligenceArchitectureVersion}`) ||
-    !runtime.includes(`/crump-product-loader.js?v=${productStudioLazyLoadVersion}`) ||
-    runtime.includes(`/crump-product-5.3.js?v=${studioActionLabelsVersion}`) ||
-    runtime.includes(`/crump-product-5.3.css?v=${fileLibraryWindowVersion}`) ||
+    !runtime.includes(`/crump-product-loader.js?v=${referenceFidelityVersion}`) ||
+    runtime.includes(`/crump-product-5.3.js?v=${referenceFidelityVersion}`) ||
+    runtime.includes(`/crump-product-5.3.css?v=${referenceFidelityVersion}`) ||
     !runtime.includes(`/crump-product-5.3.1.js?v=${conversationActionLabelsVersion}`) || !runtime.includes('/crump-product-5.3.1.css') ||
-    !runtime.includes(`/crump-subscriptions-5.3.2.js?v=${checkoutDestinationLabelVersion}`) ||
+    !runtime.includes(`/crump-subscriptions-5.3.2.js?v=${nativeStoreBillingVersion}`) ||
     !runtime.includes(`/crump-polish-5.6.js?v=${videoDestinationVersion}`) || !runtime.includes('/crump-polish-5.6.css') ||
     !runtime.includes(`/crump-media-save.js?v=${libraryLazyLoadVersion}`) ||
     !runtime.includes(`/crump-library-loader.js?v=${libraryLazyLoadVersion}`) ||
     runtime.includes('/crump-library-5.7.js') || runtime.includes('/crump-library-5.7.css') ||
-    !runtime.includes(`/crump-navigation-5.9.30.js?v=${navigationDiscoveryVersion}`) ||
+    !runtime.includes(`/crump-navigation-5.9.30.js?v=${imageIntentHandoffVersion}`) ||
     !runtime.includes(`/crump-navigation-5.9.30.css?v=${mobileDrawerDestinationsVersion}`) ||
-    !runtime.includes(`/crump-code-loader.js?v=${codeLazyLoadVersion}`) ||
+    !runtime.includes(`/crump-code-loader.js?v=${autonomousCrumpVersion}`) ||
     runtime.includes(`/crump-code-5.9.35.js?v=${creditConfirmationVersion}`) ||
     runtime.includes(`/crump-code-5.9.35.css?v=${intelligenceArchitectureVersion}`)) {
   console.error('New-body runtime is missing the canonical shell.');
+  process.exit(1);
+}
+if (!precisionEditorLoader.includes(`/crump-precision-image-edit.css?v=${exactOverlayEntryVersion}`) ||
+    !precisionEditorLoader.includes(`/crump-precision-image-edit.js?v=${exactOverlayEntryVersion}`)) {
+  console.error('Precision Edit lazy loader is missing the exact-overlay release assets.');
   process.exit(1);
 }
 if (runtime.includes('/crump-5.2.4.js') || runtime.includes('/crump-5.2.4.css')) {
@@ -1410,12 +1423,13 @@ await runtimeWindow.CrumpWorkspaceRuntime.load();
 if (runtimeDocument.documentElement.dataset.crumpBodyRuntime !== 'ready' ||
     dispatchedRuntimeEvents.filter(type => type === 'crump:body-runtime-ready').length !== 1 ||
     appendedRuntimeAssets.length !== loadedRuntimeAssetCount ||
-    loadedRuntimeStyles.length !== 17 ||
-    preloadedRuntimeScripts.length !== 34 ||
-    loadedRuntimeScripts.length !== 34 ||
+    loadedRuntimeStyles.length !== 18 ||
+    preloadedRuntimeScripts.length !== 35 ||
+    loadedRuntimeScripts.length !== 35 ||
     !loadedRuntimeScripts.every(asset => preloadedRuntimeScripts.includes(asset)) ||
-    loadedRuntimeScripts.indexOf(`/credit-confirmation.js?v=${creditConfirmationVersion}`) > loadedRuntimeScripts.indexOf(`/app.js?v=${settingsSaveIsolationVersion}`) ||
-    loadedRuntimeScripts.indexOf(`/app.js?v=${settingsSaveIsolationVersion}`) > loadedRuntimeScripts.indexOf(`/crump-4.3.js?v=${composerActionabilityVersion}`) ||
+    loadedRuntimeScripts[0] !== `/ai-data-sharing-consent.js?v=${aiDataSharingConsentVersion}` ||
+    loadedRuntimeScripts.indexOf(`/credit-confirmation.js?v=${ownerIsolationVersion}`) > loadedRuntimeScripts.indexOf(`/app.js?v=${referenceFidelityVersion}`) ||
+    loadedRuntimeScripts.indexOf(`/app.js?v=${referenceFidelityVersion}`) > loadedRuntimeScripts.indexOf(`/crump-4.3.js?v=${composerActionabilityVersion}`) ||
     loadedRuntimeScripts.at(-1) !== `/lifecycle-manager.js?v=${lifecycleIdleSendVersion}`) {
   console.error('Authenticated workspace runtime load order or completion contract failed.');
   process.exit(1);
@@ -1425,6 +1439,14 @@ const crump43 = await readFile(new URL('public/crump-4.3.js', repoRoot), 'utf8')
 const v1Body = await readFile(new URL('public/crump-v1-body.js', repoRoot), 'utf8');
 const appRuntime = await readFile(new URL('public/app.js', repoRoot), 'utf8');
 const product53 = await readFile(new URL('public/crump-product-5.3.js', repoRoot), 'utf8');
+const productLoader = await readFile(new URL('public/crump-product-loader.js', repoRoot), 'utf8');
+if (!productLoader.includes(`/crump-product-5.3.js?v=${referenceFidelityVersion}`) ||
+    !productLoader.includes(`/crump-product-5.3.css?v=${referenceFidelityVersion}`) ||
+    !productLoader.includes(`${'${VIDEO_JOB_KEY}'}:${'${encodeURIComponent(owner)}'}`) ||
+    !product53.includes('function verifyLegacyVideoJob(owner, jobId)')) {
+  console.error('Video owner-scoped recovery and release version are missing.');
+  process.exit(1);
+}
 const studioSectionIsolation = product53.slice(
   product53.indexOf('function configureStudioSection'),
   product53.indexOf('function openStudio'),
@@ -1484,33 +1506,33 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r249') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r259') ||
     !serviceWorker.includes("'/assets/brand/crump-shell-lockup-light.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-shell-lockup-light.png'") ||
-    !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
-    !serviceWorker.includes(`/runtime-body-v1.js?v=${navigationDiscoveryVersion}`) ||
+    !serviceWorker.includes(`/landing.js?v=${imageIntentHandoffVersion}`) ||
+    !serviceWorker.includes(`/runtime-body-v1.js?v=${artifactCardOpenVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${continuityHandoffVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.css?v=${creditConfirmationVersion}`) ||
-    !serviceWorker.includes(`/credit-confirmation.js?v=${creditConfirmationVersion}`) ||
+    !serviceWorker.includes(`/credit-confirmation.js?v=${ownerIsolationVersion}`) ||
     !serviceWorker.includes(`/chat-resilience.js?v=${creditConfirmationVersion}`) ||
     !serviceWorker.includes(`/account-manager.js?v=${accountDeletionBillingVersion}`) ||
     !serviceWorker.includes(`/crump-5.0.css?v=${precisionEditEntryVersion}`) ||
     !serviceWorker.includes(`/scroll-manager.js?v=${userControlledScrollVersion}`) ||
-    !serviceWorker.includes(`/crump-5.0.js?v=${projectSaveOfferVersion}`) ||
+    !serviceWorker.includes(`/crump-5.0.js?v=${artifactCardOpenVersion}`) ||
     !serviceWorker.includes(`/crump-precision-image-edit-loader.js?v=${precisionLazyLoadVersion}`) ||
     serviceWorker.includes(`/crump-precision-image-edit.css?v=${precisionEditStudioVersion}`) ||
     serviceWorker.includes(`/crump-precision-image-edit.js?v=${liveImagePreviewVersion}`) ||
     !serviceWorker.includes(`/ui-functions.js?v=${projectSaveOfferVersion}`) ||
-    !serviceWorker.includes(`/app.js?v=${settingsSaveIsolationVersion}`) ||
+    !serviceWorker.includes(`/app.js?v=${referenceFidelityVersion}`) ||
     !serviceWorker.includes(`/crump-5.2.2.css?v=${newResponseCueVersion}`) ||
-    !serviceWorker.includes(`/crump-5.2.2.js?v=${stripeDestinationIntegrityVersion}`) ||
+    !serviceWorker.includes(`/crump-5.2.2.js?v=${integratedStoreReliabilityVersion}`) ||
     !serviceWorker.includes(`/onboarding.css?v=${videoDestinationVersion}`) ||
     !serviceWorker.includes(`/onboarding.js?v=${brandDeliveryVersion}`) ||
     !serviceWorker.includes(`/crump-polish-5.6.js?v=${videoDestinationVersion}`) ||
     !serviceWorker.includes(`/crump-navigation-5.9.30.css?v=${mobileDrawerDestinationsVersion}`) ||
-    !serviceWorker.includes(`/crump-navigation-5.9.30.js?v=${navigationDiscoveryVersion}`) ||
+    !serviceWorker.includes(`/crump-navigation-5.9.30.js?v=${imageIntentHandoffVersion}`) ||
     !serviceWorker.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-1`) ||
     !serviceWorker.includes(`/lifecycle-share.js?v=${settingsInviteVersion}`) ||
     !serviceWorker.includes(`/lifecycle-manager.js?v=${lifecycleIdleSendVersion}`) ||
@@ -1520,19 +1542,19 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r249') ||
     !serviceWorker.includes(`/device-auth.js?v=${nativeBillingIdentityVersion}`) ||
     !serviceWorker.includes(`/sync-manager.js?v=${syncCursorVersion}`) ||
     !serviceWorker.includes(`/chat-sync.js?v=${settingsSyncVersion}`) ||
-    !serviceWorker.includes(`/product-analytics.js?v=${navigationDiscoveryVersion}`) ||
-    !serviceWorker.includes(`/auth-controller.js?v=${authControllerVersion}`) ||
+    !serviceWorker.includes(`/product-analytics.js?v=${serverAuthoritativeActivationVersion}`) ||
+    !serviceWorker.includes(`/auth-controller.js?v=${imageIntentHandoffVersion}`) ||
     !serviceWorker.includes(`/crump-v1-body.css?v=${brandDeliveryVersion}`) ||
     !serviceWorker.includes(`/crump-4.3.js?v=${composerActionabilityVersion}`) ||
     !serviceWorker.includes(`/crump-4.4.js?v=${navigationDiscoveryVersion}`) ||
     !serviceWorker.includes(`/crump-v1-stability.js?v=${intelligenceArchitectureVersion}`) ||
-    !serviceWorker.includes(`/crump-product-loader.js?v=${productStudioLazyLoadVersion}`) ||
+    !serviceWorker.includes(`/crump-product-loader.js?v=${referenceFidelityVersion}`) ||
     !serviceWorker.includes(`/crump-product-5.3.1.js?v=${conversationActionLabelsVersion}`) ||
-    serviceWorker.includes(`/crump-product-5.3.js?v=${studioActionLabelsVersion}`) ||
-    serviceWorker.includes(`/crump-product-5.3.css?v=${fileLibraryWindowVersion}`) ||
-    !serviceWorker.includes(`/crump-navigation-5.9.30.js?v=${navigationDiscoveryVersion}`) ||
+    serviceWorker.includes(`/crump-product-5.3.js?v=${referenceFidelityVersion}`) ||
+    serviceWorker.includes(`/crump-product-5.3.css?v=${referenceFidelityVersion}`) ||
+    !serviceWorker.includes(`/crump-navigation-5.9.30.js?v=${imageIntentHandoffVersion}`) ||
     !serviceWorker.includes(`/crump-navigation-5.9.30.css?v=${mobileDrawerDestinationsVersion}`) ||
-    !serviceWorker.includes(`/crump-code-loader.js?v=${codeLazyLoadVersion}`) ||
+    !serviceWorker.includes(`/crump-code-loader.js?v=${autonomousCrumpVersion}`) ||
     serviceWorker.includes(`/crump-code-5.9.35.js?v=${creditConfirmationVersion}`) ||
     serviceWorker.includes(`/crump-code-5.9.35.css?v=${intelligenceArchitectureVersion}`) ||
     !serviceWorker.includes("url.pathname === '/conversation.css'") ||
@@ -1566,9 +1588,9 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r249') ||
     !serviceWorker.includes(`/billing-manager.js?v=${stripeDestinationIntegrityVersion}`) ||
     !serviceWorker.includes(`/subscription-ui.js?v=${commerceRecoveryVersion}`) ||
     !serviceWorker.includes(`/crump-billing-5.1.css?v=${creditTruthVersion}`) ||
-    !serviceWorker.includes(`/crump-billing-5.1.js?v=${checkoutDestinationLabelVersion}`) ||
-    !serviceWorker.includes(`/crump-5.2.js?v=${stripeDestinationIntegrityVersion}`) ||
-    !serviceWorker.includes(`/crump-subscriptions-5.3.2.js?v=${checkoutDestinationLabelVersion}`) ||
+    !serviceWorker.includes(`/crump-billing-5.1.js?v=${autonomousCrumpVersion}`) ||
+    !serviceWorker.includes(`/crump-5.2.js?v=${integratedStoreReliabilityVersion}`) ||
+    !serviceWorker.includes(`/crump-subscriptions-5.3.2.js?v=${nativeStoreBillingVersion}`) ||
     !serviceWorker.includes(`/crump-media-save.js?v=${libraryLazyLoadVersion}`) ||
     !serviceWorker.includes(`/crump-library-loader.js?v=${libraryLazyLoadVersion}`) ||
     serviceWorker.includes('/crump-library-5.7.js') ||
@@ -1580,6 +1602,18 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r249') ||
 }
 
 const billingManagerSource = await readFile(new URL('public/billing-manager.js', repoRoot), 'utf8');
+function nativeBillingFetch(windowMock) {
+  return async url => {
+    if (url === '/api/billing/native-readiness') {
+      return {ok: true, async json() { return {success: true, ready: true}; }};
+    }
+    if (url === '/api/billing/native-identity') {
+      const userId = windowMock.currentUser?.id;
+      return {ok: true, async json() { return {success: true, recorded: true, userId}; }};
+    }
+    throw new Error('Unexpected native billing request.');
+  };
+}
 async function exerciseNativeBillingIdentity({rejectSecondLogin = false} = {}) {
   const calls = [];
   let loginAttempts = 0;
@@ -1602,7 +1636,7 @@ async function exerciseNativeBillingIdentity({rejectSecondLogin = false} = {}) {
     CrumpNative: {Capacitor: {getPlatform: () => 'ios'}, Purchases: plugin},
     currentUser: {id: 'account-a'},
   };
-  runInContext(billingManagerSource, createContext({window: windowMock}));
+  runInContext(billingManagerSource, createContext({window: windowMock, fetch: nativeBillingFetch(windowMock)}));
   await Promise.all([
     windowMock.BillingManager.getProducts(),
     windowMock.BillingManager.getCreditProducts(),
@@ -1648,6 +1682,574 @@ if (rejectedNativeBillingIdentity.rejectedMessage !== 'Store billing could not c
   process.exit(1);
 }
 
+async function exerciseNativeBillingReadiness(fetchImpl) {
+  const calls = [];
+  const plugin = {
+    async isConfigured() { calls.push('isConfigured'); return {isConfigured: false}; },
+    async configure() { calls.push('configure'); },
+    async getOfferings() { calls.push('getOfferings'); return {current: {availablePackages: []}}; },
+  };
+  const windowMock = {
+    CRUMP_CONFIG: {revenueCatAppleApiKey: 'fixture-public-key'},
+    CrumpAPI: {isNative: true, ready: Promise.resolve()},
+    CrumpNative: {Capacitor: {getPlatform: () => 'ios'}, Purchases: plugin},
+    currentUser: {id: 'free-native-account'},
+  };
+  runInContext(billingManagerSource, createContext({window: windowMock, fetch: fetchImpl}));
+  const products = await windowMock.BillingManager.getProducts();
+  return {calls, products};
+}
+const unreadyNativeBilling = [
+  async () => ({ok: true, async json() { return {success: true, ready: false}; }}),
+  async () => ({ok: true, async json() { return {success: true}; }}),
+  async () => ({ok: false, async json() { return {success: false}; }}),
+  async () => { throw new Error('offline'); },
+];
+for (const fetchImpl of unreadyNativeBilling) {
+  const result = await exerciseNativeBillingReadiness(fetchImpl);
+  if (Object.keys(result.products).length || result.calls.includes('configure') ||
+      result.calls.includes('getOfferings')) {
+    console.error('Native billing must not create a provider customer without server cleanup readiness.');
+    process.exit(1);
+  }
+}
+async function exerciseNativeBillingMarker(markerResponse, {anonymous = false} = {}) {
+  const calls = [];
+  const plugin = {
+    async configure() { calls.push('configure'); },
+    async logIn() { calls.push('login'); },
+    async getOfferings() {
+      calls.push('offerings');
+      return {current: {availablePackages: []}};
+    },
+  };
+  const windowMock = {
+    CRUMP_CONFIG: {revenueCatAppleApiKey: 'fixture-public-key'},
+    CrumpAPI: {isNative: true, ready: Promise.resolve()},
+    CrumpNative: {Capacitor: {getPlatform: () => 'ios'}, Purchases: plugin},
+    currentUser: anonymous ? null : {id: 'fixture-user'},
+  };
+  const fetchImpl = async url => {
+    if (url === '/api/billing/native-readiness') {
+      calls.push('readiness');
+      return {ok: true, async json() { return {success: true, ready: true}; }};
+    }
+    if (url === '/api/billing/native-identity') {
+      calls.push('record');
+      if (markerResponse instanceof Error) throw markerResponse;
+      return markerResponse;
+    }
+    throw new Error('Unexpected native billing request.');
+  };
+  runInContext(billingManagerSource, createContext({window: windowMock, fetch: fetchImpl}));
+  return {calls, products: await windowMock.BillingManager.getProducts()};
+}
+const confirmedNativeMarker = await exerciseNativeBillingMarker({
+  ok: true, async json() { return {success: true, recorded: true, userId: 'fixture-user'}; },
+});
+if (JSON.stringify(confirmedNativeMarker.calls) !==
+    JSON.stringify(['readiness', 'record', 'record', 'configure', 'record', 'record', 'offerings'])) {
+  console.error('Native billing must freshly confirm the owner around SDK configuration.');
+  process.exit(1);
+}
+const unconfirmedNativeMarkers = [
+  {ok: false},
+  {ok: true, async json() { return {success: true, recorded: false, userId: 'fixture-user'}; }},
+  {ok: true, async json() { return {success: true, recorded: true, userId: 'another-user'}; }},
+  new Error('offline'),
+];
+for (const markerResponse of unconfirmedNativeMarkers) {
+  const result = await exerciseNativeBillingMarker(markerResponse);
+  if (Object.keys(result.products).length || result.calls.includes('configure') ||
+      result.calls.includes('login') || result.calls.includes('offerings')) {
+    console.error('Native billing must fail closed when its customer record is not confirmed.');
+    process.exit(1);
+  }
+}
+const anonymousNativeMarker = await exerciseNativeBillingMarker(null, {anonymous: true});
+if (Object.keys(anonymousNativeMarker.products).length ||
+    anonymousNativeMarker.calls.includes('record') ||
+    anonymousNativeMarker.calls.includes('configure')) {
+  console.error('Native billing must not create an anonymous provider customer.');
+  process.exit(1);
+}
+
+async function exerciseDeletionDuringIsConfigured() {
+  const calls = [];
+  let fenced = false;
+  let enterIsConfigured;
+  let releaseIsConfigured;
+  const entered = new Promise(resolve => { enterIsConfigured = resolve; });
+  const paused = new Promise(resolve => { releaseIsConfigured = resolve; });
+  const plugin = {
+    async isConfigured() {
+      calls.push('isConfigured');
+      enterIsConfigured();
+      await paused;
+      return {isConfigured: false};
+    },
+    async configure() { calls.push('configure'); },
+    async getOfferings() { calls.push('offerings'); return {current: {availablePackages: []}}; },
+  };
+  const windowMock = {
+    CRUMP_CONFIG: {revenueCatAppleApiKey: 'fixture-public-key'},
+    CrumpAPI: {isNative: true, ready: Promise.resolve()},
+    CrumpNative: {Capacitor: {getPlatform: () => 'ios'}, Purchases: plugin},
+    currentUser: {id: 'deleting-owner'},
+  };
+  const fetchImpl = async url => {
+    if (url === '/api/billing/native-readiness') return {
+      ok: true, async json() { return {success: true, ready: true}; },
+    };
+    if (url === '/api/billing/native-identity') {
+      calls.push('owner-check');
+      return fenced ? {ok: false, status: 409} : {
+        ok: true, async json() { return {success: true, recorded: true, userId: 'deleting-owner'}; },
+      };
+    }
+    throw new Error('Unexpected native billing request.');
+  };
+  runInContext(billingManagerSource, createContext({window: windowMock, fetch: fetchImpl}));
+  const products = windowMock.BillingManager.getProducts().then(
+    () => 'unexpected-success', error => error?.message || '',
+  );
+  await entered;
+  fenced = true;
+  releaseIsConfigured();
+  return {calls, outcome: await products};
+}
+const deletionDuringIsConfigured = await exerciseDeletionDuringIsConfigured();
+if (JSON.stringify(deletionDuringIsConfigured.calls) !==
+    JSON.stringify(['owner-check', 'isConfigured', 'owner-check']) ||
+    !deletionDuringIsConfigured.outcome.includes('no longer available')) {
+  console.error('A deletion fence committed during isConfigured must block SDK configure.');
+  process.exit(1);
+}
+
+async function exercisePersistedOwnerFencedDuringIsConfigured() {
+  const calls = [];
+  let fenced = false;
+  let enterIsConfigured;
+  let releaseIsConfigured;
+  const entered = new Promise(resolve => { enterIsConfigured = resolve; });
+  const paused = new Promise(resolve => { releaseIsConfigured = resolve; });
+  const plugin = {
+    async isConfigured() {
+      calls.push('isConfigured');
+      enterIsConfigured();
+      await paused;
+      return {isConfigured: true};
+    },
+    async getAppUserID() { calls.push('getAppUserID'); return {appUserID: 'deleting-owner'}; },
+    async isAnonymous() { return {isAnonymous: false}; },
+    async configure() { calls.push('configure'); },
+    async logIn() { calls.push('login'); },
+    async logOut() { calls.push('logout'); },
+    async getOfferings() { calls.push('offerings'); return {current: {availablePackages: []}}; },
+  };
+  const windowMock = {
+    CRUMP_CONFIG: {revenueCatAppleApiKey: 'fixture-public-key'},
+    CrumpAPI: {isNative: true, ready: Promise.resolve()},
+    CrumpNative: {Capacitor: {getPlatform: () => 'ios'}, Purchases: plugin},
+    currentUser: {id: 'deleting-owner'},
+  };
+  const fetchImpl = async url => {
+    if (url === '/api/billing/native-readiness') return {
+      ok: true, async json() { return {success: true, ready: true}; },
+    };
+    if (url === '/api/billing/native-identity') {
+      calls.push('owner-check');
+      return fenced ? {ok: false, status: 409} : {
+        ok: true, async json() { return {success: true, recorded: true, userId: 'deleting-owner'}; },
+      };
+    }
+    throw new Error('Unexpected native billing request.');
+  };
+  runInContext(billingManagerSource, createContext({window: windowMock, fetch: fetchImpl}));
+  const products = windowMock.BillingManager.getProducts().then(
+    () => 'unexpected-success', error => error?.message || '',
+  );
+  await entered;
+  fenced = true;
+  releaseIsConfigured();
+  return {calls, outcome: await products};
+}
+const persistedOwnerFencedDuringIsConfigured = await exercisePersistedOwnerFencedDuringIsConfigured();
+if (JSON.stringify(persistedOwnerFencedDuringIsConfigured.calls) !==
+    JSON.stringify(['owner-check', 'isConfigured', 'getAppUserID', 'owner-check']) ||
+    !persistedOwnerFencedDuringIsConfigured.outcome.includes('could not confirm the signed-in account')) {
+  console.error('A persisted same-owner SDK must not load offerings after deletion fences it.');
+  process.exit(1);
+}
+
+async function exerciseSessionSwitchDuringIsConfigured() {
+  const calls = [];
+  let enterIsConfigured;
+  let releaseIsConfigured;
+  const entered = new Promise(resolve => { enterIsConfigured = resolve; });
+  const paused = new Promise(resolve => { releaseIsConfigured = resolve; });
+  const plugin = {
+    async isConfigured() {
+      calls.push('isConfigured');
+      enterIsConfigured();
+      await paused;
+      return {isConfigured: true};
+    },
+    async getAppUserID() { calls.push('getAppUserID'); return {appUserID: 'account-a'}; },
+    async isAnonymous() { return {isAnonymous: false}; },
+    async configure() { calls.push('configure'); },
+    async logIn({appUserID}) { calls.push(`login:${appUserID}`); },
+    async logOut() { calls.push('logout'); },
+    async getOfferings() {
+      calls.push('offerings');
+      return {current: {availablePackages: []}};
+    },
+  };
+  const windowMock = {
+    CRUMP_CONFIG: {revenueCatAppleApiKey: 'fixture-public-key'},
+    CrumpAPI: {isNative: true, ready: Promise.resolve()},
+    CrumpNative: {Capacitor: {getPlatform: () => 'ios'}, Purchases: plugin},
+    currentUser: {id: 'account-a'},
+  };
+  const fetchImpl = async url => {
+    if (url === '/api/billing/native-readiness') return {
+      ok: true, async json() { return {success: true, ready: true}; },
+    };
+    if (url === '/api/billing/native-identity') {
+      const userId = windowMock.currentUser?.id;
+      calls.push(`owner-check:${userId}`);
+      return {ok: true, async json() { return {success: true, recorded: true, userId}; }};
+    }
+    throw new Error('Unexpected native billing request.');
+  };
+  runInContext(billingManagerSource, createContext({window: windowMock, fetch: fetchImpl}));
+  const products = windowMock.BillingManager.getProducts();
+  await entered;
+  windowMock.currentUser = {id: 'account-b'};
+  releaseIsConfigured();
+  await products;
+  return calls;
+}
+const sessionSwitchDuringIsConfigured = await exerciseSessionSwitchDuringIsConfigured();
+if (JSON.stringify(sessionSwitchDuringIsConfigured) !== JSON.stringify([
+  'owner-check:account-a', 'isConfigured', 'getAppUserID', 'owner-check:account-b',
+  'login:account-b', 'owner-check:account-b', 'owner-check:account-b', 'offerings',
+])) {
+  console.error('Persisted SDK adoption must follow a newly authenticated account without logging it out.');
+  process.exit(1);
+}
+
+async function exerciseStaleOwnerCheckDuringNewOwnerPurchase() {
+  const calls = [];
+  let firstOwnerChecks = 0;
+  let enterStaleCheck;
+  let releaseStaleCheck;
+  let enterPurchase;
+  let releasePurchase;
+  const staleCheckEntered = new Promise(resolve => { enterStaleCheck = resolve; });
+  const staleCheckPaused = new Promise(resolve => { releaseStaleCheck = resolve; });
+  const purchaseEntered = new Promise(resolve => { enterPurchase = resolve; });
+  const purchasePaused = new Promise(resolve => { releasePurchase = resolve; });
+  const plugin = {
+    async isConfigured() { calls.push('isConfigured'); return {isConfigured: true}; },
+    async getAppUserID() { return {appUserID: 'account-a'}; },
+    async isAnonymous() { return {isAnonymous: false}; },
+    async logIn({appUserID}) { calls.push(`login:${appUserID}`); },
+    async logOut() { calls.push('logout'); },
+    async getOfferings() {
+      calls.push('offerings');
+      return {current: {availablePackages: [
+        {product: {identifier: 'fixture-professional'}},
+      ]}};
+    },
+    async purchasePackage() {
+      calls.push('purchasePackage');
+      enterPurchase();
+      await purchasePaused;
+      throw new Error('fixture purchase stopped');
+    },
+  };
+  const windowMock = {
+    CRUMP_CONFIG: {
+      revenueCatAppleApiKey: 'fixture-public-key',
+      revenueCatProfessionalProductId: 'fixture-professional',
+    },
+    CrumpAPI: {isNative: true, ready: Promise.resolve()},
+    CrumpNative: {Capacitor: {getPlatform: () => 'ios'}, Purchases: plugin},
+    currentUser: {id: 'account-a'},
+  };
+  const fetchImpl = async url => {
+    if (url === '/api/billing/native-readiness') return {
+      ok: true, async json() { return {success: true, ready: true}; },
+    };
+    if (url !== '/api/billing/native-identity') throw new Error('Unexpected native billing request.');
+    const userId = windowMock.currentUser?.id;
+    calls.push(`owner-check:${userId}`);
+    if (userId === 'account-a' && ++firstOwnerChecks === 2) {
+      enterStaleCheck();
+      await staleCheckPaused;
+      return {ok: false, status: 409};
+    }
+    return {ok: true, async json() { return {success: true, recorded: true, userId}; }};
+  };
+  runInContext(billingManagerSource, createContext({window: windowMock, fetch: fetchImpl}));
+  const staleCatalog = windowMock.BillingManager.getProducts().then(
+    () => 'unexpected-success', error => error?.message || '',
+  );
+  await staleCheckEntered;
+  windowMock.currentUser = {id: 'account-b'};
+  const purchase = windowMock.BillingManager.purchase('professional').then(
+    () => 'unexpected-success', error => error?.message || '',
+  );
+  await purchaseEntered;
+  releaseStaleCheck();
+  const staleOutcome = await staleCatalog;
+  const logoutDuringPurchase = calls.includes('logout');
+  releasePurchase();
+  const purchaseOutcome = await purchase;
+  return {calls, staleOutcome, purchaseOutcome, logoutDuringPurchase};
+}
+const staleOwnerCheckDuringNewOwnerPurchase = await exerciseStaleOwnerCheckDuringNewOwnerPurchase();
+if (!staleOwnerCheckDuringNewOwnerPurchase.staleOutcome.includes('could not confirm the signed-in account') ||
+    staleOwnerCheckDuringNewOwnerPurchase.purchaseOutcome !== 'fixture purchase stopped' ||
+    staleOwnerCheckDuringNewOwnerPurchase.logoutDuringPurchase ||
+    staleOwnerCheckDuringNewOwnerPurchase.calls.includes('logout') ||
+    staleOwnerCheckDuringNewOwnerPurchase.calls.filter(value => value === 'login:account-b').length !== 1 ||
+    staleOwnerCheckDuringNewOwnerPurchase.calls.filter(value => value === 'purchasePackage').length !== 1) {
+  console.error('A stale owner check must not log out a new owner during their purchase.',
+    staleOwnerCheckDuringNewOwnerPurchase);
+  process.exit(1);
+}
+
+async function exerciseFailedNativePostcheck(operation, {logoutFails = false} = {}) {
+  const calls = [];
+  let ownerChecks = 0;
+  let releasePostcheck;
+  let enterPostcheck;
+  let enterConcurrentCheck;
+  const postcheckPaused = new Promise(resolve => { releasePostcheck = resolve; });
+  const postcheckEntered = new Promise(resolve => { enterPostcheck = resolve; });
+  const concurrentCheckEntered = new Promise(resolve => { enterConcurrentCheck = resolve; });
+  const postcheckNumber = operation === 'configure' ? 3 : 7;
+  const concurrentCheckNumber = postcheckNumber + 1;
+  const plugin = {
+    async isConfigured() { calls.push('isConfigured'); return {isConfigured: false}; },
+    async configure() { calls.push('configure'); },
+    async logIn() { calls.push('login'); },
+    async logOut() {
+      calls.push('logout');
+      if (logoutFails) throw new Error('SDK logout unavailable');
+    },
+    async getOfferings() {
+      calls.push('offerings');
+      return {current: {availablePackages: []}};
+    },
+  };
+  const windowMock = {
+    CRUMP_CONFIG: {revenueCatAppleApiKey: 'fixture-public-key'},
+    CrumpAPI: {isNative: true, ready: Promise.resolve()},
+    CrumpNative: {Capacitor: {getPlatform: () => 'ios'}, Purchases: plugin},
+    currentUser: {id: 'account-a'},
+  };
+  const fetchImpl = async url => {
+    if (url === '/api/billing/native-readiness') return {
+      ok: true, async json() { return {success: true, ready: true}; },
+    };
+    if (url !== '/api/billing/native-identity') throw new Error('Unexpected native billing request.');
+    ownerChecks += 1;
+    calls.push(`owner-check:${ownerChecks}`);
+    if (ownerChecks === postcheckNumber) {
+      enterPostcheck();
+      await postcheckPaused;
+      return {ok: false, status: 409};
+    }
+    if (ownerChecks === concurrentCheckNumber) enterConcurrentCheck();
+    if (ownerChecks > concurrentCheckNumber) return {ok: false, status: 409};
+    return {ok: true, async json() {
+      return {success: true, recorded: true, userId: windowMock.currentUser?.id};
+    }};
+  };
+  runInContext(billingManagerSource, createContext({window: windowMock, fetch: fetchImpl}));
+  if (operation === 'login') {
+    await windowMock.BillingManager.getProducts();
+    windowMock.currentUser = {id: 'account-b'};
+  }
+  const first = windowMock.BillingManager.getProducts().then(
+    () => 'unexpected-success', error => error?.message || '',
+  );
+  await postcheckEntered;
+  const concurrent = windowMock.BillingManager.getCreditProducts().then(
+    () => 'unexpected-success', error => error?.message || '',
+  );
+  await concurrentCheckEntered;
+  releasePostcheck();
+  const outcomes = await Promise.all([first, concurrent]);
+  const offeringsBeforeRetry = calls.filter(value => value === 'offerings').length;
+  await windowMock.BillingManager.getProducts();
+  return {calls, outcomes, offeringsBeforeRetry};
+}
+for (const operation of ['configure', 'login']) {
+  for (const logoutFails of [false, true]) {
+    const result = await exerciseFailedNativePostcheck(operation, {logoutFails});
+    const expectedOfferings = operation === 'login' ? 1 : 0;
+    if (result.outcomes.some(message => !message || message === 'unexpected-success') ||
+        result.offeringsBeforeRetry !== expectedOfferings ||
+        result.calls.filter(value => value === 'logout').length !== 1 ||
+        result.calls.filter(value => value === 'configure').length !== 1 ||
+        result.calls.filter(value => value === 'login').length !== (operation === 'login' ? 1 : 0) ||
+        result.calls.filter(value => value === 'offerings').length !== expectedOfferings) {
+      console.error('Failed native postchecks must block concurrent and subsequent commerce.', operation, logoutFails, result);
+      process.exit(1);
+    }
+  }
+}
+
+async function exerciseDeletionBetweenCatalogAndPurchase(kind) {
+  const calls = [];
+  let fenced = false;
+  let enterCatalog;
+  let releaseCatalog;
+  const catalogEntered = new Promise(resolve => { enterCatalog = resolve; });
+  const catalogPaused = new Promise(resolve => { releaseCatalog = resolve; });
+  const plugin = {
+    async isConfigured() { return {isConfigured: false}; },
+    async configure() { calls.push('configure'); },
+    async getOfferings() {
+      calls.push('offerings');
+      enterCatalog();
+      await catalogPaused;
+      return {current: {availablePackages: [
+        {product: {identifier: kind === 'plan' ? 'fixture-professional' : 'askcrump_credits_50'}},
+      ]}};
+    },
+    async purchasePackage() { calls.push('purchasePackage'); return {}; },
+  };
+  const windowMock = {
+    CRUMP_CONFIG: {
+      revenueCatAppleApiKey: 'fixture-public-key',
+      revenueCatProfessionalProductId: 'fixture-professional',
+    },
+    CrumpAPI: {isNative: true, ready: Promise.resolve()},
+    CrumpNative: {Capacitor: {getPlatform: () => 'ios'}, Purchases: plugin},
+    currentUser: {id: 'deleting-owner'},
+  };
+  const fetchImpl = async url => {
+    if (url === '/api/billing/native-readiness') return {
+      ok: true, async json() { return {success: true, ready: true}; },
+    };
+    if (url === '/api/billing/native-identity') {
+      calls.push('owner-check');
+      return fenced ? {ok: false, status: 409} : {
+        ok: true, async json() { return {success: true, recorded: true, userId: 'deleting-owner'}; },
+      };
+    }
+    throw new Error('Unexpected native billing request.');
+  };
+  runInContext(billingManagerSource, createContext({window: windowMock, fetch: fetchImpl}));
+  const purchase = kind === 'plan'
+    ? windowMock.BillingManager.purchase('professional')
+    : windowMock.BillingManager.purchaseCredits('credits_50');
+  const outcome = purchase.then(() => 'unexpected-success', error => error?.message || '');
+  await catalogEntered;
+  fenced = true;
+  releaseCatalog();
+  return {calls, outcome: await outcome};
+}
+for (const kind of ['plan', 'credit']) {
+  const result = await exerciseDeletionBetweenCatalogAndPurchase(kind);
+  if (!result.outcome.includes('could not confirm the signed-in account') ||
+      result.calls.filter(value => value === 'configure').length !== 1 ||
+      result.calls.filter(value => value === 'offerings').length !== 1 ||
+      result.calls.includes('purchasePackage') ||
+      result.calls.at(-1) !== 'owner-check') {
+    console.error('Deletion after catalog load must block the store transaction.', kind, result);
+    process.exit(1);
+  }
+}
+
+async function exerciseFencedNativeStoreAction(action) {
+  const calls = [];
+  let ownerChecks = 0;
+  const plugin = {
+    async isConfigured() { return {isConfigured: false}; },
+    async configure() { calls.push('configure'); },
+    async restorePurchases() { calls.push('restorePurchases'); return {}; },
+    async getCustomerInfo() { calls.push('getCustomerInfo'); return {}; },
+  };
+  const windowMock = {
+    CRUMP_CONFIG: {revenueCatAppleApiKey: 'fixture-public-key'},
+    CrumpAPI: {isNative: true, ready: Promise.resolve()},
+    CrumpNative: {Capacitor: {getPlatform: () => 'ios'}, Purchases: plugin},
+    currentUser: {id: 'deleting-owner'},
+  };
+  const fetchImpl = async url => {
+    if (url === '/api/billing/native-readiness') return {
+      ok: true, async json() { return {success: true, ready: true}; },
+    };
+    if (url === '/api/billing/native-identity') {
+      ownerChecks += 1;
+      return ownerChecks === 5 ? {ok: false, status: 409} : {
+        ok: true, async json() { return {success: true, recorded: true, userId: 'deleting-owner'}; },
+      };
+    }
+    throw new Error('Unexpected native billing request.');
+  };
+  runInContext(billingManagerSource, createContext({window: windowMock, fetch: fetchImpl}));
+  const outcome = await windowMock.BillingManager[action]().then(
+    () => 'unexpected-success', error => error?.message || '',
+  );
+  return {calls, ownerChecks, outcome};
+}
+for (const action of ['restore', 'manageSubscription']) {
+  const result = await exerciseFencedNativeStoreAction(action);
+  if (result.ownerChecks !== 5 || result.calls.includes('restorePurchases') ||
+      result.calls.includes('getCustomerInfo') ||
+      !result.outcome.includes('could not confirm the signed-in account')) {
+    console.error('Fenced owners must not initiate native store actions.', action, result);
+    process.exit(1);
+  }
+}
+{
+  const calls = [];
+  let readinessRequests = 0;
+  let resolveFailedReadiness;
+  const failedReadiness = new Promise(resolve => { resolveFailedReadiness = resolve; });
+  const plugin = {
+    async configure() { calls.push('configure'); },
+    async logOut() { calls.push('logOut'); },
+    async getOfferings() { calls.push('getOfferings'); return {current: {availablePackages: []}}; },
+  };
+  const windowMock = {
+    CRUMP_CONFIG: {revenueCatAppleApiKey: 'fixture-public-key'},
+    CrumpAPI: {isNative: true, ready: Promise.resolve()},
+    CrumpNative: {Capacitor: {getPlatform: () => 'ios'}, Purchases: plugin},
+    currentUser: {id: 'free-native-account'},
+  };
+  async function mixedReadiness(url) {
+    if (url === '/api/billing/native-identity') {
+      return {ok: true, async json() {
+        return {success: true, recorded: true, userId: windowMock.currentUser?.id};
+      }};
+    }
+    readinessRequests += 1;
+    if (readinessRequests === 1) return {ok: true, async json() { return {success: true, ready: true}; }};
+    await failedReadiness;
+    return {ok: false};
+  }
+  runInContext(billingManagerSource, createContext({window: windowMock, fetch: mixedReadiness}));
+  const purchaseSideCatalog = windowMock.BillingManager.getProducts();
+  const timedOutCatalog = windowMock.BillingManager.getCreditProducts();
+  await purchaseSideCatalog;
+  resolveFailedReadiness();
+  await timedOutCatalog;
+  if (calls.filter(name => name === 'configure').length !== 1 ||
+      calls.filter(name => name === 'getOfferings').length !== 1 ||
+      calls.includes('logOut')) {
+    console.error('A failed concurrent readiness check must not log out an active store identity.');
+    process.exit(1);
+  }
+}
+
 async function exercisePersistedNativeBillingIdentity() {
   const calls = [];
   const plugin = {
@@ -1667,7 +2269,7 @@ async function exercisePersistedNativeBillingIdentity() {
     CrumpNative: {Capacitor: {getPlatform: () => 'android'}, Purchases: plugin},
     currentUser: {id: 'account-b'},
   };
-  runInContext(billingManagerSource, createContext({window: windowMock}));
+  runInContext(billingManagerSource, createContext({window: windowMock, fetch: nativeBillingFetch(windowMock)}));
   await windowMock.BillingManager.getProducts();
   return calls;
 }
@@ -1683,6 +2285,138 @@ const expectedPersistedNativeBillingIdentity = [
 if (JSON.stringify(persistedNativeBillingIdentity) !== JSON.stringify(expectedPersistedNativeBillingIdentity)) {
   console.error('Native billing must adopt a persisted SDK identity without configuring the singleton twice.');
   process.exit(1);
+}
+
+async function exerciseDeletionDisconnectRetry() {
+  const saved = new Map();
+  const storage = {
+    getItem(key) { return saved.get(key) || null; },
+    setItem(key, value) { saved.set(key, value); },
+    removeItem(key) { saved.delete(key); },
+  };
+  const key = 'askcrump.native-billing-deletion-disconnect-pending';
+  const firstWindow = {
+    CRUMP_CONFIG: {revenueCatAppleApiKey: 'fixture-public-key'},
+    CrumpAPI: {isNative: true, ready: Promise.resolve()},
+    CrumpNative: {Capacitor: {getPlatform: () => 'ios'}, Purchases: {}},
+    currentUser: {id: 'deleted-account'},
+  };
+  runInContext(billingManagerSource, createContext({window: firstWindow, localStorage: storage}));
+  await firstWindow.BillingManager.prepareAccountDeletion();
+  if (storage.getItem(key) !== 'deleted-account') return false;
+
+  // Simulate app termination after server deletion but before SDK logout.
+  const calls = [];
+  let logoutAttempts = 0;
+  const plugin = {
+    async isConfigured() { calls.push('isConfigured'); return {isConfigured: true}; },
+    async getAppUserID() { calls.push('getAppUserID'); return {appUserID: 'deleted-account'}; },
+    async isAnonymous() { return {isAnonymous: false}; },
+    async logOut() {
+      calls.push('logOut');
+      logoutAttempts += 1;
+      if (logoutAttempts === 1) throw new Error('temporary provider failure');
+    },
+    async logIn({appUserID}) { calls.push(`login:${appUserID}`); },
+    async getOfferings() { calls.push('getOfferings'); return {current: {availablePackages: []}}; },
+  };
+  const restartedWindow = {
+    CRUMP_CONFIG: {revenueCatAppleApiKey: 'fixture-public-key'},
+    CrumpAPI: {isNative: true, ready: Promise.resolve()},
+    CrumpNative: {Capacitor: {getPlatform: () => 'ios'}, Purchases: plugin},
+    currentUser: {id: 'deleted-account'},
+  };
+  runInContext(billingManagerSource, createContext({
+    window: restartedWindow, localStorage: storage, fetch: nativeBillingFetch(restartedWindow),
+  }));
+  try { await restartedWindow.BillingManager.getProducts(); } catch (_) {}
+  if (storage.getItem(key) !== 'deleted-account' || calls.includes('getOfferings')) return false;
+  await restartedWindow.BillingManager.getProducts();
+  if (storage.getItem(key) !== 'deleted-account' || calls.includes('getOfferings') || calls.includes('login')) return false;
+  restartedWindow.currentUser = {id: 'new-account'};
+  await restartedWindow.BillingManager.getProducts();
+  return storage.getItem(key) === null &&
+    calls.filter(value => value === 'logOut').length === 2 &&
+    calls.includes('login:new-account') &&
+    calls.filter(value => value === 'getOfferings').length === 1;
+}
+if (!await exerciseDeletionDisconnectRetry()) {
+  console.error('Native account deletion must retry SDK logout after restart before loading billing.');
+  process.exit(1);
+}
+
+const accountManagerSource = await readFile(new URL('public/account-manager.js', repoRoot), 'utf8');
+if (!accountManagerSource.includes('await window.BillingManager.prepareAccountDeletion()') ||
+    !accountManagerSource.includes('const billingDisconnected = await window.BillingManager?.disconnectAfterDeletion?.();') ||
+    !accountManagerSource.includes('window.BillingManager?.completeAccountDeletion?.();')) {
+  console.error('Permanent deletion must prepare and complete native store identity disconnect.');
+  process.exit(1);
+}
+
+async function exerciseDeletionFailureMarker({status, code, prior = false, network = false, prepare = true}) {
+  const elements = [];
+  function element(tag) {
+    const node = {
+      tag, textContent: '', className: '', disabled: false, listeners: {}, children: [],
+      append(...children) { this.children.push(...children); },
+      appendChild(child) { this.children.push(child); return child; },
+      addEventListener(name, listener) { this.listeners[name] = listener; },
+      setAttribute() {}, remove() {}, focus() {},
+    };
+    elements.push(node);
+    return node;
+  }
+  const document = {
+    activeElement: null,
+    body: element('body'),
+    getElementById() { return null; },
+    createElement: element,
+    createTextNode(value) { return {textContent: value}; },
+  };
+  let cancelled = 0;
+  let requests = 0;
+  const window = {
+    CrumpAPI: {isNative: true},
+    BillingManager: {
+      hasPendingAccountDeletion() { return prior; },
+      async prepareAccountDeletion() { return prepare; },
+      async disconnectAfterDeletion() { return true; },
+      completeAccountDeletion() {},
+      cancelAccountDeletion() { cancelled += 1; },
+    },
+    location: {replace() { throw new Error('Unexpected successful deletion'); }},
+  };
+  async function fetch() {
+    requests += 1;
+    if (network) throw new Error('Network interrupted');
+    return {status, ok: false, async json() { return {code, error: 'Deletion rejected'}; }};
+  }
+  runInContext(accountManagerSource, createContext({
+    window, document, fetch, requestAnimationFrame(callback) { callback(); },
+  }));
+  window.openDeleteAccountDialog();
+  const confirm = elements.find(node => node.textContent === 'Delete account permanently');
+  await confirm?.listeners?.click?.();
+  const error = elements.find(node => node.className === 'account-modal-error');
+  return {cancelled, requests, error: error?.textContent || '', confirmDisabled: confirm?.disabled};
+}
+const deletionFailureCases = [
+  [{status: 401}, {cancelled: 1, requests: 1}],
+  [{status: 502, code: 'BILLING_CANCELLATION_UNCONFIRMED'}, {cancelled: 1, requests: 1}],
+  [{status: 502, code: 'UNKNOWN'}, {cancelled: 0, requests: 1}],
+  [{status: 503, code: 'ACCOUNT_DELETION_FENCE_UNAVAILABLE'}, {cancelled: 0, requests: 1}],
+  [{status: 401, prior: true}, {cancelled: 0, requests: 1}],
+  [{network: true}, {cancelled: 0, requests: 1, error: 'Store billing is paused'}],
+  [{prepare: false}, {cancelled: 1, requests: 0}],
+];
+for (const [fixture, expected] of deletionFailureCases) {
+  const actual = await exerciseDeletionFailureMarker(fixture);
+  if (actual.cancelled !== expected.cancelled || actual.requests !== expected.requests ||
+      actual.confirmDisabled !== false ||
+      (expected.error && !actual.error.includes(expected.error))) {
+    console.error('Native deletion must only release the billing guard after a definite pre-fence failure.', fixture, actual);
+    process.exit(1);
+  }
 }
 
 const deviceAuthSource = await readFile(new URL('public/device-auth.js', repoRoot), 'utf8');

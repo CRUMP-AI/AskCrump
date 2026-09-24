@@ -186,7 +186,7 @@
     };
   }
 
-  function planCard(plan, billingStatus) {
+  function planCard(plan, billingStatus, storeProduct = null) {
     const article = document.createElement('article');
     article.className = `billing51-plan ${plan.id === 'professional' ? 'is-featured' : ''}`;
     article.dataset.crumpPlan = plan.id;
@@ -204,7 +204,8 @@
     name.textContent = plan.name;
 
     const price = document.createElement('span');
-    price.textContent = current ? `${plan.price} · Current` : plan.price;
+    const displayPrice = storeProduct?.price || (native() ? 'Store price unavailable' : plan.price);
+    price.textContent = current ? `${displayPrice} · Current` : displayPrice;
     top.append(name, price);
 
     const detail = document.createElement('p');
@@ -236,8 +237,12 @@
         button.addEventListener('click', () => openPortal(button, provider));
       }
     } else {
-      button.textContent = `Review ${plan.name} in ${native() ? 'app store' : 'Stripe'}`;
-      button.addEventListener('click', () => openCheckout(plan.id, button));
+      const storeAvailable = !native() || Boolean(storeProduct?.package);
+      button.textContent = storeAvailable
+        ? `Review ${plan.name} in ${native() ? 'app store' : 'Stripe'}`
+        : 'Not configured';
+      button.disabled = !storeAvailable;
+      if (storeAvailable) button.addEventListener('click', () => openCheckout(plan.id, button));
     }
 
     article.append(top, detail, benefits, meterNote, button);
@@ -299,13 +304,20 @@
     const section = host.closest('.billing51-section');
     const explainer = section?.querySelector('.billing51-section-head p');
     if (explainer) {
-      explainer.textContent =
-        'Choose monthly access for more included usage. You can manage or cancel a web subscription at any time.';
+      explainer.textContent = native()
+        ? 'Choose monthly access through your device store. Manage or cancel it from your store subscription settings.'
+        : 'Choose monthly access for more included usage. You can manage or cancel a web subscription at any time.';
     }
 
     let billingStatus = {tier: 'free', plan: null, status: 'inactive', provider: null, manageable: false};
+    let storeProducts = {};
     try {
-      billingStatus = await jsonFetch('/api/billing/status');
+      [billingStatus, storeProducts] = await Promise.all([
+        jsonFetch('/api/billing/status'),
+        native()
+          ? Promise.resolve(window.BillingManager?.getProducts?.() || {}).catch(() => ({}))
+          : Promise.resolve({}),
+      ]);
     } catch (error) {
       if (!modal.isConnected) return;
       host.replaceChildren();
@@ -324,8 +336,8 @@
       recoveryRequired
         ? [billingAttentionCard(billingStatus)]
         : [
-            planCard(planDefinition('professional'), billingStatus),
-            planCard(planDefinition('enterprise'), billingStatus),
+            planCard(planDefinition('professional'), billingStatus, storeProducts?.professional),
+            planCard(planDefinition('enterprise'), billingStatus, storeProducts?.enterprise),
           ]
     ));
     const manageButton = modal.querySelector('#billing51Manage');
@@ -387,6 +399,11 @@
     void activatePlans(modal).then(() => {
       if (modal.dataset.crumpSubscriptions532 !== 'ready') return;
       completeHandoff();
+    });
+  });
+  window.addEventListener('crump:billing-refresh-requested', () => {
+    document.querySelectorAll('.billing51-modal').forEach(modal => {
+      void activatePlans(modal, true);
     });
   });
   scan();

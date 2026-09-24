@@ -44,11 +44,11 @@ const assert = require('node:assert/strict');
       });
 
       assert.equal(evidence.runtimeState, 'ready');
-      assert.equal(evidence.styleCount, mode === 'style-retry' ? 18 : 17);
-      assert.equal(evidence.maxStyles, 17);
-      assert.equal(evidence.preloadCount, 34);
-      assert.equal(evidence.scriptCount, mode === 'script-retry' ? 35 : 34);
-      assert.equal(evidence.firstScript, '/onboarding.js?v=5.9.76-brand-retina-1');
+      assert.equal(evidence.styleCount, mode === 'style-retry' ? 19 : 18);
+      assert.equal(evidence.maxStyles, 18);
+      assert.equal(evidence.preloadCount, 35);
+      assert.equal(evidence.scriptCount, mode === 'script-retry' ? 36 : 35);
+      assert.equal(evidence.firstScript, '/ai-data-sharing-consent.js?v=5.9.76-ai-data-sharing-consent-1');
       assert.equal(evidence.lastScript, '/lifecycle-manager.js?v=5.9.76-lifecycle-idle-send-1');
       assert.equal(evidence.styleAttempts, mode === 'style-retry' ? 2 : 1);
       assert.equal(evidence.scriptAttempts, mode === 'script-retry' ? 2 : 1);
@@ -85,7 +85,7 @@ const assert = require('node:assert/strict');
     }));
     assert.deepEqual(failed, {
       runtimeState: 'failed',
-      styleCount: 18,
+      styleCount: 19,
       scriptCount: 0,
       styleAttempts: 2,
       readyEvents: 0,
@@ -110,8 +110,8 @@ const assert = require('node:assert/strict');
     }));
     assert.deepEqual(recovered, {
       runtimeState: 'ready',
-      styleCount: 19,
-      scriptCount: 34,
+      styleCount: 20,
+      scriptCount: 35,
       styleAttempts: 3,
       readyEvents: 1,
       failureMessage: 'none',

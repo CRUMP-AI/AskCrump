@@ -27,8 +27,11 @@ verifier fail.
 
 ## Compiled evidence
 
-The exact unsigned 5.9.76/build 50976 iOS candidate compiled on Xcode 16.4 and contained five valid
-privacy manifests:
+Correction recorded 2026-09-21: the exact unsigned 5.9.76/build 50976 iOS candidate compiled on
+Xcode 16.4 and contained five valid privacy manifests, but the single-component `50976` is not a
+valid Apple `CFBundleVersion`. The following remains historical compiled privacy evidence only and
+must not be used as App Store build-identity evidence. A current-toolchain run with a valid Apple
+build string must supersede it before signing.
 
 - `PrivacyInfo.xcprivacy` at the app root;
 - `Frameworks/Capacitor.framework/PrivacyInfo.xcprivacy`;

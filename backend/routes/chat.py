@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import time
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
@@ -9,12 +10,13 @@ from uuid import uuid4
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
+from ..ai_consent import require_ai_data_sharing_consent
 from ..ai_service import AIServiceError
 from ..auth_service import authenticate_request
 from ..checkin_service import mark_check_in_responded
 from ..db import eq
 from ..feature_service import FeatureAccessError
-from ..file_service import FileServiceError
+from ..file_service import FileService, FileServiceError
 from ..manuscript_service import ManuscriptError, chapter_count_from_prompt
 from ..product53_hooks import (
     apply_project_context,
@@ -53,6 +55,30 @@ def _ai_error_recovery(error_code: str) -> dict | None:
 
 def _artifact_file_id(*, user_id: str, message_id: str, format_name: str) -> str:
     return normalize_chat_id(f'artifact:{user_id}:{message_id}:{format_name}')
+
+
+def _video_creation_handoff(
+    *,
+    brief: str,
+    idempotency_key: str,
+    current_file_rows: list[dict],
+) -> dict:
+    """Carry only already owner-resolved images from this message into Video Studio."""
+    reference_files = [
+        FileService.public_file(row)
+        for row in current_file_rows
+        if str(row.get('mime_type') or '').lower().startswith('image/')
+    ]
+    return {
+        'kind': 'video',
+        'brief': brief[:12000],
+        'autoOpen': True,
+        # A reference changes both provider semantics and fidelity expectations.
+        # Let the user review the images and choose an engine before spending.
+        'autoStart': not reference_files,
+        'idempotencyKey': idempotency_key[:160],
+        'referenceFiles': reference_files,
+    }
 
 
 def _chat_job_is_stale(updated_at) -> bool:
@@ -102,7 +128,8 @@ async def _durable_reply_for_job(*, user_id: str, message_id: str, job: dict) ->
         'assistantMessage': assistant,
     }
     for key in (
-        'imageUrl', 'imagePrompt', 'imageAspect', 'imageFile', 'artifact', 'artifactRecovery',
+        'imageUrl', 'imagePrompt', 'imageAspect', 'imageFile', 'referencePlan', 'referenceReview',
+        'artifact', 'artifactRecovery',
         'projectAttachments', 'manuscriptWorkspace', 'creationHandoff',
     ):
         if assistant.get(key) is not None:
@@ -112,6 +139,16 @@ async def _durable_reply_for_job(*, user_id: str, message_id: str, job: dict) ->
     if conversation.get('updated_at'):
         recovered['conversationUpdatedAt'] = conversation['updated_at']
     return recovered
+
+
+async def _record_durable_activation(*, user_id: str, request: Request) -> bool:
+    return await record_product_event(
+        db,
+        user_id=user_id,
+        event_name='ActivationReached',
+        event_key='first-successful-response',
+        request=request,
+    )
 
 
 @router.post('/ack')
@@ -476,8 +513,31 @@ def _history_file_ids(payload: dict, limit: int = 6) -> list[str]:
 def _promote_explicit_document_delivery(
     creation_intent: dict,
     detected_format: str | None,
+    *,
+    explicit_format: str | None = None,
+    message: str = '',
 ) -> dict:
-    """Do not let semantic clarification suppress an explicit file request."""
+    """Keep an explicit file choice authoritative over conflicting semantics."""
+    if isinstance(creation_intent, dict):
+        kind = str(creation_intent.get('kind') or '')
+        authoritative_format = explicit_format
+        if not authoritative_format and kind in {'image', 'video', 'manuscript'}:
+            authoritative_format = detected_format
+        if (
+            authoritative_format
+            and (
+                kind != 'manuscript'
+                or authoritative_format != 'docx'
+                or not _is_intentional_manuscript_request(message)
+            )
+        ):
+            return {
+                **creation_intent,
+                'kind': 'document',
+                'stage': 'execute',
+                'question': '',
+                'format': authoritative_format,
+            }
     if (
         not detected_format
         or not isinstance(creation_intent, dict)
@@ -493,14 +553,63 @@ def _promote_explicit_document_delivery(
     }
 
 
+def _is_intentional_manuscript_request(message: str) -> bool:
+    """Distinguish writing a book from making a file about one."""
+    text = ' '.join(str(message or '').lower().split())
+    manuscript_noun = re.compile(
+        r'\b(book|novel|memoir|manuscript|screenplay|dissertation|thesis)\b',
+    )
+    if not manuscript_noun.search(text):
+        return False
+    if re.search(
+        r'\b(summary|synopsis|outline|review|blurb|proposal|query letter|book report)\b',
+        text,
+    ):
+        return False
+    if re.search(
+        r'\bbook\s+(launch|marketing|sales|club|campaign|tour|publishing|promotion|release)\b',
+        text,
+    ):
+        return False
+    output_noun = re.compile(
+        r'\b(document|docx|pdf|report|analysis|presentation|powerpoint|slides?|'
+        r'spreadsheet|excel|workbook|budget|plan|memo|summary|review|proposal|'
+        r'outline|timeline|schedule|list|guide)\b',
+    )
+    subject_connector = re.compile(
+        r'\b(about|regarding|analy[sz](?:e|ing)|describ(?:e|ing)|review(?:ing)?|'
+        r'summari[sz](?:e|ing)|covering)\b',
+    )
+    explicit_length = bool(re.search(
+        r'\b(full[ -]?length|book[ -]?length|from start to finish)\b|'
+        r'\b\d{2,3}(?:,\d{3})?\s*words?\b',
+        text,
+    ))
+    for verb in re.finditer(
+        r'\b(write|draft|compose|author|create|make|produce|build|want|need|'
+        r'finish|complete|continue|revise|edit|expand)\b',
+        text,
+    ):
+        noun = manuscript_noun.search(text, verb.end())
+        if not noun or noun.start() - verb.end() > 120:
+            continue
+        between = text[verb.end():noun.start()]
+        if output_noun.search(between) or subject_connector.search(between):
+            continue
+        return True
+    return explicit_length and not output_noun.search(text)
+
+
 @router.post('')
 async def chat(request: Request):
     started = time.perf_counter()
     request_id = request.headers.get('X-Request-ID') or str(uuid4())
     auth = await authenticate_request(request, db, settings)
+    require_ai_data_sharing_consent(auth.user)
     effective_user_tier = tier_name(auth.user)
     payload = await request.json()
     request_payload = dict(payload) if isinstance(payload, dict) else {}
+    request_payload.pop('user', None)
     # Precision masks are private, single-request image data. Keep them out of
     # intelligence preparation, traces, synchronized messages, and analytics.
     image_edit_mask = request_payload.pop('imageEditMask', None)
@@ -573,11 +682,6 @@ async def chat(request: Request):
     user_settings = await db.select_one('user_settings', filters={'user_id': eq(auth.user['id'])}) or {}
     request_payload['assistantName'] = user_settings.get('assistant_name') or 'Crump'
     request_payload['workMode'] = 'work' if user_settings.get('work_mode') else 'companion'
-    request_payload['user'] = {
-        'id': auth.user['id'],
-        'email': auth.user.get('email'),
-        'name': auth.user.get('full_name') or str(auth.user.get('email') or '').split('@')[0] or 'the user',
-    }
 
     # Metadata-only marker lets the 4.4 orchestration recognize a document task.
     if file_rows and not str(request_payload.get('message') or '').strip():
@@ -650,6 +754,7 @@ async def chat(request: Request):
                 else:
                     request_payload['relevantContext'] = [project_reference_context]
 
+    explicit_artifact = artifacts.normalize_format(request_payload.get('artifactFormat'))
     legacy_artifact = artifacts.detect_request(
         str(request_payload.get('message') or ''),
         request_payload.get('artifactFormat'),
@@ -666,6 +771,8 @@ async def chat(request: Request):
     creation_intent = _promote_explicit_document_delivery(
         prepared.creation_intent or {},
         legacy_artifact,
+        explicit_format=explicit_artifact,
+        message=original_message,
     )
     if creation_intent:
         prepared.creation_intent = creation_intent
@@ -892,16 +999,22 @@ async def chat(request: Request):
             project_id = str(result.get('projectId') or project_id or '') or None
         elif semantic_creation and creation_kind == 'video' and creation_stage == 'execute':
             handoff_key = f"chat-video:{chat_id or 'chat'}:{message_id or request_id}"
+            creation_handoff = _video_creation_handoff(
+                brief=execution_brief,
+                idempotency_key=handoff_key,
+                current_file_rows=current_file_rows,
+            )
+            has_video_references = bool(creation_handoff['referenceFiles'])
             result = {
-                'response': "Yep — I’ve got the scene. I carried what we worked out into Video Studio and I’m starting it from there so you don’t have to repeat the prompt.",
+                'response': (
+                    "Yep — I carried the scene and your attached images into Video Studio. "
+                    "Review how the selected engine uses them, then create the video when you’re ready. "
+                    "Exact logos and readable text still need an approved overlay for pixel-accurate branding."
+                    if has_video_references
+                    else "Yep — I’ve got the scene. I carried what we worked out into Video Studio and I’m starting it from there so you don’t have to repeat the prompt."
+                ),
                 'model': ai.settings.anthropic_model,
-                'creationHandoff': {
-                    'kind': 'video',
-                    'brief': execution_brief[:12000],
-                    'autoOpen': True,
-                    'autoStart': True,
-                    'idempotencyKey': handoff_key[:160],
-                },
+                'creationHandoff': creation_handoff,
             }
         elif (
             not request_payload.get('suppressCreativeExecution')
@@ -1079,6 +1192,7 @@ async def chat(request: Request):
                 )
 
     # The API, not an individual browser tab, owns persistence of the AI reply.
+    reply_persisted = False
     if chat_id and message_id:
         reply_time = iso_now()
         public_files = [files.public_file(row) for row in current_file_rows]
@@ -1098,6 +1212,7 @@ async def chat(request: Request):
             key: request_payload.get(key)
             for key in (
                 'creativeTool', 'imageAspect', 'imageQuality', 'imageUseReference',
+                'imageReferencePlan', 'imageReferencePlanConfirmed',
                 'artifactFormat', 'artifactPurpose', 'needsSearch', 'taskType', 'longForm',
             )
             if request_payload.get(key) is not None
@@ -1120,6 +1235,10 @@ async def chat(request: Request):
                 assistant_message['imageAspect'] = image_aspect
         if result.get('imageFile'):
             assistant_message['imageFile'] = result['imageFile']
+        if result.get('referencePlan'):
+            assistant_message['referencePlan'] = result['referencePlan']
+        if result.get('referenceReview'):
+            assistant_message['referenceReview'] = result['referenceReview']
         if result.get('artifact'):
             assistant_message['artifact'] = result['artifact']
         if result.get('artifactRecovery'):
@@ -1144,10 +1263,17 @@ async def chat(request: Request):
                     'p_assistant_message': assistant_message,
                 },
             )
+            receipt = persisted[0] if isinstance(persisted, list) and persisted else None
+            if not isinstance(receipt, dict):
+                raise RuntimeError('Chat persistence returned no durable receipt.')
+            resulting_revision = receipt.get('resulting_revision')
+            resulting_updated_at = str(receipt.get('resulting_updated_at') or '').strip()
+            if resulting_revision is None or not resulting_updated_at:
+                raise RuntimeError('Chat persistence returned an invalid durable receipt.')
+            reply_persisted = True
             result['assistantMessage'] = assistant_message
-            if isinstance(persisted, list) and persisted:
-                result['conversationRevision'] = persisted[0].get('resulting_revision')
-                result['conversationUpdatedAt'] = persisted[0].get('resulting_updated_at')
+            result['conversationRevision'] = resulting_revision
+            result['conversationUpdatedAt'] = resulting_updated_at
         except Exception:
             await refund_usage(db, auth.user['id'], usage.get('eventId'))
             await features.refund(auth.user['id'], feature_usage)
@@ -1209,13 +1335,8 @@ async def chat(request: Request):
         latency_ms=int((time.perf_counter() - started) * 1000), status='success',
         verifier_used=verifier_used,
     )
-    await record_product_event(
-        db,
-        user_id=auth.user['id'],
-        event_name='ActivationReached',
-        event_key='first-successful-response',
-        request=request,
-    )
+    if reply_persisted:
+        await _record_durable_activation(user_id=auth.user['id'], request=request)
     artifact_type = artifact_type_for_result(result)
     if artifact_type:
         await record_product_event(

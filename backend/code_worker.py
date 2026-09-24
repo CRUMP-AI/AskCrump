@@ -1,4 +1,4 @@
-"""Lease-owned, replay-safe worker for accepted Crump Code tasks."""
+"""Lease-owned, replay-safe worker for accepted Autonomous Crump tasks."""
 from __future__ import annotations
 
 import logging
@@ -7,11 +7,12 @@ from time import monotonic
 from typing import Any
 from uuid import uuid4
 
+from .ai_consent import has_current_ai_data_sharing_consent
 from .code_observability import code_log
 from .code_runner import CodeRunnerError, run_with_deadline
 from .code_service import CodeTaskConflictError, CodeTaskService, TERMINAL_STATUSES
 from .config import Settings
-from .db import SupabaseDB
+from .db import SupabaseDB, eq
 from .feature_service import FeatureService
 
 
@@ -120,6 +121,31 @@ class CodeWorker:
         )
         if not task:
             return {"handled": False, "claimed": False}
+
+        owner = await self.db.select_one(
+            "users",
+            columns=(
+                "id,ai_data_sharing_consent_at,ai_data_sharing_consent_version,"
+                "ai_data_sharing_consent_revoked_at,deleted_at"
+            ),
+            filters={"id": eq(task["user_id"])},
+        )
+        if not has_current_ai_data_sharing_consent(owner):
+            await self._fail(task, "AI_DATA_SHARING_CONSENT_REQUIRED")
+            code_log(
+                logger,
+                logging.INFO,
+                "worker_stopped_before_provider",
+                status="failed",
+                failure_code="AI_DATA_SHARING_CONSENT_REQUIRED",
+                payment_source="refunded" if task.get("usage_receipt") else "none",
+            )
+            return {
+                "handled": True,
+                "claimed": True,
+                "status": "failed",
+                "errorCode": "AI_DATA_SHARING_CONSENT_REQUIRED",
+            }
 
         started = monotonic()
         attempt = int(task.get("attempt_count") or 0)

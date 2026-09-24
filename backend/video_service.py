@@ -49,6 +49,12 @@ class VideoService:
     ENGINES = {QUICK, EXTENDABLE, CINEMATIC}
     REFERENCE_IMAGE_MAX_BYTES = 20 * 1024 * 1024
     REFERENCE_IMAGE_MAX_EDGE = 2048
+    REFERENCE_ROLES = {
+        "subject": "Subject / product",
+        "mascot": "Mascot / character",
+        "logo": "Logo / wordmark",
+        "style": "Style / palette",
+    }
 
     def __init__(self, settings: Settings, db: SupabaseDB, files: FileService) -> None:
         self.settings = settings
@@ -111,16 +117,57 @@ class VideoService:
             raise VideoServiceError(f"Video prompts for this engine must be {max_chars:,} characters or fewer.", "PROMPT_TOO_LONG")
         return prompt
 
-    @staticmethod
-    def provider_prompt(prompt: str, *, max_chars: int, has_visual_reference: bool = False) -> str:
+    @classmethod
+    def provider_prompt(
+        cls,
+        prompt: str,
+        *,
+        max_chars: int,
+        reference_plan: list[dict[str, Any]] | None = None,
+        reference_mode: str | None = None,
+        has_visual_reference: bool = False,
+    ) -> str:
         """Add bounded continuity/brand constraints without changing saved copy."""
-        brand_guard = (
-            'Use the supplied visual reference to preserve the subject, product, colors, proportions, and visible mark; '
-            'do not restyle the mark, add letters, or substitute symbols.'
-            if has_visual_reference
-            else 'Never invent or approximate a logo, wordmark, label, or branded text. If an exact mark is not supplied '
-                 'as visual input, keep branding absent or out of frame.'
-        )
+        plan = list(reference_plan or [])
+        role_lines: list[str] = []
+        for index, item in enumerate(plan, start=1):
+            role = str(item.get("role") or "").strip().lower() if isinstance(item, dict) else ""
+            if role not in cls.REFERENCE_ROLES:
+                raise VideoServiceError(
+                    "Choose a valid role for every video reference.",
+                    "INVALID_VIDEO_REFERENCE_PLAN",
+                )
+            role_lines.append(f"Input image {index}: {cls.REFERENCE_ROLES[role]} ({role}).")
+
+        if role_lines:
+            if reference_mode == "initial-frame":
+                reference_guard = (
+                    "The provider uses Input image 1 as the single starting frame, not as a loose mood board. "
+                    f"{role_lines[0]} Preserve its composition and assigned visual identity as closely as the model allows."
+                )
+            else:
+                reference_guard = (
+                    "The provider uses these inputs as best-effort appearance guidance, not pixel-locked frames or layout "
+                    f"templates. {' '.join(role_lines)} Apply each input only to its assigned role; do not merge or "
+                    "substitute identities."
+                )
+            brand_guard = (
+                f"{reference_guard} For a logo or wordmark, do not invent letters, redraw it in another style, or replace "
+                "it with a similar symbol. Exact pixels and readable text are not guaranteed by video generation; leave "
+                "the area clean for an approved overlay when exact branding is required."
+            )
+        elif has_visual_reference:
+            # Compatibility for already-running callers while every new request
+            # carries an indexed reference plan.
+            brand_guard = (
+                "Use the supplied visual reference to preserve the subject, product, colors, proportions, and visible "
+                "mark as closely as the model allows; do not restyle the mark, add letters, or substitute symbols."
+            )
+        else:
+            brand_guard = (
+                "Never invent or approximate a logo, wordmark, label, or branded text. If an exact mark is not supplied "
+                "as visual input, keep branding absent or out of frame."
+            )
         guard = (
             'Continuity requirements: keep subject identity, colors, geometry, object counts, anatomy, and spatial '
             'relationships stable across every frame; avoid morphing, duplicates, substitutions, and unreadable details. '
@@ -138,6 +185,136 @@ class VideoService:
     @staticmethod
     def reference_limit(engine: str) -> int:
         return 3 if engine == VideoService.EXTENDABLE else 1
+
+    @classmethod
+    def _normalize_reference_plan(
+        cls,
+        *,
+        file_ids: Any,
+        reference_plan: Any,
+        engine: str,
+    ) -> list[dict[str, str]]:
+        """Validate reference identities, roles, count, and exact client order."""
+        has_file_ids = file_ids is not None and file_ids != ""
+        has_plan = reference_plan is not None
+        if not has_file_ids and not has_plan:
+            return []
+        if has_file_ids and not isinstance(file_ids, list):
+            raise VideoServiceError(
+                "Video references must be selected from your private Files.",
+                "INVALID_VIDEO_REFERENCE",
+            )
+
+        normalized_ids: list[str] = []
+        for value in file_ids if isinstance(file_ids, list) else []:
+            raw_file_id = str(value or "").strip()
+            if not raw_file_id:
+                raise VideoServiceError(
+                    "One video reference is invalid. Remove it and upload the image again.",
+                    "INVALID_VIDEO_REFERENCE",
+                )
+            try:
+                file_id = normalize_chat_id(raw_file_id)
+            except Exception as exc:
+                raise VideoServiceError(
+                    "One video reference is invalid. Remove it and upload the image again.",
+                    "INVALID_VIDEO_REFERENCE",
+                ) from exc
+            if file_id in normalized_ids:
+                raise VideoServiceError(
+                    "Each video reference can appear only once.",
+                    "INVALID_VIDEO_REFERENCE_PLAN",
+                )
+            normalized_ids.append(file_id)
+
+        if has_plan:
+            if not isinstance(reference_plan, list):
+                raise VideoServiceError(
+                    "Confirm one role for every selected video reference.",
+                    "INVALID_VIDEO_REFERENCE_PLAN",
+                )
+            entries: list[dict[str, str]] = []
+            plan_ids: list[str] = []
+            for item in reference_plan:
+                if not isinstance(item, dict):
+                    raise VideoServiceError(
+                        "Confirm one role for every selected video reference.",
+                        "INVALID_VIDEO_REFERENCE_PLAN",
+                    )
+                raw_file_id = str(item.get("fileId") or "").strip()
+                if not raw_file_id:
+                    raise VideoServiceError(
+                        "The video reference plan contains an invalid file.",
+                        "INVALID_VIDEO_REFERENCE_PLAN",
+                    )
+                try:
+                    file_id = normalize_chat_id(raw_file_id)
+                except Exception as exc:
+                    raise VideoServiceError(
+                        "The video reference plan contains an invalid file.",
+                        "INVALID_VIDEO_REFERENCE_PLAN",
+                    ) from exc
+                role = str(item.get("role") or "").strip().lower()
+                if role not in cls.REFERENCE_ROLES or file_id in plan_ids:
+                    raise VideoServiceError(
+                        "Choose one valid, non-duplicate role assignment for every video reference.",
+                        "INVALID_VIDEO_REFERENCE_PLAN",
+                    )
+                plan_ids.append(file_id)
+                entries.append({"fileId": file_id, "role": role})
+            if has_file_ids and plan_ids != normalized_ids:
+                raise VideoServiceError(
+                    "The video reference plan no longer matches the selected images or their order. Review it again.",
+                    "INVALID_VIDEO_REFERENCE_PLAN",
+                )
+        else:
+            # Legacy clients selected images without assigning roles. Keep them
+            # working while treating each input as subject/product guidance.
+            entries = [{"fileId": file_id, "role": "subject"} for file_id in normalized_ids]
+
+        normalized_engine = cls.validate_engine(engine)
+        limit = cls.reference_limit(normalized_engine)
+        if len(entries) > limit:
+            label = "Extendable" if normalized_engine == cls.EXTENDABLE else normalized_engine.title()
+            raise VideoServiceError(
+                f"{label} accepts up to {limit} reference image{'s' if limit != 1 else ''}.",
+                "TOO_MANY_VIDEO_REFERENCES",
+            )
+        return entries
+
+    @classmethod
+    def reference_receipt(cls, references: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+        """Return the bounded, byte-free role receipt safe to persist and expose."""
+        receipt: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for index, reference in enumerate(references or [], start=1):
+            if not isinstance(reference, dict):
+                raise VideoServiceError(
+                    "The video reference plan is invalid.",
+                    "INVALID_VIDEO_REFERENCE_PLAN",
+                )
+            raw_file_id = str(reference.get("fileId") or "").strip()
+            if not raw_file_id:
+                raise VideoServiceError(
+                    "The video reference plan contains an invalid file.",
+                    "INVALID_VIDEO_REFERENCE_PLAN",
+                )
+            try:
+                file_id = normalize_chat_id(raw_file_id)
+            except Exception as exc:
+                raise VideoServiceError(
+                    "The video reference plan contains an invalid file.",
+                    "INVALID_VIDEO_REFERENCE_PLAN",
+                ) from exc
+            role = str(reference.get("role") or "subject").strip().lower()
+            if role not in cls.REFERENCE_ROLES or file_id in seen:
+                raise VideoServiceError(
+                    "The video reference plan is invalid.",
+                    "INVALID_VIDEO_REFERENCE_PLAN",
+                )
+            seen.add(file_id)
+            receipt.append({"input": index, "fileId": file_id, "role": role})
+        return receipt
 
     @classmethod
     def _prepare_reference_image(cls, data: bytes) -> tuple[str, str]:
@@ -185,47 +362,43 @@ class VideoService:
         *,
         user_id: str,
         file_ids: Any,
+        reference_plan: Any = None,
         engine: str,
     ) -> list[dict[str, str]]:
         """Resolve owner-scoped Files before credits or provider spend."""
-        if file_ids is None or file_ids == "":
-            return []
-        if not isinstance(file_ids, list):
-            raise VideoServiceError(
-                "Video references must be selected from your private Files.",
-                "INVALID_VIDEO_REFERENCE",
-            )
-
-        normalized_engine = self.validate_engine(engine)
-        normalized_ids: list[str] = []
-        for value in file_ids:
-            try:
-                file_id = normalize_chat_id(str(value))
-            except Exception as exc:
-                raise VideoServiceError(
-                    "One video reference is invalid. Remove it and upload the image again.",
-                    "INVALID_VIDEO_REFERENCE",
-                ) from exc
-            if file_id not in normalized_ids:
-                normalized_ids.append(file_id)
-
-        limit = self.reference_limit(normalized_engine)
-        if len(normalized_ids) > limit:
-            label = "Extendable" if normalized_engine == self.EXTENDABLE else normalized_engine.title()
-            raise VideoServiceError(
-                f"{label} accepts up to {limit} reference image{'s' if limit != 1 else ''}.",
-                "TOO_MANY_VIDEO_REFERENCES",
-            )
-
-        prepared: list[dict[str, str]] = []
-        for file_id in normalized_ids:
+        entries = self._normalize_reference_plan(
+            file_ids=file_ids,
+            reference_plan=reference_plan,
+            engine=engine,
+        )
+        owned: list[tuple[dict[str, str], dict[str, Any]]] = []
+        for entry in entries:
+            file_id = entry["fileId"]
             try:
                 row = await self.files.get_owned(user_id=user_id, file_id=file_id)
-                if not str(row.get("mime_type") or "").lower().startswith("image/"):
-                    raise VideoServiceError(
-                        "Video references must be JPG, PNG, or WebP images.",
-                        "INVALID_VIDEO_REFERENCE_IMAGE",
-                    )
+            except FileServiceError as exc:
+                raise VideoServiceError(
+                    "A selected video reference is unavailable. Remove it and upload the image again.",
+                    "VIDEO_REFERENCE_UNAVAILABLE",
+                    exc.status_code,
+                    exc.status_code >= 500,
+                ) from exc
+            if str(row.get("id") or "") != file_id:
+                raise VideoServiceError(
+                    "A selected video reference is unavailable. Remove it and upload the image again.",
+                    "VIDEO_REFERENCE_UNAVAILABLE",
+                    404,
+                )
+            if not str(row.get("mime_type") or "").lower().startswith("image/"):
+                raise VideoServiceError(
+                    "Video references must be JPG, PNG, or WebP images.",
+                    "INVALID_VIDEO_REFERENCE_IMAGE",
+                )
+            owned.append((entry, row))
+
+        prepared: list[dict[str, str]] = []
+        for entry, row in owned:
+            try:
                 raw = await self.files.download_bytes(row=row, max_bytes=self.REFERENCE_IMAGE_MAX_BYTES)
             except FileServiceError as exc:
                 raise VideoServiceError(
@@ -235,7 +408,12 @@ class VideoService:
                     exc.status_code >= 500,
                 ) from exc
             mime_type, encoded = self._prepare_reference_image(raw)
-            prepared.append({"fileId": file_id, "mimeType": mime_type, "data": encoded})
+            prepared.append({
+                "fileId": entry["fileId"],
+                "role": entry["role"],
+                "mimeType": mime_type,
+                "data": encoded,
+            })
         return prepared
 
     @staticmethod
@@ -389,6 +567,18 @@ class VideoService:
     @staticmethod
     def _public_base(row: dict[str, Any]) -> dict[str, Any]:
         metadata = row.get("metadata") or {}
+        safe_reference_plan = []
+        for index, item in enumerate(metadata.get("referencePlan") or [], start=1):
+            if not isinstance(item, dict):
+                continue
+            role = str(item.get("role") or "").strip().lower()
+            file_id = str(item.get("fileId") or "").strip()
+            if role in VideoService.REFERENCE_ROLES and file_id:
+                safe_reference_plan.append({
+                    "input": index,
+                    "fileId": file_id[:64],
+                    "role": role,
+                })
         return {
             "id": row.get("id"),
             "status": row.get("status"),
@@ -408,6 +598,8 @@ class VideoService:
             "error": row.get("error_message"),
             "chargeReturned": bool(row.get("billing_refunded")),
             "providerStatus": metadata.get("providerStatus"),
+            "referenceMode": metadata.get("referenceMode"),
+            "referencePlan": safe_reference_plan,
             "createdAt": row.get("created_at"),
             "updatedAt": row.get("updated_at"),
         }
@@ -446,6 +638,171 @@ class VideoService:
                 True,
             )
 
+    async def reserve_provider_claim(
+        self, *, user_id: str, provider: str, operation_type: str
+    ) -> str:
+        """Fence deletion before credits are consumed or a provider is contacted."""
+        job_id = str(uuid4())
+        try:
+            reservation = await self.db.rpc(
+                "reserve_video_provider_claim",
+                {
+                    "p_user_id": user_id,
+                    "p_job_id": job_id,
+                    "p_provider": provider,
+                    "p_operation_type": operation_type,
+                },
+                retry_transient=True,
+            )
+        except Exception as exc:
+            raise VideoServiceError(
+                "Video reservation is temporarily unavailable.",
+                "VIDEO_RESERVATION_UNAVAILABLE", 503, True,
+            ) from exc
+        status = reservation.get("status") if isinstance(reservation, dict) else None
+        if status == "start_unknown":
+            raise VideoServiceError(
+                "A previous video start is still being reconciled. Check that job before starting another.",
+                "VIDEO_START_RECONCILIATION_PENDING", 409, False, True,
+                str(reservation.get("jobId") or "") or None,
+            )
+        if status != "reserved":
+            raise VideoServiceError(
+                "Account deletion is in progress. No video job was started.",
+                "ACCOUNT_DELETION_IN_PROGRESS", 409,
+            )
+        return job_id
+
+    async def finish_provider_claim(
+        self, *, user_id: str, job_id: str, outcome: str
+    ) -> None:
+        await self.db.rpc(
+            "finish_video_provider_claim",
+            {"p_user_id": user_id, "p_job_id": job_id, "p_outcome": outcome},
+            retry_transient=True,
+        )
+
+    async def reconcile_deleted_provider_claim_once(self) -> dict[str, Any]:
+        """Poll one deleted account's provider claim without fetching its output.
+
+        A claim contains only the provider's job identifier. This worker must
+        never download a finished video, recreate a media row, or log a
+        provider response: account deletion has already removed that content.
+        """
+        lease_token = str(uuid4())
+        rows = await self.db.rpc(
+            "claim_deleted_video_provider_reconciliation",
+            {"p_lease_token": lease_token},
+            retry_transient=True,
+        )
+        claim = rows[0] if isinstance(rows, list) and rows else None
+        if not claim:
+            return {"handled": False}
+
+        provider_job_id = str(claim.get("provider_job_id") or "").strip()
+        provider_name = str(claim.get("provider") or "")
+        next_state, delay, result = "accepted", 300, "retry"
+        if not provider_job_id:
+            # An ambiguous provider start has no addressable job to poll.
+            # Preserve it for operator/provider reconciliation, not refund.
+            next_state, delay, result = "unknown", 86400, "needs_review"
+        else:
+            provider = (
+                self.gemini if provider_name == "gemini"
+                else self.runway if provider_name == "runway"
+                else None
+            )
+            # Emergency disablement stops new starts, but existing accepted
+            # jobs still need status-only reconciliation when keys remain.
+            has_status_key = (
+                bool(self.settings.gemini_api_key) if provider_name == "gemini"
+                else bool(self.settings.runway_api_secret) if provider_name == "runway"
+                else False
+            )
+            if provider is None or not has_status_key:
+                delay, result = 3600, "provider_unavailable"
+            else:
+                try:
+                    status = await provider.poll(provider_job_id)
+                except ProviderError:
+                    delay, result = 300, "provider_status_unavailable"
+                else:
+                    if status.get("status") in {"ready", "failed"}:
+                        # Deliberately discard outputUrl/providerAssetReference.
+                        next_state, delay, result = "settled", 86400, "settled"
+                    else:
+                        delay, result = 60, "processing"
+
+        released = await self.db.rpc(
+            "release_deleted_video_provider_reconciliation",
+            {
+                "p_job_id": claim["job_id"],
+                "p_lease_token": lease_token,
+                "p_next_state": next_state,
+                "p_delay_seconds": delay,
+            },
+            retry_transient=True,
+        )
+        return {"handled": True, "result": result if released else "lease_lost"}
+
+    async def _begin_provider_dispatch(self, *, user_id: str, job_id: str) -> None:
+        # The token makes an uncertain RPC response retry-safe without letting
+        # another request dispatch the same paid job a second time.
+        try:
+            allowed = await self.db.rpc(
+                "begin_video_provider_dispatch",
+                {
+                    "p_user_id": user_id,
+                    "p_job_id": job_id,
+                    "p_dispatch_token": str(uuid4()),
+                },
+                retry_transient=True,
+            )
+        except Exception as exc:
+            raise VideoServiceError(
+                "Video dispatch could not be confirmed. No provider request was made.",
+                "VIDEO_DISPATCH_UNAVAILABLE", 503, True, True, job_id,
+            ) from exc
+        if not allowed:
+            raise VideoServiceError(
+                "Account deletion started before video dispatch. No provider request was made.",
+                "ACCOUNT_DELETION_IN_PROGRESS", 409, False, True, job_id,
+            )
+
+    async def _record_provider_acceptance(
+        self, *, user_id: str, job_id: str, provider_job_id: str
+    ) -> dict[str, Any]:
+        try:
+            tracked = await self.db.rpc(
+                "record_video_provider_acceptance",
+                {
+                    "p_user_id": user_id,
+                    "p_job_id": job_id,
+                    "p_provider_job_id": provider_job_id,
+                },
+                retry_transient=True,
+            )
+            row = (
+                await self.db.select_one(
+                    "media_jobs",
+                    filters={"id": eq(job_id), "user_id": eq(user_id)},
+                )
+                if tracked else None
+            )
+        except Exception as exc:
+            raise VideoServiceError(
+                "The provider accepted this video, but tracking needs reconciliation.",
+                "VIDEO_JOB_TRACKING_FAILED", 503, True, False, job_id,
+            ) from exc
+        if not row:
+            # The independent content-free claim retains the provider ID even
+            # if deletion cascaded media_jobs while the HTTP call was in flight.
+            raise VideoServiceError(
+                "The provider accepted this video, but its account is unavailable.",
+                "VIDEO_JOB_TRACKING_FAILED", 503, True, False, job_id,
+            )
+        return row
+
     async def start(
         self,
         *,
@@ -459,6 +816,7 @@ class VideoService:
         idempotency_key: str | None = None,
         charge_receipt: dict[str, Any] | None = None,
         reference_images: list[dict[str, str]] | None = None,
+        claimed_job_id: str,
     ) -> dict[str, Any]:
         engine, resolution, duration_seconds = self.normalize_request(
             engine=engine,
@@ -467,17 +825,31 @@ class VideoService:
         )
         provider_prompt_limit = 1000 if engine == self.CINEMATIC else 4000
         prompt = self.validate_prompt(prompt, max_chars=provider_prompt_limit)
-        references = list(reference_images or [])
+        references: list[dict[str, Any]] = []
+        for reference in reference_images or []:
+            if not isinstance(reference, dict):
+                raise VideoServiceError(
+                    "The video reference plan is invalid.",
+                    "INVALID_VIDEO_REFERENCE_PLAN",
+                )
+            references.append(dict(reference))
         limit = self.reference_limit(engine)
         if len(references) > limit:
             raise VideoServiceError(
                 f"This video engine accepts up to {limit} reference image{'s' if limit != 1 else ''}.",
                 "TOO_MANY_VIDEO_REFERENCES",
             )
+        reference_receipt = self.reference_receipt(references)
+        reference_mode = (
+            "appearance-guidance" if references and engine == self.EXTENDABLE
+            else "initial-frame" if references
+            else None
+        )
         guarded_prompt = self.provider_prompt(
             prompt,
             max_chars=provider_prompt_limit,
-            has_visual_reference=bool(references),
+            reference_plan=reference_receipt,
+            reference_mode=reference_mode,
         )
         aspect_ratio = self.validate_aspect_ratio(aspect_ratio)
         project = normalize_chat_id(project_id) if project_id else None
@@ -485,6 +857,9 @@ class VideoService:
 
         existing = await self._idempotent(user_id=user_id, key=key)
         if existing:
+            await self.finish_provider_claim(
+                user_id=user_id, job_id=claimed_job_id, outcome="rejected",
+            )
             return existing
         await self._guard_concurrency(user_id=user_id)
 
@@ -495,7 +870,7 @@ class VideoService:
             provider = "gemini"
             model = self.settings.gemini_video_extend_model if engine == self.EXTENDABLE else self.settings.gemini_video_model
 
-        job_id = str(uuid4())
+        job_id = normalize_chat_id(claimed_job_id)
         row = {
             "id": job_id,
             "user_id": user_id,
@@ -530,17 +905,45 @@ class VideoService:
             "metadata": {
                 "refundEligible": True,
                 "providerAccepted": False,
-                "referenceFileIds": [str(reference.get("fileId") or "") for reference in references],
-                "referenceMode": (
-                    "asset" if references and engine == self.EXTENDABLE
-                    else "initial-frame" if references
-                    else None
-                ),
+                "referenceFileIds": [item["fileId"] for item in reference_receipt],
+                "referenceMode": reference_mode,
+                "referencePlan": reference_receipt,
             },
             "updated_at": _now(),
         }
-        inserted = await self.db.insert("media_jobs", row)
-        row = (inserted or [row])[0]
+        try:
+            inserted = await self.db.insert("media_jobs", row)
+            if not inserted:
+                raise RuntimeError("Video reservation did not return a row")
+            row = inserted[0]
+        except Exception as exc:
+            try:
+                await self.finish_provider_claim(user_id=user_id, job_id=job_id, outcome="rejected")
+            except Exception:
+                pass
+            raise VideoServiceError(
+                "Video reservation failed before the provider was contacted.",
+                "VIDEO_RESERVATION_FAILED", 503, True, True, job_id,
+            ) from exc
+
+        try:
+            await self._begin_provider_dispatch(user_id=user_id, job_id=job_id)
+        except VideoServiceError:
+            try:
+                await self.finish_provider_claim(user_id=user_id, job_id=job_id, outcome="rejected")
+                await self.db.update(
+                    "media_jobs",
+                    {
+                        "status": "failed",
+                        "estimated_provider_cost_cents": 0,
+                        "error_message": "The account became unavailable before provider dispatch.",
+                        "updated_at": _now(),
+                    },
+                    filters={"id": eq(job_id), "user_id": eq(user_id)},
+                )
+            except Exception:
+                pass
+            raise
 
         try:
             if engine == self.CINEMATIC:
@@ -565,20 +968,33 @@ class VideoService:
                     reference_images=references if engine == self.EXTENDABLE else None,
                 )
         except ProviderError as exc:
-            # No provider task was accepted. Preserve a diagnostic job row but
-            # remove the reserved provider cost so circuit breakers reflect spend.
+            # A timeout or malformed success can mean the provider accepted
+            # work without returning an ID. Never claim such a job was rejected
+            # or automatically refund/retry it.
+            unknown = not exc.refund_eligible
+            try:
+                await self.finish_provider_claim(
+                    user_id=user_id,
+                    job_id=job_id,
+                    outcome="unknown" if unknown else "rejected",
+                )
+            except Exception:
+                pass
             try:
                 await self.db.update(
                     "media_jobs",
                     {
                         "status": "failed",
                         "error_message": exc.message[:500],
-                        "estimated_provider_cost_cents": 0,
+                        "estimated_provider_cost_cents": (
+                            row["estimated_provider_cost_cents"] if unknown else 0
+                        ),
                         "metadata": {
                             **(row.get("metadata") or {}),
-                            "providerAccepted": False,
+                            "providerAccepted": None if unknown else False,
                             "providerFailureCode": exc.failure_code or exc.code,
                             "refundEligible": bool(exc.refund_eligible),
+                            "providerStartOutcomeUnknown": unknown,
                         },
                         "updated_at": _now(),
                     },
@@ -590,36 +1006,9 @@ class VideoService:
             mapped.failed_job_id = job_id
             raise mapped from exc
 
-        try:
-            updated = await self.db.update(
-                "media_jobs",
-                {
-                    "provider_job_id": provider_job_id,
-                    "status": "processing",
-                    "metadata": {**(row.get("metadata") or {}), "providerAccepted": True},
-                    "updated_at": _now(),
-                },
-                filters={"id": eq(job_id), "user_id": eq(user_id)},
-            )
-        except Exception as exc:
-            # The provider accepted work and may bill it. Do not automatically
-            # refund Ask Crump credits if persistence fails after that boundary.
-            raise VideoServiceError(
-                "The video provider accepted the job, but Ask Crump could not persist its tracking state.",
-                "VIDEO_JOB_TRACKING_FAILED",
-                503,
-                True,
-                False,
-            ) from exc
-        if not updated:
-            raise VideoServiceError(
-                "The video provider accepted the job, but Ask Crump could not persist its tracking state.",
-                "VIDEO_JOB_TRACKING_FAILED",
-                503,
-                True,
-                False,
-            )
-        return updated[0]
+        return await self._record_provider_acceptance(
+            user_id=user_id, job_id=job_id, provider_job_id=provider_job_id,
+        )
 
     def _continuation_storage_safe(self, row: dict[str, Any]) -> bool:
         metadata = row.get("metadata") or {}
@@ -674,10 +1063,14 @@ class VideoService:
         prompt: str,
         idempotency_key: str | None = None,
         charge_receipt: dict[str, Any] | None = None,
+        claimed_job_id: str,
     ) -> dict[str, Any]:
         key = " ".join(str(idempotency_key or "").split()).strip()[:160] or None
         existing = await self._idempotent(user_id=user_id, key=key)
         if existing:
+            await self.finish_provider_claim(
+                user_id=user_id, job_id=claimed_job_id, outcome="rejected",
+            )
             return existing
 
         parent = await self.validate_continuation_parent(user_id=user_id, job_id=parent_job_id)
@@ -689,7 +1082,7 @@ class VideoService:
         parent_duration = int(parent.get("duration_seconds") or 8)
         parent_sequence = int(parent.get("sequence_index") or 0)
         root_job_id = str(parent.get("root_job_id") or parent.get("id"))
-        job_id = str(uuid4())
+        job_id = normalize_chat_id(claimed_job_id)
         row = {
             "id": job_id,
             "user_id": user_id,
@@ -723,8 +1116,39 @@ class VideoService:
             "metadata": {"refundEligible": True, "providerAccepted": False},
             "updated_at": _now(),
         }
-        inserted = await self.db.insert("media_jobs", row)
-        row = (inserted or [row])[0]
+        try:
+            inserted = await self.db.insert("media_jobs", row)
+            if not inserted:
+                raise RuntimeError("Video continuation reservation did not return a row")
+            row = inserted[0]
+        except Exception as exc:
+            try:
+                await self.finish_provider_claim(user_id=user_id, job_id=job_id, outcome="rejected")
+            except Exception:
+                pass
+            raise VideoServiceError(
+                "Video continuation reservation failed before the provider was contacted.",
+                "VIDEO_RESERVATION_FAILED", 503, True, True, job_id,
+            ) from exc
+
+        try:
+            await self._begin_provider_dispatch(user_id=user_id, job_id=job_id)
+        except VideoServiceError:
+            try:
+                await self.finish_provider_claim(user_id=user_id, job_id=job_id, outcome="rejected")
+                await self.db.update(
+                    "media_jobs",
+                    {
+                        "status": "failed",
+                        "estimated_provider_cost_cents": 0,
+                        "error_message": "The account became unavailable before provider dispatch.",
+                        "updated_at": _now(),
+                    },
+                    filters={"id": eq(job_id), "user_id": eq(user_id)},
+                )
+            except Exception:
+                pass
+            raise
 
         try:
             provider_job_id = await self.gemini.start(
@@ -736,18 +1160,30 @@ class VideoService:
                 video_reference=str(parent.get("provider_asset_reference") or ""),
             )
         except ProviderError as exc:
+            unknown = not exc.refund_eligible
+            try:
+                await self.finish_provider_claim(
+                    user_id=user_id,
+                    job_id=job_id,
+                    outcome="unknown" if unknown else "rejected",
+                )
+            except Exception:
+                pass
             try:
                 await self.db.update(
                     "media_jobs",
                     {
                         "status": "failed",
                         "error_message": exc.message[:500],
-                        "estimated_provider_cost_cents": 0,
+                        "estimated_provider_cost_cents": (
+                            row["estimated_provider_cost_cents"] if unknown else 0
+                        ),
                         "metadata": {
                             **(row.get("metadata") or {}),
-                            "providerAccepted": False,
+                            "providerAccepted": None if unknown else False,
                             "providerFailureCode": exc.failure_code or exc.code,
                             "refundEligible": bool(exc.refund_eligible),
+                            "providerStartOutcomeUnknown": unknown,
                         },
                         "updated_at": _now(),
                     },
@@ -759,34 +1195,9 @@ class VideoService:
             mapped.failed_job_id = job_id
             raise mapped from exc
 
-        try:
-            updated = await self.db.update(
-                "media_jobs",
-                {
-                    "provider_job_id": provider_job_id,
-                    "status": "processing",
-                    "metadata": {**(row.get("metadata") or {}), "providerAccepted": True},
-                    "updated_at": _now(),
-                },
-                filters={"id": eq(job_id), "user_id": eq(user_id)},
-            )
-        except Exception as exc:
-            raise VideoServiceError(
-                "The video provider accepted the continuation, but Ask Crump could not persist its tracking state.",
-                "VIDEO_JOB_TRACKING_FAILED",
-                503,
-                True,
-                False,
-            ) from exc
-        if not updated:
-            raise VideoServiceError(
-                "The video provider accepted the continuation, but Ask Crump could not persist its tracking state.",
-                "VIDEO_JOB_TRACKING_FAILED",
-                503,
-                True,
-                False,
-            )
-        return updated[0]
+        return await self._record_provider_acceptance(
+            user_id=user_id, job_id=job_id, provider_job_id=provider_job_id,
+        )
 
     async def _mark_failed(
         self,
@@ -822,6 +1233,41 @@ class VideoService:
         row = await self.get(user_id=user_id, job_id=job_id)
         if row.get("status") in {"ready", "failed"}:
             return row
+
+        if str(row.get("provider_job_id") or "").startswith("pending:"):
+            claim = await self.db.select_one(
+                "video_provider_start_claims",
+                columns="state,provider_job_id",
+                filters={"job_id": eq(row["id"]), "user_id": eq(user_id)},
+            )
+            if (
+                claim and claim.get("state") == "accepted"
+                and claim.get("provider_job_id")
+            ):
+                updated = await self.db.update(
+                    "media_jobs",
+                    {
+                        "provider_job_id": claim["provider_job_id"],
+                        "status": "processing",
+                        "metadata": {
+                            **(row.get("metadata") or {}),
+                            "providerAccepted": True,
+                        },
+                        "updated_at": _now(),
+                    },
+                    filters={"id": eq(row["id"]), "user_id": eq(user_id)},
+                    retry_transient=True,
+                )
+                if not updated:
+                    raise VideoServiceError(
+                        "Video tracking is still being reconciled.",
+                        "VIDEO_JOB_TRACKING_FAILED", 503, True, False, row["id"],
+                    )
+                row = updated[0]
+            else:
+                # Never send the local pending:<uuid> placeholder to a
+                # provider status endpoint.
+                return row
 
         provider_name = str(row.get("provider") or "gemini").lower()
         provider = self.runway if provider_name == "runway" else self.gemini
@@ -932,6 +1378,22 @@ class VideoService:
 
     async def public_job(self, *, user_id: str, row: dict[str, Any]) -> dict[str, Any]:
         payload = self._public_base(row)
+        metadata = row.get("metadata") or {}
+        pending_provider_id = str(row.get("provider_job_id") or "").startswith("pending:")
+        claim = (
+            await self.db.select_one(
+                "video_provider_start_claims",
+                columns="state,provider_job_id",
+                filters={"job_id": eq(row["id"]), "user_id": eq(user_id)},
+            )
+            if pending_provider_id or metadata.get("providerStartOutcomeUnknown")
+            else None
+        )
+        payload["reconciliationPending"] = bool(
+            (claim and claim.get("state") in {"dispatching", "unknown"})
+            or (claim and claim.get("state") == "accepted" and pending_provider_id)
+            or (pending_provider_id and claim is None)
+        )
         payload["canContinue"] = self._continuation_available(row)
         payload["continuationWindowHours"] = 48 if payload["canContinue"] else None
         payload["attribution"] = "Powered by Runway" if row.get("provider") == "runway" else None

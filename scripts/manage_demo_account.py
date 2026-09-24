@@ -314,18 +314,54 @@ async def replace_demo_account(
                 "Replacement blocked: the existing row does not match the protected demo identity."
             )
         existing_id = str(existing["id"])
-        removed_files = await _remove_private_file_objects(db, files, user_id=existing_id)
-        remaining_files = await db.select(
-            "user_files",
-            columns="user_id",
-            filters={"user_id": eq(existing_id)},
-            limit=1,
-        )
-        if remaining_files:
-            raise DemoAccountError("Replacement blocked: private file cleanup is incomplete.")
-        await db.rpc("delete_user_account", {"p_user_id": existing_id})
-        if await db.select_one("users", columns="id", filters={"email": eq(DEMO_EMAIL)}):
-            raise DemoAccountError("Replacement blocked: the previous demo account still exists.")
+        deletion_token = str(uuid4())
+        # The user-delete trigger requires this fence. Acquire it before
+        # touching Storage, so an unsettled video start cannot leave the
+        # still-active demo account with partially removed private files.
+        if not await db.rpc(
+            "begin_video_account_deletion",
+            {"p_user_id": existing_id, "p_operation_token": deletion_token},
+            retry_transient=True,
+        ):
+            raise DemoAccountError(
+                "Replacement blocked: a video start or another account deletion is settling."
+            )
+        try:
+            removed_files = await _remove_private_file_objects(db, files, user_id=existing_id)
+            remaining_files = await db.select(
+                "user_files",
+                columns="user_id",
+                filters={"user_id": eq(existing_id)},
+                limit=1,
+            )
+            if remaining_files:
+                raise DemoAccountError("Replacement blocked: private file cleanup is incomplete.")
+            await db.rpc("delete_user_account", {"p_user_id": existing_id})
+            if await db.select_one("users", columns="id", filters={"email": eq(DEMO_EMAIL)}):
+                raise DemoAccountError("Replacement blocked: the previous demo account still exists.")
+        except Exception as exc:
+            try:
+                release_result = await db.rpc(
+                    "release_video_account_deletion_fence",
+                    {"p_user_id": existing_id, "p_operation_token": deletion_token},
+                    retry_transient=True,
+                )
+            except Exception as release_exc:
+                raise DemoAccountError(
+                    "Replacement failed and the demo deletion fence requires operator recovery."
+                ) from release_exc
+            if release_result == "released":
+                raise
+            if release_result != "user_deleted":
+                raise DemoAccountError(
+                    "Replacement failed and the demo deletion fence requires operator recovery."
+                ) from exc
+            # The delete may have committed even if its RPC response was
+            # lost. Only continue after verifying that the old row is gone.
+            if await db.select_one("users", columns="id", filters={"email": eq(DEMO_EMAIL)}):
+                raise DemoAccountError(
+                    "Replacement failed and the previous demo account still exists."
+                ) from exc
 
     timestamp = now or datetime.now(timezone.utc).isoformat()
     payload = demo_user_payload(

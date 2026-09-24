@@ -1,7 +1,7 @@
 # Ask Crump store screenshot and device-evidence gate release
 
 Date: 2026-09-13
-Version: 5.9.76 / build 50976
+Version: 5.9.76 / Android build 50976; prior iOS build 50976 superseded as invalid
 Feature commit: `f176d3888e5d6266e32d53157776df97f7079c8f`
 
 ## Outcome
@@ -18,8 +18,8 @@ changes and verifies the native device family first.
 
 Android is held to four through eight recommendation-grade phone screenshots: 9:16 or 16:9, at
 least 1080 pixels on the short edge, no more than 3840 pixels on the long edge, and no more than
-8 MB. Both stores accept only structurally recognized JPEG or 24-bit RGB PNG without alpha or
-transparency through this local gate.
+8 MB. This local gate accepts only checksum-valid, decompressible 24-bit RGB PNG files with complete
+pixel data and no alpha or transparency; convert any JPEG capture to PNG before verification.
 
 ## Why this changed
 

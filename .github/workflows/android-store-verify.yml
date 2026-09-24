@@ -2,8 +2,7 @@ name: Android Store Bundle Verification
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
+  pull_request:
     paths:
       - .github/workflows/android-store-verify.yml
       - package.json
@@ -25,6 +24,38 @@ on:
       - scripts/verify-mobile-signing.mjs
       - scripts/verify-native-release.mjs
       - scripts/verify-native-privacy.mjs
+      - scripts/verify-android-page-size.py
+      - scripts/verify-store-metadata.mjs
+      - scripts/verify-store-submission-packet.mjs
+      - resources/icon.png
+      - resources/splash.png
+      - store/submission-evidence.android.example.json
+      - store/submission-evidence.ios.example.json
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/android-store-verify.yml
+      - package.json
+      - package-lock.json
+      - capacitor.config.ts
+      - public/**
+      - backend/revenuecat_catalog.json
+      - store/**
+      - docs/STORE_LISTING_COPY.md
+      - docs/BILLING_5_1.md
+      - docs/DATA_SAFETY.md
+      - scripts/build-native.mjs
+      - scripts/check-javascript.mjs
+      - scripts/configure-android-signing.mjs
+      - scripts/configure-native.mjs
+      - scripts/native-api-origin.mjs
+      - scripts/prepare-store-release.mjs
+      - scripts/production-build-preflight.mjs
+      - scripts/revenuecat-catalog.mjs
+      - scripts/verify-mobile-signing.mjs
+      - scripts/verify-native-release.mjs
+      - scripts/verify-native-privacy.mjs
+      - scripts/verify-android-page-size.py
       - scripts/verify-store-metadata.mjs
       - scripts/verify-store-submission-packet.mjs
       - resources/icon.png
@@ -41,7 +72,7 @@ permissions:
 
 jobs:
   verify-android-bundle:
-    name: Generate and compile unsigned Android candidate
+    name: Generate and compile unsigned Android structural candidate (not release-ready)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -52,7 +83,9 @@ jobs:
           cache: npm
       - name: Install locked dependencies
         run: npm ci --no-audit --no-fund
-      - name: Generate and verify Android release source
+      - name: Generate and verify unsigned Android structural source (not release-ready)
+        env:
+          STORE_ALLOW_MISSING_PUBLIC_BILLING_KEYS: "1"
         run: npm run store:prepare:android
       - uses: actions/setup-java@v6
         with:
@@ -86,7 +119,21 @@ jobs:
             echo '- Generated from the reviewed Node 22 lockfile with Temurin Java 21.'
             echo '- Native source and tracked signing-control verifiers passed.'
             echo '- Gradle compiled the Release Android App Bundle without signing.'
+            echo '- Missing RevenueCat public billing keys were explicitly allowed for structural CI; this output is not release-ready.'
             echo '- No keystore, service-account credential, artifact upload, Play upload, or submission was used.'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Verify 16 KB native page-size compatibility
+        shell: bash
+        run: |
+          bundle_path="$(find android/app/build/outputs/bundle/release -maxdepth 1 -type f -name '*.aab' -print -quit)"
+          if [[ -z "$bundle_path" || ! -s "$bundle_path" ]]; then
+            echo 'A non-empty release Android App Bundle was not generated.' >&2
+            exit 1
+          fi
+          python3 scripts/verify-android-page-size.py "$bundle_path"
+          {
+            echo '- BundleConfig native-library alignment and every packaged ELF PT_LOAD segment passed the 16 KB static gate (or no native libraries were packaged).'
+            echo '- This static gate does not replace a 16 KB device/emulator run or Play Console review.'
           } >> "$GITHUB_STEP_SUMMARY"
       - name: Verify merged-manifest privacy boundary
         run: |

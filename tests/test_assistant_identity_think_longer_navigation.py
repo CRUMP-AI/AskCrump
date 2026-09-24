@@ -6,6 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 import app as app_module
+from backend.ai_consent import CURRENT_AI_DATA_SHARING_CONSENT_VERSION
 from backend.ai_service import AIService
 from backend.db import DatabaseError
 from backend.feature_service import FeatureAccessError, FeatureService
@@ -75,7 +76,14 @@ def test_chat_api_rejects_a_browser_attempt_to_unlock_think_longer(monkeypatch):
 
     async def authenticate(*_args, **_kwargs):
         return SimpleNamespace(
-            user={"id": "free-user", "subscription_tier": "free"},
+            user={
+                "id": "free-user",
+                "subscription_tier": "free",
+                "ai_data_sharing_consent_at": "2026-09-17T23:55:00+00:00",
+                "ai_data_sharing_consent_version": CURRENT_AI_DATA_SHARING_CONSENT_VERSION,
+                "ai_data_sharing_consent_revoked_at": None,
+                "deleted_at": None,
+            },
             session={"id": "session"},
             token="token",
         )
@@ -109,7 +117,14 @@ def test_chat_api_rejects_a_browser_attempt_to_unlock_always_review(monkeypatch)
 
     async def authenticate(*_args, **_kwargs):
         return SimpleNamespace(
-            user={"id": "free-user", "subscription_tier": "free"},
+            user={
+                "id": "free-user",
+                "subscription_tier": "free",
+                "ai_data_sharing_consent_at": "2026-09-17T23:55:00+00:00",
+                "ai_data_sharing_consent_version": CURRENT_AI_DATA_SHARING_CONSENT_VERSION,
+                "ai_data_sharing_consent_revoked_at": None,
+                "deleted_at": None,
+            },
             session={"id": "session"},
             token="token",
         )

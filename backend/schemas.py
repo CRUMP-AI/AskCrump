@@ -8,6 +8,7 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 
 CURRENT_TERMS_VERSION = "2026-08-01"
+CURRENT_AI_DATA_SHARING_CONSENT_VERSION = "2026-09-17"
 
 
 class APIModel(BaseModel):
@@ -40,7 +41,7 @@ class EmailRequest(APIModel):
 
 
 class ResendVerificationRequest(EmailRequest):
-    intent: Literal["document", "presentation", "resume", "video", "projects"] | None = None
+    intent: Literal["document", "image", "presentation", "resume", "video", "projects"] | None = None
     plan: Literal["professional", "enterprise"] | None = None
 
 
@@ -60,6 +61,10 @@ class ProfileUpdateRequest(APIModel):
 
 class TermsAcceptanceRequest(APIModel):
     version: Literal["2026-08-01"] = CURRENT_TERMS_VERSION
+
+
+class AIDataSharingConsentRequest(APIModel):
+    version: Literal["2026-09-17"] = CURRENT_AI_DATA_SHARING_CONSENT_VERSION
 
 
 class AIContentReportRequest(APIModel):
@@ -100,7 +105,6 @@ class ProductEventRequest(APIModel):
         "StarterIntentReached",
         "ProjectSaveOfferShown",
         "ProjectSaveIntentReached",
-        "ActivationReached",
         "OutcomeFeedbackSubmitted",
         "OutcomeIssueCategorized",
         "RecentWorkResumed",

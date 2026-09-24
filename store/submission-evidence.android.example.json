@@ -1,12 +1,67 @@
 {
-  "schema": "ask-crump-store-submission-evidence/v2",
+  "schema": "ask-crump-store-submission-evidence/v3",
   "platform": "android",
   "appVersion": "5.9.76",
-  "buildNumber": 50976,
+  "buildNumber": "REPLACE_WITH_GOOGLE_PLAY_INTEGER_BUILD_NUMBER",
   "observedAt": "REPLACE_WITH_UTC_TIMESTAMP",
+  "source": {
+    "repository": "https://github.com/CRUMP-AI/AskCrump",
+    "commit": "REPLACE_WITH_APPROVED_40_CHARACTER_GIT_SHA"
+  },
+  "ciReceipts": [
+    {
+      "workflow": "ci",
+      "runId": "REPLACE_WITH_CLEAN_CHECKOUT_RUN_ID",
+      "url": "REPLACE_WITH_CLEAN_CHECKOUT_RUN_URL",
+      "headSha": "REPLACE_WITH_APPROVED_40_CHARACTER_GIT_SHA",
+      "conclusion": "success"
+    },
+    {
+      "workflow": "android-store-verify",
+      "runId": "REPLACE_WITH_ANDROID_RUN_ID",
+      "url": "REPLACE_WITH_ANDROID_RUN_URL",
+      "headSha": "REPLACE_WITH_APPROVED_40_CHARACTER_GIT_SHA",
+      "conclusion": "success"
+    },
+    {
+      "workflow": "video-provider-deletion-fence-postgres",
+      "runId": "REPLACE_WITH_POSTGRES_RUN_ID",
+      "url": "REPLACE_WITH_POSTGRES_RUN_URL",
+      "headSha": "REPLACE_WITH_APPROVED_40_CHARACTER_GIT_SHA",
+      "conclusion": "success"
+    }
+  ],
+  "operator": {
+    "kind": "REPLACE_WITH_OWNER_OR_RELEASE_SPECIALIST",
+    "id": "REPLACE_WITH_OPERATOR_ID",
+    "workOrderId": "REPLACE_WITH_WORK_ORDER_ID"
+  },
   "artifact": {
     "file": "REPLACE_WITH_SIGNED_AAB_FILENAME",
-    "sha256": "REPLACE_WITH_SIGNED_ARTIFACT_SHA256"
+    "sha256": "REPLACE_WITH_SIGNED_ARTIFACT_SHA256",
+    "signing": {
+      "certificateRole": "play-upload",
+      "certificateSha256": "REPLACE_WITH_PUBLIC_SIGNING_CERTIFICATE_SHA256"
+    }
+  },
+  "console": {
+    "appRecordId": "com.clevercrump.askcrump",
+    "consoleRecordId": "REPLACE_WITH_NUMERIC_PLAY_CONSOLE_RECORD_ID",
+    "buildIdentity": "REPLACE_WITH_VERSION_PLUS_BUILD_NUMBER",
+    "channel": "play-internal-testing",
+    "status": "available-to-testers",
+    "receiptUrl": "REPLACE_WITH_PRIVATE_PLAY_CONSOLE_BUILD_URL"
+  },
+  "accessClosure": {
+    "consoleAccess": "REPLACE_WITH_NOT_USED_OR_REVOKED",
+    "signingAccess": "REPLACE_WITH_NOT_USED_REVOKED_OR_ROTATED",
+    "repositoryWriteAccess": "REPLACE_WITH_NOT_USED_OR_REVOKED",
+    "confirmedAt": "REPLACE_WITH_UTC_TIMESTAMP",
+    "confirmedBy": "REPLACE_WITH_OWNER_ID",
+    "evidence": {
+      "file": "REPLACE_WITH_ACCESS_CLOSEOUT_EVIDENCE_FILENAME",
+      "sha256": "REPLACE_WITH_ACCESS_CLOSEOUT_EVIDENCE_SHA256"
+    }
   },
   "screenshots": [
     {
@@ -44,6 +99,7 @@
     "aiReportingVerified": false,
     "notificationPermissionAndDeliveryVerified": false,
     "offlineReconnectVerified": false,
+    "ownerControlledSigningVerified": false,
     "physicalDeviceCoreJourneyVerified": false,
     "playConsoleDeclarationsReconciled": false,
     "playPreLaunchReportReviewed": false,
@@ -52,6 +108,7 @@
     "purchaseAndRestoreVerified": false,
     "reviewerPathVerified": false,
     "sessionPersistenceVerified": false,
+    "specialistAccessRemovedOrNotUsed": false,
     "signedBundleVerified": false,
     "storeConsoleScreenshotsAccepted": false
   }

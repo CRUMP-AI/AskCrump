@@ -13,10 +13,20 @@ if (!/^\d+\.\d+\.\d+$/.test(versionName)) {
   throw new Error(`Invalid STORE_VERSION_NAME: ${versionName || '(empty)'}`);
 }
 const numericVersion = versionName.split(/[-+]/, 1)[0].split('.').map(Number);
-const defaultBuildNumber = numericVersion[0] * 10_000 + numericVersion[1] * 100 + numericVersion[2];
-const buildNumber = Number(process.env.STORE_BUILD_NUMBER || defaultBuildNumber);
-if (!Number.isSafeInteger(buildNumber) || buildNumber < 1 || buildNumber > 2_100_000_000) {
-  throw new Error('STORE_BUILD_NUMBER must be a positive integer no greater than 2100000000.');
+const defaultAndroidBuildNumber = numericVersion[0] * 10_000 + numericVersion[1] * 100 + numericVersion[2];
+const androidBuildNumber = Number(
+  process.env.STORE_ANDROID_BUILD_NUMBER || process.env.STORE_BUILD_NUMBER || defaultAndroidBuildNumber,
+);
+if (!Number.isSafeInteger(androidBuildNumber) || androidBuildNumber < 1 || androidBuildNumber > 2_100_000_000) {
+  throw new Error('STORE_ANDROID_BUILD_NUMBER must be a positive integer no greater than 2100000000.');
+}
+const iosBuildNumber = String(process.env.STORE_IOS_BUILD_NUMBER || versionName).trim();
+const iosBuildParts = iosBuildNumber.split('.');
+if (iosBuildParts.length < 1 || iosBuildParts.length > 3
+    || !iosBuildParts.every(part => /^\d+$/.test(part))
+    || Number(iosBuildParts[0]) < 1 || iosBuildParts[0].length > 4
+    || iosBuildParts.slice(1).some(part => part.length > 2)) {
+  throw new Error('STORE_IOS_BUILD_NUMBER must be an Apple-compatible one-to-three-part build string.');
 }
 
 async function patchAndroidSdk() {
@@ -43,7 +53,7 @@ async function patchAndroidVersion() {
     throw new Error('Could not locate Android versionCode/versionName in android/app/build.gradle.');
   }
   source = source
-    .replace(/versionCode\s+\d+/, `versionCode ${buildNumber}`)
+    .replace(/versionCode\s+\d+/, `versionCode ${androidBuildNumber}`)
     .replace(/versionName\s+["'][^"']+["']/, `versionName "${versionName}"`);
   await writeFile(buildPath, source);
 }
@@ -122,7 +132,7 @@ async function patchIosVersionAndPrivacy() {
     throw new Error('Could not locate the iOS targeted device family in project.pbxproj.');
   }
   project = project
-    .replace(/CURRENT_PROJECT_VERSION = [^;]+;/g, `CURRENT_PROJECT_VERSION = ${buildNumber};`)
+    .replace(/CURRENT_PROJECT_VERSION = [^;]+;/g, `CURRENT_PROJECT_VERSION = ${iosBuildNumber};`)
     .replace(/MARKETING_VERSION = [^;]+;/g, `MARKETING_VERSION = ${versionName};`)
     .replace(/TARGETED_DEVICE_FAMILY = [^;]+;/g, 'TARGETED_DEVICE_FAMILY = "1,2";');
 
@@ -160,16 +170,22 @@ async function patchIosVersionAndPrivacy() {
   await writeFile(projectPath, project);
 }
 
-async function patchIosPhotoLibraryUsage() {
+async function patchIosUsageDescriptions() {
   const infoPath = new URL('ios/App/App/Info.plist', root);
   let source;
   try {
     source = await readFile(infoPath, 'utf8');
   } catch {
-    throw new Error('iOS Info.plist was not found for Photos save configuration.');
+    throw new Error('iOS Info.plist was not found for media access configuration.');
   }
 
   const additions = [];
+  if (!source.includes('<key>NSCameraUsageDescription</key>')) {
+    additions.push(
+      '    <key>NSCameraUsageDescription</key>\n' +
+      '    <string>Ask Crump uses your camera when you choose to take a photo for your conversation.</string>'
+    );
+  }
   if (!source.includes('<key>NSPhotoLibraryUsageDescription</key>')) {
     additions.push(
       '    <key>NSPhotoLibraryUsageDescription</key>\n' +
@@ -184,7 +200,7 @@ async function patchIosPhotoLibraryUsage() {
   }
   if (additions.length) {
     const closing = source.lastIndexOf('</dict>');
-    if (closing < 0) throw new Error('Could not patch iOS Info.plist for Photos access.');
+    if (closing < 0) throw new Error('Could not patch iOS Info.plist for media access.');
     source = `${source.slice(0, closing)}${additions.join('\n')}\n${source.slice(closing)}`;
     await writeFile(infoPath, source);
   }
@@ -194,12 +210,12 @@ if (target === 'all' || target === 'android') {
   await patchAndroidSdk();
   await patchAndroidVersion();
   await patchAndroidNotifications();
-  console.log(`Android configured for API 36 and Ask Crump ${versionName} (${buildNumber}).`);
+  console.log(`Android configured for API 36 and Ask Crump ${versionName} (${androidBuildNumber}).`);
 }
 if (target === 'all' || target === 'ios') {
   await patchIosPushCallbacks();
-  await patchIosPhotoLibraryUsage();
+  await patchIosUsageDescriptions();
   await patchIosVersionAndPrivacy();
-  console.log(`iOS configured for Ask Crump ${versionName} (${buildNumber}) with a bundled privacy manifest.`);
+  console.log(`iOS configured for Ask Crump ${versionName} (${iosBuildNumber}) with a bundled privacy manifest.`);
 }
 console.log('Still required in owner accounts: add google-services.json, enable iOS Push Notifications + Background Modes, and configure APNs/FCM credentials.');

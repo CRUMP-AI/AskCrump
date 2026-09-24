@@ -54,6 +54,9 @@ class FileServiceError(RuntimeError):
 
 
 class FileService:
+    STORAGE_PAGE_SIZE = 1000
+    STORAGE_CLEANUP_PASSES = 4
+
     def __init__(self, settings: Settings, db: SupabaseDB) -> None:
         self.settings = settings
         self.db = db
@@ -127,6 +130,49 @@ class FileService:
         suffix = self._extension(filename) or ''
         return f"{user_id}/{file_id}{suffix}"
 
+    @staticmethod
+    def _owned_storage_path(*, user_id: str, storage_path: str) -> str:
+        owner_id = str(user_id or '').strip()
+        candidate = str(storage_path or '').strip()
+        path_parts = candidate.split('/')
+        path_is_owned = bool(
+            owner_id
+            and '/' not in owner_id
+            and '\\' not in owner_id
+            and '\\' not in candidate
+            and len(path_parts) >= 2
+            and path_parts[0] == owner_id
+            and all(part not in {'', '.', '..'} for part in path_parts)
+        )
+        if not path_is_owned:
+            raise FileServiceError(
+                'Private file ownership could not be verified.',
+                409,
+                'FILE_OWNERSHIP_UNVERIFIED',
+            )
+        return candidate
+
+    async def require_active_owner(self, *, user_id: str) -> None:
+        """Reject new private-file writes once account deletion has been fenced."""
+        owner_id = str(user_id or '').strip()
+        if not owner_id:
+            raise FileServiceError(
+                'Private file ownership could not be verified.',
+                409,
+                'FILE_OWNERSHIP_UNVERIFIED',
+            )
+        active = await self.db.select_one(
+            'users',
+            columns='id',
+            filters={'id': eq(owner_id), 'deleted_at': 'is.null'},
+        )
+        if not active:
+            raise FileServiceError(
+                'Account deletion is in progress. New files cannot be saved.',
+                409,
+                'ACCOUNT_DELETION_IN_PROGRESS',
+            )
+
     async def _storage_json(
         self,
         method: str,
@@ -158,6 +204,7 @@ class FileService:
         chat_id: str | None = None,
         message_id: str | None = None,
     ) -> dict[str, Any]:
+        await self.require_active_owner(user_id=user_id)
         name, mime = self.validate_upload(filename=filename, mime_type=mime_type, size_bytes=size_bytes)
         file_id = str(uuid4())
         storage_path = self._path(user_id, file_id, name)
@@ -186,6 +233,14 @@ class FileService:
         if not upload_url:
             await self.db.update('user_files', {'status': 'failed', 'updated_at': self._now()}, filters={'id': eq(file_id), 'user_id': eq(user_id)})
             raise FileServiceError('Could not prepare the upload.', 503, 'UPLOAD_SIGNING_FAILED')
+        try:
+            await self.require_active_owner(user_id=user_id)
+        except Exception:
+            try:
+                await self.hard_delete(user_id=user_id, file_id=file_id)
+            except Exception:
+                pass
+            raise
         direct_storage = self.settings.supabase_url.replace('.supabase.co', '.storage.supabase.co')
         return {
             'file': self.public_file(row),
@@ -197,6 +252,7 @@ class FileService:
         }
 
     async def complete_upload(self, *, user_id: str, file_id: str) -> dict[str, Any]:
+        await self.require_active_owner(user_id=user_id)
         row = await self.get_owned(user_id=user_id, file_id=file_id, include_pending=True)
         encoded = quote(row['storage_path'], safe='/')
         async with httpx.AsyncClient(timeout=20) as client:
@@ -280,6 +336,7 @@ class FileService:
         metadata: dict[str, Any] | None = None,
         file_id: str | None = None,
     ) -> dict[str, Any]:
+        await self.require_active_owner(user_id=user_id)
         name = self.clean_filename(filename)
         mime = self.normalized_mime(name, mime_type)
         generated_limit = (
@@ -314,6 +371,19 @@ class FileService:
             )
         if response.status_code >= 400:
             raise FileServiceError('Could not save the generated file.', 503, 'STORAGE_WRITE_FAILED')
+        try:
+            await self.require_active_owner(user_id=user_id)
+        except Exception:
+            try:
+                await self._storage_json(
+                    'DELETE',
+                    f'object/{self.bucket}',
+                    payload={'prefixes': [storage_path]},
+                    timeout=60.0,
+                )
+            except Exception:
+                pass
+            raise
         row = {
             'id': resolved_file_id,
             'user_id': user_id,
@@ -364,17 +434,158 @@ class FileService:
         )
         if not row:
             raise FileServiceError('File not found.', 404, 'FILE_NOT_FOUND')
-        storage_path = str(row.get('storage_path') or '').strip()
-        if storage_path:
-            await self._storage_json(
-                'DELETE',
-                f'object/{self.bucket}',
-                payload={'prefixes': [storage_path]},
-                timeout=60.0,
-            )
-        await self.db.delete(
+        storage_path = self._owned_storage_path(
+            user_id=user_id,
+            storage_path=str(row.get('storage_path') or ''),
+        )
+        await self._storage_json(
+            'DELETE',
+            f'object/{self.bucket}',
+            payload={'prefixes': [storage_path]},
+            timeout=60.0,
+        )
+        deleted = await self.db.delete(
             'user_files',
             filters={'id': eq(file_id), 'user_id': eq(user_id)},
+        )
+        deleted_rows = (
+            deleted
+            if isinstance(deleted, list)
+            else [deleted]
+            if isinstance(deleted, dict)
+            else []
+        )
+        if not any(
+            str(item.get('id') or '') == str(file_id)
+            and str(item.get('user_id') or '') == str(user_id)
+            for item in deleted_rows
+        ):
+            raise FileServiceError(
+                'Private file deletion could not be confirmed.',
+                503,
+                'FILE_DELETE_UNCONFIRMED',
+            )
+
+    async def _list_owned_storage_folder(
+        self,
+        *,
+        user_id: str,
+        folder: str,
+        depth: int = 0,
+    ) -> list[str]:
+        if depth > 32:
+            raise FileServiceError(
+                'Private file cleanup could not be verified.',
+                503,
+                'STORAGE_CLEANUP_UNCONFIRMED',
+            )
+        paths: list[str] = []
+        offset = 0
+        while True:
+            result = await self._storage_json(
+                'POST',
+                f'object/list/{self.bucket}',
+                payload={
+                    'prefix': folder,
+                    'limit': self.STORAGE_PAGE_SIZE,
+                    'offset': offset,
+                    'sortBy': {'column': 'name', 'order': 'asc'},
+                },
+                timeout=60.0,
+            )
+            if isinstance(result, list):
+                entries = result
+            elif isinstance(result, dict) and isinstance(result.get('data'), list):
+                entries = result['data']
+            else:
+                raise FileServiceError(
+                    'Private file cleanup could not be verified.',
+                    503,
+                    'STORAGE_CLEANUP_UNCONFIRMED',
+                )
+            for entry in entries:
+                if not isinstance(entry, dict):
+                    raise FileServiceError(
+                        'Private file cleanup could not be verified.',
+                        503,
+                        'STORAGE_CLEANUP_UNCONFIRMED',
+                    )
+                name = str(entry.get('name') or '').strip()
+                if not name or '/' in name or '\\' in name or name in {'.', '..'}:
+                    raise FileServiceError(
+                        'Private file cleanup could not be verified.',
+                        503,
+                        'STORAGE_CLEANUP_UNCONFIRMED',
+                    )
+                candidate = f'{folder}/{name}'
+                if entry.get('id') is None:
+                    paths.extend(
+                        await self._list_owned_storage_folder(
+                            user_id=user_id,
+                            folder=candidate,
+                            depth=depth + 1,
+                        )
+                    )
+                else:
+                    paths.append(
+                        self._owned_storage_path(
+                            user_id=user_id,
+                            storage_path=candidate,
+                        )
+                    )
+            if len(entries) < self.STORAGE_PAGE_SIZE:
+                return paths
+            offset += len(entries)
+
+    async def list_owned_storage_paths(self, *, user_id: str) -> list[str]:
+        owner_id = str(user_id or '').strip()
+        self._owned_storage_path(user_id=owner_id, storage_path=f'{owner_id}/probe')
+        paths = await self._list_owned_storage_folder(
+            user_id=owner_id,
+            folder=owner_id,
+        )
+        return list(dict.fromkeys(paths))
+
+    async def hard_delete_all_owned(self, *, user_id: str, batch_size: int = 1000) -> int:
+        """Remove and verify every owner-prefixed Storage object and metadata row.
+
+        Storage is authoritative because an interrupted upload can leave an
+        object without a user_files row. Objects are deleted in API-supported
+        batches, metadata is removed only for the same owner, and both surfaces
+        are re-read before callers may continue to the account-row cascade.
+        """
+        owner_id = str(user_id or '').strip()
+        self._owned_storage_path(user_id=owner_id, storage_path=f'{owner_id}/probe')
+        limit = max(1, min(self.STORAGE_PAGE_SIZE, int(batch_size or self.STORAGE_PAGE_SIZE)))
+        removed_paths: set[str] = set()
+        for _attempt in range(self.STORAGE_CLEANUP_PASSES):
+            paths = await self.list_owned_storage_paths(user_id=owner_id)
+            for start in range(0, len(paths), limit):
+                batch = paths[start:start + limit]
+                await self._storage_json(
+                    'DELETE',
+                    f'object/{self.bucket}',
+                    payload={'prefixes': batch},
+                    timeout=60.0,
+                )
+                removed_paths.update(batch)
+            await self.db.delete(
+                'user_files',
+                filters={'user_id': eq(owner_id)},
+            )
+            remaining_rows = await self.db.select(
+                'user_files',
+                columns='id',
+                filters={'user_id': eq(owner_id)},
+                limit=1,
+            )
+            remaining_paths = await self.list_owned_storage_paths(user_id=owner_id)
+            if not remaining_rows and not remaining_paths:
+                return len(removed_paths)
+        raise FileServiceError(
+            'Private file cleanup could not be verified.',
+            503,
+            'STORAGE_CLEANUP_UNCONFIRMED',
         )
 
     @staticmethod

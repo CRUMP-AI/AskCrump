@@ -20,7 +20,8 @@ textually aligned with it. Reviewer credentials belong only in the ignored
 
 - **Subtitle:** Create, research, and build
 - **Promotional text:** Move from question to continuing work across Ask, Projects, Create, Video, Library, and You—with research, files, documents, presentations, images, and motion.
-- **Keywords:** `AI,assistant,research,writer,documents,images,video,manuscript,productivity,files`
+- **Keywords:** `generative,assistant,research,writer,documents,images,video,manuscript,productivity,files`
+- **Copyright:** `2026 Gregory D. Crump Jr.`
 
 ### Description
 
@@ -51,7 +52,11 @@ Some features require a paid plan, credits, provider availability, or an interne
 
 ## Google Play
 
-- **Short description:** Ask, research, create files and media, and keep ambitious projects moving.
+- **Developer contact email:** `askcrump@gmail.com`
+- **512 × 512 listing icon:** `store/assets/google-play-icon-512.png`
+- **1024 × 500 feature graphic:** `store/assets/google-play-feature-1024x500.png`
+
+- **Short description:** Ask, research, create files and media, and keep ambitious projects moving
 
 ### Full description
 

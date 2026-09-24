@@ -24,6 +24,7 @@ from reportlab.lib.units import inch
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer
 
+from .ai_consent import has_current_ai_data_sharing_consent
 from .ai_service import AIService, AIServiceError
 from .db import SupabaseDB, eq, in_
 from .feature_service import FeatureAccessError, FeatureService
@@ -485,7 +486,6 @@ User brief:
                 "message": prompt,
                 "history": [],
                 "assistantName": "Crump",
-                "user": {"name": user.get("full_name") or user.get("name") or ""},
                 "relevantContext": project_context,
                 "workMode": "work",
             },
@@ -745,7 +745,11 @@ User brief:
         if not clean_brief:
             raise ManuscriptError("Add a manuscript brief before starting the full draft.", "MANUSCRIPT_BRIEF_REQUIRED")
         sections = await self.list_sections(user_id=user["id"], manuscript_id=manuscript["id"])
-        stage = "drafting" if sections else "blueprint"
+        stage = (
+            "complete"
+            if sections and mode == "outline"
+            else ("drafting" if sections else "blueprint")
+        )
         return await self._create_run(
             user_id=user["id"],
             project_id=str(manuscript["project_id"]),
@@ -779,7 +783,14 @@ User brief:
 
     async def resume_run(self, *, user_id: str, run_id: str) -> dict[str, Any]:
         row = await self.get_run(user_id=user_id, run_id=run_id)
-        if row.get("last_error_code") == "CREDIT_BUDGET_EXHAUSTED":
+        legacy_outline_drafting = (
+            str(row.get("mode") or "autopilot").lower() == "outline"
+            and str(row.get("stage") or "") == "drafting"
+        )
+        if (
+            row.get("last_error_code") == "CREDIT_BUDGET_EXHAUSTED"
+            and not legacy_outline_drafting
+        ):
             raise ManuscriptError(
                 "This run reached its approved credit maximum. Start a new "
                 "confirmed run for any remaining chapters.",
@@ -1096,6 +1107,26 @@ User brief:
             )
             return {"claimed": True, "runId": run["id"], "status": "failed"}
 
+        async def pause_before_provider() -> dict[str, Any]:
+            updated = await self._lease_update(
+                run,
+                {
+                    "status": "paused",
+                    "last_error_code": "AI_DATA_SHARING_CONSENT_REQUIRED",
+                    "last_error_message": (
+                        "AI data-sharing permission is required before manuscript generation can continue."
+                    ),
+                    "lease_token": None,
+                    "lease_expires_at": None,
+                },
+            )
+            return {
+                "claimed": True,
+                "runId": run["id"],
+                "status": (updated or {}).get("status") or "paused",
+                "errorCode": "AI_DATA_SHARING_CONSENT_REQUIRED",
+            }
+
         try:
             stage = str(run.get("stage") or "blueprint")
             if stage == "blueprint":
@@ -1131,6 +1162,9 @@ User brief:
                         "status": (updated or {}).get("status") or status,
                         "stage": next_stage,
                     }
+
+                if not has_current_ai_data_sharing_consent(user):
+                    return await pause_before_provider()
 
                 blueprint, generation = await self.plan_blueprint(
                     user=user,
@@ -1182,6 +1216,32 @@ User brief:
                     user_id=str(user["id"]),
                     manuscript_id=str(run["manuscript_id"]),
                 )
+                if str(run.get("mode") or "autopilot").lower() == "outline":
+                    completed = sum(
+                        1
+                        for item in sections
+                        if str(item.get("content") or "").strip()
+                    )
+                    updated = await self._lease_update(
+                        run,
+                        {
+                            "stage": "complete",
+                            "status": "completed",
+                            "completed_sections": completed,
+                            "total_sections": len(sections),
+                            "current_section_id": None,
+                            "current_receipt": {},
+                            "lease_token": None,
+                            "lease_expires_at": None,
+                            "completed_at": _now(),
+                        },
+                    )
+                    return {
+                        "claimed": True,
+                        "runId": run["id"],
+                        "status": (updated or {}).get("status") or "completed",
+                        "stage": "complete",
+                    }
                 current_id = str(run.get("current_section_id") or "")
                 current = next((item for item in sections if str(item.get("id")) == current_id), None)
                 if current and str(current.get("content") or "").strip():
@@ -1224,6 +1284,9 @@ User brief:
                         "status": "queued",
                         "stage": "export",
                     }
+
+                if not has_current_ai_data_sharing_consent(user):
+                    return await pause_before_provider()
 
                 receipt = run.get("current_receipt") if isinstance(run.get("current_receipt"), dict) else {}
                 if not receipt or current_id != str(target["id"]):
@@ -1531,7 +1594,6 @@ User brief:
             "manuscript": {
                 "title": manuscript.get("title"),
                 "subtitle": manuscript.get("subtitle"),
-                "author": manuscript.get("author_name"),
                 "genre": metadata.get("genre"),
                 "premise": metadata.get("premise"),
                 "targetWords": metadata.get("targetWords"),
@@ -1560,7 +1622,6 @@ User brief:
                 "message": prompt,
                 "history": [],
                 "assistantName": "Crump",
-                "user": {"name": user.get("full_name") or user.get("name") or ""},
                 "relevantContext": context,
                 "workMode": "work",
             },
