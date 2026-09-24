@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://xncftwjfpjskgtwgbgci.supabase.co; media-src 'self' https://xncftwjfpjskgtwgbgci.supabase.co; frame-src 'self' https://xncftwjfpjskgtwgbgci.supabase.co">
   <title>Ask Crump file delivery fixture</title>
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/public/crump-5.0.css?v=file-delivery-fixture-1">
@@ -15,6 +16,38 @@
   <div class="crump53-overlay"><section role="dialog" aria-label="Ask Crump Files">Files panel</section></div>
   <script>
     window.__fixture = {downloads: [], openedWindows: 0};
+    window.currentChatId = 'fixture-chat';
+    window.chats = [{
+      id: 'fixture-chat',
+      messages: [
+        {id: 'message-docx', role: 'assistant', artifact: {
+          id: '22222222-2222-4222-8222-222222222222', name: 'Project brief.docx',
+          title: 'Project brief', format: 'docx',
+          type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', size: 4096,
+        }},
+        {id: 'message-pdf', role: 'assistant', artifact: {
+          id: '33333333-3333-4333-8333-333333333333', name: 'Project brief.pdf',
+          title: 'Project brief', format: 'pdf', type: 'application/pdf', size: 4096,
+        }},
+        {id: 'message-pptx', role: 'assistant', artifact: {
+          id: '44444444-4444-4444-8444-444444444444', name: 'Project slides.pptx',
+          title: 'Project slides', format: 'pptx',
+          type: 'application/vnd.openxmlformats-officedocument.presentationml.presentation', size: 4096,
+        }},
+      ],
+    }];
+    window.renderMessages = messages => {
+      const container = document.getElementById('chatContainer');
+      container.replaceChildren();
+      for (const message of messages) {
+        const row = document.createElement('div');
+        row.dataset.messageId = message.id;
+        const wrapper = document.createElement('div');
+        wrapper.className = 'message-wrapper';
+        row.appendChild(wrapper);
+        container.appendChild(row);
+      }
+    };
     window.showToast = () => {};
     window.open = () => { window.__fixture.openedWindows += 1; };
     document.addEventListener('click', event => {

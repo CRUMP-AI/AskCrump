@@ -186,6 +186,87 @@ async def test_explicitly_idempotent_rpc_retries_with_the_same_payload():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("rpc_name", "payload", "duplicate_response"),
+    [
+        (
+            "consume_usage_event_v2",
+            {
+                "p_user_id": "00000000-0000-4000-8000-000000000001",
+                "p_event_type": "messages",
+                "p_limit": 10,
+                "p_metadata": {"usageIdempotencyKey": "message-1"},
+            },
+            [{
+                "event_id": "00000000-0000-4000-8000-000000000101",
+                "used": 1,
+                "allowed": True,
+                "duplicate": True,
+            }],
+        ),
+        (
+            "spend_credits_confirmed_v2",
+            {
+                "p_user_id": "00000000-0000-4000-8000-000000000001",
+                "p_amount": 10,
+                "p_reason": "feature_image_edit",
+                "p_action_key": "quote-1",
+                "p_component": "message-1:image-edit",
+                "p_confirmed_max": 10,
+                "p_usage_event_type": "feature:image_edit",
+                "p_usage_idempotency_key": "message-1:image-edit",
+                "p_metadata": {},
+            },
+            [{
+                "ledger_id": "00000000-0000-4000-8000-000000000201",
+                "balance": 90,
+                "allowed": True,
+                "duplicate": True,
+                "limit_exceeded": False,
+            }],
+        ),
+    ],
+)
+async def test_keyed_billing_rpc_retries_after_commit_response_is_lost(
+    rpc_name: str,
+    payload: dict,
+    duplicate_response: list[dict],
+):
+    calls: list[httpx.Request] = []
+    sleeps: list[float] = []
+    committed = False
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        nonlocal committed
+        calls.append(request)
+        if len(calls) == 1:
+            # The database transaction committed, but the response disappeared
+            # before the application could own its receipt.
+            committed = True
+            raise httpx.ReadError("response lost after commit", request=request)
+        assert committed is True
+        return httpx.Response(200, json=duplicate_response)
+
+    async def fake_sleep(delay: float) -> None:
+        sleeps.append(delay)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        database = SupabaseDB(db_settings(), client=client, sleep=fake_sleep)
+        result = await database.rpc(
+            rpc_name,
+            payload,
+            retry_transient=True,
+        )
+
+    assert result == duplicate_response
+    assert len(calls) == 2
+    assert calls[0].content == calls[1].content
+    assert calls[0].headers.get("x-retry-count") is None
+    assert calls[1].headers["x-retry-count"] == "1"
+    assert sleeps == [0.25]
+
+
+@pytest.mark.asyncio
 async def test_explicitly_idempotent_rpc_retries_after_bad_gateway():
     calls: list[httpx.Request] = []
     sleeps: list[float] = []

@@ -3,12 +3,19 @@ from __future__ import annotations
 from dataclasses import dataclass
 from functools import lru_cache
 import os
+from urllib.parse import urlparse
 
 
 # Crump Code cannot be exposed by an environment-variable mistake. This source
 # lock stays false until the live Sandbox, OIDC, destruction, cancellation,
 # refund, monitoring, rollback, quality, and cost gates have a reviewed release.
 CODE_WORKSPACE_PUBLIC_RELEASED = False
+
+# Vercel's static CSP cannot read SUPABASE_URL at request time. Keep the exact
+# public project origin as a source-controlled production contract: runtime
+# validation prevents a deployment from switching projects until the static
+# frame-src policy and its contract test move with it.
+PRODUCTION_SUPABASE_ORIGIN = 'https://xncftwjfpjskgtwgbgci.supabase.co'
 
 
 def _csv(value: str | None, default: tuple[str, ...] = ()) -> tuple[str, ...]:
@@ -48,6 +55,27 @@ def _canonical_app_name(configured: str | None) -> str:
     }:
         return 'Ask Crump'
     return value
+
+
+def _exact_https_origin(value: str | None) -> str | None:
+    parsed = urlparse(str(value or '').strip())
+    if (
+        parsed.scheme.lower() != 'https'
+        or not parsed.hostname
+        or parsed.username
+        or parsed.password
+        or parsed.path not in {'', '/'}
+        or parsed.params
+        or parsed.query
+        or parsed.fragment
+    ):
+        return None
+    try:
+        if parsed.port is not None:
+            return None
+    except ValueError:
+        return None
+    return f'https://{parsed.hostname.lower()}'
 
 
 @dataclass(frozen=True, slots=True)
@@ -151,6 +179,13 @@ class Settings:
             raise RuntimeError('APP_URL must use HTTPS in production.')
         if self.is_production and not self.cookie_secure:
             raise RuntimeError('COOKIE_SECURE must be true in production.')
+        if (
+            self.environment in {'production', 'preview'}
+            and _exact_https_origin(self.supabase_url) != PRODUCTION_SUPABASE_ORIGIN
+        ):
+            raise RuntimeError(
+                'SUPABASE_URL must match the source-controlled hosted PDF preview origin.'
+            )
         if '*' in self.allowed_origins:
             raise RuntimeError('ALLOWED_ORIGINS cannot contain * when credentials are enabled.')
         if not 1 <= self.session_days <= 3650:

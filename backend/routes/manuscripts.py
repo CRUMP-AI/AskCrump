@@ -12,7 +12,7 @@ from ..feature_service import FeatureAccessError
 from ..file_service import FileServiceError
 from ..manuscript_service import ManuscriptError, chapter_count_from_prompt
 from ..project_service import ProjectNotFoundError
-from ..runtime import code_worker, db, features, files, manuscripts, projects, settings
+from ..runtime import account_deletions, code_worker, db, features, files, manuscripts, projects, settings
 
 router = APIRouter(tags=["manuscripts"])
 logger = logging.getLogger(__name__)
@@ -359,6 +359,13 @@ async def manuscript_cron(request: Request):
     oidc_token = str(
         request.headers.get("x-vercel-oidc-token") or settings.vercel_oidc_token or ""
     ).strip()
+    deletion_summary = await account_deletions.process_next()
+    if deletion_summary.get("handled"):
+        return {
+            "success": True,
+            "worker": "account-storage-deletion",
+            **deletion_summary,
+        }
     code_summary = await code_worker.process_next(oidc_token=oidc_token)
     if code_summary.get("handled"):
         return {"success": True, "worker": "code", **code_summary}

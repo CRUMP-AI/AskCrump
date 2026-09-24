@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 PUBLIC = ROOT / "public"
 CLIENT = TestClient(app_module.app)
 MESSAGE_ID = "b2f94abc-56b5-4df2-9dc8-1cb0937ed6c6"
+LEASE_MIGRATION = ROOT / "migrations" / "20260924213808_align_chat_job_lease_with_ai_timeout.sql"
 
 
 class ChatJobDB:
@@ -145,6 +146,25 @@ def test_status_recovers_authoritative_document_after_response_and_job_cache_are
     }
 
 
+def test_processing_reply_remains_busy_inside_the_eight_minute_lease(monkeypatch):
+    install_job(
+        monkeypatch,
+        {
+            "status": "processing",
+            "response_data": None,
+            "error_code": None,
+            "updated_at": (
+                datetime.now(timezone.utc) - timedelta(minutes=7, seconds=59)
+            ).isoformat(),
+        },
+    )
+
+    response = CLIENT.get(f"/api/chat/status/{MESSAGE_ID}")
+
+    assert response.status_code == 202
+    assert response.json() == {"success": True, "status": "processing", "retryAfter": 3}
+
+
 def test_stale_or_failed_reply_status_allows_the_existing_idempotent_job_to_retry(monkeypatch):
     install_job(
         monkeypatch,
@@ -152,7 +172,9 @@ def test_stale_or_failed_reply_status_allows_the_existing_idempotent_job_to_retr
             "status": "processing",
             "response_data": None,
             "error_code": None,
-            "updated_at": (datetime.now(timezone.utc) - timedelta(minutes=3)).isoformat(),
+            "updated_at": (
+                datetime.now(timezone.utc) - timedelta(minutes=8, seconds=1)
+            ).isoformat(),
         },
     )
 
@@ -161,6 +183,32 @@ def test_stale_or_failed_reply_status_allows_the_existing_idempotent_job_to_retr
     assert response.status_code == 409
     assert response.json()["status"] == "retryable"
     assert response.json()["shouldRetry"] is True
+
+
+def test_chat_claim_migration_fences_rolling_workers_and_restricts_private_rpcs():
+    sql = LEASE_MIGRATION.read_text(encoding="utf-8").lower()
+
+    assert "add column if not exists claim_token uuid" in sql
+    assert sql.count("interval '8 minutes'") == 2
+    legacy = sql.split("create or replace function public.claim_chat_job(", 1)[1].split(
+        "create or replace function public.claim_chat_job_v2(", 1
+    )[0]
+    assert "error_code = null, claim_token = null, updated_at = now()" in legacy
+    assert "returns table(job_state text, response_data jsonb, claim_token uuid)" in sql
+    assert "and claim_token = p_claim_token" in sql
+    for signature in (
+        "public.claim_chat_job_v2(uuid, uuid, uuid)",
+        "public.release_chat_job_claim(uuid, uuid, uuid, text)",
+        "public.retire_generated_document_versions(uuid, uuid, uuid)",
+    ):
+        assert f"revoke all on function {signature}" in sql
+        revoke_tail = sql.split(f"revoke all on function {signature}", 1)[1].split(";", 1)[0]
+        assert "public" in revoke_tail
+        assert "anon" in revoke_tail
+        assert "authenticated" in revoke_tail
+        assert f"grant execute on function {signature}" in sql
+        grant_tail = sql.split(f"grant execute on function {signature}", 1)[1].split(";", 1)[0]
+        assert "service_role" in grant_tail
 
 
 def test_primary_and_fallback_chat_runtimes_use_bounded_server_job_recovery():

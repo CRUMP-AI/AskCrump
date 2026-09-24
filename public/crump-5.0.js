@@ -366,7 +366,7 @@
       xhr.addEventListener('error', () => reject(new Error('Network error during upload.')));
       xhr.addEventListener('abort', () => reject(Object.assign(new Error('Upload cancelled.'), {name: 'AbortError'})));
       const form = new FormData();
-      form.append('cacheControl', '3600');
+      form.append('cacheControl', '0');
       form.append('file', item.file);
       xhr.send(form);
     });
@@ -420,7 +420,7 @@
       ['bucketName', signed.uploadBucket],
       ['objectName', signed.uploadPath],
       ['contentType', item.type || 'application/octet-stream'],
-      ['cacheControl', '3600'],
+      ['cacheControl', '0'],
     ].map(([key,value]) => `${key} ${tusMeta(value)}`).join(',');
     const create = await fetch(signed.resumableUrl, {
       method: 'POST',
@@ -1820,10 +1820,37 @@
     return dismiss;
   }
 
-  function showFileViewer(file) {
-    const url = file?.id ? `/api/files/${encodeURIComponent(file.id)}/content` : String(file?.url || '');
-    if (!url) return false;
+  async function resolvedFileUrl(file, {download = false} = {}) {
+    if (!file?.id) return String(file?.url || '');
+    const encodedId = encodeURIComponent(file.id);
+    const contentUrl = `/api/files/${encodedId}/content${download ? '?download=1' : ''}`;
+    if (!window.CrumpAPI?.isNative) return contentUrl;
+
+    const response = await fetch(`/api/files/${encodedId}/signed${download ? '?download=1' : ''}`, {
+      credentials: 'include',
+      cache: 'no-store',
+    });
+    let data = {};
+    try { data = await response.json(); } catch (_) { data = {}; }
+    if (!response.ok || data.success === false || !data.url) {
+      throw new Error(data.error || data.message || 'Crump could not prepare that private file.');
+    }
+    return String(data.url);
+  }
+
+  async function showFileViewer(file) {
     const type = String(file?.type || '').toLowerCase();
+    const isPdf = type === 'application/pdf' || String(file?.name || '').toLowerCase().endsWith('.pdf');
+    let url = '';
+    if (type.startsWith('image/') || type.startsWith('video/') || isPdf) {
+      try {
+        url = await resolvedFileUrl(file);
+      } catch (error) {
+        show(error?.message || 'Crump could not open that file.', 'error');
+        return false;
+      }
+      if (!url) return false;
+    }
     if (type.startsWith('image/')) {
       showLightbox(file, url);
       return true;
@@ -1860,7 +1887,7 @@
       video.src = url;
       video.setAttribute('aria-label', `Play ${file?.name || 'video'}`);
       body.appendChild(video);
-    } else if (type === 'application/pdf' || String(file?.name || '').toLowerCase().endsWith('.pdf')) {
+    } else if (isPdf) {
       const frame = document.createElement('iframe');
       frame.src = url;
       frame.title = `Preview ${file?.name || 'PDF'}`;
@@ -1903,9 +1930,16 @@
         console.warn('Ask Crump media save failed; using file download fallback.', error);
       }
     }
-    if (!download && showFileViewer(file)) return true;
-    const url = file.id ? `/api/files/${encodeURIComponent(file.id)}/content${download ? '?download=1' : ''}` : file.url;
-    const link = document.createElement('a'); link.href = url; link.target = download ? '_self' : '_blank'; link.rel = 'noopener';
+    if (!download) return showFileViewer(file);
+    let url = '';
+    try {
+      url = await resolvedFileUrl(file, {download: true});
+    } catch (error) {
+      show(error?.message || 'Crump could not prepare that download.', 'error');
+      return false;
+    }
+    if (!url) return false;
+    const link = document.createElement('a'); link.href = url; link.target = window.CrumpAPI?.isNative ? '_blank' : '_self'; link.rel = 'noopener';
     if (download) link.download = file.name || 'download';
     document.body.appendChild(link); link.click(); link.remove();
     return true;
@@ -2219,16 +2253,19 @@
       if (referenceReceipt) wrapper.appendChild(referenceReceipt);
       if (message.artifact) {
         const artifact = document.createElement('div'); artifact.className = 'crump50-artifact';
-        artifact.innerHTML = `<span>${String(message.artifact.format || 'FILE').toUpperCase()}</span><div class="crump50-artifact-copy"><strong></strong><small>Created by Crump · ${formatBytes(message.artifact.size)}</small></div><div class="crump50-artifact-actions"><button type="button" data-artifact-project>Add to Project</button><button type="button" data-artifact-download>Download</button></div>`;
+        artifact.innerHTML = `<span>${String(message.artifact.format || 'FILE').toUpperCase()}</span><div class="crump50-artifact-copy"><strong></strong><small>Created by Crump · ${formatBytes(message.artifact.size)}</small></div><div class="crump50-artifact-actions"><button type="button" data-artifact-project>Add to Project</button><button type="button" data-artifact-open>Open</button><button type="button" data-artifact-download>Download</button></div>`;
         $('strong', artifact).textContent = message.artifact.title || message.artifact.name || 'Crump document';
         const projectButton = $('[data-artifact-project]', artifact);
+        const openButton = $('[data-artifact-open]', artifact);
         const downloadButton = $('[data-artifact-download]', artifact);
         const artifactName = message.artifact.title || message.artifact.name || 'this file';
         wireOutputProjectAction(projectButton, {
           message, file: message.artifact, kind: 'artifact', role: 'generated_document',
           label: artifactName, statusNode: $('small', artifact),
         });
-        downloadButton?.addEventListener('click', () => openFile(message.artifact, true)); wrapper.appendChild(artifact);
+        openButton?.addEventListener('click', () => { void openFile(message.artifact); });
+        downloadButton?.addEventListener('click', () => { void openFile(message.artifact, true); });
+        wrapper.appendChild(artifact);
       }
       const artifactRecovery = message.artifactRecovery && typeof message.artifactRecovery === 'object'
         ? message.artifactRecovery

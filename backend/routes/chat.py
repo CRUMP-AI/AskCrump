@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import time
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
@@ -15,7 +16,11 @@ from ..checkin_service import mark_check_in_responded
 from ..db import eq
 from ..feature_service import FeatureAccessError
 from ..file_service import FileServiceError
-from ..manuscript_service import ManuscriptError, chapter_count_from_prompt
+from ..manuscript_service import (
+    ManuscriptError,
+    ManuscriptHandoffUnconfirmed,
+    chapter_count_from_prompt,
+)
 from ..product53_hooks import (
     apply_project_context,
     attach_generated_outputs,
@@ -34,6 +39,11 @@ from ..usage_service import limit_for, refund_usage, tier_name
 
 router = APIRouter(prefix='/api/chat', tags=['chat'])
 logger = logging.getLogger('askcrump.chat')
+MANUSCRIPT_EXPORT_FORMATS = {'docx', 'pdf', 'epub'}
+
+
+class DurableReplyLookupUnavailable(RuntimeError):
+    """The API cannot safely distinguish a missing reply from an ambiguous commit."""
 
 
 def _ai_error_recovery(error_code: str) -> dict | None:
@@ -98,7 +108,7 @@ def _chat_job_is_stale(updated_at) -> bool:
             return True
     if value.tzinfo is None:
         value = value.replace(tzinfo=timezone.utc)
-    return value <= datetime.now(timezone.utc) - timedelta(minutes=2)
+    return value <= datetime.now(timezone.utc) - timedelta(minutes=8)
 
 
 async def _durable_reply_for_job(*, user_id: str, message_id: str, job: dict) -> dict | None:
@@ -118,7 +128,7 @@ async def _durable_reply_for_job(*, user_id: str, message_id: str, job: dict) ->
         )
     except Exception:
         logger.warning('Durable reply reconciliation lookup unavailable.')
-        return None
+        raise DurableReplyLookupUnavailable from None
     messages = conversation.get('messages') if isinstance(conversation, dict) else None
     messages = messages if isinstance(messages, list) else []
     assistant = next((
@@ -205,11 +215,25 @@ async def chat_status(message_id: str, request: Request):
             headers=headers,
             content={**response_data, 'success': True, 'status': 'completed', 'cached': True},
         )
-    durable_reply = await _durable_reply_for_job(
-        user_id=auth.user['id'],
-        message_id=normalized_message_id,
-        job=job,
-    )
+    try:
+        durable_reply = await _durable_reply_for_job(
+            user_id=auth.user['id'],
+            message_id=normalized_message_id,
+            job=job,
+        )
+    except DurableReplyLookupUnavailable:
+        return JSONResponse(
+            status_code=503,
+            headers=headers,
+            content={
+                'success': False,
+                'status': 'retryable',
+                'error': 'Crump could not confirm the saved reply yet.',
+                'code': 'REPLY_RECONCILIATION_UNAVAILABLE',
+                'shouldRetry': True,
+                'retryAfter': 3,
+            },
+        )
     if durable_reply:
         return JSONResponse(
             headers=headers,
@@ -349,6 +373,64 @@ async def retry_chat_artifact(message_id: str, request: Request):
         )
 
     artifact = response_data.get('artifact') or assistant_message.get('artifact')
+    logical_artifact_id = _artifact_file_id(
+        user_id=auth.user['id'],
+        message_id=normalized_message_id,
+        format_name=artifact_format,
+    )
+    if isinstance(artifact, dict) and artifact.get('id'):
+        try:
+            stored_artifact = await files.get_owned(
+                user_id=auth.user['id'],
+                file_id=str(artifact['id']),
+            )
+        except FileServiceError as exc:
+            if exc.status_code == 404 or exc.code == 'FILE_NOT_FOUND':
+                artifact = None
+            else:
+                logger.warning('Artifact recovery file lookup unavailable.')
+                return JSONResponse(
+                    status_code=503,
+                    content={
+                        'success': False,
+                        'error': 'The saved answer is safe, but file recovery is temporarily unavailable.',
+                        'code': 'ARTIFACT_RECOVERY_LOOKUP_UNAVAILABLE',
+                        'shouldRetry': True,
+                    },
+                )
+        except Exception:
+            logger.warning('Artifact recovery file lookup unavailable.')
+            return JSONResponse(
+                status_code=503,
+                content={
+                    'success': False,
+                    'error': 'The saved answer is safe, but file recovery is temporarily unavailable.',
+                    'code': 'ARTIFACT_RECOVERY_LOOKUP_UNAVAILABLE',
+                    'shouldRetry': True,
+                },
+            )
+        else:
+            stored_metadata = (
+                stored_artifact.get('metadata')
+                if isinstance(stored_artifact.get('metadata'), dict)
+                else {}
+            )
+            identity_matches = (
+                str(stored_artifact.get('id') or '') == logical_artifact_id
+                or str(stored_metadata.get('_logicalArtifactId') or '') == logical_artifact_id
+            )
+            if (
+                stored_artifact.get('kind') != 'generated_document'
+                or str(stored_artifact.get('message_id') or '') != normalized_message_id
+                or str(stored_metadata.get('format') or '').lower() != artifact_format
+                or not identity_matches
+            ):
+                artifact = None
+            else:
+                artifact = files.public_file(stored_artifact)
+                for key in ('format', 'title', 'profile'):
+                    if key in stored_metadata:
+                        artifact[key] = stored_metadata[key]
     try:
         if not isinstance(artifact, dict) or not artifact.get('id'):
             artifact = await artifacts.create(
@@ -359,11 +441,7 @@ async def retry_chat_artifact(message_id: str, request: Request):
                 message_id=normalized_message_id,
                 brief=str(user_message.get('content') or ''),
                 purpose=recovery.get('purpose'),
-                file_id=_artifact_file_id(
-                    user_id=auth.user['id'],
-                    message_id=normalized_message_id,
-                    format_name=artifact_format,
-                ),
+                file_id=logical_artifact_id,
             )
     except Exception:
         logger.exception('Artifact packaging retry failed format=%s', artifact_format)
@@ -510,8 +588,40 @@ def _history_file_ids(payload: dict, limit: int = 6) -> list[str]:
 def _promote_explicit_document_delivery(
     creation_intent: dict,
     detected_format: str | None,
+    *,
+    explicit_format: str | None = None,
+    message: str = '',
 ) -> dict:
-    """Do not let semantic clarification suppress an explicit file request."""
+    """Keep an explicit file choice authoritative over conflicting semantics."""
+    if isinstance(creation_intent, dict):
+        kind = str(creation_intent.get('kind') or '')
+        authoritative_format = explicit_format
+        if not authoritative_format and kind in {'image', 'video', 'manuscript'}:
+            authoritative_format = detected_format
+        if (
+            authoritative_format
+            and kind == 'manuscript'
+            and authoritative_format in MANUSCRIPT_EXPORT_FORMATS
+            and _is_intentional_manuscript_request(
+                f"{creation_intent.get('brief') or ''}\n{message}",
+            )
+        ):
+            return {**creation_intent, 'format': authoritative_format}
+        if authoritative_format:
+            return {
+                **creation_intent,
+                'kind': 'document',
+                'stage': 'execute',
+                'question': '',
+                'format': authoritative_format,
+            }
+        if kind == 'document' and detected_format and not creation_intent.get('format'):
+            return {
+                **creation_intent,
+                'stage': 'execute',
+                'question': '',
+                'format': detected_format,
+            }
     if (
         not detected_format
         or not isinstance(creation_intent, dict)
@@ -527,8 +637,92 @@ def _promote_explicit_document_delivery(
     }
 
 
+def _is_intentional_manuscript_request(message: str) -> bool:
+    """Distinguish writing a book from making a file about one."""
+    text = ' '.join(str(message or '').lower().split())
+    explicit_length = bool(re.search(
+        r'\b(full[ -]?length|book[ -]?length|from start to finish)\b|'
+        r'\b\d{2,3}(?:,\d{3})?\s*words?\b',
+        text,
+    ))
+    manuscript_noun = re.compile(
+        r'\b(book|novel|memoir|manuscript|screenplay|dissertation|thesis)\b',
+    )
+    story_noun = re.compile(r'\bstory\b')
+    if not manuscript_noun.search(text) and not (explicit_length and story_noun.search(text)):
+        return False
+    if explicit_length and story_noun.search(text):
+        manuscript_noun = re.compile(
+            r'\b(book|novel|memoir|manuscript|screenplay|dissertation|thesis|story)\b',
+        )
+    if re.search(
+        r'\b(summary|synopsis|outline|review|blurb|proposal|query letter|book report)\b',
+        text,
+    ):
+        return False
+    if re.search(
+        r'\bbook\s+(launch|marketing|sales|club|campaign|tour|publishing|promotion|release)\b',
+        text,
+    ):
+        return False
+    output_noun = re.compile(
+        r'\b(document|docx|pdf|report|analysis|presentation|powerpoint|slides?|'
+        r'spreadsheet|excel|workbook|budget|plan|memo|summary|review|proposal|'
+        r'outline|timeline|schedule|list|guide)\b',
+    )
+    subject_connector = re.compile(
+        r'\b(about|regarding|analy[sz](?:e|ing)|describ(?:e|ing)|review(?:ing)?|'
+        r'summari[sz](?:e|ing)|covering)\b',
+    )
+    for verb in re.finditer(
+        r'\b(write|draft|compose|author|create|make|produce|build|want|need|'
+        r'finish|complete|continue|revise|edit|expand)\b',
+        text,
+    ):
+        noun = manuscript_noun.search(text, verb.end())
+        if not noun or noun.start() - verb.end() > 120:
+            continue
+        between = text[verb.end():noun.start()]
+        if output_noun.search(between) or subject_connector.search(between):
+            continue
+        return True
+    return explicit_length and not output_noun.search(text)
+
+
 @router.post('')
 async def chat(request: Request):
+    """Release an owned pre-persistence claim when an unexpected error escapes."""
+    try:
+        return await _chat_impl(request)
+    except Exception:
+        claim = getattr(request.state, 'chat_job_claim', None)
+        if isinstance(claim, dict) and claim.get('release_safe'):
+            try:
+                await refund_usage(db, claim['user_id'], claim.get('usage_event_id'))
+            except Exception:
+                logger.warning('Unexpected chat failure message-usage refund was unavailable.')
+            try:
+                await features.refund(claim['user_id'], claim.get('feature_usage'))
+            except Exception:
+                logger.warning('Unexpected chat failure feature refund was unavailable.')
+            try:
+                released = await db.rpc(
+                    'release_chat_job_claim',
+                    {
+                        'p_user_id': claim['user_id'],
+                        'p_message_id': claim['message_id'],
+                        'p_claim_token': claim['claim_token'],
+                        'p_error_code': 'REPLY_PRE_PERSISTENCE_FAILED',
+                    },
+                )
+                if not bool(released[0] if isinstance(released, list) and released else released):
+                    logger.warning('Unexpected chat failure claim release was not confirmed.')
+            except Exception:
+                logger.warning('Unexpected chat failure claim release was unavailable.')
+        raise
+
+
+async def _chat_impl(request: Request):
     started = time.perf_counter()
     request_id = request.headers.get('X-Request-ID') or str(uuid4())
     auth = await authenticate_request(request, db, settings)
@@ -565,13 +759,43 @@ async def chat(request: Request):
     raw_message_id = str(request_payload.get('messageId') or '').strip()
     chat_id = normalize_chat_id(raw_chat_id) if raw_chat_id else None
     message_id = normalize_chat_id(raw_message_id) if raw_message_id else None
+    chat_job_claim_token: str | None = None
+
+    def claimed_job_filters() -> dict[str, str]:
+        filters = {
+            'user_id': eq(auth.user['id']),
+            'message_id': eq(message_id),
+        }
+        if chat_job_claim_token:
+            filters['claim_token'] = eq(chat_job_claim_token)
+        return filters
+
+    async def release_owned_chat_claim(error_code: str) -> bool:
+        """Release only this worker's live claim and confirm the transition."""
+        if not (message_id and chat_job_claim_token):
+            return True
+        try:
+            released = await db.rpc(
+                'release_chat_job_claim',
+                {
+                    'p_user_id': auth.user['id'],
+                    'p_message_id': message_id,
+                    'p_claim_token': chat_job_claim_token,
+                    'p_error_code': error_code,
+                },
+            )
+            return bool(released[0] if isinstance(released, list) and released else released)
+        except Exception:
+            logger.warning('Could not release owned chat claim error_code=%s.', error_code)
+            return False
+
     prepared = None
     verifier_used = False
     usage: dict = {"eventId": None}
 
     if chat_id and message_id:
         claim_result = await db.rpc(
-            'claim_chat_job',
+            'claim_chat_job_v2',
             {'p_user_id': auth.user['id'], 'p_chat_id': chat_id, 'p_message_id': message_id},
         )
         claim = claim_result[0] if isinstance(claim_result, list) and claim_result else (claim_result or {})
@@ -590,6 +814,75 @@ async def chat(request: Request):
                     'retryAfter': 3,
                 },
             )
+        try:
+            chat_job_claim_token = normalize_chat_id(str(claim.get('claim_token') or ''))
+        except Exception:
+            return JSONResponse(
+                status_code=503,
+                content={
+                    'success': False,
+                    'error': 'Crump could not establish a safe reply claim.',
+                    'message': 'Crump could not establish a safe reply claim. Wait before retrying this same message.',
+                    'code': 'REPLY_CLAIM_UNAVAILABLE',
+                    'shouldRetry': True,
+                    'retryAfter': 480,
+                },
+            )
+        request.state.chat_job_claim = {
+            'user_id': auth.user['id'],
+            'message_id': message_id,
+            'claim_token': chat_job_claim_token,
+            'usage_event_id': None,
+            'feature_usage': None,
+            # Once durable persistence starts, an outer failure must not mark
+            # an ambiguously committed reply retryable. The reconciliation
+            # path below owns that phase.
+            'release_safe': True,
+        }
+        try:
+            durable_reply = await _durable_reply_for_job(
+                user_id=auth.user['id'],
+                message_id=message_id,
+                job={'chat_id': chat_id},
+            )
+        except DurableReplyLookupUnavailable:
+            claim_released = await release_owned_chat_claim('REPLY_RECONCILIATION_UNAVAILABLE')
+            return JSONResponse(
+                status_code=503,
+                content={
+                    'success': False,
+                    'error': 'Crump could not safely confirm whether this reply was already saved.',
+                    'message': (
+                        'Crump could not safely confirm whether this reply was already saved. Please retry.'
+                        if claim_released
+                        else 'Crump could not safely confirm whether this reply was already saved. Wait before retrying this same message.'
+                    ),
+                    'code': 'REPLY_RECONCILIATION_UNAVAILABLE',
+                    'shouldRetry': True,
+                    'retryAfter': 1 if claim_released else 480,
+                },
+            )
+        if durable_reply:
+            try:
+                await db.update(
+                    'chat_jobs',
+                    {
+                        'status': 'completed',
+                        'response_data': durable_reply,
+                        'error_code': None,
+                        'claim_token': None,
+                        'updated_at': iso_now(),
+                    },
+                    filters=claimed_job_filters(),
+                )
+            except Exception:
+                logger.warning('Durable reply reconciliation cache finalization unavailable.')
+            return {
+                'success': True,
+                **durable_reply,
+                'cached': True,
+                'reconciled': True,
+            }
 
     try:
         current_file_rows = await files.resolve_many(user_id=auth.user['id'], file_ids=_file_ids(request_payload), limit=10)
@@ -602,6 +895,18 @@ async def chat(request: Request):
             )
     except FileServiceError as exc:
         await refund_usage(db, auth.user['id'], usage.get('eventId'))
+        claim_released = await release_owned_chat_claim(exc.code)
+        if not claim_released:
+            return JSONResponse(
+                status_code=503,
+                content={
+                    'success': False,
+                    'error': 'Crump could not safely release this reply after the file check failed.',
+                    'message': 'Wait before retrying this same message, or send it again as a new message.',
+                    'code': 'REPLY_CLAIM_RELEASE_UNCONFIRMED',
+                    'shouldRetry': False,
+                },
+            )
         return JSONResponse(status_code=exc.status_code, content={'success': False, 'error': exc.message, 'message': exc.message, 'code': exc.code})
 
     reference_contract_fields = {
@@ -688,8 +993,8 @@ async def chat(request: Request):
         if message_id:
             await db.update(
                 'chat_jobs',
-                {'status': 'failed', 'error_code': 'PROJECT_NOT_FOUND', 'updated_at': iso_now()},
-                filters={'user_id': eq(auth.user['id']), 'message_id': eq(message_id)},
+                {'status': 'failed', 'error_code': 'PROJECT_NOT_FOUND', 'claim_token': None, 'updated_at': iso_now()},
+                filters=claimed_job_filters(),
             )
         return JSONResponse(
             status_code=404,
@@ -736,6 +1041,8 @@ async def chat(request: Request):
                 else:
                     request_payload['relevantContext'] = [project_reference_context]
 
+    raw_artifact_format = str(request_payload.get('artifactFormat') or '').strip().lower().lstrip('.')
+    explicit_artifact = artifacts.normalize_format(raw_artifact_format)
     legacy_artifact = artifacts.detect_request(
         str(request_payload.get('message') or ''),
         request_payload.get('artifactFormat'),
@@ -748,11 +1055,28 @@ async def chat(request: Request):
         allow_think_longer=think_longer_entitled,
         user_tier=effective_user_tier,
     )
+    prepared_creation_kind = str((prepared.creation_intent or {}).get('kind') or '')
+    manuscript_epub = bool(
+        prepared_creation_kind == 'manuscript'
+        and (
+            raw_artifact_format == 'epub'
+            or (
+                legacy_long_form
+                and re.search(r'\bepub\b|\.epub\b', original_message, re.I)
+            )
+        )
+    )
+    detected_delivery_format = 'epub' if manuscript_epub else legacy_artifact
+    explicit_delivery_format = (
+        'epub' if manuscript_epub and raw_artifact_format == 'epub' else explicit_artifact
+    )
     request_payload = prepared.payload
     request_payload.update(reference_contract_fields)
     creation_intent = _promote_explicit_document_delivery(
         prepared.creation_intent or {},
-        legacy_artifact,
+        detected_delivery_format,
+        explicit_format=explicit_delivery_format,
+        message=original_message,
     )
     if creation_intent:
         prepared.creation_intent = creation_intent
@@ -773,7 +1097,13 @@ async def chat(request: Request):
             requested_artifact = (
                 artifacts.normalize_format(creation_intent.get('format')) or 'docx'
             ) if creation_stage == 'execute' else None
-        elif creation_kind != 'manuscript':
+        elif creation_kind == 'manuscript':
+            # A preferred export format may be remembered while Crump asks the
+            # one high-value planning question, but no file exists to package
+            # until the persistent manuscript actually starts.
+            if creation_stage != 'execute':
+                requested_artifact = None
+        else:
             requested_artifact = None
         if creation_stage == 'execute' and creation_kind in {'image', 'document'}:
             request_payload['message'] = execution_brief
@@ -796,6 +1126,16 @@ async def chat(request: Request):
         request_payload['artifactFormat'] = requested_artifact
     if long_form_request:
         request_payload['longForm'] = True
+        if not (chat_id and message_id and chat_job_claim_token):
+            return JSONResponse(
+                status_code=400,
+                content={
+                    'success': False,
+                    'error': 'Start this manuscript from the current conversation so Crump can resume it safely.',
+                    'message': 'Start this manuscript from the current conversation so Crump can resume it safely.',
+                    'code': 'MANUSCRIPT_MESSAGE_ID_REQUIRED',
+                },
+            )
     if long_form_request:
         artifact_note = {
             'source': 'long_form_handoff',
@@ -894,6 +1234,18 @@ async def chat(request: Request):
             confirmation,
             message_limit=message_limit,
             scope=authorization_scope,
+            usage_instance_keys={
+                **(
+                    {'messages': str(message_id)}
+                    if message_id
+                    else {}
+                ),
+                **(
+                    {feature_code: f'{message_id}:{feature_code}'}
+                    if message_id and feature_code
+                    else {}
+                ),
+            },
         )
         usage = await features.consume_message(
             auth.user,
@@ -901,8 +1253,11 @@ async def chat(request: Request):
             metadata={'route': 'chat', 'messageId': message_id},
             authorization=authorization,
             instance_key=str(message_id or request_id),
+            usage_idempotency_key=str(message_id) if message_id else None,
             scope=authorization_scope,
         )
+        if hasattr(request.state, 'chat_job_claim'):
+            request.state.chat_job_claim['usage_event_id'] = usage.get('eventId')
         if feature_code:
             feature_usage = await features.consume(
                 auth.user,
@@ -910,8 +1265,13 @@ async def chat(request: Request):
                 feature_metadata,
                 authorization=authorization,
                 instance_key=f"{message_id or request_id}:{feature_code}",
+                usage_idempotency_key=(
+                    f"{message_id}:{feature_code}" if message_id else None
+                ),
                 scope=authorization_scope,
             )
+            if hasattr(request.state, 'chat_job_claim'):
+                request.state.chat_job_claim['feature_usage'] = feature_usage
         draft_credit_limit = int(
             authorization.max_by_code.get('manuscript_draft', 0)
         )
@@ -925,8 +1285,8 @@ async def chat(request: Request):
         if message_id:
             await db.update(
                 'chat_jobs',
-                {'status': 'failed', 'error_code': exc.code, 'updated_at': iso_now()},
-                filters={'user_id': eq(auth.user['id']), 'message_id': eq(message_id)},
+                {'status': 'failed', 'error_code': exc.code, 'claim_token': None, 'updated_at': iso_now()},
+                filters=claimed_job_filters(),
             )
         return JSONResponse(
             status_code=exc.status_code,
@@ -962,13 +1322,15 @@ async def chat(request: Request):
         trace_model = None
         if long_form_request:
             manuscript_format = str(creation_intent.get('format') or requested_artifact or 'docx').lower()
-            if manuscript_format not in {'docx', 'pdf', 'epub'}:
+            if manuscript_format not in MANUSCRIPT_EXPORT_FORMATS:
                 manuscript_format = 'docx'
             result = await manuscripts.begin_long_form(
                 user=auth.user,
                 brief=execution_brief,
                 project_id=project_id,
                 chat_id=chat_id,
+                message_id=message_id,
+                claim_token=chat_job_claim_token,
                 preferred_format=manuscript_format,
                 project_limit=features.project_limit(auth.user),
                 blueprint_receipt=feature_usage,
@@ -1024,14 +1386,30 @@ async def chat(request: Request):
             # the richer visual route is temporarily unavailable.
             request_payload['fileData'] = await media.legacy_inline_files(file_rows) if file_rows else request_payload.get('fileData')
             result = await ai.chat(request_payload)
+    except ManuscriptHandoffUnconfirmed:
+        logger.exception('Manuscript workspace commit could not be reconciled')
+        return JSONResponse(
+            status_code=503,
+            content={
+                'success': False,
+                'error': 'Your manuscript workspace may already be queued.',
+                'message': (
+                    'Your manuscript workspace may already be queued. Do not start it again. '
+                    'Reopen this conversation after a few minutes to resume the same request.'
+                ),
+                'code': 'MANUSCRIPT_WORKSPACE_UNCONFIRMED',
+                'shouldRetry': False,
+                'retryAfter': 480,
+            },
+        )
     except ManuscriptError as exc:
         await refund_usage(db, auth.user['id'], usage.get('eventId'))
         await features.refund(auth.user['id'], feature_usage)
         if message_id:
             await db.update(
                 'chat_jobs',
-                {'status': 'failed', 'error_code': exc.code, 'updated_at': iso_now()},
-                filters={'user_id': eq(auth.user['id']), 'message_id': eq(message_id)},
+                {'status': 'failed', 'error_code': exc.code, 'claim_token': None, 'updated_at': iso_now()},
+                filters=claimed_job_filters(),
             )
         return JSONResponse(
             status_code=exc.status_code,
@@ -1048,8 +1426,8 @@ async def chat(request: Request):
         if message_id:
             await db.update(
                 'chat_jobs',
-                {'status': 'failed', 'error_code': exc.code, 'updated_at': iso_now()},
-                filters={'user_id': eq(auth.user['id']), 'message_id': eq(message_id)},
+                {'status': 'failed', 'error_code': exc.code, 'claim_token': None, 'updated_at': iso_now()},
+                filters=claimed_job_filters(),
             )
         await intelligence.record_trace(
             user_id=auth.user['id'], request_id=request_id, chat_id=chat_id,
@@ -1077,8 +1455,13 @@ async def chat(request: Request):
         if message_id:
             await db.update(
                 'chat_jobs',
-                {'status': 'failed', 'error_code': 'MANUSCRIPT_WORKSPACE_FAILED', 'updated_at': iso_now()},
-                filters={'user_id': eq(auth.user['id']), 'message_id': eq(message_id)},
+                {
+                    'status': 'failed',
+                    'error_code': 'MANUSCRIPT_WORKSPACE_FAILED',
+                    'claim_token': None,
+                    'updated_at': iso_now(),
+                },
+                filters=claimed_job_filters(),
             )
         return JSONResponse(
             status_code=502,
@@ -1121,15 +1504,6 @@ async def chat(request: Request):
                     format_name=artifact_format,
                 ) if message_id else None,
             )
-            await record_product_event(
-                db,
-                user_id=auth.user['id'],
-                event_name='ArtifactPackaged',
-                event_key=f'artifact-packaged:{artifact_event_id}',
-                request=request,
-                plan=effective_user_tier,
-                artifact_type=artifact_event_type,
-            )
         except Exception:
             logger.exception(
                 'Artifact packaging failed format=%s request_id=%s',
@@ -1153,27 +1527,6 @@ async def chat(request: Request):
                 plan=effective_user_tier,
                 artifact_type=artifact_event_type,
             )
-
-    if project_id:
-        project_attachments = await attach_generated_outputs(
-            user_id=auth.user['id'],
-            project_id=project_id,
-            result=result,
-            projects=projects,
-        )
-        if project_attachments:
-            result['projectAttachments'] = project_attachments
-            failed_roles = sorted({
-                str(receipt.get('role') or '')
-                for receipt in project_attachments.values()
-                if receipt.get('status') == 'failed' and receipt.get('role')
-            })
-            if failed_roles:
-                logger.warning(
-                    'Generated output Project attachment needs retry roles=%s request_id=%s',
-                    ','.join(failed_roles),
-                    request_id,
-                )
 
     # The API, not an individual browser tab, owns persistence of the AI reply.
     if chat_id and message_id:
@@ -1226,8 +1579,6 @@ async def chat(request: Request):
             assistant_message['artifact'] = result['artifact']
         if result.get('artifactRecovery'):
             assistant_message['artifactRecovery'] = result['artifactRecovery']
-        if result.get('projectAttachments'):
-            assistant_message['projectAttachments'] = result['projectAttachments']
         if result.get('manuscriptWorkspace'):
             assistant_message['manuscriptWorkspace'] = result['manuscriptWorkspace']
         if result.get('creationHandoff'):
@@ -1235,6 +1586,7 @@ async def chat(request: Request):
         if any(intelligence_receipt.values()):
             assistant_message['intelligence'] = intelligence_receipt
 
+        request.state.chat_job_claim['release_safe'] = False
         try:
             persisted = await db.rpc(
                 'persist_chat_reply',
@@ -1251,28 +1603,202 @@ async def chat(request: Request):
                 result['conversationRevision'] = persisted[0].get('resulting_revision')
                 result['conversationUpdatedAt'] = persisted[0].get('resulting_updated_at')
         except Exception:
-            await refund_usage(db, auth.user['id'], usage.get('eventId'))
-            await features.refund(auth.user['id'], feature_usage)
-            await db.update(
-                'chat_jobs',
-                {'status': 'failed', 'error_code': 'CHAT_PERSISTENCE', 'updated_at': iso_now()},
-                filters={'user_id': eq(auth.user['id']), 'message_id': eq(message_id)},
-            )
-            await intelligence.record_trace(
-                user_id=auth.user['id'], request_id=request_id, chat_id=chat_id,
-                message_id=message_id, prepared=prepared, model=result.get('model'),
-                latency_ms=int((time.perf_counter() - started) * 1000), status='persistence_error',
-                error_code='CHAT_PERSISTENCE', verifier_used=verifier_used,
-            )
-            return JSONResponse(
-                status_code=503,
-                content={
-                    'success': False,
-                    'error': 'Crump generated a reply but could not save the shared conversation.',
-                    'message': 'Crump generated a reply but could not save the shared conversation. Please retry.',
-                    'code': 'CHAT_PERSISTENCE', 'shouldRetry': True, 'retryAfter': 2,
-                },
-            )
+            try:
+                durable_reply = await _durable_reply_for_job(
+                    user_id=auth.user['id'],
+                    message_id=message_id,
+                    job={'chat_id': chat_id},
+                )
+            except DurableReplyLookupUnavailable:
+                await intelligence.record_trace(
+                    user_id=auth.user['id'], request_id=request_id, chat_id=chat_id,
+                    message_id=message_id, prepared=prepared, model=result.get('model'),
+                    latency_ms=int((time.perf_counter() - started) * 1000),
+                    status='persistence_unconfirmed', error_code='CHAT_PERSISTENCE_UNCONFIRMED',
+                    verifier_used=verifier_used,
+                )
+                return JSONResponse(
+                    status_code=503,
+                    content={
+                        'success': False,
+                        'error': 'Crump generated the reply, but its saved status could not be confirmed yet.',
+                        'message': (
+                            'Crump generated the reply, but its saved status could not be confirmed yet. '
+                            'Do not regenerate it; wait while the existing reply claim expires and recovery checks continue.'
+                        ),
+                        'code': 'CHAT_PERSISTENCE_UNCONFIRMED', 'shouldRetry': True, 'retryAfter': 480,
+                    },
+                )
+            if durable_reply:
+                result = {**result, **durable_reply, 'reconciled': True}
+                for output_key in (
+                    'imageUrl', 'imagePrompt', 'imageAspect', 'imageFile', 'artifact',
+                    'artifactRecovery', 'projectAttachments', 'manuscriptWorkspace', 'creationHandoff',
+                ):
+                    if output_key not in durable_reply:
+                        result.pop(output_key, None)
+                assistant_message = dict(durable_reply.get('assistantMessage') or assistant_message)
+            else:
+                # A manuscript workspace is already durable, may have a queued
+                # drafting run, and cannot be transactionally unwound here.
+                # Preserve that paid handoff exactly like an undeletable file;
+                # never refund it or invite a duplicate workspace/run.
+                cleanup_confirmed = not bool(result.get('manuscriptWorkspace'))
+                for output_key in ('artifact', 'imageFile'):
+                    output = result.get(output_key)
+                    output_id = str(output.get('id') or '') if isinstance(output, dict) else ''
+                    if not output_id:
+                        continue
+                    try:
+                        await files.soft_delete(user_id=auth.user['id'], file_id=output_id)
+                    except Exception:
+                        cleanup_confirmed = False
+                        logger.warning('Uncommitted generated-file cleanup could not be confirmed.')
+                if not cleanup_confirmed:
+                    fallback_result = {
+                        **result,
+                        'assistantMessage': assistant_message,
+                        'persistenceWarning': (
+                            'The reply could not be added to the shared conversation, but the paid output was preserved. '
+                            'Open it from this response or Files; do not regenerate it.'
+                        ),
+                    }
+                    try:
+                        fallback_job = await db.update(
+                            'chat_jobs',
+                            {
+                                'status': 'completed',
+                                'response_data': fallback_result,
+                                'error_code': 'CHAT_PERSISTENCE_OUTPUT_PRESERVED',
+                                'claim_token': None,
+                                'updated_at': iso_now(),
+                            },
+                            filters={**claimed_job_filters(), 'status': eq('processing')},
+                        )
+                        if not fallback_job:
+                            raise RuntimeError('paid-output recovery cache update was not confirmed')
+                    except Exception:
+                        logger.warning('Paid-output recovery cache finalization unavailable.')
+                        await intelligence.record_trace(
+                            user_id=auth.user['id'], request_id=request_id, chat_id=chat_id,
+                            message_id=message_id, prepared=prepared, model=result.get('model'),
+                            latency_ms=int((time.perf_counter() - started) * 1000),
+                            status='persistence_unconfirmed',
+                            error_code='CHAT_PERSISTENCE_OUTPUT_PRESERVED_UNCONFIRMED',
+                            verifier_used=verifier_used,
+                        )
+                        return JSONResponse(
+                            status_code=503,
+                            content={
+                                'success': False,
+                                'error': 'Crump preserved the paid output but could not confirm its recovery record.',
+                                'message': 'Do not regenerate this request. Check Files and try opening this conversation later.',
+                                'code': 'CHAT_PERSISTENCE_OUTPUT_PRESERVED_UNCONFIRMED',
+                                'shouldRetry': False,
+                            },
+                        )
+                    await intelligence.record_trace(
+                        user_id=auth.user['id'], request_id=request_id, chat_id=chat_id,
+                        message_id=message_id, prepared=prepared, model=result.get('model'),
+                        latency_ms=int((time.perf_counter() - started) * 1000),
+                        status='persistence_fallback',
+                        error_code='CHAT_PERSISTENCE_OUTPUT_PRESERVED',
+                        verifier_used=verifier_used,
+                    )
+                    return {'success': True, **fallback_result, 'reconciled': True}
+                await refund_usage(db, auth.user['id'], usage.get('eventId'))
+                await features.refund(auth.user['id'], feature_usage)
+                await db.update(
+                    'chat_jobs',
+                    {
+                        'status': 'failed',
+                        'error_code': 'CHAT_PERSISTENCE',
+                        'claim_token': None,
+                        'updated_at': iso_now(),
+                    },
+                    filters=claimed_job_filters(),
+                )
+                await intelligence.record_trace(
+                    user_id=auth.user['id'], request_id=request_id, chat_id=chat_id,
+                    message_id=message_id, prepared=prepared, model=result.get('model'),
+                    latency_ms=int((time.perf_counter() - started) * 1000), status='persistence_error',
+                    error_code='CHAT_PERSISTENCE', verifier_used=verifier_used,
+                )
+                return JSONResponse(
+                    status_code=503,
+                    content={
+                        'success': False,
+                        'error': 'Crump generated a reply but could not save the shared conversation.',
+                        'message': 'Crump generated a reply but could not save the shared conversation. Please retry.',
+                        'code': 'CHAT_PERSISTENCE', 'shouldRetry': True, 'retryAfter': 2,
+                    },
+                )
+
+    if artifact_format and artifact_event_id and isinstance(result.get('artifact'), dict):
+        artifact_id = str(result['artifact'].get('id') or '')
+        if chat_id and message_id and artifact_id:
+            try:
+                await files.retire_artifact_versions(
+                    user_id=auth.user['id'],
+                    logical_file_id=_artifact_file_id(
+                        user_id=auth.user['id'],
+                        message_id=message_id,
+                        format_name=artifact_format,
+                    ),
+                    keep_file_id=artifact_id,
+                )
+            except Exception:
+                logger.warning('Superseded generated-document version cleanup unavailable.')
+        await record_product_event(
+            db,
+            user_id=auth.user['id'],
+            event_name='ArtifactPackaged',
+            event_key=f'artifact-packaged:{artifact_event_id}',
+            request=request,
+            plan=effective_user_tier,
+            artifact_type=artifact_event_type,
+        )
+
+    if project_id:
+        project_attachments = await attach_generated_outputs(
+            user_id=auth.user['id'],
+            project_id=project_id,
+            result=result,
+            projects=projects,
+        )
+        if project_attachments:
+            result['projectAttachments'] = project_attachments
+            failed_roles = sorted({
+                str(receipt.get('role') or '')
+                for receipt in project_attachments.values()
+                if receipt.get('status') == 'failed' and receipt.get('role')
+            })
+            if failed_roles:
+                logger.warning(
+                    'Generated output Project attachment needs retry roles=%s request_id=%s',
+                    ','.join(failed_roles),
+                    request_id,
+                )
+            if chat_id and message_id:
+                assistant_message = dict(result.get('assistantMessage') or assistant_message)
+                assistant_message['projectAttachments'] = project_attachments
+                result['assistantMessage'] = assistant_message
+                try:
+                    persisted = await db.rpc(
+                        'persist_chat_reply',
+                        {
+                            'p_user_id': auth.user['id'],
+                            'p_chat_id': chat_id,
+                            'p_title': None,
+                            'p_user_message': user_message,
+                            'p_assistant_message': assistant_message,
+                        },
+                    )
+                    if isinstance(persisted, list) and persisted:
+                        result['conversationRevision'] = persisted[0].get('resulting_revision')
+                        result['conversationUpdatedAt'] = persisted[0].get('resulting_updated_at')
+                except Exception:
+                    logger.warning('Durable Project attachment receipt refresh unavailable.')
 
     memories_saved = await intelligence.learn_explicit(
         user_id=auth.user['id'], chat_id=chat_id, message_id=message_id,
@@ -1295,8 +1821,14 @@ async def chat(request: Request):
         try:
             await db.update(
                 'chat_jobs',
-                {'status': 'completed', 'response_data': result, 'error_code': None, 'updated_at': iso_now()},
-                filters={'user_id': eq(auth.user['id']), 'message_id': eq(message_id)},
+                {
+                    'status': 'completed',
+                    'response_data': result,
+                    'error_code': None,
+                    'claim_token': None,
+                    'updated_at': iso_now(),
+                },
+                filters=claimed_job_filters(),
                 retry_transient=True,
             )
         except Exception:

@@ -136,6 +136,7 @@ const { chromium } = require(playwrightModule);
     bodyHasContent: document.body.innerText.trim().length > 0,
     imageModeVisible: document.getElementById('crump50ToolChipHost')?.textContent.includes('Create image') || false,
     editPlaceholder: document.getElementById('userInput')?.placeholder || '',
+    uploadCacheControl: window.__uploadCacheControl,
     errorOverlay: Boolean(document.querySelector('[data-nextjs-dialog], .vite-error-overlay, #webpack-dev-server-client-overlay')),
   }));
   await page.evaluate(() => {
@@ -266,6 +267,7 @@ const { chromium } = require(playwrightModule);
     || !result.bodyHasContent
     || !result.imageModeVisible
     || result.editPlaceholder !== 'Describe the result. Crump will follow the confirmed reference plan…'
+    || result.uploadCacheControl !== '0'
     || result.errorOverlay
     || authBoundary.sameAccountReady.prompt !== 'Same-account private draft stays until an auth boundary.'
     || authBoundary.sameAccountReady.cards !== 2

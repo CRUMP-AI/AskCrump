@@ -324,6 +324,26 @@ class FeatureService:
         )
         return len(rows)
 
+    async def _usage_replay_exists(
+        self,
+        user_id: str,
+        event_type: str,
+        instance_key: str | None,
+    ) -> bool:
+        normalized = str(instance_key or "").strip()[:160]
+        if not normalized:
+            return False
+        row = await self.db.select_one(
+            "usage_events",
+            columns="id",
+            filters={
+                "user_id": eq(user_id),
+                "event_type": eq(event_type),
+                "idempotency_key": eq(normalized),
+            },
+        )
+        return bool(row)
+
     def _sign_claims(self, claims: dict[str, Any]) -> str:
         payload = json.dumps(
             claims, separators=(",", ":"), sort_keys=True
@@ -388,6 +408,7 @@ class FeatureService:
         *,
         message_limit: int | None = None,
         scope: Any = None,
+        usage_instance_keys: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         requested = self._normalize_components(components)
         tier = tier_name(user)
@@ -437,7 +458,12 @@ class FeatureService:
                 else await self._usage_count(user["id"], event_type)
             )
             remaining = -1 if included < 0 else max(0, included - used)
-            included_units = (
+            idempotent_replay = await self._usage_replay_exists(
+                user["id"],
+                event_type,
+                (usage_instance_keys or {}).get(code),
+            )
+            included_units = quantity if idempotent_replay else (
                 quantity if remaining < 0 else min(quantity, remaining)
             )
             chargeable_units = max(0, quantity - included_units)
@@ -447,19 +473,20 @@ class FeatureService:
                 "q": quantity,
                 "max": component_credits,
             }
-            public_components.append(
-                {
-                    "code": code,
-                    "label": label,
-                    "minimumTier": minimum_tier,
-                    "quantity": quantity,
-                    "includedRemaining": remaining,
-                    "includedUnits": included_units,
-                    "chargeableUnits": chargeable_units,
-                    "unitCredits": max(0, unit_credits),
-                    "credits": component_credits,
-                }
-            )
+            public_component = {
+                "code": code,
+                "label": label,
+                "minimumTier": minimum_tier,
+                "quantity": quantity,
+                "includedRemaining": remaining,
+                "includedUnits": included_units,
+                "chargeableUnits": chargeable_units,
+                "unitCredits": max(0, unit_credits),
+                "credits": component_credits,
+            }
+            if idempotent_replay:
+                public_component["idempotentReplay"] = True
+            public_components.append(public_component)
 
         issued_at = int(time.time())
         expires_at = issued_at + QUOTE_TTL_SECONDS
@@ -540,6 +567,7 @@ class FeatureService:
         *,
         message_limit: int | None = None,
         scope: Any = None,
+        usage_instance_keys: dict[str, str] | None = None,
     ) -> CreditAuthorization:
         requested = self._normalize_components(components)
         current = await self.quote(
@@ -547,6 +575,7 @@ class FeatureService:
             requested,
             message_limit=message_limit,
             scope=scope,
+            usage_instance_keys=usage_instance_keys,
         )
         current_total = int(current["creditsRequired"])
         if current_total > int(current["creditBalance"]):
@@ -673,6 +702,7 @@ class FeatureService:
         metadata: dict[str, Any] | None = None,
         message_limit: int | None = None,
         instance_key: str | None = None,
+        usage_idempotency_key: str | None = None,
         scope: Any = None,
     ) -> dict[str, Any]:
         normalized = str(code or "").strip().lower()
@@ -735,15 +765,31 @@ class FeatureService:
             "creditActionKey": authorization.action_key,
             **(metadata or {}),
         }
-        included_result = await self.db.rpc(
-            "consume_usage_event",
-            {
-                "p_user_id": user["id"],
-                "p_event_type": event_type,
-                "p_limit": included,
-                "p_metadata": details,
-            },
+        normalized_usage_key = str(usage_idempotency_key or "").strip()[:160]
+        if normalized_usage_key:
+            details["usageIdempotencyKey"] = normalized_usage_key
+            details["usageEventType"] = event_type
+        included_rpc = (
+            "consume_usage_event_v2"
+            if normalized_usage_key
+            else "consume_usage_event"
         )
+        included_params = {
+            "p_user_id": user["id"],
+            "p_event_type": event_type,
+            "p_limit": included,
+            "p_metadata": details,
+        }
+        if normalized_usage_key:
+            included_result = await self.db.rpc(
+                included_rpc,
+                included_params,
+                retry_transient=True,
+            )
+        else:
+            # The legacy allowance RPC has no durable action key and therefore
+            # must remain single-attempt: a dropped response may have committed.
+            included_result = await self.db.rpc(included_rpc, included_params)
         row = (
             included_result[0]
             if isinstance(included_result, list) and included_result
@@ -751,14 +797,16 @@ class FeatureService:
         )
         if row.get("allowed"):
             credits = await credit_status(self.db, user["id"])
+            duplicate = bool(row.get("duplicate"))
             return {
                 "feature": normalized,
                 "paymentSource": "included",
-                "eventId": row.get("event_id"),
+                "eventId": None if duplicate else row.get("event_id"),
                 "creditBalance": credits["balance"],
                 "creditsSpent": 0,
                 "used": int(row.get("used") or 0),
                 "limit": included,
+                "idempotentReplay": duplicate,
             }
         if credit_cost <= 0:
             raise FeatureAccessError(
@@ -787,6 +835,11 @@ class FeatureService:
                     message_limit if normalized == MESSAGE_CODE else None
                 ),
                 scope=scope,
+                usage_instance_keys=(
+                    {normalized: normalized_usage_key}
+                    if normalized_usage_key
+                    else None
+                ),
             )
             raise self._confirmation_error(
                 fresh,
@@ -797,18 +850,35 @@ class FeatureService:
         charge_component = (
             str(instance_key or normalized).strip()[:120] or normalized
         )
-        credit_result = await self.db.rpc(
-            "spend_credits_confirmed",
-            {
-                "p_user_id": user["id"],
-                "p_amount": credit_cost,
-                "p_reason": reason,
-                "p_action_key": authorization.action_key,
-                "p_component": charge_component,
-                "p_confirmed_max": authorization.confirmed_credits,
-                "p_metadata": details,
-            },
+        spend_rpc = (
+            "spend_credits_confirmed_v2"
+            if normalized_usage_key
+            else "spend_credits_confirmed"
         )
+        spend_params = {
+            "p_user_id": user["id"],
+            "p_amount": credit_cost,
+            "p_reason": reason,
+            "p_action_key": authorization.action_key,
+            "p_component": charge_component,
+            "p_confirmed_max": authorization.confirmed_credits,
+            "p_metadata": details,
+        }
+        if normalized_usage_key:
+            spend_params.update({
+                "p_usage_event_type": event_type,
+                "p_usage_idempotency_key": normalized_usage_key,
+            })
+        if normalized_usage_key:
+            credit_result = await self.db.rpc(
+                spend_rpc,
+                spend_params,
+                retry_transient=True,
+            )
+        else:
+            # The v1 action/component contract is intentionally unchanged for
+            # callers whose repeated actions are separately billable.
+            credit_result = await self.db.rpc(spend_rpc, spend_params)
         credit_row = (
             credit_result[0]
             if isinstance(credit_result, list) and credit_result
@@ -839,7 +909,9 @@ class FeatureService:
         return {
             "feature": normalized,
             "paymentSource": "credits",
-            "eventId": f"credit:{ledger_id}" if ledger_id else None,
+            "eventId": (
+                f"credit:{ledger_id}" if ledger_id and not duplicate else None
+            ),
             "creditBalance": balance,
             "creditsSpent": 0 if duplicate else credit_cost,
             "idempotentReplay": duplicate,
@@ -1023,6 +1095,7 @@ class FeatureService:
         confirmation: dict[str, Any] | None = None,
         authorization: CreditAuthorization | None = None,
         instance_key: str | None = None,
+        usage_idempotency_key: str | None = None,
         scope: Any = None,
     ) -> dict[str, Any]:
         normalized = str(code or "").strip().lower()
@@ -1032,6 +1105,7 @@ class FeatureService:
             else {
                 "feature": normalized,
                 "instanceKey": str(instance_key or ""),
+                "usageIdempotencyKey": str(usage_idempotency_key or ""),
                 "metadata": metadata or {},
             }
         )
@@ -1040,6 +1114,11 @@ class FeatureService:
             {normalized: 1},
             confirmation,
             scope=resolved_scope,
+            usage_instance_keys=(
+                {normalized: str(usage_idempotency_key)}
+                if usage_idempotency_key
+                else None
+            ),
         )
         return await self._consume_authorized(
             user,
@@ -1047,6 +1126,7 @@ class FeatureService:
             authorization=active_authorization,
             metadata=metadata,
             instance_key=instance_key,
+            usage_idempotency_key=usage_idempotency_key,
             scope=resolved_scope,
         )
 
@@ -1059,6 +1139,7 @@ class FeatureService:
         confirmation: dict[str, Any] | None = None,
         authorization: CreditAuthorization | None = None,
         instance_key: str | None = None,
+        usage_idempotency_key: str | None = None,
         scope: Any = None,
     ) -> dict[str, Any]:
         resolved_scope = (
@@ -1067,6 +1148,7 @@ class FeatureService:
             else {
                 "feature": MESSAGE_CODE,
                 "instanceKey": str(instance_key or ""),
+                "usageIdempotencyKey": str(usage_idempotency_key or ""),
                 "metadata": metadata or {},
             }
         )
@@ -1076,6 +1158,11 @@ class FeatureService:
             confirmation,
             message_limit=message_limit,
             scope=resolved_scope,
+            usage_instance_keys=(
+                {MESSAGE_CODE: str(usage_idempotency_key)}
+                if usage_idempotency_key
+                else None
+            ),
         )
         return await self._consume_authorized(
             user,
@@ -1084,10 +1171,11 @@ class FeatureService:
             metadata=metadata,
             message_limit=message_limit,
             instance_key=instance_key,
+            usage_idempotency_key=usage_idempotency_key,
             scope=resolved_scope,
         )
 
     async def refund(self, user_id: str, receipt: dict[str, Any] | None) -> None:
-        if not receipt:
+        if not receipt or receipt.get("idempotentReplay"):
             return
         await refund_usage(self.db, user_id, receipt.get("eventId"))

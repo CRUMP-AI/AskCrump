@@ -154,6 +154,9 @@ def test_worker_reuses_existing_cron_slot_and_browser_only_dispatches():
         "schedule": "*/5 * * * *",
     } in vercel["crons"]
     cron_route = read("backend/routes/manuscripts.py")
+    assert cron_route.index("account_deletions.process_next()") < cron_route.index(
+        "code_worker.process_next("
+    )
     assert cron_route.index("code_worker.process_next(") < cron_route.index(
         "manuscripts.process_next_run()"
     )

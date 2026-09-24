@@ -417,6 +417,127 @@ async def test_large_document_download_uses_attachment_signed_url_without_functi
 
 
 @pytest.mark.asyncio
+async def test_native_signed_file_route_preserves_requested_download_disposition(monkeypatch):
+    file_id = "00000000-0000-0000-0000-000000000009"
+    message_id = "00000000-0000-0000-0000-000000000010"
+    signed_calls = []
+    event_calls = []
+
+    async def authenticate(_request, _database, _settings):
+        return type("Auth", (), {"user": {
+            "id": "user-1",
+            "subscription_tier": "professional",
+            "subscription_status": "active",
+        }})()
+
+    class FakeFiles:
+        async def get_owned(self, **kwargs):
+            assert kwargs == {"user_id": "user-1", "file_id": file_id}
+            return {
+                "id": file_id,
+                "message_id": message_id,
+                "kind": "generated_document",
+                "file_name": "native-deck.pptx",
+                "mime_type": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+            }
+
+        async def signed_url(self, **kwargs):
+            signed_calls.append(kwargs)
+            return "https://storage.example.test/signed?download=native-deck.pptx"
+
+    async def recorder(_database, **kwargs):
+        event_calls.append(kwargs)
+        return True
+
+    monkeypatch.setattr(files_routes, "authenticate_request", authenticate)
+    monkeypatch.setattr(files_routes, "files", FakeFiles())
+    monkeypatch.setattr(files_routes, "record_product_event", recorder)
+
+    response = await files_routes.signed(
+        file_id,
+        request_for("www.askcrump.com"),
+        download=True,
+    )
+
+    assert response.status_code == 200
+    assert signed_calls == [{
+        "row": {
+            "id": file_id,
+            "message_id": message_id,
+            "kind": "generated_document",
+            "file_name": "native-deck.pptx",
+            "mime_type": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        },
+        "expires_in": 1200,
+        "download": True,
+    }]
+    assert len(event_calls) == 1
+    assert event_calls[0]["event_name"] == "ArtifactDownloaded"
+    assert event_calls[0]["event_key"] == f"artifact-downloaded:{message_id}"
+    assert event_calls[0]["artifact_type"] == "presentation"
+    assert event_calls[0]["plan"] == "professional"
+    assert set(event_calls[0]) == {
+        "user_id",
+        "event_name",
+        "event_key",
+        "request",
+        "plan",
+        "artifact_type",
+    }
+    assert "native-deck" not in str(event_calls[0]).lower()
+    assert b"download=native-deck.pptx" in response.body
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("download", "kind"),
+    [(False, "generated_document"), (True, "upload")],
+)
+async def test_native_signed_inline_opens_and_ordinary_uploads_do_not_record_downloads(
+    monkeypatch,
+    download,
+    kind,
+):
+    file_id = "00000000-0000-0000-0000-000000000019"
+    event_calls = []
+
+    async def authenticate(_request, _database, _settings):
+        return type("Auth", (), {"user": {"id": "user-1"}})()
+
+    class FakeFiles:
+        async def get_owned(self, **_kwargs):
+            return {
+                "id": file_id,
+                "kind": kind,
+                "file_name": "native-file.docx",
+                "mime_type": (
+                    "application/vnd.openxmlformats-officedocument."
+                    "wordprocessingml.document"
+                ),
+            }
+
+        async def signed_url(self, **_kwargs):
+            return "https://storage.example.test/signed"
+
+    async def recorder(_database, **kwargs):
+        event_calls.append(kwargs)
+        return True
+
+    monkeypatch.setattr(files_routes, "authenticate_request", authenticate)
+    monkeypatch.setattr(files_routes, "files", FakeFiles())
+    monkeypatch.setattr(files_routes, "record_product_event", recorder)
+
+    response = await files_routes.signed(
+        file_id,
+        request_for("www.askcrump.com"),
+        download=download,
+    )
+
+    assert response.status_code == 200
+    assert event_calls == []
+
+
+@pytest.mark.asyncio
 async def test_outcome_feedback_route_accepts_only_binary_content_free_signal(monkeypatch):
     calls = []
 
@@ -1141,11 +1262,13 @@ def test_chat_records_artifact_events_after_entitlement_and_around_packaging():
     request_index = source.index("event_name='ArtifactRequested'")
     generation_index = source.index("result = None", request_index)
     packaging_index = source.index("result['artifact'] = await artifacts.create")
+    packaging_failed_index = source.index("event_name='ArtifactPackagingFailed'", packaging_index)
     packaged_index = source.index("event_name='ArtifactPackaged'", packaging_index)
-    packaging_failed_index = source.index("event_name='ArtifactPackagingFailed'", packaged_index)
 
     assert source.index("except FeatureAccessError as exc:") < request_index < generation_index
-    assert packaging_index < packaged_index < packaging_failed_index
+    # Failure is recorded in the packaging exception path. Success is recorded
+    # only later, after the assistant reply containing the artifact is durable.
+    assert packaging_index < packaging_failed_index < packaged_index
     event_calls = {}
     for node in ast.walk(ast.parse(source)):
         if not isinstance(node, ast.Call) or not isinstance(node.func, ast.Name):

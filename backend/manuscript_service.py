@@ -25,7 +25,7 @@ from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.platypus import PageBreak, Paragraph, SimpleDocTemplate, Spacer
 
 from .ai_service import AIService, AIServiceError
-from .db import SupabaseDB, eq, in_
+from .db import DatabaseError, SupabaseDB, eq, in_
 from .feature_service import FeatureAccessError, FeatureService
 from .file_service import FileService
 from .project_service import ProjectService
@@ -176,6 +176,10 @@ class ManuscriptError(RuntimeError):
 
     def __post_init__(self) -> None:
         RuntimeError.__init__(self, self.message)
+
+
+class ManuscriptHandoffUnconfirmed(RuntimeError):
+    """The atomic handoff may have committed but its response was unavailable."""
 
 
 class ManuscriptService:
@@ -906,6 +910,8 @@ User brief:
         brief: str,
         project_id: str | None = None,
         chat_id: str | None = None,
+        message_id: str | None = None,
+        claim_token: str | None = None,
         preferred_format: str = "docx",
         project_limit: int = 2,
         blueprint_receipt: dict[str, Any] | None = None,
@@ -926,8 +932,19 @@ User brief:
         chapter_count = chapter_count_from_prompt(clean_brief)
         provisional_title = title_from_prompt(clean_brief, "Untitled Manuscript")
 
-        # Persist the workspace before any long provider call. The browser can
-        # close immediately; a leased worker resumes planning and drafting.
+        try:
+            normalized_chat_id = normalize_chat_id(chat_id)
+            normalized_message_id = normalize_chat_id(message_id)
+            normalized_claim_token = normalize_chat_id(claim_token)
+        except Exception as exc:
+            raise ManuscriptError(
+                "Start this manuscript from the current conversation so Crump can resume it safely.",
+                "MANUSCRIPT_MESSAGE_ID_REQUIRED",
+                400,
+            ) from exc
+
+        # Validate the friendly plan boundary before the atomic write. The RPC
+        # repeats both ownership and limit checks under its transaction lock.
         if (
             not project_id
             and project_limit >= 0
@@ -938,55 +955,67 @@ User brief:
                 "PROJECT_LIMIT_REACHED",
                 403,
             )
-        created_project = False
         if project_id:
             project = await self.projects.get(user["id"], project_id)
         else:
-            project = await self.projects.create(
-                user_id=user["id"],
-                name=provisional_title,
-                description=_clean(clean_brief, 1200) or "Long-form manuscript workspace",
-                instructions=f"Original long-form brief:\n{clean_brief[:10000]}",
-            )
-            created_project = True
+            project = None
 
-        manuscript = await self.create(
-            user_id=user["id"],
-            project_id=project["id"],
-            title=provisional_title,
-            author_name=user.get("full_name") or user.get("name") or "",
-            metadata={
-                "preferredExportFormat": preferred_format,
-                "source": "chat_long_form_handoff",
-                "premise": _clean(clean_brief, 1200),
-                "targetWords": target_words,
-                "plannedChapterCount": chapter_count,
-            },
-        )
-        if chat_id:
-            await self.projects.attach_chat(
-                user_id=user["id"],
-                project_id=project["id"],
-                chat_id=chat_id,
+        # Project, manuscript, conversation mapping, and queued run are one
+        # transaction keyed by the source message. A transport retry converges
+        # on the same workspace instead of creating paid duplicates or orphans.
+        try:
+            rows = await self.db.rpc(
+                "begin_chat_manuscript_workspace",
+                {
+                    "p_user_id": user["id"],
+                    "p_chat_id": normalized_chat_id,
+                    "p_source_message_id": normalized_message_id,
+                    "p_claim_token": normalized_claim_token,
+                    "p_project_id": project.get("id") if project else None,
+                    "p_project_limit": int(project_limit),
+                    "p_project_name": provisional_title,
+                    "p_project_description": _clean(clean_brief, 1200)
+                    or "Long-form manuscript workspace",
+                    "p_project_instructions": (
+                        f"Original long-form brief:\n{clean_brief[:10000]}"
+                    ),
+                    "p_manuscript_title": provisional_title,
+                    "p_author_name": user.get("full_name")
+                    or user.get("name")
+                    or "",
+                    "p_brief": clean_brief,
+                    "p_target_words": target_words,
+                    "p_chapter_count": chapter_count,
+                    "p_preferred_export_format": preferred_format,
+                    "p_blueprint_receipt": blueprint_receipt or {},
+                    "p_approved_credit_limit": max(0, int(approved_credit_limit)),
+                    "p_planned_chargeable_steps": max(
+                        0, int(planned_chargeable_steps)
+                    ),
+                    "p_credit_action_key": str(credit_action_key or "")[:160],
+                },
+                retry_transient=True,
             )
+        except DatabaseError as exc:
+            if exc.retryable:
+                raise ManuscriptHandoffUnconfirmed(
+                    "The manuscript workspace may already be queued."
+                ) from exc
+            raise
 
-        run = await self._create_run(
-            user_id=user["id"],
-            project_id=str(project["id"]),
-            manuscript_id=str(manuscript["id"]),
-            brief=clean_brief,
-            target_words=target_words,
-            chapter_count=chapter_count,
-            preferred_format=preferred_format,
-            chat_id=chat_id,
-            mode="autopilot",
-            blueprint_receipt=blueprint_receipt,
-            approved_credit_limit=approved_credit_limit,
-            planned_steps=chapter_count,
-            planned_chargeable_steps=planned_chargeable_steps,
-            credit_action_key=credit_action_key,
-            metadata={"source": "chat_long_form_handoff"},
-        )
+        payload = rows[0] if isinstance(rows, list) and rows else rows
+        if not isinstance(payload, dict):
+            raise ManuscriptHandoffUnconfirmed(
+                "The manuscript workspace response could not be confirmed."
+            )
+        project = payload.get("project_row")
+        manuscript = payload.get("manuscript_row")
+        run = payload.get("run_row")
+        if not all(isinstance(item, dict) and item.get("id") for item in (project, manuscript, run)):
+            raise ManuscriptHandoffUnconfirmed(
+                "The manuscript workspace response could not be confirmed."
+            )
+        created_project = bool(payload.get("project_created"))
         public_run = self.public_run(run)
         return {
             "response": (

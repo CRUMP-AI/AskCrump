@@ -1004,7 +1004,7 @@ const visibleWorkspaceReturnVersion = `${releaseVersion}-visible-workspace-retur
 const authControllerVersion = `${releaseVersion}-facebook-reel-attribution-1`;
 const continuityHandoffVersion = `${releaseVersion}-continuity-handoff-1`;
 const composerModeResetVersion = `${releaseVersion}-composer-mode-reset-1`;
-const accountDeletionBillingVersion = `${releaseVersion}-account-deletion-billing-1`;
+const accountDeletionStorageVersion = `${releaseVersion}-account-storage-deletion-1`;
 const intelligenceReceiptVersion = `${releaseVersion}-intelligence-receipt-1`;
 const intelligenceArchitectureVersion = `${releaseVersion}-intelligence-architecture-1`;
 const composerActionabilityVersion = `${releaseVersion}-composer-actionability-1`;
@@ -1022,6 +1022,7 @@ const projectSaveMeasurementVersion = `${releaseVersion}-project-save-measuremen
 const outcomeIssueCategoriesVersion = `${releaseVersion}-outcome-issue-categories-1`;
 const projectSaveOfferVersion = `${releaseVersion}-project-save-offer-1`;
 const navigationDiscoveryVersion = `${releaseVersion}-navigation-discovery-1`;
+const documentDeliveryFocusedVersion = `${releaseVersion}-document-delivery-focused-1`;
 const outcomeRefinementRecoveryVersion = `${releaseVersion}-outcome-refinement-recovery-1`;
 const authUpdateGuardVersion = `${releaseVersion}-update-work-guard-1`;
 const userControlledScrollVersion = `${releaseVersion}-user-controlled-scroll-1`;
@@ -1239,7 +1240,7 @@ if (!referringAcquisitionSource ||
   process.exit(1);
 }
 const requiredHtmlSignals = [
-  `/runtime-body-v1.js?v=${referenceFidelityVersion}`,
+  `/runtime-body-v1.js?v=${documentDeliveryFocusedVersion}`,
   `/auth-controller.js?v=${authControllerVersion}`,
   `/telemetry-config.js?v=${releaseVersion}`,
   '/_vercel/speed-insights/script.js',
@@ -1305,7 +1306,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/credit-confirmation.css?v=${creditConfirmationVersion}`) ||
     !runtime.includes(`/credit-confirmation.js?v=${creditConfirmationVersion}`) ||
     !runtime.includes(`/chat-resilience.js?v=${creditConfirmationVersion}`) ||
-    !runtime.includes(`/account-manager.js?v=${accountDeletionBillingVersion}`) ||
+    !runtime.includes(`/account-manager.js?v=${accountDeletionStorageVersion}`) ||
     !runtime.includes(`/scroll-manager.js?v=${userControlledScrollVersion}`) ||
     !runtime.includes(`/ui-functions.js?v=${projectSaveOfferVersion}`) ||
     !runtime.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-1`) ||
@@ -1495,18 +1496,18 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r252') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r251') ||
     !serviceWorker.includes("'/assets/brand/crump-shell-lockup-light.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-shell-lockup-light.png'") ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
-    !serviceWorker.includes(`/runtime-body-v1.js?v=${referenceFidelityVersion}`) ||
+    !serviceWorker.includes(`/runtime-body-v1.js?v=${documentDeliveryFocusedVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${continuityHandoffVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.css?v=${creditConfirmationVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.js?v=${creditConfirmationVersion}`) ||
     !serviceWorker.includes(`/chat-resilience.js?v=${creditConfirmationVersion}`) ||
-    !serviceWorker.includes(`/account-manager.js?v=${accountDeletionBillingVersion}`) ||
+    !serviceWorker.includes(`/account-manager.js?v=${accountDeletionStorageVersion}`) ||
     !serviceWorker.includes(`/crump-5.0.css?v=${referenceFidelityVersion}`) ||
     !serviceWorker.includes(`/scroll-manager.js?v=${userControlledScrollVersion}`) ||
     !serviceWorker.includes(`/crump-5.0.js?v=${referenceFidelityVersion}`) ||
@@ -1838,8 +1839,14 @@ if (!composer50.includes('const IMAGE_REFERENCE_LIMIT = 4;') ||
     !product53.includes('best-effort appearance guidance') ||
     !precisionEditor.includes("entryMode === 'overlay'") ||
     !precisionEditor.includes('Place an exact logo or wordmark.') ||
-    !precisionEditor.includes('flattened PNG or WebP wordmark')) {
-  console.error('Image and video reference plans must stay ordered, explicitly confirmed, recoverable, and truthful about exact overlays.');
+    !precisionEditor.includes('flattened PNG or WebP wordmark') ||
+    !composer50.includes("form.append('cacheControl', '0')") ||
+    !composer50.includes("['cacheControl', '0']") ||
+    composer50.includes("form.append('cacheControl', '3600')") ||
+    composer50.includes("['cacheControl', '3600']") ||
+    !composer50.includes('data-artifact-open') ||
+    !composer50.includes('openFile(message.artifact)')) {
+  console.error('Reference plans, exact overlays, private uploads, and generated artifact cards must keep their combined delivery contract.');
   process.exit(1);
 }
 const outputProjectActionGuard = composer50.slice(
