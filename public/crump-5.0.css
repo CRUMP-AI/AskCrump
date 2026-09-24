@@ -364,9 +364,11 @@ body.crump-50 .crump50-file-card b { color: #727985; font-weight: 400; }
 body.crump-50 .generated-image-wrapper.crump50-generated { width: min(100%, 650px); margin-top: 12px; border: 1px solid var(--c50-line); border-radius: 20px; background: #0e1319; overflow: hidden; box-shadow: 0 18px 50px rgba(0,0,0,.22); }
 body.crump-50 .generated-image-wrapper.crump50-generated .message-image { display: block; width: 100%; max-height: 650px; object-fit: contain; cursor: zoom-in; background: #090c10; }
 body.crump-50 .generated-image-wrapper .image-actions { display: none !important; }
-body.crump-50 .crump50-image-actions { display: flex; gap: 5px; padding: 8px; border-top: 1px solid var(--c50-line); }
-body.crump-50 .crump50-image-actions button { min-height: 34px; padding: 0 11px; border: 0; border-radius: 10px; background: rgba(255,255,255,.04); color: var(--c50-text-2); font-size: 10px; font-weight: 550; }
+body.crump-50 .crump50-image-actions { display: flex; flex-wrap: wrap; gap: 5px; padding: 8px; border-top: 1px solid var(--c50-line); }
+body.crump-50 .crump50-image-actions button { flex: 1 1 78px; min-height: 34px; padding: 0 11px; border: 0; border-radius: 10px; background: rgba(255,255,255,.04); color: var(--c50-text-2); font-size: 10px; font-weight: 550; }
 body.crump-50 .crump50-image-actions button:hover { background: rgba(255,255,255,.07); color: var(--c50-text); }
+body.crump-50 .crump50-image-actions .crump50-exact-overlay-action { background: rgba(209,191,150,.1); color: #ead9b3; }
+body.crump-50 .crump50-image-actions .crump50-exact-overlay-action:hover { background: rgba(209,191,150,.16); color: #fff4d8; }
 body.crump-50 .crump50-artifact { width: min(100%, 520px); min-height: 74px; margin-top: 12px; display: grid; grid-template-columns: 46px 1fr auto; align-items: center; gap: 11px; padding: 10px; border: 1px solid rgba(209,191,150,.14); border-radius: 17px; background: linear-gradient(145deg, rgba(209,191,150,.07), rgba(255,255,255,.02)); }
 body.crump-50 .crump50-artifact > span { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 12px; background: rgba(209,191,150,.1); color: var(--c50-gold); font-size: 9px; font-weight: 700; letter-spacing: .06em; }
 body.crump-50 .crump50-artifact > div { min-width: 0; display: grid; gap: 4px; }

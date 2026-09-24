@@ -1005,6 +1005,7 @@ const creditConfirmationVersion = `${releaseVersion}-credit-confirmation-1`;
 const serverAuthoritativeActivationVersion = `${releaseVersion}-server-authoritative-activation-1`;
 const outputProjectActionVersion = `${releaseVersion}-output-project-action-1`;
 const referenceFidelityVersion = `${releaseVersion}-reference-review-persistence-1`;
+const exactOverlayEntryVersion = `${releaseVersion}-exact-overlay-entry-1`;
 const visibleWorkspaceReturnVersion = `${releaseVersion}-visible-workspace-return-1`;
 const continuityHandoffVersion = `${releaseVersion}-continuity-handoff-1`;
 const composerModeResetVersion = `${releaseVersion}-composer-mode-reset-1`;
@@ -1017,7 +1018,7 @@ const settingsProfileTrustVersion = `${releaseVersion}-settings-profile-trust-8`
 const precisionEditGuideLoaderVersion = `${releaseVersion}-live-image-preview-loader-1`;
 const fileLibraryWindowVersion = `${releaseVersion}-file-library-window-1`;
 const imageReferenceRecoveryVersion = `${releaseVersion}-image-reference-recovery-1`;
-const liveImagePreviewVersion = `${releaseVersion}-precision-studio-1`;
+const liveImagePreviewVersion = exactOverlayEntryVersion;
 const settingsSyncVersion = `${releaseVersion}-settings-sync-1`;
 const syncCursorVersion = `${releaseVersion}-sync-cursor-1`;
 const imageNodeStabilityVersion = `${releaseVersion}-image-node-stability-1`;
@@ -1033,13 +1034,13 @@ const newResponseCueVersion = `${releaseVersion}-new-response-cue-1`;
 const videoDestinationVersion = `${releaseVersion}-video-destination-1`;
 const mobileDrawerDestinationsVersion = `${releaseVersion}-mobile-drawer-destinations-1`;
 const destinationBackgroundGuardVersion = `${releaseVersion}-destination-background-guard-1`;
-const precisionLazyLoadVersion = `${releaseVersion}-precision-lazy-load-1`;
+const precisionLazyLoadVersion = exactOverlayEntryVersion;
 const libraryLazyLoadVersion = `${releaseVersion}-library-lazy-load-1`;
 const conversationActionLabelsVersion = `${releaseVersion}-conversation-action-labels-2`;
 const lifecycleIdleSendVersion = `${releaseVersion}-lifecycle-idle-send-1`;
 const settingsInviteVersion = `${releaseVersion}-settings-invite-1`;
-const precisionEditEntryVersion = `${releaseVersion}-precision-edit-entry-1`;
-const precisionEditStudioVersion = `${releaseVersion}-precision-studio-1`;
+const precisionEditEntryVersion = exactOverlayEntryVersion;
+const precisionEditStudioVersion = exactOverlayEntryVersion;
 const creationSheetContainmentVersion = `${releaseVersion}-creation-sheet-containment-1`;
 const aiDataSharingConsentVersion = `${releaseVersion}-ai-data-sharing-consent-1`;
 const requiredBodyFiles = [
@@ -1244,7 +1245,7 @@ if (!referringAcquisitionSource ||
   process.exit(1);
 }
 const requiredHtmlSignals = [
-  `/runtime-body-v1.js?v=${referenceFidelityVersion}`,
+  `/runtime-body-v1.js?v=${exactOverlayEntryVersion}`,
   `/auth-controller.js?v=${checkoutOwnerResetVersion}`,
   `/telemetry-config.js?v=${releaseVersion}`,
   '/_vercel/speed-insights/script.js',
@@ -1302,6 +1303,7 @@ if (appHtml.includes('<span>Saved</span>')) {
 }
 
 const runtime = await readFile(new URL('public/runtime-body-v1.js', repoRoot), 'utf8');
+const precisionEditorLoader = await readFile(new URL('public/crump-precision-image-edit-loader.js', repoRoot), 'utf8');
 if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/billing-manager.js?v=${stripeDestinationIntegrityVersion}`) ||
     !runtime.includes(`/onboarding.css?v=${videoDestinationVersion}`) ||
@@ -1322,7 +1324,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/crump-v1-body.js?v=${navigationDiscoveryVersion}`) ||
     !runtime.includes(`/crump-v1-body.css?v=${brandDeliveryVersion}`) ||
     !runtime.includes(`/crump-5.0.css?v=${precisionEditEntryVersion}`) ||
-    !runtime.includes(`/crump-5.0.js?v=${referenceFidelityVersion}`) ||
+    !runtime.includes(`/crump-5.0.js?v=${exactOverlayEntryVersion}`) ||
     !runtime.includes(`/crump-precision-image-edit-loader.js?v=${precisionLazyLoadVersion}`) ||
     runtime.includes(`/crump-precision-image-edit.css?v=${precisionEditStudioVersion}`) ||
     runtime.includes(`/crump-precision-image-edit.js?v=${liveImagePreviewVersion}`) ||
@@ -1348,6 +1350,11 @@ if (!runtime.includes('/billing.css') ||
     runtime.includes(`/crump-code-5.9.35.js?v=${creditConfirmationVersion}`) ||
     runtime.includes(`/crump-code-5.9.35.css?v=${intelligenceArchitectureVersion}`)) {
   console.error('New-body runtime is missing the canonical shell.');
+  process.exit(1);
+}
+if (!precisionEditorLoader.includes(`/crump-precision-image-edit.css?v=${exactOverlayEntryVersion}`) ||
+    !precisionEditorLoader.includes(`/crump-precision-image-edit.js?v=${exactOverlayEntryVersion}`)) {
+  console.error('Precision Edit lazy loader is missing the exact-overlay release assets.');
   process.exit(1);
 }
 if (runtime.includes('/crump-5.2.4.js') || runtime.includes('/crump-5.2.4.css')) {
@@ -1499,13 +1506,13 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r256') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r257') ||
     !serviceWorker.includes("'/assets/brand/crump-shell-lockup-light.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-shell-lockup-light.png'") ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
-    !serviceWorker.includes(`/runtime-body-v1.js?v=${referenceFidelityVersion}`) ||
+    !serviceWorker.includes(`/runtime-body-v1.js?v=${exactOverlayEntryVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${continuityHandoffVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.css?v=${creditConfirmationVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.js?v=${ownerIsolationVersion}`) ||
@@ -1513,7 +1520,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r256') ||
     !serviceWorker.includes(`/account-manager.js?v=${accountDeletionBillingVersion}`) ||
     !serviceWorker.includes(`/crump-5.0.css?v=${precisionEditEntryVersion}`) ||
     !serviceWorker.includes(`/scroll-manager.js?v=${userControlledScrollVersion}`) ||
-    !serviceWorker.includes(`/crump-5.0.js?v=${referenceFidelityVersion}`) ||
+    !serviceWorker.includes(`/crump-5.0.js?v=${exactOverlayEntryVersion}`) ||
     !serviceWorker.includes(`/crump-precision-image-edit-loader.js?v=${precisionLazyLoadVersion}`) ||
     serviceWorker.includes(`/crump-precision-image-edit.css?v=${precisionEditStudioVersion}`) ||
     serviceWorker.includes(`/crump-precision-image-edit.js?v=${liveImagePreviewVersion}`) ||

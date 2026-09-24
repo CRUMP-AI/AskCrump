@@ -50,11 +50,11 @@ def test_parallel_runtime_asset_is_versioned_for_web_pwa_and_native():
     worker = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
 
-    asset = "/runtime-body-v1.js?v=5.9.76-reference-review-persistence-1"
+    asset = "/runtime-body-v1.js?v=5.9.76-exact-overlay-entry-1"
     assert asset in shell
     assert asset in worker
-    assert "ask-crump-new-body-v1-r256" in worker
-    assert "ask-crump-new-body-v1-r256" in checker
+    assert "ask-crump-new-body-v1-r257" in worker
+    assert "ask-crump-new-body-v1-r257" in checker
 
 
 def test_runtime_fetch_fixture_is_credential_free_and_measures_the_full_plan():
@@ -121,8 +121,8 @@ def test_returning_workspace_activation_upgrade_uses_current_exact_fixture_proof
     historical = read("scripts/verify-autonomous-crump-cache-upgrade.cjs")
     matrix = read("scripts/verify-browser-control-matrix.mjs")
 
-    assert "ask-crump-new-body-v1-r256" in worker
-    assert "/runtime-body-v1.js?v=5.9.76-reference-review-persistence-1" in worker
+    assert "ask-crump-new-body-v1-r257" in worker
+    assert "/runtime-body-v1.js?v=5.9.76-exact-overlay-entry-1" in worker
     assert "/crump-navigation-5.9.30.js?v=5.9.76-autonomous-crump-1" in worker
     assert "/crump-code-loader.js?v=5.9.76-autonomous-crump-1" in worker
     assert "/crump-billing-5.1.js?v=5.9.76-autonomous-crump-1" in worker
@@ -160,4 +160,23 @@ def test_reference_review_persistence_upgrade_replaces_r255_without_precaching_p
     assert "productWasPrecached" in verifier
     assert "verify-reference-fidelity-cache-upgrade.cjs" in matrix
     assert "verify-server-authoritative-activation-cache-upgrade.cjs" in matrix
+    assert "password" not in verifier.lower()
+
+
+def test_exact_overlay_upgrade_replaces_r256_and_preserves_lazy_editor_loading():
+    verifier = read("scripts/verify-exact-overlay-cache-upgrade.cjs")
+    matrix = read("scripts/verify-browser-control-matrix.mjs")
+
+    assert "ask-crump-new-body-v1-r256" in verifier
+    assert "ask-crump-new-body-v1-r257" in verifier
+    assert "/runtime-body-v1.js?v=5.9.76-exact-overlay-entry-1" in verifier
+    assert "/crump-5.0.css?v=5.9.76-exact-overlay-entry-1" in verifier
+    assert "/crump-5.0.js?v=5.9.76-exact-overlay-entry-1" in verifier
+    assert "/crump-precision-image-edit-loader.js?v=5.9.76-exact-overlay-entry-1" in verifier
+    assert "/crump-precision-image-edit.css?v=5.9.76-exact-overlay-entry-1" in verifier
+    assert "/crump-precision-image-edit.js?v=5.9.76-exact-overlay-entry-1" in verifier
+    assert "exactOverlayEntryDelivered" in verifier
+    assert "precisionEditorRemainsLazy" in verifier
+    assert "verify-exact-overlay-cache-upgrade.cjs" in matrix
+    assert "verify-reference-fidelity-cache-upgrade.cjs" in matrix
     assert "password" not in verifier.lower()

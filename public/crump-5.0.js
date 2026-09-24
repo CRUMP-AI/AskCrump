@@ -853,6 +853,15 @@
   }
 
   async function openPrecisionImageEdit(file, url, options = {}) {
+    const overlayEntry = options.entryMode === 'overlay';
+    const requestedReturnFocus = options.returnFocus instanceof HTMLElement && options.returnFocus.isConnected
+      ? options.returnFocus
+      : null;
+    const restoreRequestedFocus = () => {
+      if (requestedReturnFocus?.isConnected) {
+        requestAnimationFrame(() => requestedReturnFocus.focus({preventScroll: true}));
+      }
+    };
     let editor = window.CrumpPrecisionImageEditor;
     try {
       if (!editor && window.CrumpPrecisionImageEditLoader?.load) {
@@ -863,12 +872,25 @@
         await editor.open({
           file,
           url,
+          entryMode: overlayEntry ? 'overlay' : 'precision',
+          returnFocus: requestedReturnFocus,
           onApplied: ({file: savedFile}) => reflectAppliedImage(savedFile, options),
         });
         return true;
       }
     } catch (error) {
-      show(error?.message || 'Precision Edit could not open this image. Your original is safe.', 'error');
+      show(
+        overlayEntry
+          ? 'Exact Overlay could not open. No AI request was started and your image is unchanged.'
+          : error?.message || 'Precision Edit could not open this image. Your original is safe.',
+        'error',
+      );
+      if (overlayEntry) restoreRequestedFocus();
+      return false;
+    }
+    if (overlayEntry) {
+      show('Exact Overlay is unavailable right now. No AI request was started and your image is unchanged.', 'error');
+      restoreRequestedFocus();
       return false;
     }
     state.precisionImageEdit = null;
@@ -971,7 +993,7 @@
     const referenceCopy = document.createElement('span');
     const referenceTitle = document.createElement('strong');
     referenceTitle.textContent = currentReference
-      ? `${currentReferences.length} reference image${currentReferences.length === 1 ? '' : 's'} ready`
+      ? `${currentReferences.length} reference image${currentReferences.length === 1 ? '' : 's'} uploading`
       : 'Add images to guide the result';
     const referenceDescription = document.createElement('small');
     referenceDescription.textContent = currentReference
@@ -1039,22 +1061,68 @@
     const precision = document.createElement('button');
     precision.type = 'button';
     precision.className = 'crump50-precision-entry';
-    precision.disabled = !currentReference?.server?.id;
+    precision.disabled = currentReference?.status !== 'ready' || !currentReference?.server?.id;
     precision.innerHTML = '<span aria-hidden="true">✦</span><span><strong>Edit one exact area</strong><small>Zoom in and brush over only the pixels Crump may change</small></span><b>Open</b>';
     precision.addEventListener('click', async () => {
-      if (!currentReference?.server?.id) return;
+      if (currentReference?.status !== 'ready' || !currentReference?.server?.id) return;
       const action = precision.querySelector('b');
+      const returnFocusTarget = $('#userInput');
       precision.disabled = true;
       precision.setAttribute('aria-busy', 'true');
       if (action) action.textContent = 'Opening…';
       try {
-        await openPrecisionImageEdit(currentReference.server, currentReference.previewUrl || currentReference.server.url);
+        closeMenu();
+        await openPrecisionImageEdit(currentReference.server, currentReference.previewUrl || currentReference.server.url, {returnFocus: returnFocusTarget});
       } finally {
         precision.removeAttribute('aria-busy');
         if (action) action.textContent = 'Open';
         if (precision.isConnected) precision.disabled = false;
       }
     });
+
+    const exactOverlay = document.createElement('button');
+    exactOverlay.type = 'button';
+    exactOverlay.className = 'crump50-precision-entry is-exact-overlay';
+    exactOverlay.disabled = currentReference?.status !== 'ready' || !currentReference?.server?.id;
+    exactOverlay.innerHTML = '<span aria-hidden="true">◎</span><span><strong>Add exact logo or wordmark</strong><small>Use the first reference as the canvas, then place approved artwork without AI redrawing</small></span><b>Open</b>';
+    exactOverlay.addEventListener('click', async () => {
+      if (currentReference?.status !== 'ready' || !currentReference?.server?.id) return;
+      const action = exactOverlay.querySelector('b');
+      const returnFocusTarget = $('#userInput');
+      exactOverlay.disabled = true;
+      exactOverlay.setAttribute('aria-busy', 'true');
+      if (action) action.textContent = 'Opening…';
+      try {
+        closeMenu();
+        await openPrecisionImageEdit(currentReference.server, currentReference.previewUrl || currentReference.server.url, {
+          entryMode: 'overlay',
+          returnFocus: returnFocusTarget,
+        });
+      } finally {
+        exactOverlay.removeAttribute('aria-busy');
+        if (action) action.textContent = 'Open';
+        if (exactOverlay.isConnected) exactOverlay.disabled = false;
+      }
+    });
+
+    const syncReferenceReadiness = () => {
+      if (!sheet.isConnected || !currentReference) return;
+      const ready = currentReference.status === 'ready' && Boolean(currentReference.server?.id);
+      precision.disabled = !ready;
+      exactOverlay.disabled = !ready;
+      referenceTitle.textContent = ready
+        ? `${currentReferences.length} reference image${currentReferences.length === 1 ? '' : 's'} ready`
+        : `${currentReferences.length} reference image${currentReferences.length === 1 ? '' : 's'} ${currentReference.status === 'failed' ? 'unavailable' : 'uploading'}`;
+      referenceDescription.textContent = ready
+        ? 'Assign what each image controls before Crump renders.'
+        : currentReference.status === 'failed'
+          ? 'Remove the failed reference and add it again.'
+          : 'Your private upload is finishing. Exact editing will unlock automatically.';
+    };
+    syncReferenceReadiness();
+    if (currentReference?.promise) {
+      void Promise.resolve(currentReference.promise).then(syncReferenceReadiness, syncReferenceReadiness);
+    }
 
     const activate = document.createElement('button'); activate.type = 'button'; activate.className = 'crump50-primary-action'; activate.textContent = currentReference ? 'Confirm reference plan' : 'Create without reference';
     activate.addEventListener('click', () => {
@@ -1068,7 +1136,7 @@
     });
     body.append(aspectLabel, aspectControl, qualityLabel, qualityControl, referenceLabel, reference);
     if (currentReferences.length) body.append(planLabel, plan, planSummary);
-    body.append(precision, guidance, activate);
+    body.append(precision, exactOverlay, guidance, activate);
     wireMenuKeyboard(sheet, dismiss);
     sheet.appendChild(body);
     mountMenu(sheet, close);
@@ -1925,13 +1993,14 @@
             actions = document.createElement('div'); actions.className = 'crump50-image-actions';
             const view = document.createElement('button'); view.type='button'; view.textContent='View'; view.addEventListener('click', () => showLightbox(message.imageFile, message.imageUrl));
             const edit = document.createElement('button'); edit.type='button'; edit.textContent='Edit area'; edit.setAttribute('aria-label', 'Precision Edit area'); edit.addEventListener('click', () => { state.imageRecovery=null; void openPrecisionImageEdit(message.imageFile, message.imageUrl, {messageId: message.id}); });
+            const exact = document.createElement('button'); exact.type='button'; exact.className='crump50-exact-overlay-action'; exact.textContent='Exact logo'; exact.setAttribute('aria-label', 'Add exact logo or wordmark without AI redrawing'); exact.addEventListener('click', () => { state.imageRecovery=null; void openPrecisionImageEdit(message.imageFile, message.imageUrl, {messageId: message.id, entryMode: 'overlay'}); });
             const project = document.createElement('button'); project.type='button';
             const download = document.createElement('button'); download.type='button'; download.textContent='Download'; download.addEventListener('click', () => openFile(message.imageFile, true));
             wireOutputProjectAction(project, {
               message, file: message.imageFile, kind: 'imageFile', role: 'generated_image',
               label: message.imageFile.name || 'this image',
             });
-            actions.append(view, edit, project, download); generated.appendChild(actions);
+            actions.append(view, edit, exact, project, download); generated.appendChild(actions);
           }
         }
       }

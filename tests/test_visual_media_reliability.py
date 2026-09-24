@@ -996,6 +996,9 @@ def test_image_studio_exposes_an_optional_reference_and_honest_fidelity_guidance
         "does not infer race or ethnicity",
         "use Exact Overlay when original pixels must remain unchanged",
         "Edit one exact area",
+        "Add exact logo or wordmark",
+        "Use the first reference as the canvas, then place approved artwork without AI redrawing",
+        "entryMode: 'overlay'",
         "aria-label', 'Image Studio",
         "aria-label', 'Close Image Studio",
         "aria-modal', 'true",
@@ -1006,6 +1009,7 @@ def test_image_studio_exposes_an_optional_reference_and_honest_fidelity_guidance
         assert contract in studio
     assert "reference.innerHTML" not in studio
     assert "referenceDescription.textContent = currentReference" in studio
+    assert "closeMenu();" in studio
     assert "crump50-reference-action" in styles
     assert "crump50-precision-entry" in styles
 
@@ -1050,6 +1054,8 @@ def test_precision_editor_is_manual_private_and_pixel_protected() -> None:
         "No person is identified or classified",
         "LOCAL ADJUSTMENTS · NO AI OR CREDITS",
         "EXACT OVERLAY · NO AI OR CREDITS",
+        "Place an exact logo or wordmark",
+        "flattened PNG or WebP wordmark",
         "Place",
         "Add logo or image",
         "Exact overlay image",
@@ -1118,22 +1124,37 @@ def test_precision_editor_is_manual_private_and_pixel_protected() -> None:
     assert "input.dispatchEvent(new Event('input', {bubbles: true}))" in composer
     assert "Edit area" in composer
     assert "Precision Edit area" in composer
+    assert "Exact logo" in composer
+    assert "Add exact logo or wordmark without AI redrawing" in composer
+    assert "entryMode: overlayEntry ? 'overlay' : 'precision'" in composer
+    assert "options.returnFocus instanceof HTMLElement" in composer
+    assert "Exact Overlay is unavailable right now. No AI request was started" in composer
+    assert "if (overlayEntry)" in composer
+    assert "restoreRequestedFocus();" in composer
     assert "reflectAppliedImage" in composer
     assert "onApplied: ({file: savedFile})" in composer
+    assert "entryMode = 'precision'" in editor
+    assert "returnFocus = null" in editor
+    assert "modal.dataset.entryMode = normalizedEntryMode" in editor
+    assert "addOverlayImage.focus({preventScroll: true})" in editor
+    assert "normalizedEntryMode === 'overlay'" in editor
+    assert "userNavigatedDuringLoad" in editor
+    assert "document.activeElement !== closeButton" in editor
+    assert "flex-wrap: wrap" in read("public/crump-5.0.css")
     assert "base.width = image.naturalWidth" in editor
     assert "base.height = image.naturalHeight" in editor
     assert "stage.clientWidth" in editor
     assert "stage.clientHeight" in editor
     assert "state.fitWidth = Math.max(1" in editor
     assert "state.fitHeight = Math.max(1" in editor
-    exact_script = "/crump-precision-image-edit.js?v=5.9.76-precision-studio-1"
-    exact_style = "/crump-precision-image-edit.css?v=5.9.76-precision-studio-1"
+    exact_script = "/crump-precision-image-edit.js?v=5.9.76-exact-overlay-entry-1"
+    exact_style = "/crump-precision-image-edit.css?v=5.9.76-exact-overlay-entry-1"
     for asset in (exact_script, exact_style):
         assert asset in loader
         assert asset not in runtime
         assert asset not in worker
         assert asset not in native
-    exact_loader = "/crump-precision-image-edit-loader.js?v=5.9.76-precision-lazy-load-1"
+    exact_loader = "/crump-precision-image-edit-loader.js?v=5.9.76-exact-overlay-entry-1"
     for source in (runtime, worker, native):
         assert exact_loader in source
     assert "CrumpPrecisionImageEditLoader?.load" in composer

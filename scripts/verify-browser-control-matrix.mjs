@@ -13,12 +13,13 @@ const scriptsDirectory = path.join(root, 'scripts');
 const publicDirectory = path.join(root, 'public');
 const historicalVerifiers = Object.freeze([
   'verify-autonomous-crump-cache-upgrade.cjs',
+  'verify-reference-fidelity-cache-upgrade.cjs',
   'verify-server-authoritative-activation-cache-upgrade.cjs',
 ]);
 const expectedVerifiers = Object.freeze([
   'verify-ai-data-sharing-consent.cjs',
   'verify-attach-creation-routing.cjs',
-  'verify-reference-fidelity-cache-upgrade.cjs',
+  'verify-exact-overlay-cache-upgrade.cjs',
   'verify-button-state-integrity.cjs',
   'verify-chat-action-accessibility.cjs',
   'verify-create-destination-handoff.cjs',

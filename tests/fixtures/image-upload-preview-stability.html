@@ -61,7 +61,18 @@
     }
     window.XMLHttpRequest = FixtureXHR;
     window.__lastToast = null;
+    window.__precisionOpen = null;
     window.showToast = (message, tone) => { window.__lastToast = {message, tone}; };
+    window.__precisionEditorStub = Object.freeze({
+      async open(options = {}) {
+        window.__precisionOpen = {
+          fileId: options.file?.id || '',
+          entryMode: options.entryMode || '',
+          returnFocusId: options.returnFocus?.id || '',
+        };
+      },
+    });
+    window.CrumpPrecisionImageEditor = window.__precisionEditorStub;
 
     window.__previewImagesAdded = 0;
     const observer = new MutationObserver(records => {
