@@ -41,6 +41,10 @@
   const VIDEO_JOB_STORAGE_KEY = 'askcrump.videoJob53';
   const VIDEO_REQUEST_STORAGE_KEY = 'askcrump.videoRequest53';
   const VIDEO_REQUEST_TTL_MS = 30 * 60 * 1000;
+  const VIDEO_REFERENCE_DRAFT_STORAGE_KEY = 'askcrump.videoReferenceDraft53';
+  const VIDEO_REFERENCE_DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
+  const VIDEO_REFERENCE_DRAFT_LIMIT = 5;
+  const VIDEO_REFERENCE_DRAFT_ENGINES = new Set(['quick', 'extendable', 'cinematic']);
   const VIDEO_REFERENCE_ROLE_OPTIONS = Object.freeze([
     {value: 'subject', label: 'Subject / product'},
     {value: 'mascot', label: 'Mascot / character'},
@@ -53,6 +57,9 @@
   let conversationContextSequence = 0;
   let storedProjectTargetPromise = null;
   let storedProjectTargetId = '';
+  let restoredVideoReferenceDraftUserId = '';
+  let videoReferenceStateUserId = '';
+  let videoReferenceAuthSequence = 0;
   const FEATURE_ACCESS_CODES = new Set([
     'SUBSCRIPTION_REQUIRED',
     'CREDITS_REQUIRED',
@@ -156,6 +163,273 @@
       if (value) localStorage.setItem(VIDEO_REQUEST_STORAGE_KEY, JSON.stringify(value));
       else localStorage.removeItem(VIDEO_REQUEST_STORAGE_KEY);
     } catch (_) { /* storage is optional */ }
+  }
+
+  function videoReferenceDraftStorage() {
+    try { return window.SafeStorage || window.safeStorage || window.localStorage; }
+    catch (_) { return null; }
+  }
+
+  function currentVideoReferenceUserId() {
+    const currentUserId = String(window.currentUser?.id || '').trim();
+    if (!currentUserId) return '';
+    const authenticatedUserId = window.CrumpProductLoader?.authenticatedUserId;
+    if (typeof authenticatedUserId !== 'function') return currentUserId;
+    return String(authenticatedUserId() || '').trim() === currentUserId ? currentUserId : '';
+  }
+
+  function videoReferenceDraftKey(userId = currentVideoReferenceUserId()) {
+    const normalized = String(userId || '').trim();
+    return normalized
+      ? `${VIDEO_REFERENCE_DRAFT_STORAGE_KEY}:${encodeURIComponent(normalized)}`
+      : '';
+  }
+
+  function clearStoredVideoReferenceDraft(userId = currentVideoReferenceUserId()) {
+    const normalizedUserId = String(userId || '').trim();
+    const accountKey = videoReferenceDraftKey(normalizedUserId);
+    if (!normalizedUserId || !accountKey) return;
+    try {
+      const storage = videoReferenceDraftStorage();
+      storage?.removeItem(accountKey);
+      const legacyValue = JSON.parse(storage?.getItem(VIDEO_REFERENCE_DRAFT_STORAGE_KEY) || 'null');
+      if (String(legacyValue?.userId || '') === normalizedUserId) {
+        storage?.removeItem(VIDEO_REFERENCE_DRAFT_STORAGE_KEY);
+      }
+    } catch (_) { /* storage is optional */ }
+  }
+
+  function safeVideoReferenceDraftFiles(value) {
+    const seen = new Set();
+    return (Array.isArray(value) ? value : []).slice(0, VIDEO_REFERENCE_DRAFT_LIMIT).flatMap(file => {
+      const id = String(file?.id || '').trim().slice(0, 160);
+      const type = String(file?.type || '').trim().toLowerCase().slice(0, 100);
+      if (!id || !type.startsWith('image/') || seen.has(id)) return [];
+      seen.add(id);
+      const rawSize = Number(file?.size || 0);
+      return [{
+        id,
+        name: String(file?.name || 'Reference image').replace(/\s+/g, ' ').trim().slice(0, 240) || 'Reference image',
+        type,
+        size: Number.isFinite(rawSize) ? Math.max(0, Math.min(rawSize, 100 * 1024 * 1024)) : 0,
+        role: normalizeVideoReferenceRole(file?.role),
+        status: 'ready',
+        url: `/api/files/${encodeURIComponent(id)}/content`,
+      }];
+    });
+  }
+
+  function videoReferenceConfirmationSignature(engine, plan = videoReferencePlan()) {
+    return JSON.stringify([
+      VIDEO_REFERENCE_DRAFT_ENGINES.has(engine) ? engine : 'quick',
+      ...plan.map(reference => `${reference.fileId}:${reference.role}`),
+    ]);
+  }
+
+  function readStoredVideoReferenceDraft() {
+    const userId = currentVideoReferenceUserId();
+    const accountKey = videoReferenceDraftKey(userId);
+    if (!userId || !accountKey) return null;
+    const storage = videoReferenceDraftStorage();
+    let sourceKey = accountKey;
+    try {
+      let rawValue = storage?.getItem(accountKey) || '';
+      if (!rawValue) {
+        const legacyRawValue = storage?.getItem(VIDEO_REFERENCE_DRAFT_STORAGE_KEY) || '';
+        const legacyValue = JSON.parse(legacyRawValue || 'null');
+        if (String(legacyValue?.userId || '') === userId) {
+          rawValue = legacyRawValue;
+          sourceKey = VIDEO_REFERENCE_DRAFT_STORAGE_KEY;
+        }
+      }
+      if (!rawValue) return null;
+      const value = JSON.parse(rawValue);
+      const updatedAt = Number(value?.updatedAt || 0);
+      if (
+        value?.version !== 1
+        || String(value?.userId || '') !== userId
+        || !updatedAt
+        || Date.now() - updatedAt > VIDEO_REFERENCE_DRAFT_TTL_MS
+      ) {
+        storage?.removeItem(sourceKey);
+        return null;
+      }
+      const files = safeVideoReferenceDraftFiles(value.files);
+      const handoffInvalid = value.handoffInvalid === true;
+      if (!files.length && !handoffInvalid) {
+        storage?.removeItem(sourceKey);
+        return null;
+      }
+      const engine = VIDEO_REFERENCE_DRAFT_ENGINES.has(value.engine) ? value.engine : 'quick';
+      const plan = files.map(file => ({fileId: file.id, role: file.role}));
+      const expectedConfirmation = videoReferenceConfirmationSignature(engine, plan);
+      const confirmationSignature = files.length && value.confirmationSignature === expectedConfirmation
+        ? expectedConfirmation
+        : '';
+      if (sourceKey === VIDEO_REFERENCE_DRAFT_STORAGE_KEY) {
+        storage?.setItem(accountKey, JSON.stringify({
+          version: 1,
+          userId,
+          updatedAt,
+          engine,
+          handoffInvalid,
+          confirmationSignature,
+          files: files.map(file => ({
+            id: file.id,
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            role: file.role,
+          })),
+        }));
+        storage?.removeItem(VIDEO_REFERENCE_DRAFT_STORAGE_KEY);
+      }
+      return {
+        engine,
+        files,
+        handoffInvalid,
+        confirmationSignature,
+      };
+    } catch (_) {
+      try { storage?.removeItem(accountKey); } catch (_) { /* storage is optional */ }
+      return null;
+    }
+  }
+
+  function resetVideoReferenceMemory() {
+    videoReferenceAuthSequence += 1;
+    state.videoPollSequence += 1;
+    if (state.videoPollTimer) window.clearTimeout(state.videoPollTimer);
+    state.videoPollTimer = null;
+    state.activeVideoJob = null;
+    state.videoReferenceUploading = false;
+    state.videoReferenceFiles = [];
+    state.videoReferenceHandoffInvalid = false;
+    state.videoReferencePlanConfirmation = '';
+    const engine = byId('crump53VideoEngine');
+    if (engine) engine.value = 'quick';
+    const grid = byId('crump53VideoReferenceGrid');
+    if (grid) grid.replaceChildren();
+    byId('crump53VideoResult')?.replaceChildren();
+    const plan = byId('crump53VideoReferencePlan');
+    if (plan) {
+      plan.hidden = true;
+      plan.replaceChildren();
+    }
+    const status = byId('crump53VideoStatus');
+    if (status) {
+      delete status.dataset.videoReferenceLimitError;
+      setStatus('crump53VideoStatus', '');
+    }
+    const button = byId('crump53GenerateVideo');
+    if (button && button.getAttribute('aria-busy') !== 'true') button.textContent = 'Create video';
+  }
+
+  function clearVideoReferenceAuthState() {
+    resetVideoReferenceMemory();
+    videoReferenceStateUserId = '';
+    restoredVideoReferenceDraftUserId = '';
+  }
+
+  function persistVideoReferenceDraft() {
+    const userId = currentVideoReferenceUserId();
+    if (!userId) {
+      clearVideoReferenceAuthState();
+      return;
+    }
+    if (videoReferenceStateUserId && videoReferenceStateUserId !== userId) {
+      resetVideoReferenceMemory();
+      videoReferenceStateUserId = userId;
+      restoredVideoReferenceDraftUserId = '';
+      return;
+    }
+    videoReferenceStateUserId = userId;
+    const files = safeVideoReferenceDraftFiles(state.videoReferenceFiles);
+    if (!files.length && !state.videoReferenceHandoffInvalid) {
+      clearStoredVideoReferenceDraft(userId);
+      return;
+    }
+    const engineValue = byId('crump53VideoEngine')?.value || 'quick';
+    const engine = VIDEO_REFERENCE_DRAFT_ENGINES.has(engineValue) ? engineValue : 'quick';
+    const plan = files.map(file => ({fileId: file.id, role: file.role}));
+    const expectedConfirmation = videoReferenceConfirmationSignature(engine, plan);
+    const confirmationSignature = state.videoReferencePlanConfirmation === expectedConfirmation
+      ? expectedConfirmation
+      : '';
+    const value = {
+      version: 1,
+      userId,
+      updatedAt: Date.now(),
+      engine,
+      handoffInvalid: state.videoReferenceHandoffInvalid === true,
+      confirmationSignature,
+      files: files.map(file => ({
+        id: file.id,
+        name: file.name,
+        type: file.type,
+        size: file.size,
+        role: file.role,
+      })),
+    };
+    const accountKey = videoReferenceDraftKey(userId);
+    try { videoReferenceDraftStorage()?.setItem(accountKey, JSON.stringify(value)); }
+    catch (_) { /* storage is optional */ }
+  }
+
+  function restoreVideoReferenceDraft() {
+    const userId = currentVideoReferenceUserId();
+    if (!userId) {
+      clearVideoReferenceAuthState();
+      return false;
+    }
+    if (videoReferenceStateUserId && videoReferenceStateUserId !== userId) {
+      resetVideoReferenceMemory();
+      restoredVideoReferenceDraftUserId = '';
+    }
+    videoReferenceStateUserId = userId;
+    if (restoredVideoReferenceDraftUserId === userId) return false;
+    restoredVideoReferenceDraftUserId = userId;
+    const draft = readStoredVideoReferenceDraft();
+    if (!draft) return false;
+    state.videoReferenceFiles = draft.files;
+    state.videoReferenceHandoffInvalid = draft.handoffInvalid;
+    state.videoReferencePlanConfirmation = draft.confirmationSignature;
+    const engine = byId('crump53VideoEngine');
+    if (engine) engine.value = draft.engine;
+    updateVideoStudio();
+    const count = draft.files.length;
+    const overLimit = count > videoReferenceLimit(draft.engine);
+    const status = byId('crump53VideoStatus');
+    if (status) {
+      if (overLimit) status.dataset.videoReferenceLimitError = 'true';
+      else delete status.dataset.videoReferenceLimitError;
+    }
+    if (draft.handoffInvalid) {
+      setStatus('crump53VideoStatus', 'Restored the available reference images, but one or more chat references are still missing. Reattach them before creating the video.', true);
+    } else if (overLimit) {
+      setStatus('crump53VideoStatus', `Restored ${count} private reference images. Remove ${count - videoReferenceLimit(draft.engine)} before creating.`, true);
+    } else if (draft.confirmationSignature) {
+      const button = byId('crump53GenerateVideo');
+      if (button) button.textContent = 'Confirm & create video';
+      setStatus('crump53VideoStatus', `Restored ${count} private reference image${count === 1 ? '' : 's'} and your reviewed ordered plan. Press Confirm & create video to continue.`);
+    } else {
+      setStatus('crump53VideoStatus', `Restored ${count} private reference image${count === 1 ? '' : 's'} in the saved order. Review the ordered plan, then press Create video.`);
+    }
+    return true;
+  }
+
+  function videoReferenceInteractionIsCurrent() {
+    const userId = currentVideoReferenceUserId();
+    if (!userId) {
+      clearVideoReferenceAuthState();
+      return false;
+    }
+    if (videoReferenceStateUserId && videoReferenceStateUserId !== userId) {
+      restoreVideoReferenceDraft();
+      return false;
+    }
+    videoReferenceStateUserId = userId;
+    return true;
   }
 
   function videoRequestFingerprint(request) {
@@ -800,9 +1074,9 @@
       button.addEventListener('click', () => exportManuscript(button.dataset.crump53Export));
     });
     byId('crump53VideoForm')?.addEventListener('submit', startVideo);
-    byId('crump53VideoEngine')?.addEventListener('change', updateVideoStudio);
-    byId('crump53VideoDuration')?.addEventListener('change', updateVideoStudio);
-    byId('crump53VideoResolution')?.addEventListener('change', updateVideoStudio);
+    byId('crump53VideoEngine')?.addEventListener('change', () => updateVideoStudio({resetReferenceConfirmation: true}));
+    byId('crump53VideoDuration')?.addEventListener('change', () => updateVideoStudio());
+    byId('crump53VideoResolution')?.addEventListener('change', () => updateVideoStudio());
     byId('crump53AddVideoReference')?.addEventListener('click', () => byId('crump53VideoReferenceInput')?.click());
     byId('crump53VideoReferenceInput')?.addEventListener('change', handleVideoReferenceUpload);
     byId('crump53VideoProjectClear')?.addEventListener('click', () => {
@@ -874,6 +1148,7 @@
     const studio = byId('crump53Studio');
     if (!studio) return;
     const section = configureStudioSection(tab);
+    if (section === 'video') restoreVideoReferenceDraft();
     studio.hidden = false;
     document.body.style.overflow = 'hidden';
     selectStudioPanel(section);
@@ -1032,6 +1307,7 @@
         if (!file) return;
         file.role = normalizeVideoReferenceRole(select.value);
         resetVideoReferenceConfirmation();
+        persistVideoReferenceDraft();
         const engine = byId('crump53VideoEngine')?.value || 'quick';
         renderVideoReferencePlan(engine);
         setStatus(
@@ -1047,6 +1323,7 @@
         const fileId = String(button.dataset.videoReferenceRemove || '');
         state.videoReferenceFiles = state.videoReferenceFiles.filter(file => String(file.id) !== fileId);
         resetVideoReferenceConfirmation();
+        persistVideoReferenceDraft();
         updateVideoReferenceMode(byId('crump53VideoEngine')?.value || 'quick');
       });
     });
@@ -1059,6 +1336,12 @@
     const incoming = [...(input?.files || [])];
     if (input) input.value = '';
     if (!incoming.length || state.videoReferenceUploading) return;
+    if (!videoReferenceInteractionIsCurrent()) {
+      setStatus('crump53VideoStatus', 'Your account changed before this reference could be added. Open Video Studio again and reattach it.', true);
+      return;
+    }
+    const uploadUserId = currentVideoReferenceUserId();
+    const uploadAuthSequence = videoReferenceAuthSequence;
     const engine = byId('crump53VideoEngine')?.value || 'quick';
     const available = Math.max(0, videoReferenceLimit(engine) - state.videoReferenceFiles.length);
     if (!available) {
@@ -1075,6 +1358,12 @@
         }
         if (!window.CrumpFileTools?.upload) throw new Error('Private file upload is still loading. Try again in a moment.');
         const stored = await window.CrumpFileTools.upload(file);
+        if (
+          uploadAuthSequence !== videoReferenceAuthSequence
+          || currentVideoReferenceUserId() !== uploadUserId
+        ) {
+          throw new Error('Your account changed while the reference was uploading. Reattach it in the current account.');
+        }
         if (!stored?.id || !stored?.url) throw new Error('The reference upload did not finish.');
         if (!state.videoReferenceFiles.some(item => String(item.id) === String(stored.id))) {
           state.videoReferenceFiles.push({...stored, role: 'subject'});
@@ -1082,6 +1371,7 @@
       }
       state.videoReferenceHandoffInvalid = false;
       resetVideoReferenceConfirmation();
+      persistVideoReferenceDraft();
       renderVideoReferences();
       const count = state.videoReferenceFiles.length;
       setStatus('crump53VideoStatus', `${count} private reference image${count === 1 ? '' : 's'} ready.`);
@@ -1089,17 +1379,20 @@
         window.showToast?.(`Only ${available} image${available === 1 ? '' : 's'} fit this engine's reference limit.`, 'warning');
       }
     } catch (error) {
-      setStatus('crump53VideoStatus', error.message || 'Could not upload that reference image.', true);
+      if (uploadAuthSequence === videoReferenceAuthSequence) {
+        setStatus('crump53VideoStatus', error.message || 'Could not upload that reference image.', true);
+      }
     } finally {
-      state.videoReferenceUploading = false;
-      setVideoGenerationBusy(Boolean(state.videoStarting || readStoredVideoJob()));
+      if (uploadAuthSequence === videoReferenceAuthSequence) {
+        state.videoReferenceUploading = false;
+        setVideoGenerationBusy(Boolean(state.videoStarting || readStoredVideoJob()));
+      }
     }
   }
 
   function updateVideoReferenceMode(engine) {
     const limit = videoReferenceLimit(engine);
     const status = byId('crump53VideoStatus');
-    resetVideoReferenceConfirmation();
     if (state.videoReferenceFiles.length > limit) {
       if (status) status.dataset.videoReferenceLimitError = 'true';
       setStatus(
@@ -1131,7 +1424,7 @@
     renderVideoReferences();
   }
 
-  function updateVideoStudio() {
+  function updateVideoStudio({resetReferenceConfirmation = false} = {}) {
     const engine = byId('crump53VideoEngine')?.value || 'quick';
     const resolution = byId('crump53VideoResolution');
     const durationWrap = byId('crump53VideoDurationWrap');
@@ -1148,6 +1441,10 @@
     if (durationWrap) durationWrap.hidden = engine !== 'cinematic';
     if (attribution) attribution.hidden = engine !== 'cinematic';
     if (prompt) prompt.maxLength = engine === 'cinematic' ? 620 : 3600;
+    if (resetReferenceConfirmation) {
+      resetVideoReferenceConfirmation();
+      persistVideoReferenceDraft();
+    }
     updateVideoReferenceMode(engine);
 
     if (resolution) {
@@ -2685,6 +2982,10 @@
 
   async function startVideo(event, overrides = {}) {
     event?.preventDefault?.();
+    if (!videoReferenceInteractionIsCurrent()) {
+      setStatus('crump53VideoStatus', 'Your account changed before this video could start. Reopen Video Studio and review the current account\'s references.', true);
+      return;
+    }
     if (state.videoStarting) return;
     if (state.videoReferenceUploading) {
       setStatus('crump53VideoStatus', 'Wait for the private reference upload to finish before creating the video.', true);
@@ -2719,12 +3020,10 @@
       return;
     }
     const referencePlan = videoReferencePlan();
-    const confirmationSignature = JSON.stringify([
-      engine,
-      ...referencePlan.map(reference => `${reference.fileId}:${reference.role}`),
-    ]);
+    const confirmationSignature = videoReferenceConfirmationSignature(engine, referencePlan);
     if (referencePlan.length && state.videoReferencePlanConfirmation !== confirmationSignature) {
       state.videoReferencePlanConfirmation = confirmationSignature;
+      persistVideoReferenceDraft();
       renderVideoReferencePlan(engine);
       const roleLabels = new Map(VIDEO_REFERENCE_ROLE_OPTIONS.map(option => [option.value, option.label]));
       const summary = referencePlan
@@ -2772,6 +3071,7 @@
         body: request,
       });
       storeVideoRequest(null);
+      clearStoredVideoReferenceDraft();
       storeVideoJob(data.job.id);
       setStatus('crump53VideoStatus', 'Generating… this can take a few minutes. You can close this panel and return.');
       pollVideo(data.job.id);
@@ -2869,6 +3169,7 @@
           <div class="crump53-note">Native continuation uses the previous Veo scene as the reference point, adds about 7 seconds, and returns one combined video. 80 credits per continuation.</div>
           <div class="crump53-actions"><button type="button" class="crump53-button is-primary" id="crump53SubmitContinuation">Continue · 80 credits</button><button type="button" class="crump53-button" id="crump53CancelContinuation">Cancel</button></div>
       </div>` : ''}`;
+    window.CrumpVideoReferenceReceipt?.render(result, job);
     byId('crump53OpenVideoProject')?.addEventListener('click', () => void openProject(projectId));
     byId('crump53RetryVideoProject')?.addEventListener('click', () => void retryVideoProjectAttachment(job));
     byId('crump53OpenLibraryFromVideo')?.addEventListener('click', openProjectFiles);
@@ -3045,6 +3346,7 @@
   }
 
   async function openVideoCreationHandoff(handoff, {start = false} = {}) {
+    if (!videoReferenceInteractionIsCurrent()) return false;
     const brief = String(handoff?.brief || '').trim();
     openStudio('video');
     const prompt = byId('crump53VideoPrompt');
@@ -3053,6 +3355,7 @@
     const references = hydrateVideoHandoffReferences(handoff);
     if (requestedReferenceCount !== references.length) {
       state.videoReferenceHandoffInvalid = true;
+      persistVideoReferenceDraft();
       setStatus(
         'crump53VideoStatus',
         `Only ${references.length} of ${requestedReferenceCount} chat reference images could be loaded. Reattach the missing images before creating; the video has not started.`,
@@ -3069,6 +3372,7 @@
       } else {
         updateVideoReferenceMode(engine?.value || 'quick');
       }
+      persistVideoReferenceDraft();
       const modeGuidance = references.length > videoReferenceLimit('extendable')
         ? `Video engines accept at most three references, so remove ${references.length - videoReferenceLimit('extendable')} before creating.`
         : references.length > 1
@@ -3088,9 +3392,11 @@
       return true;
     }
     if (!start) {
+      persistVideoReferenceDraft();
       prompt?.focus({preventScroll: true});
       return true;
     }
+    persistVideoReferenceDraft();
     const key = String(handoff?.idempotencyKey || '');
     if (!claimLiveHandoff('video', key || brief.slice(0, 80))) return true;
     await startVideo({preventDefault() {}}, {prompt: brief, idempotencyKey: key});
@@ -3183,13 +3489,17 @@
   function init() {
     injectNavigation();
     injectStudio();
+    restoreVideoReferenceDraft();
     injectProjectIntoChatRequests();
     window.addEventListener('crump:conversation-opened', event => { void handleConversationOpened(event); });
     wrapManuscriptRenderer();
     window.dispatchEvent(new Event('crump:project-service-ready'));
     resumePendingVideoJob();
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'visible') resumePendingVideoJob();
+      if (document.visibilityState === 'visible') {
+        restoreVideoReferenceDraft();
+        resumePendingVideoJob();
+      }
     });
     window.addEventListener('online', resumePendingVideoJob);
     window.addEventListener('storage', event => {
@@ -3227,9 +3537,11 @@
   }
 
   window.addEventListener('crump:authenticated-ready', () => {
+    restoreVideoReferenceDraft();
     hydrateAuthenticatedState();
     resumePendingVideoJob();
   });
+  window.addEventListener('crump:authentication-required', clearVideoReferenceAuthState);
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, {once: true});
   else init();
 })();

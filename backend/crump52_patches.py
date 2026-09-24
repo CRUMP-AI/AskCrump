@@ -36,8 +36,22 @@ _REQUEST_META_KEYS = {
 }
 _IMAGE_REFERENCE_ROLES = {"base", "subject", "mascot", "logo", "typography", "style"}
 _REFERENCE_REVIEW_MESSAGES = {
-    "review-required": "Verify logos, wordmarks, readable text, and mascot details before publishing.",
+    "pass": "Local color and structure signals align. Review every original before publishing.",
+    "warn": "Local checks are limited or need attention. Review every original before publishing.",
+    "mismatch": "At least one reference was flagged or local color and structure signals differ. Review every original before publishing.",
     "not-applicable": "",
+}
+_REFERENCE_REVIEW_INPUT_STATUSES = {*_REFERENCE_REVIEW_MESSAGES, "review-required"}
+_REFERENCE_SIGNAL_VALUES = {"aligned", "attention", "different", "unavailable"}
+_REFERENCE_USER_REVIEW_VALUES = {"pending", "confirmed", "mismatch"}
+_REFERENCE_REVIEW_LIMITATIONS = ["identity", "logos", "text", "pixel-fidelity"]
+_REFERENCE_HUMAN_CHECKS = {
+    "base": ["composition-details"],
+    "subject": ["identity", "fine-details"],
+    "mascot": ["character-identity", "fine-details"],
+    "logo": ["logo-shape", "logo-colors"],
+    "typography": ["text-spelling", "letterforms", "text-layout"],
+    "style": ["style-details"],
 }
 _IMAGE_REFERENCE_PLAN_ERROR_CODES = {
     "IMAGE_REFERENCE_CONFIRMATION_REQUIRED",
@@ -192,25 +206,115 @@ def _safe_image_reference_receipt(value: Any) -> list[dict[str, Any]]:
     ]
 
 
+def _reference_signal_status(role: str, signals: dict[str, str]) -> str:
+    color = signals.get("color", "unavailable")
+    structure = signals.get("structure", "unavailable")
+    if "unavailable" in {color, structure}:
+        return "warn"
+    if role == "base":
+        if structure == "different":
+            return "mismatch"
+        if structure == "aligned" and color == "aligned":
+            return "pass"
+        return "warn"
+    if role == "style":
+        if color == "aligned" and structure == "aligned":
+            return "pass"
+        if color == "different":
+            return "mismatch"
+        return "warn"
+    if color == "different" and structure == "different":
+        return "mismatch"
+    return "warn"
+
+
+def _safe_reference_evidence(
+    value: Any,
+    reference_plan: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    raw_references = value if isinstance(value, list) else []
+    evidence: list[dict[str, Any]] = []
+    for index, expected in enumerate(reference_plan):
+        supplied = raw_references[index] if index < len(raw_references) else None
+        signals = {"color": "unavailable", "structure": "unavailable"}
+        user_review = "pending"
+        if isinstance(supplied, dict):
+            try:
+                supplied_id = str(uuid.UUID(str(supplied.get("fileId") or "").strip()))
+            except (ValueError, TypeError, AttributeError):
+                supplied_id = ""
+            supplied_role = sync_module.clean_text(supplied.get("role"), 20).lower()
+            try:
+                supplied_input = int(supplied.get("input") or 0)
+            except (TypeError, ValueError, OverflowError):
+                supplied_input = 0
+            if (
+                supplied_id == expected["fileId"]
+                and supplied_role == expected["role"]
+                and supplied_input == index + 1
+            ):
+                raw_signals = supplied.get("signals")
+                if isinstance(raw_signals, dict):
+                    color = sync_module.clean_text(raw_signals.get("color"), 20).lower()
+                    structure = sync_module.clean_text(raw_signals.get("structure"), 20).lower()
+                    if color in _REFERENCE_SIGNAL_VALUES and structure in _REFERENCE_SIGNAL_VALUES:
+                        signals = {"color": color, "structure": structure}
+                supplied_review = sync_module.clean_text(supplied.get("userReview"), 20).lower()
+                if supplied_review in _REFERENCE_USER_REVIEW_VALUES:
+                    user_review = supplied_review
+        role = expected["role"]
+        status = _reference_signal_status(role, signals)
+        if user_review == "mismatch":
+            status = "mismatch"
+        evidence.append({
+            **expected,
+            "status": status,
+            "signals": signals,
+            "humanChecks": list(_REFERENCE_HUMAN_CHECKS.get(role, ["final-visual"])),
+            "userReview": user_review,
+        })
+    return evidence
+
+
 def _safe_reference_review(
     value: Any,
     reference_plan: list[dict[str, Any]],
 ) -> dict[str, Any] | None:
     if not isinstance(value, dict):
         return None
-    status = sync_module.clean_text(value.get("status"), 30).lower()
-    if status not in _REFERENCE_REVIEW_MESSAGES:
+    supplied_status = sync_module.clean_text(value.get("status"), 30).lower()
+    if supplied_status not in _REFERENCE_REVIEW_INPUT_STATUSES:
         return None
-    if status == "review-required" and not reference_plan:
+    if supplied_status == "not-applicable" and reference_plan:
         return None
-    if status == "not-applicable" and reference_plan:
+    if supplied_status != "not-applicable" and not reference_plan:
         return None
+    if not reference_plan:
+        return {
+            "status": "not-applicable",
+            "method": "none",
+            "humanReviewRequired": False,
+            "message": "",
+            "references": [],
+        }
+
+    references = _safe_reference_evidence(value.get("references"), reference_plan)
+    statuses = {item["status"] for item in references}
+    if "mismatch" in statuses:
+        status = "mismatch"
+    elif statuses == {"pass"}:
+        status = "pass"
+    else:
+        status = "warn"
     return {
         "status": status,
-        "method": "manual-review" if status == "review-required" else "none",
-        "humanReviewRequired": status == "review-required",
+        "method": "local-reference-signals-v1",
+        "humanReviewRequired": True,
+        "reviewProviderUsed": False,
+        "reviewCreditsUsed": 0,
+        "limitations": list(_REFERENCE_REVIEW_LIMITATIONS),
         "message": _REFERENCE_REVIEW_MESSAGES[status],
-        "references": reference_plan,
+        "references": references,
     }
 
 

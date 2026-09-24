@@ -46,16 +46,95 @@ def test_reference_review_receipt_is_assistant_only_bounded_and_fixed_copy() -> 
     expected_plan = [{"fileId": REFERENCE_ID, "role": "logo", "input": 1}]
     assert assistant["referencePlan"] == expected_plan
     assert assistant["referenceReview"] == {
-        "status": "review-required",
-        "method": "manual-review",
+        "status": "warn",
+        "method": "local-reference-signals-v1",
         "humanReviewRequired": True,
-        "message": "Verify logos, wordmarks, readable text, and mascot details before publishing.",
-        "references": expected_plan,
+        "reviewProviderUsed": False,
+        "reviewCreditsUsed": 0,
+        "limitations": ["identity", "logos", "text", "pixel-fidelity"],
+        "message": "Local checks are limited or need attention. Review every original before publishing.",
+        "references": [{
+            **expected_plan[0],
+            "status": "warn",
+            "signals": {"color": "unavailable", "structure": "unavailable"},
+            "humanChecks": ["logo-shape", "logo-colors"],
+            "userReview": "pending",
+        }],
     }
     assert "referencePlan" not in user
     assert "referenceReview" not in user
     assert "private" not in str(assistant)
     assert "data:image" not in str(assistant)
+
+
+def test_reference_review_persists_only_enum_evidence_and_user_confirmation() -> None:
+    crump52_patches.apply_crump52_patches()
+    message = sync_service.sanitize_message({
+        "role": "assistant",
+        "content": "Image ready.",
+        "referencePlan": [{"fileId": REFERENCE_ID, "role": "logo"}],
+        "referenceReview": {
+            "status": "pass",
+            "method": "remote-vision-model",
+            "humanReviewRequired": False,
+            "reviewProviderUsed": True,
+            "reviewCreditsUsed": 99,
+            "references": [{
+                "fileId": REFERENCE_ID,
+                "role": "logo",
+                "input": 1,
+                "status": "pass",
+                "signals": {"color": "aligned", "structure": "aligned", "rawScore": 0.999},
+                "humanChecks": [],
+                "userReview": "confirmed",
+                "bytes": "private-image-data",
+            }],
+        },
+    })
+
+    review = message["referenceReview"]
+    assert review["status"] == "warn"
+    assert review["method"] == "local-reference-signals-v1"
+    assert review["humanReviewRequired"] is True
+    assert review["reviewProviderUsed"] is False
+    assert review["reviewCreditsUsed"] == 0
+    assert review["references"] == [{
+        "fileId": REFERENCE_ID,
+        "role": "logo",
+        "input": 1,
+        "status": "warn",
+        "signals": {"color": "aligned", "structure": "aligned"},
+        "humanChecks": ["logo-shape", "logo-colors"],
+        "userReview": "confirmed",
+    }]
+    assert "rawScore" not in str(review)
+    assert "private-image-data" not in str(review)
+
+
+def test_user_flagged_reference_mismatch_overrides_local_signal_status() -> None:
+    crump52_patches.apply_crump52_patches()
+    message = sync_service.sanitize_message({
+        "role": "assistant",
+        "content": "Image ready.",
+        "referencePlan": [{"fileId": REFERENCE_ID, "role": "logo"}],
+        "referenceReview": {
+            "status": "warn",
+            "references": [{
+                "fileId": REFERENCE_ID,
+                "role": "logo",
+                "input": 1,
+                "status": "warn",
+                "signals": {"color": "aligned", "structure": "aligned"},
+                "userReview": "mismatch",
+            }],
+        },
+    })
+
+    review = message["referenceReview"]
+    assert review["status"] == "mismatch"
+    assert review["message"] == "At least one reference was flagged or local color and structure signals differ. Review every original before publishing."
+    assert review["references"][0]["status"] == "mismatch"
+    assert review["references"][0]["userReview"] == "mismatch"
 
 
 def test_invalid_reference_review_receipts_are_dropped() -> None:
@@ -165,3 +244,35 @@ def test_reference_review_survives_route_recovery_and_client_hydration() -> None
     assert "assistant_message['referenceReview'] = result['referenceReview']" in route
     for client in (modern, legacy):
         assert "'referencePlan', 'referenceReview'" in client
+
+
+def test_reference_review_ui_is_role_by_role_local_and_user_confirmable() -> None:
+    modern = read("public/crump-5.0.js")
+    styles = read("public/crump-5.0.css")
+    renderer = modern[modern.index("function createReferenceReceipt(message)") : modern.index("function enhanceRenderedMessages(messages)")]
+
+    for contract in (
+        "Reference check · ${references.length} local comparison",
+        "Local color and structure checks only · no extra generation or credits",
+        "cannot verify identity, exact logos, spelling, or pixel fidelity",
+        "['pass', 'Signals align']",
+        "['warn', 'Review needed']",
+        "['mismatch', 'Signals differ']",
+        "Color",
+        "Structure",
+        "Confirm reviewed",
+        "Flag mismatch",
+        "currentEvidence.userReview = decision",
+        "const signalStatusForRole = (role, signals) =>",
+        "const heuristicStatus = signalStatusForRole(role, currentEvidence?.signals)",
+        "const status = userReview === 'mismatch' ? 'mismatch' : heuristicStatus",
+        "badge.textContent = userReview === 'mismatch' ? 'Mismatch flagged'",
+        "const visibleStatus = decision === 'mismatch' ? 'mismatch' : heuristicStatus",
+        "saveAndRender(chat)",
+    ):
+        assert contract in renderer
+    assert "verified" not in renderer.lower()
+    assert "pixel-perfect" not in renderer.lower()
+    assert "remote" not in renderer.lower()
+    assert "crump50-reference-signals" in styles
+    assert "crump50-reference-review-actions" in styles

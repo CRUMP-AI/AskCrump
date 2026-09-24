@@ -78,9 +78,33 @@ const { chromium } = require(playwrightModule);
         {input: 2, fileId: '55555555-5555-4555-8555-555555555555', role: 'logo'},
       ];
       data.referenceReview = {
-        status: 'review-required',
+        status: 'warn',
+        method: 'local-reference-signals-v1',
         humanReviewRequired: true,
-        message: 'Verify logos, wordmarks, readable text, and mascot details before publishing.',
+        reviewProviderUsed: false,
+        reviewCreditsUsed: 0,
+        limitations: ['identity', 'logos', 'text', 'pixel-fidelity'],
+        message: 'Local checks are limited or need attention. Review every original before publishing.',
+        references: [
+          {
+            input: 1,
+            fileId: '11111111-1111-4111-8111-111111111111',
+            role: 'base',
+            status: 'pass',
+            signals: {color: 'aligned', structure: 'aligned'},
+            humanChecks: ['composition-details'],
+            userReview: 'pending',
+          },
+          {
+            input: 2,
+            fileId: '55555555-5555-4555-8555-555555555555',
+            role: 'logo',
+            status: 'warn',
+            signals: {color: 'aligned', structure: 'attention'},
+            humanChecks: ['logo-shape', 'logo-colors'],
+            userReview: 'pending',
+          },
+        ],
       };
       return data;
     };
@@ -108,6 +132,35 @@ const { chromium } = require(playwrightModule);
     referencePlanConfirmed: window.__fixture.sentBody?.imageReferencePlanConfirmed,
     referenceContractVersion: window.__fixture.sentBody?.imageReferenceContractVersion,
     receipt: document.querySelector('.crump50-reference-receipt')?.textContent || '',
+    resultCount: document.querySelectorAll('.crump50-reference-result').length,
+    signalCount: document.querySelectorAll('.crump50-reference-signals span').length,
+    reviewActionCount: document.querySelectorAll('.crump50-reference-review-actions button').length,
+  }));
+
+  await page.getByRole('button', {name: 'Confirm reference 1 was reviewed'}).click();
+  await page.getByRole('button', {name: 'Flag reference 2 as a mismatch'}).click();
+  const userReviewed = await page.evaluate(() => ({
+    receipt: document.querySelector('.crump50-reference-receipt')?.textContent || '',
+    sendCalls: window.__fixture.sendCalls,
+    ensureUsageCalls: window.__fixture.ensureUsageCalls,
+    decisions: window.chats[0].messages
+      .find(message => message.role === 'assistant')
+      ?.referenceReview?.references?.map(reference => reference.userReview) || [],
+  }));
+  await page.evaluate(() => {
+    const reference = window.chats[0].messages
+      .find(message => message.role === 'assistant')
+      ?.referenceReview?.references?.[1];
+    if (reference) reference.status = 'mismatch';
+  });
+  await page.getByRole('button', {name: 'Confirm reference 2 was reviewed'}).click();
+  const mismatchCleared = await page.evaluate(() => ({
+    receipt: document.querySelector('.crump50-reference-receipt')?.textContent || '',
+    sendCalls: window.__fixture.sendCalls,
+    ensureUsageCalls: window.__fixture.ensureUsageCalls,
+    decision: window.chats[0].messages
+      .find(message => message.role === 'assistant')
+      ?.referenceReview?.references?.[1]?.userReview || '',
   }));
 
   await page.screenshot({path: 'artifacts/image-safety-recovery.png', fullPage: true});
@@ -164,10 +217,29 @@ const { chromium } = require(playwrightModule);
     ])
     && revised.referencePlanConfirmed === true
     && revised.referenceContractVersion === 2
-    && revised.receipt.includes('Reference receipt · 2 provider inputs')
+    && revised.receipt.includes('Reference check · 2 local comparisons')
+    && revised.receipt.includes('Local color and structure checks only · no extra generation or credits')
     && revised.receipt.includes('Reference 1 · Starting canvas / composition')
     && revised.receipt.includes('Reference 2 · Logo / wordmark')
-    && revised.receipt.includes('Verify logos, wordmarks, readable text, and mascot details before publishing.')
+    && revised.receipt.includes('Signals align')
+    && revised.receipt.includes('Review needed')
+    && revised.receipt.includes('Color · aligns')
+    && revised.receipt.includes('Structure · needs attention')
+    && revised.receipt.includes('cannot verify identity, exact logos, spelling, or pixel fidelity')
+    && revised.resultCount === 2
+    && revised.signalCount === 4
+    && revised.reviewActionCount === 4
+    && userReviewed.receipt.includes('You reviewed this reference.')
+    && userReviewed.receipt.includes('You flagged a mismatch.')
+    && userReviewed.receipt.includes('Mismatch flagged')
+    && JSON.stringify(userReviewed.decisions) === JSON.stringify(['confirmed', 'mismatch'])
+    && userReviewed.sendCalls === 2
+    && userReviewed.ensureUsageCalls === 2
+    && mismatchCleared.receipt.includes('Reference 2 · Logo / wordmarkReview needed')
+    && !mismatchCleared.receipt.includes('Mismatch flagged')
+    && mismatchCleared.decision === 'confirmed'
+    && mismatchCleared.sendCalls === 2
+    && mismatchCleared.ensureUsageCalls === 2
     && replacementRestored.label.includes('Tap to replace')
     && replacementRestored.prompt.includes('gentle storybook portrait')
     && replacementRestored.attachmentCount === 0
@@ -179,8 +251,8 @@ const { chromium } = require(playwrightModule);
     && consoleErrors.length === 0
   );
   await browser.close();
-  if (!valid) throw new Error(JSON.stringify({restored, unchanged, beforeConfirmation, contractRecovery, revised, replacementRestored, replacementBlocked, consoleErrors}));
-  process.stdout.write(`${JSON.stringify({restored, unchanged, beforeConfirmation, contractRecovery, revised, replacementRestored, replacementBlocked, consoleErrors})}\n`);
+  if (!valid) throw new Error(JSON.stringify({restored, unchanged, beforeConfirmation, contractRecovery, revised, userReviewed, mismatchCleared, replacementRestored, replacementBlocked, consoleErrors}));
+  process.stdout.write(`${JSON.stringify({restored, unchanged, beforeConfirmation, contractRecovery, revised, userReviewed, mismatchCleared, replacementRestored, replacementBlocked, consoleErrors})}\n`);
 })().catch(error => {
   process.stderr.write(`${error.stack || error}\n`);
   process.exitCode = 1;

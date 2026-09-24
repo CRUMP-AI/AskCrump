@@ -257,10 +257,15 @@ async def test_video_job_persists_only_safe_role_receipt_and_sends_extendable_gu
     assert provider_call["initial_image"] is None
     assert row["metadata"]["referenceMode"] == "appearance-guidance"
     assert row["metadata"]["referencePlan"] == expected_receipt
+    assert row["metadata"]["referenceVerification"] == "not-performed"
     assert "data" not in row["metadata"]
-    public = await service.public_job(user_id=USER_ID, row=row)
+    ready_row = {**row, "status": "ready"}
+    public = await service.public_job(user_id=USER_ID, row=ready_row)
+    assert public["status"] == "ready"
     assert public["referenceMode"] == "appearance-guidance"
     assert public["referencePlan"] == expected_receipt
+    assert public["referenceVerification"] == "not-performed"
+    assert "referenceVerified" not in public
 
 
 def test_video_route_validates_reference_plan_before_budget_charge_and_provider() -> None:
@@ -274,3 +279,31 @@ def test_video_route_validates_reference_plan_before_budget_charge_and_provider(
 
     assert prepare < plan < prompt < budget < charge < provider
     assert '"referencePlan": reference_receipt' in source
+
+
+def test_completed_video_ui_exposes_an_honest_ordered_reference_receipt_without_spend() -> None:
+    loader = (ROOT / "public" / "crump-product-loader.js").read_text(encoding="utf-8")
+    product = (ROOT / "public" / "crump-product-5.3.js").read_text(encoding="utf-8")
+    styles = (ROOT / "public" / "crump-product-5.3.css").read_text(encoding="utf-8")
+    verifier = (ROOT / "scripts" / "verify-video-reference-browser.cjs").read_text(encoding="utf-8")
+    receipt_renderer = loader.split("function renderVideoReferenceReceipt", 1)[1].split(
+        "window.CrumpVideoReferenceReceipt", 1
+    )[0]
+
+    assert "window.CrumpVideoReferenceReceipt?.render(result, job);" in product
+    assert "job?.status !== 'ready'" in receipt_renderer
+    assert "references.forEach((reference, index)" in receipt_renderer
+    assert "Input image ${index + 1}" in receipt_renderer
+    assert "VIDEO_REFERENCE_ROLE_LABELS[reference.role]" in receipt_renderer
+    assert "sent as the starting frame" in loader
+    assert "best-effort appearance guidance" in loader
+    assert "not as pixel-locked frames or layouts" in loader
+    assert "Exact logos, readable text, and subject identity were not automatically verified" in receipt_renderer
+    assert "compare them side by side with each source image" in receipt_renderer
+    assert "deterministic overlay" in receipt_renderer
+    assert "Open Files to compare" in receipt_renderer
+    assert "fetch(" not in receipt_renderer
+    assert "api(" not in receipt_renderer
+    assert ".crump53-video-reference-receipt" in styles
+    assert "providerStarts !== 1" in verifier
+    assert "startingFrameReceipt" in verifier

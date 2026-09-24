@@ -15,7 +15,7 @@ from uuid import NAMESPACE_URL, uuid5
 import httpx
 from docx import Document
 from openpyxl import load_workbook
-from PIL import Image, ImageEnhance, ImageOps, UnidentifiedImageError
+from PIL import Image, ImageEnhance, ImageFilter, ImageOps, UnidentifiedImageError
 from pypdf import PdfReader
 from pptx import Presentation
 
@@ -45,6 +45,19 @@ IMAGE_REFERENCE_ROLES = {
     'logo': 'logo or wordmark identity',
     'typography': 'typography and text-layout treatment',
     'style': 'color palette, lighting, and visual style',
+}
+REFERENCE_FIDELITY_SAMPLE_EDGE = 64
+REFERENCE_FIDELITY_SIGNALS = {'aligned', 'attention', 'different', 'unavailable'}
+REFERENCE_FIDELITY_LOCAL_ROLES = {'subject', 'mascot', 'logo', 'typography'}
+REFERENCE_FIDELITY_CROP_SCALES = (1.0, 0.75, 0.5, 0.33, 0.2, 0.12)
+REFERENCE_FIDELITY_CROP_POSITIONS = (0.0, 0.5, 1.0)
+REFERENCE_HUMAN_CHECKS = {
+    'base': ['composition-details'],
+    'subject': ['identity', 'fine-details'],
+    'mascot': ['character-identity', 'fine-details'],
+    'logo': ['logo-shape', 'logo-colors'],
+    'typography': ['text-spelling', 'letterforms', 'text-layout'],
+    'style': ['style-details'],
 }
 EDIT_IMAGE_MAX_EDGE = 4096
 EDIT_IMAGE_MAX_PIXELS = 8_388_608
@@ -918,6 +931,285 @@ class MediaService:
         )
 
     @staticmethod
+    def _fidelity_image(data: bytes) -> Image.Image:
+        """Decode one image for a bounded, local-only comparison."""
+        with Image.open(BytesIO(data)) as opened:
+            opened.seek(0)
+            return ImageOps.exif_transpose(opened).convert('RGB').copy()
+
+    @staticmethod
+    def _fidelity_sample(image: Image.Image) -> Image.Image:
+        return ImageOps.pad(
+            image,
+            (REFERENCE_FIDELITY_SAMPLE_EDGE, REFERENCE_FIDELITY_SAMPLE_EDGE),
+            method=Image.Resampling.LANCZOS,
+            color=(127, 127, 127),
+            centering=(0.5, 0.5),
+        )
+
+    @staticmethod
+    def _fidelity_pixels(image: Image.Image) -> list[int]:
+        flattened = getattr(image, 'get_flattened_data', None)
+        return list(flattened() if callable(flattened) else image.getdata())
+
+    @staticmethod
+    def _fidelity_color_score(first: Image.Image, second: Image.Image) -> float:
+        """Compare coarse RGB distributions without retaining either image or a raw score."""
+        first_histogram = MediaService._fidelity_sample(first).histogram()
+        second_histogram = MediaService._fidelity_sample(second).histogram()
+        pixels = float(REFERENCE_FIDELITY_SAMPLE_EDGE * REFERENCE_FIDELITY_SAMPLE_EDGE)
+        intersections: list[float] = []
+        for offset in (0, 256, 512):
+            first_bins = [
+                sum(first_histogram[offset + start:offset + start + 16]) / pixels
+                for start in range(0, 256, 16)
+            ]
+            second_bins = [
+                sum(second_histogram[offset + start:offset + start + 16]) / pixels
+                for start in range(0, 256, 16)
+            ]
+            intersections.append(sum(min(left, right) for left, right in zip(first_bins, second_bins)))
+        return sum(intersections) / len(intersections)
+
+    @staticmethod
+    def _fidelity_edge_mask(image: Image.Image) -> list[bool]:
+        edge_image = ImageOps.grayscale(image).filter(ImageFilter.FIND_EDGES)
+        width, height = edge_image.size
+        pixels = MediaService._fidelity_pixels(edge_image)
+        interior = [
+            pixels[(row * width) + column]
+            for row in range(1, height - 1)
+            for column in range(1, width - 1)
+        ]
+        if not interior:
+            return []
+        mean = sum(interior) / len(interior)
+        variance = sum((value - mean) ** 2 for value in interior) / len(interior)
+        cutoff = max(18.0, mean + (math.sqrt(variance) * 0.5))
+        return [value >= cutoff for value in interior]
+
+    @staticmethod
+    def _fidelity_structure_score(first: Image.Image, second: Image.Image) -> float:
+        first_sample = MediaService._fidelity_sample(first)
+        second_sample = MediaService._fidelity_sample(second)
+        first_gray = MediaService._fidelity_pixels(ImageOps.grayscale(first_sample))
+        second_gray = MediaService._fidelity_pixels(ImageOps.grayscale(second_sample))
+        first_mean = sum(first_gray) / len(first_gray)
+        second_mean = sum(second_gray) / len(second_gray)
+        first_centered = [value - first_mean for value in first_gray]
+        second_centered = [value - second_mean for value in second_gray]
+        denominator = math.sqrt(
+            sum(value * value for value in first_centered)
+            * sum(value * value for value in second_centered)
+        )
+        if denominator <= 1e-9:
+            correlation = 1.0 if max(first_gray) == min(first_gray) and max(second_gray) == min(second_gray) else 0.0
+        else:
+            correlation = max(
+                0.0,
+                min(
+                    1.0,
+                    sum(left * right for left, right in zip(first_centered, second_centered)) / denominator,
+                ),
+            )
+
+        first_edges = MediaService._fidelity_edge_mask(first_sample)
+        second_edges = MediaService._fidelity_edge_mask(second_sample)
+        first_count = sum(first_edges)
+        second_count = sum(second_edges)
+        if first_count + second_count:
+            overlap = sum(left and right for left, right in zip(first_edges, second_edges))
+            edge_similarity = (2.0 * overlap) / (first_count + second_count)
+        else:
+            edge_similarity = 1.0
+
+        first_aspect = first.width / max(1, first.height)
+        second_aspect = second.width / max(1, second.height)
+        aspect_similarity = max(
+            0.0,
+            1.0 - (abs(math.log(first_aspect / second_aspect)) / math.log(2.0)),
+        )
+        return (correlation * 0.65) + (edge_similarity * 0.25) + (aspect_similarity * 0.10)
+
+    @staticmethod
+    def _fidelity_signal(score: float) -> str:
+        if score >= 0.75:
+            return 'aligned'
+        if score < 0.35:
+            return 'different'
+        return 'attention'
+
+    @staticmethod
+    def _fidelity_crop_boxes(output: Image.Image, reference: Image.Image) -> list[tuple[int, int, int, int]]:
+        """Return at most 54 fixed-scale, fixed-position crops with the reference aspect ratio."""
+        reference_aspect = reference.width / max(1, reference.height)
+        output_aspect = output.width / max(1, output.height)
+        if output_aspect >= reference_aspect:
+            base_height = output.height
+            base_width = max(1, min(output.width, round(base_height * reference_aspect)))
+        else:
+            base_width = output.width
+            base_height = max(1, min(output.height, round(base_width / reference_aspect)))
+
+        boxes: list[tuple[int, int, int, int]] = []
+        seen: set[tuple[int, int, int, int]] = set()
+        for scale in REFERENCE_FIDELITY_CROP_SCALES:
+            width = max(1, min(output.width, round(base_width * scale)))
+            height = max(1, min(output.height, round(base_height * scale)))
+            available_x = output.width - width
+            available_y = output.height - height
+            for y_position in REFERENCE_FIDELITY_CROP_POSITIONS:
+                top = round(available_y * y_position)
+                for x_position in REFERENCE_FIDELITY_CROP_POSITIONS:
+                    left = round(available_x * x_position)
+                    box = (left, top, left + width, top + height)
+                    if box not in seen:
+                        seen.add(box)
+                        boxes.append(box)
+        return boxes
+
+    @classmethod
+    def _local_reference_signals(
+        cls,
+        output_bytes: bytes,
+        reference_bytes: bytes,
+        *,
+        role: str = 'base',
+    ) -> dict[str, str]:
+        output = cls._fidelity_image(output_bytes)
+        reference = cls._fidelity_image(reference_bytes)
+        if role not in REFERENCE_FIDELITY_LOCAL_ROLES:
+            return {
+                'color': cls._fidelity_signal(cls._fidelity_color_score(output, reference)),
+                'structure': cls._fidelity_signal(cls._fidelity_structure_score(output, reference)),
+            }
+
+        best_color = -1.0
+        best_structure = -1.0
+        best_combined = -1.0
+        for box in cls._fidelity_crop_boxes(output, reference):
+            crop = output.crop(box)
+            color = cls._fidelity_color_score(crop, reference)
+            structure = cls._fidelity_structure_score(crop, reference)
+            combined = (structure * 0.70) + (color * 0.30)
+            if combined > best_combined:
+                best_color = color
+                best_structure = structure
+                best_combined = combined
+        return {
+            'color': cls._fidelity_signal(best_color),
+            'structure': cls._fidelity_signal(best_structure),
+        }
+
+    @staticmethod
+    def _reference_signal_status(role: str, signals: dict[str, str]) -> str:
+        color = signals.get('color', 'unavailable')
+        structure = signals.get('structure', 'unavailable')
+        if color not in REFERENCE_FIDELITY_SIGNALS or structure not in REFERENCE_FIDELITY_SIGNALS:
+            return 'warn'
+        if 'unavailable' in {color, structure}:
+            return 'warn'
+        if role == 'base':
+            if structure == 'different':
+                return 'mismatch'
+            if structure == 'aligned' and color == 'aligned':
+                return 'pass'
+            return 'warn'
+        if role == 'style':
+            if color == 'aligned' and structure == 'aligned':
+                return 'pass'
+            if color == 'different':
+                return 'mismatch'
+            return 'warn'
+        # Local image signals cannot establish identity, logo geometry, or text accuracy.
+        if color == 'different' and structure == 'different':
+            return 'mismatch'
+        return 'warn'
+
+    @classmethod
+    def _reference_fidelity_review(
+        cls,
+        output_bytes: bytes,
+        prepared_references: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        """Compare every provider input locally without another model call or credit use."""
+        if not prepared_references:
+            return cls._reference_review_result([])
+
+        evidence: list[dict[str, Any]] = []
+        for index, reference in enumerate(prepared_references, start=1):
+            role = str(reference.get('role') or '').strip().lower()
+            signals = {'color': 'unavailable', 'structure': 'unavailable'}
+            try:
+                reference_bytes = reference.get('bytes')
+                if not isinstance(reference_bytes, bytes):
+                    raise ValueError('reference bytes unavailable')
+                signals = cls._local_reference_signals(output_bytes, reference_bytes, role=role)
+            except Exception as exc:  # The review must never discard an otherwise valid generated image.
+                logger.warning(
+                    'Local reference comparison unavailable input=%s role=%s error_type=%s',
+                    index,
+                    role if role in IMAGE_REFERENCE_ROLES else 'unknown',
+                    type(exc).__name__,
+                )
+            evidence.append({
+                'fileId': str(reference.get('fileId') or ''),
+                'role': role,
+                'input': index,
+                'status': cls._reference_signal_status(role, signals),
+                'signals': signals,
+                'humanChecks': list(REFERENCE_HUMAN_CHECKS.get(role, ['final-visual'])),
+                'userReview': 'pending',
+            })
+
+        return cls._reference_review_result(evidence)
+
+    @staticmethod
+    def _reference_review_result(evidence: list[dict[str, Any]]) -> dict[str, Any]:
+        if not evidence:
+            return {
+                'status': 'not-applicable',
+                'method': 'none',
+                'humanReviewRequired': False,
+                'message': '',
+                'references': [],
+            }
+        statuses = {item['status'] for item in evidence}
+        if 'mismatch' in statuses:
+            status = 'mismatch'
+            message = 'Local color or structure signals differ from at least one assigned reference. Review every original before publishing.'
+        elif statuses == {'pass'}:
+            status = 'pass'
+            message = 'Local color and structure signals align. Review every original before publishing.'
+        else:
+            status = 'warn'
+            message = 'Local checks are limited or need attention. Review every original before publishing.'
+        return {
+            'status': status,
+            'method': 'local-reference-signals-v1',
+            'humanReviewRequired': True,
+            'reviewProviderUsed': False,
+            'reviewCreditsUsed': 0,
+            'limitations': ['identity', 'logos', 'text', 'pixel-fidelity'],
+            'message': message,
+            'references': evidence,
+        }
+
+    @classmethod
+    def _unavailable_reference_review(cls, reference_receipt: list[dict[str, Any]]) -> dict[str, Any]:
+        evidence = [
+            {
+                **item,
+                'status': 'warn',
+                'signals': {'color': 'unavailable', 'structure': 'unavailable'},
+                'humanChecks': list(REFERENCE_HUMAN_CHECKS.get(str(item.get('role') or ''), ['final-visual'])),
+                'userReview': 'pending',
+            }
+            for item in reference_receipt
+        ]
+        return cls._reference_review_result(evidence)
+
+    @staticmethod
     def _provider_error(response: httpx.Response) -> tuple[str, str, str]:
         """Extract bounded classification inputs; the provider message must never be logged."""
         provider_code = ''
@@ -1166,6 +1458,7 @@ class MediaService:
         endpoint = 'https://api.openai.com/v1/images/generations'
         precision_source: Image.Image | None = None
         precision_selection: Image.Image | None = None
+        prepared_reference_reviews: list[dict[str, Any]] = []
         try:
             async with httpx.AsyncClient(timeout=httpx.Timeout(IMAGE_REQUEST_TIMEOUT_SECONDS, connect=20.0)) as client:
                 if editing:
@@ -1201,6 +1494,12 @@ class MediaService:
                             output_format = 'png'
                         else:
                             image_bytes, _, _ = self._prepare_edit_image(image_bytes)
+                        if index < len(reference_plan):
+                            prepared_reference_reviews.append({
+                                'fileId': reference_plan[index]['fileId'],
+                                'role': reference_plan[index]['role'],
+                                'bytes': image_bytes,
+                            })
                         prepared_total += len(image_bytes)
                         if prepared_total > IMAGE_REFERENCE_TOTAL_MAX_BYTES:
                             raise AIServiceError(
@@ -1275,6 +1574,15 @@ class MediaService:
                 raise AIServiceError('Precision Edit could not preserve the protected image area.', 502, 'PRECISION_EDIT_FAILED', True, 5)
             image_bytes = self._composite_precision_edit(image_bytes, precision_source, precision_selection)
             output_format = 'png'
+        reference_receipt = [
+            {'fileId': item['fileId'], 'role': item['role'], 'input': index}
+            for index, item in enumerate(reference_plan, start=1)
+        ]
+        try:
+            reference_review = self._reference_fidelity_review(image_bytes, prepared_reference_reviews)
+        except Exception as exc:  # Never lose a valid paid result because its local review failed.
+            logger.warning('Local reference review unavailable before storage error_type=%s', type(exc).__name__)
+            reference_review = self._unavailable_reference_review(reference_receipt)
         extension = 'jpg' if output_format == 'jpeg' else output_format
         mime = 'image/jpeg' if output_format == 'jpeg' else f'image/{output_format}'
         stored = await self.files.store_bytes(
@@ -1297,14 +1605,11 @@ class MediaService:
                     {'fileId': item['fileId'], 'role': item['role']}
                     for item in reference_plan
                 ],
+                'referenceReview': reference_review,
             },
         )
         public = self.files.public_file(stored)
         image_aspect = self.image_aspect_for_size(size)
-        reference_receipt = [
-            {'fileId': item['fileId'], 'role': item['role'], 'input': index}
-            for index, item in enumerate(reference_plan, start=1)
-        ]
         if precision_editing:
             response_text = 'I edited only the area you selected.'
         elif reference_receipt:
@@ -1327,16 +1632,7 @@ class MediaService:
             'imageAspect': image_aspect,
             'imageFile': public,
             'referencePlan': reference_receipt,
-            'referenceReview': {
-                'status': 'review-required' if reference_receipt else 'not-applicable',
-                'method': 'manual-review' if reference_receipt else 'none',
-                'humanReviewRequired': bool(reference_receipt),
-                'message': (
-                    'Verify logos, wordmarks, readable text, and mascot details before publishing.'
-                    if reference_receipt else ''
-                ),
-                'references': reference_receipt,
-            },
+            'referenceReview': reference_review,
         }
 
     async def understand(

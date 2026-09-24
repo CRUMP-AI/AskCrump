@@ -565,8 +565,10 @@ async def test_all_confirmed_image_references_reach_edits_in_order_with_roles(mo
         files,
     )
     provider_request: dict = {}
+    provider_calls: list[str] = []
 
     async def fake_post(client, endpoint, **kwargs):
+        provider_calls.append(endpoint)
         provider_request.update({"endpoint": endpoint, **kwargs})
         return httpx.Response(
             200,
@@ -605,6 +607,7 @@ async def test_all_confirmed_image_references_reach_edits_in_order_with_roles(mo
         "Crump_Reference_02.png",
         "Crump_Reference_03.png",
     ]
+    assert len(provider_calls) == 1
     assert files.downloaded == ["base-image", "logo-image", "mascot-image"]
     assert "Input image 1: starting canvas and composition (base)" in provider_request["data"]["prompt"]
     assert "Input image 2: logo or wordmark identity (logo)" in provider_request["data"]["prompt"]
@@ -617,13 +620,214 @@ async def test_all_confirmed_image_references_reach_edits_in_order_with_roles(mo
         {"fileId": "logo-image", "role": "logo", "input": 2},
         {"fileId": "mascot-image", "role": "mascot", "input": 3},
     ]
-    assert result["referenceReview"] == {
-        "status": "review-required",
-        "method": "manual-review",
-        "humanReviewRequired": True,
-        "message": "Verify logos, wordmarks, readable text, and mascot details before publishing.",
-        "references": result["referencePlan"],
-    }
+    review = result["referenceReview"]
+    assert files.stored["metadata"]["referenceReview"] == review
+    assert review["status"] == "warn"
+    assert review["method"] == "local-reference-signals-v1"
+    assert review["humanReviewRequired"] is True
+    assert review["reviewProviderUsed"] is False
+    assert review["reviewCreditsUsed"] == 0
+    assert review["limitations"] == ["identity", "logos", "text", "pixel-fidelity"]
+    assert [item["status"] for item in review["references"]] == ["warn", "warn", "warn"]
+    assert [item["signals"] for item in review["references"]] == [
+        {"color": "different", "structure": "aligned"},
+        {"color": "different", "structure": "aligned"},
+        {"color": "different", "structure": "aligned"},
+    ]
+    assert [item["humanChecks"] for item in review["references"]] == [
+        ["composition-details"],
+        ["logo-shape", "logo-colors"],
+        ["character-identity", "fine-details"],
+    ]
+    assert all(item["userReview"] == "pending" for item in review["references"])
+    assert "bytes" not in repr(review).lower()
+    assert "score" not in repr(review).lower()
+
+
+def _fidelity_fixture_bytes(*, inverse: bool = False) -> bytes:
+    if inverse:
+        image = Image.new("RGB", (64, 96), color=(20, 210, 40))
+        payload = BytesIO()
+        image.save(payload, format="PNG")
+        return payload.getvalue()
+    image = Image.new("RGB", (96, 64), color=(20, 40, 60))
+    for x in range(image.width):
+        for y in range(image.height):
+            if ((x // 12) + (y // 8)) % 2:
+                image.putpixel((x, y), (210, 190, 120))
+    payload = BytesIO()
+    image.save(payload, format="PNG")
+    return payload.getvalue()
+
+
+def test_local_reference_review_reports_aligned_limited_and_different_role_evidence() -> None:
+    reference = _fidelity_fixture_bytes()
+    unrelated = _fidelity_fixture_bytes(inverse=True)
+
+    aligned = MediaService._reference_fidelity_review(reference, [{
+        "fileId": "base-reference",
+        "role": "base",
+        "bytes": reference,
+    }])
+    semantic = MediaService._reference_fidelity_review(reference, [{
+        "fileId": "logo-reference",
+        "role": "logo",
+        "bytes": reference,
+    }])
+    different = MediaService._reference_fidelity_review(unrelated, [{
+        "fileId": "base-reference",
+        "role": "base",
+        "bytes": reference,
+    }])
+
+    assert aligned["status"] == "pass"
+    assert aligned["references"][0]["status"] == "pass"
+    assert aligned["references"][0]["signals"] == {"color": "aligned", "structure": "aligned"}
+    assert aligned["humanReviewRequired"] is True
+    assert semantic["status"] == "warn"
+    assert semantic["references"][0]["status"] == "warn"
+    assert semantic["references"][0]["humanChecks"] == ["logo-shape", "logo-colors"]
+    assert different["status"] == "mismatch"
+    assert different["references"][0]["status"] == "mismatch"
+    assert different["references"][0]["signals"] == {"color": "attention", "structure": "different"}
+    for report in (aligned, semantic, different):
+        assert report["reviewProviderUsed"] is False
+        assert report["reviewCreditsUsed"] == 0
+        assert "bytes" not in repr(report).lower()
+        assert "score" not in repr(report).lower()
+        assert "verified" not in report["message"].lower()
+        assert "pixel-perfect" not in report["message"].lower()
+        assert "exact match" not in report["message"].lower()
+
+
+def test_semantic_reference_review_searches_bounded_crops_for_a_small_embedded_mark() -> None:
+    reference_bytes = _fidelity_fixture_bytes()
+    with Image.open(BytesIO(reference_bytes)) as opened:
+        reference = opened.convert("RGB")
+    output = Image.new("RGB", (480, 360), color=(8, 12, 18))
+    output.paste(reference, (384, 296))
+    output_payload = BytesIO()
+    output.save(output_payload, format="PNG")
+
+    boxes = MediaService._fidelity_crop_boxes(output, reference)
+    review = MediaService._reference_fidelity_review(output_payload.getvalue(), [{
+        "fileId": "embedded-logo",
+        "role": "logo",
+        "bytes": reference_bytes,
+    }])
+
+    assert media_module.REFERENCE_FIDELITY_CROP_SCALES == (1.0, 0.75, 0.5, 0.33, 0.2, 0.12)
+    assert media_module.REFERENCE_FIDELITY_CROP_POSITIONS == (0.0, 0.5, 1.0)
+    assert len(boxes) <= 54
+    assert (384, 296, 480, 360) in boxes
+    assert review["references"][0]["signals"] == {"color": "aligned", "structure": "aligned"}
+    assert review["references"][0]["status"] == "warn"
+    assert review["humanReviewRequired"] is True
+    assert "bytes" not in repr(review).lower()
+    assert "score" not in repr(review).lower()
+
+
+def test_semantic_crop_selection_uses_one_candidate_with_structure_weighted_seventy_thirty(monkeypatch) -> None:
+    output = Image.new("RGB", (2, 1))
+    output.putpixel((0, 0), (10, 0, 0))
+    output.putpixel((1, 0), (20, 0, 0))
+    output_payload = BytesIO()
+    output.save(output_payload, format="PNG")
+    reference = Image.new("RGB", (1, 1), color=(30, 0, 0))
+    reference_payload = BytesIO()
+    reference.save(reference_payload, format="PNG")
+
+    monkeypatch.setattr(
+        MediaService,
+        "_fidelity_crop_boxes",
+        staticmethod(lambda _output, _reference: [(0, 0, 1, 1), (1, 0, 2, 1)]),
+    )
+    monkeypatch.setattr(
+        MediaService,
+        "_fidelity_color_score",
+        staticmethod(lambda crop, _reference: 1.0 if crop.getpixel((0, 0))[0] == 10 else 0.0),
+    )
+    monkeypatch.setattr(
+        MediaService,
+        "_fidelity_structure_score",
+        staticmethod(lambda crop, _reference: 0.2 if crop.getpixel((0, 0))[0] == 10 else 0.8),
+    )
+
+    signals = MediaService._local_reference_signals(
+        output_payload.getvalue(),
+        reference_payload.getvalue(),
+        role="logo",
+    )
+
+    # Left wins if color is over-weighted or maxima are mixed; right wins only at 70% structure / 30% color.
+    assert signals == {"color": "different", "structure": "aligned"}
+
+
+@pytest.mark.asyncio
+async def test_unexpected_local_review_failure_stores_a_safe_warning_receipt(monkeypatch) -> None:
+    source = BytesIO()
+    generated = BytesIO()
+    Image.new("RGB", (64, 64), color=(20, 40, 60)).save(source, format="PNG")
+    Image.new("RGB", (64, 64), color=(70, 90, 110)).save(generated, format="PNG")
+    files = PrecisionImageFiles(source.getvalue())
+    service = MediaService(
+        SimpleNamespace(openai_api_key="test-only", image_generation_enabled=True, openai_image_model="gpt-image-2"),
+        files,
+    )
+    provider_calls = 0
+
+    async def fake_post(client, endpoint, **kwargs):
+        nonlocal provider_calls
+        provider_calls += 1
+        return httpx.Response(
+            200,
+            request=httpx.Request("POST", endpoint),
+            json={"data": [{"b64_json": base64.b64encode(generated.getvalue()).decode("ascii")}]},
+        )
+
+    def fail_review(*_args, **_kwargs):
+        raise RuntimeError("local review failed")
+
+    monkeypatch.setattr(MediaService, "_post_image_request", staticmethod(fake_post))
+    monkeypatch.setattr(MediaService, "_reference_fidelity_review", fail_review)
+    result = await service.generate_or_edit_image(
+        user_id="user-one",
+        payload={"message": "Use this image", "creativeTool": "image", "imageUseReference": True},
+        file_rows=[{"id": "source-image", "mime_type": "image/png", "file_name": "source.png"}],
+        chat_id=None,
+        message_id=None,
+    )
+
+    review = result["referenceReview"]
+    assert provider_calls == 1
+    assert files.stored is not None
+    assert files.stored["metadata"]["referenceReview"] == review
+    assert review["status"] == "warn"
+    assert review["references"][0]["signals"] == {"color": "unavailable", "structure": "unavailable"}
+    assert "bytes" not in repr(review).lower()
+    assert "score" not in repr(review).lower()
+
+
+def test_local_reference_review_failure_is_a_safe_human_review_warning() -> None:
+    review = MediaService._reference_fidelity_review(_fidelity_fixture_bytes(), [{
+        "fileId": "broken-reference",
+        "role": "subject",
+        "bytes": b"not-an-image",
+    }])
+
+    assert review["status"] == "warn"
+    assert review["humanReviewRequired"] is True
+    assert review["references"] == [{
+        "fileId": "broken-reference",
+        "role": "subject",
+        "input": 1,
+        "status": "warn",
+        "signals": {"color": "unavailable", "structure": "unavailable"},
+        "humanChecks": ["identity", "fine-details"],
+        "userReview": "pending",
+    }]
+    assert review["reviewProviderUsed"] is False
+    assert review["reviewCreditsUsed"] == 0
 
 
 @pytest.mark.asyncio
@@ -1281,6 +1485,15 @@ def test_image_rejection_browser_fixture_is_private_and_credential_free() -> Non
     assert "replacementRestored.attachmentCount === 0" in verifier
     assert "replacementRestored.fileInputClicks === 1" in verifier
     assert "replacementBlocked.ensureUsageCalls === 0" in verifier
+    assert "Reference check · 2 local comparisons" in verifier
+    assert "Local color and structure checks only · no extra generation or credits" in verifier
+    assert "Confirm reference 1 was reviewed" in verifier
+    assert "Flag reference 2 as a mismatch" in verifier
+    assert "JSON.stringify(userReviewed.decisions) === JSON.stringify(['confirmed', 'mismatch'])" in verifier
+    assert "userReviewed.sendCalls === 2" in verifier
+    assert "mismatchCleared.decision === 'confirmed'" in verifier
+    assert "!mismatchCleared.receipt.includes('Mismatch flagged')" in verifier
+    assert "mismatchCleared.sendCalls === 2" in verifier
     assert "askcrump.com" not in fixture
     assert "password" not in fixture.lower()
 

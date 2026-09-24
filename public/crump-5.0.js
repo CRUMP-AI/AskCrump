@@ -1929,27 +1929,148 @@
       : [];
     if (!references.length) return null;
     const roleLabels = new Map(IMAGE_REFERENCE_ROLES);
-    const receipt = document.createElement('section');
-    receipt.className = 'crump50-reference-receipt';
-    receipt.setAttribute('aria-label', 'Image reference receipt');
-    const heading = document.createElement('strong');
-    heading.textContent = `Reference receipt · ${references.length} provider input${references.length === 1 ? '' : 's'}`;
-    const list = document.createElement('ol');
-    references.forEach((reference, index) => {
-      const item = document.createElement('li');
-      const input = Number(reference?.input);
-      const position = Number.isInteger(input) && input > 0 ? input : index + 1;
-      const role = String(reference?.role || '').toLowerCase();
-      item.textContent = `Reference ${position} · ${roleLabels.get(role) || 'Visual constraint'}`;
-      list.appendChild(item);
-    });
     const review = message?.referenceReview && typeof message.referenceReview === 'object'
       ? message.referenceReview
       : null;
+    const evidence = Array.isArray(review?.references) ? review.references.slice(0, IMAGE_REFERENCE_LIMIT) : [];
+    const statusLabels = new Map([
+      ['pass', 'Signals align'],
+      ['warn', 'Review needed'],
+      ['mismatch', 'Signals differ'],
+    ]);
+    const signalLabels = new Map([
+      ['aligned', 'aligns'],
+      ['attention', 'needs attention'],
+      ['different', 'differs'],
+      ['unavailable', 'not available'],
+    ]);
+    const signalStatusForRole = (role, signals) => {
+      const color = String(signals?.color || 'unavailable').toLowerCase();
+      const structure = String(signals?.structure || 'unavailable').toLowerCase();
+      if (color === 'unavailable' || structure === 'unavailable') return 'warn';
+      if (role === 'base') {
+        if (structure === 'different') return 'mismatch';
+        return structure === 'aligned' && color === 'aligned' ? 'pass' : 'warn';
+      }
+      if (role === 'style') {
+        if (color === 'different') return 'mismatch';
+        return color === 'aligned' && structure === 'aligned' ? 'pass' : 'warn';
+      }
+      return color === 'different' && structure === 'different' ? 'mismatch' : 'warn';
+    };
+    const humanCheckLabels = new Map([
+      ['composition-details', 'composition details'],
+      ['identity', 'identity'],
+      ['fine-details', 'fine details'],
+      ['character-identity', 'character identity'],
+      ['logo-shape', 'logo shape'],
+      ['logo-colors', 'logo colors'],
+      ['text-spelling', 'spelling'],
+      ['letterforms', 'letterforms'],
+      ['text-layout', 'text layout'],
+      ['style-details', 'style details'],
+      ['final-visual', 'the final visual'],
+    ]);
+    const receipt = document.createElement('section');
+    receipt.className = 'crump50-reference-receipt';
+    receipt.setAttribute('aria-label', 'Post-generation image reference check');
+    const heading = document.createElement('strong');
+    heading.textContent = `Reference check · ${references.length} local comparison${references.length === 1 ? '' : 's'}`;
+    const method = document.createElement('small');
+    method.className = 'crump50-reference-method';
+    method.textContent = 'Local color and structure checks only · no extra generation or credits. These checks cannot verify identity, exact logos, spelling, or pixel fidelity.';
+    const list = document.createElement('ol');
+    references.forEach((reference, index) => {
+      const item = document.createElement('li');
+      item.className = 'crump50-reference-result';
+      const input = Number(reference?.input);
+      const position = Number.isInteger(input) && input > 0 ? input : index + 1;
+      const role = String(reference?.role || '').toLowerCase();
+      const currentEvidence = evidence.find(candidate => (
+        Number(candidate?.input) === position
+        && String(candidate?.fileId || '') === String(reference?.fileId || '')
+        && String(candidate?.role || '').toLowerCase() === role
+      )) || null;
+      const heuristicStatus = signalStatusForRole(role, currentEvidence?.signals);
+      const userReview = ['confirmed', 'mismatch'].includes(String(currentEvidence?.userReview || '').toLowerCase())
+        ? String(currentEvidence.userReview).toLowerCase()
+        : 'pending';
+      const status = userReview === 'mismatch' ? 'mismatch' : heuristicStatus;
+      const title = document.createElement('div');
+      title.className = 'crump50-reference-result-title';
+      const label = document.createElement('span');
+      label.textContent = `Reference ${position} · ${roleLabels.get(role) || 'Visual constraint'}`;
+      const badge = document.createElement('b');
+      badge.className = status === 'pass' ? 'is-aligned' : `is-${status}`;
+      badge.textContent = userReview === 'mismatch' ? 'Mismatch flagged' : (statusLabels.get(status) || 'Review needed');
+      title.append(label, badge);
+
+      const signalRow = document.createElement('div');
+      signalRow.className = 'crump50-reference-signals';
+      ['color', 'structure'].forEach(kind => {
+        const signal = String(currentEvidence?.signals?.[kind] || 'unavailable').toLowerCase();
+        const chip = document.createElement('span');
+        chip.className = `is-${signalLabels.has(signal) ? signal : 'unavailable'}`;
+        chip.textContent = `${kind === 'color' ? 'Color' : 'Structure'} · ${signalLabels.get(signal) || 'not available'}`;
+        signalRow.appendChild(chip);
+      });
+
+      const humanChecks = Array.isArray(currentEvidence?.humanChecks)
+        ? currentEvidence.humanChecks.map(value => humanCheckLabels.get(String(value)) || '').filter(Boolean)
+        : [];
+      const humanNote = document.createElement('small');
+      humanNote.className = 'crump50-reference-human-note';
+      humanNote.textContent = humanChecks.length
+        ? `Check manually: ${humanChecks.join(', ')}.`
+        : 'Compare this result with the original before publishing.';
+
+      item.append(title, signalRow, humanNote);
+      if (currentEvidence) {
+        const actions = document.createElement('div');
+        actions.className = 'crump50-reference-review-actions';
+        const reviewState = document.createElement('span');
+        reviewState.textContent = userReview === 'confirmed'
+          ? 'You reviewed this reference.'
+          : userReview === 'mismatch'
+            ? 'You flagged a mismatch.'
+            : 'Your review is still needed.';
+        const confirm = document.createElement('button');
+        confirm.type = 'button';
+        confirm.textContent = 'Confirm reviewed';
+        confirm.disabled = userReview === 'confirmed';
+        confirm.setAttribute('aria-label', `Confirm reference ${position} was reviewed`);
+        const flag = document.createElement('button');
+        flag.type = 'button';
+        flag.textContent = 'Flag mismatch';
+        flag.disabled = userReview === 'mismatch';
+        flag.setAttribute('aria-label', `Flag reference ${position} as a mismatch`);
+        const saveReview = decision => {
+          currentEvidence.userReview = decision;
+          const visibleStatus = decision === 'mismatch' ? 'mismatch' : heuristicStatus;
+          badge.className = visibleStatus === 'pass' ? 'is-aligned' : `is-${visibleStatus}`;
+          badge.textContent = decision === 'mismatch'
+            ? 'Mismatch flagged'
+            : (statusLabels.get(visibleStatus) || 'Review needed');
+          reviewState.textContent = decision === 'confirmed'
+            ? 'You reviewed this reference.'
+            : 'You flagged a mismatch.';
+          confirm.disabled = decision === 'confirmed';
+          flag.disabled = decision === 'mismatch';
+          const chat = currentChat();
+          if (chat) saveAndRender(chat);
+        };
+        confirm.addEventListener('click', () => saveReview('confirmed'));
+        flag.addEventListener('click', () => saveReview('mismatch'));
+        actions.append(reviewState, confirm, flag);
+        item.appendChild(actions);
+      }
+      list.appendChild(item);
+    });
     const note = document.createElement('small');
+    note.className = 'crump50-reference-summary';
     note.textContent = String(review?.message || '').trim()
       || 'Generative image models can vary from references. Compare the result with every original before publishing.';
-    receipt.append(heading, list, note);
+    receipt.append(heading, method, list, note);
     return receipt;
   }
 

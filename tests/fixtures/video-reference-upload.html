@@ -5,14 +5,18 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ask Crump video reference fixture</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="/public/crump-product-5.3.css">
+  <link rel="stylesheet" href="/public/crump-product-5.3.css" data-crump-product-lazy-style data-crump-product-loaded="true">
 </head>
 <body class="crump-v1-body">
   <main><button type="button" id="openVideo">Open Video Studio</button></main>
   <script>
-    window.currentUser = {id: '00000000-0000-0000-0000-000000000001'};
+    window.__fixtureUser = {id: '00000000-0000-0000-0000-000000000001'};
+    window.currentUser = null;
     window.chats = [];
     window.__videoRequest = null;
+    window.__videoProviderStarts = 0;
+    localStorage.removeItem('askcrump.videoJob53');
+    localStorage.removeItem('askcrump.videoRequest53');
     let uploadNumber = 0;
     window.CrumpFileTools = {
       upload: async file => {
@@ -44,16 +48,43 @@
         body = {projects: [], limit: 10};
       } else if (url === '/api/media/video' && String(options.method || '').toUpperCase() === 'POST') {
         window.__videoRequest = JSON.parse(options.body || '{}');
+        window.__videoProviderStarts += 1;
         body = {success: true, job: {id: '00000000-0000-0000-0000-000000000099', status: 'processing'}};
       } else if (url.includes('/api/media/video/')) {
-        body = {success: true, job: {id: '00000000-0000-0000-0000-000000000099', status: 'processing', provider: 'gemini'}};
+        const request = window.__videoRequest || {};
+        body = {
+          success: true,
+          job: {
+            id: '00000000-0000-0000-0000-000000000099',
+            status: 'ready',
+            provider: 'gemini',
+            engine: request.engine || 'extendable',
+            durationSeconds: request.durationSeconds || 8,
+            resolution: request.resolution || '720p',
+            referenceMode: request.engine === 'extendable' ? 'appearance-guidance' : 'initial-frame',
+            referenceVerification: 'not-performed',
+            referencePlan: request.referencePlan || [],
+            file: {
+              id: '00000000-0000-0000-0000-000000000100',
+              name: 'Ask-Crump-video.mp4',
+              type: 'video/mp4',
+              url: 'data:video/mp4;base64,',
+            },
+          },
+        };
       }
       return new Response(JSON.stringify(body), {status: 200, headers: {'Content-Type': 'application/json'}});
     };
   </script>
+  <script src="/public/safe-storage.js"></script>
+  <script src="/public/crump-product-loader.js?fixture=video-reference-receipt"></script>
   <script src="/public/crump-product-5.3.js"></script>
   <script>
     document.getElementById('openVideo').addEventListener('click', () => window.CrumpProduct53.open('video'));
+    document.addEventListener('DOMContentLoaded', () => {
+      window.currentUser = window.__fixtureUser;
+      window.dispatchEvent(new Event('crump:authenticated-ready'));
+    }, {once: true});
   </script>
 </body>
 </html>

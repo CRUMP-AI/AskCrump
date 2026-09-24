@@ -9,6 +9,7 @@
   const ACTIVE_PROJECT_KEY = 'askcrump.activeProject53';
   const VIDEO_JOB_KEY = 'askcrump.videoJob53';
   const VIDEO_REQUEST_KEY = 'askcrump.videoRequest53';
+  const VIDEO_REFERENCE_DRAFT_KEY = 'askcrump.videoReferenceDraft53';
   const DESTINATIONS = new Set(['projects', 'manuscripts', 'video', 'library']);
   const DESTINATION_LABELS = Object.freeze({
     projects: 'Projects',
@@ -19,6 +20,109 @@
   let loadPromise = null;
   let facade = null;
   let loadedApi = null;
+  let authenticatedUserId = '';
+
+  const VIDEO_REFERENCE_ROLE_LABELS = Object.freeze({
+    subject: 'Subject / product',
+    mascot: 'Mascot / character',
+    logo: 'Logo / wordmark',
+    style: 'Style / palette',
+  });
+
+  function videoReferenceTransportCopy(mode, count) {
+    if (mode === 'initial-frame') {
+      return 'Provider transport: Input image 1 was sent as the starting frame. That records how the request was sent, not verified frame-by-frame fidelity.';
+    }
+    if (mode === 'appearance-guidance') {
+      return `Provider transport: ${count} ordered input image${count === 1 ? ' was' : 's were'} sent as best-effort appearance guidance, not as pixel-locked frames or layouts.`;
+    }
+    return 'Provider transport: reference inputs were recorded, but their transport mode is unavailable. This receipt does not claim visual fidelity.';
+  }
+
+  function privateReferenceLabel(fileId) {
+    const normalized = String(fileId || '').trim();
+    return normalized ? `Private file ending ${normalized.slice(-8)}` : 'Private file';
+  }
+
+  function renderVideoReferenceReceipt(root, job) {
+    if (!root?.querySelector || job?.status !== 'ready') return false;
+    root.querySelector('[data-video-reference-receipt]')?.remove();
+    const references = (Array.isArray(job.referencePlan) ? job.referencePlan : [])
+      .filter(reference => reference && VIDEO_REFERENCE_ROLE_LABELS[reference.role])
+      .slice(0, 3);
+    if (!references.length) return false;
+
+    const receipt = document.createElement('section');
+    receipt.className = 'crump53-video-reference-receipt';
+    receipt.dataset.videoReferenceReceipt = 'true';
+    receipt.dataset.referenceMode = String(job.referenceMode || 'unavailable');
+    receipt.dataset.referenceVerification = 'not-performed';
+    receipt.setAttribute('aria-label', 'Video reference delivery receipt');
+
+    const kicker = document.createElement('div');
+    kicker.className = 'crump53-kicker';
+    kicker.textContent = 'REFERENCE DELIVERY RECEIPT';
+    receipt.appendChild(kicker);
+
+    const heading = document.createElement('h3');
+    heading.textContent = 'What was sent with this video';
+    receipt.appendChild(heading);
+
+    const transport = document.createElement('p');
+    transport.dataset.videoReferenceTransport = 'true';
+    transport.textContent = videoReferenceTransportCopy(job.referenceMode, references.length);
+    receipt.appendChild(transport);
+
+    const ordered = document.createElement('ol');
+    ordered.className = 'crump53-video-reference-receipt-list';
+    references.forEach((reference, index) => {
+      const item = document.createElement('li');
+      item.dataset.referenceInput = String(index + 1);
+      const input = document.createElement('strong');
+      input.textContent = `Input image ${index + 1}`;
+      const role = document.createElement('span');
+      role.textContent = VIDEO_REFERENCE_ROLE_LABELS[reference.role];
+      const file = document.createElement('small');
+      file.textContent = privateReferenceLabel(reference.fileId);
+      item.append(input, role, file);
+      ordered.appendChild(item);
+    });
+    receipt.appendChild(ordered);
+
+    const verification = document.createElement('div');
+    verification.className = 'crump53-video-reference-check';
+    const verificationTitle = document.createElement('strong');
+    verificationTitle.textContent = 'Fidelity check: not automatically performed';
+    const verificationCopy = document.createElement('p');
+    verificationCopy.textContent = 'Exact logos, readable text, and subject identity were not automatically verified in the rendered frames.';
+    verification.append(verificationTitle, verificationCopy);
+    receipt.appendChild(verification);
+
+    const nextAction = document.createElement('div');
+    nextAction.className = 'crump53-video-reference-check';
+    const nextTitle = document.createElement('strong');
+    nextTitle.textContent = 'Before you publish';
+    const nextCopy = document.createElement('p');
+    nextCopy.textContent = 'Pause on representative frames and compare them side by side with each source image. If exact branding or wording matters, add the approved logo or text as a deterministic overlay in your video editor.';
+    const compare = document.createElement('button');
+    compare.type = 'button';
+    compare.className = 'crump53-button';
+    compare.dataset.videoReferenceCompare = 'true';
+    compare.textContent = 'Open Files to compare';
+    compare.addEventListener('click', () => {
+      const existingAction = root.querySelector('#crump53OpenLibraryFromVideo');
+      if (existingAction) existingAction.click();
+      else void window.CrumpProduct53?.openFiles?.();
+    });
+    nextAction.append(nextTitle, nextCopy, compare);
+    receipt.appendChild(nextAction);
+
+    const continuation = root.querySelector('.crump53-video-continuation');
+    root.insertBefore(receipt, continuation || null);
+    return true;
+  }
+
+  window.CrumpVideoReferenceReceipt = Object.freeze({render: renderVideoReferenceReceipt});
 
   function stored(key) {
     try { return localStorage.getItem(key) || ''; }
@@ -174,10 +278,36 @@
   });
 
   window.CrumpProduct53 = facade;
-  window.CrumpProductLoader = Object.freeze({load});
+  window.CrumpProductLoader = Object.freeze({
+    load,
+    authenticatedUserId: () => authenticatedUserId,
+  });
+
+  function videoReferenceDraftKey(userId = window.currentUser?.id) {
+    const normalized = String(userId || '').trim();
+    return normalized ? `${VIDEO_REFERENCE_DRAFT_KEY}:${encodeURIComponent(normalized)}` : '';
+  }
+
+  function hasStoredVideoReferenceDraft() {
+    const userId = String(window.currentUser?.id || '').trim();
+    const accountKey = videoReferenceDraftKey(userId);
+    if (!userId || !accountKey) return false;
+    if (stored(accountKey)) return true;
+    try {
+      const legacy = JSON.parse(stored(VIDEO_REFERENCE_DRAFT_KEY) || 'null');
+      return String(legacy?.userId || '') === userId;
+    } catch (_) {
+      return false;
+    }
+  }
 
   function shouldResumeAfterAuthentication() {
-    if (stored(VIDEO_JOB_KEY) || stored(VIDEO_REQUEST_KEY) || stored(ACTIVE_PROJECT_KEY)) return true;
+    if (
+      stored(VIDEO_JOB_KEY)
+      || stored(VIDEO_REQUEST_KEY)
+      || hasStoredVideoReferenceDraft()
+      || stored(ACTIVE_PROJECT_KEY)
+    ) return true;
     const chatId = String(window.currentChatId || '').trim();
     if (!chatId) return false;
     const chat = (Array.isArray(window.chats) ? window.chats : []).find(
@@ -193,7 +323,13 @@
     });
   }
 
-  window.addEventListener('crump:authenticated-ready', loadForPersistedWork);
+  window.addEventListener('crump:authenticated-ready', () => {
+    authenticatedUserId = String(window.currentUser?.id || '').trim();
+    loadForPersistedWork();
+  });
+  window.addEventListener('crump:authentication-required', () => {
+    authenticatedUserId = '';
+  });
   window.addEventListener('crump:conversation-opened', event => {
     if (realApi() || event?.detail?.fresh !== false) return;
     loadForPersistedWork();

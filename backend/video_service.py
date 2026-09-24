@@ -634,6 +634,7 @@ class VideoService:
             "providerStatus": metadata.get("providerStatus"),
             "referenceMode": metadata.get("referenceMode"),
             "referencePlan": safe_reference_plan,
+            "referenceVerification": "not-performed" if safe_reference_plan else None,
             "createdAt": row.get("created_at"),
             "updatedAt": row.get("updated_at"),
         }
@@ -758,6 +759,7 @@ class VideoService:
                 "referenceFileIds": [item["fileId"] for item in reference_receipt],
                 "referenceMode": reference_mode,
                 "referencePlan": reference_receipt,
+                "referenceVerification": "not-performed" if reference_receipt else None,
             },
             "updated_at": _now(),
         }
