@@ -103,8 +103,14 @@ change therefore cannot reveal or submit the prior account's Project name or ide
   and the exact unbound object is removed on a best-effort owner-scoped cleanup path.
 - Provider video downloads validate every HTTPS redirect, reject credentials and non-public DNS
   targets, strip the Gemini key on cross-origin redirects, stream under the configured byte ceiling,
-  and require an MP4-family `ftyp` signature before storage. These controls narrow server-side fetch
-  exposure but do not claim full media-container validation or eliminate DNS rebinding risk.
+  and require a coherent MP4-family movie/video-track envelope before storage. The bounded parser
+  validates box lengths under one shared work limit, an aligned `ftyp`, a canonical movie header
+  with a nonzero timescale, at least one declared video track, and nonempty `mdat` content;
+  marker-only, audio-only, and empty-media outputs plus truncation, overlap, or malformed boxes at
+  the validated top-level, movie, track, and media layers fail closed without pinning Ask Crump to
+  a provider's current compatible-brand label. These controls
+  narrow server-side fetch and malformed-container exposure but do not
+  claim codec-level media decoding or eliminate DNS rebinding risk.
 - A protected five-minute Vercel cron invokes a service-role-only bounded lease sweeper. It releases
   expired unbilled reservations, safely settles abandoned billed launches without relaunching a
   provider, and either binds a deterministically stored completed file or settles an expired
@@ -200,7 +206,11 @@ change therefore cannot reveal or submit the prior account's Project name or ide
 
 - Focused integrated reference, video, credit, finalization, decoder, migration, route, and private
   file-binding suite: 101/101 tests passed.
-- Full Python suite with the repository's optional security dependencies: 1,282/1,282 tests passed.
+- Post-hardening provider-download, container, finalization, background-recovery, and route suite:
+  67/67 tests passed. Independent adversarial review found no remaining P0-P2 issue; 20,000 random
+  byte payloads failed closed, while all six real local MP4 assets and the covered v0/v1,
+  extended-size, UUID, fragmented, and terminal-`mdat` layouts passed.
+- Full Python suite with the repository's optional security dependencies: 1,293/1,293 tests passed.
 - PostgreSQL grammar validation accepted all 74 migration statements. Real PostgreSQL apply and
   concurrency execution remains the explicit production gate above.
 - JavaScript contract: 54 files validated; 24/24, 10/10, and 10/10 attribution/runtime fixtures

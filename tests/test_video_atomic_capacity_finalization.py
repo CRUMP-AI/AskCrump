@@ -16,6 +16,26 @@ FINGERPRINT_B = "b" * 64
 HISTORICAL_KEY = "h" * 160
 
 
+def valid_video_bytes() -> bytes:
+    def box(box_type: bytes, payload: bytes) -> bytes:
+        return (len(payload) + 8).to_bytes(4, "big") + box_type + payload
+
+    movie_header = bytearray(100)
+    movie_header[12:16] = (1000).to_bytes(4, "big")
+    handler = bytearray(24)
+    handler[8:12] = b"vide"
+    movie = box(
+        b"moov",
+        box(b"mvhd", bytes(movie_header))
+        + box(b"trak", box(b"mdia", box(b"hdlr", bytes(handler)))),
+    )
+    return (
+        box(b"ftyp", b"isom\x00\x00\x02\x00isommp42")
+        + movie
+        + box(b"mdat", b"data")
+    )
+
+
 def settings(**overrides):
     values = {
         "gemini_api_key": "gemini-test",
@@ -561,7 +581,7 @@ class ReadyPollBarrier:
     @staticmethod
     async def download(_output_url, *, max_bytes):
         assert max_bytes > 0
-        return b"\x00\x00\x00\x18ftypmp42stable-video-bytes"
+        return valid_video_bytes()
 
 
 @pytest.mark.asyncio
@@ -607,7 +627,7 @@ async def test_deadline_winning_after_upload_discards_unbound_video_object():
 
     async def good_download(_output_url, *, max_bytes):
         assert max_bytes > 0
-        return b"\x00\x00\x00\x18ftypmp42stable-video-bytes"
+        return valid_video_bytes()
 
     service.gemini.poll = ready_poll
     service.gemini.download = good_download

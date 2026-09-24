@@ -43,6 +43,121 @@ def _parse_timestamp(value: Any) -> datetime | None:
     return parsed.astimezone(timezone.utc)
 
 
+_ISO_BMFF_MAX_BOXES = 16_384
+
+
+def _iso_bmff_boxes(
+    data: bytes,
+    *,
+    start: int = 0,
+    end: int | None = None,
+    budget: list[int] | None = None,
+    allow_terminal_mdat: bool = False,
+) -> list[tuple[bytes, int, int]] | None:
+    """Parse one ISO-BMFF box level under a shared, copy-free work budget."""
+    boundary = len(data) if end is None else end
+    if start < 0 or boundary < start or boundary > len(data):
+        return None
+    remaining_budget = budget if budget is not None else [_ISO_BMFF_MAX_BOXES]
+
+    boxes: list[tuple[bytes, int, int]] = []
+    offset = start
+    while offset < boundary:
+        if remaining_budget[0] <= 0 or boundary - offset < 8:
+            return None
+        remaining_budget[0] -= 1
+        short_size = int.from_bytes(data[offset : offset + 4], "big")
+        box_type = data[offset + 4 : offset + 8]
+        header_size = 8
+        if short_size == 1:
+            if boundary - offset < 16:
+                return None
+            box_size = int.from_bytes(data[offset + 8 : offset + 16], "big")
+            header_size = 16
+        elif short_size == 0:
+            if not allow_terminal_mdat or box_type != b"mdat":
+                return None
+            box_size = boundary - offset
+        else:
+            box_size = short_size
+
+        if box_type == b"uuid":
+            header_size += 16
+
+        if box_size < header_size or box_size > boundary - offset:
+            return None
+        box_end = offset + box_size
+        boxes.append((box_type, offset + header_size, box_end))
+        offset = box_end
+
+    return boxes if offset == boundary else None
+
+
+def _valid_video_movie_structure(
+    data: bytes,
+    *,
+    moov_start: int,
+    moov_end: int,
+    budget: list[int],
+) -> bool:
+    """Require a canonical movie header and at least one declared video track."""
+    movie_children = _iso_bmff_boxes(
+        data,
+        start=moov_start,
+        end=moov_end,
+        budget=budget,
+    )
+    if not movie_children:
+        return False
+
+    movie_headers = [box for box in movie_children if box[0] == b"mvhd"]
+    tracks = [box for box in movie_children if box[0] == b"trak"]
+    if len(movie_headers) != 1 or not tracks:
+        return False
+
+    _, header_start, header_end = movie_headers[0]
+    if header_end <= header_start:
+        return False
+    version = data[header_start]
+    minimum_header_size = 100 if version == 0 else 112 if version == 1 else 0
+    if not minimum_header_size or header_end - header_start < minimum_header_size:
+        return False
+    timescale_start = header_start + (12 if version == 0 else 20)
+    if int.from_bytes(data[timescale_start : timescale_start + 4], "big") == 0:
+        return False
+
+    has_video_track = False
+    for _, track_start, track_end in tracks:
+        track_children = _iso_bmff_boxes(
+            data,
+            start=track_start,
+            end=track_end,
+            budget=budget,
+        )
+        if not track_children:
+            return False
+        media_boxes = [box for box in track_children if box[0] == b"mdia"]
+        if not media_boxes:
+            return False
+        for _, media_start, media_end in media_boxes:
+            media_children = _iso_bmff_boxes(
+                data,
+                start=media_start,
+                end=media_end,
+                budget=budget,
+            )
+            if not media_children:
+                return False
+            for box_type, payload_start, payload_end in media_children:
+                if (
+                    box_type == b"hdlr"
+                    and payload_end - payload_start >= 24
+                    and data[payload_start + 8 : payload_start + 12] == b"vide"
+                ):
+                    has_video_track = True
+    return has_video_track
+
+
 @dataclass(slots=True)
 class VideoServiceError(RuntimeError):
     message: str
@@ -2082,11 +2197,39 @@ class VideoService:
 
     @staticmethod
     def _valid_generated_video(data: bytes) -> bool:
-        """Accept MP4-family provider output only before labeling/storing it."""
-        return bool(
-            isinstance(data, bytes)
-            and len(data) >= 12
-            and data[4:8] == b"ftyp"
+        """Require a bounded MP4-family movie and declared-video-track envelope."""
+        if not isinstance(data, bytes) or len(data) < 40:
+            return False
+        box_budget = [_ISO_BMFF_MAX_BOXES]
+        boxes = _iso_bmff_boxes(
+            data,
+            budget=box_budget,
+            allow_terminal_mdat=True,
+        )
+        if not boxes:
+            return False
+
+        if boxes[0][0] != b"ftyp":
+            return False
+
+        ftyp_boxes = [box for box in boxes if box[0] == b"ftyp"]
+        moov_boxes = [box for box in boxes if box[0] == b"moov"]
+        mdat_boxes = [box for box in boxes if box[0] == b"mdat"]
+        if len(ftyp_boxes) != 1 or len(moov_boxes) != 1 or not mdat_boxes:
+            return False
+
+        _, ftyp_start, ftyp_end = ftyp_boxes[0]
+        ftyp_payload_size = ftyp_end - ftyp_start
+        if ftyp_payload_size < 8 or (ftyp_payload_size - 8) % 4:
+            return False
+        if not any(box_end > payload_start for _, payload_start, box_end in mdat_boxes):
+            return False
+        _, moov_start, moov_end = moov_boxes[0]
+        return _valid_video_movie_structure(
+            data,
+            moov_start=moov_start,
+            moov_end=moov_end,
+            budget=box_budget,
         )
 
     async def poll(self, *, user_id: str, job_id: str) -> dict[str, Any]:
