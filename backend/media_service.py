@@ -9,13 +9,14 @@ from io import BytesIO
 import logging
 import math
 import re
+import warnings
 from typing import Any
 from uuid import NAMESPACE_URL, uuid5
 
 import httpx
 from docx import Document
 from openpyxl import load_workbook
-from PIL import Image, ImageEnhance, ImageOps, UnidentifiedImageError
+from PIL import Image, ImageEnhance, ImageFilter, ImageOps, UnidentifiedImageError
 from pypdf import PdfReader
 from pptx import Presentation
 
@@ -36,6 +37,30 @@ logger = logging.getLogger('askcrump.media')
 IMAGE_REQUEST_TIMEOUT_SECONDS = 240.0
 IMAGE_TRANSIENT_RETRY_DELAY_SECONDS = 0.75
 IMAGE_MAX_ATTEMPTS = 2
+IMAGE_REFERENCE_LIMIT = 4
+IMAGE_REFERENCE_TOTAL_MAX_BYTES = 48 * 1024 * 1024
+IMAGE_PROVIDER_OUTPUT_MAX_BYTES = 32 * 1024 * 1024
+IMAGE_REFERENCE_ROLES = {
+    'base': 'starting canvas and composition',
+    'subject': 'subject or product appearance',
+    'mascot': 'mascot or character identity and appearance',
+    'logo': 'logo or wordmark identity',
+    'typography': 'typography and text-layout treatment',
+    'style': 'color palette, lighting, and visual style',
+}
+REFERENCE_FIDELITY_SAMPLE_EDGE = 64
+REFERENCE_FIDELITY_SIGNALS = {'aligned', 'attention', 'different', 'unavailable'}
+REFERENCE_FIDELITY_LOCAL_ROLES = {'subject', 'mascot', 'logo', 'typography'}
+REFERENCE_FIDELITY_CROP_SCALES = (1.0, 0.75, 0.5, 0.33, 0.2, 0.12)
+REFERENCE_FIDELITY_CROP_POSITIONS = (0.0, 0.5, 1.0)
+REFERENCE_HUMAN_CHECKS = {
+    'base': ['composition-details'],
+    'subject': ['identity', 'fine-details'],
+    'mascot': ['character-identity', 'fine-details'],
+    'logo': ['logo-shape', 'logo-colors'],
+    'typography': ['text-spelling', 'letterforms', 'text-layout'],
+    'style': ['style-details'],
+}
 EDIT_IMAGE_MAX_EDGE = 4096
 EDIT_IMAGE_MAX_PIXELS = 8_388_608
 IMAGE_EDIT_PROVIDER_MAX_BYTES = 50 * 1024 * 1024
@@ -46,6 +71,7 @@ PRECISION_MASK_MAX_BYTES = 2 * 1024 * 1024
 PRECISION_MASK_MAX_COVERAGE = 0.90
 LOCAL_ADJUSTMENT_LIMIT = 30.0
 LOCAL_ADJUSTMENT_MAX_PIXELS = 16_777_216
+LOCAL_IMAGE_MAX_EDGE = 8192
 LOCAL_OVERLAY_MAX_BYTES = 2 * 1024 * 1024
 LOCAL_TRANSFORM_MAX_OPERATIONS = 8
 LOCAL_TRANSFORM_MIN_EDGE = 32
@@ -123,12 +149,38 @@ class MediaService:
     @staticmethod
     def _load_edit_image(data: bytes) -> Image.Image:
         try:
-            with Image.open(BytesIO(data)) as source:
-                source.seek(0)
-                image = ImageOps.exif_transpose(source)
-                image.load()
-                return image.copy()
-        except (UnidentifiedImageError, OSError, ValueError) as exc:
+            with warnings.catch_warnings():
+                warnings.simplefilter('error', Image.DecompressionBombWarning)
+                with Image.open(BytesIO(data)) as source:
+                    source.seek(0)
+                    width, height = (int(value or 0) for value in source.size)
+                    if width <= 0 or height <= 0:
+                        raise ValueError('image dimensions are invalid')
+                    if int(getattr(source, 'n_frames', 1) or 1) != 1:
+                        raise ValueError('image must contain one frame')
+                    if (
+                        max(width, height) > LOCAL_IMAGE_MAX_EDGE
+                        or width * height > LOCAL_ADJUSTMENT_MAX_PIXELS
+                    ):
+                        raise AIServiceError(
+                            'This image is too large to edit safely. Resize it below 16 megapixels and try again.',
+                            413,
+                            'IMAGE_EDIT_SOURCE_TOO_LARGE',
+                            False,
+                            0,
+                        )
+                    image = ImageOps.exif_transpose(source)
+                    image.load()
+                    return image.copy()
+        except AIServiceError:
+            raise
+        except (
+            Image.DecompressionBombError,
+            Image.DecompressionBombWarning,
+            UnidentifiedImageError,
+            OSError,
+            ValueError,
+        ) as exc:
             raise AIServiceError(
                 'This image could not be prepared for editing. Use a JPG, PNG, or WebP image and try again.',
                 400,
@@ -284,12 +336,38 @@ class MediaService:
                 0,
             )
         try:
-            with Image.open(BytesIO(raw)) as source:
-                if source.format != 'PNG' or 'A' not in source.getbands():
-                    raise ValueError('mask must be an alpha PNG')
-                source.load()
-                alpha = source.getchannel('A').copy()
-        except (UnidentifiedImageError, OSError, ValueError) as exc:
+            with warnings.catch_warnings():
+                warnings.simplefilter('error', Image.DecompressionBombWarning)
+                with Image.open(BytesIO(raw)) as source:
+                    width, height = (int(value or 0) for value in source.size)
+                    if source.format != 'PNG' or 'A' not in source.getbands():
+                        raise ValueError('mask must be an alpha PNG')
+                    if width <= 0 or height <= 0:
+                        raise ValueError('mask dimensions are invalid')
+                    if int(getattr(source, 'n_frames', 1) or 1) != 1:
+                        raise ValueError('mask must contain one frame')
+                    if (
+                        max(width, height) > LOCAL_IMAGE_MAX_EDGE
+                        or width * height > LOCAL_ADJUSTMENT_MAX_PIXELS
+                    ):
+                        raise AIServiceError(
+                            'The selected edit area is too large. Resize the source image and try again.',
+                            413,
+                            'IMAGE_EDIT_MASK_TOO_LARGE',
+                            False,
+                            0,
+                        )
+                    source.load()
+                    alpha = source.getchannel('A').copy()
+        except AIServiceError:
+            raise
+        except (
+            Image.DecompressionBombError,
+            Image.DecompressionBombWarning,
+            UnidentifiedImageError,
+            OSError,
+            ValueError,
+        ) as exc:
             raise AIServiceError(
                 'The selected edit area could not be read. Paint the area again and retry.',
                 400,
@@ -544,8 +622,18 @@ class MediaService:
                 False,
                 0,
             )
+        encoded_payload = encoded[len(prefix):]
+        max_encoded_length = ((LOCAL_OVERLAY_MAX_BYTES + 2) // 3) * 4
+        if len(encoded_payload) > max_encoded_length:
+            raise AIServiceError(
+                'The exact overlay is too complex. Use a smaller logo or less text and try again.',
+                413,
+                'LOCAL_IMAGE_OVERLAY_TOO_LARGE',
+                False,
+                0,
+            )
         try:
-            raw = base64.b64decode(encoded[len(prefix):], validate=True)
+            raw = base64.b64decode(encoded_payload, validate=True)
         except (binascii.Error, ValueError) as exc:
             raise AIServiceError(
                 'The exact overlay could not be read. Add the logo or text again.',
@@ -757,7 +845,8 @@ class MediaService:
             'Precision Edit requirements: modify only the transparent selected area in the supplied mask. '
             'Keep composition, identity, facial structure, age, body proportions, and every unselected detail stable. '
             'Do not infer or label race or ethnicity. If the user asks for an appearance adjustment, apply only the '
-            'explicitly requested visual change inside the selection. Do not recreate visible logos or readable text.'
+            'explicitly requested visual change inside the selection. Do not recreate visible logos or readable text '
+            'unless a confirmed numbered logo or typography reference below visibly supplies it.'
         )
 
     @staticmethod
@@ -775,6 +864,143 @@ class MediaService:
         )
 
     @staticmethod
+    def _image_reference_plan(
+        payload: dict[str, Any],
+        image_rows: list[dict[str, Any]],
+    ) -> list[dict[str, str]]:
+        """Return one bounded, owner-resolved role for every provider input."""
+        raw_contract_version = payload.get('imageReferenceContractVersion')
+        strict_contract = str(raw_contract_version or '').strip() == '2'
+        if raw_contract_version not in (None, '') and not strict_contract:
+            raise AIServiceError(
+                'This image reference plan version is not supported. Reopen Image Studio and review the references.',
+                400,
+                'IMAGE_REFERENCE_PLAN_INVALID',
+                False,
+                0,
+            )
+        raw_plan = payload.get('imageReferencePlan')
+        versioned_plan_fields = (
+            raw_plan is not None
+            or payload.get('imageReferencePlanConfirmed') is True
+        )
+        if versioned_plan_fields and not strict_contract:
+            raise AIServiceError(
+                'This saved reference plan is stale. Reopen Image Studio and confirm the current ordered references.',
+                400,
+                'IMAGE_REFERENCE_PLAN_INVALID',
+                False,
+                0,
+            )
+        if len(image_rows) > IMAGE_REFERENCE_LIMIT:
+            raise AIServiceError(
+                f'Image Studio accepts up to {IMAGE_REFERENCE_LIMIT} reference images per generation.',
+                400,
+                'TOO_MANY_IMAGE_REFERENCES',
+                False,
+                0,
+            )
+        if not image_rows:
+            if (
+                raw_plan is not None
+                or payload.get('imageUseReference') is True
+                or payload.get('imageReferencePlanConfirmed') is True
+                or strict_contract
+            ):
+                raise AIServiceError(
+                    'The reference plan no longer matches the attached images. Reopen Image Studio and confirm it again.',
+                    400,
+                    'IMAGE_REFERENCE_PLAN_INVALID',
+                    False,
+                    0,
+                )
+            return []
+
+        if raw_plan is None:
+            if strict_contract:
+                raise AIServiceError(
+                    'Review and confirm what each reference controls before generating.',
+                    400,
+                    'IMAGE_REFERENCE_CONFIRMATION_REQUIRED',
+                    False,
+                    0,
+                )
+            return [
+                {
+                    'fileId': str(row.get('id') or ''),
+                    'role': 'base' if index == 0 else 'subject',
+                    'name': str(row.get('file_name') or f'Reference {index + 1}')[:255],
+                }
+                for index, row in enumerate(image_rows)
+            ]
+        if payload.get('imageReferencePlanConfirmed') is not True:
+            raise AIServiceError(
+                'Review and confirm what each reference controls before generating.',
+                400,
+                'IMAGE_REFERENCE_CONFIRMATION_REQUIRED',
+                False,
+                0,
+            )
+        if not isinstance(raw_plan, list) or len(raw_plan) != len(image_rows):
+            raise AIServiceError(
+                'Confirm one reference role for every attached image before generating.',
+                400,
+                'IMAGE_REFERENCE_PLAN_INVALID',
+                False,
+                0,
+            )
+
+        validated_plan: list[dict[str, str]] = []
+        seen_ids: set[str] = set()
+        for item in raw_plan:
+            if not isinstance(item, dict):
+                validated_plan = []
+                break
+            file_id = str(item.get('fileId') or '').strip()
+            role = str(item.get('role') or '').strip().lower()
+            if not file_id or file_id in seen_ids or role not in IMAGE_REFERENCE_ROLES:
+                validated_plan = []
+                break
+            seen_ids.add(file_id)
+            validated_plan.append({'fileId': file_id, 'role': role})
+
+        expected_ids = [str(row.get('id') or '') for row in image_rows]
+        if [item['fileId'] for item in validated_plan] != expected_ids:
+            raise AIServiceError(
+                'The reference order no longer matches the attached images. Reopen Image Studio and confirm it again.',
+                400,
+                'IMAGE_REFERENCE_PLAN_INVALID',
+                False,
+                0,
+            )
+        return [
+            {
+                'fileId': file_id,
+                'role': validated_plan[index]['role'],
+                'name': str(row.get('file_name') or f'Reference {index + 1}')[:255],
+            }
+            for index, (file_id, row) in enumerate(zip(expected_ids, image_rows))
+        ]
+
+    @staticmethod
+    def _reference_fidelity_prompt(prompt: str, reference_plan: list[dict[str, str]]) -> str:
+        """Index every input and make its role explicit to the edit model."""
+        mapping = '\n'.join(
+            f"- Input image {index}: {IMAGE_REFERENCE_ROLES[item['role']]} ({item['role']})."
+            for index, item in enumerate(reference_plan, start=1)
+        )
+        return (
+            f'{prompt}\n\n'
+            'Reference plan — treat these inputs as visual constraints, not a mood board:\n'
+            f'{mapping}\n'
+            'Use only the assigned role from each numbered input. Preserve distinctive silhouette, proportions, '
+            'facial or character features, colors, and design details. Do not substitute, reimagine, or merge identities. '
+            'For a logo or typography reference, copy only what is visibly supplied: do not invent letters, redraw the '
+            'mark in another style, or replace it with a similar symbol. If the exact mark cannot be preserved reliably, '
+            'leave that area clean for deterministic overlay instead of fabricating it.'
+        )
+
+    @staticmethod
     def _generation_fidelity_prompt(prompt: str) -> str:
         request = str(prompt or '').strip() or 'Create a polished image.'
         return (
@@ -783,6 +1009,393 @@ class MediaService:
             'Do not invent or approximate real logos, wordmarks, labels, or readable branded text; when no exact visual '
             'reference is supplied, keep such branding absent or out of frame.'
         )
+
+    @staticmethod
+    def _fidelity_image(data: bytes) -> Image.Image:
+        """Decode one image for a bounded, local-only comparison."""
+        return MediaService._load_edit_image(data).convert('RGB')
+
+    @staticmethod
+    def _provider_output_bytes(encoded: Any, output_format: str) -> bytes:
+        """Decode, validate, and canonically re-encode one generated image.
+
+        Provider responses are not trusted merely because they came from an
+        authenticated upstream. Keep compressed and decoded sizes bounded,
+        reject animated or unexpected containers, and make the stored bytes
+        match the MIME type Ask Crump advertises to the client.
+        """
+        if not isinstance(encoded, str):
+            raise AIServiceError(
+                'The image provider returned invalid image data.',
+                502,
+                'IMAGE_INVALID_RESPONSE',
+                True,
+                5,
+            )
+        encoded = encoded.strip()
+        encoded_limit = 4 * ((IMAGE_PROVIDER_OUTPUT_MAX_BYTES + 2) // 3)
+        if not encoded or len(encoded) > encoded_limit:
+            raise AIServiceError(
+                'The image provider returned an image that was too large to process safely.',
+                502,
+                'IMAGE_INVALID_RESPONSE',
+                True,
+                5,
+            )
+        try:
+            raw = base64.b64decode(encoded, validate=True)
+        except (binascii.Error, ValueError, TypeError) as exc:
+            raise AIServiceError(
+                'The image provider returned invalid image data.',
+                502,
+                'IMAGE_INVALID_RESPONSE',
+                True,
+                5,
+            ) from exc
+        if not raw or len(raw) > IMAGE_PROVIDER_OUTPUT_MAX_BYTES:
+            raise AIServiceError(
+                'The image provider returned an image that was too large to process safely.',
+                502,
+                'IMAGE_INVALID_RESPONSE',
+                True,
+                5,
+            )
+
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter('error', Image.DecompressionBombWarning)
+                with Image.open(BytesIO(raw)) as source:
+                    width, height = (int(value or 0) for value in source.size)
+                    if source.format not in {'PNG', 'JPEG', 'WEBP'}:
+                        raise ValueError('unsupported provider image container')
+                    if width <= 0 or height <= 0:
+                        raise ValueError('provider image dimensions are invalid')
+                    if int(getattr(source, 'n_frames', 1) or 1) != 1:
+                        raise ValueError('provider image must contain one frame')
+                    if (
+                        max(width, height) > LOCAL_IMAGE_MAX_EDGE
+                        or width * height > LOCAL_ADJUSTMENT_MAX_PIXELS
+                    ):
+                        raise ValueError('provider image dimensions exceed the safe limit')
+                    image = ImageOps.exif_transpose(source)
+                    image.load()
+                    image = image.copy()
+        except (
+            Image.DecompressionBombError,
+            Image.DecompressionBombWarning,
+            UnidentifiedImageError,
+            OSError,
+            ValueError,
+        ) as exc:
+            raise AIServiceError(
+                'The image provider returned invalid image data.',
+                502,
+                'IMAGE_INVALID_RESPONSE',
+                True,
+                5,
+            ) from exc
+
+        prepared = BytesIO()
+        if output_format == 'jpeg':
+            if image.mode != 'RGB':
+                if 'A' in image.getbands() or 'transparency' in image.info:
+                    rgba = image.convert('RGBA')
+                    background = Image.new('RGB', rgba.size, 'white')
+                    background.paste(rgba, mask=rgba.getchannel('A'))
+                    image = background
+                else:
+                    image = image.convert('RGB')
+            image.save(prepared, format='JPEG', quality=95, optimize=False)
+        elif output_format == 'webp':
+            if image.mode not in {'RGB', 'RGBA'}:
+                image = image.convert('RGBA' if 'A' in image.getbands() or 'transparency' in image.info else 'RGB')
+            image.save(prepared, format='WEBP', lossless=True, method=4)
+        else:
+            if image.mode not in {'RGB', 'RGBA'}:
+                image = image.convert('RGBA' if 'A' in image.getbands() or 'transparency' in image.info else 'RGB')
+            image.save(prepared, format='PNG', optimize=False)
+        canonical = prepared.getvalue()
+        if not canonical or len(canonical) > IMAGE_PROVIDER_OUTPUT_MAX_BYTES:
+            raise AIServiceError(
+                'The image provider returned an image that was too large to process safely.',
+                502,
+                'IMAGE_INVALID_RESPONSE',
+                True,
+                5,
+            )
+        return canonical
+
+    @staticmethod
+    def _fidelity_sample(image: Image.Image) -> Image.Image:
+        return ImageOps.pad(
+            image,
+            (REFERENCE_FIDELITY_SAMPLE_EDGE, REFERENCE_FIDELITY_SAMPLE_EDGE),
+            method=Image.Resampling.LANCZOS,
+            color=(127, 127, 127),
+            centering=(0.5, 0.5),
+        )
+
+    @staticmethod
+    def _fidelity_pixels(image: Image.Image) -> list[int]:
+        flattened = getattr(image, 'get_flattened_data', None)
+        return list(flattened() if callable(flattened) else image.getdata())
+
+    @staticmethod
+    def _fidelity_color_score(first: Image.Image, second: Image.Image) -> float:
+        """Compare coarse RGB distributions without retaining either image or a raw score."""
+        first_histogram = MediaService._fidelity_sample(first).histogram()
+        second_histogram = MediaService._fidelity_sample(second).histogram()
+        pixels = float(REFERENCE_FIDELITY_SAMPLE_EDGE * REFERENCE_FIDELITY_SAMPLE_EDGE)
+        intersections: list[float] = []
+        for offset in (0, 256, 512):
+            first_bins = [
+                sum(first_histogram[offset + start:offset + start + 16]) / pixels
+                for start in range(0, 256, 16)
+            ]
+            second_bins = [
+                sum(second_histogram[offset + start:offset + start + 16]) / pixels
+                for start in range(0, 256, 16)
+            ]
+            intersections.append(sum(min(left, right) for left, right in zip(first_bins, second_bins)))
+        return sum(intersections) / len(intersections)
+
+    @staticmethod
+    def _fidelity_edge_mask(image: Image.Image) -> list[bool]:
+        edge_image = ImageOps.grayscale(image).filter(ImageFilter.FIND_EDGES)
+        width, height = edge_image.size
+        pixels = MediaService._fidelity_pixels(edge_image)
+        interior = [
+            pixels[(row * width) + column]
+            for row in range(1, height - 1)
+            for column in range(1, width - 1)
+        ]
+        if not interior:
+            return []
+        mean = sum(interior) / len(interior)
+        variance = sum((value - mean) ** 2 for value in interior) / len(interior)
+        cutoff = max(18.0, mean + (math.sqrt(variance) * 0.5))
+        return [value >= cutoff for value in interior]
+
+    @staticmethod
+    def _fidelity_structure_score(first: Image.Image, second: Image.Image) -> float:
+        first_sample = MediaService._fidelity_sample(first)
+        second_sample = MediaService._fidelity_sample(second)
+        first_gray = MediaService._fidelity_pixels(ImageOps.grayscale(first_sample))
+        second_gray = MediaService._fidelity_pixels(ImageOps.grayscale(second_sample))
+        first_mean = sum(first_gray) / len(first_gray)
+        second_mean = sum(second_gray) / len(second_gray)
+        first_centered = [value - first_mean for value in first_gray]
+        second_centered = [value - second_mean for value in second_gray]
+        denominator = math.sqrt(
+            sum(value * value for value in first_centered)
+            * sum(value * value for value in second_centered)
+        )
+        if denominator <= 1e-9:
+            correlation = 1.0 if max(first_gray) == min(first_gray) and max(second_gray) == min(second_gray) else 0.0
+        else:
+            correlation = max(
+                0.0,
+                min(
+                    1.0,
+                    sum(left * right for left, right in zip(first_centered, second_centered)) / denominator,
+                ),
+            )
+
+        first_edges = MediaService._fidelity_edge_mask(first_sample)
+        second_edges = MediaService._fidelity_edge_mask(second_sample)
+        first_count = sum(first_edges)
+        second_count = sum(second_edges)
+        if first_count + second_count:
+            overlap = sum(left and right for left, right in zip(first_edges, second_edges))
+            edge_similarity = (2.0 * overlap) / (first_count + second_count)
+        else:
+            edge_similarity = 1.0
+
+        first_aspect = first.width / max(1, first.height)
+        second_aspect = second.width / max(1, second.height)
+        aspect_similarity = max(
+            0.0,
+            1.0 - (abs(math.log(first_aspect / second_aspect)) / math.log(2.0)),
+        )
+        return (correlation * 0.65) + (edge_similarity * 0.25) + (aspect_similarity * 0.10)
+
+    @staticmethod
+    def _fidelity_signal(score: float) -> str:
+        if score >= 0.75:
+            return 'aligned'
+        if score < 0.35:
+            return 'different'
+        return 'attention'
+
+    @staticmethod
+    def _fidelity_crop_boxes(output: Image.Image, reference: Image.Image) -> list[tuple[int, int, int, int]]:
+        """Return at most 54 fixed-scale, fixed-position crops with the reference aspect ratio."""
+        reference_aspect = reference.width / max(1, reference.height)
+        output_aspect = output.width / max(1, output.height)
+        if output_aspect >= reference_aspect:
+            base_height = output.height
+            base_width = max(1, min(output.width, round(base_height * reference_aspect)))
+        else:
+            base_width = output.width
+            base_height = max(1, min(output.height, round(base_width / reference_aspect)))
+
+        boxes: list[tuple[int, int, int, int]] = []
+        seen: set[tuple[int, int, int, int]] = set()
+        for scale in REFERENCE_FIDELITY_CROP_SCALES:
+            width = max(1, min(output.width, round(base_width * scale)))
+            height = max(1, min(output.height, round(base_height * scale)))
+            available_x = output.width - width
+            available_y = output.height - height
+            for y_position in REFERENCE_FIDELITY_CROP_POSITIONS:
+                top = round(available_y * y_position)
+                for x_position in REFERENCE_FIDELITY_CROP_POSITIONS:
+                    left = round(available_x * x_position)
+                    box = (left, top, left + width, top + height)
+                    if box not in seen:
+                        seen.add(box)
+                        boxes.append(box)
+        return boxes
+
+    @classmethod
+    def _local_reference_signals(
+        cls,
+        output_bytes: bytes,
+        reference_bytes: bytes,
+        *,
+        role: str = 'base',
+    ) -> dict[str, str]:
+        output = cls._fidelity_image(output_bytes)
+        reference = cls._fidelity_image(reference_bytes)
+        if role not in REFERENCE_FIDELITY_LOCAL_ROLES:
+            return {
+                'color': cls._fidelity_signal(cls._fidelity_color_score(output, reference)),
+                'structure': cls._fidelity_signal(cls._fidelity_structure_score(output, reference)),
+            }
+
+        best_color = -1.0
+        best_structure = -1.0
+        best_combined = -1.0
+        for box in cls._fidelity_crop_boxes(output, reference):
+            crop = output.crop(box)
+            color = cls._fidelity_color_score(crop, reference)
+            structure = cls._fidelity_structure_score(crop, reference)
+            combined = (structure * 0.70) + (color * 0.30)
+            if combined > best_combined:
+                best_color = color
+                best_structure = structure
+                best_combined = combined
+        return {
+            'color': cls._fidelity_signal(best_color),
+            'structure': cls._fidelity_signal(best_structure),
+        }
+
+    @staticmethod
+    def _reference_signal_status(role: str, signals: dict[str, str]) -> str:
+        color = signals.get('color', 'unavailable')
+        structure = signals.get('structure', 'unavailable')
+        if color not in REFERENCE_FIDELITY_SIGNALS or structure not in REFERENCE_FIDELITY_SIGNALS:
+            return 'warn'
+        if 'unavailable' in {color, structure}:
+            return 'warn'
+        if role == 'base':
+            if structure == 'different':
+                return 'mismatch'
+            if structure == 'aligned' and color == 'aligned':
+                return 'pass'
+            return 'warn'
+        if role == 'style':
+            if color == 'aligned' and structure == 'aligned':
+                return 'pass'
+            if color == 'different':
+                return 'mismatch'
+            return 'warn'
+        # Local image signals cannot establish identity, logo geometry, or text accuracy.
+        if color == 'different' and structure == 'different':
+            return 'mismatch'
+        return 'warn'
+
+    @classmethod
+    def _reference_fidelity_review(
+        cls,
+        output_bytes: bytes,
+        prepared_references: list[dict[str, Any]],
+    ) -> dict[str, Any]:
+        """Compare every provider input locally without another model call or credit use."""
+        if not prepared_references:
+            return cls._reference_review_result([])
+
+        evidence: list[dict[str, Any]] = []
+        for index, reference in enumerate(prepared_references, start=1):
+            role = str(reference.get('role') or '').strip().lower()
+            signals = {'color': 'unavailable', 'structure': 'unavailable'}
+            try:
+                reference_bytes = reference.get('bytes')
+                if not isinstance(reference_bytes, bytes):
+                    raise ValueError('reference bytes unavailable')
+                signals = cls._local_reference_signals(output_bytes, reference_bytes, role=role)
+            except Exception as exc:  # The review must never discard an otherwise valid generated image.
+                logger.warning(
+                    'Local reference comparison unavailable input=%s role=%s error_type=%s',
+                    index,
+                    role if role in IMAGE_REFERENCE_ROLES else 'unknown',
+                    type(exc).__name__,
+                )
+            evidence.append({
+                'fileId': str(reference.get('fileId') or ''),
+                'role': role,
+                'input': index,
+                'status': cls._reference_signal_status(role, signals),
+                'signals': signals,
+                'humanChecks': list(REFERENCE_HUMAN_CHECKS.get(role, ['final-visual'])),
+                'userReview': 'pending',
+            })
+
+        return cls._reference_review_result(evidence)
+
+    @staticmethod
+    def _reference_review_result(evidence: list[dict[str, Any]]) -> dict[str, Any]:
+        if not evidence:
+            return {
+                'status': 'not-applicable',
+                'method': 'none',
+                'humanReviewRequired': False,
+                'message': '',
+                'references': [],
+            }
+        statuses = {item['status'] for item in evidence}
+        if 'mismatch' in statuses:
+            status = 'mismatch'
+            message = 'Local color or structure signals differ from at least one assigned reference. Review every original before publishing.'
+        elif statuses == {'pass'}:
+            status = 'pass'
+            message = 'Local color and structure signals align. Review every original before publishing.'
+        else:
+            status = 'warn'
+            message = 'Local checks are limited or need attention. Review every original before publishing.'
+        return {
+            'status': status,
+            'method': 'local-reference-signals-v1',
+            'humanReviewRequired': True,
+            'reviewProviderUsed': False,
+            'reviewCreditsUsed': 0,
+            'limitations': ['identity', 'logos', 'text', 'pixel-fidelity'],
+            'message': message,
+            'references': evidence,
+        }
+
+    @classmethod
+    def _unavailable_reference_review(cls, reference_receipt: list[dict[str, Any]]) -> dict[str, Any]:
+        evidence = [
+            {
+                **item,
+                'status': 'warn',
+                'signals': {'color': 'unavailable', 'structure': 'unavailable'},
+                'humanChecks': list(REFERENCE_HUMAN_CHECKS.get(str(item.get('role') or ''), ['final-visual'])),
+                'userReview': 'pending',
+            }
+            for item in reference_receipt
+        ]
+        return cls._reference_review_result(evidence)
 
     @staticmethod
     def _provider_error(response: httpx.Response) -> tuple[str, str, str]:
@@ -1008,11 +1621,27 @@ class MediaService:
             raise AIServiceError('Image generation is not configured.', 503, 'IMAGE_NOT_CONFIGURED', False, 0)
         prompt = str(payload.get('message') or '').strip()
         precision_editing = bool(image_edit_mask)
-        editing = precision_editing or self.is_edit_request(prompt, file_rows) or bool(payload.get('imageUseReference') and any(row.get('mime_type') in IMAGE_TYPES for row in file_rows))
+        image_rows = [row for row in file_rows if row.get('mime_type') in IMAGE_TYPES]
+        reference_plan = self._image_reference_plan(
+            payload,
+            image_rows,
+        )
+        # This method is called only after the request has been classified as image creation.
+        # Any attached image is therefore a provider input, even for legacy clients that did
+        # not set imageUseReference. Never silently fall back to text-only generation.
+        editing = precision_editing or bool(image_rows) or self.is_edit_request(prompt, file_rows)
         if precision_editing:
             provider_prompt = self._precision_edit_prompt(prompt)
+            if len(reference_plan) > 1:
+                provider_prompt = self._reference_fidelity_prompt(
+                    provider_prompt,
+                    reference_plan,
+                )
         elif editing:
-            provider_prompt = self._edit_fidelity_prompt(prompt)
+            provider_prompt = self._reference_fidelity_prompt(
+                self._edit_fidelity_prompt(prompt),
+                reference_plan,
+            )
         else:
             provider_prompt = self._generation_fidelity_prompt(prompt)
         if not prompt:
@@ -1022,11 +1651,11 @@ class MediaService:
         endpoint = 'https://api.openai.com/v1/images/generations'
         precision_source: Image.Image | None = None
         precision_selection: Image.Image | None = None
+        prepared_reference_reviews: list[dict[str, Any]] = []
         try:
             async with httpx.AsyncClient(timeout=httpx.Timeout(IMAGE_REQUEST_TIMEOUT_SECONDS, connect=20.0)) as client:
                 if editing:
-                    source = next((row for row in file_rows if row.get('mime_type') in IMAGE_TYPES), None)
-                    if not source:
+                    if not image_rows:
                         raise AIServiceError(
                             'Add the image you want to edit and try again.',
                             400,
@@ -1034,35 +1663,52 @@ class MediaService:
                             False,
                             0,
                         )
-                    image_bytes = await self.files.download_bytes(row=source, max_bytes=25 * 1024 * 1024)
                     provider_mask_bytes: bytes | None = None
-                    if precision_editing:
-                        if self.settings.openai_image_model != 'gpt-image-2':
+                    multipart: list[tuple[str, tuple[str, bytes, str]]] = []
+                    prepared_total = 0
+                    for index, source in enumerate(image_rows):
+                        image_bytes = await self.files.download_bytes(row=source, max_bytes=25 * 1024 * 1024)
+                        if precision_editing and index == 0:
+                            if self.settings.openai_image_model != 'gpt-image-2':
+                                raise AIServiceError(
+                                    'Precision Edit is temporarily unavailable on the configured image model.',
+                                    503,
+                                    'PRECISION_EDIT_MODEL_UNAVAILABLE',
+                                    False,
+                                    0,
+                                )
+                            (
+                                image_bytes,
+                                provider_mask_bytes,
+                                precision_source,
+                                precision_selection,
+                                size,
+                            ) = self._prepare_precision_edit(image_bytes, str(image_edit_mask or ''))
+                            output_format = 'png'
+                        else:
+                            image_bytes, _, _ = self._prepare_edit_image(image_bytes)
+                        if index < len(reference_plan):
+                            prepared_reference_reviews.append({
+                                'fileId': reference_plan[index]['fileId'],
+                                'role': reference_plan[index]['role'],
+                                'bytes': image_bytes,
+                            })
+                        prepared_total += len(image_bytes)
+                        if prepared_total > IMAGE_REFERENCE_TOTAL_MAX_BYTES:
                             raise AIServiceError(
-                                'Precision Edit is temporarily unavailable on the configured image model.',
-                                503,
-                                'PRECISION_EDIT_MODEL_UNAVAILABLE',
+                                'Those reference images are too large together. Use fewer or smaller images and try again.',
+                                413,
+                                'IMAGE_REFERENCES_TOO_LARGE',
                                 False,
                                 0,
                             )
-                        (
-                            image_bytes,
-                            provider_mask_bytes,
-                            precision_source,
-                            precision_selection,
-                            size,
-                        ) = self._prepare_precision_edit(image_bytes, str(image_edit_mask or ''))
-                        output_format = 'png'
-                    else:
-                        image_bytes, image_name, image_mime = self._prepare_edit_image(image_bytes)
-                    image_name = 'Crump_Edit_Source.png'
-                    image_mime = 'image/png'
+                        multipart.append((
+                            'image[]',
+                            (f'Crump_Reference_{index + 1:02d}.png', image_bytes, 'image/png'),
+                        ))
                     endpoint = 'https://api.openai.com/v1/images/edits'
-                    multipart = {
-                        'image[]': (image_name, image_bytes, image_mime),
-                    }
                     if provider_mask_bytes is not None:
-                        multipart['mask'] = ('Crump_Edit_Mask.png', provider_mask_bytes, 'image/png')
+                        multipart.append(('mask', ('Crump_Edit_Mask.png', provider_mask_bytes, 'image/png')))
                     form = {
                         'model': self.settings.openai_image_model,
                         'prompt': provider_prompt,
@@ -1105,15 +1751,17 @@ class MediaService:
         item = ((data.get('data') or [{}])[0]) if isinstance(data, dict) else {}
         image_bytes: bytes | None = None
         if item.get('b64_json'):
-            try:
-                image_bytes = base64.b64decode(item['b64_json'], validate=True)
-            except (binascii.Error, ValueError, TypeError) as exc:
-                raise AIServiceError('The image provider returned invalid image data.', 502, 'IMAGE_INVALID_RESPONSE', True, 5) from exc
+            image_bytes = self._provider_output_bytes(item['b64_json'], output_format)
         elif item.get('url'):
-            async with httpx.AsyncClient(timeout=60, follow_redirects=True) as client:
-                download = await client.get(item['url'])
-            if download.status_code < 400:
-                image_bytes = download.content
+            # GPT Image is requested with inline base64 output. Do not turn an
+            # unexpected provider-controlled URL into a server-side fetch.
+            raise AIServiceError(
+                'The image provider returned an unsupported output location.',
+                502,
+                'IMAGE_INVALID_RESPONSE',
+                True,
+                5,
+            )
         if not image_bytes:
             raise AIServiceError('The image service returned no image.', 502, 'EMPTY_IMAGE', True, 5)
         if precision_editing:
@@ -1121,6 +1769,15 @@ class MediaService:
                 raise AIServiceError('Precision Edit could not preserve the protected image area.', 502, 'PRECISION_EDIT_FAILED', True, 5)
             image_bytes = self._composite_precision_edit(image_bytes, precision_source, precision_selection)
             output_format = 'png'
+        reference_receipt = [
+            {'fileId': item['fileId'], 'role': item['role'], 'input': index}
+            for index, item in enumerate(reference_plan, start=1)
+        ]
+        try:
+            reference_review = self._reference_fidelity_review(image_bytes, prepared_reference_reviews)
+        except Exception as exc:  # Never lose a valid paid result because its local review failed.
+            logger.warning('Local reference review unavailable before storage error_type=%s', type(exc).__name__)
+            reference_review = self._unavailable_reference_review(reference_receipt)
         extension = 'jpg' if output_format == 'jpeg' else output_format
         mime = 'image/jpeg' if output_format == 'jpeg' else f'image/{output_format}'
         stored = await self.files.store_bytes(
@@ -1137,22 +1794,40 @@ class MediaService:
                 'quality': quality,
                 'edited': editing,
                 'precisionEdit': precision_editing,
-                'sourceFileId': str(file_rows[0].get('id') or '') if editing and file_rows else None,
+                'sourceFileId': reference_plan[0]['fileId'] if reference_plan else None,
+                'sourceFileIds': [item['fileId'] for item in reference_plan],
+                'referencePlan': [
+                    {'fileId': item['fileId'], 'role': item['role']}
+                    for item in reference_plan
+                ],
+                'referenceReview': reference_review,
             },
         )
         public = self.files.public_file(stored)
         image_aspect = self.image_aspect_for_size(size)
+        if precision_editing:
+            response_text = 'I edited only the area you selected.'
+        elif reference_receipt:
+            mapping = ', '.join(
+                f"reference {item['input']} as {item['role']}"
+                for item in reference_receipt
+            )
+            response_text = (
+                f'I used {mapping}. The references were sent as visual constraints, not just prompt inspiration. '
+                'Generative output can still vary in logos and typography, so verify those before publishing; '
+                'use Exact Overlay when the original pixels must remain unchanged.'
+            )
+        else:
+            response_text = 'I created the image you requested.'
         return {
-            'response': (
-                'I edited only the area you selected.'
-                if precision_editing
-                else ('I edited the image you provided.' if editing else 'I created the image you requested.')
-            ),
+            'response': response_text,
             'model': self.settings.openai_image_model,
             'imageUrl': public['url'],
             'imagePrompt': str(item.get('revised_prompt') or prompt),
             'imageAspect': image_aspect,
             'imageFile': public,
+            'referencePlan': reference_receipt,
+            'referenceReview': reference_review,
         }
 
     async def understand(

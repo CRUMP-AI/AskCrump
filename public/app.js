@@ -1,3 +1,103 @@
+// One auth-boundary owner coordinates private, unsent UI cleanup. Feature
+// modules register idempotent scrubbers instead of racing separate auth events.
+(() => {
+    if (window.CrumpAuthBoundary) return;
+
+    const scrubbers = new Map();
+    const USER_CACHE_KEY = 'crump_user_cache_v4';
+    let currentUserValue = window.currentUser || null;
+    let ownerUserId = String(currentUserValue?.id || '').trim();
+    let revision = 0;
+
+    function runScrubbers(reason, nextUserId = '') {
+        revision += 1;
+        const boundary = Object.freeze({
+            reason: String(reason || 'authentication-required'),
+            previousUserId: ownerUserId,
+            nextUserId: String(nextUserId || '').trim(),
+            revision,
+        });
+        scrubbers.forEach(scrub => {
+            try { scrub(boundary); }
+            catch (error) { console.warn('[Auth boundary] Private UI cleanup failed:', error); }
+        });
+    }
+
+    function handleAuthenticationRequired() {
+        if (ownerUserId) runScrubbers('authentication-required');
+        ownerUserId = '';
+    }
+
+    function handleAuthenticatedReady() {
+        const nextUserId = String(currentUserValue?.id || '').trim();
+        if (!nextUserId) {
+            handleAuthenticationRequired();
+            return;
+        }
+        if (ownerUserId && ownerUserId !== nextUserId) {
+            runScrubbers('authenticated-user-changed', nextUserId);
+        }
+        ownerUserId = nextUserId;
+    }
+
+    function assignCurrentUser(nextUser) {
+        const nextUserId = String(nextUser?.id || '').trim();
+        if (ownerUserId && ownerUserId !== nextUserId) {
+            runScrubbers(nextUserId ? 'authenticated-user-changed' : 'authenticated-user-cleared', nextUserId);
+        }
+        currentUserValue = nextUser || null;
+        ownerUserId = nextUserId;
+    }
+
+    try {
+        const descriptor = Object.getOwnPropertyDescriptor(window, 'currentUser');
+        if (!descriptor || descriptor.configurable) {
+            Object.defineProperty(window, 'currentUser', {
+                configurable: true,
+                enumerable: true,
+                get: () => currentUserValue,
+                set: assignCurrentUser,
+            });
+        }
+    } catch (_) {
+        // The explicit auth events and cross-tab cache boundary remain active.
+    }
+
+    function cachedIdentityId(rawValue) {
+        if (!rawValue) return '';
+        try { return String(JSON.parse(rawValue)?.id || '').trim(); }
+        catch (_) { return ''; }
+    }
+
+    window.addEventListener('storage', event => {
+        if (event.key !== USER_CACHE_KEY) return;
+        const previousId = cachedIdentityId(event.oldValue);
+        const nextId = cachedIdentityId(event.newValue);
+        if (nextId === ownerUserId && (!previousId || previousId === nextId)) return;
+        if (!ownerUserId && !previousId && !nextId) return;
+        assignCurrentUser(null);
+        // HttpOnly session cookies are shared across tabs. Reload so this tab
+        // verifies the new server identity before it can accept another draft.
+        window.location.reload();
+    });
+
+    window.CrumpAuthBoundary = Object.freeze({
+        register(name, scrub) {
+            const key = String(name || '').trim();
+            if (!key || typeof scrub !== 'function') return () => {};
+            scrubbers.set(key, scrub);
+            return () => {
+                if (scrubbers.get(key) === scrub) scrubbers.delete(key);
+            };
+        },
+        authenticatedUserId: () => ownerUserId,
+        revision: () => revision,
+        observe: (user) => assignCurrentUser(user),
+    });
+
+    window.addEventListener('crump:authentication-required', handleAuthenticationRequired);
+    window.addEventListener('crump:authenticated-ready', handleAuthenticatedReady);
+})();
 
 // Account-scoped cache keys. Supabase remains the source of truth; these are offline caches only.
 const BASE_STORAGE_KEYS = Object.freeze({
@@ -590,7 +690,7 @@ function completeUserMessage(chat, userMessage, data) {
         origin: 'reply',
         inReplyTo: userMessage.id,
     };
-    for (const key of ['imageUrl', 'imagePrompt', 'imageFile', 'artifact', 'artifactRecovery', 'projectAttachments', 'manuscriptWorkspace', 'creationHandoff', 'intelligence']) {
+    for (const key of ['imageUrl', 'imagePrompt', 'imageFile', 'referencePlan', 'referenceReview', 'artifact', 'artifactRecovery', 'projectAttachments', 'manuscriptWorkspace', 'creationHandoff', 'intelligence']) {
         if (assistantMessage[key] == null && data[key] != null) assistantMessage[key] = data[key];
     }
     const existingIndex = chat.messages.findIndex(item =>

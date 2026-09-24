@@ -5,14 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ask Crump video reference fixture</title>
   <link rel="icon" href="data:,">
-  <link rel="stylesheet" href="/public/crump-product-5.3.css">
+  <link rel="stylesheet" href="/public/crump-product-5.3.css" data-crump-product-lazy-style data-crump-product-loaded="true">
 </head>
 <body class="crump-v1-body">
   <main><button type="button" id="openVideo">Open Video Studio</button></main>
   <script>
-    window.currentUser = {id: '00000000-0000-0000-0000-000000000001'};
+    window.__fixtureUser = {id: '00000000-0000-0000-0000-000000000001'};
+    window.currentUser = null;
     window.chats = [];
     window.__videoRequest = null;
+    window.__videoProviderStarts = Number(localStorage.getItem('askcrump.fixtureVideoProviderStarts') || 0);
+    window.__videoPollRequests = [];
+    window.__videoRecoveryLookups = [];
+    window.__recentVideoLookups = [];
+    window.__projectRetryRequests = [];
+    window.__projectRetryAborts = 0;
     let uploadNumber = 0;
     window.CrumpFileTools = {
       upload: async file => {
@@ -42,18 +49,111 @@
         };
       } else if (url === '/api/projects') {
         body = {projects: [], limit: 10};
+      } else if (/^\/api\/projects\/[^/]+\/files$/.test(url) && String(options.method || '').toUpperCase() === 'POST') {
+        window.__projectRetryRequests.push({url, userId: String(window.currentUser?.id || '')});
+        if (localStorage.getItem('askcrump.fixtureHoldProjectRetry') === 'true') {
+          return new Promise((resolve, reject) => {
+            options.signal?.addEventListener('abort', () => {
+              window.__projectRetryAborts += 1;
+              reject(Object.assign(new Error('Project retry aborted.'), {name: 'AbortError'}));
+            }, {once: true});
+          });
+        }
+        body = {success: true, file: {id: '00000000-0000-0000-0000-000000000100'}};
       } else if (url === '/api/media/video' && String(options.method || '').toUpperCase() === 'POST') {
         window.__videoRequest = JSON.parse(options.body || '{}');
+        window.__videoProviderStarts += 1;
+        localStorage.setItem('askcrump.fixtureVideoProviderStarts', String(window.__videoProviderStarts));
+        const idempotencyKey = String(options.headers?.['X-Idempotency-Key'] || '');
+        const attempts = JSON.parse(localStorage.getItem('askcrump.fixtureVideoAttempts') || '[]');
+        attempts.push({idempotencyKey, userId: String(window.currentUser?.id || '')});
+        localStorage.setItem('askcrump.fixtureVideoAttempts', JSON.stringify(attempts));
+        localStorage.setItem('askcrump.fixtureRecoveredVideoRequest', JSON.stringify({
+          idempotencyKey,
+          jobId: '00000000-0000-0000-0000-000000000099',
+          request: window.__videoRequest,
+        }));
+        if (localStorage.getItem('askcrump.fixtureHoldNextVideoStart') === 'true') {
+          localStorage.removeItem('askcrump.fixtureHoldNextVideoStart');
+          return new Promise(() => {});
+        }
         body = {success: true, job: {id: '00000000-0000-0000-0000-000000000099', status: 'processing'}};
+      } else if (url === '/api/media/video' && String(options.method || 'GET').toUpperCase() === 'GET') {
+        const ownerId = String(window.currentUser?.id || '');
+        const stored = JSON.parse(localStorage.getItem('askcrump.fixtureRecentVideoJobs') || '[]');
+        const jobs = stored
+          .filter(item => String(item?.ownerId || '') === ownerId)
+          .map(item => item.job)
+          .filter(Boolean);
+        window.__recentVideoLookups.push({ownerId, count: jobs.length});
+        body = {success: true, jobs};
+      } else if (url === '/api/media/video/request-status') {
+        const idempotencyKey = String(options.headers?.['X-Idempotency-Key'] || '');
+        const recovered = JSON.parse(localStorage.getItem('askcrump.fixtureRecoveredVideoRequest') || 'null');
+        window.__videoRecoveryLookups.push({idempotencyKey, userId: String(window.currentUser?.id || '')});
+        if (!recovered || recovered.idempotencyKey !== idempotencyKey) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'No video job exists for this request yet.',
+            code: 'VIDEO_JOB_NOT_FOUND',
+          }), {status: 404, headers: {'Content-Type': 'application/json'}});
+        }
+        window.__videoRequest = recovered.request;
+        body = {success: true, idempotentReplay: true, job: {id: recovered.jobId, status: 'processing'}};
       } else if (url.includes('/api/media/video/')) {
-        body = {success: true, job: {id: '00000000-0000-0000-0000-000000000099', status: 'processing', provider: 'gemini'}};
+        const recovered = JSON.parse(localStorage.getItem('askcrump.fixtureRecoveredVideoRequest') || 'null');
+        const request = window.__videoRequest || recovered?.request || {};
+        const jobId = url.split('/').filter(Boolean).pop() || '';
+        window.__videoPollRequests.push({jobId, userId: String(window.currentUser?.id || '')});
+        const owners = JSON.parse(localStorage.getItem('askcrump.fixtureVideoOwners') || '{}');
+        if (owners[jobId] && owners[jobId] !== String(window.currentUser?.id || '')) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'Video job not found.',
+            code: 'VIDEO_JOB_NOT_FOUND',
+          }), {status: 404, headers: {'Content-Type': 'application/json'}});
+        }
+        const holdPoll = localStorage.getItem('askcrump.fixtureHoldVideoPolls') === 'true';
+        body = {
+          success: true,
+          job: {
+            id: jobId || '00000000-0000-0000-0000-000000000099',
+            status: holdPoll ? 'processing' : 'ready',
+            provider: 'gemini',
+            engine: request.engine || 'extendable',
+            durationSeconds: request.durationSeconds || 8,
+            resolution: request.resolution || '720p',
+            referenceMode: request.engine === 'extendable' ? 'appearance-guidance' : 'initial-frame',
+            referenceVerification: 'not-performed',
+            referencePlan: request.referencePlan || [],
+            file: {
+              id: '00000000-0000-0000-0000-000000000100',
+              name: 'Ask-Crump-video.mp4',
+              type: 'video/mp4',
+              url: 'data:video/mp4;base64,',
+            },
+            projectAttachment: {
+              status: 'failed',
+              projectId: '00000000-0000-0000-0000-000000000077',
+              role: 'generated_video',
+              shouldRetry: true,
+            },
+          },
+        };
       }
       return new Response(JSON.stringify(body), {status: 200, headers: {'Content-Type': 'application/json'}});
     };
   </script>
+  <script src="/public/safe-storage.js"></script>
+  <script src="/public/app.js?v=auth-boundary-fixture-1"></script>
+  <script src="/public/crump-product-loader.js?fixture=video-reference-receipt"></script>
   <script src="/public/crump-product-5.3.js"></script>
   <script>
     document.getElementById('openVideo').addEventListener('click', () => window.CrumpProduct53.open('video'));
+    document.addEventListener('DOMContentLoaded', () => {
+      window.currentUser = window.__fixtureUser;
+      window.dispatchEvent(new Event('crump:authenticated-ready'));
+    }, {once: true});
   </script>
 </body>
 </html>

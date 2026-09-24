@@ -4,8 +4,8 @@
   if (window.__crumpPrecisionImageEditLoaderLoaded) return;
   window.__crumpPrecisionImageEditLoaderLoaded = true;
 
-  const STYLE_URL = '/crump-precision-image-edit.css?v=5.9.76-precision-studio-1';
-  const SCRIPT_URL = '/crump-precision-image-edit.js?v=5.9.76-precision-studio-1';
+  const STYLE_URL = '/crump-precision-image-edit.css?v=5.9.76-reference-fidelity-hard-contract-1';
+  const SCRIPT_URL = '/crump-precision-image-edit.js?v=5.9.76-reference-fidelity-hard-contract-1';
   let loadPromise = null;
 
   function loadStyle() {

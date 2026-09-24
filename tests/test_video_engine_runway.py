@@ -10,6 +10,7 @@ from backend.video_service import VideoService, VideoServiceError
 
 ROOT = Path(__file__).resolve().parents[1]
 USER_ID = "00000000-0000-0000-0000-000000000001"
+REQUEST_FINGERPRINT = "a" * 64
 
 
 def read(path: str) -> str:
@@ -134,6 +135,32 @@ class FakeAsyncClient:
 
     async def get(self, url, *, headers):
         return httpx.Response(200, request=httpx.Request("GET", url), json=type(self).poll_body or {})
+
+
+class StartServerErrorClient:
+    post_count = 0
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    async def __aenter__(self):
+        return self
+
+    async def __aexit__(self, *args):
+        return False
+
+    async def post(self, url, *, headers, json):
+        type(self).post_count += 1
+        body = (
+            {"error": {"status": "INTERNAL", "message": "provider failure"}}
+            if "googleapis.com" in url
+            else {"error": "provider failure"}
+        )
+        return httpx.Response(
+            503,
+            request=httpx.Request("POST", url),
+            json=body,
+        )
 
 
 @pytest.mark.asyncio
@@ -263,6 +290,27 @@ async def test_runway_output_safety_failure_is_not_refunded(monkeypatch):
     assert result["failureMessage"] == "Runway could not generate that request under its safety rules."
 
 
+def test_poll_http_5xx_remains_status_retry_not_launch_acceptance_unknown():
+    gemini_response = httpx.Response(
+        503,
+        request=httpx.Request("GET", "https://generativelanguage.googleapis.com/v1beta/operations/test"),
+        json={"error": {"status": "INTERNAL", "message": "temporary"}},
+    )
+    runway_response = httpx.Response(
+        503,
+        request=httpx.Request("GET", "https://api.dev.runwayml.com/v1/tasks/test"),
+        json={"error": "temporary"},
+    )
+
+    for error in (
+        GeminiVeoProvider._exception(gemini_response, checking=True),
+        RunwayProvider._exception(runway_response, checking=True),
+    ):
+        assert error.code == "VIDEO_STATUS_UNAVAILABLE"
+        assert error.retryable is True
+        assert error.acceptance_unknown is False
+
+
 def test_video_continuation_schema_is_private_lineage_not_a_second_storage_system():
     migration = read("migrations/015_video_engine_continuations.sql")
     for column in (
@@ -292,7 +340,8 @@ def test_video_ui_surfaces_engines_continue_flow_and_runway_attribution():
     assert "Powered by Runway" in ui
     assert "https://runwayml.com" in ui
     assert ".crump53-video-continuation" in css
-    assert "Optional appearance references · up to 3" in ui
+    assert "Optional appearance guidance · up to 3" in ui
+    assert "best-effort appearance guidance, not as a pixel-locked frame or layout" in ui
     assert "referenceFileIds" in ui
     assert "window.CrumpFileTools.upload(file)" in ui
     assert ".crump53-video-reference-card" in css
@@ -315,6 +364,17 @@ class ReservationDB:
         return []
 
     async def select_one(self, table, *, filters=None, **kwargs):
+        if table != "media_jobs":
+            return None
+        filters = filters or {}
+        wanted_id = str(filters.get("id") or "").removeprefix("eq.")
+        if wanted_id:
+            row = self.rows.get(wanted_id)
+            return dict(row) if row else None
+        wanted_key = str(filters.get("idempotency_key") or "").removeprefix("eq.")
+        for row in self.rows.values():
+            if wanted_key and row.get("idempotency_key") == wanted_key:
+                return dict(row)
         return None
 
     async def insert(self, table, payload):
@@ -329,6 +389,182 @@ class ReservationDB:
         row = next(iter(self.rows.values()))
         row.update(payload)
         return [dict(row)]
+
+    async def rpc(self, function_name, payload, *, retry_transient=False):
+        assert retry_transient is True
+        row = self.rows.get(payload.get("p_job_id"))
+        if not row:
+            return [{"outcome": "missing", "job": {}}]
+        assert row["user_id"] == payload["p_user_id"]
+        assert row["idempotency_key"] == payload["p_idempotency_key"]
+        assert row["request_fingerprint"] == payload["p_request_fingerprint"]
+
+        if function_name == "claim_video_provider_launch":
+            if row["video_phase"] == "ready_to_launch":
+                if not payload["p_claim_ready"]:
+                    return [{"outcome": "ready", "job": dict(row)}]
+                row["video_phase"] = "launching"
+                row["lease_token"] = payload["p_launch_token"]
+                row["metadata"] = {
+                    **(row.get("metadata") or {}),
+                    "videoPhase": "launching",
+                }
+                return [{"outcome": "claimed", "job": dict(row)}]
+            if row["video_phase"] == "launching":
+                return [{"outcome": "launch_in_progress", "job": dict(row)}]
+            return [{"outcome": "current", "job": dict(row)}]
+
+        if function_name == "complete_video_provider_launch":
+            assert row["video_phase"] == "launching"
+            assert row["lease_token"] == payload["p_launch_token"]
+            row.update(
+                {
+                    "status": "processing",
+                    "provider_job_id": payload["p_provider_job_id"],
+                    "video_phase": "processing",
+                    "lease_token": None,
+                    "lease_expires_at": None,
+                    "metadata": {
+                        **(row.get("metadata") or {}),
+                        "providerAccepted": True,
+                        "videoPhase": "processing",
+                    },
+                }
+            )
+            return [{"outcome": "completed", "job": dict(row)}]
+
+        if function_name == "fail_video_provider_launch":
+            assert row["video_phase"] == "launching"
+            assert row["lease_token"] == payload["p_launch_token"]
+            acceptance = payload["p_provider_acceptance"]
+            row.update(
+                {
+                    "status": "failed",
+                    "video_phase": "failed",
+                    "lease_token": None,
+                    "lease_expires_at": None,
+                    "billing_refunded": True,
+                    "error_message": payload["p_message"],
+                    "estimated_provider_cost_cents": (
+                        0
+                        if acceptance == "rejected"
+                        else row["estimated_provider_cost_cents"]
+                    ),
+                    "metadata": {
+                        **(row.get("metadata") or {}),
+                        "providerAccepted": False,
+                        "providerAcceptance": acceptance,
+                        "providerFailureCode": payload["p_failure_code"],
+                        "refundEligible": False,
+                        "videoPhase": "failed",
+                    },
+                }
+            )
+            return [{"outcome": "failed", "job": dict(row)}]
+
+        raise AssertionError(f"Unexpected RPC: {function_name}")
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("engine", "resolution", "duration", "key", "expected_cost"),
+    [
+        ("quick", "720p", 8, "gemini-start-5xx", 40),
+        ("cinematic", "720p", 5, "runway-start-5xx", 60),
+    ],
+)
+async def test_start_http_5xx_is_unknown_refunded_and_never_relaunched(
+    monkeypatch,
+    engine,
+    resolution,
+    duration,
+    key,
+    expected_cost,
+):
+    import backend.video_providers as providers
+
+    StartServerErrorClient.post_count = 0
+    monkeypatch.setattr(providers.httpx, "AsyncClient", StartServerErrorClient)
+    db = ReservationDB()
+    service = VideoService(settings(), db, SimpleNamespace())
+
+    with pytest.raises(VideoServiceError) as caught:
+        await service.start(
+            user_id=USER_ID,
+            prompt="A production promo scene whose start response is ambiguous.",
+            engine=engine,
+            aspect_ratio="16:9",
+            resolution=resolution,
+            duration_seconds=duration,
+            idempotency_key=key,
+            request_fingerprint=REQUEST_FINGERPRINT,
+            charge_receipt={
+                "eventId": "credit:00000000-0000-0000-0000-000000000099",
+                "paymentSource": "credits",
+            },
+        )
+
+    assert caught.value.code == "VIDEO_PROVIDER_UNAVAILABLE"
+    assert caught.value.retryable is False
+    assert caught.value.refund_eligible is False
+    failed = next(iter(db.rows.values()))
+    assert failed["status"] == "failed"
+    assert failed["billing_refunded"] is True
+    assert failed["metadata"]["providerAcceptance"] == "unknown"
+    assert failed["estimated_provider_cost_cents"] == expected_cost
+
+    replay = await service.poll(user_id=USER_ID, job_id=failed["id"])
+    assert replay["status"] == "failed"
+    assert StartServerErrorClient.post_count == 1
+
+
+@pytest.mark.asyncio
+async def test_provider_id_completion_existing_outcome_never_restarts_provider():
+    class CompleteExistingDB(ReservationDB):
+        async def rpc(self, function_name, payload, *, retry_transient=False):
+            if function_name != "complete_video_provider_launch":
+                return await super().rpc(
+                    function_name,
+                    payload,
+                    retry_transient=retry_transient,
+                )
+            row = self.rows[payload["p_job_id"]]
+            row.update(
+                {
+                    "status": "processing",
+                    "provider_job_id": payload["p_provider_job_id"],
+                    "video_phase": "processing",
+                    "lease_token": None,
+                    "lease_expires_at": None,
+                }
+            )
+            return [{"outcome": "existing", "job": dict(row)}]
+
+    db = CompleteExistingDB()
+    service = VideoService(settings(), db, SimpleNamespace())
+    starts = 0
+
+    async def fake_start(**_kwargs):
+        nonlocal starts
+        starts += 1
+        return "runway-task-existing"
+
+    service.runway.start = fake_start
+    row = await service.start(
+        user_id=USER_ID,
+        prompt="A provider ID settlement response-loss fixture.",
+        engine="cinematic",
+        aspect_ratio="16:9",
+        resolution="720p",
+        duration_seconds=5,
+        idempotency_key="complete-existing",
+        request_fingerprint=REQUEST_FINGERPRINT,
+        charge_receipt={"eventId": "included-fixture"},
+    )
+
+    assert row["status"] == "processing"
+    assert row["provider_job_id"] == "runway-task-existing"
+    assert starts == 1
 
 
 @pytest.mark.asyncio
@@ -350,6 +586,8 @@ async def test_provider_job_is_reserved_before_runway_spend():
         aspect_ratio="16:9",
         resolution="720p",
         duration_seconds=5,
+        idempotency_key="runway-reservation",
+        request_fingerprint=REQUEST_FINGERPRINT,
         charge_receipt={"eventId": "credit:test"},
     )
     assert row["status"] == "processing"
@@ -358,12 +596,108 @@ async def test_provider_job_is_reserved_before_runway_spend():
 
 
 @pytest.mark.asyncio
+async def test_same_key_insert_race_returns_existing_job_without_second_provider_start():
+    existing = {
+        "id": "00000000-0000-0000-0000-000000000090",
+        "user_id": USER_ID,
+        "idempotency_key": "same-key-race",
+        "request_fingerprint": REQUEST_FINGERPRINT,
+        "status": "queued",
+        "provider_job_id": "pending:existing",
+    }
+
+    class SameKeyRaceDB(ReservationDB):
+        def __init__(self):
+            super().__init__()
+            self.idempotency_lookups = 0
+
+        async def select_one(self, table, *, filters=None, **kwargs):
+            if table == "media_jobs" and "idempotency_key" in (filters or {}):
+                self.idempotency_lookups += 1
+                return existing if self.idempotency_lookups > 1 else None
+            return None
+
+        async def insert(self, table, payload):
+            assert table == "media_jobs"
+            raise RuntimeError("duplicate media_jobs_user_idempotency_idx")
+
+    db = SameKeyRaceDB()
+    service = VideoService(settings(), db, SimpleNamespace())
+    provider_starts = 0
+
+    async def fail_if_started(**_kwargs):
+        nonlocal provider_starts
+        provider_starts += 1
+        raise AssertionError("an idempotent replay must not start a second provider job")
+
+    service.runway.start = fail_if_started
+    row = await service.start(
+        user_id=USER_ID,
+        prompt="A careful same-key video reservation race.",
+        engine="cinematic",
+        aspect_ratio="16:9",
+        resolution="720p",
+        duration_seconds=5,
+        idempotency_key="same-key-race",
+        request_fingerprint=REQUEST_FINGERPRINT,
+        charge_receipt={"eventId": "credit:same-key-race"},
+    )
+
+    assert row == existing
+    assert db.idempotency_lookups == 2
+    assert provider_starts == 0
+
+
+@pytest.mark.asyncio
+async def test_local_pending_reservation_is_never_polled_as_a_provider_job():
+    placeholder = {
+        "id": "00000000-0000-0000-0000-000000000093",
+        "user_id": USER_ID,
+        "status": "queued",
+        "provider": "runway",
+        "provider_job_id": "pending:00000000-0000-0000-0000-000000000093",
+        "idempotency_key": "pending-launch",
+        "request_fingerprint": REQUEST_FINGERPRINT,
+        "video_phase": "launching",
+        "lease_token": "00000000-0000-0000-0000-000000000094",
+        "lease_expires_at": "2999-01-01T00:00:00+00:00",
+        "metadata": {"billingPending": False, "providerAccepted": False},
+    }
+
+    class PendingReservationDB(ReservationDB):
+        async def select_one(self, table, *, filters=None, **kwargs):
+            if table == "media_jobs":
+                return dict(placeholder)
+            return None
+
+    pending_db = PendingReservationDB()
+    pending_db.rows[placeholder["id"]] = dict(placeholder)
+    service = VideoService(settings(), pending_db, SimpleNamespace())
+    provider_polls = 0
+
+    async def fail_if_polled(_job_id):
+        nonlocal provider_polls
+        provider_polls += 1
+        raise AssertionError("a local pending reservation must never reach a provider poll")
+
+    service.runway.poll = fail_if_polled
+    row = await service.poll(user_id=USER_ID, job_id=placeholder["id"])
+
+    assert row == placeholder
+    assert provider_polls == 0
+
+
+@pytest.mark.asyncio
 async def test_provider_acceptance_tracking_failure_is_not_auto_refundable():
     class TrackingFailureDB(ReservationDB):
-        async def update(self, table, payload, *, filters):
-            if payload.get("provider_job_id") == "runway-task-1":
+        async def rpc(self, function_name, payload, *, retry_transient=False):
+            if function_name == "complete_video_provider_launch":
                 raise RuntimeError("database unavailable after provider accepted task")
-            return await super().update(table, payload, filters=filters)
+            return await super().rpc(
+                function_name,
+                payload,
+                retry_transient=retry_transient,
+            )
 
     db = TrackingFailureDB()
     service = VideoService(settings(), db, SimpleNamespace())
@@ -380,10 +714,16 @@ async def test_provider_acceptance_tracking_failure_is_not_auto_refundable():
             aspect_ratio="16:9",
             resolution="720p",
             duration_seconds=5,
+            idempotency_key="tracking-failure",
+            request_fingerprint=REQUEST_FINGERPRINT,
             charge_receipt={"eventId": "credit:test"},
         )
     assert exc.value.code == "VIDEO_JOB_TRACKING_FAILED"
     assert exc.value.refund_eligible is False
+    row = next(iter(db.rows.values()))
+    assert row["video_phase"] == "launching"
+    recovered = await service.poll(user_id=USER_ID, job_id=row["id"])
+    assert recovered["video_phase"] == "launching"
 
 
 @pytest.mark.asyncio
@@ -410,6 +750,8 @@ async def test_pre_acceptance_rejection_identifies_the_reserved_job_for_refund_r
             aspect_ratio="16:9",
             resolution="720p",
             duration_seconds=5,
+            idempotency_key="provider-rejection",
+            request_fingerprint=REQUEST_FINGERPRINT,
             charge_receipt={"eventId": "credit:test"},
         )
 
@@ -420,6 +762,56 @@ async def test_pre_acceptance_rejection_identifies_the_reserved_job_for_refund_r
     assert failed["estimated_provider_cost_cents"] == 0
     assert failed["metadata"]["providerAccepted"] is False
     assert failed["metadata"]["providerFailureCode"] == "INVALID_ARGUMENT"
+
+
+@pytest.mark.asyncio
+async def test_unknown_provider_acceptance_refunds_once_retains_cost_and_never_relaunches():
+    db = ReservationDB()
+    service = VideoService(settings(), db, SimpleNamespace())
+    starts = 0
+
+    async def lose_acceptance_response(**_kwargs):
+        nonlocal starts
+        starts += 1
+        raise ProviderError(
+            "The provider response was lost after submission.",
+            "VIDEO_PROVIDER_UNAVAILABLE",
+            503,
+            True,
+            "TRANSPORT_UNCONFIRMED",
+            True,
+            True,
+        )
+
+    service.runway.start = lose_acceptance_response
+    with pytest.raises(VideoServiceError) as exc:
+        await service.start(
+            user_id=USER_ID,
+            prompt="A cinematic brand scene with a transport ambiguity fixture.",
+            engine="cinematic",
+            aspect_ratio="16:9",
+            resolution="720p",
+            duration_seconds=5,
+            idempotency_key="unknown-provider-acceptance",
+            request_fingerprint=REQUEST_FINGERPRINT,
+            charge_receipt={
+                "eventId": "credit:00000000-0000-0000-0000-000000000099",
+                "paymentSource": "credits",
+            },
+        )
+
+    assert exc.value.retryable is False
+    assert exc.value.refund_eligible is False
+    failed = next(iter(db.rows.values()))
+    assert failed["status"] == "failed"
+    assert failed["video_phase"] == "failed"
+    assert failed["billing_refunded"] is True
+    assert failed["estimated_provider_cost_cents"] == 60
+    assert failed["metadata"]["providerAcceptance"] == "unknown"
+
+    replay = await service.poll(user_id=USER_ID, job_id=failed["id"])
+    assert replay["status"] == "failed"
+    assert starts == 1
 
 
 @pytest.mark.asyncio
@@ -464,6 +856,7 @@ async def test_continuation_rejection_identifies_its_reserved_job_for_refund_rec
             parent_job_id=parent_id,
             prompt="Continue the same scene while preserving every visible detail.",
             idempotency_key="continue-fixture",
+            request_fingerprint=REQUEST_FINGERPRINT,
             charge_receipt={"eventId": "credit:test"},
         )
 
@@ -477,14 +870,15 @@ async def test_continuation_rejection_identifies_its_reserved_job_for_refund_rec
 
 def test_media_routes_respect_nonrefundable_provider_boundary():
     source = read("backend/routes/media.py")
-    assert source.count("if exc.refund_eligible:") >= 2
-    assert source.count("await _refund_failed_video_charge(") == 2
+    assert "_refund_failed_video_charge" not in source
+    assert source.count("consume_video_reservation(") == 2
+    assert source.count("_read_bound_video_receipt(") >= 4
 
 
 def test_reference_files_are_owner_checked_before_credits_or_provider_spend():
     source = read("backend/routes/media.py")
     prepare = source.index("reference_images = await video.prepare_reference_images")
-    charge = source.index("receipt = await features.consume", prepare)
+    charge = source.index("receipt = await features.consume_video_reservation", prepare)
     start = source.index("row = await video.start", charge)
 
     assert prepare < charge < start

@@ -39,6 +39,7 @@ const expectedVerifiers = Object.freeze([
   'verify-paid-plan-intent-delivery.cjs',
   'verify-precision-image-edit.cjs',
   'verify-precision-editor-lazy-load.cjs',
+  'verify-product-studio-detail-auth-boundary.cjs',
   'verify-product-studio-lazy-load.cjs',
   'verify-presentation-attribution-browser.cjs',
   'verify-project-chat-context-boundary.cjs',

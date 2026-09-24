@@ -147,8 +147,12 @@ def test_durable_code_schema_is_private_replay_safe_and_leased():
 
 def test_worker_reuses_existing_cron_slot_and_browser_only_dispatches():
     vercel = json.loads(read("vercel.json"))
-    assert len(vercel["crons"]) == 2
+    assert len(vercel["crons"]) == 3
     assert any(item["path"] == "/api/cron/manuscripts" for item in vercel["crons"])
+    assert {
+        "path": "/api/cron/videos",
+        "schedule": "*/5 * * * *",
+    } in vercel["crons"]
     cron_route = read("backend/routes/manuscripts.py")
     assert cron_route.index("account_deletions.process_next()") < cron_route.index(
         "code_worker.process_next("

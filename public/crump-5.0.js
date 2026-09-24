@@ -5,6 +5,15 @@
   window.__crump50Loaded = true;
 
   const MAX_FILES = 10;
+  const IMAGE_REFERENCE_LIMIT = 4;
+  const IMAGE_REFERENCE_ROLES = [
+    ['base', 'Starting canvas / composition'],
+    ['subject', 'Subject / product'],
+    ['mascot', 'Mascot / character identity'],
+    ['logo', 'Logo / wordmark'],
+    ['typography', 'Typography / layout'],
+    ['style', 'Palette / visual style'],
+  ];
   const MAX_FILE_BYTES = 50 * 1024 * 1024;
   const ACCEPT = [
     'image/*', 'application/pdf', '.docx', '.xlsx', '.pptx', '.txt', '.md', '.csv', '.tsv', '.json', '.html', '.rtf',
@@ -23,7 +32,11 @@
     lightboxReturnFocus: null,
     imageRecovery: null,
     precisionImageEdit: null,
+    imageReferencePlanConfirmed: false,
+    imageReferencePlanSignature: '',
   };
+  let composerAuthSequence = 0;
+  const activeUploads = new Set();
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -119,20 +132,42 @@
       progress: 0,
       server: null,
       controller: null,
+      authController: new AbortController(),
+      authSequence: composerAuthSequence,
       previewUrl: file.type?.startsWith('image/') ? URL.createObjectURL(file) : null,
       promise: null,
     };
   }
 
-  function addRemoteReference(file, { imageReference = false } = {}) {
+  function composerBoundaryAbortError() {
+    return Object.assign(new Error('This upload belongs to a previous authentication session.'), {name: 'AbortError'});
+  }
+
+  function composerUploadIsCurrent(item, sequence = item?.authSequence) {
+    return Number(sequence) === composerAuthSequence && !item?.authController?.signal?.aborted;
+  }
+
+  function assertComposerUploadCurrent(item, sequence = item?.authSequence) {
+    if (!composerUploadIsCurrent(item, sequence)) throw composerBoundaryAbortError();
+  }
+
+  function revokeAttachmentPreview(item) {
+    if (item?.previewUrl?.startsWith('blob:')) URL.revokeObjectURL(item.previewUrl);
+    if (item) item.previewUrl = null;
+  }
+
+  function addRemoteReference(file, { imageReference = false, imageReferenceRole = '' } = {}) {
     if (!file?.id) return;
     const existing = state.attachments.find(item => item.server?.id === file.id);
     if (existing) return;
-    state.attachments.push({
+    const item = {
       localId: uid(), file: null, name: file.name || 'Image', type: file.type || 'image/png',
       size: file.size || 0, status: 'ready', progress: 100, server: file, previewUrl: file.url || null,
       imageReference,
-    });
+      imageReferenceRole,
+    };
+    state.attachments.push(item);
+    if (isImageAttachment(item)) invalidateImageReferencePlan();
     renderAttachmentTray();
   }
 
@@ -146,10 +181,39 @@
     return {action: 'revise_image_request', usageRestored: true, changeRequired};
   }
 
+  function safeImageReferenceHandoff(value) {
+    if (
+      value?.kind !== 'image_reference_plan'
+      || value?.source !== 'conversation_history'
+      || value?.noCharge !== true
+      || !Array.isArray(value?.files)
+    ) return [];
+    return value.files.slice(0, IMAGE_REFERENCE_LIMIT).flatMap(file => {
+      const id = String(file?.id || '');
+      const type = String(file?.type || file?.mime_type || '').toLowerCase();
+      if (!id || !type.startsWith('image/')) return [];
+      const rawUrl = String(file?.url || '');
+      const url = rawUrl.startsWith('/api/files/') ? rawUrl : '';
+      return [{
+        id,
+        name: String(file?.name || file?.file_name || 'Reference image').slice(0, 255),
+        type,
+        size: Math.max(0, Number(file?.size || file?.size_bytes || 0)),
+        ...(url ? {url} : {}),
+      }];
+    });
+  }
+
+  const IMAGE_REFERENCE_PLAN_CODES = new Set([
+    'IMAGE_REFERENCE_CONFIRMATION_REQUIRED',
+    'IMAGE_REFERENCE_PLAN_INVALID',
+  ]);
+
   const IMAGE_REVISION_CODES = new Set([
     'IMAGE_SAFETY_REJECTED',
     'INVALID_IMAGE_EDIT_SOURCE',
     'IMAGE_EDIT_SOURCE_TOO_LARGE',
+    ...IMAGE_REFERENCE_PLAN_CODES,
   ]);
 
   function sortedReferenceIds(files) {
@@ -213,7 +277,8 @@
     }
   }
 
-  async function addFiles(fileList) {
+  async function addFiles(fileList, {imageReference = false} = {}) {
+    const authSequence = composerAuthSequence;
     const incoming = [...(fileList || [])];
     if (!incoming.length) return;
     const available = Math.max(0, MAX_FILES - state.attachments.length);
@@ -223,29 +288,43 @@
     }
     for (const original of incoming.slice(0, available)) {
       const file = await normalizeInputFile(original);
+      if (authSequence !== composerAuthSequence) return;
       const issue = validateFile(file);
       if (issue) {
         show(issue, 'error');
         continue;
       }
       const item = makeLocalAttachment(file);
+      item.authSequence = authSequence;
+      if (isSupportedImageFile(file)) invalidateImageReferencePlan();
+      if (imageReference && isSupportedImageFile(file)) {
+        item.imageReference = true;
+        item.imageReferenceRole = imageReferenceRoleFor(item, state.attachments.filter(isImageAttachment).length);
+      }
       state.attachments.push(item);
       item.promise = uploadItem(item);
     }
-    renderAttachmentTray();
+    if (authSequence === composerAuthSequence) renderAttachmentTray();
   }
 
   async function uploadItem(item) {
+    const authSequence = Number.isInteger(item?.authSequence) ? item.authSequence : composerAuthSequence;
+    item.authSequence = authSequence;
+    item.authController ||= new AbortController();
+    activeUploads.add(item);
+    assertComposerUploadCurrent(item, authSequence);
     item.status = 'signing';
     renderAttachmentTray();
     try {
       const signed = await api('/api/files/sign-upload', {
         method: 'POST',
+        signal: item.authController.signal,
         body: JSON.stringify({
           name: item.name, type: item.type, size: item.size,
           chatId: window.currentChatId || null,
         }),
       });
+      assertComposerUploadCurrent(item, authSequence);
       item.server = signed.file;
       item.status = 'uploading';
       item.progress = 1;
@@ -258,27 +337,37 @@
           } else {
             await uploadSigned(item, signed.uploadUrl, signed.uploadToken);
           }
+          assertComposerUploadCurrent(item, authSequence);
           uploadError = null;
           break;
         } catch (error) {
           uploadError = error;
           if (error?.name === 'AbortError' || attempt === 1) throw error;
           await new Promise(resolve => setTimeout(resolve, 700));
+          assertComposerUploadCurrent(item, authSequence);
         }
       }
       if (uploadError) throw uploadError;
-      const completed = await api(`/api/files/${encodeURIComponent(item.server.id)}/complete`, {method: 'POST', body: '{}'});
+      const completed = await api(`/api/files/${encodeURIComponent(item.server.id)}/complete`, {
+        method: 'POST',
+        signal: item.authController.signal,
+        body: '{}',
+      });
+      assertComposerUploadCurrent(item, authSequence);
       item.server = completed.file;
       item.status = 'ready';
       item.progress = 100;
       renderAttachmentTray();
       return item.server;
     } catch (error) {
+      if (!composerUploadIsCurrent(item, authSequence)) throw error;
       item.status = error?.name === 'AbortError' ? 'cancelled' : 'failed';
       item.error = error.message || 'Upload failed.';
       renderAttachmentTray();
       if (item.status === 'failed') show(`${item.name}: ${item.error}`, 'error');
       throw error;
+    } finally {
+      activeUploads.delete(item);
     }
   }
 
@@ -291,7 +380,7 @@
       xhr.open('PUT', url, true);
       xhr.setRequestHeader('x-upsert', 'false');
       xhr.upload.addEventListener('progress', event => {
-        if (!event.lengthComputable) return;
+        if (!event.lengthComputable || !composerUploadIsCurrent(item)) return;
         item.progress = Math.max(1, Math.min(99, Math.round((event.loaded / event.total) * 100)));
         renderAttachmentTray();
       });
@@ -316,10 +405,11 @@
     return btoa(binary);
   }
 
-  async function tusOffset(url, token) {
+  async function tusOffset(url, token, signal) {
     const response = await fetch(url, {
       method: 'HEAD',
       headers: {'Tus-Resumable': '1.0.0', 'x-signature': token},
+      signal,
     });
     if (!response.ok) throw new Error(`Could not resume upload (${response.status}).`);
     return Number(response.headers.get('Upload-Offset') || 0);
@@ -335,7 +425,7 @@
       xhr.setRequestHeader('Content-Type', 'application/offset+octet-stream');
       xhr.setRequestHeader('x-signature', token);
       xhr.upload.addEventListener('progress', event => {
-        if (!event.lengthComputable) return;
+        if (!event.lengthComputable || !composerUploadIsCurrent(item)) return;
         const sent = offset + event.loaded;
         item.progress = Math.max(1, Math.min(99, Math.round((sent / item.size) * 100)));
         renderAttachmentTray();
@@ -359,6 +449,7 @@
     ].map(([key,value]) => `${key} ${tusMeta(value)}`).join(',');
     const create = await fetch(signed.resumableUrl, {
       method: 'POST',
+      signal: item.authController.signal,
       headers: {
         'Tus-Resumable': '1.0.0',
         'Upload-Length': String(item.size),
@@ -367,6 +458,7 @@
         'x-upsert': 'false',
       },
     });
+    assertComposerUploadCurrent(item);
     if (!create.ok) throw new Error(`Could not start resumable upload (${create.status}).`);
     let location = create.headers.get('Location');
     if (!location) throw new Error('Storage did not return a resumable upload location.');
@@ -378,13 +470,15 @@
       let uploaded = false;
       for (const delay of [0, 700, 1800]) {
         if (delay) await new Promise(resolve => setTimeout(resolve, delay));
+        assertComposerUploadCurrent(item);
         try {
           offset = await uploadTusChunk(item, location, signed.uploadToken, offset, chunk);
           uploaded = true;
           break;
         } catch (error) {
           if (error?.name === 'AbortError') throw error;
-          try { offset = await tusOffset(location, signed.uploadToken); } catch (_) {}
+          try { offset = await tusOffset(location, signed.uploadToken, item.authController.signal); } catch (_) {}
+          assertComposerUploadCurrent(item);
           if (offset >= item.size) { uploaded = true; break; }
         }
       }
@@ -397,8 +491,11 @@
     if (index < 0) return;
     const [item] = state.attachments.splice(index, 1);
     if (state.precisionImageEdit?.sourceId === item.server?.id) state.precisionImageEdit = null;
+    if (isImageAttachment(item)) invalidateImageReferencePlan();
     item.controller?.abort?.();
-    if (item.previewUrl?.startsWith('blob:')) URL.revokeObjectURL(item.previewUrl);
+    item.authController?.abort?.();
+    revokeAttachmentPreview(item);
+    item.file = null;
     renderAttachmentTray();
   }
 
@@ -485,11 +582,57 @@
 
   function clearToolMode({focus = false} = {}) {
     if (state.tool === 'image') state.imageRecovery = null;
+    if (state.tool === 'image') invalidateImageReferencePlan();
     state.tool = null;
     state.documentFormat = null;
     state.documentPurpose = null;
     renderToolChip();
     restoreComposerPlaceholder({focus});
+  }
+
+  function scrubComposerAuthBoundary() {
+    composerAuthSequence += 1;
+    const privateItems = new Set([...state.attachments, ...activeUploads]);
+    privateItems.forEach(item => {
+      void item?.promise?.catch?.(() => {});
+      item?.authController?.abort?.();
+      item?.controller?.abort?.();
+      revokeAttachmentPreview(item);
+      if (item) {
+        item.file = null;
+        item.server = null;
+      }
+    });
+    state.attachments = [];
+    state.imageAspect = 'square';
+    state.imageQuality = 'medium';
+    state.imageRecovery = null;
+    state.precisionImageEdit = null;
+    invalidateImageReferencePlan();
+    state.sending = false;
+    document.body.classList.remove('crump50-sending');
+    window.CrumpPresence?.stop?.();
+
+    const input = $('#userInput');
+    if (input) {
+      input.value = '';
+      input.style.height = 'auto';
+      input.dispatchEvent(new Event('input', {bubbles: true}));
+    }
+    const fileInput = $('#fileInput');
+    if (fileInput) fileInput.value = '';
+    $$('input[data-crump50-reference-input]').forEach(referenceInput => {
+      referenceInput.value = '';
+      referenceInput.remove();
+    });
+
+    closeMenu();
+    state.lightbox?.remove();
+    state.lightbox = null;
+    state.lightboxReturnFocus = null;
+    try { window.CrumpPrecisionImageEditor?.close?.(); } catch (_) {}
+    renderAttachmentTray();
+    clearToolMode();
   }
 
   function renderToolChip() {
@@ -698,14 +841,72 @@
       || /\.(jpe?g|png|webp|hei[cf])$/i.test(name);
   }
 
+  function looksLikeReferenceImageAction(message) {
+    const text = String(message || '').toLowerCase();
+    const create = ['generate', 'create', 'make', 'draw', 'design', 'render', 'visualize'].some(term => text.includes(term))
+      && ['image', 'picture', 'photo', 'artwork', 'cover', 'logo', 'illustration', 'poster'].some(term => text.includes(term));
+    const edit = ['edit', 'change', 'remove', 'replace', 'add ', 'retouch', 'fix ', 'enhance', 'upscale', 'background', 'recolor', 'transform', 'turn ', 'dress ', 'style ', 'put ']
+      .some(term => text.includes(term));
+    return create || edit;
+  }
+
+  function imageReferenceRoleFor(item, index = 0) {
+    const allowed = new Set(IMAGE_REFERENCE_ROLES.map(([value]) => value));
+    const role = String(item?.imageReferenceRole || '').toLowerCase();
+    return allowed.has(role) ? role : (index === 0 ? 'base' : 'subject');
+  }
+
+  function imageReferencePlan(items = state.attachments) {
+    return (Array.isArray(items) ? items : [])
+      .filter(isImageAttachment)
+      .slice(0, IMAGE_REFERENCE_LIMIT)
+      .map((item, index) => ({
+        fileId: String(item.server?.id || ''),
+        role: imageReferenceRoleFor(item, index),
+      }))
+      .filter(item => item.fileId);
+  }
+
+  function imageReferencePlanSignature(items = state.attachments) {
+    return JSON.stringify(imageReferencePlan(items));
+  }
+
+  function invalidateImageReferencePlan() {
+    state.imageReferencePlanConfirmed = false;
+    state.imageReferencePlanSignature = '';
+  }
+
+  function imageReferencePlanIsConfirmed(items = state.attachments) {
+    const references = (Array.isArray(items) ? items : []).filter(isImageAttachment);
+    const plan = imageReferencePlan(references);
+    return Boolean(
+      references.length
+      && plan.length === references.length
+      && state.imageReferencePlanConfirmed
+      && state.imageReferencePlanSignature === JSON.stringify(plan)
+    );
+  }
+
+  function imageReferencePlanSummary(items = state.attachments) {
+    const labels = new Map(IMAGE_REFERENCE_ROLES);
+    return (Array.isArray(items) ? items : [])
+      .filter(isImageAttachment)
+      .slice(0, IMAGE_REFERENCE_LIMIT)
+      .map((item, index) => `Reference ${index + 1} → ${labels.get(imageReferenceRoleFor(item, index))}`)
+      .join('; ');
+  }
+
   function clearImageAttachments() {
     state.attachments.filter(isImageAttachment).forEach(item => {
       void item.promise?.catch?.(() => {});
+      item.authController?.abort?.();
       item.controller?.abort?.();
-      if (item.previewUrl?.startsWith('blob:')) URL.revokeObjectURL(item.previewUrl);
+      revokeAttachmentPreview(item);
+      item.file = null;
     });
     state.attachments = state.attachments.filter(item => !isImageAttachment(item));
     state.precisionImageEdit = null;
+    invalidateImageReferencePlan();
     renderAttachmentTray();
   }
 
@@ -714,8 +915,10 @@
       throw new Error('The selected edit area could not be prepared.');
     }
     clearImageAttachments();
-    addRemoteReference(file, {imageReference: true});
+    addRemoteReference(file, {imageReference: true, imageReferenceRole: 'base'});
     state.precisionImageEdit = {sourceId: String(file.id), maskDataUrl: String(maskDataUrl)};
+    state.imageReferencePlanConfirmed = true;
+    state.imageReferencePlanSignature = imageReferencePlanSignature();
     if (Number(width) > Number(height) * 1.08) state.imageAspect = 'landscape';
     else if (Number(height) > Number(width) * 1.08) state.imageAspect = 'portrait';
     else state.imageAspect = 'square';
@@ -765,22 +968,48 @@
   }
 
   async function openPrecisionImageEdit(file, url, options = {}) {
+    const authSequence = composerAuthSequence;
+    const overlayEntry = options.entryMode === 'overlay';
+    const requestedReturnFocus = options.returnFocus instanceof HTMLElement && options.returnFocus.isConnected
+      ? options.returnFocus
+      : null;
+    const restoreRequestedFocus = () => {
+      if (requestedReturnFocus?.isConnected) {
+        requestAnimationFrame(() => requestedReturnFocus.focus({preventScroll: true}));
+      }
+    };
     let editor = window.CrumpPrecisionImageEditor;
     try {
       if (!editor && window.CrumpPrecisionImageEditLoader?.load) {
         show('Opening Precision Edit…', 'info');
         editor = await window.CrumpPrecisionImageEditLoader.load();
       }
+      if (authSequence !== composerAuthSequence) return false;
       if (editor?.open) {
         await editor.open({
           file,
           url,
-          onApplied: ({file: savedFile}) => reflectAppliedImage(savedFile, options),
+          entryMode: overlayEntry ? 'overlay' : 'precision',
+          returnFocus: requestedReturnFocus,
+          onApplied: ({file: savedFile}) => (
+            authSequence === composerAuthSequence && reflectAppliedImage(savedFile, options)
+          ),
         });
         return true;
       }
     } catch (error) {
-      show(error?.message || 'Precision Edit could not open this image. Your original is safe.', 'error');
+      show(
+        overlayEntry
+          ? 'Exact Overlay could not open. No AI request was started and your image is unchanged.'
+          : error?.message || 'Precision Edit could not open this image. Your original is safe.',
+        'error',
+      );
+      if (overlayEntry) restoreRequestedFocus();
+      return false;
+    }
+    if (overlayEntry) {
+      show('Exact Overlay is unavailable right now. No AI request was started and your image is unchanged.', 'error');
+      restoreRequestedFocus();
       return false;
     }
     state.precisionImageEdit = null;
@@ -795,7 +1024,9 @@
   function chooseImageReference({replace = false} = {}) {
     const input = document.createElement('input');
     input.type = 'file';
+    input.multiple = true;
     input.accept = 'image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif';
+    input.dataset.crump50ReferenceInput = 'true';
     input.hidden = true;
     const cleanup = () => input.remove();
     input.addEventListener('cancel', cleanup, {once: true});
@@ -805,25 +1036,37 @@
         cleanup();
         return;
       }
-      const issue = validateFile(selected[0]);
-      if (issue || !isSupportedImageFile(selected[0])) {
-        show(issue || 'Choose a JPG, PNG, WebP, HEIC, or HEIF image.', 'error');
-        cleanup();
-        return;
-      }
-      if (!replace && state.attachments.length >= MAX_FILES) {
-        show(`You can attach up to ${MAX_FILES} files to one message.`, 'warning');
-        cleanup();
-        return;
+      for (const file of selected) {
+        const issue = validateFile(file);
+        if (issue || !isSupportedImageFile(file)) {
+          show(issue || 'Choose JPG, PNG, WebP, HEIC, or HEIF reference images.', 'error');
+          cleanup();
+          return;
+        }
       }
       if (replace) clearImageAttachments();
+      const existingImages = state.attachments.filter(isImageAttachment).length;
+      const available = Math.min(
+        IMAGE_REFERENCE_LIMIT - existingImages,
+        MAX_FILES - state.attachments.length,
+      );
+      if (available <= 0) {
+        show(`Image Studio accepts up to ${IMAGE_REFERENCE_LIMIT} reference images.`, 'warning');
+        cleanup();
+        return;
+      }
       state.imageRecovery = null;
       state.tool = 'image';
-      await addFiles(selected.slice(0, 1));
+      invalidateImageReferencePlan();
+      await addFiles(selected.slice(0, available), {imageReference: true});
       closeMenu();
       renderToolChip();
-      focusComposer('Describe what to keep and what to change…');
-      show('Reference image added. Describe what should stay the same and what should change.', 'info');
+      showImageOptions();
+      if (selected.length > available) {
+        show(`Only ${available} more reference image${available === 1 ? '' : 's'} fit this request.`, 'warning');
+      } else {
+        show('References added. Assign what each image controls, then confirm the plan.', 'info');
+      }
       cleanup();
     }, {once: true});
     document.body.appendChild(input);
@@ -859,8 +1102,9 @@
     };
     qualityControl = segmented([['medium','Balanced'],['high','Highest']], state.imageQuality, value => { state.imageQuality = value; rebuildQuality(); }, 'Image quality');
 
-    const currentReference = state.attachments.find(isImageAttachment) || null;
-    const referenceLabel = document.createElement('label'); referenceLabel.textContent = 'Reference image · optional';
+    const currentReferences = state.attachments.filter(isImageAttachment).slice(0, IMAGE_REFERENCE_LIMIT);
+    const currentReference = currentReferences[0] || null;
+    const referenceLabel = document.createElement('label'); referenceLabel.textContent = 'Reference images · optional · up to 4';
     const reference = document.createElement('button');
     reference.type = 'button';
     reference.className = `crump50-reference-action${currentReference ? ' has-reference' : ''}`;
@@ -868,34 +1112,88 @@
     referenceIcon.innerHTML = iconFor('image');
     const referenceCopy = document.createElement('span');
     const referenceTitle = document.createElement('strong');
-    referenceTitle.textContent = currentReference ? 'Reference image ready' : 'Add an image to edit';
+    referenceTitle.textContent = currentReference
+      ? `${currentReferences.length} reference image${currentReferences.length === 1 ? '' : 's'} uploading`
+      : 'Add images to guide the result';
     const referenceDescription = document.createElement('small');
     referenceDescription.textContent = currentReference
-      ? `${currentReference.name || 'Your image'} will be the starting point.`
-      : 'Use a photo or visual as the starting point.';
+      ? 'Assign what each image controls before Crump renders.'
+      : 'Use a base photo, subject, mascot, logo, typography, or style reference.';
     referenceCopy.append(referenceTitle, referenceDescription);
     const referenceAction = document.createElement('b');
-    referenceAction.textContent = currentReference ? 'Change' : 'Choose';
+    referenceAction.textContent = currentReferences.length >= IMAGE_REFERENCE_LIMIT ? 'Full' : (currentReference ? 'Add' : 'Choose');
     reference.append(referenceIcon, referenceCopy, referenceAction);
-    reference.addEventListener('click', () => chooseImageReference({replace: Boolean(currentReference)}));
+    reference.addEventListener('click', () => {
+      if (currentReferences.length >= IMAGE_REFERENCE_LIMIT) {
+        show(`Image Studio accepts up to ${IMAGE_REFERENCE_LIMIT} reference images.`, 'warning');
+        return;
+      }
+      chooseImageReference();
+    });
+
+    const planLabel = document.createElement('label');
+    planLabel.textContent = 'Reference plan · confirm before generating';
+    const plan = document.createElement('div');
+    plan.className = 'settings-list';
+    const planSummary = document.createElement('p');
+    planSummary.className = 'crump50-image-guidance';
+    currentReferences.forEach((item, index) => {
+      item.imageReference = true;
+      item.imageReferenceRole = imageReferenceRoleFor(item, index);
+      const row = document.createElement('label');
+      row.className = 'settings-row';
+      const copy = document.createElement('span');
+      copy.className = 'settings-info';
+      const title = document.createElement('span');
+      title.className = 'settings-label';
+      title.textContent = `Reference ${index + 1} · ${item.name || 'Image'}`;
+      const help = document.createElement('small');
+      help.className = 'settings-help';
+      help.textContent = index === 0
+        ? 'The first image is the starting canvas for masked edits.'
+        : 'This role is sent with the numbered provider input.';
+      copy.append(title, help);
+      const select = document.createElement('select');
+      select.className = 'settings-select';
+      select.setAttribute('aria-label', `Role for reference ${index + 1}`);
+      IMAGE_REFERENCE_ROLES.forEach(([value, label]) => {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = label;
+        option.selected = item.imageReferenceRole === value;
+        select.appendChild(option);
+      });
+      select.addEventListener('change', () => {
+        item.imageReferenceRole = select.value;
+        invalidateImageReferencePlan();
+        planSummary.textContent = imageReferencePlanSummary(currentReferences);
+      });
+      row.append(copy, select);
+      plan.appendChild(row);
+    });
+    planSummary.textContent = currentReferences.length
+      ? imageReferencePlanSummary(currentReferences)
+      : 'No references selected. Crump will create from your written direction only.';
 
     const guidance = document.createElement('p');
     guidance.className = 'crump50-image-guidance';
-    guidance.textContent = 'Editing a person? Select the pixels yourself and describe only the appearance change you want. Crump does not infer race or ethnicity. Logos and readable text should be placed as overlays for exact fidelity.';
+    guidance.textContent = 'Crump sends every confirmed reference as a numbered visual constraint. Image models can still vary exact logos, mascot details, and readable text; use Exact Overlay when original pixels must remain unchanged. Editing a person? Select the pixels yourself—Crump does not infer race or ethnicity.';
 
     const precision = document.createElement('button');
     precision.type = 'button';
     precision.className = 'crump50-precision-entry';
-    precision.disabled = !currentReference?.server?.id;
+    precision.disabled = currentReference?.status !== 'ready' || !currentReference?.server?.id;
     precision.innerHTML = '<span aria-hidden="true">✦</span><span><strong>Edit one exact area</strong><small>Zoom in and brush over only the pixels Crump may change</small></span><b>Open</b>';
     precision.addEventListener('click', async () => {
-      if (!currentReference?.server?.id) return;
+      if (currentReference?.status !== 'ready' || !currentReference?.server?.id) return;
       const action = precision.querySelector('b');
+      const returnFocusTarget = $('#userInput');
       precision.disabled = true;
       precision.setAttribute('aria-busy', 'true');
       if (action) action.textContent = 'Opening…';
       try {
-        await openPrecisionImageEdit(currentReference.server, currentReference.previewUrl || currentReference.server.url);
+        closeMenu();
+        await openPrecisionImageEdit(currentReference.server, currentReference.previewUrl || currentReference.server.url, {returnFocus: returnFocusTarget});
       } finally {
         precision.removeAttribute('aria-busy');
         if (action) action.textContent = 'Open';
@@ -903,9 +1201,69 @@
       }
     });
 
-    const activate = document.createElement('button'); activate.type = 'button'; activate.className = 'crump50-primary-action'; activate.textContent = currentReference ? 'Continue with reference' : 'Create without reference';
-    activate.addEventListener('click', () => { state.imageRecovery = null; state.tool = 'image'; closeMenu(); renderToolChip(); focusComposer(currentReference ? 'Describe what to keep and what to change…' : 'Describe the image you want…'); });
-    body.append(aspectLabel, aspectControl, qualityLabel, qualityControl, referenceLabel, reference, precision, guidance, activate);
+    const exactOverlay = document.createElement('button');
+    exactOverlay.type = 'button';
+    exactOverlay.className = 'crump50-precision-entry is-exact-overlay';
+    exactOverlay.disabled = currentReference?.status !== 'ready' || !currentReference?.server?.id;
+    exactOverlay.innerHTML = '<span aria-hidden="true">◎</span><span><strong>Add exact logo or wordmark</strong><small>Use the first reference as the canvas, then place approved artwork without AI redrawing</small></span><b>Open</b>';
+    exactOverlay.addEventListener('click', async () => {
+      if (currentReference?.status !== 'ready' || !currentReference?.server?.id) return;
+      const action = exactOverlay.querySelector('b');
+      const returnFocusTarget = $('#userInput');
+      exactOverlay.disabled = true;
+      exactOverlay.setAttribute('aria-busy', 'true');
+      if (action) action.textContent = 'Opening…';
+      try {
+        closeMenu();
+        await openPrecisionImageEdit(currentReference.server, currentReference.previewUrl || currentReference.server.url, {
+          entryMode: 'overlay',
+          returnFocus: returnFocusTarget,
+        });
+      } finally {
+        exactOverlay.removeAttribute('aria-busy');
+        if (action) action.textContent = 'Open';
+        if (exactOverlay.isConnected) exactOverlay.disabled = false;
+      }
+    });
+
+    const syncReferenceReadiness = () => {
+      if (!sheet.isConnected || !currentReference) return;
+      const ready = currentReference.status === 'ready' && Boolean(currentReference.server?.id);
+      precision.disabled = !ready;
+      exactOverlay.disabled = !ready;
+      referenceTitle.textContent = ready
+        ? `${currentReferences.length} reference image${currentReferences.length === 1 ? '' : 's'} ready`
+        : `${currentReferences.length} reference image${currentReferences.length === 1 ? '' : 's'} ${currentReference.status === 'failed' ? 'unavailable' : 'uploading'}`;
+      referenceDescription.textContent = ready
+        ? 'Assign what each image controls before Crump renders.'
+        : currentReference.status === 'failed'
+          ? 'Remove the failed reference and add it again.'
+          : 'Your private upload is finishing. Exact editing will unlock automatically.';
+    };
+    syncReferenceReadiness();
+    if (currentReference?.promise) {
+      void Promise.resolve(currentReference.promise).then(syncReferenceReadiness, syncReferenceReadiness);
+    }
+
+    const activate = document.createElement('button'); activate.type = 'button'; activate.className = 'crump50-primary-action'; activate.textContent = currentReference ? 'Confirm reference plan' : 'Create without reference';
+    activate.addEventListener('click', () => {
+      const confirmedPlan = imageReferencePlan(currentReferences);
+      if (currentReferences.length && confirmedPlan.length !== currentReferences.length) {
+        show('Wait for every reference image to finish uploading before confirming the plan.', 'info');
+        return;
+      }
+      state.imageRecovery = null;
+      state.tool = 'image';
+      state.imageReferencePlanConfirmed = Boolean(currentReferences.length);
+      state.imageReferencePlanSignature = currentReferences.length ? JSON.stringify(confirmedPlan) : '';
+      closeMenu();
+      renderToolChip();
+      focusComposer(currentReference ? 'Describe the result. Crump will follow the confirmed reference plan…' : 'Describe the image you want…');
+      if (currentReferences.length) show(`Confirmed: ${imageReferencePlanSummary(currentReferences)}`, 'info');
+    });
+    body.append(aspectLabel, aspectControl, qualityLabel, qualityControl, referenceLabel, reference);
+    if (currentReferences.length) body.append(planLabel, plan, planSummary);
+    body.append(precision, exactOverlay, guidance, activate);
     wireMenuKeyboard(sheet, dismiss);
     sheet.appendChild(body);
     mountMenu(sheet, close);
@@ -996,11 +1354,18 @@
       },
       fileRefs: readyFiles.map(item => item.server.id),
     };
+    const attachedImages = readyFiles.filter(isImageAttachment);
+    if (attachedImages.length) body.imageReferenceContractVersion = 2;
     if (state.tool === 'web') body.needsSearch = true;
     if (state.tool === 'code') body.taskType = 'code';
     if (state.tool === 'image') {
       body.creativeTool = 'image'; body.imageAspect = state.imageAspect; body.imageQuality = state.imageQuality;
-      body.imageUseReference = readyFiles.some(item => String(item.server?.type || '').startsWith('image/'));
+      const references = attachedImages;
+      body.imageUseReference = Boolean(references.length);
+      if (references.length) {
+        body.imageReferencePlan = imageReferencePlan(references);
+        body.imageReferencePlanConfirmed = imageReferencePlanIsConfirmed(references);
+      }
       const precision = state.precisionImageEdit;
       if (precision && readyFiles.some(item => String(item.server?.id) === precision.sourceId)) {
         body.imageEditMask = precision.maskDataUrl;
@@ -1063,7 +1428,7 @@
       origin: 'reply',
       inReplyTo: userMessage.id,
     };
-    for (const key of ['imageUrl', 'imagePrompt', 'imageAspect', 'imageFile', 'artifact', 'artifactRecovery', 'projectAttachments', 'manuscriptWorkspace', 'creationHandoff']) {
+    for (const key of ['imageUrl', 'imagePrompt', 'imageAspect', 'imageFile', 'referencePlan', 'referenceReview', 'artifact', 'artifactRecovery', 'projectAttachments', 'manuscriptWorkspace', 'creationHandoff']) {
       if (assistant[key] == null && data[key] != null) assistant[key] = data[key];
     }
     const existingIndex = chat.messages.findIndex(item => item.role === 'assistant' && item.inReplyTo === userMessage.id);
@@ -1099,14 +1464,50 @@
 
   async function studioSendMessage() {
     if (state.sending) return;
+    const authSequence = composerAuthSequence;
     const input = $('#userInput');
     const text = String(input?.value || '').trim();
     if (!text && !state.attachments.length) return;
+    const draftReferences = state.attachments.filter(isImageAttachment);
+    const referenceImageAction = state.tool === 'image' || looksLikeReferenceImageAction(text);
+    if (referenceImageAction && draftReferences.length > IMAGE_REFERENCE_LIMIT) {
+      state.tool = 'image';
+      renderToolChip();
+      const excess = draftReferences.length - IMAGE_REFERENCE_LIMIT;
+      show(
+        `Image Studio can use up to ${IMAGE_REFERENCE_LIMIT} references. Remove ${excess} image${excess === 1 ? '' : 's'} before generating.`,
+        'warning',
+      );
+      return;
+    }
+    if (unchangedRecoveredImageRequest(text, state.attachments)) {
+      show(
+        state.imageRecovery?.changeRequired === 'reference'
+          ? 'Add a different JPG, PNG, or WebP reference before sending again.'
+          : 'Change the wording or reference image before sending this request again.',
+        'info',
+      );
+      return;
+    }
+    if (
+      referenceImageAction
+      && draftReferences.length
+      && !state.precisionImageEdit
+      && !imageReferencePlanIsConfirmed(draftReferences)
+    ) {
+      state.tool = 'image';
+      renderToolChip();
+      showImageOptions();
+      show('Confirm what each reference controls before Crump uses credits.', 'info');
+      return;
+    }
     state.sending = true;
     document.body.classList.add('crump50-sending');
     let userMessage = null;
+    let referencePlanRecoveryMessage = null;
     try {
       const ready = await waitForUploads();
+      if (authSequence !== composerAuthSequence) throw composerBoundaryAbortError();
       if (unchangedRecoveredImageRequest(text, ready)) {
         show(
           state.imageRecovery?.changeRequired === 'reference'
@@ -1117,6 +1518,7 @@
         return;
       }
       await ensureUsage();
+      if (authSequence !== composerAuthSequence) throw composerBoundaryAbortError();
       let fresh = currentChat() || window.ensureCurrentChat?.();
       if (!fresh) throw new Error('Crump could not start a new conversation. Try again.');
       const now = new Date().toISOString();
@@ -1125,9 +1527,19 @@
         deliveryStatus: 'sending', replyStatus: 'pending',
         files: ready.map(item => item.server),
         requestMeta: {
+          ...(ready.some(isImageAttachment) ? {imageReferenceContractVersion:2} : {}),
           ...(state.tool === 'web' ? {needsSearch:true} : {}),
           ...(state.tool === 'code' ? {taskType:'code'} : {}),
-          ...(state.tool === 'image' ? {creativeTool:'image', imageAspect:state.imageAspect, imageQuality:state.imageQuality, imageUseReference:ready.some(item => String(item.server?.type || '').startsWith('image/'))} : {}),
+          ...(state.tool === 'image' ? {
+            creativeTool:'image',
+            imageAspect:state.imageAspect,
+            imageQuality:state.imageQuality,
+            imageUseReference:ready.some(isImageAttachment),
+            ...(ready.some(isImageAttachment) ? {
+              imageReferencePlan:imageReferencePlan(ready),
+              imageReferencePlanConfirmed:imageReferencePlanIsConfirmed(ready),
+            } : {}),
+          } : {}),
           ...(state.tool === 'document' && state.documentFormat ? {artifactFormat:state.documentFormat} : {}),
           ...(state.tool === 'document' && state.documentPurpose ? {artifactPurpose:state.documentPurpose} : {}),
         },
@@ -1139,13 +1551,19 @@
       input.value = ''; input.style.height = 'auto';
       input.dispatchEvent(new Event('input', {bubbles: true}));
       const body = buildRequestBody(currentChat() || fresh, userMessage, ready);
+      ready.forEach(item => {
+        revokeAttachmentPreview(item);
+        item.file = null;
+      });
       state.attachments = [];
       state.precisionImageEdit = null;
+      invalidateImageReferencePlan();
       renderAttachmentTray();
       const sentTool = state.tool;
       clearToolMode();
 
       const sync = await window.syncChatsToServer?.();
+      if (authSequence !== composerAuthSequence) throw composerBoundaryAbortError();
       if (sync && sync.success === false) throw Object.assign(new Error('This message is waiting to sync.'), {quiet: true});
       fresh = currentChat() || fresh;
       const liveUser = fresh.messages.find(item => item.id === userMessage.id) || userMessage;
@@ -1156,6 +1574,7 @@
         chatId: fresh.id || fresh.chat_id, messageId: userMessage.id, message: text,
         fileTypes: ready.map(item => item.server.type),
       });
+      if (authSequence !== composerAuthSequence) throw composerBoundaryAbortError();
       fresh = currentChat() || fresh;
       const acknowledged = fresh.messages.find(item => item.id === userMessage.id) || liveUser;
       Object.assign(acknowledged, {deliveryStatus: 'seen', deliveredAt: ack.deliveredAt, seenAt: ack.seenAt, replyStatus: 'processing', replyError: null});
@@ -1165,8 +1584,10 @@
       window.CrumpPresence?.start?.(sentTool === 'image' ? 'creating' : ready.length ? 'reading' : ack.activity || 'thinking');
 
       const data = await window.CrumpChatTransport.send(body);
+      if (authSequence !== composerAuthSequence) throw composerBoundaryAbortError();
       await applyCompletedReplySafely(fresh, userMessage, data);
     } catch (error) {
+      if (authSequence !== composerAuthSequence) return;
       window.CrumpPresence?.stop?.();
       const fresh = currentChat();
       const target = fresh?.messages?.find(item => item.id === userMessage?.id);
@@ -1179,6 +1600,11 @@
           const recovery = safeImageRecovery(error.recovery || error.data?.recovery);
           if (recovery) target.replyRecovery = recovery;
           else delete target.replyRecovery;
+          if (IMAGE_REFERENCE_PLAN_CODES.has(error.code)) {
+            const handoffFiles = safeImageReferenceHandoff(error.data?.referenceHandoff);
+            if (handoffFiles.length) target.files = handoffFiles;
+            referencePlanRecoveryMessage = target;
+          }
         } else if (!error.quiet) {
           delete target.replyErrorCode;
           delete target.replyRecovery;
@@ -1188,17 +1614,58 @@
       if (!error.quiet) show(error.message || 'Crump could not complete that request.', 'error');
       window.CrumpPresence?.haptic?.('error');
     } finally {
-      state.sending = false;
-      document.body.classList.remove('crump50-sending');
-      focusComposer();
+      if (authSequence === composerAuthSequence) {
+        state.sending = false;
+        document.body.classList.remove('crump50-sending');
+        if (referencePlanRecoveryMessage) reopenImageReferencePlan(referencePlanRecoveryMessage);
+        else focusComposer();
+      }
     }
+  }
+
+  function reopenImageReferencePlan(message) {
+    const input = $('#userInput');
+    if (!input || !message) return false;
+    const meta = message.requestMeta && typeof message.requestMeta === 'object' ? message.requestMeta : {};
+    const planById = new Map(
+      (Array.isArray(meta.imageReferencePlan) ? meta.imageReferencePlan : [])
+        .map(item => [String(item?.fileId || ''), String(item?.role || '')]),
+    );
+    const references = (message.files || []).filter(file =>
+      file?.id && String(file.type || file.mime_type || '').toLowerCase().startsWith('image/')
+    );
+    state.attachments = [];
+    references.forEach((file, index) => addRemoteReference(file, {
+      imageReference: true,
+      imageReferenceRole: planById.get(String(file.id)) || (index === 0 ? 'base' : 'subject'),
+    }));
+    state.imageAspect = ['square', 'portrait', 'landscape'].includes(meta.imageAspect) ? meta.imageAspect : 'square';
+    state.imageQuality = ['medium', 'high'].includes(meta.imageQuality) ? meta.imageQuality : 'medium';
+    state.tool = 'image';
+    invalidateImageReferencePlan();
+    state.imageRecovery = null;
+    input.value = message.content || '';
+    input.dispatchEvent(new Event('input', {bubbles: true}));
+    renderToolChip();
+    showImageOptions();
+    show('Review every ordered reference role and confirm the plan again. No credits were used.', 'info');
+    return true;
   }
 
   async function retryMessage(id) {
     if (state.sending) return;
+    const authSequence = composerAuthSequence;
     let chat = currentChat();
     let message = chat?.messages?.find(item => item.id === id && item.role === 'user');
     if (!chat || !message) return;
+    const retryChatId = String(chat.id || chat.chat_id || '');
+    const retryIsCurrent = () => authSequence === composerAuthSequence;
+    const retryChat = () => (
+      (Array.isArray(window.chats) ? window.chats : []).find(
+        item => String(item?.id || item?.chat_id || '') === retryChatId,
+      ) || chat
+    );
+    let referencePlanRecoveryMessage = null;
     if (IMAGE_REVISION_CODES.has(message.replyErrorCode)) {
       reviseImageMessage(id);
       return;
@@ -1208,44 +1675,59 @@
     try {
       window.CrumpPresence?.start?.('thinking');
       const recovered = await window.CrumpChatTransport?.recover?.(id);
+      if (!retryIsCurrent()) return;
       if (recovered) {
         await applyCompletedReplySafely(chat, message, recovered);
         return;
       }
       window.CrumpPresence?.stop?.();
       await ensureUsage();
+      if (!retryIsCurrent()) return;
       const ready = (message.files || []).filter(file => file?.id).map(file => ({status:'ready', server:file, name:file.name, type:file.type, size:file.size}));
       message.deliveryStatus = 'sending'; message.replyStatus = 'pending'; message.replyError = null;
       delete message.replyErrorCode;
       delete message.replyRecovery;
       saveAndRender(chat);
       await window.syncChatsToServer?.();
-      chat = currentChat() || chat;
+      if (!retryIsCurrent()) return;
+      chat = retryChat();
       message = chat.messages.find(item => item.id === id) || message;
       const ack = await window.CrumpChatTransport.acknowledge({
         chatId:chat.id || chat.chat_id, messageId:id, message:message.content || '', fileTypes:ready.map(item => item.server.type),
       });
+      if (!retryIsCurrent()) return;
       Object.assign(message, {deliveryStatus:'seen', deliveredAt:ack.deliveredAt, seenAt:ack.seenAt, replyStatus:'processing'});
       saveAndRender(chat);
       window.CrumpPresence?.start?.(ready.length ? 'reading' : ack.activity || 'thinking');
       const body = buildRequestBody(chat, message, ready);
       const data = await window.CrumpChatTransport.send(body);
+      if (!retryIsCurrent()) return;
       await applyCompletedReplySafely(chat, message, data);
     } catch (error) {
+      if (!retryIsCurrent()) return;
       window.CrumpPresence?.stop?.();
-      chat=currentChat() || chat; message=chat?.messages?.find(item => item.id===id) || message;
+      chat=retryChat(); message=chat?.messages?.find(item => item.id===id) || message;
       if (message) {
         message.replyStatus='failed'; message.replyError=error.message || 'Reply failed.';
         if (IMAGE_REVISION_CODES.has(error.code)) {
           message.replyErrorCode = error.code;
           const recovery = safeImageRecovery(error.recovery || error.data?.recovery);
           if (recovery) message.replyRecovery = recovery;
+          else delete message.replyRecovery;
+          if (IMAGE_REFERENCE_PLAN_CODES.has(error.code)) {
+            const handoffFiles = safeImageReferenceHandoff(error.data?.referenceHandoff);
+            if (handoffFiles.length) message.files = handoffFiles;
+            referencePlanRecoveryMessage = message;
+          }
         }
         saveAndRender(chat);
       }
       show(error.message || 'Retry failed.', 'error');
     } finally {
-      state.sending=false; document.body.classList.remove('crump50-sending');
+      if (retryIsCurrent()) {
+        state.sending=false; document.body.classList.remove('crump50-sending');
+        if (referencePlanRecoveryMessage) reopenImageReferencePlan(referencePlanRecoveryMessage);
+      }
     }
   }
 
@@ -1254,6 +1736,16 @@
     const chat = currentChat();
     const message = chat?.messages?.find(item => item.id === id && item.role === 'user');
     if (!message || !IMAGE_REVISION_CODES.has(message.replyErrorCode)) return;
+    if (IMAGE_REFERENCE_PLAN_CODES.has(message.replyErrorCode)) {
+      if ((String($('#userInput')?.value || '').trim() || state.attachments.length)
+          && state.attachments.every(item => !message.files?.some(file => String(file?.id || '') === String(item?.server?.id || item?.id || '')))) {
+        show('Finish or clear the current draft before reviewing this reference plan.', 'warning');
+        focusComposer();
+        return;
+      }
+      reopenImageReferencePlan(message);
+      return;
+    }
     const recovery = safeImageRecovery(message.replyRecovery);
     if (!recovery) {
       show('This request needs a changed prompt or reference image before it can be sent again.', 'warning');
@@ -1659,6 +2151,157 @@
     });
   }
 
+  function createReferenceReceipt(message) {
+    const references = Array.isArray(message?.referencePlan)
+      ? message.referencePlan.slice(0, IMAGE_REFERENCE_LIMIT)
+      : [];
+    if (!references.length) return null;
+    const roleLabels = new Map(IMAGE_REFERENCE_ROLES);
+    const review = message?.referenceReview && typeof message.referenceReview === 'object'
+      ? message.referenceReview
+      : null;
+    const evidence = Array.isArray(review?.references) ? review.references.slice(0, IMAGE_REFERENCE_LIMIT) : [];
+    const statusLabels = new Map([
+      ['pass', 'Signals align'],
+      ['warn', 'Review needed'],
+      ['mismatch', 'Signals differ'],
+    ]);
+    const signalLabels = new Map([
+      ['aligned', 'aligns'],
+      ['attention', 'needs attention'],
+      ['different', 'differs'],
+      ['unavailable', 'not available'],
+    ]);
+    const signalStatusForRole = (role, signals) => {
+      const color = String(signals?.color || 'unavailable').toLowerCase();
+      const structure = String(signals?.structure || 'unavailable').toLowerCase();
+      if (color === 'unavailable' || structure === 'unavailable') return 'warn';
+      if (role === 'base') {
+        if (structure === 'different') return 'mismatch';
+        return structure === 'aligned' && color === 'aligned' ? 'pass' : 'warn';
+      }
+      if (role === 'style') {
+        if (color === 'different') return 'mismatch';
+        return color === 'aligned' && structure === 'aligned' ? 'pass' : 'warn';
+      }
+      return color === 'different' && structure === 'different' ? 'mismatch' : 'warn';
+    };
+    const humanCheckLabels = new Map([
+      ['composition-details', 'composition details'],
+      ['identity', 'identity'],
+      ['fine-details', 'fine details'],
+      ['character-identity', 'character identity'],
+      ['logo-shape', 'logo shape'],
+      ['logo-colors', 'logo colors'],
+      ['text-spelling', 'spelling'],
+      ['letterforms', 'letterforms'],
+      ['text-layout', 'text layout'],
+      ['style-details', 'style details'],
+      ['final-visual', 'the final visual'],
+    ]);
+    const receipt = document.createElement('section');
+    receipt.className = 'crump50-reference-receipt';
+    receipt.setAttribute('aria-label', 'Post-generation image reference check');
+    const heading = document.createElement('strong');
+    heading.textContent = `Reference check · ${references.length} local comparison${references.length === 1 ? '' : 's'}`;
+    const method = document.createElement('small');
+    method.className = 'crump50-reference-method';
+    method.textContent = 'Local color and structure checks only · no extra generation or credits. These checks cannot verify identity, exact logos, spelling, or pixel fidelity.';
+    const list = document.createElement('ol');
+    references.forEach((reference, index) => {
+      const item = document.createElement('li');
+      item.className = 'crump50-reference-result';
+      const input = Number(reference?.input);
+      const position = Number.isInteger(input) && input > 0 ? input : index + 1;
+      const role = String(reference?.role || '').toLowerCase();
+      const currentEvidence = evidence.find(candidate => (
+        Number(candidate?.input) === position
+        && String(candidate?.fileId || '') === String(reference?.fileId || '')
+        && String(candidate?.role || '').toLowerCase() === role
+      )) || null;
+      const heuristicStatus = signalStatusForRole(role, currentEvidence?.signals);
+      const userReview = ['confirmed', 'mismatch'].includes(String(currentEvidence?.userReview || '').toLowerCase())
+        ? String(currentEvidence.userReview).toLowerCase()
+        : 'pending';
+      const status = userReview === 'mismatch' ? 'mismatch' : heuristicStatus;
+      const title = document.createElement('div');
+      title.className = 'crump50-reference-result-title';
+      const label = document.createElement('span');
+      label.textContent = `Reference ${position} · ${roleLabels.get(role) || 'Visual constraint'}`;
+      const badge = document.createElement('b');
+      badge.className = status === 'pass' ? 'is-aligned' : `is-${status}`;
+      badge.textContent = userReview === 'mismatch' ? 'Mismatch flagged' : (statusLabels.get(status) || 'Review needed');
+      title.append(label, badge);
+
+      const signalRow = document.createElement('div');
+      signalRow.className = 'crump50-reference-signals';
+      ['color', 'structure'].forEach(kind => {
+        const signal = String(currentEvidence?.signals?.[kind] || 'unavailable').toLowerCase();
+        const chip = document.createElement('span');
+        chip.className = `is-${signalLabels.has(signal) ? signal : 'unavailable'}`;
+        chip.textContent = `${kind === 'color' ? 'Color' : 'Structure'} · ${signalLabels.get(signal) || 'not available'}`;
+        signalRow.appendChild(chip);
+      });
+
+      const humanChecks = Array.isArray(currentEvidence?.humanChecks)
+        ? currentEvidence.humanChecks.map(value => humanCheckLabels.get(String(value)) || '').filter(Boolean)
+        : [];
+      const humanNote = document.createElement('small');
+      humanNote.className = 'crump50-reference-human-note';
+      humanNote.textContent = humanChecks.length
+        ? `Check manually: ${humanChecks.join(', ')}.`
+        : 'Compare this result with the original before publishing.';
+
+      item.append(title, signalRow, humanNote);
+      if (currentEvidence) {
+        const actions = document.createElement('div');
+        actions.className = 'crump50-reference-review-actions';
+        const reviewState = document.createElement('span');
+        reviewState.textContent = userReview === 'confirmed'
+          ? 'You reviewed this reference.'
+          : userReview === 'mismatch'
+            ? 'You flagged a mismatch.'
+            : 'Your review is still needed.';
+        const confirm = document.createElement('button');
+        confirm.type = 'button';
+        confirm.textContent = 'Confirm reviewed';
+        confirm.disabled = userReview === 'confirmed';
+        confirm.setAttribute('aria-label', `Confirm reference ${position} was reviewed`);
+        const flag = document.createElement('button');
+        flag.type = 'button';
+        flag.textContent = 'Flag mismatch';
+        flag.disabled = userReview === 'mismatch';
+        flag.setAttribute('aria-label', `Flag reference ${position} as a mismatch`);
+        const saveReview = decision => {
+          currentEvidence.userReview = decision;
+          const visibleStatus = decision === 'mismatch' ? 'mismatch' : heuristicStatus;
+          badge.className = visibleStatus === 'pass' ? 'is-aligned' : `is-${visibleStatus}`;
+          badge.textContent = decision === 'mismatch'
+            ? 'Mismatch flagged'
+            : (statusLabels.get(visibleStatus) || 'Review needed');
+          reviewState.textContent = decision === 'confirmed'
+            ? 'You reviewed this reference.'
+            : 'You flagged a mismatch.';
+          confirm.disabled = decision === 'confirmed';
+          flag.disabled = decision === 'mismatch';
+          const chat = currentChat();
+          if (chat) saveAndRender(chat);
+        };
+        confirm.addEventListener('click', () => saveReview('confirmed'));
+        flag.addEventListener('click', () => saveReview('mismatch'));
+        actions.append(reviewState, confirm, flag);
+        item.appendChild(actions);
+      }
+      list.appendChild(item);
+    });
+    const note = document.createElement('small');
+    note.className = 'crump50-reference-summary';
+    note.textContent = String(review?.message || '').trim()
+      || 'Generative image models can vary from references. Compare the result with every original before publishing.';
+    receipt.append(heading, method, list, note);
+    return receipt;
+  }
+
   function enhanceRenderedMessages(messages) {
     const safe = Array.isArray(messages) ? messages : [];
     safe.forEach(message => {
@@ -1671,6 +2314,8 @@
         const list = document.createElement('div'); list.className = 'crump50-message-files'; files.forEach(file => list.appendChild(fileCard(file)));
         wrapper.appendChild(list);
       }
+      const referenceReceipt = createReferenceReceipt(message);
+      if (referenceReceipt) wrapper.appendChild(referenceReceipt);
       if (message.artifact) {
         const artifact = document.createElement('div'); artifact.className = 'crump50-artifact';
         artifact.innerHTML = `<span>${String(message.artifact.format || 'FILE').toUpperCase()}</span><div class="crump50-artifact-copy"><strong></strong><small>Created by Crump · ${formatBytes(message.artifact.size)}</small></div><div class="crump50-artifact-actions"><button type="button" data-artifact-project>Add to Project</button><button type="button" data-artifact-open>Open</button><button type="button" data-artifact-download>Download</button></div>`;
@@ -1751,13 +2396,14 @@
             actions = document.createElement('div'); actions.className = 'crump50-image-actions';
             const view = document.createElement('button'); view.type='button'; view.textContent='View'; view.addEventListener('click', () => showLightbox(message.imageFile, message.imageUrl));
             const edit = document.createElement('button'); edit.type='button'; edit.textContent='Edit area'; edit.setAttribute('aria-label', 'Precision Edit area'); edit.addEventListener('click', () => { state.imageRecovery=null; void openPrecisionImageEdit(message.imageFile, message.imageUrl, {messageId: message.id}); });
+            const exact = document.createElement('button'); exact.type='button'; exact.className='crump50-exact-overlay-action'; exact.textContent='Exact logo'; exact.setAttribute('aria-label', 'Add exact logo or wordmark without AI redrawing'); exact.addEventListener('click', () => { state.imageRecovery=null; void openPrecisionImageEdit(message.imageFile, message.imageUrl, {messageId: message.id, entryMode: 'overlay'}); });
             const project = document.createElement('button'); project.type='button';
             const download = document.createElement('button'); download.type='button'; download.textContent='Download'; download.addEventListener('click', () => openFile(message.imageFile, true));
             wireOutputProjectAction(project, {
               message, file: message.imageFile, kind: 'imageFile', role: 'generated_image',
               label: message.imageFile.name || 'this image',
             });
-            actions.append(view, edit, project, download); generated.appendChild(actions);
+            actions.append(view, edit, exact, project, download); generated.appendChild(actions);
           }
         }
       }
@@ -1794,13 +2440,28 @@
 
 
   window.CrumpFileTools = Object.freeze({
-    addReference: file => addRemoteReference(file),
+    addReference: file => {
+      const isImage = String(file?.type || file?.mime_type || '').toLowerCase().startsWith('image/');
+      addRemoteReference(file, {
+        imageReference: isImage,
+        imageReferenceRole: isImage ? (state.attachments.some(isImageAttachment) ? 'subject' : 'base') : '',
+      });
+      if (isImage) {
+        state.tool = 'image';
+        invalidateImageReferencePlan();
+        renderToolChip();
+        show('Image added. Confirm its role in Image Studio before generating.', 'info');
+      }
+    },
     open: (file, download = false) => openFile(file, download),
     upload: async file => {
+      const authSequence = composerAuthSequence;
       const normalized = await normalizeInputFile(file);
+      if (authSequence !== composerAuthSequence) throw composerBoundaryAbortError();
       const issue = validateFile(normalized);
       if (issue) throw new Error(issue);
       const item = makeLocalAttachment(normalized);
+      item.authSequence = authSequence;
       try {
         return await uploadItem(item);
       } finally {
@@ -1831,6 +2492,7 @@
     window.setTimeout(sync, 700);
   }
   window.addEventListener('crump:conversation-opened', scheduleComposerPlaceholderSync);
+  window.CrumpAuthBoundary?.register?.('main-composer', scrubComposerAuthBoundary);
   function boot() {
     if (document.documentElement.dataset.crump50Booted === 'true') return;
     document.documentElement.dataset.crump50Booted = 'true';

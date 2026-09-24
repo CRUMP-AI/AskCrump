@@ -20,7 +20,10 @@ async function snapshot(page) {
       mobileDisplay: mobile ? getComputedStyle(mobile).display : 'missing',
       bodyActive: document.body.classList.contains('crump53-chat-project-active'),
       dockSize: getComputedStyle(document.body).getPropertyValue('--ac-dock').trim(),
-      storedTarget: localStorage.getItem('askcrump.activeProject53'),
+      storedTarget: localStorage.getItem(
+        `askcrump.activeProject53:${encodeURIComponent(window.currentUser?.id || '')}`,
+      ),
+      legacyTarget: localStorage.getItem('askcrump.activeProject53'),
       browserErrors: Number(document.getElementById('fixtureErrors')?.textContent || 0),
     };
   });
@@ -39,6 +42,7 @@ async function verify(browser, viewport) {
 
   const selectedOnly = await snapshot(page);
   assert.equal(selectedOnly.storedTarget, projectId);
+  assert.equal(selectedOnly.legacyTarget, null);
   assert.equal(selectedOnly.bodyActive, false, JSON.stringify(selectedOnly));
 
   const unrelated = await page.evaluate(async chatId => {
@@ -90,6 +94,7 @@ async function verify(browser, viewport) {
   assert.equal(fresh.projectId, undefined, JSON.stringify(fresh));
   assert.equal(fresh.projectContextChecked, true, JSON.stringify(fresh));
   assert.equal(freshState.storedTarget, projectId);
+  assert.equal(freshState.legacyTarget, null);
   assert.equal(freshState.bodyActive, false);
 
   await page.evaluate(project => window.CrumpProduct53.openProject(project), projectId);
@@ -113,12 +118,131 @@ async function verify(browser, viewport) {
   return {viewport, selectedOnly, linkedState, freshState, resumed};
 }
 
+async function verifyAccountBoundary(browser) {
+  const page = await browser.newPage({viewport: {width: 1280, height: 760}});
+  const errors = [];
+  page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+  page.on('pageerror', error => errors.push(error.message));
+  await page.goto(`${baseUrl}/tests/fixtures/project-chat-context-boundary.html`, {waitUntil: 'load'});
+  await page.waitForFunction(() => document.documentElement.dataset.fixtureReady === 'true');
+
+  const accounts = await page.evaluate(() => window.fixtureAccounts);
+  const accountAKey = `askcrump.activeProject53:${encodeURIComponent(accounts.userA.id)}`;
+  const accountBKey = `askcrump.activeProject53:${encodeURIComponent(accounts.userB.id)}`;
+  await page.evaluate(() => window.CrumpProduct53.open('video'));
+  await page.waitForFunction(name => (
+    document.getElementById('crump53VideoProjectName')?.textContent === name
+  ), accounts.projectA.name);
+  const accountASelected = await page.evaluate(({accountAKey}) => ({
+    target: window.CrumpProduct53.projectTarget(),
+    videoLabel: document.getElementById('crump53VideoProjectName')?.textContent || '',
+    accountAStored: localStorage.getItem(accountAKey),
+    legacyStored: localStorage.getItem('askcrump.activeProject53'),
+  }), {accountAKey});
+
+  await page.evaluate(userB => {
+    window.fixtureAuthenticationRequired();
+    window.fixtureLogin(userB);
+  }, accounts.userB);
+  await page.waitForFunction(() => (
+    !window.CrumpProduct53.projectTarget()
+    && document.getElementById('crump53VideoProjectContext')?.hidden === true
+  ));
+  const switchedToB = await page.evaluate(({accountAKey, projectA}) => {
+    const projectUiText = [
+      document.querySelector('.crump53-active-project')?.textContent || '',
+      document.querySelector('.crump53-mobile-chat-project')?.textContent || '',
+      document.getElementById('crump53VideoProjectName')?.textContent || '',
+      document.getElementById('crump53ProjectWorkspaceName')?.textContent || '',
+      document.getElementById('crump53ProjectList')?.textContent || '',
+    ].join(' ');
+    return {
+      target: window.CrumpProduct53.projectTarget(),
+      videoContextHidden: document.getElementById('crump53VideoProjectContext')?.hidden === true,
+      containsAccountAName: projectUiText.includes(projectA.name),
+      containsAccountAId: projectUiText.includes(projectA.id),
+      accountAStored: localStorage.getItem(accountAKey),
+      legacyStored: localStorage.getItem('askcrump.activeProject53'),
+    };
+  }, {accountAKey, projectA: accounts.projectA});
+
+  await page.locator('#crump53VideoPrompt').fill('Create an account B video without a project.');
+  await page.locator('#crump53GenerateVideo').click();
+  await page.waitForFunction(() => window.fixtureVideoRequests.length === 1);
+  await page.waitForFunction(() => document.getElementById('crump53GenerateVideo')?.getAttribute('aria-busy') !== 'true');
+  const unselectedRequest = await page.evaluate(() => window.fixtureVideoRequests[0]);
+
+  const openedB = await page.evaluate(projectId => window.CrumpProduct53.openProject(projectId), accounts.projectB.id);
+  assert.equal(openedB, true);
+  await page.evaluate(() => window.CrumpProduct53.open('video'));
+  await page.waitForFunction(name => (
+    document.getElementById('crump53VideoProjectName')?.textContent === name
+  ), accounts.projectB.name);
+  await page.locator('#crump53VideoPrompt').fill('Create an account B video in its own project.');
+  await page.locator('#crump53GenerateVideo').click();
+  await page.waitForFunction(() => window.fixtureVideoRequests.length === 2);
+  const accountBSelected = await page.evaluate(({accountAKey, accountBKey}) => ({
+    target: window.CrumpProduct53.projectTarget(),
+    videoLabel: document.getElementById('crump53VideoProjectName')?.textContent || '',
+    request: window.fixtureVideoRequests[1],
+    accountAStored: localStorage.getItem(accountAKey),
+    accountBStored: localStorage.getItem(accountBKey),
+    legacyStored: localStorage.getItem('askcrump.activeProject53'),
+  }), {accountAKey, accountBKey});
+
+  await page.goto(
+    `${baseUrl}/tests/fixtures/project-chat-context-boundary.html?user=b&autoload=0`,
+    {waitUntil: 'load'},
+  );
+  await page.waitForFunction(() => document.documentElement.dataset.fixtureReady === 'true');
+  await page.waitForFunction(name => (
+    document.getElementById('crump53VideoProjectName')?.textContent === name
+  ), accounts.projectB.name);
+  const sameAccountReload = await page.evaluate(({accountAKey, accountBKey}) => ({
+    target: window.CrumpProduct53.projectTarget(),
+    videoLabel: document.getElementById('crump53VideoProjectName')?.textContent || '',
+    accountAStored: localStorage.getItem(accountAKey),
+    accountBStored: localStorage.getItem(accountBKey),
+    legacyStored: localStorage.getItem('askcrump.activeProject53'),
+    browserErrors: Number(document.getElementById('fixtureErrors')?.textContent || 0),
+  }), {accountAKey, accountBKey});
+
+  assert.equal(accountASelected.target.id, accounts.projectA.id, JSON.stringify(accountASelected));
+  assert.equal(accountASelected.accountAStored, accounts.projectA.id, JSON.stringify(accountASelected));
+  assert.equal(accountASelected.legacyStored, null, JSON.stringify(accountASelected));
+  assert.equal(switchedToB.target, null, JSON.stringify(switchedToB));
+  assert.equal(switchedToB.videoContextHidden, true, JSON.stringify(switchedToB));
+  assert.equal(switchedToB.containsAccountAName, false, JSON.stringify(switchedToB));
+  assert.equal(switchedToB.containsAccountAId, false, JSON.stringify(switchedToB));
+  assert.equal(switchedToB.accountAStored, accounts.projectA.id, JSON.stringify(switchedToB));
+  assert.equal(switchedToB.legacyStored, null, JSON.stringify(switchedToB));
+  assert.equal(unselectedRequest.projectId, null, JSON.stringify(unselectedRequest));
+  assert.equal(JSON.stringify(unselectedRequest).includes(accounts.projectA.id), false, JSON.stringify(unselectedRequest));
+  assert.equal(accountBSelected.target.id, accounts.projectB.id, JSON.stringify(accountBSelected));
+  assert.equal(accountBSelected.videoLabel, accounts.projectB.name, JSON.stringify(accountBSelected));
+  assert.equal(accountBSelected.request.projectId, accounts.projectB.id, JSON.stringify(accountBSelected));
+  assert.equal(accountBSelected.accountAStored, accounts.projectA.id, JSON.stringify(accountBSelected));
+  assert.equal(accountBSelected.accountBStored, accounts.projectB.id, JSON.stringify(accountBSelected));
+  assert.equal(accountBSelected.legacyStored, null, JSON.stringify(accountBSelected));
+  assert.equal(sameAccountReload.target.id, accounts.projectB.id, JSON.stringify(sameAccountReload));
+  assert.equal(sameAccountReload.videoLabel, accounts.projectB.name, JSON.stringify(sameAccountReload));
+  assert.equal(sameAccountReload.accountAStored, accounts.projectA.id, JSON.stringify(sameAccountReload));
+  assert.equal(sameAccountReload.accountBStored, accounts.projectB.id, JSON.stringify(sameAccountReload));
+  assert.equal(sameAccountReload.legacyStored, null, JSON.stringify(sameAccountReload));
+  assert.equal(sameAccountReload.browserErrors, 0, JSON.stringify(sameAccountReload));
+  assert.deepEqual(errors, []);
+
+  await page.close();
+  return {accountASelected, switchedToB, unselectedRequest, accountBSelected, sameAccountReload};
+}
+
 (async () => {
   const browser = await chromium.launch({headless: true, executablePath});
   try {
     const desktop = await verify(browser, {width: 1280, height: 760});
     const mobile = await verify(browser, {width: 390, height: 844});
-    process.stdout.write(JSON.stringify({desktop, mobile}));
+    const accountBoundary = await verifyAccountBoundary(browser);
+    process.stdout.write(JSON.stringify({desktop, mobile, accountBoundary}));
   } finally {
     await browser.close();
   }

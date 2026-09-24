@@ -13,8 +13,10 @@ from backend.media_service import (
     EDIT_IMAGE_MAX_EDGE,
     EDIT_IMAGE_MAX_PIXELS,
     IMAGE_EDIT_PROVIDER_MAX_BYTES,
+    IMAGE_PROVIDER_OUTPUT_MAX_BYTES,
     MediaService,
 )
+from backend.product53_hooks import feature_for_request
 from backend.routes import files as file_routes
 from backend.video_service import VideoService, VideoServiceError
 
@@ -24,6 +26,45 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def read(relative: str) -> str:
     return (ROOT / relative).read_text(encoding="utf-8")
+
+
+def test_attached_image_reference_uses_edit_billing_route() -> None:
+    media = SimpleNamespace(
+        is_image_request=lambda _message, tool: tool == "image",
+        is_edit_request=lambda _message, _rows: False,
+        has_visual_files=lambda rows: bool(rows),
+    )
+    ai = SimpleNamespace(
+        settings=SimpleNamespace(brave_api_key=None, web_search_enabled=False),
+        needs_external_lookup=lambda _message: False,
+    )
+
+    referenced, _ = feature_for_request(
+        payload={"message": "Create a launch ad", "creativeTool": "image"},
+        file_rows=[{"mime_type": "image/png"}],
+        media=media,
+        ai=ai,
+    )
+    confirmed, _ = feature_for_request(
+        payload={
+            "message": "Use these",
+            "imageReferencePlanConfirmed": True,
+            "imageReferencePlan": [{"fileId": "fixture", "role": "logo"}],
+        },
+        file_rows=[{"mime_type": "image/png"}],
+        media=media,
+        ai=ai,
+    )
+    fresh, _ = feature_for_request(
+        payload={"message": "Create a launch ad", "creativeTool": "image"},
+        file_rows=[],
+        media=media,
+        ai=ai,
+    )
+
+    assert referenced == "image_edit"
+    assert confirmed == "image_edit"
+    assert fresh == "image"
 
 
 def test_edit_source_is_orientation_safe_provider_png() -> None:
@@ -77,6 +118,78 @@ def test_invalid_edit_source_is_rejected_before_provider_spend() -> None:
     assert caught.value.status_code == 400
     assert caught.value.code == "INVALID_IMAGE_EDIT_SOURCE"
     assert caught.value.retryable is False
+
+
+def test_provider_output_is_bounded_and_canonically_matches_requested_format(monkeypatch) -> None:
+    source = Image.new("RGBA", (12, 8), color=(20, 40, 60, 128))
+    raw = BytesIO()
+    source.save(raw, format="PNG")
+    encoded = base64.b64encode(raw.getvalue()).decode("ascii")
+
+    jpeg = MediaService._provider_output_bytes(encoded, "jpeg")
+
+    with Image.open(BytesIO(jpeg)) as prepared:
+        assert prepared.format == "JPEG"
+        assert prepared.mode == "RGB"
+        assert prepared.size == (12, 8)
+
+    assert IMAGE_PROVIDER_OUTPUT_MAX_BYTES > len(raw.getvalue())
+    monkeypatch.setattr(media_module, "IMAGE_PROVIDER_OUTPUT_MAX_BYTES", 8)
+    with pytest.raises(AIServiceError) as caught:
+        MediaService._provider_output_bytes(encoded, "png")
+    assert caught.value.code == "IMAGE_INVALID_RESPONSE"
+    assert caught.value.status_code == 502
+
+
+def test_provider_output_rejects_non_image_or_animated_payload() -> None:
+    with pytest.raises(AIServiceError) as non_image:
+        MediaService._provider_output_bytes(
+            base64.b64encode(b"not an image").decode("ascii"),
+            "png",
+        )
+    assert non_image.value.code == "IMAGE_INVALID_RESPONSE"
+
+    first = Image.new("RGB", (4, 4), color=(255, 0, 0))
+    second = Image.new("RGB", (4, 4), color=(0, 0, 255))
+    animated = BytesIO()
+    first.save(
+        animated,
+        format="WEBP",
+        save_all=True,
+        append_images=[second],
+        duration=100,
+        loop=0,
+    )
+    with pytest.raises(AIServiceError) as multi_frame:
+        MediaService._provider_output_bytes(
+            base64.b64encode(animated.getvalue()).decode("ascii"),
+            "webp",
+        )
+    assert multi_frame.value.code == "IMAGE_INVALID_RESPONSE"
+
+
+def test_edit_source_rejects_oversized_dimensions_before_pixel_decode(monkeypatch) -> None:
+    original = Image.new("RGB", (64, 64), color=(20, 40, 60))
+    raw = BytesIO()
+    original.save(raw, format="PNG")
+    monkeypatch.setattr(media_module, "LOCAL_ADJUSTMENT_MAX_PIXELS", 1024)
+
+    with pytest.raises(AIServiceError) as caught:
+        MediaService._load_edit_image(raw.getvalue())
+
+    assert caught.value.status_code == 413
+    assert caught.value.code == "IMAGE_EDIT_SOURCE_TOO_LARGE"
+
+
+def test_precision_mask_rejects_oversized_dimensions_before_pixel_decode(monkeypatch) -> None:
+    mask = Image.new("RGBA", (64, 64), color=(209, 191, 150, 255))
+    monkeypatch.setattr(media_module, "LOCAL_ADJUSTMENT_MAX_PIXELS", 1024)
+
+    with pytest.raises(AIServiceError) as caught:
+        MediaService._decode_precision_mask(_png_data_url(mask))
+
+    assert caught.value.status_code == 413
+    assert caught.value.code == "IMAGE_EDIT_MASK_TOO_LARGE"
 
 
 def _png_data_url(image: Image.Image) -> str:
@@ -437,7 +550,7 @@ async def test_precision_edit_full_path_sends_provider_mask_and_stores_protected
     )
 
     assert provider_request["endpoint"].endswith("/v1/images/edits")
-    assert set(provider_request["files"]) == {"image[]", "mask"}
+    assert [name for name, _ in provider_request["files"]] == ["image[]", "mask"]
     assert provider_request["data"]["size"] == "1024x1024"
     assert "Do not infer or label race or ethnicity" in provider_request["data"]["prompt"]
     assert "input_fidelity" not in provider_request["data"]
@@ -450,6 +563,498 @@ async def test_precision_edit_full_path_sends_provider_mask_and_stores_protected
         pixels = stored.convert("RGBA")
         assert pixels.getpixel((100, 100)) == source.getpixel((100, 100))
         assert pixels.getpixel((500, 500)) == generated.getpixel((500, 500))
+
+
+class MultiReferenceImageFiles(PrecisionImageFiles):
+    def __init__(self, sources: dict[str, bytes]) -> None:
+        super().__init__(next(iter(sources.values())))
+        self.sources = sources
+        self.downloaded: list[str] = []
+
+    async def download_bytes(self, *, row, max_bytes: int):
+        assert max_bytes == 25 * 1024 * 1024
+        self.downloaded.append(row["id"])
+        return self.sources[row["id"]]
+
+
+@pytest.mark.asyncio
+async def test_precision_edit_keeps_numbered_roles_for_additional_references(monkeypatch) -> None:
+    source = BytesIO()
+    logo = BytesIO()
+    mascot = BytesIO()
+    style = BytesIO()
+    generated = BytesIO()
+    Image.new("RGBA", (1024, 1024), color=(30, 50, 70, 255)).save(source, format="PNG")
+    Image.new("RGB", (64, 64), color=(220, 190, 80)).save(logo, format="PNG")
+    Image.new("RGB", (64, 64), color=(110, 60, 160)).save(mascot, format="PNG")
+    Image.new("RGB", (64, 64), color=(20, 170, 130)).save(style, format="PNG")
+    Image.new("RGBA", (1024, 1024), color=(80, 100, 180, 255)).save(
+        generated,
+        format="PNG",
+    )
+    mask = Image.new("RGBA", (1024, 1024), color=(209, 191, 150, 0))
+    mask.paste((209, 191, 150, 255), (384, 384, 640, 640))
+    files = MultiReferenceImageFiles({
+        "source-image": source.getvalue(),
+        "logo-image": logo.getvalue(),
+        "mascot-image": mascot.getvalue(),
+        "style-image": style.getvalue(),
+    })
+    service = MediaService(
+        SimpleNamespace(
+            openai_api_key="test-only",
+            image_generation_enabled=True,
+            openai_image_model="gpt-image-2",
+        ),
+        files,
+    )
+    provider_request: dict = {}
+
+    async def fake_post(client, endpoint, **kwargs):
+        provider_request.update({"endpoint": endpoint, **kwargs})
+        return httpx.Response(
+            200,
+            request=httpx.Request("POST", endpoint),
+            json={
+                "data": [{
+                    "b64_json": base64.b64encode(generated.getvalue()).decode("ascii")
+                }]
+            },
+        )
+
+    monkeypatch.setattr(MediaService, "_post_image_request", staticmethod(fake_post))
+    result = await service.generate_or_edit_image(
+        user_id="user-one",
+        payload={
+            "message": "Replace the selected package while keeping these brand references",
+            "creativeTool": "image",
+            "imageReferenceContractVersion": 2,
+            "imageReferencePlanConfirmed": True,
+            "imageReferencePlan": [
+                {"fileId": "source-image", "role": "base"},
+                {"fileId": "logo-image", "role": "logo"},
+                {"fileId": "mascot-image", "role": "mascot"},
+                {"fileId": "style-image", "role": "style"},
+            ],
+        },
+        file_rows=[
+            {"id": "source-image", "mime_type": "image/png", "file_name": "source.png"},
+            {"id": "logo-image", "mime_type": "image/png", "file_name": "logo.png"},
+            {"id": "mascot-image", "mime_type": "image/png", "file_name": "mascot.png"},
+            {"id": "style-image", "mime_type": "image/png", "file_name": "style.png"},
+        ],
+        chat_id=None,
+        message_id=None,
+        image_edit_mask=_png_data_url(mask),
+    )
+
+    prompt = provider_request["data"]["prompt"]
+    assert provider_request["endpoint"].endswith("/v1/images/edits")
+    assert [name for name, _ in provider_request["files"]] == [
+        "image[]",
+        "image[]",
+        "image[]",
+        "image[]",
+        "mask",
+    ]
+    assert files.downloaded == [
+        "source-image",
+        "logo-image",
+        "mascot-image",
+        "style-image",
+    ]
+    assert prompt.index("Precision Edit requirements") < prompt.index("Reference plan")
+    assert "modify only the transparent selected area" in prompt
+    assert "Input image 1: starting canvas and composition (base)" in prompt
+    assert "Input image 2: logo or wordmark identity (logo)" in prompt
+    assert "Input image 3: mascot or character identity and appearance (mascot)" in prompt
+    assert "Input image 4: color palette, lighting, and visual style (style)" in prompt
+    assert "Use only the assigned role from each numbered input" in prompt
+    assert "unless a confirmed numbered logo or typography reference below" in prompt
+    assert "do not invent letters" in prompt
+    assert files.stored["metadata"]["referencePlan"] == [
+        {"fileId": "source-image", "role": "base"},
+        {"fileId": "logo-image", "role": "logo"},
+        {"fileId": "mascot-image", "role": "mascot"},
+        {"fileId": "style-image", "role": "style"},
+    ]
+    assert result["response"] == "I edited only the area you selected."
+    assert result["referencePlan"] == [
+        {"fileId": "source-image", "role": "base", "input": 1},
+        {"fileId": "logo-image", "role": "logo", "input": 2},
+        {"fileId": "mascot-image", "role": "mascot", "input": 3},
+        {"fileId": "style-image", "role": "style", "input": 4},
+    ]
+
+
+def test_no_version_image_reference_preserves_stale_client_compatibility() -> None:
+    plan = MediaService._image_reference_plan(
+        {"imageUseReference": True},
+        [{"id": "logo-image", "mime_type": "image/png", "file_name": "logo.png"}],
+    )
+
+    assert plan == [{"fileId": "logo-image", "role": "base", "name": "logo.png"}]
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"imageReferencePlan": [{"fileId": "logo-image", "role": "logo"}]},
+        {
+            "imageReferencePlan": [{"fileId": "logo-image", "role": "logo"}],
+            "imageReferencePlanConfirmed": True,
+        },
+        {"imageReferencePlanConfirmed": True},
+    ],
+)
+def test_plan_capable_direct_callers_require_the_v2_contract(payload) -> None:
+    with pytest.raises(AIServiceError) as caught:
+        MediaService._image_reference_plan(
+            payload,
+            [{"id": "logo-image", "mime_type": "image/png", "file_name": "logo.png"}],
+        )
+
+    assert caught.value.code == "IMAGE_REFERENCE_PLAN_INVALID"
+    assert "stale" in caught.value.message.lower()
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
+        {"imageUseReference": True, "imageReferenceContractVersion": 2},
+        {
+            "imageUseReference": True,
+            "imageReferenceContractVersion": 2,
+            "imageReferencePlan": [{"fileId": "logo-image", "role": "logo"}],
+        },
+    ],
+)
+def test_v2_image_reference_contract_requires_confirmation(payload) -> None:
+    with pytest.raises(AIServiceError) as caught:
+        MediaService._image_reference_plan(
+            payload,
+            [{"id": "logo-image", "mime_type": "image/png", "file_name": "logo.png"}],
+        )
+
+    assert caught.value.code == "IMAGE_REFERENCE_CONFIRMATION_REQUIRED"
+
+
+def test_v2_image_reference_contract_rejects_a_reordered_plan() -> None:
+    with pytest.raises(AIServiceError) as caught:
+        MediaService._image_reference_plan(
+            {
+                "imageReferenceContractVersion": 2,
+                "imageReferencePlanConfirmed": True,
+                "imageReferencePlan": [
+                    {"fileId": "logo-image", "role": "logo"},
+                    {"fileId": "base-image", "role": "base"},
+                ],
+            },
+            [
+                {"id": "base-image", "mime_type": "image/png", "file_name": "base.png"},
+                {"id": "logo-image", "mime_type": "image/png", "file_name": "logo.png"},
+            ],
+        )
+
+    assert caught.value.code == "IMAGE_REFERENCE_PLAN_INVALID"
+    assert "order" in caught.value.message.lower()
+
+
+def test_image_reference_confirmation_is_validated_before_credit_consumption() -> None:
+    route = read("backend/routes/chat.py")
+    first_validation = route.index("media._image_reference_plan")
+    intelligence = route.index("prepared = await intelligence.prepare", first_validation)
+    semantic_validation = route.index("media._image_reference_plan", first_validation + 1)
+    message_charge = route.index("await features.consume_message", semantic_validation)
+    feature_charge = route.index("feature_usage = await features.consume", message_charge)
+    provider = route.index("result = await media.generate_or_edit_image", feature_charge)
+
+    assert first_validation < intelligence < semantic_validation < message_charge < feature_charge < provider
+
+
+@pytest.mark.asyncio
+async def test_all_confirmed_image_references_reach_edits_in_order_with_roles(monkeypatch) -> None:
+    first = BytesIO()
+    second = BytesIO()
+    third = BytesIO()
+    Image.new("RGB", (64, 64), color=(20, 40, 60)).save(first, format="PNG")
+    Image.new("RGB", (64, 64), color=(210, 190, 120)).save(second, format="PNG")
+    Image.new("RGB", (64, 64), color=(120, 80, 160)).save(third, format="PNG")
+    generated = BytesIO()
+    Image.new("RGB", (64, 64), color=(70, 90, 110)).save(generated, format="PNG")
+    files = MultiReferenceImageFiles({
+        "base-image": first.getvalue(),
+        "logo-image": second.getvalue(),
+        "mascot-image": third.getvalue(),
+    })
+    service = MediaService(
+        SimpleNamespace(openai_api_key="test-only", image_generation_enabled=True, openai_image_model="gpt-image-2"),
+        files,
+    )
+    provider_request: dict = {}
+    provider_calls: list[str] = []
+
+    async def fake_post(client, endpoint, **kwargs):
+        provider_calls.append(endpoint)
+        provider_request.update({"endpoint": endpoint, **kwargs})
+        return httpx.Response(
+            200,
+            request=httpx.Request("POST", endpoint),
+            json={"data": [{"b64_json": base64.b64encode(generated.getvalue()).decode("ascii")}]},
+        )
+
+    monkeypatch.setattr(MediaService, "_post_image_request", staticmethod(fake_post))
+    result = await service.generate_or_edit_image(
+        user_id="user-one",
+        payload={
+            "message": "Create a restrained launch ad using these assets",
+            "creativeTool": "image",
+            "imageReferenceContractVersion": 2,
+            "imageReferencePlanConfirmed": True,
+            "imageReferencePlan": [
+                {"fileId": "base-image", "role": "base"},
+                {"fileId": "logo-image", "role": "logo"},
+                {"fileId": "mascot-image", "role": "mascot"},
+            ],
+        },
+        file_rows=[
+            {"id": "notes", "mime_type": "application/pdf", "file_name": "notes.pdf"},
+            {"id": "base-image", "mime_type": "image/png", "file_name": "base.png"},
+            {"id": "logo-image", "mime_type": "image/png", "file_name": "logo.png"},
+            {"id": "mascot-image", "mime_type": "image/png", "file_name": "mascot.png"},
+        ],
+        chat_id=None,
+        message_id=None,
+    )
+
+    assert provider_request["endpoint"].endswith("/v1/images/edits")
+    assert [name for name, _ in provider_request["files"]] == ["image[]", "image[]", "image[]"]
+    assert [part[0] for _, part in provider_request["files"]] == [
+        "Crump_Reference_01.png",
+        "Crump_Reference_02.png",
+        "Crump_Reference_03.png",
+    ]
+    assert len(provider_calls) == 1
+    assert files.downloaded == ["base-image", "logo-image", "mascot-image"]
+    assert "Input image 1: starting canvas and composition (base)" in provider_request["data"]["prompt"]
+    assert "Input image 2: logo or wordmark identity (logo)" in provider_request["data"]["prompt"]
+    assert "Input image 3: mascot or character identity and appearance (mascot)" in provider_request["data"]["prompt"]
+    assert "do not invent letters" in provider_request["data"]["prompt"]
+    assert files.stored["metadata"]["sourceFileId"] == "base-image"
+    assert files.stored["metadata"]["sourceFileIds"] == ["base-image", "logo-image", "mascot-image"]
+    assert result["referencePlan"] == [
+        {"fileId": "base-image", "role": "base", "input": 1},
+        {"fileId": "logo-image", "role": "logo", "input": 2},
+        {"fileId": "mascot-image", "role": "mascot", "input": 3},
+    ]
+    review = result["referenceReview"]
+    assert files.stored["metadata"]["referenceReview"] == review
+    assert review["status"] == "warn"
+    assert review["method"] == "local-reference-signals-v1"
+    assert review["humanReviewRequired"] is True
+    assert review["reviewProviderUsed"] is False
+    assert review["reviewCreditsUsed"] == 0
+    assert review["limitations"] == ["identity", "logos", "text", "pixel-fidelity"]
+    assert [item["status"] for item in review["references"]] == ["warn", "warn", "warn"]
+    assert [item["signals"] for item in review["references"]] == [
+        {"color": "different", "structure": "aligned"},
+        {"color": "different", "structure": "aligned"},
+        {"color": "different", "structure": "aligned"},
+    ]
+    assert [item["humanChecks"] for item in review["references"]] == [
+        ["composition-details"],
+        ["logo-shape", "logo-colors"],
+        ["character-identity", "fine-details"],
+    ]
+    assert all(item["userReview"] == "pending" for item in review["references"])
+    assert "bytes" not in repr(review).lower()
+    assert "score" not in repr(review).lower()
+
+
+def _fidelity_fixture_bytes(*, inverse: bool = False) -> bytes:
+    if inverse:
+        image = Image.new("RGB", (64, 96), color=(20, 210, 40))
+        payload = BytesIO()
+        image.save(payload, format="PNG")
+        return payload.getvalue()
+    image = Image.new("RGB", (96, 64), color=(20, 40, 60))
+    for x in range(image.width):
+        for y in range(image.height):
+            if ((x // 12) + (y // 8)) % 2:
+                image.putpixel((x, y), (210, 190, 120))
+    payload = BytesIO()
+    image.save(payload, format="PNG")
+    return payload.getvalue()
+
+
+def test_local_reference_review_reports_aligned_limited_and_different_role_evidence() -> None:
+    reference = _fidelity_fixture_bytes()
+    unrelated = _fidelity_fixture_bytes(inverse=True)
+
+    aligned = MediaService._reference_fidelity_review(reference, [{
+        "fileId": "base-reference",
+        "role": "base",
+        "bytes": reference,
+    }])
+    semantic = MediaService._reference_fidelity_review(reference, [{
+        "fileId": "logo-reference",
+        "role": "logo",
+        "bytes": reference,
+    }])
+    different = MediaService._reference_fidelity_review(unrelated, [{
+        "fileId": "base-reference",
+        "role": "base",
+        "bytes": reference,
+    }])
+
+    assert aligned["status"] == "pass"
+    assert aligned["references"][0]["status"] == "pass"
+    assert aligned["references"][0]["signals"] == {"color": "aligned", "structure": "aligned"}
+    assert aligned["humanReviewRequired"] is True
+    assert semantic["status"] == "warn"
+    assert semantic["references"][0]["status"] == "warn"
+    assert semantic["references"][0]["humanChecks"] == ["logo-shape", "logo-colors"]
+    assert different["status"] == "mismatch"
+    assert different["references"][0]["status"] == "mismatch"
+    assert different["references"][0]["signals"] == {"color": "attention", "structure": "different"}
+    for report in (aligned, semantic, different):
+        assert report["reviewProviderUsed"] is False
+        assert report["reviewCreditsUsed"] == 0
+        assert "bytes" not in repr(report).lower()
+        assert "score" not in repr(report).lower()
+        assert "verified" not in report["message"].lower()
+        assert "pixel-perfect" not in report["message"].lower()
+        assert "exact match" not in report["message"].lower()
+
+
+def test_semantic_reference_review_searches_bounded_crops_for_a_small_embedded_mark() -> None:
+    reference_bytes = _fidelity_fixture_bytes()
+    with Image.open(BytesIO(reference_bytes)) as opened:
+        reference = opened.convert("RGB")
+    output = Image.new("RGB", (480, 360), color=(8, 12, 18))
+    output.paste(reference, (384, 296))
+    output_payload = BytesIO()
+    output.save(output_payload, format="PNG")
+
+    boxes = MediaService._fidelity_crop_boxes(output, reference)
+    review = MediaService._reference_fidelity_review(output_payload.getvalue(), [{
+        "fileId": "embedded-logo",
+        "role": "logo",
+        "bytes": reference_bytes,
+    }])
+
+    assert media_module.REFERENCE_FIDELITY_CROP_SCALES == (1.0, 0.75, 0.5, 0.33, 0.2, 0.12)
+    assert media_module.REFERENCE_FIDELITY_CROP_POSITIONS == (0.0, 0.5, 1.0)
+    assert len(boxes) <= 54
+    assert (384, 296, 480, 360) in boxes
+    assert review["references"][0]["signals"] == {"color": "aligned", "structure": "aligned"}
+    assert review["references"][0]["status"] == "warn"
+    assert review["humanReviewRequired"] is True
+    assert "bytes" not in repr(review).lower()
+    assert "score" not in repr(review).lower()
+
+
+def test_semantic_crop_selection_uses_one_candidate_with_structure_weighted_seventy_thirty(monkeypatch) -> None:
+    output = Image.new("RGB", (2, 1))
+    output.putpixel((0, 0), (10, 0, 0))
+    output.putpixel((1, 0), (20, 0, 0))
+    output_payload = BytesIO()
+    output.save(output_payload, format="PNG")
+    reference = Image.new("RGB", (1, 1), color=(30, 0, 0))
+    reference_payload = BytesIO()
+    reference.save(reference_payload, format="PNG")
+
+    monkeypatch.setattr(
+        MediaService,
+        "_fidelity_crop_boxes",
+        staticmethod(lambda _output, _reference: [(0, 0, 1, 1), (1, 0, 2, 1)]),
+    )
+    monkeypatch.setattr(
+        MediaService,
+        "_fidelity_color_score",
+        staticmethod(lambda crop, _reference: 1.0 if crop.getpixel((0, 0))[0] == 10 else 0.0),
+    )
+    monkeypatch.setattr(
+        MediaService,
+        "_fidelity_structure_score",
+        staticmethod(lambda crop, _reference: 0.2 if crop.getpixel((0, 0))[0] == 10 else 0.8),
+    )
+
+    signals = MediaService._local_reference_signals(
+        output_payload.getvalue(),
+        reference_payload.getvalue(),
+        role="logo",
+    )
+
+    # Left wins if color is over-weighted or maxima are mixed; right wins only at 70% structure / 30% color.
+    assert signals == {"color": "different", "structure": "aligned"}
+
+
+@pytest.mark.asyncio
+async def test_unexpected_local_review_failure_stores_a_safe_warning_receipt(monkeypatch) -> None:
+    source = BytesIO()
+    generated = BytesIO()
+    Image.new("RGB", (64, 64), color=(20, 40, 60)).save(source, format="PNG")
+    Image.new("RGB", (64, 64), color=(70, 90, 110)).save(generated, format="PNG")
+    files = PrecisionImageFiles(source.getvalue())
+    service = MediaService(
+        SimpleNamespace(openai_api_key="test-only", image_generation_enabled=True, openai_image_model="gpt-image-2"),
+        files,
+    )
+    provider_calls = 0
+
+    async def fake_post(client, endpoint, **kwargs):
+        nonlocal provider_calls
+        provider_calls += 1
+        return httpx.Response(
+            200,
+            request=httpx.Request("POST", endpoint),
+            json={"data": [{"b64_json": base64.b64encode(generated.getvalue()).decode("ascii")}]},
+        )
+
+    def fail_review(*_args, **_kwargs):
+        raise RuntimeError("local review failed")
+
+    monkeypatch.setattr(MediaService, "_post_image_request", staticmethod(fake_post))
+    monkeypatch.setattr(MediaService, "_reference_fidelity_review", fail_review)
+    result = await service.generate_or_edit_image(
+        user_id="user-one",
+        payload={"message": "Use this image", "creativeTool": "image", "imageUseReference": True},
+        file_rows=[{"id": "source-image", "mime_type": "image/png", "file_name": "source.png"}],
+        chat_id=None,
+        message_id=None,
+    )
+
+    review = result["referenceReview"]
+    assert provider_calls == 1
+    assert files.stored is not None
+    assert files.stored["metadata"]["referenceReview"] == review
+    assert review["status"] == "warn"
+    assert review["references"][0]["signals"] == {"color": "unavailable", "structure": "unavailable"}
+    assert "bytes" not in repr(review).lower()
+    assert "score" not in repr(review).lower()
+
+
+def test_local_reference_review_failure_is_a_safe_human_review_warning() -> None:
+    review = MediaService._reference_fidelity_review(_fidelity_fixture_bytes(), [{
+        "fileId": "broken-reference",
+        "role": "subject",
+        "bytes": b"not-an-image",
+    }])
+
+    assert review["status"] == "warn"
+    assert review["humanReviewRequired"] is True
+    assert review["references"] == [{
+        "fileId": "broken-reference",
+        "role": "subject",
+        "input": 1,
+        "status": "warn",
+        "signals": {"color": "unavailable", "structure": "unavailable"},
+        "humanChecks": ["identity", "fine-details"],
+        "userReview": "pending",
+    }]
+    assert review["reviewProviderUsed"] is False
+    assert review["reviewCreditsUsed"] == 0
 
 
 @pytest.mark.asyncio
@@ -858,14 +1463,14 @@ def test_image_studio_exposes_an_optional_reference_and_honest_fidelity_guidance
     studio = script[script.index("function showImageOptions()") : script.index("function showDocumentOptions()")]
 
     for contract in (
-        "Add an image to edit",
-        "Reference image ready",
+        "Add images to guide the result",
+        "reference image${currentReferences.length === 1 ? '' : 's'} ready",
         "Create without reference",
-        "Continue with reference",
-        "Describe what to keep and what to change",
-        "Select the pixels yourself",
+        "Confirm reference plan",
+        "Reference plan · confirm before generating",
+        "Crump sends every confirmed reference as a numbered visual constraint",
         "does not infer race or ethnicity",
-        "placed as overlays for exact fidelity",
+        "use Exact Overlay when original pixels must remain unchanged",
         "Edit one exact area",
         "aria-label', 'Image Studio",
         "aria-label', 'Close Image Studio",
@@ -997,14 +1602,14 @@ def test_precision_editor_is_manual_private_and_pixel_protected() -> None:
     assert "stage.clientHeight" in editor
     assert "state.fitWidth = Math.max(1" in editor
     assert "state.fitHeight = Math.max(1" in editor
-    exact_script = "/crump-precision-image-edit.js?v=5.9.76-precision-studio-1"
-    exact_style = "/crump-precision-image-edit.css?v=5.9.76-precision-studio-1"
+    exact_script = "/crump-precision-image-edit.js?v=5.9.76-reference-fidelity-hard-contract-1"
+    exact_style = "/crump-precision-image-edit.css?v=5.9.76-reference-fidelity-hard-contract-1"
     for asset in (exact_script, exact_style):
         assert asset in loader
         assert asset not in runtime
         assert asset not in worker
         assert asset not in native
-    exact_loader = "/crump-precision-image-edit-loader.js?v=5.9.76-precision-lazy-load-1"
+    exact_loader = "/crump-precision-image-edit-loader.js?v=5.9.76-reference-fidelity-hard-contract-1"
     for source in (runtime, worker, native):
         assert exact_loader in source
     assert "CrumpPrecisionImageEditLoader?.load" in composer
@@ -1032,21 +1637,37 @@ def test_image_studio_close_restores_a_visible_opener_or_the_composer() -> None:
     assert "forwardWrapFocus !== 'Close Image Studio'" in verifier
 
 
-def test_image_reference_picker_is_single_image_private_state_and_replaces_only_images() -> None:
+def test_image_reference_picker_is_bounded_multi_image_private_state_with_roles() -> None:
     script = read("public/crump-5.0.js")
     picker = script[script.index("function isImageAttachment") : script.index("function showImageOptions()")]
 
-    assert "selected.slice(0, 1)" in picker
-    assert "const issue = validateFile(selected[0]);" in picker
-    assert "!isSupportedImageFile(selected[0])" in picker
-    assert "if (!replace && state.attachments.length >= MAX_FILES)" in picker
-    assert picker.index("const issue = validateFile(selected[0]);") < picker.index("if (replace) clearImageAttachments();")
+    assert "input.multiple = true" in picker
+    assert "for (const file of selected)" in picker
+    assert "IMAGE_REFERENCE_LIMIT - existingImages" in picker
+    assert "selected.slice(0, available)" in picker
+    assert "{imageReference: true}" in picker
+    assert picker.index("for (const file of selected)") < picker.index("if (replace) clearImageAttachments();")
     assert "if (replace) clearImageAttachments();" in picker
     assert "state.attachments.filter(item => !isImageAttachment(item))" in picker
+    assert "imageReferenceRoleFor" in picker
+    assert "imageReferencePlanConfirmed" in picker
     assert "localStorage" not in picker
     assert "sessionStorage" not in picker
     assert "fetch(" not in picker
     assert "input.accept = 'image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif'" in picker
+
+
+def test_generic_image_attachment_action_requires_plan_before_usage_check() -> None:
+    script = read("public/crump-5.0.js")
+    sender = script[script.index("async function studioSendMessage()") : script.index("async function retryMessage")]
+
+    assert "looksLikeReferenceImageAction(text)" in sender
+    assert "referenceImageAction" in sender
+    assert "draftReferences.length > IMAGE_REFERENCE_LIMIT" in sender
+    assert "Remove ${excess} image${excess === 1 ? '' : 's'} before generating." in sender
+    assert "state.tool = 'image'" in sender
+    assert "Confirm what each reference controls before Crump uses credits." in sender
+    assert sender.index("showImageOptions();") < sender.index("await ensureUsage();")
 
 
 def test_blocked_image_request_has_revision_instead_of_exact_retry_contract() -> None:
@@ -1091,6 +1712,15 @@ def test_image_rejection_browser_fixture_is_private_and_credential_free() -> Non
     assert "replacementRestored.attachmentCount === 0" in verifier
     assert "replacementRestored.fileInputClicks === 1" in verifier
     assert "replacementBlocked.ensureUsageCalls === 0" in verifier
+    assert "Reference check · 2 local comparisons" in verifier
+    assert "Local color and structure checks only · no extra generation or credits" in verifier
+    assert "Confirm reference 1 was reviewed" in verifier
+    assert "Flag reference 2 as a mismatch" in verifier
+    assert "JSON.stringify(userReviewed.decisions) === JSON.stringify(['confirmed', 'mismatch'])" in verifier
+    assert "userReviewed.sendCalls === 2" in verifier
+    assert "mismatchCleared.decision === 'confirmed'" in verifier
+    assert "!mismatchCleared.receipt.includes('Mismatch flagged')" in verifier
+    assert "mismatchCleared.sendCalls === 2" in verifier
     assert "askcrump.com" not in fixture
     assert "password" not in fixture.lower()
 
@@ -1100,13 +1730,18 @@ def test_video_job_survives_navigation_and_duplicate_submission() -> None:
 
     for contract in (
         "VIDEO_REQUEST_STORAGE_KEY",
-        "videoRequestFingerprint",
+        "videoRequestDigest",
+        "crypto.subtle.digest('SHA-256'",
+        "requestDigest",
+        "videoStorageKey(VIDEO_JOB_STORAGE_KEY",
         "if (state.videoStarting) return",
-        "Your current video is still generating",
+        "instead of starting or charging for another",
+        "/api/media/video/request-status",
+        "recoverPendingVideoRequest",
         "resumePendingVideoJob",
         "document.addEventListener('visibilitychange'",
         "window.addEventListener('online', resumePendingVideoJob)",
-        "event.key === VIDEO_JOB_STORAGE_KEY",
+        "event.key === videoStorageKey(VIDEO_JOB_STORAGE_KEY, ownerUserId)",
     ):
         assert contract in script
 

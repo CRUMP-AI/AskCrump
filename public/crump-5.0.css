@@ -342,6 +342,8 @@ body.crump-50 .crump50-precision-entry > span:nth-child(2) { min-width: 0; displ
 body.crump-50 .crump50-precision-entry strong { font-size: 11px; font-weight: 620; }
 body.crump-50 .crump50-precision-entry small { color: var(--c50-text-3); font-size: 9px; }
 body.crump-50 .crump50-precision-entry b { color: var(--c50-gold); font-size: 9px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
+body.crump-50 .crump50-precision-entry.is-exact-overlay { border-color: rgba(143,192,171,.24); background: rgba(103,171,142,.065); }
+body.crump-50 .crump50-precision-entry.is-exact-overlay:hover:not(:disabled) { border-color: rgba(143,192,171,.42); background: rgba(103,171,142,.1); }
 body.crump-50 .crump50-image-guidance { margin: 1px 2px 0; color: var(--c50-text-3); font-size: 9.5px; line-height: 1.55; }
 body.crump-50 .crump50-primary-action { min-height: 48px; margin-top: 7px; border: 0; border-radius: 14px; background: #e7e2d7; color: #11151a; font-size: 12px; font-weight: 650; }
 body.crump-50 .crump50-format-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 7px; padding: 2px 7px 8px; }
@@ -361,12 +363,35 @@ body.crump-50 .crump50-file-card > span:nth-child(2) { min-width: 0; display: gr
 body.crump-50 .crump50-file-card strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 590; }
 body.crump-50 .crump50-file-card small { color: var(--c50-text-3); font-size: 8.8px; }
 body.crump-50 .crump50-file-card b { color: #727985; font-weight: 400; }
+body.crump-50 .crump50-reference-receipt { width: min(100%, 560px); margin-top: 10px; display: grid; gap: 9px; padding: 13px; border: 1px solid rgba(209,191,150,.16); border-radius: 14px; background: rgba(209,191,150,.045); color: var(--c50-text-2); }
+body.crump-50 .crump50-reference-receipt > strong { color: var(--c50-text); font-size: 12px; font-weight: 680; letter-spacing: .04em; text-transform: uppercase; }
+body.crump-50 .crump50-reference-receipt small { color: var(--c50-text-3); font-size: 12px; line-height: 1.45; }
+body.crump-50 .crump50-reference-method { display: block; }
+body.crump-50 .crump50-reference-receipt ol { margin: 0; padding: 0; display: grid; gap: 8px; list-style: none; }
+body.crump-50 .crump50-reference-result { display: grid; gap: 7px; padding: 10px; border: 1px solid rgba(255,255,255,.07); border-radius: 11px; background: rgba(5,8,12,.24); }
+body.crump-50 .crump50-reference-result-title { display: flex; align-items: center; justify-content: space-between; gap: 10px; color: var(--c50-text); font-size: 13px; }
+body.crump-50 .crump50-reference-result-title b { flex: 0 0 auto; padding: 3px 7px; border-radius: 999px; font-size: 11px; font-weight: 680; }
+body.crump-50 .crump50-reference-result-title b.is-aligned { color: #b9dfca; background: rgba(78,168,119,.16); }
+body.crump-50 .crump50-reference-result-title b.is-warn { color: #ead49c; background: rgba(209,167,75,.16); }
+body.crump-50 .crump50-reference-result-title b.is-mismatch { color: #f0b5b5; background: rgba(202,88,88,.16); }
+body.crump-50 .crump50-reference-signals { display: flex; flex-wrap: wrap; gap: 5px; }
+body.crump-50 .crump50-reference-signals span { padding: 3px 7px; border: 1px solid rgba(255,255,255,.08); border-radius: 999px; color: var(--c50-text-2); background: rgba(255,255,255,.035); font-size: 12px; }
+body.crump-50 .crump50-reference-signals span.is-different { border-color: rgba(202,88,88,.24); color: #f0b5b5; }
+body.crump-50 .crump50-reference-signals span.is-unavailable,
+body.crump-50 .crump50-reference-signals span.is-attention { border-color: rgba(209,167,75,.22); color: #ead49c; }
+body.crump-50 .crump50-reference-review-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+body.crump-50 .crump50-reference-review-actions > span { margin-right: auto; color: var(--c50-text-3); font-size: 12px; }
+body.crump-50 .crump50-reference-review-actions button { min-height: 32px; padding: 6px 9px; border: 1px solid rgba(255,255,255,.10); border-radius: 9px; color: var(--c50-text-2); background: rgba(255,255,255,.04); font: inherit; font-size: 12px; cursor: pointer; }
+body.crump-50 .crump50-reference-review-actions button:hover:not(:disabled) { border-color: rgba(209,191,150,.28); color: var(--c50-text); }
+body.crump-50 .crump50-reference-review-actions button:disabled { opacity: .55; cursor: default; }
 body.crump-50 .generated-image-wrapper.crump50-generated { width: min(100%, 650px); margin-top: 12px; border: 1px solid var(--c50-line); border-radius: 20px; background: #0e1319; overflow: hidden; box-shadow: 0 18px 50px rgba(0,0,0,.22); }
 body.crump-50 .generated-image-wrapper.crump50-generated .message-image { display: block; width: 100%; max-height: 650px; object-fit: contain; cursor: zoom-in; background: #090c10; }
 body.crump-50 .generated-image-wrapper .image-actions { display: none !important; }
-body.crump-50 .crump50-image-actions { display: flex; gap: 5px; padding: 8px; border-top: 1px solid var(--c50-line); }
-body.crump-50 .crump50-image-actions button { min-height: 34px; padding: 0 11px; border: 0; border-radius: 10px; background: rgba(255,255,255,.04); color: var(--c50-text-2); font-size: 10px; font-weight: 550; }
+body.crump-50 .crump50-image-actions { display: flex; flex-wrap: wrap; gap: 5px; padding: 8px; border-top: 1px solid var(--c50-line); }
+body.crump-50 .crump50-image-actions button { flex: 1 1 78px; min-height: 34px; padding: 0 11px; border: 0; border-radius: 10px; background: rgba(255,255,255,.04); color: var(--c50-text-2); font-size: 10px; font-weight: 550; }
 body.crump-50 .crump50-image-actions button:hover { background: rgba(255,255,255,.07); color: var(--c50-text); }
+body.crump-50 .crump50-image-actions .crump50-exact-overlay-action { background: rgba(209,191,150,.1); color: #ead9b3; }
+body.crump-50 .crump50-image-actions .crump50-exact-overlay-action:hover { background: rgba(209,191,150,.16); color: #fff4d8; }
 body.crump-50 .crump50-artifact { width: min(100%, 520px); min-height: 74px; margin-top: 12px; display: grid; grid-template-columns: 46px 1fr auto; align-items: center; gap: 11px; padding: 10px; border: 1px solid rgba(209,191,150,.14); border-radius: 17px; background: linear-gradient(145deg, rgba(209,191,150,.07), rgba(255,255,255,.02)); }
 body.crump-50 .crump50-artifact > span { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 12px; background: rgba(209,191,150,.1); color: var(--c50-gold); font-size: 9px; font-weight: 700; letter-spacing: .06em; }
 body.crump-50 .crump50-artifact > div { min-width: 0; display: grid; gap: 4px; }

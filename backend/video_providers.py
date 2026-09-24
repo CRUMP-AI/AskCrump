@@ -5,11 +5,13 @@ and output retrieval live here so the product layer can remain provider-agnostic
 """
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 import ipaddress
 import logging
+import socket
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import urljoin, urlparse
 
 import httpx
 
@@ -19,7 +21,14 @@ from .config import Settings
 GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta"
 RUNWAY_BASE_URL = "https://api.dev.runwayml.com/v1"
 GEMINI_ALLOWED_VIDEO_HOST_SUFFIXES = (".googleapis.com", ".googleusercontent.com")
+VIDEO_DOWNLOAD_REDIRECTS = frozenset({301, 302, 303, 307, 308})
+VIDEO_DOWNLOAD_MAX_REDIRECTS = 3
 logger = logging.getLogger("askcrump.video.providers")
+
+
+def _safe_log_token(value: Any, *, limit: int = 120) -> str:
+    raw = str(value or "")[:limit]
+    return "".join(character if character.isalnum() or character in "._-" else "_" for character in raw)
 
 
 @dataclass(slots=True)
@@ -30,6 +39,7 @@ class ProviderError(RuntimeError):
     retryable: bool = False
     failure_code: str | None = None
     refund_eligible: bool = True
+    acceptance_unknown: bool = False
 
     def __post_init__(self) -> None:
         RuntimeError.__init__(self, self.message)
@@ -38,7 +48,17 @@ class ProviderError(RuntimeError):
 def _safe_https_url(uri: str, *, provider: str) -> str:
     parsed = urlparse(str(uri or ""))
     host = (parsed.hostname or "").lower()
-    if parsed.scheme != "https" or not host or parsed.username or parsed.password:
+    try:
+        port = parsed.port
+    except ValueError as exc:
+        raise ProviderError("Unsafe video download location.", "UNSAFE_VIDEO_URI", 502) from exc
+    if (
+        parsed.scheme != "https"
+        or not host
+        or parsed.username
+        or parsed.password
+        or port not in {None, 443}
+    ):
         raise ProviderError("Unsafe video download location.", "UNSAFE_VIDEO_URI", 502)
     if host in {"localhost", "localhost.localdomain"} or host.endswith(".local"):
         raise ProviderError("Unsafe video download location.", "UNSAFE_VIDEO_URI", 502)
@@ -53,6 +73,139 @@ def _safe_https_url(uri: str, *, provider: str) -> str:
             return uri
         raise ProviderError("Unexpected Gemini video download host.", "UNSAFE_VIDEO_URI", 502)
     return uri
+
+
+async def _safe_resolved_https_url(uri: str, *, provider: str) -> str:
+    """Validate the URL and reject hosts resolving to non-public networks."""
+    safe_uri = _safe_https_url(uri, provider=provider)
+    host = str(urlparse(safe_uri).hostname or "")
+    try:
+        addresses = await asyncio.to_thread(
+            socket.getaddrinfo,
+            host,
+            443,
+            type=socket.SOCK_STREAM,
+        )
+    except OSError as exc:
+        raise ProviderError(
+            "The video finished but Ask Crump could not resolve its download location.",
+            "VIDEO_DOWNLOAD_FAILED",
+            503,
+            True,
+        ) from exc
+    resolved = {
+        str(item[4][0]).split("%", 1)[0]
+        for item in addresses
+        if len(item) > 4 and item[4]
+    }
+    if not resolved:
+        raise ProviderError(
+            "The video finished but Ask Crump could not resolve its download location.",
+            "VIDEO_DOWNLOAD_FAILED",
+            503,
+            True,
+        )
+    for value in resolved:
+        try:
+            address = ipaddress.ip_address(value)
+        except ValueError as exc:
+            raise ProviderError("Unsafe video download location.", "UNSAFE_VIDEO_URI", 502) from exc
+        if not address.is_global:
+            raise ProviderError("Unsafe video download location.", "UNSAFE_VIDEO_URI", 502)
+    return safe_uri
+
+
+def _url_origin(uri: str) -> tuple[str, str, int]:
+    parsed = urlparse(uri)
+    try:
+        port = parsed.port or 443
+    except ValueError as exc:
+        raise ProviderError("Unsafe video download location.", "UNSAFE_VIDEO_URI", 502) from exc
+    return parsed.scheme, str(parsed.hostname or "").lower(), port
+
+
+async def _bounded_provider_download(
+    uri: str,
+    *,
+    provider: str,
+    max_bytes: int,
+    credential_headers: dict[str, str] | None = None,
+) -> bytes:
+    """Download with per-hop URL checks, bounded redirects, and streaming cap."""
+    limit = max(1, int(max_bytes or 0))
+    current_uri = str(uri or "").strip()
+    credential_origin = (
+        _url_origin(_safe_https_url(current_uri, provider=provider))
+        if credential_headers
+        else None
+    )
+    try:
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(120.0, connect=20.0),
+            follow_redirects=False,
+        ) as client:
+            for hop in range(VIDEO_DOWNLOAD_MAX_REDIRECTS + 1):
+                safe_uri = await _safe_resolved_https_url(current_uri, provider=provider)
+                headers = (
+                    dict(credential_headers or {})
+                    if credential_origin and _url_origin(safe_uri) == credential_origin
+                    else {}
+                )
+                async with client.stream("GET", safe_uri, headers=headers) as response:
+                    if response.status_code in VIDEO_DOWNLOAD_REDIRECTS:
+                        location = str(response.headers.get("location") or "").strip()
+                        if not location or hop >= VIDEO_DOWNLOAD_MAX_REDIRECTS:
+                            raise ProviderError(
+                                "The video download redirected unexpectedly.",
+                                "UNSAFE_VIDEO_URI",
+                                502,
+                            )
+                        current_uri = urljoin(safe_uri, location)
+                        continue
+                    if response.status_code >= 400:
+                        raise ProviderError(
+                            "The video finished but Ask Crump could not retrieve the file.",
+                            "VIDEO_DOWNLOAD_FAILED",
+                            503,
+                            True,
+                        )
+                    content_length = response.headers.get("content-length")
+                    if content_length:
+                        try:
+                            if int(content_length) > limit:
+                                raise ProviderError(
+                                    "The generated video exceeded Ask Crump's storage safety limit.",
+                                    "VIDEO_FILE_TOO_LARGE",
+                                    502,
+                                )
+                        except ValueError:
+                            pass
+                    data = bytearray()
+                    async for chunk in response.aiter_bytes():
+                        if len(data) + len(chunk) > limit:
+                            raise ProviderError(
+                                "The generated video exceeded Ask Crump's storage safety limit.",
+                                "VIDEO_FILE_TOO_LARGE",
+                                502,
+                            )
+                        data.extend(chunk)
+                    if not data:
+                        raise ProviderError(
+                            "The video provider returned an empty file.",
+                            "VIDEO_DOWNLOAD_FAILED",
+                            502,
+                        )
+                    return bytes(data)
+    except ProviderError:
+        raise
+    except httpx.HTTPError as exc:
+        raise ProviderError(
+            "The video finished but Ask Crump could not retrieve the file.",
+            "VIDEO_DOWNLOAD_FAILED",
+            503,
+            True,
+        ) from exc
+    raise ProviderError("The video download redirected unexpectedly.", "UNSAFE_VIDEO_URI", 502)
 
 
 class GeminiVeoProvider:
@@ -89,14 +242,14 @@ class GeminiVeoProvider:
     @classmethod
     def _exception(cls, response: httpx.Response, *, checking: bool = False) -> ProviderError:
         provider_code, provider_message = cls._provider_error(response)
+        acceptance_unknown = not checking and response.status_code >= 500
         request_id = str(response.headers.get("x-request-id") or response.headers.get("x-goog-request-id") or "")[:160]
         logger.error(
-            "Gemini video request rejected phase=%s status=%s code=%s request_id=%s message=%s",
+            "Gemini video request rejected phase=%s status=%s code=%s request_id=%s",
             "poll" if checking else "start",
             response.status_code,
-            provider_code or "-",
-            request_id or "-",
-            provider_message or "-",
+            _safe_log_token(provider_code) or "-",
+            _safe_log_token(request_id, limit=160) or "-",
         )
         diagnostic = f"{provider_code} {provider_message}".lower()
         if response.status_code in {401, 403} or "permission_denied" in diagnostic:
@@ -104,21 +257,41 @@ class GeminiVeoProvider:
                 "Gemini video access is not enabled for this API key or project.",
                 "VIDEO_PROVIDER_PERMISSION_REQUIRED",
                 503,
+                acceptance_unknown=acceptance_unknown,
             )
         if "quota" in diagnostic or "billing" in diagnostic or "resource_exhausted" in diagnostic:
             return ProviderError(
                 "The Gemini video provider project has no available quota or billing budget.",
                 "VIDEO_PROVIDER_QUOTA_REQUIRED",
                 503,
+                acceptance_unknown=acceptance_unknown,
             )
         if response.status_code == 429:
             return ProviderError("The video provider is rate limited. Try again shortly.", "VIDEO_RATE_LIMIT", 429, True)
         return ProviderError(
-            "The video provider could not return job status." if checking else "The video provider rejected the generation request.",
-            "VIDEO_STATUS_UNAVAILABLE" if checking else "VIDEO_PROVIDER_REJECTED",
+            (
+                "The video provider could not return job status."
+                if checking
+                else (
+                    "Could not confirm whether the video provider accepted "
+                    "the generation request."
+                    if acceptance_unknown
+                    else "The video provider rejected the generation request."
+                )
+            ),
+            (
+                "VIDEO_STATUS_UNAVAILABLE"
+                if checking
+                else (
+                    "VIDEO_PROVIDER_UNAVAILABLE"
+                    if acceptance_unknown
+                    else "VIDEO_PROVIDER_REJECTED"
+                )
+            ),
             502,
             response.status_code >= 500,
             failure_code=provider_code or None,
+            acceptance_unknown=acceptance_unknown,
         )
 
     async def start(
@@ -177,16 +350,34 @@ class GeminiVeoProvider:
                     json={"instances": [instance], "parameters": parameters},
                 )
         except httpx.HTTPError as exc:
-            raise ProviderError("Could not start the video generation job.", "VIDEO_PROVIDER_UNAVAILABLE", 503, True) from exc
+            raise ProviderError(
+                "Could not confirm whether the video provider accepted the generation request.",
+                "VIDEO_PROVIDER_UNAVAILABLE",
+                503,
+                True,
+                acceptance_unknown=True,
+            ) from exc
         if response.status_code >= 400:
             raise self._exception(response)
         try:
             body = response.json()
         except ValueError as exc:
-            raise ProviderError("The video provider returned an invalid response.", "VIDEO_PROVIDER_INVALID_RESPONSE", 502, True) from exc
+            raise ProviderError(
+                "The video provider returned an invalid response after launch.",
+                "VIDEO_PROVIDER_INVALID_RESPONSE",
+                502,
+                True,
+                acceptance_unknown=True,
+            ) from exc
         operation_name = str(body.get("name") or "").strip()
         if not operation_name:
-            raise ProviderError("The video provider did not return a job identifier.", "VIDEO_PROVIDER_INVALID_RESPONSE", 502, True)
+            raise ProviderError(
+                "The video provider did not return a job identifier after launch.",
+                "VIDEO_PROVIDER_INVALID_RESPONSE",
+                502,
+                True,
+                acceptance_unknown=True,
+            )
         return operation_name[:500]
 
     async def poll(self, provider_job_id: str) -> dict[str, Any]:
@@ -237,18 +428,18 @@ class GeminiVeoProvider:
         }
 
     async def download(self, uri: str, *, max_bytes: int) -> bytes:
-        safe_uri = _safe_https_url(uri, provider="gemini")
-        try:
-            async with httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=20.0), follow_redirects=True) as client:
-                response = await client.get(safe_uri, headers=self.headers)
-        except httpx.HTTPError as exc:
-            raise ProviderError("The video finished but Ask Crump could not retrieve the file.", "VIDEO_DOWNLOAD_FAILED", 503, True) from exc
-        if response.status_code >= 400:
-            raise ProviderError("The video finished but Ask Crump could not retrieve the file.", "VIDEO_DOWNLOAD_FAILED", 503, True)
-        data = response.content
-        if not data or len(data) > max_bytes:
-            raise ProviderError("The generated video exceeded Ask Crump's storage safety limit.", "VIDEO_FILE_TOO_LARGE", 502)
-        return data
+        host = str(urlparse(str(uri or "")).hostname or "").lower()
+        credentials = (
+            {"x-goog-api-key": str(self.settings.gemini_api_key or "")}
+            if host == "generativelanguage.googleapis.com"
+            else None
+        )
+        return await _bounded_provider_download(
+            uri,
+            provider="gemini",
+            max_bytes=max_bytes,
+            credential_headers=credentials,
+        )
 
 
 class RunwayProvider:
@@ -282,24 +473,51 @@ class RunwayProvider:
     @classmethod
     def _exception(cls, response: httpx.Response, *, checking: bool = False) -> ProviderError:
         message = cls._message(response)
+        acceptance_unknown = not checking and response.status_code >= 500
         logger.error(
-            "Runway video request rejected phase=%s status=%s request_id=%s message=%s",
+            "Runway video request rejected phase=%s status=%s request_id=%s",
             "poll" if checking else "start",
             response.status_code,
-            str(response.headers.get("x-request-id") or "")[:160] or "-",
-            message or "-",
+            _safe_log_token(response.headers.get("x-request-id"), limit=160) or "-",
         )
         if response.status_code in {401, 403}:
-            return ProviderError("Runway API access is not configured for this project.", "VIDEO_PROVIDER_PERMISSION_REQUIRED", 503)
+            return ProviderError(
+                "Runway API access is not configured for this project.",
+                "VIDEO_PROVIDER_PERMISSION_REQUIRED",
+                503,
+                acceptance_unknown=acceptance_unknown,
+            )
         if response.status_code in {402, 409} or "credit" in message.lower() or "billing" in message.lower():
-            return ProviderError("Runway has no available provider credits or billing budget.", "VIDEO_PROVIDER_QUOTA_REQUIRED", 503)
+            return ProviderError(
+                "Runway has no available provider credits or billing budget.",
+                "VIDEO_PROVIDER_QUOTA_REQUIRED",
+                503,
+                acceptance_unknown=acceptance_unknown,
+            )
         if response.status_code == 429:
             return ProviderError("Runway is rate limited. Try again shortly.", "VIDEO_RATE_LIMIT", 429, True)
         return ProviderError(
-            "Runway could not return job status." if checking else "Runway rejected the generation request.",
-            "VIDEO_STATUS_UNAVAILABLE" if checking else "VIDEO_PROVIDER_REJECTED",
+            (
+                "Runway could not return job status."
+                if checking
+                else (
+                    "Could not confirm whether Runway accepted the generation request."
+                    if acceptance_unknown
+                    else "Runway rejected the generation request."
+                )
+            ),
+            (
+                "VIDEO_STATUS_UNAVAILABLE"
+                if checking
+                else (
+                    "VIDEO_PROVIDER_UNAVAILABLE"
+                    if acceptance_unknown
+                    else "VIDEO_PROVIDER_REJECTED"
+                )
+            ),
             502,
             response.status_code >= 500,
+            acceptance_unknown=acceptance_unknown,
         )
 
     async def start(
@@ -328,16 +546,34 @@ class RunwayProvider:
             async with httpx.AsyncClient(timeout=httpx.Timeout(45.0, connect=15.0)) as client:
                 response = await client.post(f"{RUNWAY_BASE_URL}/{endpoint}", headers=self.headers, json=payload)
         except httpx.HTTPError as exc:
-            raise ProviderError("Could not start the Runway video job.", "VIDEO_PROVIDER_UNAVAILABLE", 503, True) from exc
+            raise ProviderError(
+                "Could not confirm whether Runway accepted the video request.",
+                "VIDEO_PROVIDER_UNAVAILABLE",
+                503,
+                True,
+                acceptance_unknown=True,
+            ) from exc
         if response.status_code >= 400:
             raise self._exception(response)
         try:
             body = response.json()
         except ValueError as exc:
-            raise ProviderError("Runway returned an invalid response.", "VIDEO_PROVIDER_INVALID_RESPONSE", 502, True) from exc
+            raise ProviderError(
+                "Runway returned an invalid response after launch.",
+                "VIDEO_PROVIDER_INVALID_RESPONSE",
+                502,
+                True,
+                acceptance_unknown=True,
+            ) from exc
         task_id = str(body.get("id") or "").strip()
         if not task_id:
-            raise ProviderError("Runway did not return a task identifier.", "VIDEO_PROVIDER_INVALID_RESPONSE", 502, True)
+            raise ProviderError(
+                "Runway did not return a task identifier after launch.",
+                "VIDEO_PROVIDER_INVALID_RESPONSE",
+                502,
+                True,
+                acceptance_unknown=True,
+            )
         return task_id[:500]
 
     async def poll(self, provider_job_id: str) -> dict[str, Any]:
@@ -390,15 +626,8 @@ class RunwayProvider:
         }
 
     async def download(self, uri: str, *, max_bytes: int) -> bytes:
-        safe_uri = _safe_https_url(uri, provider="runway")
-        try:
-            async with httpx.AsyncClient(timeout=httpx.Timeout(120.0, connect=20.0), follow_redirects=False) as client:
-                response = await client.get(safe_uri)
-        except httpx.HTTPError as exc:
-            raise ProviderError("The Runway video finished but Ask Crump could not retrieve it.", "VIDEO_DOWNLOAD_FAILED", 503, True) from exc
-        if response.status_code >= 400:
-            raise ProviderError("The Runway video finished but Ask Crump could not retrieve it.", "VIDEO_DOWNLOAD_FAILED", 503, True)
-        data = response.content
-        if not data or len(data) > max_bytes:
-            raise ProviderError("The generated video exceeded Ask Crump's storage safety limit.", "VIDEO_FILE_TOO_LARGE", 502)
-        return data
+        return await _bounded_provider_download(
+            uri,
+            provider="runway",
+            max_bytes=max_bytes,
+        )

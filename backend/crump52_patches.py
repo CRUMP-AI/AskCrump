@@ -31,8 +31,33 @@ _FILE_KINDS = {"upload", "generated_image", "generated_document"}
 _FILE_STATUS = {"pending", "ready", "failed"}
 _REQUEST_META_KEYS = {
     "creativeTool", "imageAspect", "imageQuality", "imageUseReference",
+    "imageReferencePlanConfirmed", "imageReferenceContractVersion",
     "artifactFormat", "artifactPurpose", "needsSearch", "taskType", "longForm",
 }
+_IMAGE_REFERENCE_ROLES = {"base", "subject", "mascot", "logo", "typography", "style"}
+_REFERENCE_REVIEW_MESSAGES = {
+    "pass": "Local color and structure signals align. Review every original before publishing.",
+    "warn": "Local checks are limited or need attention. Review every original before publishing.",
+    "mismatch": "At least one reference was flagged or local color and structure signals differ. Review every original before publishing.",
+    "not-applicable": "",
+}
+_REFERENCE_REVIEW_INPUT_STATUSES = {*_REFERENCE_REVIEW_MESSAGES, "review-required"}
+_REFERENCE_SIGNAL_VALUES = {"aligned", "attention", "different", "unavailable"}
+_REFERENCE_USER_REVIEW_VALUES = {"pending", "confirmed", "mismatch"}
+_REFERENCE_REVIEW_LIMITATIONS = ["identity", "logos", "text", "pixel-fidelity"]
+_REFERENCE_HUMAN_CHECKS = {
+    "base": ["composition-details"],
+    "subject": ["identity", "fine-details"],
+    "mascot": ["character-identity", "fine-details"],
+    "logo": ["logo-shape", "logo-colors"],
+    "typography": ["text-spelling", "letterforms", "text-layout"],
+    "style": ["style-details"],
+}
+_IMAGE_REFERENCE_PLAN_ERROR_CODES = {
+    "IMAGE_REFERENCE_CONFIRMATION_REQUIRED",
+    "IMAGE_REFERENCE_PLAN_INVALID",
+}
+_VIDEO_HANDOFF_REFERENCE_LIMIT = 10
 _METADATA_STRING_LIMITS = {
     "prompt": 4000,
     "title": 500,
@@ -153,6 +178,199 @@ def _safe_artifact_recovery(value: Any) -> dict[str, Any] | None:
     return recovery
 
 
+def _safe_image_reference_plan(value: Any) -> list[dict[str, str]]:
+    if not isinstance(value, list) or not 1 <= len(value) <= 4:
+        return []
+    result: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for item in value:
+        if not isinstance(item, dict):
+            return []
+        try:
+            file_id = str(uuid.UUID(str(item.get("fileId") or "").strip()))
+        except (ValueError, TypeError, AttributeError):
+            return []
+        role = sync_module.clean_text(item.get("role"), 20).lower()
+        if file_id in seen or role not in _IMAGE_REFERENCE_ROLES:
+            return []
+        seen.add(file_id)
+        result.append({"fileId": file_id, "role": role})
+    return result
+
+
+def _safe_image_reference_receipt(value: Any) -> list[dict[str, Any]]:
+    plan = _safe_image_reference_plan(value)
+    return [
+        {**item, "input": index}
+        for index, item in enumerate(plan, start=1)
+    ]
+
+
+def _reference_signal_status(role: str, signals: dict[str, str]) -> str:
+    color = signals.get("color", "unavailable")
+    structure = signals.get("structure", "unavailable")
+    if "unavailable" in {color, structure}:
+        return "warn"
+    if role == "base":
+        if structure == "different":
+            return "mismatch"
+        if structure == "aligned" and color == "aligned":
+            return "pass"
+        return "warn"
+    if role == "style":
+        if color == "aligned" and structure == "aligned":
+            return "pass"
+        if color == "different":
+            return "mismatch"
+        return "warn"
+    if color == "different" and structure == "different":
+        return "mismatch"
+    return "warn"
+
+
+def _safe_reference_evidence(
+    value: Any,
+    reference_plan: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    raw_references = value if isinstance(value, list) else []
+    evidence: list[dict[str, Any]] = []
+    for index, expected in enumerate(reference_plan):
+        supplied = raw_references[index] if index < len(raw_references) else None
+        signals = {"color": "unavailable", "structure": "unavailable"}
+        user_review = "pending"
+        if isinstance(supplied, dict):
+            try:
+                supplied_id = str(uuid.UUID(str(supplied.get("fileId") or "").strip()))
+            except (ValueError, TypeError, AttributeError):
+                supplied_id = ""
+            supplied_role = sync_module.clean_text(supplied.get("role"), 20).lower()
+            try:
+                supplied_input = int(supplied.get("input") or 0)
+            except (TypeError, ValueError, OverflowError):
+                supplied_input = 0
+            if (
+                supplied_id == expected["fileId"]
+                and supplied_role == expected["role"]
+                and supplied_input == index + 1
+            ):
+                raw_signals = supplied.get("signals")
+                if isinstance(raw_signals, dict):
+                    color = sync_module.clean_text(raw_signals.get("color"), 20).lower()
+                    structure = sync_module.clean_text(raw_signals.get("structure"), 20).lower()
+                    if color in _REFERENCE_SIGNAL_VALUES and structure in _REFERENCE_SIGNAL_VALUES:
+                        signals = {"color": color, "structure": structure}
+                supplied_review = sync_module.clean_text(supplied.get("userReview"), 20).lower()
+                if supplied_review in _REFERENCE_USER_REVIEW_VALUES:
+                    user_review = supplied_review
+        role = expected["role"]
+        status = _reference_signal_status(role, signals)
+        if user_review == "mismatch":
+            status = "mismatch"
+        evidence.append({
+            **expected,
+            "status": status,
+            "signals": signals,
+            "humanChecks": list(_REFERENCE_HUMAN_CHECKS.get(role, ["final-visual"])),
+            "userReview": user_review,
+        })
+    return evidence
+
+
+def _safe_reference_review(
+    value: Any,
+    reference_plan: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    if not isinstance(value, dict):
+        return None
+    supplied_status = sync_module.clean_text(value.get("status"), 30).lower()
+    if supplied_status not in _REFERENCE_REVIEW_INPUT_STATUSES:
+        return None
+    if supplied_status == "not-applicable" and reference_plan:
+        return None
+    if supplied_status != "not-applicable" and not reference_plan:
+        return None
+    if not reference_plan:
+        return {
+            "status": "not-applicable",
+            "method": "none",
+            "humanReviewRequired": False,
+            "message": "",
+            "references": [],
+        }
+
+    references = _safe_reference_evidence(value.get("references"), reference_plan)
+    statuses = {item["status"] for item in references}
+    if "mismatch" in statuses:
+        status = "mismatch"
+    elif statuses == {"pass"}:
+        status = "pass"
+    else:
+        status = "warn"
+    return {
+        "status": status,
+        "method": "local-reference-signals-v1",
+        "humanReviewRequired": True,
+        "reviewProviderUsed": False,
+        "reviewCreditsUsed": 0,
+        "limitations": list(_REFERENCE_REVIEW_LIMITATIONS),
+        "message": _REFERENCE_REVIEW_MESSAGES[status],
+        "references": references,
+    }
+
+
+def _safe_creation_handoff(value: Any) -> dict[str, Any] | None:
+    """Allow only the minimal, bounded video handoff needed by the client."""
+    if not isinstance(value, dict) or str(value.get("kind") or "").strip().lower() != "video":
+        return None
+    brief = sync_module.clean_text(value.get("brief"), 4000)
+    if not brief:
+        return None
+    raw_references = value.get("referenceFiles")
+    if raw_references is None:
+        raw_references = []
+    if not isinstance(raw_references, list) or len(raw_references) > _VIDEO_HANDOFF_REFERENCE_LIMIT:
+        return None
+    references: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for index, item in enumerate(raw_references, start=1):
+        if not isinstance(item, dict):
+            return None
+        try:
+            file_id = str(uuid.UUID(str(item.get("id") or "").strip()))
+        except (ValueError, TypeError, AttributeError):
+            return None
+        media_type = sync_module.clean_text(item.get("type"), 120).lower()
+        if file_id in seen or not media_type.startswith("image/"):
+            return None
+        seen.add(file_id)
+        reference = {
+            "id": file_id,
+            "name": (
+                sync_module.clean_text(item.get("name"), 255)
+                or f"Reference image {index}"
+            ),
+            "type": media_type,
+        }
+        try:
+            size = int(item.get("size") or 0)
+        except (TypeError, ValueError, OverflowError):
+            size = 0
+        if size > 0:
+            reference["size"] = min(size, 100 * 1024 * 1024)
+        references.append(reference)
+    handoff: dict[str, Any] = {
+        "kind": "video",
+        "brief": brief,
+        "autoOpen": value.get("autoOpen") is True,
+        "autoStart": value.get("autoStart") is True and not references,
+        "referenceFiles": references,
+    }
+    idempotency_key = sync_module.clean_text(value.get("idempotencyKey"), 120)
+    if idempotency_key:
+        handoff["idempotencyKey"] = idempotency_key
+    return handoff
+
+
 def _safe_project_attachments(value: Any) -> dict[str, dict[str, Any]]:
     if not isinstance(value, dict):
         return {}
@@ -227,6 +445,10 @@ def _sanitize_message_v52(item: Any) -> dict[str, Any] | None:
         or item.get("imageFile")
         or item.get("image_file")
         or item.get("manuscriptWorkspace")
+        or (
+            str(item.get("role") or "").strip().lower() == "assistant"
+            and item.get("creationHandoff")
+        )
     )
     actual_content = sync_module.clean_text(item.get("content"), sync_module.MAX_MESSAGE_CHARS)
     actual_image = _safe_image_url_v52(item.get("imageUrl") or item.get("image_url"))
@@ -241,6 +463,14 @@ def _sanitize_message_v52(item: Any) -> dict[str, Any] | None:
     if not message:
         return None
     message["content"] = actual_content
+
+    if message.get("role") == "user":
+        reply_error_code = sync_module.clean_text(
+            item.get("replyErrorCode") or item.get("reply_error_code"),
+            80,
+        ).upper()
+        if reply_error_code in _IMAGE_REFERENCE_PLAN_ERROR_CODES:
+            message["replyErrorCode"] = reply_error_code
 
     if actual_image:
         message["imageUrl"] = actual_image
@@ -277,6 +507,20 @@ def _sanitize_message_v52(item: Any) -> dict[str, Any] | None:
     if manuscript_workspace:
         message["manuscriptWorkspace"] = manuscript_workspace
 
+    if message.get("role") == "assistant":
+        creation_handoff = _safe_creation_handoff(item.get("creationHandoff"))
+        if creation_handoff:
+            message["creationHandoff"] = creation_handoff
+        reference_plan = _safe_image_reference_receipt(item.get("referencePlan"))
+        if reference_plan:
+            message["referencePlan"] = reference_plan
+        reference_review = _safe_reference_review(
+            item.get("referenceReview"),
+            reference_plan,
+        )
+        if reference_review:
+            message["referenceReview"] = reference_review
+
     request_meta = item.get("requestMeta") or item.get("request_meta")
     if isinstance(request_meta, dict):
         clean_meta: dict[str, Any] = {}
@@ -284,6 +528,10 @@ def _sanitize_message_v52(item: Any) -> dict[str, Any] | None:
             if key not in request_meta:
                 continue
             value = request_meta.get(key)
+            if key == "imageReferenceContractVersion":
+                if value == 2 or str(value or "").strip() == "2":
+                    clean_meta[key] = 2
+                continue
             if key == "artifactPurpose":
                 if str(value or "").strip().lower() == "resume":
                     clean_meta[key] = "resume"
@@ -294,6 +542,9 @@ def _sanitize_message_v52(item: Any) -> dict[str, Any] | None:
                 cleaned = sync_module.clean_text(value, 100)
                 if cleaned:
                     clean_meta[key] = cleaned
+        image_reference_plan = _safe_image_reference_plan(request_meta.get("imageReferencePlan"))
+        if image_reference_plan:
+            clean_meta["imageReferencePlan"] = image_reference_plan
         if clean_meta:
             message["requestMeta"] = clean_meta
 

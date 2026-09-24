@@ -27,7 +27,7 @@ function fixtureHtml() {
 <body>
   <button id="editArea" type="button">Edit area</button>
   <output id="status">idle</output>
-  <script src="${assetPaths.loader}?v=5.9.76-precision-lazy-load-1"></script>
+  <script src="${assetPaths.loader}?v=5.9.76-reference-fidelity-hard-contract-1"></script>
   <script>
     const button = document.getElementById('editArea');
     const status = document.getElementById('status');

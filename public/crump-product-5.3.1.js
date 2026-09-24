@@ -17,7 +17,12 @@
     menuTrigger: null,
     renameSheet: null,
     uploading: false,
+    projectReferenceAbortController: null,
+    projectFilesAbortController: null,
   };
+  let productDetailAuthSequence = 0;
+  let productDetailUserId = '';
+  let projectFilesRefreshTimer = 0;
 
   const byId = id => document.getElementById(id);
   const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character => ({
@@ -50,8 +55,31 @@
     return data;
   }
 
+  function currentProductDetailUserId() {
+    const current = String(window.currentUser?.id || '').trim();
+    const loader = String(window.CrumpProductLoader?.authenticatedUserId?.() || '').trim();
+    return current && (!loader || loader === current) ? current : '';
+  }
+
+  function productDetailOperation() {
+    return {userId: currentProductDetailUserId(), sequence: productDetailAuthSequence};
+  }
+
+  function productDetailOperationIsCurrent(operation) {
+    return Boolean(
+      operation?.userId
+      && operation.sequence === productDetailAuthSequence
+      && operation.userId === currentProductDetailUserId()
+    );
+  }
+
   function activeProjectId() {
-    try { return localStorage.getItem('askcrump.activeProject53') || ''; }
+    if (!currentProductDetailUserId()) return '';
+    const liveTarget = window.CrumpProduct53?.projectTarget?.();
+    const liveId = String(liveTarget?.id || '').trim();
+    if (liveId) return liveId;
+    const key = `askcrump.activeProject53:${encodeURIComponent(currentProductDetailUserId())}`;
+    try { return localStorage.getItem(key) || ''; }
     catch (_) { return ''; }
   }
 
@@ -70,6 +98,11 @@
   }
 
   function addReferenceFiles(fileList) {
+    const ownerUserId = currentProductDetailUserId();
+    if (!ownerUserId) {
+      projectStatus('Sign in before adding private Project references.', true);
+      return;
+    }
     const incoming = [...(fileList || [])];
     if (!incoming.length) return;
     const available = Math.max(0, MAX_QUEUE - state.queue.length);
@@ -86,6 +119,7 @@
       state.queue.push({
         id: crypto.randomUUID?.() || `${Date.now()}-${Math.random()}`,
         file,
+        ownerUserId,
       });
     }
     renderReferenceQueue();
@@ -115,20 +149,25 @@
     });
   }
 
-  async function uploadProjectReference(file, projectId) {
+  async function uploadProjectReference(file, projectId, operation, signal) {
+    if (!productDetailOperationIsCurrent(operation)) throw new DOMException('Account changed.', 'AbortError');
     if (!window.CrumpFileTools?.upload) {
       throw new Error('Ask Crump file tools are not ready yet. Try again in a moment.');
     }
     const completedFile = await window.CrumpFileTools.upload(file);
+    if (!productDetailOperationIsCurrent(operation)) throw new DOMException('Account changed.', 'AbortError');
     await api(`/api/projects/${encodeURIComponent(projectId)}/files`, {
       method: 'POST',
       body: {fileId: completedFile.id, role: 'reference'},
+      signal,
     });
+    if (!productDetailOperationIsCurrent(operation)) throw new DOMException('Account changed.', 'AbortError');
     return completedFile;
   }
 
-  async function waitForProjectId(previousId, editing) {
+  async function waitForProjectId(previousId, editing, operation) {
     for (let attempt = 0; attempt < 80; attempt += 1) {
+      if (!productDetailOperationIsCurrent(operation)) return '';
       const projectId = activeProjectId();
       const status = byId('crump53ProjectStatus')?.textContent || '';
       if (projectId && (editing || projectId !== previousId || /project saved/i.test(status))) {
@@ -140,21 +179,30 @@
     return '';
   }
 
-  async function attachQueuedAfterSave(previousId, editing) {
+  async function attachQueuedAfterSave(previousId, editing, operation = productDetailOperation()) {
     if (state.uploading || !state.queue.length) return;
-    const projectId = await waitForProjectId(previousId, editing);
+    if (
+      !productDetailOperationIsCurrent(operation)
+      || state.queue.some(item => item.ownerUserId !== operation.userId)
+    ) return;
+    const projectId = await waitForProjectId(previousId, editing, operation);
+    if (!productDetailOperationIsCurrent(operation)) return;
     if (!projectId) {
       projectStatus('Save the Project successfully before reference files can be attached.', true);
       return;
     }
 
     state.uploading = true;
+    const controller = new AbortController();
+    state.projectReferenceAbortController = controller;
     const pending = [...state.queue];
     let completed = 0;
     try {
       for (const item of pending) {
+        if (!productDetailOperationIsCurrent(operation) || controller.signal.aborted) return;
         projectStatus(`Adding ${item.file.name}… ${completed + 1} of ${pending.length}`);
-        await uploadProjectReference(item.file, projectId);
+        await uploadProjectReference(item.file, projectId, operation, controller.signal);
+        if (!productDetailOperationIsCurrent(operation) || controller.signal.aborted) return;
         completed += 1;
         state.queue = state.queue.filter(candidate => candidate.id !== item.id);
         renderReferenceQueue();
@@ -162,9 +210,13 @@
       projectStatus(`${completed} reference file${completed === 1 ? '' : 's'} added to this Project.`);
       await refreshProjectFiles();
     } catch (error) {
+      if (!productDetailOperationIsCurrent(operation) || error?.name === 'AbortError') return;
       projectStatus(error.message || 'A reference file could not be added.', true);
     } finally {
-      state.uploading = false;
+      if (state.projectReferenceAbortController === controller) {
+        state.projectReferenceAbortController = null;
+        state.uploading = false;
+      }
     }
   }
 
@@ -196,6 +248,7 @@
     const card = byId('crump531ProjectFilesCard');
     const list = byId('crump531ProjectFilesList');
     if (!card || !list) return;
+    const operation = productDetailOperation();
     const projectId = activeProjectId();
     if (!projectId) {
       card.hidden = true;
@@ -204,9 +257,14 @@
     }
     card.hidden = false;
     list.innerHTML = '<div class="crump531-empty">Loading Project files…</div>';
+    state.projectFilesAbortController?.abort?.();
+    const controller = new AbortController();
+    state.projectFilesAbortController = controller;
     try {
-      const data = await api(`/api/projects/${encodeURIComponent(projectId)}/files`);
-      if (activeProjectId() !== projectId) return;
+      const data = await api(`/api/projects/${encodeURIComponent(projectId)}/files`, {
+        signal: controller.signal,
+      });
+      if (!productDetailOperationIsCurrent(operation) || activeProjectId() !== projectId) return;
       const files = Array.isArray(data.files) ? data.files : [];
       if (!files.length) {
         list.innerHTML = '<div class="crump531-empty">No Project files yet.</div>';
@@ -247,16 +305,22 @@
         });
       });
     } catch (error) {
-      if (activeProjectId() !== projectId) return;
+      if (
+        controller.signal.aborted
+        || !productDetailOperationIsCurrent(operation)
+        || activeProjectId() !== projectId
+      ) return;
       list.innerHTML = `<div class="crump531-empty is-error"><span>${escapeHtml(error.message || 'Could not load Project files.')}</span> <button type="button" class="crump531-use-file" data-retry-project-files>Retry</button></div>`;
       list.querySelector('[data-retry-project-files]')?.addEventListener(
         'click',
         () => void refreshProjectFiles(),
       );
+    } finally {
+      if (state.projectFilesAbortController === controller) {
+        state.projectFilesAbortController = null;
+      }
     }
   }
-
-  let projectFilesRefreshTimer = 0;
 
   function hideProjectFiles() {
     const card = byId('crump531ProjectFilesCard');
@@ -334,9 +398,11 @@
 
     form.addEventListener('submit', () => {
       if (!state.queue.length) return;
+      const operation = productDetailOperation();
+      if (!productDetailOperationIsCurrent(operation)) return;
       const previousId = activeProjectId();
       const editing = /edit project/i.test(byId('crump53ProjectFormTitle')?.textContent || '');
-      void attachQueuedAfterSave(previousId, editing);
+      void attachQueuedAfterSave(previousId, editing, operation);
     }, true);
 
     byId('crump53NewProject')?.addEventListener('click', () => {
@@ -354,6 +420,35 @@
     state.menu?.remove();
     state.menu = null;
     state.menuTrigger = null;
+  }
+
+  function scrubProductDetailAuthBoundary() {
+    productDetailAuthSequence += 1;
+    productDetailUserId = '';
+    state.projectReferenceAbortController?.abort?.();
+    state.projectFilesAbortController?.abort?.();
+    state.projectReferenceAbortController = null;
+    state.projectFilesAbortController = null;
+    state.uploading = false;
+    state.queue = [];
+    if (projectFilesRefreshTimer) window.clearTimeout(projectFilesRefreshTimer);
+    projectFilesRefreshTimer = 0;
+    const input = byId('crump531ReferenceInput');
+    if (input) input.value = '';
+    renderReferenceQueue();
+    projectStatus('');
+    hideProjectFiles();
+    closeChatMenu();
+    state.renameSheet?.remove();
+    state.renameSheet = null;
+  }
+
+  function handleProductDetailAuthenticated() {
+    const nextUserId = currentProductDetailUserId();
+    if (productDetailUserId && productDetailUserId !== nextUserId) {
+      scrubProductDetailAuthBoundary();
+    }
+    productDetailUserId = nextUserId;
   }
 
   function conversationLabel(item) {
@@ -509,6 +604,14 @@
     installProjectReferences();
     enhanceChatList();
   }
+
+  if (window.CrumpAuthBoundary?.register) {
+    window.CrumpAuthBoundary.register('product-studio-detail', scrubProductDetailAuthBoundary);
+  } else {
+    window.addEventListener('crump:authentication-required', scrubProductDetailAuthBoundary);
+  }
+  window.addEventListener('crump:authenticated-ready', handleProductDetailAuthenticated);
+  handleProductDetailAuthenticated();
 
   if (document.readyState === 'complete') setTimeout(installObservers, 60);
   else window.addEventListener('load', () => setTimeout(installObservers, 60), {once: true});

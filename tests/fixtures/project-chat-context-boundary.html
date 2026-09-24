@@ -31,11 +31,56 @@
       instructions: 'Keep the reading sequence consistent.',
       updated_at: '2026-09-01T12:00:00Z',
     };
+    const fixtureProjectB = {
+      id: '00000000-0000-4000-8000-000000000091',
+      name: 'Harbor Arts Calendar',
+      description: 'The second account workspace.',
+      instructions: 'Keep Harbor Arts dates isolated.',
+      updated_at: '2026-09-01T12:30:00Z',
+    };
+    const fixtureUserA = {id: 'fixture-user-a'};
+    const fixtureUserB = {id: 'fixture-user-b'};
+    const fixtureParams = new URLSearchParams(location.search);
+    const fixtureInitialUser = fixtureParams.get('user') === 'b' ? fixtureUserB : fixtureUserA;
+    const fixtureInitialProject = fixtureInitialUser.id === fixtureUserB.id ? fixtureProjectB : fixtureProject;
     const linkedChatId = '00000000-0000-4000-8000-000000000082';
     const unrelatedChatId = '00000000-0000-4000-8000-000000000083';
     const freshChatId = '00000000-0000-4000-8000-000000000084';
     window.fixtureIds = {linkedChatId, unrelatedChatId, freshChatId};
-    window.currentUser = {id: 'fixture-user'};
+    window.fixtureAccounts = {
+      userA: fixtureUserA,
+      userB: fixtureUserB,
+      projectA: fixtureProject,
+      projectB: fixtureProjectB,
+    };
+    window.currentUser = fixtureInitialUser;
+    let fixtureAuthenticatedUserId = fixtureInitialUser.id;
+    const fixtureAuthScrubbers = new Map();
+    window.CrumpAuthBoundary = Object.freeze({
+      register(name, scrub) {
+        fixtureAuthScrubbers.set(String(name), scrub);
+        return () => fixtureAuthScrubbers.delete(String(name));
+      },
+      authenticatedUserId: () => fixtureAuthenticatedUserId,
+      revision: () => 0,
+    });
+    window.fixtureAuthenticationRequired = () => {
+      const previousUserId = fixtureAuthenticatedUserId;
+      fixtureAuthScrubbers.forEach(scrub => scrub({
+        reason: 'authentication-required',
+        previousUserId,
+        nextUserId: '',
+        revision: 1,
+      }));
+      fixtureAuthenticatedUserId = '';
+      window.currentUser = null;
+      window.dispatchEvent(new Event('crump:authentication-required'));
+    };
+    window.fixtureLogin = user => {
+      window.currentUser = user;
+      fixtureAuthenticatedUserId = String(user?.id || '');
+      window.dispatchEvent(new Event('crump:authenticated-ready'));
+    };
     window.currentChatId = '';
     window.chats = [{
       id: linkedChatId,
@@ -43,6 +88,7 @@
       messages: [],
     }];
     window.fixtureChatRequests = [];
+    window.fixtureVideoRequests = [];
     window.fixtureDestinations = [];
     window.showToast = () => {};
     window.CrumpAnalytics = {track: () => Promise.resolve(true)};
@@ -62,19 +108,39 @@
     window.fetch = async (input, options = {}) => {
       const url = new URL(typeof input === 'string' ? input : input.url, location.href);
       const method = String(options.method || 'GET').toUpperCase();
+      const activeFixtureProject = window.currentUser?.id === fixtureUserB.id
+        ? fixtureProjectB
+        : fixtureProject;
       let data = {success: true};
       if (url.pathname === '/api/features') {
         data = {success: true, projectLimit: 3, features: {}};
       } else if (url.pathname === '/api/projects' && method === 'GET') {
-        data = {success: true, projects: [fixtureProject], limit: 3};
-      } else if (url.pathname === `/api/projects/${fixtureProject.id}`) {
-        data = {success: true, project: fixtureProject, context: {canon: []}};
+        data = {success: true, projects: [activeFixtureProject], limit: 3};
+      } else if (
+        url.pathname.startsWith('/api/projects/target/')
+        && method === 'GET'
+      ) {
+        const requestedProjectId = decodeURIComponent(url.pathname.split('/').pop());
+        if (requestedProjectId !== activeFixtureProject.id) {
+          return new Response(JSON.stringify({success: false, error: 'Project not found.'}), {
+            status: 404,
+            headers: {'Content-Type': 'application/json'},
+          });
+        }
+        data = {success: true, project: activeFixtureProject};
+      } else if (url.pathname === `/api/projects/${activeFixtureProject.id}`) {
+        data = {success: true, project: activeFixtureProject, context: {canon: []}};
       } else if (url.pathname === `/api/projects/${fixtureProject.id}/chats`) {
         data = {success: true, conversations: [{
           chatId: linkedChatId,
           title: 'Savannah launch plan',
         }]};
-      } else if (url.pathname === `/api/projects/${fixtureProject.id}/manuscripts`) {
+      } else if (url.pathname === `/api/projects/${fixtureProjectB.id}/chats`) {
+        data = {success: true, conversations: []};
+      } else if (
+        url.pathname === `/api/projects/${fixtureProject.id}/manuscripts`
+        || url.pathname === `/api/projects/${fixtureProjectB.id}/manuscripts`
+      ) {
         data = {success: true, manuscripts: []};
       } else if (url.pathname.startsWith('/api/projects/for-chat/')) {
         const chatId = decodeURIComponent(url.pathname.split('/').pop());
@@ -88,6 +154,40 @@
         const body = JSON.parse(String(options.body || '{}'));
         window.fixtureChatRequests.push(body);
         data = {success: true, received: body};
+      } else if (url.pathname === '/api/media/video' && method === 'POST') {
+        const body = JSON.parse(String(options.body || '{}'));
+        window.fixtureVideoRequests.push(body);
+        data = {
+          success: true,
+          job: {
+            id: window.fixtureVideoRequests.length === 1
+              ? '00000000-0000-4000-8000-000000000101'
+              : '00000000-0000-4000-8000-000000000102',
+            status: 'processing',
+            provider: 'gemini',
+          },
+        };
+      } else if (url.pathname.startsWith('/api/media/video/') && method === 'GET') {
+        data = {
+          success: true,
+          job: {
+            id: url.pathname.split('/').pop(),
+            status: 'ready',
+            provider: 'gemini',
+            durationSeconds: 5,
+            resolution: '720p',
+            referencePlan: [],
+            referenceVerification: 'not-performed',
+            file: {
+              id: '00000000-0000-4000-8000-000000000103',
+              name: 'fixture-video.mp4',
+              type: 'video/mp4',
+              url: 'data:video/mp4;base64,',
+            },
+          },
+        };
+      } else if (url.pathname === '/api/files' && method === 'GET') {
+        data = {success: true, files: []};
       } else {
         return new Response(JSON.stringify({success: false, error: `Unexpected fixture request: ${url.pathname}`}), {
           status: 500,
@@ -118,8 +218,12 @@
   <script src="/public/crump-product-5.3.js?v=project-chat-context-boundary-1"></script>
   <script>
     window.addEventListener('load', async () => {
-      await window.CrumpProduct53.openProject(fixtureProject.id);
-      document.getElementById('crump53Close')?.click();
+      if (fixtureParams.get('autoload') !== '0') {
+        await window.CrumpProduct53.openProject(fixtureInitialProject.id);
+        document.getElementById('crump53Close')?.click();
+      } else {
+        window.CrumpProduct53.open('video');
+      }
       document.documentElement.dataset.fixtureReady = 'true';
     });
   </script>

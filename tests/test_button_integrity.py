@@ -25,7 +25,7 @@ EXPECTED_BUTTON_INVENTORY = {
     "public/crump-library-5.7.js": 41,
     "public/crump-navigation-5.9.30.js": 4,
     "public/crump-product-5.3.1.js": 10,
-    "public/crump-product-5.3.js": 54,
+    "public/crump-product-5.3.js": 57,
     "public/install-prompt.js": 2,
     "public/lifecycle-manager.js": 2,
     "public/subscription-ui.js": 3,
@@ -35,7 +35,7 @@ DYNAMIC_BUTTON_INVENTORY = {
     "public/app.js": 2,
     "public/crump-4.3.js": 1,
     "public/crump-4.4.js": 3,
-    "public/crump-5.0.js": 22,
+    "public/crump-5.0.js": 26,
     "public/crump-5.2.js": 3,
     "public/crump-billing-5.1.js": 2,
     "public/crump-code-5.9.35.js": 5,
@@ -43,21 +43,22 @@ DYNAMIC_BUTTON_INVENTORY = {
     "public/crump-precision-image-edit.js": 29,
     "public/crump-product-5.3.1.js": 1,
     "public/crump-product-5.3.js": 4,
+    "public/crump-product-loader.js": 1,
     "public/crump-subscriptions-5.3.2.js": 2,
     "public/install-prompt.js": 1,
     "public/onboarding.js": 1,
     "public/ui-functions.js": 16,
 }
 INDIRECT_DYNAMIC_BUTTON_OWNERS = {
-    "public/crump-5.0.js:1447:close": (
+    "public/crump-5.0.js:1939:close": (
         "mountLightbox(box, close);",
         "closeButton.addEventListener('click', dismiss)",
     ),
-    "public/crump-5.0.js:1531:close": (
+    "public/crump-5.0.js:2023:close": (
         "mountLightbox(box, close);",
         "closeButton.addEventListener('click', dismiss)",
     ),
-    "public/crump-5.0.js:1754:project": (
+    "public/crump-5.0.js:2400:project": (
         "wireOutputProjectAction(project, {",
         "button.addEventListener('click', async () => {",
     ),
@@ -91,7 +92,7 @@ INDIRECT_DYNAMIC_BUTTON_OWNERS = {
         "byId('crumpCodeDetail')?.addEventListener('click'",
         "button.dataset.codeAction === 'cancel'",
     ),
-    "public/crump-product-5.3.1.js:491:button": (
+    "public/crump-product-5.3.1.js:586:button": (
         "button.className = 'crump531-chat-menu-button'",
         "document.addEventListener('click', event => {",
         "event.target.closest?.('.crump531-chat-menu-button')",
@@ -288,7 +289,7 @@ def test_rendered_button_inventory_requires_explicit_review() -> None:
             inventory[page.relative_to(ROOT).as_posix()] = len(parser.buttons)
 
     assert inventory == EXPECTED_BUTTON_INVENTORY
-    assert sum(inventory.values()) == 183
+    assert sum(inventory.values()) == 186
 
 
 def test_programmatically_created_button_inventory_requires_explicit_review() -> None:
@@ -299,8 +300,8 @@ def test_programmatically_created_button_inventory_requires_explicit_review() ->
             inventory[path.relative_to(ROOT).as_posix()] = count
 
     assert inventory == DYNAMIC_BUTTON_INVENTORY
-    assert sum(inventory.values()) == 94
-    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 277
+    assert sum(inventory.values()) == 99
+    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 285
 
 
 def test_programmatically_created_buttons_declare_type_and_runtime_owner() -> None:
@@ -635,7 +636,7 @@ def test_browser_control_matrix_is_fail_closed_and_one_command() -> None:
     workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     verifier_names = sorted(path.name for path in (ROOT / "scripts").glob("verify-*.cjs"))
 
-    assert len(verifier_names) == 49
+    assert len(verifier_names) == 50
     for name in verifier_names:
         assert f"'{name}'" in runner
     assert "Browser verifier inventory drifted." in runner

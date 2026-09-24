@@ -1,9 +1,9 @@
 # Conversational document delivery focused release
 
-Date: 2026-09-24  
+Date: 2026-09-24
 Base: `5e96bc6eb0ef84b01e897d464db06a63eeafb924`
-Branch: `release/document-delivery-focused-20260924`  
-Status: verified source candidate; privacy prerequisite and document migration deployed; app not deployed
+Branch: `release/document-delivery-focused-20260924`
+Status: deployed and live-verified on production deployment `dpl_CRzcktWawEagAY8XYiBDoDNnh19c`
 
 ## User outcome
 
@@ -100,8 +100,9 @@ public surface remain unchanged at this checkpoint.
 ## Release boundary
 
 The privacy prerequisite, hosted PostgreSQL gate, and database-before-app order above are proven.
-This candidate remains held only until the application commit is merged and deployed. Production
-acceptance should use a founder-owned account and verify: create a DOCX and PDF in chat, Open each
+The application commit is merged and production now serves cache `r251` and runtime
+`5.9.76-document-delivery-focused-1` with no browser-console or recent Vercel runtime errors.
+Founder-owned acceptance should verify: create a DOCX and PDF in chat, Open each
 while Files or a Project overlay remains mounted,
 download both on desktop and iPhone/PWA, refresh, and confirm the same artifacts remain attached to
 the same conversation. Also regenerate one changed version from the same message and confirm the
