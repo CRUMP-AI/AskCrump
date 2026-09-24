@@ -561,6 +561,31 @@ def test_registered_campaign_tuple_is_preserved_exactly():
     }
 
 
+def test_image_intent_is_allowlisted_without_retaining_customer_content():
+    assert normalize_attribution(
+        acquisition="Direct",
+        placement=None,
+        campaign=None,
+        creative=None,
+        intent="Image",
+    ) == {
+        "acquisition": "direct",
+        "placement": None,
+        "campaign": None,
+        "creative": None,
+        "intent": "image",
+    }
+
+    rejected = normalize_attribution(
+        acquisition="direct",
+        placement=None,
+        campaign=None,
+        creative=None,
+        intent="private image prompt",
+    )
+    assert rejected["intent"] is None
+
+
 @pytest.mark.parametrize(
     "acquisition, placement, campaign, creative, intent",
     [

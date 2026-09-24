@@ -6,22 +6,27 @@ const {chromium} = require('playwright');
 
 const root = path.resolve(__dirname, '..');
 const publicDirectory = path.join(root, 'public');
-const oldCacheName = 'ask-crump-new-body-v1-r257';
-const newCacheName = 'ask-crump-new-body-v1-r258';
+const oldCacheName = 'ask-crump-new-body-v1-r258';
+const newCacheName = 'ask-crump-new-body-v1-r259';
 const oldUrls = Object.freeze([
-  '/runtime-body-v1.js?v=5.9.76-exact-overlay-entry-1',
-  '/crump-5.0.js?v=5.9.76-exact-overlay-entry-1',
+  '/landing.js?v=5.9.76-facebook-reel-attribution-1',
+  '/crump-navigation-5.9.30.js?v=5.9.76-autonomous-crump-1',
+  '/auth-controller.js?v=5.9.76-checkout-owner-reset-1',
 ]);
 const newUrls = Object.freeze({
+  landing: '/landing.js?v=5.9.76-image-intent-handoff-1',
+  shell: '/app.html',
   runtime: '/runtime-body-v1.js?v=5.9.76-artifact-card-open-1',
+  navigation: '/crump-navigation-5.9.30.js?v=5.9.76-image-intent-handoff-1',
+  auth: '/auth-controller.js?v=5.9.76-image-intent-handoff-1',
   style: '/crump-5.0.css?v=5.9.76-exact-overlay-entry-1',
   composer: '/crump-5.0.js?v=5.9.76-artifact-card-open-1',
   loader: '/crump-precision-image-edit-loader.js?v=5.9.76-exact-overlay-entry-1',
   editorStyle: '/crump-precision-image-edit.css?v=5.9.76-exact-overlay-entry-1',
   editorScript: '/crump-precision-image-edit.js?v=5.9.76-exact-overlay-entry-1',
 });
-const fixturePath = '/__artifact-card-cache-upgrade.html';
-const oldWorkerPath = '/__artifact-card-r257-sw.js';
+const fixturePath = '/__image-intent-handoff-cache-upgrade.html';
+const oldWorkerPath = '/__image-intent-r258-sw.js';
 const contentTypes = Object.freeze({
   '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8',
@@ -39,7 +44,7 @@ function oldWorkerSource() {
     "self.addEventListener('install', event => {",
     '  event.waitUntil(caches.open(CACHE_NAME)',
     '    .then(cache => Promise.all(URLS.map(url => cache.put(',
-    "      new Request(url), new Response('stale-r257:' + url, {headers: {'Content-Type': 'text/javascript'}}),",
+    "      new Request(url), new Response('stale-r258:' + url, {headers: {'Content-Type': 'text/javascript'}}),",
     '    ))))',
     '    .then(() => self.skipWaiting()));',
     '});',
@@ -60,7 +65,7 @@ async function startServer() {
     response.setHeader('Cache-Control', 'no-store');
     if (url.pathname === fixturePath) {
       response.writeHead(200, {'Content-Type': contentTypes['.html']});
-      response.end('<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Artifact card cache upgrade</title></head><body>Artifact card cache upgrade</body></html>');
+      response.end('<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Image intent handoff cache upgrade</title></head><body>Image intent handoff cache upgrade</body></html>');
       return;
     }
     if (url.pathname === '/favicon.ico') {
@@ -137,7 +142,7 @@ async function startServer() {
       if (upgraded) break;
       await new Promise(resolve => setTimeout(resolve, 50));
     }
-    assert.equal(upgraded, true, 'r258 did not replace the frozen r257 cache');
+    assert.equal(upgraded, true, 'r259 did not replace the frozen r258 cache');
 
     const result = await page.evaluate(async ({cacheName, previousUrls, urls}) => {
       const cache = await caches.open(cacheName);
@@ -146,7 +151,11 @@ async function startServer() {
         return response ? response.text() : '';
       };
       return {
+        landingSource: await read(urls.landing),
+        shellSource: await read(urls.shell),
         runtimeSource: await read(urls.runtime),
+        navigationSource: await read(urls.navigation),
+        authSource: await read(urls.auth),
         styleSource: await read(urls.style),
         composerSource: await read(urls.composer),
         loaderSource: await read(urls.loader),
@@ -156,9 +165,17 @@ async function startServer() {
       };
     }, {cacheName: newCacheName, previousUrls: oldUrls, urls: newUrls});
 
+    assert.ok(result.landingSource.includes("'document', 'presentation', 'resume', 'video', 'image', 'projects'"));
+    assert.ok(result.shellSource.includes(newUrls.auth));
+    assert.ok(result.runtimeSource.includes(newUrls.navigation));
     assert.ok(result.runtimeSource.includes(newUrls.style));
     assert.ok(result.runtimeSource.includes(newUrls.composer));
     assert.ok(result.runtimeSource.includes(newUrls.loader));
+    assert.ok(result.navigationSource.includes("new Set(['document', 'presentation', 'resume', 'image', 'video', 'projects'])"));
+    assert.ok(result.navigationSource.includes('window.CrumpImageStudio.open();'));
+    assert.ok(result.authSource.includes("'Create account & open Image Studio'"));
+    assert.ok(result.authSource.includes("if (creationKind === 'image') discardPendingPlanIntent();"));
+    assert.ok(result.authSource.includes('Number(event.detail?.capturedAt || 0) !== intent.capturedAt'));
     assert.ok(result.styleSource.includes('flex-wrap: wrap'));
     assert.ok(result.composerSource.includes('data-artifact-open'));
     assert.ok(result.composerSource.includes('openFile(message.artifact)'));
@@ -172,7 +189,9 @@ async function startServer() {
     process.stdout.write(JSON.stringify({
       legacyCache: oldCacheName,
       activeCache: newCacheName,
-      artifactCardOpenDelivered: true,
+      imageIntentHandoffDelivered: true,
+      artifactCardTokenPreserved: true,
+      exactOverlayTokenPreserved: true,
       precisionEditorRemainsLazy: true,
       errors,
     }));

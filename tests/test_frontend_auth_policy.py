@@ -182,7 +182,9 @@ def test_registration_preserves_allowlisted_creation_and_paid_plan_promises():
     assert 'Professional includes Advanced Intelligence at $20/month and remains unpurchased until you review and confirm checkout' in controller
     assert 'Enterprise includes Advanced Intelligence at $50/month and remains unpurchased until you review and confirm checkout' in controller
     assert 'function configureRegistrationHandoff()' in controller
-    assert "button.textContent = plan?.button || (creation ? 'Create account & continue' : 'Create free account');" in controller
+    assert "button.textContent = creationKind === 'image'" in controller
+    assert "? 'Create account & open Image Studio'" in controller
+    assert ": (plan?.button || (creation ? 'Create account & continue' : 'Create free account'));" in controller
     assert 'configureRegistrationHandoff();' in controller
 
 
@@ -192,7 +194,7 @@ def test_explicit_generic_free_signup_clears_stale_specific_intents():
 
     assert "params.get('signup') === '1' && context.plan === 'free'" in controller
     assert 'localStorage.removeItem(PLAN_INTENT_KEY)' in controller
-    assert "if (params.get('signup') === '1')" in controller
+    assert "if (params.has('intent') || params.get('signup') === '1')" in controller
     assert 'localStorage.removeItem(CREATION_INTENT_KEY)' in controller
     assert "get('stale') === '1'" in fixture
     assert "plan:'professional'" in fixture

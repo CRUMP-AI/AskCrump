@@ -29,7 +29,7 @@
     'creator-cohort', 'facebook-paid',
   ]);
   const CREATION_INTENTS = new Set([
-    'document', 'presentation', 'resume', 'video', 'projects',
+    'document', 'presentation', 'resume', 'video', 'image', 'projects',
   ]);
   const PAGE_INTENTS = Object.freeze({
     '/ai-document-generator': 'document',

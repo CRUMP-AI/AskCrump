@@ -6,6 +6,10 @@ this release-hardening pass was `1a7d23bf5f4193c83304d522b9655f3af060f76a`. This
 permission to apply a database migration, deploy production, sign a native build, submit to either
 store, or spend money.
 
+The later Image Studio acquisition-to-auth work described below is a source-only follow-up. This
+record intentionally does not assign that follow-up the preceding behavior hash or hosted receipts;
+its exact-head CI and preview evidence must be recorded separately.
+
 ## Candidate identity and scope
 
 The integration branch combines PR 37's native privacy work through `624a5d2` with reliability
@@ -24,6 +28,11 @@ The candidate includes:
 - confirmed image references remain ordered, role-mapped edit inputs; reference review receipts are
   persisted; video reference limits are disclosed; and exact logo/wordmark pixels can be placed by
   the deterministic no-AI/no-credit overlay path;
+- the homepage exposes exactly one Professional-context Image Studio card whose content-free
+  `intent=image` destination is allowlisted across client capture, authentication, navigation,
+  server verification, and attribution while arbitrary intent text is rejected. Same-tab and
+  verification returns open only Image Studio setup, then consume the matching image intent and
+  clear its paired plan handoff without generation, provider, credit, or checkout side effects;
 - checkout/account owner isolation, owner-scoped video continuity, and a fresh PWA cache generation;
 - native-store source gates, Android page-size verification, and the existing no-credential iOS and
   Android hosted workflows;
@@ -72,6 +81,22 @@ failure, and durable-begin failure with the exact operation token.
 - Production preflight, native web bundle, and generated-client credential scan passed.
 - Relevant Ruff checks, Python compilation, staged and unstaged diff checks, conflict-marker check,
   and whitespace checks passed.
+
+## Image Studio handoff verification scope (exact-head receipts pending)
+
+- The real Edge verifier covers the signed-out same-tab capture and continuation path, a
+  verification-success cross-device return, reload non-replay, an invalid non-allowlisted intent,
+  and the existing presentation-plus-Professional-plan regression.
+- The Image Studio cases require exactly one setup-open call. They assert that the matching
+  timestamped intent is consumed, its URL and stored state are cleared, the paired image plan does
+  not continue to plan review, and no generation, provider, credit charge, checkout, or generic
+  image-command fallback occurs.
+- Client and server allowlists accept only the fixed `image` label. The server resend schema rejects
+  arbitrary intent content, and the invalid browser case clears stale pending state without opening
+  any creation tool.
+
+This describes the verifier boundary only; no final suite count, exact behavior head, hosted CI
+run, or preview receipt for this follow-up is claimed here yet.
 
 ## Predecessor hosted verification on `1a7d23b`
 
@@ -129,7 +154,9 @@ sign a native artifact, or prove physical-device/store behavior.
    atomic with account deletion.
 5. The source PDF policy correction still needs an authenticated owned signed-storage check for
    real small/large PDF opening and download.
-6. If an outside release specialist is used, hand over only the owner-recorded CI-green commit
+6. The Image Studio acquisition handoff still needs exact-head clean-checkout CI and protected
+   preview/Edge evidence. None of the earlier hosted receipts above covers that later follow-up.
+7. If an outside release specialist is used, hand over only the owner-recorded CI-green commit
    through the restricted roles and evidence milestones in
    `docs/STORE_RELEASE_SPECIALIST_HANDOFF_2026-09-21.md` and `docs/STORE_LAUNCH_RUNBOOK.md`.
 

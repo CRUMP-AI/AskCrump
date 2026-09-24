@@ -7,7 +7,24 @@ Status: **draft PR #37, unmerged, undeployed, and migration-free.** The reviewed
 `653d576076095c3bceab8131b0d88b94f5ec0bfa`. This record is review evidence, not permission to
 merge, deploy production, run a migration, spend provider credits, or submit a store build.
 
+The Image Studio acquisition-to-auth handoff below is a later source-only follow-up. Its exact
+behavior head, final suite counts, hosted CI, and preview receipt are intentionally not claimed yet.
+
 ## User outcomes
+
+### Image Studio acquisition-to-auth handoff
+
+- The homepage adds exactly one Image Studio card in a Professional context. Its destination carries
+  only the fixed acquisition, plan, and `intent=image` labels; it does not retain a prompt,
+  reference, filename, or other customer content.
+- `image` is allowlisted by the public landing and authentication clients and by the server
+  verification, resend, and attribution boundaries. A non-allowlisted intent is rejected rather
+  than treated as a destination or persisted creation request.
+- Same-tab continuation and a verification-link return each open only Image Studio setup. They
+  consume and clear the matching image intent, remove it from the URL, and clear the paired image
+  plan handoff so the Professional context does not open plan review or checkout.
+- Opening setup does not generate an image, contact a generation provider, charge Crump Credits, or
+  begin checkout. Generation remains a later user-reviewed and confirmed action.
 
 ### Reference-led image and video work
 
@@ -61,6 +78,10 @@ and do not claim automated visual verification.
 - Production preflight, native web-bundle generation, client credential scan, store metadata, and
   native privacy source verification passed.
 - `git diff --check` and JavaScript syntax checks passed.
+- The real Edge verifier now covers Image Studio same-tab continuation, verification-success
+  cross-device return, reload non-replay, invalid-intent fail-closed behavior, and the existing
+  presentation-plus-plan regression. It asserts setup-open only and no generation, provider,
+  credit, or checkout side effect. Exact-head CI and preview receipts remain pending.
 
 ## Hosted verification
 
@@ -81,12 +102,14 @@ These checks do not change production. The canonical production deployment remai
 
 ## Remaining boundaries
 
-1. A real authenticated, owned signed-storage check is still required for small and large PDF Open
+1. The Image Studio acquisition handoff still requires exact-head clean-checkout CI and protected
+   preview/Edge evidence; the hosted receipts above cover only the preceding behavior commit.
+2. A real authenticated, owned signed-storage check is still required for small and large PDF Open
    and Download under production-equivalent redirect and CSP behavior. The committed browser proof
    uses content-free local owner-route fixtures and does not claim that external journey.
-2. Automated visual comparison remains consent-gated as described above. Manual review and the
+3. Automated visual comparison remains consent-gated as described above. Manual review and the
    deterministic exact-overlay path are the current safe boundary.
-3. PR #37 remains subject to its staged SQL, native billing, signing, publisher-account,
+4. PR #37 remains subject to its staged SQL, native billing, signing, publisher-account,
    physical-device, reviewer-access, screenshot, and store-console gates. None is bypassed here.
-4. No production database, customer content, provider credential, price, checkout, deployment,
+5. No production database, customer content, provider credential, price, checkout, deployment,
    developer account, or public campaign changed while producing this candidate.

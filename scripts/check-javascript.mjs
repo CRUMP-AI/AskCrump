@@ -989,12 +989,11 @@ const autonomousCrumpVersion = `${releaseVersion}-autonomous-crump-1`;
 const nativeStoreBillingVersion = `${releaseVersion}-native-store-billing-1`;
 const nativeFreshIdentityVersion = `${releaseVersion}-native-identity-fresh-1`;
 const integratedStoreReliabilityVersion = `${releaseVersion}-owner-isolation-native-store-1`;
-const landingVersion = `${releaseVersion}-facebook-reel-attribution-1`;
+const imageIntentHandoffVersion = `${releaseVersion}-image-intent-handoff-1`;
 const planRendererVersion = `${releaseVersion}-credit-pack-accessibility-1`;
 const commerceRecoveryVersion = `${releaseVersion}-commerce-recovery-1`;
 const nativeBillingIdentityVersion = `${releaseVersion}-native-billing-identity-1`;
 const stripeDestinationIntegrityVersion = nativeFreshIdentityVersion;
-const checkoutOwnerResetVersion = `${releaseVersion}-checkout-owner-reset-1`;
 const ownerIsolationVersion = `${releaseVersion}-owner-isolation-1`;
 const checkoutDestinationLabelVersion = `${releaseVersion}-checkout-destination-label-1`;
 const creditPackTruthVersion = `${releaseVersion}-credit-pack-truth-1`;
@@ -1140,7 +1139,7 @@ if (JSON.stringify(navigationLabels) !== JSON.stringify(internalNavigationLabels
   console.error('Navigation, workspace guide, and store-release sources disagree on the current six-destination product.');
   process.exit(1);
 }
-if (!releaseVersion || !landingHtml.includes(`/landing.js?v=${landingVersion}`)) {
+if (!releaseVersion || !landingHtml.includes(`/landing.js?v=${imageIntentHandoffVersion}`)) {
   console.error('Ask Crump marketing page is missing its release-versioned script.');
   process.exit(1);
 }
@@ -1247,7 +1246,7 @@ if (!referringAcquisitionSource ||
 }
 const requiredHtmlSignals = [
   `/runtime-body-v1.js?v=${artifactCardOpenVersion}`,
-  `/auth-controller.js?v=${checkoutOwnerResetVersion}`,
+  `/auth-controller.js?v=${imageIntentHandoffVersion}`,
   `/telemetry-config.js?v=${releaseVersion}`,
   '/_vercel/speed-insights/script.js',
   `/auth-resilience.js?v=${releaseVersion}`,
@@ -1345,7 +1344,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/crump-media-save.js?v=${libraryLazyLoadVersion}`) ||
     !runtime.includes(`/crump-library-loader.js?v=${libraryLazyLoadVersion}`) ||
     runtime.includes('/crump-library-5.7.js') || runtime.includes('/crump-library-5.7.css') ||
-    !runtime.includes(`/crump-navigation-5.9.30.js?v=${autonomousCrumpVersion}`) ||
+    !runtime.includes(`/crump-navigation-5.9.30.js?v=${imageIntentHandoffVersion}`) ||
     !runtime.includes(`/crump-navigation-5.9.30.css?v=${mobileDrawerDestinationsVersion}`) ||
     !runtime.includes(`/crump-code-loader.js?v=${autonomousCrumpVersion}`) ||
     runtime.includes(`/crump-code-5.9.35.js?v=${creditConfirmationVersion}`) ||
@@ -1507,12 +1506,12 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r258') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r259') ||
     !serviceWorker.includes("'/assets/brand/crump-shell-lockup-light.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-shell-lockup-light.png'") ||
-    !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
+    !serviceWorker.includes(`/landing.js?v=${imageIntentHandoffVersion}`) ||
     !serviceWorker.includes(`/runtime-body-v1.js?v=${artifactCardOpenVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${continuityHandoffVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.css?v=${creditConfirmationVersion}`) ||
@@ -1533,7 +1532,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r258') ||
     !serviceWorker.includes(`/onboarding.js?v=${brandDeliveryVersion}`) ||
     !serviceWorker.includes(`/crump-polish-5.6.js?v=${videoDestinationVersion}`) ||
     !serviceWorker.includes(`/crump-navigation-5.9.30.css?v=${mobileDrawerDestinationsVersion}`) ||
-    !serviceWorker.includes(`/crump-navigation-5.9.30.js?v=${autonomousCrumpVersion}`) ||
+    !serviceWorker.includes(`/crump-navigation-5.9.30.js?v=${imageIntentHandoffVersion}`) ||
     !serviceWorker.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-1`) ||
     !serviceWorker.includes(`/lifecycle-share.js?v=${settingsInviteVersion}`) ||
     !serviceWorker.includes(`/lifecycle-manager.js?v=${lifecycleIdleSendVersion}`) ||
@@ -1544,7 +1543,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r258') ||
     !serviceWorker.includes(`/sync-manager.js?v=${syncCursorVersion}`) ||
     !serviceWorker.includes(`/chat-sync.js?v=${settingsSyncVersion}`) ||
     !serviceWorker.includes(`/product-analytics.js?v=${serverAuthoritativeActivationVersion}`) ||
-    !serviceWorker.includes(`/auth-controller.js?v=${checkoutOwnerResetVersion}`) ||
+    !serviceWorker.includes(`/auth-controller.js?v=${imageIntentHandoffVersion}`) ||
     !serviceWorker.includes(`/crump-v1-body.css?v=${brandDeliveryVersion}`) ||
     !serviceWorker.includes(`/crump-4.3.js?v=${composerActionabilityVersion}`) ||
     !serviceWorker.includes(`/crump-4.4.js?v=${navigationDiscoveryVersion}`) ||
@@ -1553,7 +1552,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r258') ||
     !serviceWorker.includes(`/crump-product-5.3.1.js?v=${conversationActionLabelsVersion}`) ||
     serviceWorker.includes(`/crump-product-5.3.js?v=${referenceFidelityVersion}`) ||
     serviceWorker.includes(`/crump-product-5.3.css?v=${referenceFidelityVersion}`) ||
-    !serviceWorker.includes(`/crump-navigation-5.9.30.js?v=${autonomousCrumpVersion}`) ||
+    !serviceWorker.includes(`/crump-navigation-5.9.30.js?v=${imageIntentHandoffVersion}`) ||
     !serviceWorker.includes(`/crump-navigation-5.9.30.css?v=${mobileDrawerDestinationsVersion}`) ||
     !serviceWorker.includes(`/crump-code-loader.js?v=${autonomousCrumpVersion}`) ||
     serviceWorker.includes(`/crump-code-5.9.35.js?v=${creditConfirmationVersion}`) ||

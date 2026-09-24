@@ -1272,7 +1272,7 @@ def test_server_activation_boundary_is_versioned_for_web_pwa_and_native():
         assert versioned in runtime
         assert versioned in worker
         assert versioned in native
-    assert "ask-crump-new-body-v1-r258" in worker
+    assert "ask-crump-new-body-v1-r259" in worker
     assert "ask-crump-new-body-v1-r253" in upgrade
     assert "ask-crump-new-body-v1-r254" in upgrade
     assert "tests', 'fixtures', 'activation-cache-r253" in upgrade

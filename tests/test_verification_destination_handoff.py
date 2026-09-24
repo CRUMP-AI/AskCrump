@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from urllib.parse import parse_qs, urlparse
 
 import pytest
+from pydantic import ValidationError
 
 from backend.routes import auth as auth_routes
 from backend.schemas import RegisterRequest, ResendVerificationRequest
@@ -39,6 +40,15 @@ def test_verification_handoff_urls_carry_only_allowlisted_content_free_destinati
         "https://www.askcrump.com/app?verification=success"
         "&intent=video&plan=enterprise"
     )
+    assert verified_workspace_url(
+        "https://www.askcrump.com",
+        intent="Image",
+        plan="enterprise",
+    ) == (
+        "https://www.askcrump.com/app?verification=success"
+        "&intent=image&plan=enterprise"
+    )
+    assert creation_intent(" Image ") == "image"
 
     invalid = verification_email_url(
         "https://www.askcrump.com",
@@ -49,6 +59,19 @@ def test_verification_handoff_urls_carry_only_allowlisted_content_free_destinati
     assert parse_qs(urlparse(invalid).query) == {"token": ["token"]}
     assert creation_intent("race") is None
     assert paid_plan_intent("admin") is None
+
+
+def test_resend_schema_rejects_non_allowlisted_intent_content() -> None:
+    assert ResendVerificationRequest(
+        email="image-user@example.com",
+        intent="image",
+    ).intent == "image"
+
+    with pytest.raises(ValidationError):
+        ResendVerificationRequest(
+            email="image-user@example.com",
+            intent="private prompt content",
+        )
 
 
 class _RegistrationDB:
@@ -91,7 +114,11 @@ class _VerificationEmailCapture:
 
 
 @pytest.mark.asyncio
-async def test_registration_and_resend_preserve_the_promised_destination(monkeypatch) -> None:
+@pytest.mark.parametrize("intent", ["presentation", "image"])
+async def test_registration_and_resend_preserve_the_promised_destination(
+    monkeypatch,
+    intent: str,
+) -> None:
     database = _RegistrationDB()
     email = _VerificationEmailCapture()
 
@@ -117,26 +144,26 @@ async def test_registration_and_resend_preserve_the_promised_destination(monkeyp
         RegisterRequest(
             email="new-user@example.com",
             password="StrongPass1",
-            intent="presentation",
+            intent=intent,
             plan="professional",
         ),
         request,
     )
 
     assert result["success"] is True
-    assert email.calls[0]["intent"] == "presentation"
+    assert email.calls[0]["intent"] == intent
     assert email.calls[0]["plan"] == "professional"
 
     await auth_routes.resend_verification(
         ResendVerificationRequest(
             email="new-user@example.com",
-            intent="presentation",
+            intent=intent,
             plan="professional",
         ),
         request,
     )
     assert len(email.calls) == 2
-    assert email.calls[1]["intent"] == "presentation"
+    assert email.calls[1]["intent"] == intent
     assert email.calls[1]["plan"] == "professional"
 
 

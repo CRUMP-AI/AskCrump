@@ -83,7 +83,7 @@ def test_checkout_recovery_assets_are_cache_addressable_on_web_pwa_and_native():
     runtime_loader_version = "5.9.76-artifact-card-open-1"
     autonomous_crump_version = "5.9.76-autonomous-crump-1"
     native_store_billing_version = "5.9.76-native-store-billing-1"
-    owner_reset_version = "5.9.76-checkout-owner-reset-1"
+    image_intent_handoff_version = "5.9.76-image-intent-handoff-1"
     owner_isolation_version = "5.9.76-owner-isolation-1"
     shell = read_public("app.html")
     runtime = read_public("runtime-body-v1.js")
@@ -91,7 +91,7 @@ def test_checkout_recovery_assets_are_cache_addressable_on_web_pwa_and_native():
     native = (ROOT / "scripts" / "build-native.mjs").read_text(encoding="utf-8")
 
     assert f"/runtime-body-v1.js?v={runtime_loader_version}" in shell
-    assert f"/auth-controller.js?v={owner_reset_version}" in shell
+    assert f"/auth-controller.js?v={image_intent_handoff_version}" in shell
     for asset, version in (
         ("billing-manager.js", native_identity_version),
         ("crump-5.2.js", integrated_version),
@@ -104,5 +104,5 @@ def test_checkout_recovery_assets_are_cache_addressable_on_web_pwa_and_native():
         assert versioned in runtime
         assert versioned in worker
         assert versioned in native
-    assert f"/auth-controller.js?v={owner_reset_version}" in worker
-    assert "ask-crump-new-body-v1-r258" in worker
+    assert f"/auth-controller.js?v={image_intent_handoff_version}" in worker
+    assert "ask-crump-new-body-v1-r259" in worker

@@ -56,4 +56,4 @@ def test_retired_tool_assets_are_cache_versioned_atomically():
     for source in (runtime, worker, native):
         assert "/crump-product-5.3.css?v=5.9.76-reference-review-persistence-1" not in source
         assert "/crump-product-5.3.js?v=5.9.76-reference-review-persistence-1" not in source
-    assert "ask-crump-new-body-v1-r258" in worker
+    assert "ask-crump-new-body-v1-r259" in worker

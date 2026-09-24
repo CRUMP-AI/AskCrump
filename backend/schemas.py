@@ -41,7 +41,7 @@ class EmailRequest(APIModel):
 
 
 class ResendVerificationRequest(EmailRequest):
-    intent: Literal["document", "presentation", "resume", "video", "projects"] | None = None
+    intent: Literal["document", "image", "presentation", "resume", "video", "projects"] | None = None
     plan: Literal["professional", "enterprise"] | None = None
 
 

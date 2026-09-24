@@ -11,6 +11,20 @@ retention, and referral behavior. No acquisition spend should scale on impressio
 Every item below needs four things before it is called shipped: an accountable product
 outcome, privacy and safety constraints, automated coverage, and production evidence.
 
+The 2026-09-24 source-only Image Studio acquisition handoff adds exactly one homepage card in a
+Professional context. Its content-free `intent=image` destination is allowlisted by the landing
+and authentication clients and by the server verification and attribution boundaries; arbitrary
+intent text is rejected. Same-tab continuation and verification-link return open only Image Studio
+setup, consume the matching captured intent, remove it from the URL, and clear the paired plan
+handoff so the Professional context cannot open plan review or checkout. The real Edge verifier
+now covers same-tab continuation, cross-device verification, reload non-replay, invalid-intent
+fail-closed behavior, and the existing presentation-plus-plan regression while asserting zero
+generation, provider, credit, or checkout side effects. This remains a draft, unmerged, undeployed
+candidate and does not change production. Record exact-head clean-checkout CI and preview/Edge
+evidence next; the owner-gated authenticated signed-storage PDF check remains the next release
+action. Evidence: `docs/PR37_RELIABILITY_INTEGRATION_CANDIDATE_2026-09-21.md` and
+`docs/REFERENCE_AND_ARTIFACT_FIDELITY_CANDIDATE_2026-09-24.md`.
+
 The 2026-09-24 draft candidate closes two directly observed trust gaps. Confirmed image references
 now remain ordered, role-mapped inputs to image editing; Video references carry explicit roles and
 honest provider limits; reference review receipts survive chat persistence; and exact logo/wordmark
@@ -23,8 +37,8 @@ passed **52/52**, and production/native/privacy/credential gates passed locally.
 PostgreSQL fence, Android structural, and iOS structural runs all passed on behavior commit
 `653d5760`; Vercel preview `dpl_6dSmABiXUUvQWr3iRuFXeJNAJG5g` is Ready and served the exact new
 runtime, composer, and worker markers. PR #37 remains draft and production is unchanged. The exact
-next release action is an explicitly authorized authenticated signed-storage PDF check; the next source-only
-growth slice is the bounded Image Studio acquisition-to-auth handoff. Evidence:
+owner-gated release action after final exact-head candidate validation remains an authenticated
+signed-storage PDF check. Evidence:
 `docs/REFERENCE_AND_ARTIFACT_FIDELITY_CANDIDATE_2026-09-24.md`.
 
 The 2026-09-20 draft native-store privacy review found a RevenueCat deletion
