@@ -909,6 +909,50 @@ async def _chat_impl(request: Request):
             )
         return JSONResponse(status_code=exc.status_code, content={'success': False, 'error': exc.message, 'message': exc.message, 'code': exc.code})
 
+    image_file_rows = [
+        row for row in file_rows
+        if str(row.get('mime_type') or '').lower().startswith('image/')
+    ]
+    historical_image_rows = image_file_rows if not current_file_rows else []
+
+    async def reject_image_reference_plan(
+        exc: AIServiceError,
+        *,
+        handoff_rows: list[dict] | None = None,
+    ) -> JSONResponse:
+        if message_id:
+            await db.update(
+                'chat_jobs',
+                {'status': 'failed', 'error_code': exc.code, 'updated_at': iso_now()},
+                filters={'user_id': eq(auth.user['id']), 'message_id': eq(message_id)},
+            )
+        content = {
+            'success': False,
+            'error': exc.message,
+            'message': exc.message,
+            'code': exc.code,
+            'shouldRetry': exc.retryable,
+            'retryAfter': exc.retry_after,
+        }
+        if handoff_rows:
+            handoff_files = []
+            for row in handoff_rows[:4]:
+                public = files.public_file(row)
+                handoff_files.append({
+                    'id': public.get('id'),
+                    'name': public.get('name'),
+                    'type': public.get('type'),
+                    'size': public.get('size'),
+                    'url': public.get('url'),
+                })
+            content['referenceHandoff'] = {
+                'kind': 'image_reference_plan',
+                'source': 'conversation_history',
+                'noCharge': True,
+                'files': handoff_files,
+            }
+        return JSONResponse(status_code=exc.status_code, content=content)
+
     reference_contract_fields = {
         key: request_payload[key]
         for key in (
@@ -919,13 +963,16 @@ async def _chat_impl(request: Request):
         )
         if key in request_payload
     }
+    # Contract-version 2 is a client capability advertisement. Modern clients
+    # send it with every attached image so a semantic image intent discovered
+    # below can be stopped for role confirmation. It must never, by itself,
+    # turn an ordinary image-analysis request into an image generation.
     reference_contract_requested = (
         request_payload.get('imageUseReference') is True
         or request_payload.get('imageReferencePlan') is not None
         or request_payload.get('imageReferencePlanConfirmed') is True
-        or request_payload.get('imageReferenceContractVersion') is not None
     )
-    image_execution_requested = (
+    explicit_image_execution_requested = (
         reference_contract_requested
         or media.is_image_request(
             str(request_payload.get('message') or ''),
@@ -933,33 +980,26 @@ async def _chat_impl(request: Request):
         )
         or media.is_edit_request(str(request_payload.get('message') or ''), file_rows)
     )
-    if image_execution_requested:
+    image_execution_requested = explicit_image_execution_requested
+    if explicit_image_execution_requested:
+        if historical_image_rows:
+            return await reject_image_reference_plan(
+                AIServiceError(
+                    'Review the prior conversation images and confirm what each one controls before generating. No credits were used.',
+                    400,
+                    'IMAGE_REFERENCE_CONFIRMATION_REQUIRED',
+                    False,
+                    0,
+                ),
+                handoff_rows=historical_image_rows,
+            )
         try:
             media._image_reference_plan(
                 request_payload,
-                [
-                    row for row in file_rows
-                    if str(row.get('mime_type') or '').lower().startswith('image/')
-                ],
+                image_file_rows,
             )
         except AIServiceError as exc:
-            if message_id:
-                await db.update(
-                    'chat_jobs',
-                    {'status': 'failed', 'error_code': exc.code, 'updated_at': iso_now()},
-                    filters={'user_id': eq(auth.user['id']), 'message_id': eq(message_id)},
-                )
-            return JSONResponse(
-                status_code=exc.status_code,
-                content={
-                    'success': False,
-                    'error': exc.message,
-                    'message': exc.message,
-                    'code': exc.code,
-                    'shouldRetry': exc.retryable,
-                    'retryAfter': exc.retry_after,
-                },
-            )
+            return await reject_image_reference_plan(exc)
 
     user_settings = await db.select_one('user_settings', filters={'user_id': eq(auth.user['id'])}) or {}
     request_payload['assistantName'] = user_settings.get('assistant_name') or 'Crump'
@@ -1084,6 +1124,27 @@ async def _chat_impl(request: Request):
     creation_kind = str(creation_intent.get('kind') or '')
     creation_stage = str(creation_intent.get('stage') or '')
     semantic_creation = creation_kind in {'manuscript', 'image', 'video', 'document'}
+    semantic_image_execution_requested = creation_kind == 'image' and creation_stage == 'execute'
+    image_execution_requested = explicit_image_execution_requested or semantic_image_execution_requested
+    if semantic_image_execution_requested and not explicit_image_execution_requested:
+        if historical_image_rows:
+            return await reject_image_reference_plan(
+                AIServiceError(
+                    'Review the prior conversation images and confirm what each one controls before generating. No credits were used.',
+                    400,
+                    'IMAGE_REFERENCE_CONFIRMATION_REQUIRED',
+                    False,
+                    0,
+                ),
+                handoff_rows=historical_image_rows,
+            )
+        try:
+            media._image_reference_plan(
+                request_payload,
+                image_file_rows,
+            )
+        except AIServiceError as exc:
+            return await reject_image_reference_plan(exc)
     execution_brief = str(creation_intent.get('brief') or original_message).strip() or original_message
     creation_title = str(creation_intent.get('title') or '').strip()
     if creation_kind == 'manuscript' and creation_title and creation_title.casefold() not in execution_brief.casefold():
@@ -1361,12 +1422,7 @@ async def _chat_impl(request: Request):
         elif (
             not request_payload.get('suppressCreativeExecution')
             and (
-                reference_contract_requested
-                or media.is_image_request(
-                    str(request_payload.get('message') or ''),
-                    str(request_payload.get('creativeTool') or '') or None,
-                )
-                or media.is_edit_request(str(request_payload.get('message') or ''), file_rows)
+                image_execution_requested
             )
         ):
             trace_model = media.settings.openai_image_model

@@ -19,6 +19,20 @@ REFERENCE_IDS = [
 ]
 
 
+def confirmed_reference_plan(
+    engine: str,
+    plan: list[dict[str, str]],
+) -> dict:
+    return {
+        "version": VideoService.REFERENCE_PLAN_VERSION,
+        "confirmed": True,
+        "engine": engine,
+        "capability": VideoService.reference_capability(engine),
+        "fileIds": [item["fileId"] for item in plan],
+        "referencePlan": plan,
+    }
+
+
 def settings():
     return SimpleNamespace(
         gemini_api_key="gemini-test",
@@ -142,6 +156,138 @@ async def test_video_reference_count_matches_engine_semantics_before_owner_looku
     assert VideoService.reference_limit("quick") == 1
     assert VideoService.reference_limit("cinematic") == 1
     assert VideoService.reference_limit("extendable") == 3
+
+
+def test_video_reference_confirmation_accepts_only_the_exact_versioned_plan() -> None:
+    plan = [
+        {"fileId": REFERENCE_IDS[0], "role": "subject"},
+        {"fileId": REFERENCE_IDS[1], "role": "logo"},
+    ]
+
+    normalized = VideoService.normalize_reference_plan(
+        file_ids=REFERENCE_IDS[:2],
+        reference_plan=plan,
+        engine="extendable",
+        reference_confirmation=confirmed_reference_plan("extendable", plan),
+    )
+
+    assert normalized == plan
+    assert VideoService.normalize_reference_plan(
+        file_ids=None,
+        reference_plan=None,
+        engine="quick",
+        reference_confirmation=None,
+    ) == []
+
+
+@pytest.mark.parametrize(
+    ("mutate", "expected_code"),
+    [
+        (lambda _confirmation: None, "VIDEO_REFERENCE_CONFIRMATION_REQUIRED"),
+        (
+            lambda confirmation: {**confirmation, "confirmed": False},
+            "VIDEO_REFERENCE_CONFIRMATION_REQUIRED",
+        ),
+        (
+            lambda confirmation: {**confirmation, "version": "video-reference-plan-v0"},
+            "VIDEO_REFERENCE_CONFIRMATION_STALE",
+        ),
+        (
+            lambda confirmation: {
+                **confirmation,
+                "fileIds": list(reversed(confirmation["fileIds"])),
+            },
+            "VIDEO_REFERENCE_CONFIRMATION_STALE",
+        ),
+        (
+            lambda confirmation: {
+                **confirmation,
+                "referencePlan": [
+                    confirmation["referencePlan"][1],
+                    confirmation["referencePlan"][0],
+                ],
+            },
+            "VIDEO_REFERENCE_CONFIRMATION_STALE",
+        ),
+        (
+            lambda confirmation: {**confirmation, "engine": "quick"},
+            "VIDEO_REFERENCE_CONFIRMATION_STALE",
+        ),
+        (
+            lambda confirmation: {
+                **confirmation,
+                "capability": {
+                    **confirmation["capability"],
+                    "provider": "runway",
+                },
+            },
+            "VIDEO_REFERENCE_CONFIRMATION_STALE",
+        ),
+        (
+            lambda confirmation: {
+                **confirmation,
+                "capability": {
+                    **confirmation["capability"],
+                    "mode": "initial-frame",
+                },
+            },
+            "VIDEO_REFERENCE_CONFIRMATION_STALE",
+        ),
+    ],
+    ids=[
+        "unconfirmed",
+        "confirmed-false",
+        "stale-version",
+        "reordered-ids",
+        "reordered-roles",
+        "changed-engine",
+        "changed-provider",
+        "changed-mode",
+    ],
+)
+def test_video_reference_confirmation_rejects_stale_or_changed_contracts(
+    mutate,
+    expected_code: str,
+) -> None:
+    plan = [
+        {"fileId": REFERENCE_IDS[0], "role": "subject"},
+        {"fileId": REFERENCE_IDS[1], "role": "logo"},
+    ]
+    confirmation = mutate(confirmed_reference_plan("extendable", plan))
+
+    with pytest.raises(VideoServiceError) as caught:
+        VideoService.normalize_reference_plan(
+            file_ids=REFERENCE_IDS[:2],
+            reference_plan=plan,
+            engine="extendable",
+            reference_confirmation=confirmation,
+        )
+
+    assert caught.value.code == expected_code
+    assert caught.value.status_code == 409
+    assert caught.value.refund_eligible is False
+    assert "No credits were used" in caught.value.message
+
+
+def test_video_reference_confirmation_rejects_reordered_request_before_spend() -> None:
+    ordered = [
+        {"fileId": REFERENCE_IDS[0], "role": "subject"},
+        {"fileId": REFERENCE_IDS[1], "role": "logo"},
+    ]
+    reordered = [ordered[1], ordered[0]]
+
+    with pytest.raises(VideoServiceError) as caught:
+        VideoService.normalize_reference_plan(
+            file_ids=REFERENCE_IDS[:2],
+            reference_plan=reordered,
+            engine="extendable",
+            reference_confirmation=confirmed_reference_plan("extendable", reordered),
+        )
+
+    assert caught.value.code == "VIDEO_REFERENCE_CONFIRMATION_STALE"
+    assert caught.value.status_code == 409
+    assert caught.value.refund_eligible is False
+    assert "No credits were used" in caught.value.message
 
 
 def test_video_provider_prompt_enumerates_roles_and_states_provider_semantics_honestly() -> None:
@@ -331,6 +477,11 @@ def test_completed_video_ui_exposes_an_honest_ordered_reference_receipt_without_
     assert "compare them side by side with each source image" in receipt_renderer
     assert "deterministic overlay" in receipt_renderer
     assert "Open Files to compare" in receipt_renderer
+    assert "video-reference-plan-v1" in product
+    assert "confirmedVideoReferencePlan" in product
+    assert "referencePlanConfirmation" in product
+    assert "starting-frame-not-pixel-locked" in product
+    assert "best-effort-not-pixel-locked" in product
     assert "fetch(" not in receipt_renderer
     assert "api(" not in receipt_renderer
     assert ".crump53-video-reference-receipt" in styles

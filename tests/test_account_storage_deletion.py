@@ -432,7 +432,11 @@ def test_existing_cron_slot_is_reused_and_storage_purge_runs_first():
     vercel = json.loads((ROOT / 'vercel.json').read_text(encoding='utf-8'))
     source = (ROOT / 'backend' / 'routes' / 'manuscripts.py').read_text(encoding='utf-8')
 
-    assert len(vercel['crons']) == 2
+    assert [entry['path'] for entry in vercel['crons']] == [
+        '/api/cron/check-ins',
+        '/api/cron/manuscripts',
+        '/api/cron/videos',
+    ]
     assert source.index('account_deletions.process_next()') < source.index(
         'code_worker.process_next('
     )

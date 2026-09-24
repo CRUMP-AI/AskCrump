@@ -7,14 +7,14 @@ const {chromium} = require('playwright');
 const root = path.resolve(__dirname, '..');
 const publicDirectory = path.join(root, 'public');
 const oldCacheName = 'ask-crump-new-body-v1-r249';
-const newCacheName = 'ask-crump-new-body-v1-r251';
+const newCacheName = 'ask-crump-new-body-v1-r252';
 const oldUrls = Object.freeze([
   '/runtime-body-v1.js?v=5.9.76-account-storage-deletion-1',
   '/crump-5.0.js?v=5.9.76-project-save-offer-1',
 ]);
 const newUrls = Object.freeze({
-  runtime: '/runtime-body-v1.js?v=5.9.76-document-delivery-focused-1',
-  composer: '/crump-5.0.js?v=5.9.76-document-delivery-focused-1',
+  runtime: '/runtime-body-v1.js?v=5.9.76-reference-fidelity-hard-contract-1',
+  composer: '/crump-5.0.js?v=5.9.76-reference-fidelity-hard-contract-1',
 });
 const fixturePath = '/__document-delivery-cache-upgrade.html';
 const oldWorkerPath = '/__document-delivery-r249-sw.js';

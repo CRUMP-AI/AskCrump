@@ -3,7 +3,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).parents[1]
 MIGRATION = (
-    ROOT / "migrations" / "20260924121719_atomic_video_reservation_billing.sql"
+    ROOT / "migrations" / "20260924230000_atomic_video_reservation_billing.sql"
 )
 SQL = MIGRATION.read_text(encoding="utf-8")
 NORMALIZED = " ".join(SQL.lower().split())

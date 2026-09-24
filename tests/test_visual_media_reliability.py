@@ -699,6 +699,28 @@ def test_no_version_image_reference_preserves_stale_client_compatibility() -> No
 @pytest.mark.parametrize(
     "payload",
     [
+        {"imageReferencePlan": [{"fileId": "logo-image", "role": "logo"}]},
+        {
+            "imageReferencePlan": [{"fileId": "logo-image", "role": "logo"}],
+            "imageReferencePlanConfirmed": True,
+        },
+        {"imageReferencePlanConfirmed": True},
+    ],
+)
+def test_plan_capable_direct_callers_require_the_v2_contract(payload) -> None:
+    with pytest.raises(AIServiceError) as caught:
+        MediaService._image_reference_plan(
+            payload,
+            [{"id": "logo-image", "mime_type": "image/png", "file_name": "logo.png"}],
+        )
+
+    assert caught.value.code == "IMAGE_REFERENCE_PLAN_INVALID"
+    assert "stale" in caught.value.message.lower()
+
+
+@pytest.mark.parametrize(
+    "payload",
+    [
         {"imageUseReference": True, "imageReferenceContractVersion": 2},
         {
             "imageUseReference": True,
@@ -717,15 +739,37 @@ def test_v2_image_reference_contract_requires_confirmation(payload) -> None:
     assert caught.value.code == "IMAGE_REFERENCE_CONFIRMATION_REQUIRED"
 
 
+def test_v2_image_reference_contract_rejects_a_reordered_plan() -> None:
+    with pytest.raises(AIServiceError) as caught:
+        MediaService._image_reference_plan(
+            {
+                "imageReferenceContractVersion": 2,
+                "imageReferencePlanConfirmed": True,
+                "imageReferencePlan": [
+                    {"fileId": "logo-image", "role": "logo"},
+                    {"fileId": "base-image", "role": "base"},
+                ],
+            },
+            [
+                {"id": "base-image", "mime_type": "image/png", "file_name": "base.png"},
+                {"id": "logo-image", "mime_type": "image/png", "file_name": "logo.png"},
+            ],
+        )
+
+    assert caught.value.code == "IMAGE_REFERENCE_PLAN_INVALID"
+    assert "order" in caught.value.message.lower()
+
+
 def test_image_reference_confirmation_is_validated_before_credit_consumption() -> None:
     route = read("backend/routes/chat.py")
-    validation = route.index("media._image_reference_plan")
-    intelligence = route.index("prepared = await intelligence.prepare", validation)
-    message_charge = route.index("await features.consume_message", validation)
+    first_validation = route.index("media._image_reference_plan")
+    intelligence = route.index("prepared = await intelligence.prepare", first_validation)
+    semantic_validation = route.index("media._image_reference_plan", first_validation + 1)
+    message_charge = route.index("await features.consume_message", semantic_validation)
     feature_charge = route.index("feature_usage = await features.consume", message_charge)
     provider = route.index("result = await media.generate_or_edit_image", feature_charge)
 
-    assert validation < intelligence < message_charge < feature_charge < provider
+    assert first_validation < intelligence < semantic_validation < message_charge < feature_charge < provider
 
 
 @pytest.mark.asyncio
@@ -1558,14 +1602,14 @@ def test_precision_editor_is_manual_private_and_pixel_protected() -> None:
     assert "stage.clientHeight" in editor
     assert "state.fitWidth = Math.max(1" in editor
     assert "state.fitHeight = Math.max(1" in editor
-    exact_script = "/crump-precision-image-edit.js?v=5.9.76-reference-fidelity-focused-3"
-    exact_style = "/crump-precision-image-edit.css?v=5.9.76-reference-fidelity-focused-3"
+    exact_script = "/crump-precision-image-edit.js?v=5.9.76-reference-fidelity-hard-contract-1"
+    exact_style = "/crump-precision-image-edit.css?v=5.9.76-reference-fidelity-hard-contract-1"
     for asset in (exact_script, exact_style):
         assert asset in loader
         assert asset not in runtime
         assert asset not in worker
         assert asset not in native
-    exact_loader = "/crump-precision-image-edit-loader.js?v=5.9.76-reference-fidelity-focused-3"
+    exact_loader = "/crump-precision-image-edit-loader.js?v=5.9.76-reference-fidelity-hard-contract-1"
     for source in (runtime, worker, native):
         assert exact_loader in source
     assert "CrumpPrecisionImageEditLoader?.load" in composer

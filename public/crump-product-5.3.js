@@ -57,7 +57,13 @@
   const VIDEO_REFERENCE_DRAFT_STORAGE_KEY = 'askcrump.videoReferenceDraft53';
   const VIDEO_REFERENCE_DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
   const VIDEO_REFERENCE_DRAFT_LIMIT = 5;
+  const VIDEO_REFERENCE_PLAN_VERSION = 'video-reference-plan-v1';
   const VIDEO_REFERENCE_DRAFT_ENGINES = new Set(['quick', 'extendable', 'cinematic']);
+  const VIDEO_REFERENCE_CAPABILITIES = Object.freeze({
+    quick: Object.freeze({provider: 'gemini', mode: 'initial-frame', fidelity: 'starting-frame-not-pixel-locked'}),
+    extendable: Object.freeze({provider: 'gemini', mode: 'appearance-guidance', fidelity: 'best-effort-not-pixel-locked'}),
+    cinematic: Object.freeze({provider: 'runway', mode: 'initial-frame', fidelity: 'starting-frame-not-pixel-locked'}),
+  });
   const VIDEO_REFERENCE_ROLE_OPTIONS = Object.freeze([
     {value: 'subject', label: 'Subject / product'},
     {value: 'mascot', label: 'Mascot / character'},
@@ -473,10 +479,32 @@
   }
 
   function videoReferenceConfirmationSignature(engine, plan = videoReferencePlan()) {
+    const normalizedEngine = VIDEO_REFERENCE_DRAFT_ENGINES.has(engine) ? engine : 'quick';
+    const capability = videoReferenceCapability(normalizedEngine);
     return JSON.stringify([
-      VIDEO_REFERENCE_DRAFT_ENGINES.has(engine) ? engine : 'quick',
+      VIDEO_REFERENCE_PLAN_VERSION,
+      normalizedEngine,
+      capability.provider,
+      capability.mode,
+      capability.fidelity,
       ...plan.map(reference => `${reference.fileId}:${reference.role}`),
     ]);
+  }
+
+  function confirmedVideoReferencePlan(engine, plan = videoReferencePlan()) {
+    const normalizedEngine = VIDEO_REFERENCE_DRAFT_ENGINES.has(engine) ? engine : 'quick';
+    if (!plan.length || state.videoReferencePlanConfirmation !== videoReferenceConfirmationSignature(normalizedEngine, plan)) {
+      return null;
+    }
+    const referencePlan = plan.map(reference => ({fileId: reference.fileId, role: reference.role}));
+    return {
+      version: VIDEO_REFERENCE_PLAN_VERSION,
+      confirmed: true,
+      engine: normalizedEngine,
+      capability: {...videoReferenceCapability(normalizedEngine)},
+      fileIds: referencePlan.map(reference => reference.fileId),
+      referencePlan,
+    };
   }
 
   function readStoredVideoReferenceDraft() {
@@ -1675,6 +1703,11 @@
     })).filter(reference => reference.fileId);
   }
 
+  function videoReferenceCapability(engine) {
+    const normalizedEngine = VIDEO_REFERENCE_DRAFT_ENGINES.has(engine) ? engine : 'quick';
+    return VIDEO_REFERENCE_CAPABILITIES[normalizedEngine];
+  }
+
   function videoReferenceModeCopy(engine) {
     return engine === 'extendable'
       ? 'Appearance guidance · best effort, not a pixel-locked frame or layout'
@@ -1697,10 +1730,11 @@
       return;
     }
     const roleLabels = new Map(VIDEO_REFERENCE_ROLE_OPTIONS.map(option => [option.value, option.label]));
+    const capability = videoReferenceCapability(engine);
     node.innerHTML = `
       <strong>ORDERED REFERENCE PLAN · REVIEW BEFORE CREDITS</strong>
-      <ol>${plan.map((reference, index) => `<li>Reference ${index + 1} · ${escapeHtml(roleLabels.get(reference.role) || 'Subject / product')}</li>`).join('')}</ol>
-      <small>${escapeHtml(videoReferenceModeCopy(engine))}. Generative video cannot guarantee exact pixels, readable text, or logos; use an approved post-generation overlay for exact branding.</small>`;
+      <ol>${plan.map((reference, index) => `<li>Reference ${index + 1} · ${escapeHtml(state.videoReferenceFiles[index]?.name || 'Reference image')} · ${escapeHtml(roleLabels.get(reference.role) || 'Subject / product')}</li>`).join('')}</ol>
+      <small>${escapeHtml(videoReferenceModeCopy(engine))}. Declared capability: ${escapeHtml(capability.provider)} · ${escapeHtml(capability.mode)} · ${escapeHtml(capability.fidelity)}. Generative video cannot guarantee exact pixels, readable text, or logos; use an approved post-generation overlay for exact branding.</small>`;
   }
 
   function renderVideoReferences() {
@@ -3494,7 +3528,7 @@
       renderVideoReferencePlan(engine);
       const roleLabels = new Map(VIDEO_REFERENCE_ROLE_OPTIONS.map(option => [option.value, option.label]));
       const summary = referencePlan
-        .map((reference, index) => `Reference ${index + 1}: ${roleLabels.get(reference.role) || 'Subject / product'}`)
+        .map((reference, index) => `Reference ${index + 1}: ${roleLabels.get(reference.role) || 'Subject / product'} · ${state.videoReferenceFiles[index]?.name || 'Reference image'}`)
         .join('; ');
       setStatus(
         'crump53VideoStatus',
@@ -3512,6 +3546,22 @@
       authSequence !== videoReferenceAuthSequence
       || currentVideoReferenceUserId() !== ownerUserId
     ) return;
+    const currentEngine = byId('crump53VideoEngine')?.value || 'quick';
+    const currentReferencePlan = videoReferencePlan();
+    const referencesChangedWhilePreparing = (
+      currentEngine !== engine
+      || JSON.stringify(currentReferencePlan) !== JSON.stringify(referencePlan)
+    );
+    const referencePlanConfirmation = referencePlan.length
+      ? confirmedVideoReferencePlan(engine, referencePlan)
+      : null;
+    if (referencesChangedWhilePreparing || (referencePlan.length && !referencePlanConfirmation)) {
+      resetVideoReferenceConfirmation();
+      persistVideoReferenceDraft();
+      renderVideoReferencePlan(currentEngine);
+      setStatus('crump53VideoStatus', 'The video reference order, roles, engine, provider, or mode changed. Review and confirm the visible plan again. No credits were used.', true);
+      return;
+    }
     renderVideoProjectDestination();
     const request = {
       prompt,
@@ -3522,6 +3572,7 @@
       projectId: projectTarget?.id || null,
       referenceFileIds: state.videoReferenceFiles.map(file => String(file.id || '')).filter(Boolean),
       referencePlan,
+      ...(referencePlanConfirmation ? {referencePlanConfirmation} : {}),
     };
     const startController = new AbortController();
     state.videoStartAbortController = startController;

@@ -63,7 +63,7 @@ def test_intelligence_receipt_assets_are_cache_versioned_atomically():
     worker = read("public/sw.js")
     receipt_version = "5.9.76-continuity-handoff-1"
     image_node_version = "5.9.76-project-save-offer-1"
-    loader_version = "5.9.76-document-delivery-focused-1"
+    loader_version = "5.9.76-reference-fidelity-hard-contract-1"
 
     assert f"/runtime-body-v1.js?v={loader_version}" in shell
     assert f"/runtime-body-v1.js?v={loader_version}" in worker
@@ -75,5 +75,5 @@ def test_intelligence_receipt_assets_are_cache_versioned_atomically():
         assert versioned in runtime
         assert versioned in worker
     for source in (runtime, worker):
-        assert "/app.js?v=5.9.76-reference-fidelity-focused-3" in source
-    assert "ask-crump-new-body-v1-r251" in worker
+        assert "/app.js?v=5.9.76-reference-fidelity-hard-contract-1" in source
+    assert "ask-crump-new-body-v1-r252" in worker

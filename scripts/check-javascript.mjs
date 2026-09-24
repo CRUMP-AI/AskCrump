@@ -1022,7 +1022,7 @@ const projectSaveMeasurementVersion = `${releaseVersion}-project-save-measuremen
 const outcomeIssueCategoriesVersion = `${releaseVersion}-outcome-issue-categories-1`;
 const projectSaveOfferVersion = `${releaseVersion}-project-save-offer-1`;
 const navigationDiscoveryVersion = `${releaseVersion}-navigation-discovery-1`;
-const documentDeliveryFocusedVersion = `${releaseVersion}-document-delivery-focused-1`;
+const documentDeliveryFocusedVersion = `${releaseVersion}-reference-fidelity-hard-contract-1`;
 const outcomeRefinementRecoveryVersion = `${releaseVersion}-outcome-refinement-recovery-1`;
 const authUpdateGuardVersion = `${releaseVersion}-update-work-guard-1`;
 const userControlledScrollVersion = `${releaseVersion}-user-controlled-scroll-1`;
@@ -1039,7 +1039,7 @@ const settingsInviteVersion = `${releaseVersion}-settings-invite-1`;
 const precisionEditEntryVersion = `${releaseVersion}-precision-edit-entry-1`;
 const precisionEditStudioVersion = `${releaseVersion}-precision-studio-1`;
 const creationSheetContainmentVersion = `${releaseVersion}-creation-sheet-containment-1`;
-const referenceFidelityVersion = `${releaseVersion}-reference-fidelity-focused-3`;
+const referenceFidelityVersion = `${releaseVersion}-reference-fidelity-hard-contract-1`;
 const requiredBodyFiles = [
   'public/crump-v1-body.css',
   'public/crump-v1-body.js',
@@ -1496,7 +1496,7 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r251') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r252') ||
     !serviceWorker.includes("'/assets/brand/crump-shell-lockup-light.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||

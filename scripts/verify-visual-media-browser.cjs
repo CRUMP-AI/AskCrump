@@ -128,6 +128,29 @@ const { chromium } = require(playwrightModule);
   const confirmedSummary = await studio.locator('.crump50-image-guidance').evaluateAll(nodes => nodes.map(node => node.textContent || '').join(' '));
   await studio.getByRole('button', {name: 'Confirm reference plan'}).click();
 
+  await page.locator('#fileInput').setInputFiles({
+    name: 'generic-after-confirm.png',
+    mimeType: 'image/png',
+    buffer: png,
+  });
+  await page.waitForFunction(() => (
+    document.querySelectorAll('[data-crump50-attachment-id]').length === 3
+    && [...document.querySelectorAll('[data-crump50-upload-meta]')]
+      .every(node => !/Uploading|%/.test(node.textContent || ''))
+  ));
+  await page.locator('#userInput').fill('Create an image using these references.');
+  await page.locator('#sendButton').click();
+  await studio.waitFor();
+  const genericMutationRecovery = {
+    studioOpen: await studio.isVisible(),
+    roleCount: await studio.locator('[aria-label^="Role for reference"]').count(),
+    cardCount: await page.locator('[data-crump50-attachment-id]').count(),
+    toast: await page.evaluate(() => window.__lastToast),
+  };
+  await studio.getByRole('button', {name: 'Confirm reference plan'}).click();
+  await page.getByRole('button', {name: 'Remove generic-after-confirm.png'}).click();
+  await page.waitForFunction(() => document.querySelectorAll('[data-crump50-attachment-id]').length === 2);
+
   const result = await page.evaluate(() => ({
     previewImagesAdded: window.__previewImagesAdded,
     previewImageCount: document.querySelectorAll('.crump50-upload-visual img').length,
@@ -261,7 +284,11 @@ const { chromium } = require(playwrightModule);
     || invalidReplacement.toast?.message !== 'Choose JPG, PNG, WebP, HEIC, or HEIF reference images.'
     || invalidReplacement.cardCount !== 2
     || !invalidReplacement.studioOpen
-    || result.previewImagesAdded !== 2
+    || !genericMutationRecovery.studioOpen
+    || genericMutationRecovery.roleCount !== 3
+    || genericMutationRecovery.cardCount !== 3
+    || genericMutationRecovery.toast?.message !== 'Confirm what each reference controls before Crump uses credits.'
+    || result.previewImagesAdded !== 3
     || result.previewImageCount !== 2
     || result.cardCount !== 2
     || !result.bodyHasContent
@@ -285,9 +312,9 @@ const { chromium } = require(playwrightModule);
     || authBoundary.crossTabIdentityChange.cards !== 0
     || authBoundary.crossTabIdentityChange.navigationType !== 'reload'
   ) {
-    throw new Error(JSON.stringify({initialStudio, reverseWrapFocus, forwardWrapFocus, directCloseFocus, transientCloseFocus, readyStudio, invalidReplacement, result, authBoundary, consoleErrors}));
+    throw new Error(JSON.stringify({initialStudio, reverseWrapFocus, forwardWrapFocus, directCloseFocus, transientCloseFocus, readyStudio, invalidReplacement, genericMutationRecovery, result, authBoundary, consoleErrors}));
   }
-  process.stdout.write(`${JSON.stringify({initialStudio, reverseWrapFocus, forwardWrapFocus, directCloseFocus, transientCloseFocus, readyStudio, invalidReplacement, result, authBoundary, consoleErrors})}\n`);
+  process.stdout.write(`${JSON.stringify({initialStudio, reverseWrapFocus, forwardWrapFocus, directCloseFocus, transientCloseFocus, readyStudio, invalidReplacement, genericMutationRecovery, result, authBoundary, consoleErrors})}\n`);
 })().catch(error => {
   process.stderr.write(`${error.stack || error}\n`);
   process.exitCode = 1;

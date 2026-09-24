@@ -12,7 +12,7 @@ from backend.feature_service import (
 )
 from backend.project_service import ProjectNotFoundError
 from backend.routes import media as media_routes
-from backend.video_service import VideoServiceError
+from backend.video_service import VideoService, VideoServiceError
 
 
 USER_ID = "00000000-0000-0000-0000-000000000001"
@@ -135,6 +135,73 @@ async def test_video_posts_reject_missing_or_unbounded_idempotency_before_work(
     services["video"].prepare_provider_prompt.assert_not_called()
     services["video"].provider_cost_cents.assert_not_called()
     services["video"].provider_for_engine.assert_not_called()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("confirmation", "expected_code"),
+    [
+        (None, "VIDEO_REFERENCE_CONFIRMATION_REQUIRED"),
+        (
+            {
+                "version": "video-reference-plan-v0",
+                "confirmed": True,
+                "engine": "quick",
+                "capability": {
+                    "provider": "gemini",
+                    "mode": "initial-frame",
+                    "fidelity": "starting-frame-not-pixel-locked",
+                },
+                "fileIds": ["00000000-0000-0000-0000-000000000011"],
+                "referencePlan": [
+                    {
+                        "fileId": "00000000-0000-0000-0000-000000000011",
+                        "role": "logo",
+                    }
+                ],
+            },
+            "VIDEO_REFERENCE_CONFIRMATION_STALE",
+        ),
+    ],
+    ids=["unconfirmed", "stale-version"],
+)
+async def test_reference_contract_rejection_happens_before_reservation_or_charge(
+    monkeypatch,
+    confirmation,
+    expected_code,
+):
+    services = guarded_services()
+    services["video"].normalize_reference_plan.side_effect = (
+        VideoService.normalize_reference_plan
+    )
+    install_services(monkeypatch, services)
+    reference_id = "00000000-0000-0000-0000-000000000011"
+
+    response = await media_routes.create_video(
+        JsonRequest(
+            {
+                "prompt": "Animate this exact approved logo without substituting its design.",
+                "engine": "quick",
+                "referenceFileIds": [reference_id],
+                "referencePlan": [{"fileId": reference_id, "role": "logo"}],
+                "referencePlanConfirmation": confirmation,
+            },
+            idempotency_key=f"reference-contract-{expected_code.lower()}",
+        )
+    )
+
+    assert response.status_code == 409
+    body = response_body(response)
+    assert body["code"] == expected_code
+    assert body["shouldRetry"] is False
+    assert "No credits were used" in body["error"]
+    services["existing"].assert_not_awaited()
+    services["projects"].get.assert_not_awaited()
+    services["video"].prepare_reference_images.assert_not_awaited()
+    services["video"].guard_provider_budget.assert_not_awaited()
+    services["video"].start.assert_not_awaited()
+    services["video"].authorize_reservation_capacity.assert_not_awaited()
+    services["features"].consume_video_reservation.assert_not_awaited()
 
 
 @pytest.mark.asyncio

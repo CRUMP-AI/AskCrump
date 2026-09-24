@@ -18,7 +18,7 @@ def test_start_paths_delegate_customer_refunds_to_atomic_database_settlement():
 
 
 def test_provider_launch_failure_rpc_is_identity_fenced_and_refunds_in_transaction():
-    migration = read("migrations/20260924121719_atomic_video_reservation_billing.sql")
+    migration = read("migrations/20260924230000_atomic_video_reservation_billing.sql")
     fail_rpc = migration.split(
         "create or replace function public.fail_video_provider_launch",
         1,

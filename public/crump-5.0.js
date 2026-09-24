@@ -33,6 +33,7 @@
     imageRecovery: null,
     precisionImageEdit: null,
     imageReferencePlanConfirmed: false,
+    imageReferencePlanSignature: '',
   };
   let composerAuthSequence = 0;
   const activeUploads = new Set();
@@ -159,13 +160,14 @@
     if (!file?.id) return;
     const existing = state.attachments.find(item => item.server?.id === file.id);
     if (existing) return;
-    state.attachments.push({
+    const item = {
       localId: uid(), file: null, name: file.name || 'Image', type: file.type || 'image/png',
       size: file.size || 0, status: 'ready', progress: 100, server: file, previewUrl: file.url || null,
       imageReference,
       imageReferenceRole,
-    });
-    if (imageReference) state.imageReferencePlanConfirmed = false;
+    };
+    state.attachments.push(item);
+    if (isImageAttachment(item)) invalidateImageReferencePlan();
     renderAttachmentTray();
   }
 
@@ -177,6 +179,29 @@
       || !['prompt_or_reference', 'reference'].includes(changeRequired)
     ) return null;
     return {action: 'revise_image_request', usageRestored: true, changeRequired};
+  }
+
+  function safeImageReferenceHandoff(value) {
+    if (
+      value?.kind !== 'image_reference_plan'
+      || value?.source !== 'conversation_history'
+      || value?.noCharge !== true
+      || !Array.isArray(value?.files)
+    ) return [];
+    return value.files.slice(0, IMAGE_REFERENCE_LIMIT).flatMap(file => {
+      const id = String(file?.id || '');
+      const type = String(file?.type || file?.mime_type || '').toLowerCase();
+      if (!id || !type.startsWith('image/')) return [];
+      const rawUrl = String(file?.url || '');
+      const url = rawUrl.startsWith('/api/files/') ? rawUrl : '';
+      return [{
+        id,
+        name: String(file?.name || file?.file_name || 'Reference image').slice(0, 255),
+        type,
+        size: Math.max(0, Number(file?.size || file?.size_bytes || 0)),
+        ...(url ? {url} : {}),
+      }];
+    });
   }
 
   const IMAGE_REFERENCE_PLAN_CODES = new Set([
@@ -271,10 +296,10 @@
       }
       const item = makeLocalAttachment(file);
       item.authSequence = authSequence;
+      if (isSupportedImageFile(file)) invalidateImageReferencePlan();
       if (imageReference && isSupportedImageFile(file)) {
         item.imageReference = true;
         item.imageReferenceRole = imageReferenceRoleFor(item, state.attachments.filter(isImageAttachment).length);
-        state.imageReferencePlanConfirmed = false;
       }
       state.attachments.push(item);
       item.promise = uploadItem(item);
@@ -466,7 +491,7 @@
     if (index < 0) return;
     const [item] = state.attachments.splice(index, 1);
     if (state.precisionImageEdit?.sourceId === item.server?.id) state.precisionImageEdit = null;
-    if (isImageAttachment(item)) state.imageReferencePlanConfirmed = false;
+    if (isImageAttachment(item)) invalidateImageReferencePlan();
     item.controller?.abort?.();
     item.authController?.abort?.();
     revokeAttachmentPreview(item);
@@ -557,7 +582,7 @@
 
   function clearToolMode({focus = false} = {}) {
     if (state.tool === 'image') state.imageRecovery = null;
-    if (state.tool === 'image') state.imageReferencePlanConfirmed = false;
+    if (state.tool === 'image') invalidateImageReferencePlan();
     state.tool = null;
     state.documentFormat = null;
     state.documentPurpose = null;
@@ -583,7 +608,7 @@
     state.imageQuality = 'medium';
     state.imageRecovery = null;
     state.precisionImageEdit = null;
-    state.imageReferencePlanConfirmed = false;
+    invalidateImageReferencePlan();
     state.sending = false;
     document.body.classList.remove('crump50-sending');
     window.CrumpPresence?.stop?.();
@@ -842,6 +867,26 @@
       .filter(item => item.fileId);
   }
 
+  function imageReferencePlanSignature(items = state.attachments) {
+    return JSON.stringify(imageReferencePlan(items));
+  }
+
+  function invalidateImageReferencePlan() {
+    state.imageReferencePlanConfirmed = false;
+    state.imageReferencePlanSignature = '';
+  }
+
+  function imageReferencePlanIsConfirmed(items = state.attachments) {
+    const references = (Array.isArray(items) ? items : []).filter(isImageAttachment);
+    const plan = imageReferencePlan(references);
+    return Boolean(
+      references.length
+      && plan.length === references.length
+      && state.imageReferencePlanConfirmed
+      && state.imageReferencePlanSignature === JSON.stringify(plan)
+    );
+  }
+
   function imageReferencePlanSummary(items = state.attachments) {
     const labels = new Map(IMAGE_REFERENCE_ROLES);
     return (Array.isArray(items) ? items : [])
@@ -861,7 +906,7 @@
     });
     state.attachments = state.attachments.filter(item => !isImageAttachment(item));
     state.precisionImageEdit = null;
-    state.imageReferencePlanConfirmed = false;
+    invalidateImageReferencePlan();
     renderAttachmentTray();
   }
 
@@ -873,6 +918,7 @@
     addRemoteReference(file, {imageReference: true, imageReferenceRole: 'base'});
     state.precisionImageEdit = {sourceId: String(file.id), maskDataUrl: String(maskDataUrl)};
     state.imageReferencePlanConfirmed = true;
+    state.imageReferencePlanSignature = imageReferencePlanSignature();
     if (Number(width) > Number(height) * 1.08) state.imageAspect = 'landscape';
     else if (Number(height) > Number(width) * 1.08) state.imageAspect = 'portrait';
     else state.imageAspect = 'square';
@@ -1011,7 +1057,7 @@
       }
       state.imageRecovery = null;
       state.tool = 'image';
-      state.imageReferencePlanConfirmed = false;
+      invalidateImageReferencePlan();
       await addFiles(selected.slice(0, available), {imageReference: true});
       closeMenu();
       renderToolChip();
@@ -1119,7 +1165,7 @@
       });
       select.addEventListener('change', () => {
         item.imageReferenceRole = select.value;
-        state.imageReferencePlanConfirmed = false;
+        invalidateImageReferencePlan();
         planSummary.textContent = imageReferencePlanSummary(currentReferences);
       });
       row.append(copy, select);
@@ -1201,9 +1247,15 @@
 
     const activate = document.createElement('button'); activate.type = 'button'; activate.className = 'crump50-primary-action'; activate.textContent = currentReference ? 'Confirm reference plan' : 'Create without reference';
     activate.addEventListener('click', () => {
+      const confirmedPlan = imageReferencePlan(currentReferences);
+      if (currentReferences.length && confirmedPlan.length !== currentReferences.length) {
+        show('Wait for every reference image to finish uploading before confirming the plan.', 'info');
+        return;
+      }
       state.imageRecovery = null;
       state.tool = 'image';
       state.imageReferencePlanConfirmed = Boolean(currentReferences.length);
+      state.imageReferencePlanSignature = currentReferences.length ? JSON.stringify(confirmedPlan) : '';
       closeMenu();
       renderToolChip();
       focusComposer(currentReference ? 'Describe the result. Crump will follow the confirmed reference plan…' : 'Describe the image you want…');
@@ -1302,16 +1354,17 @@
       },
       fileRefs: readyFiles.map(item => item.server.id),
     };
+    const attachedImages = readyFiles.filter(isImageAttachment);
+    if (attachedImages.length) body.imageReferenceContractVersion = 2;
     if (state.tool === 'web') body.needsSearch = true;
     if (state.tool === 'code') body.taskType = 'code';
     if (state.tool === 'image') {
       body.creativeTool = 'image'; body.imageAspect = state.imageAspect; body.imageQuality = state.imageQuality;
-      const references = readyFiles.filter(isImageAttachment);
+      const references = attachedImages;
       body.imageUseReference = Boolean(references.length);
       if (references.length) {
-        body.imageReferenceContractVersion = 2;
         body.imageReferencePlan = imageReferencePlan(references);
-        body.imageReferencePlanConfirmed = state.imageReferencePlanConfirmed;
+        body.imageReferencePlanConfirmed = imageReferencePlanIsConfirmed(references);
       }
       const precision = state.precisionImageEdit;
       if (precision && readyFiles.some(item => String(item.server?.id) === precision.sourceId)) {
@@ -1440,7 +1493,7 @@
       referenceImageAction
       && draftReferences.length
       && !state.precisionImageEdit
-      && !state.imageReferencePlanConfirmed
+      && !imageReferencePlanIsConfirmed(draftReferences)
     ) {
       state.tool = 'image';
       renderToolChip();
@@ -1474,6 +1527,7 @@
         deliveryStatus: 'sending', replyStatus: 'pending',
         files: ready.map(item => item.server),
         requestMeta: {
+          ...(ready.some(isImageAttachment) ? {imageReferenceContractVersion:2} : {}),
           ...(state.tool === 'web' ? {needsSearch:true} : {}),
           ...(state.tool === 'code' ? {taskType:'code'} : {}),
           ...(state.tool === 'image' ? {
@@ -1482,9 +1536,8 @@
             imageQuality:state.imageQuality,
             imageUseReference:ready.some(isImageAttachment),
             ...(ready.some(isImageAttachment) ? {
-              imageReferenceContractVersion:2,
               imageReferencePlan:imageReferencePlan(ready),
-              imageReferencePlanConfirmed:state.imageReferencePlanConfirmed,
+              imageReferencePlanConfirmed:imageReferencePlanIsConfirmed(ready),
             } : {}),
           } : {}),
           ...(state.tool === 'document' && state.documentFormat ? {artifactFormat:state.documentFormat} : {}),
@@ -1504,7 +1557,7 @@
       });
       state.attachments = [];
       state.precisionImageEdit = null;
-      state.imageReferencePlanConfirmed = false;
+      invalidateImageReferencePlan();
       renderAttachmentTray();
       const sentTool = state.tool;
       clearToolMode();
@@ -1547,7 +1600,11 @@
           const recovery = safeImageRecovery(error.recovery || error.data?.recovery);
           if (recovery) target.replyRecovery = recovery;
           else delete target.replyRecovery;
-          if (IMAGE_REFERENCE_PLAN_CODES.has(error.code)) referencePlanRecoveryMessage = target;
+          if (IMAGE_REFERENCE_PLAN_CODES.has(error.code)) {
+            const handoffFiles = safeImageReferenceHandoff(error.data?.referenceHandoff);
+            if (handoffFiles.length) target.files = handoffFiles;
+            referencePlanRecoveryMessage = target;
+          }
         } else if (!error.quiet) {
           delete target.replyErrorCode;
           delete target.replyRecovery;
@@ -1585,7 +1642,7 @@
     state.imageAspect = ['square', 'portrait', 'landscape'].includes(meta.imageAspect) ? meta.imageAspect : 'square';
     state.imageQuality = ['medium', 'high'].includes(meta.imageQuality) ? meta.imageQuality : 'medium';
     state.tool = 'image';
-    state.imageReferencePlanConfirmed = false;
+    invalidateImageReferencePlan();
     state.imageRecovery = null;
     input.value = message.content || '';
     input.dispatchEvent(new Event('input', {bubbles: true}));
@@ -2383,7 +2440,7 @@
       });
       if (isImage) {
         state.tool = 'image';
-        state.imageReferencePlanConfirmed = false;
+        invalidateImageReferencePlan();
         renderToolChip();
         show('Image added. Confirm its role in Image Studio before generating.', 'info');
       }

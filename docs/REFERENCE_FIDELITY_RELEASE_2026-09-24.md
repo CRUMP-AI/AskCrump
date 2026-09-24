@@ -1,5 +1,8 @@
 # Reference-fidelity release evidence — 2026-09-24
 
+Status: integrated source candidate verified on production foundation `bfbb221a`; required
+atomic-video migration and reference-fidelity application release not yet deployed
+
 ## Outcome
 
 Ask Crump now treats image and video references as an explicit, ordered contract instead of an
@@ -49,8 +52,16 @@ change therefore cannot reveal or submit the prior account's Project name or ide
 - A local pass means only that the bounded color and structure signals align. Identity, mascot
   details, exact logo geometry and colors, spelling, letterforms, text layout, and pixel fidelity
   still require comparison with the originals by a person.
-- Cached clients without the version-2 marker retain their prior compatible behavior; unsupported
-  or stale versioned plans fail closed and can be reopened for correction.
+- Confirmation is bound to the exact ordered file-ID/role signature. Adding, removing, reordering,
+  or changing the role of any image invalidates confirmation; the client cannot mark the request
+  confirmed again until the currently visible ordered mapping is reviewed.
+- An implicit edit of an earlier conversation image does not silently assign roles or spend usage.
+  The server returns an owner-resolved, allowlisted, no-charge handoff; the client reopens Image
+  Studio with those existing private files and requires explicit role confirmation.
+- Cached legacy clients that send only the former `imageUseReference` signal retain their prior
+  compatible base/subject behavior. Any caller that sends plan or confirmation fields without the
+  supported version-2 contract is rejected, and unsupported, reordered, or stale versioned plans
+  fail closed before intelligence or billing.
 - Provider image output is accepted only as bounded inline base64, decoded as one safe PNG, JPEG,
   or WebP frame under fixed byte/dimension/pixel ceilings, and canonically re-encoded to the MIME
   Ask Crump stores. Unexpected provider URLs, animated payloads, decompression bombs, and mislabeled
@@ -82,6 +93,12 @@ change therefore cannot reveal or submit the prior account's Project name or ide
 - Quick and Cinematic accept one starting-frame image. Extendable accepts up to three best-effort
   appearance-guidance images. The UI does not call these pixel-locked frames or layout templates.
 - The first click restates the numbered role plan; the second confirmed click starts the job.
+- Every referenced video request must carry `video-reference-plan-v1`, `confirmed: true`, the exact
+  ordered file IDs and roles, selected engine, provider, delivery mode, and fidelity disclosure.
+  The server recomputes that capability and rejects any missing, stale, reordered, role-changed,
+  engine-changed, provider-changed, or mode-changed plan with a clear **No credits were used**
+  response before existing-job lookup, reservation, allowance, credit, or provider work. Videos
+  without references remain unchanged.
 - The completion receipt continues to report `referenceVerification: "not-performed"`. It records
   ordered inputs and provider semantics but does not claim that the finished video was visually
   matched against identities, logos, text, or other reference details.
@@ -148,13 +165,14 @@ change therefore cannot reveal or submit the prior account's Project name or ide
 
 ## Privacy and safety boundary
 
-- The release requires `migrations/20260924121719_atomic_video_reservation_billing.sql`. It adds
+- The release requires `migrations/20260924230000_atomic_video_reservation_billing.sql`. It adds
   bounded request-identity and phase/lease columns and constraints to `public.media_jobs`, a
   rolling-deploy compatibility trigger for older video rows, and service-role-only capacity,
   billing, launch, finalization, and sweep functions. It does not add a customer-content table.
 - The remote migration ledger was read on 2026-09-24 and ended at
-  `20260917233900 ai_gateway_cost_observability`; this new migration follows it and has not been
-  applied by this release-preparation task.
+  `20260924213808 align_chat_job_lease_with_ai_timeout`, after the deployed durable account-Storage
+  deletion prerequisite. This new migration is ordered after both live migrations and has not yet
+  been applied.
 - A read-only production preflight on 2026-09-24 found PostgreSQL 17.6, matching the disposable
   PostgreSQL 17 gate; `public.media_jobs` occupied 270,336 bytes and contained 33 video rows with
   zero queued or processing jobs. The existing `consume_usage_event`, `spend_credits_confirmed`,
@@ -210,13 +228,15 @@ change therefore cannot reveal or submit the prior account's Project name or ide
 
 ## Verification
 
+- Final hard-contract image, video, billing, migration, file, and chat suite: **187/187 passed**.
 - Focused integrated reference, video, credit, finalization, decoder, migration, route, and private
   file-binding suite: 101/101 tests passed.
 - Post-hardening provider-download, container, finalization, background-recovery, and route suite:
   67/67 tests passed. Independent adversarial review found no remaining P0-P2 issue; 20,000 random
   byte payloads failed closed, while all six real local MP4 assets and the covered v0/v1,
   extended-size, UUID, fragmented, and terminal-`mdat` layouts passed.
-- Full Python suite with the repository's optional security dependencies: 1,293/1,293 tests passed.
+- Full Python suite with the repository's optional security dependencies: **1,499/1,499 passed**
+  across 134 test files on the deployed privacy/document foundation.
 - PostgreSQL grammar validation accepted all 74 migration statements. A disposable PostgreSQL 17
   job then applied the real migration after its minimal pre-atomic prerequisites and passed
   two-session coverage for legacy-row fencing, exactly-one capacity authorization, service-role
@@ -227,8 +247,9 @@ change therefore cannot reveal or submit the prior account's Project name or ide
   and refund helper path. Those live-environment checks remain part of the production cutover.
 - JavaScript contract: 54 files validated; 24/24, 10/10, and 10/10 attribution/runtime fixtures
   passed; Store packet self-test passed 21/21.
-- Browser-control matrix: 49/49 verifiers passed in installed Microsoft Edge, including the lazy
-  Product Studio account-switch regression.
+- Browser-control matrix: **50/50** verifiers passed in installed Microsoft Edge, including the
+  exact confirm → generic image add → block → reopen → reconfirm flow, strict video capability
+  confirmation, returning-PWA cache transition, document/file overlays, and account isolation.
 - Public accessibility matrix: 33/33 phone, tablet, and desktop scenarios passed.
 - Production build preflight, native web bundle generation, backend compilation, Python lint,
   source-native privacy verification, client-secret boundary, and final diff checks passed.
@@ -239,8 +260,9 @@ worktree. Those gates are separate from this web/PWA reference-fidelity release.
 
 ## Release identity
 
-- Browser/PWA/native asset token: `5.9.76-reference-fidelity-focused-3`
+- Browser/PWA/native asset token: `5.9.76-reference-fidelity-hard-contract-1`
 - Service-worker cache: `ask-crump-new-body-v1-r252`
 - Release boundary: application, required atomic-video migration, protected video reconciliation
   cron, browser/native delivery, focused verifiers, release guards, and this evidence record. No
-  pricing change and no production migration or deployment occurred during preparation.
+  pricing change. The already-verified privacy/document foundation is live; the reference migration
+  and reference application release remain held until hosted gates and database-before-app cutover.

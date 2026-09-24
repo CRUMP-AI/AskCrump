@@ -188,6 +188,7 @@ def _normalized_creation_identity(
         file_ids=payload.get("referenceFileIds"),
         reference_plan=payload.get("referencePlan"),
         engine=engine,
+        reference_confirmation=payload.get("referencePlanConfirmation"),
     )
     fingerprint = _request_fingerprint(
         {

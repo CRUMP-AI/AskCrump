@@ -153,6 +153,31 @@ const { chromium } = require(playwrightModule);
     referenceIds: [...document.querySelectorAll('[data-video-reference-id]')].map(card => card.dataset.videoReferenceId),
     storedDraft: localStorage.getItem(`askcrump.videoReferenceDraft53:${encodeURIComponent(window.currentUser.id)}`) || '',
   }));
+  await page.locator('#crump53VideoEngine').selectOption('cinematic');
+  const providerModeInvalidated = await page.evaluate(() => {
+    const storedDraft = localStorage.getItem(`askcrump.videoReferenceDraft53:${encodeURIComponent(window.currentUser.id)}`) || '';
+    return {
+      requestStarted: Boolean(window.__videoRequest),
+      engine: document.querySelector('#crump53VideoEngine')?.value || '',
+      button: document.querySelector('#crump53GenerateVideo')?.textContent || '',
+      storedConfirmation: Boolean(JSON.parse(storedDraft || '{}').confirmationSignature),
+    };
+  });
+  await page.locator('#crump53VideoEngine').selectOption('extendable');
+  await page.locator('#crump53GenerateVideo').click();
+  await page.waitForFunction(() => document.querySelector('#crump53GenerateVideo')?.textContent === 'Confirm & create video');
+  await page.locator('[data-video-reference-role]').nth(1).selectOption('style');
+  const roleInvalidated = await page.evaluate(() => {
+    const storedDraft = localStorage.getItem(`askcrump.videoReferenceDraft53:${encodeURIComponent(window.currentUser.id)}`) || '';
+    return {
+      requestStarted: Boolean(window.__videoRequest),
+      button: document.querySelector('#crump53GenerateVideo')?.textContent || '',
+      storedConfirmation: Boolean(JSON.parse(storedDraft || '{}').confirmationSignature),
+    };
+  });
+  await page.locator('[data-video-reference-role]').nth(1).selectOption('logo');
+  await page.locator('#crump53GenerateVideo').click();
+  await page.waitForFunction(() => document.querySelector('#crump53GenerateVideo')?.textContent === 'Confirm & create video');
   await page.reload({waitUntil: 'networkidle'});
   await page.locator('#openVideo').click();
   await page.waitForFunction(() => (
@@ -217,6 +242,7 @@ const { chromium } = require(playwrightModule);
       referenceCards: document.querySelectorAll('.crump53-video-reference-card').length,
       referenceFileIds: window.__videoRequest?.referenceFileIds || [],
       referencePlan: window.__videoRequest?.referencePlan || [],
+      referencePlanConfirmation: window.__videoRequest?.referencePlanConfirmation || null,
       requestContainsImageData: /base64|data:image/i.test(JSON.stringify(window.__videoRequest || {})),
       recoveryContainsImageData: /base64|data:image/i.test(storedRequest),
       referenceDraftCleared: !localStorage.getItem(`askcrump.videoReferenceDraft53:${encodeURIComponent(window.currentUser.id)}`),
@@ -778,10 +804,20 @@ const { chromium } = require(playwrightModule);
     || !beforeConfirmation.status.includes('Reference 1: Subject / product')
     || !beforeConfirmation.status.includes('Reference 2: Logo / wordmark')
     || !beforeConfirmation.plan.includes('ORDERED REFERENCE PLAN')
+    || !beforeConfirmation.plan.includes('bus.png')
+    || !beforeConfirmation.plan.includes('logo.png')
+    || !beforeConfirmation.plan.includes('Declared capability: gemini · appearance-guidance · best-effort-not-pixel-locked')
     || !beforeConfirmation.plan.includes('not a pixel-locked frame or layout')
     || JSON.stringify(beforeConfirmation.roles) !== JSON.stringify(['subject', 'logo'])
     || /base64|data:image|blob:/i.test(beforeConfirmation.storedDraft)
     || /"url"\s*:/i.test(beforeConfirmation.storedDraft)
+    || providerModeInvalidated.requestStarted
+    || providerModeInvalidated.engine !== 'cinematic'
+    || providerModeInvalidated.button !== 'Create video'
+    || providerModeInvalidated.storedConfirmation
+    || roleInvalidated.requestStarted
+    || roleInvalidated.button !== 'Create video'
+    || roleInvalidated.storedConfirmation
     || restoredDraft.selectedEngine !== 'extendable'
     || restoredDraft.button !== 'Confirm & create video'
     || !restoredDraft.status.includes('reviewed ordered plan')
@@ -798,6 +834,14 @@ const { chromium } = require(playwrightModule);
     || result.referencePlan[0]?.role !== 'subject'
     || result.referencePlan[1]?.fileId !== result.referenceFileIds[1]
     || result.referencePlan[1]?.role !== 'logo'
+    || result.referencePlanConfirmation?.version !== 'video-reference-plan-v1'
+    || result.referencePlanConfirmation?.confirmed !== true
+    || result.referencePlanConfirmation?.engine !== 'extendable'
+    || result.referencePlanConfirmation?.capability?.provider !== 'gemini'
+    || result.referencePlanConfirmation?.capability?.mode !== 'appearance-guidance'
+    || result.referencePlanConfirmation?.capability?.fidelity !== 'best-effort-not-pixel-locked'
+    || JSON.stringify(result.referencePlanConfirmation?.fileIds || []) !== JSON.stringify(result.referenceFileIds)
+    || JSON.stringify(result.referencePlanConfirmation?.referencePlan || []) !== JSON.stringify(result.referencePlan)
     || result.requestContainsImageData
     || result.recoveryContainsImageData
     || pendingRequestBeforeReload.value?.version !== 1

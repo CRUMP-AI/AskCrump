@@ -50,15 +50,15 @@ DYNAMIC_BUTTON_INVENTORY = {
     "public/ui-functions.js": 16,
 }
 INDIRECT_DYNAMIC_BUTTON_OWNERS = {
-    "public/crump-5.0.js:1874:close": (
+    "public/crump-5.0.js:1931:close": (
         "mountLightbox(box, close);",
         "closeButton.addEventListener('click', dismiss)",
     ),
-    "public/crump-5.0.js:1958:close": (
+    "public/crump-5.0.js:2015:close": (
         "mountLightbox(box, close);",
         "closeButton.addEventListener('click', dismiss)",
     ),
-    "public/crump-5.0.js:2335:project": (
+    "public/crump-5.0.js:2392:project": (
         "wireOutputProjectAction(project, {",
         "button.addEventListener('click', async () => {",
     ),

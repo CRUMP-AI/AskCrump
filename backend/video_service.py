@@ -189,6 +189,7 @@ class VideoService:
     REFERENCE_IMAGE_MAX_EDGE = 2048
     REFERENCE_IMAGE_MAX_SOURCE_EDGE = 8192
     REFERENCE_IMAGE_MAX_PIXELS = 16_777_216
+    REFERENCE_PLAN_VERSION = "video-reference-plan-v1"
     REFERENCE_ROLES = {
         "subject": "Subject / product",
         "mascot": "Mascot / character",
@@ -327,6 +328,22 @@ class VideoService:
         return 3 if engine == VideoService.EXTENDABLE else 1
 
     @classmethod
+    def reference_capability(cls, engine: Any) -> dict[str, str]:
+        """Describe the provider semantics the user must review before spend."""
+        normalized_engine = cls.validate_engine(engine)
+        if normalized_engine == cls.EXTENDABLE:
+            return {
+                "provider": "gemini",
+                "mode": "appearance-guidance",
+                "fidelity": "best-effort-not-pixel-locked",
+            }
+        return {
+            "provider": "runway" if normalized_engine == cls.CINEMATIC else "gemini",
+            "mode": "initial-frame",
+            "fidelity": "starting-frame-not-pixel-locked",
+        }
+
+    @classmethod
     def _normalize_reference_plan(
         cls,
         *,
@@ -429,13 +446,74 @@ class VideoService:
         file_ids: Any,
         reference_plan: Any,
         engine: str,
+        reference_confirmation: Any = None,
     ) -> list[dict[str, str]]:
-        """Expose byte-free reference normalization for request identity."""
-        return cls._normalize_reference_plan(
-            file_ids=file_ids,
-            reference_plan=reference_plan,
-            engine=engine,
-        )
+        """Normalize references and enforce the reviewed request contract.
+
+        Internal provider preparation uses ``_normalize_reference_plan`` after
+        this public request-boundary check. That keeps already-normalized jobs
+        resumable while preventing stale or direct creation callers from
+        reserving or spending against an unreviewed reference plan.
+        """
+        no_charge_suffix = " Reopen Video Studio and confirm it again. No credits were used."
+        try:
+            entries = cls._normalize_reference_plan(
+                file_ids=file_ids,
+                reference_plan=reference_plan,
+                engine=engine,
+            )
+        except VideoServiceError as exc:
+            if exc.code == "INVALID_VIDEO_REFERENCE_PLAN":
+                raise VideoServiceError(
+                    "The video reference order or role assignments no longer match the reviewed plan."
+                    + no_charge_suffix,
+                    "VIDEO_REFERENCE_CONFIRMATION_STALE",
+                    409,
+                    False,
+                    False,
+                ) from exc
+            raise
+        if not entries:
+            return []
+
+        if not isinstance(reference_plan, list) or not isinstance(reference_confirmation, dict):
+            raise VideoServiceError(
+                "Review the ordered video reference plan before creating." + no_charge_suffix,
+                "VIDEO_REFERENCE_CONFIRMATION_REQUIRED",
+                409,
+                False,
+                False,
+            )
+        if reference_confirmation.get("confirmed") is not True:
+            raise VideoServiceError(
+                "The video reference plan has not been confirmed." + no_charge_suffix,
+                "VIDEO_REFERENCE_CONFIRMATION_REQUIRED",
+                409,
+                False,
+                False,
+            )
+
+        normalized_engine = cls.validate_engine(engine)
+        expected_capability = cls.reference_capability(normalized_engine)
+        expected_ids = [item["fileId"] for item in entries]
+        expected_confirmation = {
+            "version": cls.REFERENCE_PLAN_VERSION,
+            "confirmed": True,
+            "engine": normalized_engine,
+            "capability": expected_capability,
+            "fileIds": expected_ids,
+            "referencePlan": entries,
+        }
+        if reference_confirmation != expected_confirmation:
+            raise VideoServiceError(
+                "The confirmed video reference plan is stale or no longer matches the selected order, roles, engine, provider, or reference mode."
+                + no_charge_suffix,
+                "VIDEO_REFERENCE_CONFIRMATION_STALE",
+                409,
+                False,
+                False,
+            )
+        return entries
 
     @staticmethod
     def normalize_request_fingerprint(value: Any) -> str:

@@ -879,6 +879,19 @@ class MediaService:
                 False,
                 0,
             )
+        raw_plan = payload.get('imageReferencePlan')
+        versioned_plan_fields = (
+            raw_plan is not None
+            or payload.get('imageReferencePlanConfirmed') is True
+        )
+        if versioned_plan_fields and not strict_contract:
+            raise AIServiceError(
+                'This saved reference plan is stale. Reopen Image Studio and confirm the current ordered references.',
+                400,
+                'IMAGE_REFERENCE_PLAN_INVALID',
+                False,
+                0,
+            )
         if len(image_rows) > IMAGE_REFERENCE_LIMIT:
             raise AIServiceError(
                 f'Image Studio accepts up to {IMAGE_REFERENCE_LIMIT} reference images per generation.',
@@ -887,7 +900,6 @@ class MediaService:
                 False,
                 0,
             )
-        raw_plan = payload.get('imageReferencePlan')
         if not image_rows:
             if (
                 raw_plan is not None
@@ -938,22 +950,24 @@ class MediaService:
                 0,
             )
 
-        roles_by_id: dict[str, str] = {}
+        validated_plan: list[dict[str, str]] = []
+        seen_ids: set[str] = set()
         for item in raw_plan:
             if not isinstance(item, dict):
-                roles_by_id = {}
+                validated_plan = []
                 break
             file_id = str(item.get('fileId') or '').strip()
             role = str(item.get('role') or '').strip().lower()
-            if not file_id or file_id in roles_by_id or role not in IMAGE_REFERENCE_ROLES:
-                roles_by_id = {}
+            if not file_id or file_id in seen_ids or role not in IMAGE_REFERENCE_ROLES:
+                validated_plan = []
                 break
-            roles_by_id[file_id] = role
+            seen_ids.add(file_id)
+            validated_plan.append({'fileId': file_id, 'role': role})
 
         expected_ids = [str(row.get('id') or '') for row in image_rows]
-        if set(roles_by_id) != set(expected_ids):
+        if [item['fileId'] for item in validated_plan] != expected_ids:
             raise AIServiceError(
-                'The reference plan no longer matches the attached images. Reopen Image Studio and confirm it again.',
+                'The reference order no longer matches the attached images. Reopen Image Studio and confirm it again.',
                 400,
                 'IMAGE_REFERENCE_PLAN_INVALID',
                 False,
@@ -962,7 +976,7 @@ class MediaService:
         return [
             {
                 'fileId': file_id,
-                'role': roles_by_id[file_id],
+                'role': validated_plan[index]['role'],
                 'name': str(row.get('file_name') or f'Reference {index + 1}')[:255],
             }
             for index, (file_id, row) in enumerate(zip(expected_ids, image_rows))
