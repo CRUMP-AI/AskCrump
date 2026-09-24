@@ -1,6 +1,6 @@
 -- Minimal pre-atomic production contract for the isolated PostgreSQL gate.
 -- Keep this focused on objects referenced by migrations/015, migrations/016,
--- and 20260924230000_atomic_video_reservation_billing.sql. It intentionally
+-- and 20260924224459_atomic_video_reservation_billing.sql. It intentionally
 -- does not emulate Supabase services or connect to any hosted project.
 
 begin;

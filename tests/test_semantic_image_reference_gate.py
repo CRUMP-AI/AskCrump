@@ -419,6 +419,18 @@ def test_modern_client_advertises_reference_contract_without_forcing_image_mode(
     assert "if (handoffFiles.length) target.files = handoffFiles;" in sender
 
 
+def test_retry_reopens_an_owner_resolved_reference_handoff() -> None:
+    script = (ROOT / "public" / "crump-5.0.js").read_text(encoding="utf-8")
+    retry = script[script.index("async function retryMessage") : script.index("function reviseImageMessage")]
+
+    assert "safeImageReferenceHandoff(error.data?.referenceHandoff)" in retry
+    assert "if (handoffFiles.length) message.files = handoffFiles;" in retry
+    assert "referencePlanRecoveryMessage = message;" in retry
+    assert retry.index("referencePlanRecoveryMessage = message") < retry.index(
+        "reopenImageReferencePlan(referencePlanRecoveryMessage)"
+    )
+
+
 def test_client_confirmation_is_bound_to_the_exact_ordered_reference_plan() -> None:
     script = (ROOT / "public" / "crump-5.0.js").read_text(encoding="utf-8")
     attachment_mutations = script[script.index("function addRemoteReference") : script.index("function activeToolLabel")]

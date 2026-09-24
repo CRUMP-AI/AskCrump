@@ -1,7 +1,7 @@
 # Reference-fidelity release evidence — 2026-09-24
 
-Status: integrated source candidate verified on production foundation `bfbb221a`; required
-atomic-video migration and reference-fidelity application release not yet deployed
+Status: production database migration applied and verified; integrated reference-fidelity
+application candidate verified on production foundation `bfbb221a` and awaiting deployment
 
 ## Outcome
 
@@ -34,8 +34,10 @@ change therefore cannot reveal or submit the prior account's Project name or ide
 - Image Studio accepts up to four ordered private image references.
 - Each reference is assigned one reviewed role: base, subject, mascot, logo, typography, or style.
 - The current client sends contract version 2 and cannot generate until the mapping is confirmed.
-- The server revalidates the complete file/role plan before intelligence preparation, message
-  usage, feature credits, or the image provider.
+- Explicit image requests are revalidated before intelligence preparation. If image intent is
+  discovered semantically from an ordinary chat request, the server revalidates immediately after
+  that bounded intent preparation and still before authorization, message usage, feature credits,
+  or the image provider.
 - Every confirmed reference is sent in order through the image-edit endpoint. A referenced image
   is billed as an image edit, not a fresh text-to-image request.
 - Precision Edit keeps its painted selection as the only editable region of the base image while
@@ -165,30 +167,31 @@ change therefore cannot reveal or submit the prior account's Project name or ide
 
 ## Privacy and safety boundary
 
-- The release requires `migrations/20260924230000_atomic_video_reservation_billing.sql`. It adds
+- Production applied `migrations/20260924224459_atomic_video_reservation_billing.sql`. It adds
   bounded request-identity and phase/lease columns and constraints to `public.media_jobs`, a
   rolling-deploy compatibility trigger for older video rows, and service-role-only capacity,
   billing, launch, finalization, and sweep functions. It does not add a customer-content table.
-- The remote migration ledger was read on 2026-09-24 and ended at
+- The remote migration ledger was read immediately before cutover on 2026-09-24 and ended at
   `20260924213808 align_chat_job_lease_with_ai_timeout`, after the deployed durable account-Storage
-  deletion prerequisite. This new migration is ordered after both live migrations and has not yet
-  been applied.
+  deletion prerequisite. Supabase then applied this migration as
+  `20260924224459 atomic_video_reservation_billing`, and a fresh ledger read verified the entry.
 - A read-only production preflight on 2026-09-24 found PostgreSQL 17.6, matching the disposable
   PostgreSQL 17 gate; `public.media_jobs` occupied 270,336 bytes and contained 33 video rows with
   zero queued or processing jobs. The existing `consume_usage_event`, `spend_credits_confirmed`,
   and `refund_credit_spend` functions had the exact signatures used by this migration, and
   `service_role` retained the required table and function privileges. These are point-in-time
   facts and must be rechecked immediately before cutover; the query changed no production data.
-- Rollout order is mandatory: recheck the remote ledger, apply the migration, verify its entry,
-  columns, functions, constraints, and grants, and only then deploy the application and cron.
-  App-first deployment would call database functions that do not yet exist and is prohibited.
-- Before production, apply this migration to a real PostgreSQL staging/shadow database and run
-  two-session tests for old-writer/new-RPC lock order, absolute-deadline/finalization races, rollback,
-  idempotent refund behavior, and global-sweep progress while the owners of the earliest candidate
-  rows are deliberately locked. Static parsing and mocked tests do not replace that gate. The
-  migration creates nine ordinary indexes, validates new CHECK constraints, and classifies the
-  existing video rows in one transaction, so table size and lock duration must be measured; use a
-  maintenance window or split migration plan if staging shows material blocking.
+- The mandatory database-first rollout order is complete. Post-apply catalog verification found all
+  seven columns, five validated constraints, twelve service-role-only functions, nine indexes, and
+  the rolling-deploy compatibility trigger present; no anonymous/authenticated function grant leak
+  and no active queued/processing video job was found. The application and cron still must not be
+  deployed from a revision older than this migration contract.
+- The hosted disposable PostgreSQL 17 gate ran the migration plus two-session tests for
+  old-writer/new-RPC lock order, capacity authorization, idempotent billing, oldest-first
+  `SKIP LOCKED` progress, and the rolling-deploy row-lock/owner-lock inversion. The production table
+  size and zero-active-job preflight were measured before apply. Post-apply Supabase advisors added
+  no warning/error finding; service-only RLS/no-policy and freshly unused-index findings remain
+  informational and expected for this private backend design and newly installed indexes.
 - Drain pre-release application instances before migration/app cutover and keep overlap at zero or
   as short as operationally possible. An older process can still crash after charging but before
   inserting its media row, or publish its separately written random file before a concurrent sweep
@@ -235,7 +238,7 @@ change therefore cannot reveal or submit the prior account's Project name or ide
   67/67 tests passed. Independent adversarial review found no remaining P0-P2 issue; 20,000 random
   byte payloads failed closed, while all six real local MP4 assets and the covered v0/v1,
   extended-size, UUID, fragmented, and terminal-`mdat` layouts passed.
-- Full Python suite with the repository's optional security dependencies: **1,499/1,499 passed**
+- Full Python suite with the repository's optional security dependencies: **1,500/1,500 passed**
   across 134 test files on the deployed privacy/document foundation.
 - PostgreSQL grammar validation accepted all 74 migration statements. A disposable PostgreSQL 17
   job then applied the real migration after its minimal pre-atomic prerequisites and passed

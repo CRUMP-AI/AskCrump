@@ -102,4 +102,3 @@ def test_reference_decoder_maps_decompression_bomb_error_before_transpose_or_loa
     assert caught.value.status_code == 413
     assert isinstance(caught.value.__cause__, video_module.Image.DecompressionBombError)
     assert transpose_called is False
-

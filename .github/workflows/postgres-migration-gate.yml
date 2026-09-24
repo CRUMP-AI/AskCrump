@@ -102,7 +102,7 @@ jobs:
           psql -X --set=ON_ERROR_STOP=1 --file=tests/postgres/atomic_video_reservation_baseline.sql
           psql -X --set=ON_ERROR_STOP=1 --file=migrations/015_video_engine_continuations.sql
           psql -X --set=ON_ERROR_STOP=1 --file=migrations/016_video_engine_root_fk_index.sql
-          psql -X --set=ON_ERROR_STOP=1 --file=migrations/20260924230000_atomic_video_reservation_billing.sql
+          psql -X --set=ON_ERROR_STOP=1 --file=migrations/20260924224459_atomic_video_reservation_billing.sql
       - name: Exercise migration against PostgreSQL
         run: >-
           psql -X --set=ON_ERROR_STOP=1

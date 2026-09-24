@@ -1665,6 +1665,7 @@
         item => String(item?.id || item?.chat_id || '') === retryChatId,
       ) || chat
     );
+    let referencePlanRecoveryMessage = null;
     if (IMAGE_REVISION_CODES.has(message.replyErrorCode)) {
       reviseImageMessage(id);
       return;
@@ -1712,6 +1713,12 @@
           message.replyErrorCode = error.code;
           const recovery = safeImageRecovery(error.recovery || error.data?.recovery);
           if (recovery) message.replyRecovery = recovery;
+          else delete message.replyRecovery;
+          if (IMAGE_REFERENCE_PLAN_CODES.has(error.code)) {
+            const handoffFiles = safeImageReferenceHandoff(error.data?.referenceHandoff);
+            if (handoffFiles.length) message.files = handoffFiles;
+            referencePlanRecoveryMessage = message;
+          }
         }
         saveAndRender(chat);
       }
@@ -1719,6 +1726,7 @@
     } finally {
       if (retryIsCurrent()) {
         state.sending=false; document.body.classList.remove('crump50-sending');
+        if (referencePlanRecoveryMessage) reopenImageReferencePlan(referencePlanRecoveryMessage);
       }
     }
   }
