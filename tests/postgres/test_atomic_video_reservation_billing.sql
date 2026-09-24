@@ -530,7 +530,7 @@ select dblink_exec('legacy_writer', 'set role service_role');
 select dblink_exec('modern_billing', 'begin');
 select dblink_exec(
   'modern_billing',
-  'set local statement_timeout = ''5 seconds'''
+  'set local statement_timeout = ''5s'''
 );
 select *
 from dblink(
