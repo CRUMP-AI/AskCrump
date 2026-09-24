@@ -36,8 +36,10 @@ it never emits events externally.
 
 `tests/fixtures/file-delivery.html` and `scripts/verify-file-delivery.cjs` run the committed
 `public/crump-5.0.js` renderer wrapper in Chromium. Three fixture assistant messages produce DOCX,
-PDF, and PPTX chat cards. Clicking their real **Download** controls yields the exact private
-`/api/files/{id}/content?download=1` targets and filenames without opening a new window.
+PDF, and PPTX chat cards. Each card exposes distinct **Open**, **Download**, and **Add to Project**
+actions. Download yields the exact private `/api/files/{id}/content?download=1` target and filename
+without opening a new window. Open keeps the handoff inside Ask Crump, above an already mounted
+Files or Project overlay.
 
 `tests/fixtures/file-library-usability.html` and `scripts/verify-file-library-usability.cjs`
 run the committed Files control and file viewer at 1440×1000 and 390×844. The PDF **Open** control
@@ -65,7 +67,7 @@ The Python API and Chromium halves use the same production source and response s
 fixture processes; this is a boundary matrix, not one browser session talking to a live Supabase
 storage service. The file route's real authentication, real storage upload/signed URL, cross-device
 session, provider response, and delivered/downloaded production customer outcome remain untested
-here. The chat artifact card intentionally offers **Download**, not an in-chat preview. The PDF
-preview is reached from Files; Word and PPTX intentionally show download placeholders rather than
-in-browser document rendering. A real production journey requires a separately authorized,
+here. The chat artifact card now offers both **Open** and **Download**. PDF opens in the authenticated
+in-app viewer; Word, PowerPoint, and Excel use the in-app download handoff because the browser does
+not provide a trustworthy native editor/renderer for those private files. A real production journey requires a separately authorized,
 legitimate user action, not synthetic production traffic or customer-content inspection.

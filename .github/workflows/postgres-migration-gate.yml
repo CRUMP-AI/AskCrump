@@ -1,0 +1,66 @@
+name: PostgreSQL migration gate
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "migrations/**"
+      - "tests/postgres/**"
+      - ".github/workflows/postgres-migration-gate.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "migrations/**"
+      - "tests/postgres/**"
+      - ".github/workflows/postgres-migration-gate.yml"
+
+concurrency:
+  group: postgres-migration-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  chat-claim-and-artifact-versioning:
+    name: Chat claim and artifact versioning
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: askcrump_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d askcrump_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGDATABASE: askcrump_test
+      PGUSER: postgres
+      PGPASSWORD: postgres-ci-only
+
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+      - name: Apply prerequisite schema and migration
+        run: |
+          psql -X --set=ON_ERROR_STOP=1 --file=tests/postgres/chat_document_delivery_baseline.sql
+          psql -X --set=ON_ERROR_STOP=1 --file=migrations/20260924213808_align_chat_job_lease_with_ai_timeout.sql
+      - name: Exercise migration against PostgreSQL
+        run: >-
+          psql -X --set=ON_ERROR_STOP=1
+          --file=tests/postgres/test_chat_document_delivery_migration.sql
+      - name: Exercise concurrent usage replay ownership
+        run: bash tests/postgres/test_usage_replay_concurrency.sh

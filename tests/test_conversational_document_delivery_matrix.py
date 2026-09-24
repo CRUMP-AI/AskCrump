@@ -8,8 +8,11 @@ from unittest.mock import AsyncMock
 from zipfile import is_zipfile
 
 import pytest
+from docx import Document
 from fastapi import FastAPI, HTTPException, Request, Response
 from fastapi.testclient import TestClient
+from openpyxl import load_workbook
+from pptx import Presentation
 from pypdf import PdfReader
 
 from backend.artifact_service import ArtifactService, MIME
@@ -59,8 +62,11 @@ class FixtureDB:
         return [dict(row) for row in self.files.values() if matches(row, filters)]
 
     async def rpc(self, name: str, payload: dict, **_kwargs):
-        if name == "claim_chat_job":
-            return [{"job_state": "claimed"}]
+        if name == "claim_chat_job_v2":
+            return [{
+                "job_state": "claimed",
+                "claim_token": "00000000-0000-4000-8000-000000000779",
+            }]
         if name == "persist_chat_reply":
             assert payload["p_user_id"] == OWNER
             self.messages = [payload["p_user_message"], payload["p_assistant_message"]]
@@ -82,7 +88,8 @@ class FixtureFiles(FileService):
         self.bytes_by_id: dict[str, bytes] = {}
 
     async def store_bytes(self, *, user_id, data, filename, mime_type, kind,
-                          chat_id=None, message_id=None, metadata=None, file_id=None):
+                          chat_id=None, message_id=None, metadata=None, file_id=None,
+                          idempotency_fingerprint=None, logical_artifact_id=None):
         file_id = normalize_chat_id(file_id)
         row = {
             "id": file_id,
@@ -95,7 +102,13 @@ class FixtureFiles(FileService):
             "kind": kind,
             "status": "ready",
             "deleted_at": None,
-            "metadata": metadata or {},
+            "metadata": {
+                **dict(metadata or {}),
+                **({"_artifactFingerprint": idempotency_fingerprint}
+                   if idempotency_fingerprint else {}),
+                **({"_logicalArtifactId": logical_artifact_id}
+                   if logical_artifact_id else {}),
+            },
         }
         self.db.files[file_id] = row
         self.bytes_by_id[file_id] = data
@@ -254,8 +267,32 @@ def test_chat_persists_owned_artifact_and_delivers_private_download(
     if format_name == "pdf":
         assert stored_bytes.startswith(b"%PDF")
         assert "Fixture decision" in (PdfReader(BytesIO(stored_bytes)).pages[0].extract_text() or "")
+    elif format_name == "docx":
+        assert is_zipfile(BytesIO(stored_bytes))
+        document_text = "\n".join(paragraph.text for paragraph in Document(BytesIO(stored_bytes)).paragraphs)
+        assert "Fixture decision" in document_text
+        assert "useful, completed answer" in document_text
+    elif format_name == "pptx":
+        assert is_zipfile(BytesIO(stored_bytes))
+        presentation_text = "\n".join(
+            shape.text
+            for slide in Presentation(BytesIO(stored_bytes)).slides
+            for shape in slide.shapes
+            if getattr(shape, "has_text_frame", False)
+        )
+        assert "Fixture decision" in presentation_text
+        assert "useful, completed answer" in presentation_text
     else:
         assert is_zipfile(BytesIO(stored_bytes))
+        workbook = load_workbook(BytesIO(stored_bytes), data_only=False)
+        workbook_text = "\n".join(
+            str(cell.value or "")
+            for sheet in workbook.worksheets
+            for row in sheet.iter_rows()
+            for cell in row
+        )
+        assert "Fixture decision" in workbook_text
+        assert "useful, completed answer" in workbook_text
 
     content_url = artifact["url"]
     assert client.get(content_url, headers={"x-fixture-owner": OTHER_OWNER}).status_code == 404

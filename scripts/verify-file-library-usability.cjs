@@ -32,6 +32,11 @@ function blankPdf() {
     let pdfContentRequests = 0;
     await page.route('**/*', route => {
       const url = new URL(route.request().url());
+      // Chromium's built-in PDF viewer loads chrome:// and chrome-extension://
+      // resources after the local PDF response. Those are browser internals, not
+      // outbound network destinations; keep the exfiltration assertion scoped to
+      // HTTP(S) requests that can actually leave the fixture origin.
+      if (!['http:', 'https:'].includes(url.protocol)) return route.continue();
       if (url.hostname !== '127.0.0.1') {
         blockedRequests.push(url.href);
         return route.abort();

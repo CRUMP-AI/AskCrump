@@ -1022,6 +1022,7 @@ const projectSaveMeasurementVersion = `${releaseVersion}-project-save-measuremen
 const outcomeIssueCategoriesVersion = `${releaseVersion}-outcome-issue-categories-1`;
 const projectSaveOfferVersion = `${releaseVersion}-project-save-offer-1`;
 const navigationDiscoveryVersion = `${releaseVersion}-navigation-discovery-1`;
+const documentDeliveryFocusedVersion = `${releaseVersion}-document-delivery-focused-1`;
 const outcomeRefinementRecoveryVersion = `${releaseVersion}-outcome-refinement-recovery-1`;
 const authUpdateGuardVersion = `${releaseVersion}-update-work-guard-1`;
 const userControlledScrollVersion = `${releaseVersion}-user-controlled-scroll-1`;
@@ -1238,7 +1239,7 @@ if (!referringAcquisitionSource ||
   process.exit(1);
 }
 const requiredHtmlSignals = [
-  `/runtime-body-v1.js?v=${accountDeletionStorageVersion}`,
+  `/runtime-body-v1.js?v=${documentDeliveryFocusedVersion}`,
   `/auth-controller.js?v=${authControllerVersion}`,
   `/telemetry-config.js?v=${releaseVersion}`,
   '/_vercel/speed-insights/script.js',
@@ -1316,7 +1317,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/crump-v1-body.js?v=${navigationDiscoveryVersion}`) ||
     !runtime.includes(`/crump-v1-body.css?v=${brandDeliveryVersion}`) ||
     !runtime.includes(`/crump-5.0.css?v=${precisionEditEntryVersion}`) ||
-    !runtime.includes(`/crump-5.0.js?v=${projectSaveOfferVersion}`) ||
+    !runtime.includes(`/crump-5.0.js?v=${documentDeliveryFocusedVersion}`) ||
     !runtime.includes(`/crump-precision-image-edit-loader.js?v=${precisionLazyLoadVersion}`) ||
     runtime.includes(`/crump-precision-image-edit.css?v=${precisionEditStudioVersion}`) ||
     runtime.includes(`/crump-precision-image-edit.js?v=${liveImagePreviewVersion}`) ||
@@ -1484,13 +1485,13 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r249') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r251') ||
     !serviceWorker.includes("'/assets/brand/crump-shell-lockup-light.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-shell-lockup-light.png'") ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
-    !serviceWorker.includes(`/runtime-body-v1.js?v=${accountDeletionStorageVersion}`) ||
+    !serviceWorker.includes(`/runtime-body-v1.js?v=${documentDeliveryFocusedVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${continuityHandoffVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.css?v=${creditConfirmationVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.js?v=${creditConfirmationVersion}`) ||
@@ -1498,7 +1499,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r249') ||
     !serviceWorker.includes(`/account-manager.js?v=${accountDeletionStorageVersion}`) ||
     !serviceWorker.includes(`/crump-5.0.css?v=${precisionEditEntryVersion}`) ||
     !serviceWorker.includes(`/scroll-manager.js?v=${userControlledScrollVersion}`) ||
-    !serviceWorker.includes(`/crump-5.0.js?v=${projectSaveOfferVersion}`) ||
+    !serviceWorker.includes(`/crump-5.0.js?v=${documentDeliveryFocusedVersion}`) ||
     !serviceWorker.includes(`/crump-precision-image-edit-loader.js?v=${precisionLazyLoadVersion}`) ||
     serviceWorker.includes(`/crump-precision-image-edit.css?v=${precisionEditStudioVersion}`) ||
     serviceWorker.includes(`/crump-precision-image-edit.js?v=${liveImagePreviewVersion}`) ||
@@ -1804,6 +1805,15 @@ if (!projectSaveActivationGuard.includes("window.CrumpAnalytics?.track?.('Projec
   process.exit(1);
 }
 const composer50 = await readFile(new URL('public/crump-5.0.js', repoRoot), 'utf8');
+if (!composer50.includes("form.append('cacheControl', '0')") ||
+    !composer50.includes("['cacheControl', '0']") ||
+    composer50.includes("form.append('cacheControl', '3600')") ||
+    composer50.includes("['cacheControl', '3600']") ||
+    !composer50.includes('data-artifact-open') ||
+    !composer50.includes('openFile(message.artifact)')) {
+  console.error('Private uploads and generated artifact cards must use the focused delivery contract.');
+  process.exit(1);
+}
 const outputProjectActionGuard = composer50.slice(
   composer50.indexOf('function wireOutputProjectAction'),
   composer50.indexOf('function enhanceRenderedMessages'),

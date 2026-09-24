@@ -7,8 +7,9 @@ import pytest
 
 from backend import crump52_patches
 from backend.ai_service import AIService
+from backend.db import DatabaseError
 from backend.feature_service import FeatureService
-from backend.manuscript_service import ManuscriptService
+from backend.manuscript_service import ManuscriptHandoffUnconfirmed, ManuscriptService
 from backend.media_service import MediaService
 from backend.usage_service import consume_usage
 from backend.video_service import VideoService
@@ -68,19 +69,33 @@ async def test_founder_internal_access_bypasses_app_metering_without_faking_bill
 
 class RunDB:
     def __init__(self):
-        self.rows = []
+        self.rpc_calls = []
 
-    async def insert(self, table, payload):
-        row = dict(payload)
-        if table == "manuscripts":
-            row["id"] = MANUSCRIPT_ID
-        if table == "manuscript_runs":
-            row.setdefault("current_receipt", {})
-            row.setdefault("provider_usage", {})
-            row.setdefault("attempt_count", 0)
-            row.setdefault("consecutive_failures", 0)
-        self.rows.append((table, row))
-        return [row]
+    async def rpc(self, name, payload, *, retry_transient=False):
+        self.rpc_calls.append((name, payload, retry_transient))
+        assert name == "begin_chat_manuscript_workspace"
+        return [{
+            "project_row": {
+                "id": PROJECT_ID,
+                "name": "The Glass Orchard",
+            },
+            "manuscript_row": {
+                "id": MANUSCRIPT_ID,
+                "title": "The Glass Orchard",
+            },
+            "run_row": {
+                "id": "00000000-0000-4000-8000-000000000005",
+                "status": "queued",
+                "stage": "blueprint",
+                "mode": "autopilot",
+                "target_words": payload["p_target_words"],
+                "chapter_count": payload["p_chapter_count"],
+                "preferred_export_format": payload["p_preferred_export_format"],
+                "blueprint_receipt": payload["p_blueprint_receipt"],
+            },
+            "project_created": True,
+            "reconciled": False,
+        }]
 
 
 class RunProjects:
@@ -155,6 +170,8 @@ async def test_long_form_request_persists_a_resumable_run_before_calling_ai():
         user={"id": USER_ID, "full_name": "Founder"},
         brief="Write a 70,000 word novel called The Glass Orchard in 24 chapters.",
         chat_id=CHAT_ID,
+        message_id="00000000-0000-4000-8000-000000000006",
+        claim_token="00000000-0000-4000-8000-000000000007",
         preferred_format="docx",
         project_limit=-1,
         blueprint_receipt={"paymentSource": "internal", "eventId": None},
@@ -163,11 +180,40 @@ async def test_long_form_request_persists_a_resumable_run_before_calling_ai():
     assert ai.calls == 0
     assert result["stopReason"] == "queued"
     assert result["manuscriptWorkspace"]["runStatus"] == "queued"
-    run = next(row for table, row in db.rows if table == "manuscript_runs")
-    assert run["mode"] == "autopilot"
-    assert run["target_words"] == 70_000
-    assert run["chapter_count"] == 24
-    assert run["blueprint_receipt"]["paymentSource"] == "internal"
+    assert db.rpc_calls[0][0] == "begin_chat_manuscript_workspace"
+    handoff = db.rpc_calls[0][1]
+    assert db.rpc_calls[0][2] is True
+    assert handoff["p_target_words"] == 70_000
+    assert handoff["p_chapter_count"] == 24
+    assert handoff["p_blueprint_receipt"]["paymentSource"] == "internal"
+
+
+@pytest.mark.asyncio
+async def test_long_form_transport_ambiguity_does_not_claim_the_workspace_failed():
+    class AmbiguousRunDB:
+        async def rpc(self, name, _payload, *, retry_transient=False):
+            assert name == "begin_chat_manuscript_workspace"
+            assert retry_transient is True
+            raise DatabaseError(
+                "Database connection failed",
+                503,
+                retryable=True,
+                retry_after=2,
+                attempts=5,
+            )
+
+    service = ManuscriptService(AmbiguousRunDB(), NoCallAI(), RunProjects())
+    with pytest.raises(ManuscriptHandoffUnconfirmed):
+        await service.begin_long_form(
+            user={"id": USER_ID, "full_name": "Founder"},
+            brief="Write a 70,000 word novel called The Glass Orchard in 24 chapters.",
+            chat_id=CHAT_ID,
+            message_id="00000000-0000-4000-8000-000000000016",
+            claim_token="00000000-0000-4000-8000-000000000017",
+            preferred_format="docx",
+            project_limit=-1,
+            blueprint_receipt={"eventId": "blueprint-ambiguous"},
+        )
 
 
 def test_media_provider_errors_are_actionable_and_sanitized():

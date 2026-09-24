@@ -9,6 +9,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 from io import BytesIO
+import hashlib
+import json
 import re
 from typing import Any
 from zipfile import ZIP_DEFLATED, ZipFile
@@ -40,6 +42,7 @@ from reportlab.platypus import (
 )
 
 from .file_service import FileService
+from .security import normalize_chat_id
 
 
 VALID_FORMATS = {'docx', 'pdf', 'pptx', 'xlsx', 'md', 'txt'}
@@ -87,7 +90,7 @@ class ArtifactService:
         re.I,
     )
     NON_DOCUMENT_CREATION_PATTERN = re.compile(
-        r"\b(image|picture|photo|photograph|artwork|illustration|logo|poster|cover|"
+        r"\b(image|picture|photo|photograph|artwork|illustration|logo|icon|poster|cover|"
         r"video|movie|film|clip|animation|scene|book|novel|memoir|screenplay)\b",
         re.I,
     )
@@ -103,6 +106,11 @@ class ArtifactService:
     ACADEMIC_PATTERN = re.compile(
         r"\b(college|university|academic|essay|research paper|term paper|literature review|"
         r"dissertation|thesis|mla|apa|chicago style|works cited|bibliography)\b", re.I,
+    )
+    DERIVATIVE_DOCUMENT_PATTERN = re.compile(
+        r'\b(summary|report|review|outline|analysis|proposal|synopsis|blurb|query letter|'
+        r'essay|paper|letter|resume|r[ée]sum[ée]|cv)\b',
+        re.I,
     )
 
     @staticmethod
@@ -139,20 +147,189 @@ class ArtifactService:
         formats = [
             (r'\b(powerpoint|pptx|slide deck|presentation)\b', 'pptx'),
             (r'\b(excel|xlsx|spreadsheet|workbook)\b', 'xlsx'),
-            (r'\bdocx\b|\bmicrosoft\s+word\b|\bword\s+(?:document(?:ed)?|doc|file|manuscript)\b|\bdoc\b', 'docx'),
+            (r'\bdocx\b|\bmicrosoft\s+word\b|\bword\s+(?:document(?:ed)?|doc|file|manuscript|summary|'
+             r'report|review|outline|analysis|proposal|synopsis|blurb|query letter|essay|paper|letter|'
+             r'resume|r[ée]sum[ée]|cv)\b|\bdoc\b', 'docx'),
             (r'\bpdf\b', 'pdf'),
             (r'\bmarkdown|\.md\b', 'md'),
             (r'\btext file|\.txt\b', 'txt'),
         ]
-        for pattern, fmt in formats:
-            if re.search(pattern, text):
-                return fmt
+        mentions = sorted(
+            (match.start(), fmt)
+            for pattern, fmt in formats
+            for match in re.finditer(pattern, text)
+        )
+        if mentions:
+            return mentions[0][1]
         if allow_generic and re.search(
             r'\b(document|manuscript|report|letter|resume|r[ée]sum[ée]|essay|paper|proposal|cv)\b',
             text,
         ):
             return 'docx'
         return None
+
+    @classmethod
+    def _requested_output_format(cls, value: Any) -> str | None:
+        """Return a format only when the phrase asks for that output."""
+        text = str(value or '').lower().strip()
+        if not text:
+            return None
+        formats = [
+            (r'\b(powerpoint|pptx|slide deck|presentation)\b', 'pptx'),
+            (r'\b(excel|xlsx|spreadsheet|workbook)\b', 'xlsx'),
+            (r'\bdocx\b|\bmicrosoft\s+word\b|\bword\b|\bdoc\b', 'docx'),
+            (r'\bpdf\b', 'pdf'),
+            (r'\bmarkdown|\.md\b', 'md'),
+            (r'\btext file|\.txt\b', 'txt'),
+        ]
+        mentions = sorted(
+            (match.start(), match.end(), fmt, match.group(0))
+            for pattern, fmt in formats
+            for match in re.finditer(pattern, text)
+        )
+        requested: list[tuple[int, int, str]] = []
+        for start, end, fmt, matched_text in mentions:
+            prefix = text[max(0, start - 160):start]
+            if re.search(
+                r'\b(?:from|using|use|based on|according to|referencing|reference)\s+'
+                r'(?:(?:this|that|the|an?|my|your|attached|uploaded)\s+){0,3}$',
+                prefix,
+            ) or re.search(
+                r'\bof\s+(?:(?:this|that|the|an?|my|your|attached|uploaded)\s+){1,3}$',
+                prefix,
+            ):
+                continue
+            actions = list(cls.ACTION_PATTERN.finditer(prefix))
+            # Transformation verbs are intentionally not part of the global
+            # creation-action pattern: "summarize this PDF" should stay in
+            # chat. They become delivery actions only when the bounded phrase
+            # before an explicit format ends in an output connector, as in
+            # "summarize this PDF in a Word document".
+            transform_actions = list(re.finditer(
+                r'\b(?:summari[sz]e|rewrite|revise|edit|translate|analy[sz]e|review|document)\b',
+                prefix,
+            ))
+            if transform_actions:
+                transform = transform_actions[-1]
+                transform_segment = prefix[transform.end():]
+                if re.search(r'\b(?:as|into|to|in)\s+(?:an?\s+)?$', transform_segment):
+                    actions.append(transform)
+            if not actions:
+                continue
+            actions.sort(key=lambda item: item.start())
+            action = actions[-1]
+            segment = prefix[action.end():]
+            action_word = action.group(0).lower()
+            output_connector = bool(re.search(r'\b(?:as|into|to|in)\s+(?:an?\s+)?$', segment))
+            subject_connector = bool(re.search(
+                r'\b(?:about|regarding|concerning|covering|describing|analy[sz](?:e|ing)|'
+                r'review(?:ing)?|summari[sz](?:e|ing)|of|from|using|use|based\s+on|'
+                r'according\s+to|referencing|reference)\b',
+                segment,
+            ))
+            direct_output_action = action_word in {
+                'create', 'make', 'generate', 'export', 'deliver', 'build', 'produce',
+                'save', 'write', 'draft', 'compose', 'prepare', 'format', 'package',
+                'send', 'provide', 'give', 'download',
+            }
+            competing_target = bool(re.search(
+                r'\b(image|picture|photo|photograph|artwork|illustration|logo|poster|cover|'
+                r'video|movie|film|clip|animation|scene|book|novel|memoir|screenplay|story)\b',
+                segment,
+            ))
+            derivative_target = bool(cls.DERIVATIVE_DOCUMENT_PATTERN.search(segment))
+            following = text[end:end + 100]
+            format_describes_visual = bool(re.match(
+                r'^[\s-]*(?:(?:themed|style|styled)[\s-]+)?(?:(?:document|spreadsheet|workbook|presentation|'
+                r'slide\s+deck|file)[\s-]+)?(?:logo|icon|image|picture|photo|photograph|'
+                r'artwork|illustration|poster|cover|video|movie|film|clip|animation|scene)\b',
+                following,
+            ))
+            format_is_style = bool(re.match(
+                r'^[\s-]+(?:style|styled|theme|themed)\b',
+                following,
+            ))
+            format_describes_software = bool(re.match(
+                r'^[\s-]+(?:(?:file|document|spreadsheet|workbook|presentation)[\s-]+)?'
+                r'(?:parser|viewer|generator|importer|exporter|converter|editor|reader|writer|'
+                r'library|tool|app|application|program|script|code|api|sdk)\b',
+                following,
+            ))
+            if format_describes_visual or (competing_target and format_is_style):
+                continue
+            if format_describes_software and not output_connector:
+                continue
+            if matched_text == 'word' and not (
+                output_connector
+                or re.match(
+                    r'^\s+(?:document|doc|file|manuscript|summary|report|review|outline|analysis|'
+                    r'proposal|synopsis|blurb|query letter|essay|paper|letter|resume|r[ée]sum[ée]|cv)\b',
+                    following,
+                )
+            ):
+                continue
+            if output_connector:
+                requested.append((3, start, fmt))
+            elif (
+                direct_output_action
+                and not subject_connector
+                and (not competing_target or derivative_target)
+            ):
+                requested.append((2, start, fmt))
+        if not requested:
+            return None
+        # Explicit conversion/output connectors are authoritative. Otherwise,
+        # the first direct output object after the producing action wins; later
+        # format words commonly describe the subject (for example, "a Word
+        # report about PowerPoint design") rather than replacing the output.
+        highest_priority = max(item[0] for item in requested)
+        return min(
+            (item for item in requested if item[0] == highest_priority),
+            key=lambda item: item[1],
+        )[2]
+
+    @classmethod
+    def _requests_generic_document(cls, value: Any) -> bool:
+        """Recognize the produced document noun without consuming source nouns."""
+        text = str(value or '').lower().strip()
+        if not text or re.search(
+            r'\b(?:here|right here|directly)\s+in\s+(?:the\s+)?chat\b|'
+            r'\b(?:chat|reply|message)\s+(?:only|instead)\b',
+            text,
+        ):
+            return False
+        generic = re.compile(
+            r'\b(cover\s+letter|document|manuscript|report|letter|resume|r[ée]sum[ée]|'
+            r'essay|paper|proposal|cv)\b',
+        )
+        subject = re.compile(
+            r'\b(?:about|regarding|concerning|covering|describing|analy[sz](?:e|ing)|'
+            r'review(?:ing)?|summari[sz](?:e|ing)|with|including|containing|featuring|'
+            r'of|for|from|using|use|based\s+on|'
+            r'according\s+to|referencing|reference)\b',
+        )
+        visual_media = re.compile(
+            r'\b(image|picture|photo|photograph|artwork|illustration|logo|icon|poster|cover|'
+            r'video|movie|film|clip|animation|scene)\b',
+        )
+        for action in cls.ACTION_PATTERN.finditer(text):
+            segment = text[action.end():]
+            connector = subject.search(segment)
+            direct_target = segment[:connector.start()] if connector else segment
+            target = generic.search(direct_target)
+            if not target:
+                continue
+            first_visual = visual_media.search(direct_target)
+            # The direct object controls the route: "video report" is a
+            # video request, while "report about this video" is a document.
+            # Keep the existing suffix guard too, so noun phrases such as
+            # "report image" remain visual rather than becoming DOCX.
+            if first_visual and first_visual.start() < target.start():
+                continue
+            if visual_media.search(direct_target, target.end()):
+                continue
+            return True
+        return False
 
     @classmethod
     def detect_request(
@@ -165,16 +342,20 @@ class ArtifactService:
         if selected:
             return selected
         text = str(message or '').lower().strip()
-        if not cls.ACTION_PATTERN.search(text):
-            return None
-        mentioned = cls._mentioned_format(text)
+        mentioned = cls._requested_output_format(text)
         if mentioned:
             return mentioned
-        if re.search(
-            r'\b(document|manuscript|report|letter|resume|r[ée]sum[ée]|essay|paper|proposal|cv)\b',
-            text,
-        ) and re.search(r'\b(file|downloadable|download|attachment|send|deliver|export|document)\b', text):
+        if not cls.ACTION_PATTERN.search(text):
+            return None
+        if cls._requests_generic_document(text):
             return 'docx'
+        if cls.NON_DOCUMENT_CREATION_PATTERN.search(text):
+            return None
+        # Any remaining named format is source/content context, not a
+        # requested output. The direct generic target above intentionally
+        # keeps "a report about PowerPoint design" as a Word document.
+        if cls._mentioned_format(text):
+            return None
         if not (
             cls.FOLLOW_UP_DELIVERY_PATTERN.search(text)
             and cls.FOLLOW_UP_REFERENCE_PATTERN.search(text)
@@ -185,11 +366,16 @@ class ArtifactService:
             if not isinstance(item, dict) or str(item.get('role') or '').lower() != 'user':
                 continue
             content = item.get('content')
-            mentioned = cls._mentioned_format(content, allow_generic=True)
+            mentioned = cls._requested_output_format(content)
+            if not mentioned:
+                if cls._requests_generic_document(content):
+                    mentioned = 'docx'
+                elif cls.NON_DOCUMENT_CREATION_PATTERN.search(str(content or '')):
+                    return None
+                elif cls._mentioned_format(content):
+                    return None
             if mentioned:
                 return mentioned
-            if cls.NON_DOCUMENT_CREATION_PATTERN.search(str(content or '')):
-                return None
         return None
 
     @classmethod
@@ -1385,10 +1571,29 @@ class ArtifactService:
     @staticmethod
     def _safe_formula(value: str) -> bool:
         formula = str(value or '').strip()
-        if not formula.startswith('=') or len(formula) > 500: return False
-        if re.search(r"\b(HYPERLINK|WEBSERVICE|FILTERXML|RTD|DDE|CALL|REGISTER)\s*\(", formula, re.I): return False
-        if re.search(r"https?://|file:|cmd\||powershell|\[[^]]+\]|'[^']+'!", formula, re.I): return False
-        return bool(re.fullmatch(r"=[A-Za-z0-9_.$!(),:+\-*/^%<>=\s\"]+", formula))
+        if not formula.startswith('=') or len(formula) > 500:
+            return False
+        # AI- and attachment-derived cells are untrusted. Admit only local
+        # arithmetic, A1 references, booleans, and a deliberately tiny set of
+        # aggregate functions. Quotes, workbook/sheet selectors, named ranges,
+        # and every non-allowlisted function stay literal text, which prevents
+        # network-capable formulas assembled through otherwise innocent helpers.
+        if not re.fullmatch(r"=[A-Za-z0-9$(),:+\-*/^%<>=.\s]+", formula):
+            return False
+        safe_functions = {'SUM', 'AVERAGE', 'MIN', 'MAX', 'COUNT', 'COUNTA', 'ROUND', 'ABS'}
+        expression = formula[1:]
+        for match in re.finditer(r'\$?[A-Za-z_][A-Za-z0-9_.]*(?:\$[1-9]\d*)?', expression):
+            token = match.group(0).upper()
+            suffix = expression[match.end():]
+            if re.match(r'\s*\(', suffix):
+                if token not in safe_functions:
+                    return False
+                continue
+            if token in {'TRUE', 'FALSE'}:
+                continue
+            if not re.fullmatch(r'\$?[A-Z]{1,3}\$?[1-9]\d*', token):
+                return False
+        return True
 
     @classmethod
     def _typed_cell(cls, value: Any) -> tuple[Any, str | None]:
@@ -1557,6 +1762,28 @@ class ArtifactService:
         fmt = self.normalize_format(format_name)
         if not fmt: raise ValueError('Unsupported document format.')
         resolved_title = (title or self.title_from(markdown)).strip()[:160]; profile = self.profile_for(markdown, brief or '', fmt, purpose)
+        fingerprint_payload = json.dumps(
+            {
+                'version': 1,
+                'userId': user_id,
+                'chatId': chat_id or '',
+                'messageId': message_id or '',
+                'fileId': file_id or '',
+                'format': fmt,
+                'title': resolved_title,
+                'profile': profile,
+                'markdown': markdown,
+            },
+            ensure_ascii=False,
+            separators=(',', ':'),
+            sort_keys=True,
+        ).encode('utf-8')
+        artifact_fingerprint = hashlib.sha256(fingerprint_payload).hexdigest()
+        version_file_id = (
+            normalize_chat_id(f'{file_id}:{artifact_fingerprint}')
+            if file_id
+            else None
+        )
         stem = self.safe_stem(resolved_title)
         if fmt == 'docx': data = self.docx(markdown, profile=profile, title=resolved_title)
         elif fmt == 'pdf': data = self.pdf(markdown, profile=profile, title=resolved_title)
@@ -1567,6 +1794,8 @@ class ArtifactService:
         row = await self.files.store_bytes(
             user_id=user_id, data=data, filename=f'{stem}.{fmt}', mime_type=MIME[fmt],
             kind='generated_document', chat_id=chat_id, message_id=message_id,
-            metadata={'format': fmt, 'title': resolved_title, 'profile': profile}, file_id=file_id,
+            metadata={'format': fmt, 'title': resolved_title, 'profile': profile}, file_id=version_file_id,
+            idempotency_fingerprint=artifact_fingerprint,
+            logical_artifact_id=file_id,
         )
         result = self.files.public_file(row); result.update({'format': fmt, 'title': resolved_title, 'profile': profile}); return result

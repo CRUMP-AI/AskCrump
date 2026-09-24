@@ -25,6 +25,18 @@ logger = logging.getLogger("askcrump.http")
 _DATABASE_DETAIL_CODE = re.compile(r"^[A-Za-z][A-Za-z0-9_]{1,63}$")
 
 
+def _trusted_https_origin(value: str) -> str | None:
+    parsed = urlparse(str(value or '').strip())
+    if parsed.scheme != 'https' or not parsed.hostname or parsed.username or parsed.password:
+        return None
+    try:
+        if parsed.port is not None:
+            return None
+    except ValueError:
+        return None
+    return f'https://{parsed.hostname}'
+
+
 def _database_detail_code(details: Any) -> str:
     if not isinstance(details, dict):
         return "none"
@@ -61,11 +73,16 @@ async def request_guards(request: Request, call_next):
     response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
     response.headers["Cross-Origin-Opener-Policy"] = "same-origin"
+    frame_sources = ["'self'"]
+    storage_origin = _trusted_https_origin(settings.supabase_url)
+    if storage_origin:
+        frame_sources.append(storage_origin)
     response.headers["Content-Security-Policy"] = "; ".join((
         "default-src 'self'",
         "base-uri 'self'",
         "object-src 'none'",
         "frame-ancestors 'none'",
+        f"frame-src {' '.join(frame_sources)}",
         "form-action 'self'",
         "script-src 'self'",
         "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
