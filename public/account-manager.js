@@ -167,7 +167,7 @@
     const { card } = createModal('deleteAccountModal', 'Delete account');
     card.appendChild(textElement(
       'p',
-      'This permanently deletes your account, synchronized conversations, settings, and active sessions. This action cannot be undone.',
+      'This immediately ends account access and deletes synchronized records. Private files are then permanently removed by a background cleanup that is retried and verified. This action cannot be undone.',
     ));
 
     const warning = textElement(
@@ -181,7 +181,7 @@
     const confirmation = labeledInput('Type DELETE', 'deleteAccountConfirmation', 'text', 'off');
     const error = textElement('div', '', 'account-modal-error');
     error.setAttribute('aria-live', 'polite');
-    const confirm = textElement('button', 'Delete account permanently', 'account-danger-button');
+    const confirm = textElement('button', 'Schedule permanent deletion', 'account-danger-button');
     confirm.type = 'button';
     card.append(password.label, confirmation.label, error, confirm);
 

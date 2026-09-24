@@ -50,7 +50,7 @@ def test_parallel_runtime_asset_is_versioned_for_web_pwa_and_native():
     worker = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
 
-    asset = "/runtime-body-v1.js?v=5.9.76-navigation-discovery-1"
+    asset = "/runtime-body-v1.js?v=5.9.76-account-storage-deletion-1"
     assert asset in shell
     assert asset in worker
     assert "ask-crump-new-body-v1-r249" in worker

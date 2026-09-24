@@ -53,7 +53,7 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/presence-manager.js?v=5.9.76', 'workspacepresence'],
     ['/sync-manager.js?v=5.9.76-sync-cursor-1', 'workspacesync'],
     ['/chat-sync.js?v=5.9.76-settings-sync-1', 'workspacechatsync'],
-    ['/account-manager.js?v=5.9.76-account-deletion-billing-1', 'workspaceaccount'],
+    ['/account-manager.js?v=5.9.76-account-storage-deletion-1', 'workspaceaccount'],
     ['/app.js?v=5.9.76-settings-save-isolation-1', 'workspaceapp'],
     ['/product-analytics.js?v=5.9.76-navigation-discovery-1', 'workspaceanalytics'],
   ]);

@@ -12,7 +12,7 @@ import mimetypes
 import re
 from typing import Any
 from urllib.parse import quote
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import httpx
 
@@ -376,6 +376,213 @@ class FileService:
             'user_files',
             filters={'id': eq(file_id), 'user_id': eq(user_id)},
         )
+
+    @staticmethod
+    def _account_storage_prefix(*, user_id: str, owner_prefix: str | None) -> str:
+        """Return the one canonical UUID directory an account purge may touch."""
+        try:
+            raw_user_id = str(user_id)
+            canonical_user_id = str(UUID(raw_user_id))
+        except (TypeError, ValueError, AttributeError) as exc:
+            raise FileServiceError(
+                'Account file cleanup received an invalid owner identifier.',
+                400,
+                'INVALID_STORAGE_OWNER',
+            ) from exc
+        if raw_user_id != canonical_user_id:
+            raise FileServiceError(
+                'Account file cleanup requires a canonical owner identifier.',
+                400,
+                'INVALID_STORAGE_OWNER',
+            )
+        expected = f'{canonical_user_id}/'
+        if owner_prefix is not None and str(owner_prefix) != expected:
+            raise FileServiceError(
+                'Account file cleanup prefix did not match the owner.',
+                400,
+                'STORAGE_PREFIX_MISMATCH',
+            )
+        return expected
+
+    @staticmethod
+    def _owned_storage_entry_path(
+        *,
+        directory: str,
+        raw_name: Any,
+        owner_prefix: str,
+    ) -> str:
+        """Resolve one Storage listing entry without permitting prefix escape."""
+        name = str(raw_name or '').strip('/')
+        if not name or '\\' in name or '\x00' in name:
+            raise FileServiceError(
+                'Private file cleanup returned an unsafe object path.',
+                503,
+                'STORAGE_PREFIX_ESCAPE',
+            )
+        candidate = name if name == directory or name.startswith(f'{directory}/') else f'{directory}/{name}'
+        segments = candidate.split('/')
+        if any(segment in {'', '.', '..'} for segment in segments):
+            raise FileServiceError(
+                'Private file cleanup returned an unsafe object path.',
+                503,
+                'STORAGE_PREFIX_ESCAPE',
+            )
+        if not candidate.startswith(owner_prefix):
+            raise FileServiceError(
+                'Private file cleanup returned an object outside the account prefix.',
+                503,
+                'STORAGE_PREFIX_ESCAPE',
+            )
+        return candidate
+
+    async def purge_owner_prefix(
+        self,
+        *,
+        user_id: str,
+        owner_prefix: str | None = None,
+        bucket: str | None = None,
+    ) -> dict[str, Any]:
+        """Recursively and permanently purge one account's exact Storage prefix.
+
+        The Storage API lists one directory level at a time. Every deletion is
+        followed by another offset-zero listing so pagination cannot skip rows
+        that shifted after the previous batch. Database metadata is not used:
+        this intentionally catches retired versions and untracked orphan files.
+        """
+        exact_prefix = self._account_storage_prefix(
+            user_id=user_id,
+            owner_prefix=owner_prefix,
+        )
+        resolved_bucket = str(bucket or self.bucket).strip()
+        if resolved_bucket != self.bucket:
+            raise FileServiceError(
+                'Account file cleanup bucket did not match private storage.',
+                400,
+                'STORAGE_BUCKET_MISMATCH',
+            )
+        if not re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,99}', resolved_bucket):
+            raise FileServiceError(
+                'Account file cleanup received an invalid storage bucket.',
+                400,
+                'INVALID_STORAGE_BUCKET',
+            )
+
+        root_directory = exact_prefix[:-1]
+        bucket_path = quote(resolved_bucket, safe='')
+        request_count = 0
+        deleted_count = 0
+
+        async def list_directory(directory: str) -> list[dict[str, Any]]:
+            nonlocal request_count
+            request_count += 1
+            if request_count > 10000:
+                raise FileServiceError(
+                    'Private file cleanup exceeded its safe traversal limit.',
+                    503,
+                    'STORAGE_PURGE_LIMIT',
+                )
+            data = await self._storage_json(
+                'POST',
+                f'object/list/{bucket_path}',
+                payload={
+                    'prefix': directory,
+                    'limit': 1000,
+                    'offset': 0,
+                    'sortBy': {'column': 'name', 'order': 'asc'},
+                },
+                timeout=60.0,
+            )
+            if not isinstance(data, list) or any(not isinstance(item, dict) for item in data):
+                raise FileServiceError(
+                    'Private file storage returned an invalid directory listing.',
+                    503,
+                    'STORAGE_LIST_INVALID',
+                )
+            return data
+
+        async def purge_directory(directory: str, *, depth: int) -> None:
+            nonlocal deleted_count, request_count
+            if depth > 64:
+                raise FileServiceError(
+                    'Private file cleanup exceeded its safe folder depth.',
+                    503,
+                    'STORAGE_PURGE_DEPTH',
+                )
+            prior_signature: tuple[tuple[str, bool], ...] | None = None
+            stagnant_rounds = 0
+            while True:
+                entries = await list_directory(directory)
+                if not entries:
+                    return
+
+                directories: set[str] = set()
+                files: set[str] = set()
+                for entry in entries:
+                    object_path = self._owned_storage_entry_path(
+                        directory=directory,
+                        raw_name=entry.get('name'),
+                        owner_prefix=exact_prefix,
+                    )
+                    is_directory = not entry.get('id') and entry.get('metadata') is None
+                    if is_directory:
+                        directories.add(object_path)
+                    else:
+                        files.add(object_path)
+
+                signature = tuple(
+                    sorted(
+                        [(path, True) for path in directories]
+                        + [(path, False) for path in files]
+                    )
+                )
+                if signature == prior_signature:
+                    stagnant_rounds += 1
+                else:
+                    stagnant_rounds = 0
+                if stagnant_rounds >= 3:
+                    raise FileServiceError(
+                        'Private file cleanup could not make progress.',
+                        503,
+                        'STORAGE_PURGE_STALLED',
+                    )
+                prior_signature = signature
+
+                for child in sorted(directories):
+                    await purge_directory(child, depth=depth + 1)
+
+                ordered_files = sorted(files)
+                for start in range(0, len(ordered_files), 1000):
+                    batch = ordered_files[start:start + 1000]
+                    if not batch:
+                        continue
+                    request_count += 1
+                    if request_count > 10000:
+                        raise FileServiceError(
+                            'Private file cleanup exceeded its safe request limit.',
+                            503,
+                            'STORAGE_PURGE_LIMIT',
+                        )
+                    await self._storage_json(
+                        'DELETE',
+                        f'object/{bucket_path}',
+                        payload={'prefixes': batch},
+                        timeout=60.0,
+                    )
+                    deleted_count += len(batch)
+
+        await purge_directory(root_directory, depth=0)
+        remaining = await list_directory(root_directory)
+        if remaining:
+            raise FileServiceError(
+                'Private file cleanup could not verify an empty account prefix.',
+                503,
+                'STORAGE_PREFIX_NOT_EMPTY',
+            )
+        return {
+            'deletedCount': deleted_count,
+            'empty': True,
+            'ownerPrefix': exact_prefix,
+        }
 
     @staticmethod
     def public_file(row: dict[str, Any]) -> dict[str, Any]:
