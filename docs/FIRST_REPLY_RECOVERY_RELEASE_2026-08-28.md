@@ -1,5 +1,10 @@
 # Ask Crump first-reply recovery release
 
+> Historical release record. The 2026-09-24 document-delivery candidate supersedes the two-minute
+> claim contract with an eight-minute, UUID-fenced `claim_chat_job_v2` lease. Its database migration
+> must be applied before that candidate's application deploy. The production evidence below remains
+> accurate for version 5.9.44; it is not the current candidate contract.
+
 Date: 2026-08-28
 Production version: 5.9.44
 Code commit: `4804fc4676742c86f9df4f35577a4e7e4be6d2b7`
@@ -49,8 +54,9 @@ payment, production request, or production write.
 - Release-versioned the primary runtime and made both changed client assets network-first for
   installed web/PWA clients.
 
-The existing `claim_chat_job` server contract remains the authority for idempotency, two-minute stale
-takeover, usage charging, and cached completion. Usage limits, credit pricing, provider routing,
+At the time of this release, the existing `claim_chat_job` server contract remained the authority
+for idempotency, two-minute stale takeover, usage charging, and cached completion. Usage limits,
+credit pricing, provider routing,
 authentication, Supabase schema/RLS, pricing, entitlements, analytics semantics, and payment behavior
 did not change.
 

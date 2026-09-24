@@ -7,6 +7,7 @@
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/public/crump-product-5.3.css?fixture=file-library-usability">
   <link rel="stylesheet" href="/public/crump-polish-5.6.css?fixture=file-library-usability">
+  <link rel="stylesheet" href="/public/crump-5.0.css?fixture=file-library-usability">
   <style>
     body { margin: 0; min-height: 100vh; background: #080b0f; color: #eee; font-family: system-ui, sans-serif; }
     [hidden] { display: none !important; }
@@ -18,6 +19,18 @@
   <div id="sidebarOverlay"></div>
   <script>
     window.currentUser = {id: 'fixture-user'};
+    window.__fileDelivery = {downloads: [], openedWindows: 0};
+    window.open = () => { window.__fileDelivery.openedWindows += 1; };
+    document.addEventListener('click', event => {
+      const link = event.target.closest('a[download]');
+      if (!link) return;
+      event.preventDefault();
+      window.__fileDelivery.downloads.push({
+        href: link.getAttribute('href'),
+        target: link.getAttribute('target'),
+        download: link.getAttribute('download'),
+      });
+    });
     window.IntersectionObserver = class {
       observe() {}
       unobserve() {}
@@ -87,5 +100,6 @@
     };
   </script>
   <script src="/public/crump-product-5.3.js?fixture=file-library-usability"></script>
+  <script src="/public/crump-5.0.js?fixture=file-library-usability"></script>
 </body>
 </html>

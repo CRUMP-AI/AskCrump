@@ -268,7 +268,7 @@ async def content(file_id: str, request: Request, download: int = 0):
 
 
 @router.get('/{file_id}/signed')
-async def signed(file_id: str, request: Request):
+async def signed(file_id: str, request: Request, download: bool = False):
     """Return a short-lived direct URL for an owned private file.
 
     Native media saving needs the storage URL itself because the operating-system
@@ -279,9 +279,23 @@ async def signed(file_id: str, request: Request):
         normalized = normalize_chat_id(file_id)
         row = await files.get_owned(user_id=auth.user['id'], file_id=normalized)
         expires_in = 1200
-        url = await files.signed_url(row=row, expires_in=expires_in, download=False)
+        url = await files.signed_url(row=row, expires_in=expires_in, download=bool(download))
         if not url:
             raise FileServiceError('Could not prepare the file.', 503, 'SIGNED_URL_FAILED')
+        if bool(download) and str(row.get('kind') or '').lower() in {
+            'generated_document',
+            'manuscript_export',
+        }:
+            artifact_event_id = str(row.get('message_id') or normalized)
+            await record_product_event(
+                db,
+                user_id=auth.user['id'],
+                event_name='ArtifactDownloaded',
+                event_key=f'artifact-downloaded:{artifact_event_id}',
+                request=request,
+                plan=tier_name(auth.user),
+                artifact_type=artifact_type_for_file(row),
+            )
         return JSONResponse(
             content={
                 'success': True,

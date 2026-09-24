@@ -40,6 +40,7 @@
       return new Response('{}', {status: 200, headers: {'Content-Type': 'application/json'}});
     };
 
+    window.__uploadCacheControl = null;
     class FixtureXHR {
       constructor() {
         this.status = 200;
@@ -52,7 +53,8 @@
       getResponseHeader() { return null; }
       addEventListener(name, handler) { this.listeners[name] = handler; }
       abort() { this.listeners.abort?.(); }
-      send() {
+      send(body) {
+        window.__uploadCacheControl = body?.get?.('cacheControl') || null;
         [20, 45, 70, 95].forEach((loaded, index) => {
           setTimeout(() => this.uploadListeners.progress?.({lengthComputable: true, loaded, total: 100}), 45 * (index + 1));
         });

@@ -1,5 +1,7 @@
 from pathlib import Path
 
+import pytest
+
 from backend.intelligence_service import IntelligenceService
 from backend.routes.chat import _promote_explicit_document_delivery
 
@@ -63,6 +65,159 @@ def test_explicit_document_delivery_cannot_be_downgraded_to_clarification():
     assert intent["format"] == "docx"
 
 
+@pytest.mark.parametrize(
+    ("selected_format", "message", "misclassified_kind"),
+    [
+        ("xlsx", "Create a production budget for this video campaign.", "video"),
+        ("pdf", "Create a PDF report analyzing this image.", "image"),
+        ("pptx", "Create a PowerPoint presentation about our video campaign.", "video"),
+        ("docx", "Create a Word document describing the book launch plan.", "manuscript"),
+        ("docx", "Create a Word report analyzing a 70,000-word novel.", "manuscript"),
+        ("pptx", "Turn this manuscript outline into a presentation.", "manuscript"),
+    ],
+)
+def test_picker_selected_document_format_wins_keyword_kind_conflicts(
+    selected_format, message, misclassified_kind,
+):
+    intent = _promote_explicit_document_delivery(
+        {
+            "kind": misclassified_kind,
+            "stage": "execute",
+            "confidence": 0.9,
+            "brief": message,
+            "question": "",
+            "format": "",
+        },
+        selected_format,
+        explicit_format=selected_format,
+        message=message,
+    )
+
+    assert intent["kind"] == "document"
+    assert intent["stage"] == "execute"
+    assert intent["question"] == ""
+    assert intent["format"] == selected_format
+
+
+@pytest.mark.parametrize(
+    ("selected_format", "message"),
+    [
+        ("docx", "Write a 70,000-word novel and deliver it as a Word document."),
+        ("pdf", "Write a 70,000-word novel and deliver it as a PDF."),
+        ("epub", "Write a 70,000-word novel and deliver it as an EPUB."),
+    ],
+)
+def test_picker_selected_supported_format_preserves_intentional_manuscript_creation(
+    selected_format, message,
+):
+    original = {
+        "kind": "manuscript",
+        "stage": "execute",
+        "confidence": 0.9,
+        "brief": message,
+        "question": "",
+        "format": "",
+    }
+    intent = _promote_explicit_document_delivery(
+        original,
+        selected_format,
+        explicit_format=selected_format,
+        message=message,
+    )
+
+    assert intent["kind"] == "manuscript"
+    assert intent["stage"] == "execute"
+    assert intent["format"] == selected_format
+
+
+@pytest.mark.parametrize('selected_format', ['docx', 'pdf', 'epub'])
+def test_short_format_follow_up_preserves_resolved_book_scale_brief(selected_format):
+    intent = _promote_explicit_document_delivery(
+        {
+            "kind": "manuscript",
+            "stage": "execute",
+            "confidence": 0.95,
+            "brief": "Write a full-length 70,000-word novel from the approved chapter plan.",
+            "question": "",
+            "format": "",
+        },
+        selected_format,
+        explicit_format=selected_format,
+        message=f"Yes — {selected_format.upper()}, please.",
+    )
+
+    assert intent["kind"] == "manuscript"
+    assert intent["format"] == selected_format
+
+
+def test_full_length_story_is_preserved_as_book_scale_manuscript():
+    message = "Write a full-length children's story and export it as a PDF."
+    intent = _promote_explicit_document_delivery(
+        {
+            "kind": "manuscript",
+            "stage": "execute",
+            "confidence": 0.9,
+            "brief": message,
+            "question": "",
+            "format": "",
+        },
+        "pdf",
+        message=message,
+    )
+
+    assert intent["kind"] == "manuscript"
+    assert intent["format"] == "pdf"
+
+
+def test_detected_output_format_fills_an_executable_document_intent():
+    intent = _promote_explicit_document_delivery(
+        {
+            "kind": "document",
+            "stage": "execute",
+            "confidence": 0.9,
+            "brief": "Convert this Word document to PDF.",
+            "question": "",
+            "format": "",
+        },
+        "pdf",
+        message="Convert this Word document to PDF.",
+    )
+
+    assert intent["kind"] == "document"
+    assert intent["stage"] == "execute"
+    assert intent["format"] == "pdf"
+
+
+@pytest.mark.parametrize(
+    ("detected_format", "message"),
+    [
+        ("docx", "Create a Word summary of this novel."),
+        ("pdf", "Create a PDF review of this novel."),
+        ("docx", "Make a Word outline for this novel."),
+    ],
+)
+def test_detected_format_routes_manuscript_derivatives_to_one_shot_documents(
+    detected_format, message,
+):
+    intent = _promote_explicit_document_delivery(
+        {
+            "kind": "manuscript",
+            "stage": "clarify",
+            "confidence": 0.9,
+            "brief": message,
+            "question": "How long should the manuscript be?",
+            "format": "",
+        },
+        detected_format,
+        message=message,
+    )
+
+    assert intent["kind"] == "document"
+    assert intent["stage"] == "execute"
+    assert intent["question"] == ""
+    assert intent["format"] == detected_format
+
+
 def test_chat_route_uses_resolved_brief_and_avoids_reasking_forms():
     route = read("backend/routes/chat.py")
     assert "history=request_payload.get('history')" in route
@@ -104,9 +259,9 @@ def test_crump_voice_avoids_generic_assistant_form_language():
 def test_conversation_intelligence_advances_shell_cache():
     sw = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
-    assert "ask-crump-new-body-v1-r249" in sw
+    assert "ask-crump-new-body-v1-r251" in sw
     assert "CACHE_NAME = 'ask-crump-new-body-v1-r229'" not in sw
-    assert "ask-crump-new-body-v1-r249" in checker
+    assert "ask-crump-new-body-v1-r251" in checker
 
 
 def test_reload_opens_a_clean_conversation_without_discarding_history():

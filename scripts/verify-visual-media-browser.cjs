@@ -90,6 +90,7 @@ const { chromium } = require(playwrightModule);
     bodyHasContent: document.body.innerText.trim().length > 0,
     imageModeVisible: document.getElementById('crump50ToolChipHost')?.textContent.includes('Create image') || false,
     editPlaceholder: document.getElementById('userInput')?.placeholder || '',
+    uploadCacheControl: window.__uploadCacheControl,
     errorOverlay: Boolean(document.querySelector('[data-nextjs-dialog], .vite-error-overlay, #webpack-dev-server-client-overlay')),
   }));
   await page.screenshot({path: 'artifacts/visual-media-preview-stability.png', fullPage: true});
@@ -126,6 +127,7 @@ const { chromium } = require(playwrightModule);
     || !result.bodyHasContent
     || !result.imageModeVisible
     || result.editPlaceholder !== 'Describe what to keep and what to change…'
+    || result.uploadCacheControl !== '0'
     || result.errorOverlay
   ) {
     throw new Error(JSON.stringify({initialStudio, reverseWrapFocus, forwardWrapFocus, directCloseFocus, transientCloseFocus, readyStudio, invalidReplacement, result, consoleErrors}));

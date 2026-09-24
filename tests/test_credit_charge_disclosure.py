@@ -28,8 +28,12 @@ class CreditDB:
         self.settings = SimpleNamespace(supabase_service_key="test-service-key")
         self.balance = balance
         self.usage: dict[str, int] = {}
+        self.usage_replays: dict[tuple[str, str], str] = {}
         self.ledger: dict[tuple[str, str], dict] = {}
+        self.keyed_ledger: dict[tuple[str, str], dict] = {}
         self.ledger_by_id: dict[str, dict] = {}
+        self.deleted: list[tuple[str, dict]] = []
+        self.rpc_options: list[tuple[str, dict]] = []
         self.sequence = 0
 
     @staticmethod
@@ -44,6 +48,12 @@ class CreditDB:
                 "lifetime_granted": 1000,
                 "lifetime_spent": 1000 - self.balance,
             }
+        if table == "usage_events":
+            filters = _options.get("filters") or {}
+            event_type = self._filter_value(filters, "event_type")
+            key = self._filter_value(filters, "idempotency_key")
+            event_id = self.usage_replays.get((event_type, key))
+            return {"id": event_id} if event_id else None
         return None
 
     async def select(self, table: str, *, filters: dict, **_options):
@@ -55,22 +65,44 @@ class CreditDB:
             for index in range(self.usage.get(event_type, 0))
         ]
 
-    async def rpc(self, name: str, params: dict):
-        if name == "consume_usage_event":
+    async def rpc(self, name: str, params: dict, **options):
+        self.rpc_options.append((name, dict(options)))
+        if name in {"consume_usage_event", "consume_usage_event_v2"}:
             event_type = str(params["p_event_type"])
             limit = int(params["p_limit"])
+            key = str((params.get("p_metadata") or {}).get("usageIdempotencyKey") or "")
             used = self.usage.get(event_type, 0)
+            existing = self.usage_replays.get((event_type, key)) if key else None
+            if existing:
+                return [{
+                    "allowed": True,
+                    "event_id": existing,
+                    "used": used,
+                    "duplicate": True,
+                }]
             if limit < 0 or used < limit:
                 self.sequence += 1
                 self.usage[event_type] = used + 1
+                event_id = f"usage-{self.sequence}"
+                if key:
+                    self.usage_replays[(event_type, key)] = event_id
                 return [{
                     "allowed": True,
-                    "event_id": f"usage-{self.sequence}",
+                    "event_id": event_id,
                     "used": used + 1,
+                    "duplicate": False,
                 }]
-            return [{"allowed": False, "event_id": None, "used": used}]
+            return [{
+                "allowed": False,
+                "event_id": None,
+                "used": used,
+                "duplicate": False,
+            }]
 
-        if name == "spend_credits_confirmed":
+        if name in {
+            "spend_credits_confirmed",
+            "spend_credits_confirmed_v2",
+        }:
             key = (
                 str(params["p_action_key"]),
                 str(params["p_component"]),
@@ -92,6 +124,21 @@ class CreditDB:
                     "ledger_id": existing["id"],
                     "balance": self.balance,
                 }]
+            keyed_action = None
+            if name == "spend_credits_confirmed_v2":
+                keyed_action = (
+                    str(params["p_usage_event_type"]),
+                    str(params["p_usage_idempotency_key"]),
+                )
+                keyed_existing = self.keyed_ledger.get(keyed_action)
+                if keyed_existing and not keyed_existing["refunded"]:
+                    return [{
+                        "allowed": True,
+                        "duplicate": True,
+                        "limit_exceeded": False,
+                        "ledger_id": keyed_existing["id"],
+                        "balance": self.balance,
+                    }]
             amount = int(params["p_amount"])
             confirmed_max = int(params["p_confirmed_max"])
             action_spent = sum(
@@ -124,6 +171,8 @@ class CreditDB:
             }
             self.ledger[key] = row
             self.ledger_by_id[row["id"]] = row
+            if keyed_action:
+                self.keyed_ledger[keyed_action] = row
             return [{
                 "allowed": True,
                 "duplicate": False,
@@ -142,6 +191,7 @@ class CreditDB:
         raise AssertionError(f"Unexpected RPC: {name}")
 
     async def delete(self, _table: str, **_options):
+        self.deleted.append((_table, _options))
         return []
 
 
@@ -218,6 +268,312 @@ async def test_included_action_quotes_zero_and_needs_no_confirmation():
 
 
 @pytest.mark.asyncio
+async def test_included_action_replay_stays_included_after_allowance_is_full():
+    db = CreditDB()
+    service = FeatureService(db)
+    account = user()
+    instance_key = "same-included-action"
+
+    first_authorization = await service.authorize(
+        account,
+        {"research": 1},
+        usage_instance_keys={"research": instance_key},
+    )
+    await service.consume(
+        account,
+        "research",
+        authorization=first_authorization,
+        instance_key=instance_key,
+        usage_idempotency_key=instance_key,
+    )
+    assert db.usage["feature:research"] == 1
+
+    replay_quote = await service.quote(
+        account,
+        {"research": 1},
+        usage_instance_keys={"research": instance_key},
+    )
+    replay_authorization = await service.authorize(
+        account,
+        {"research": 1},
+        usage_instance_keys={"research": instance_key},
+    )
+    replay = await service.consume(
+        account,
+        "research",
+        authorization=replay_authorization,
+        instance_key=instance_key,
+        usage_idempotency_key=instance_key,
+    )
+
+    assert replay_quote["creditsRequired"] == 0
+    assert replay_quote["components"][0]["idempotentReplay"] is True
+    assert replay["eventId"] is None
+    assert replay["idempotentReplay"] is True
+    assert db.usage["feature:research"] == 1
+    assert db.balance == 1000
+    await service.refund(USER_ID, replay)
+    assert db.deleted == []
+
+
+async def confirmed_authorization(
+    service: FeatureService,
+    account: dict,
+    *,
+    code: str,
+    usage_key: str,
+):
+    with pytest.raises(FeatureAccessError) as pending:
+        await service.authorize(
+            account,
+            {code: 1},
+            scope=SCOPE,
+            usage_instance_keys={code: usage_key},
+        )
+    quote = pending.value.quote
+    return await service.authorize(
+        account,
+        {code: 1},
+        {
+            "quoteToken": quote["token"],
+            "confirmedCredits": quote["creditsRequired"],
+        },
+        scope=SCOPE,
+        usage_instance_keys={code: usage_key},
+    )
+
+
+@pytest.mark.asyncio
+async def test_paid_usage_replay_deduplicates_across_fresh_confirmations():
+    db = CreditDB()
+    db.usage["feature:image_edit"] = 100
+    service = FeatureService(db)
+    account = user("professional")
+    usage_key = "same-message:image-edit"
+
+    first_authorization = await confirmed_authorization(
+        service,
+        account,
+        code="image_edit",
+        usage_key=usage_key,
+    )
+    first = await service.consume(
+        account,
+        "image_edit",
+        authorization=first_authorization,
+        instance_key=usage_key,
+        usage_idempotency_key=usage_key,
+        scope=SCOPE,
+    )
+
+    second_authorization = await confirmed_authorization(
+        service,
+        account,
+        code="image_edit",
+        usage_key=usage_key,
+    )
+    replay = await service.consume(
+        account,
+        "image_edit",
+        authorization=second_authorization,
+        instance_key=usage_key,
+        usage_idempotency_key=usage_key,
+        scope=SCOPE,
+    )
+
+    assert first["creditsSpent"] == 10
+    assert replay["creditsSpent"] == 0
+    assert replay["eventId"] is None
+    assert replay["idempotentReplay"] is True
+    assert db.balance == 990
+    assert len(db.ledger) == 1
+    await service.refund(USER_ID, replay)
+    assert db.balance == 990
+    assert next(iter(db.ledger.values()))["refunded"] is False
+
+
+@pytest.mark.asyncio
+async def test_keyed_included_commit_then_transport_retry_returns_duplicate_owner_neutral_receipt():
+    class CommitThenTransportDB(CreditDB):
+        async def rpc(self, name: str, params: dict, **options):
+            if name != "consume_usage_event_v2":
+                return await super().rpc(name, params, **options)
+            first = await super().rpc(name, params, **options)
+            assert first[0]["duplicate"] is False
+            assert options == {"retry_transient": True}
+            return await super().rpc(name, params, **options)
+
+    db = CommitThenTransportDB()
+    service = FeatureService(db)
+    account = user()
+    usage_key = "commit-then-drop:included"
+    authorization = await service.authorize(
+        account,
+        {"research": 1},
+        usage_instance_keys={"research": usage_key},
+    )
+
+    receipt = await service.consume(
+        account,
+        "research",
+        authorization=authorization,
+        instance_key=usage_key,
+        usage_idempotency_key=usage_key,
+    )
+
+    assert receipt["paymentSource"] == "included"
+    assert receipt["eventId"] is None
+    assert receipt["idempotentReplay"] is True
+    assert db.usage["feature:research"] == 1
+
+
+@pytest.mark.asyncio
+async def test_keyed_paid_commit_then_transport_retry_returns_duplicate_owner_neutral_receipt():
+    class CommitThenTransportDB(CreditDB):
+        async def rpc(self, name: str, params: dict, **options):
+            if name != "spend_credits_confirmed_v2":
+                return await super().rpc(name, params, **options)
+            first = await super().rpc(name, params, **options)
+            assert first[0]["duplicate"] is False
+            assert options == {"retry_transient": True}
+            return await super().rpc(name, params, **options)
+
+    db = CommitThenTransportDB()
+    db.usage["feature:image_edit"] = 100
+    service = FeatureService(db)
+    account = user("professional")
+    usage_key = "commit-then-drop:paid"
+    authorization = await confirmed_authorization(
+        service,
+        account,
+        code="image_edit",
+        usage_key=usage_key,
+    )
+
+    receipt = await service.consume(
+        account,
+        "image_edit",
+        authorization=authorization,
+        instance_key=usage_key,
+        usage_idempotency_key=usage_key,
+        scope=SCOPE,
+    )
+
+    assert receipt["paymentSource"] == "credits"
+    assert receipt["eventId"] is None
+    assert receipt["creditsSpent"] == 0
+    assert receipt["idempotentReplay"] is True
+    assert db.balance == 990
+    assert len(db.ledger) == 1
+
+
+@pytest.mark.asyncio
+async def test_unkeyed_usage_and_credit_rpcs_remain_single_attempt():
+    db = CreditDB()
+    db.usage["feature:image_edit"] = 100
+    service = FeatureService(db)
+    account = user("professional")
+    authorization = await confirmed_authorization(
+        service,
+        account,
+        code="image_edit",
+        usage_key="quote-only-key",
+    )
+
+    await service.consume(
+        account,
+        "image_edit",
+        authorization=authorization,
+        instance_key="separately-billable-action",
+        scope=SCOPE,
+    )
+
+    assert ("consume_usage_event", {}) in db.rpc_options
+    assert ("spend_credits_confirmed", {}) in db.rpc_options
+
+
+@pytest.mark.asyncio
+async def test_refunded_paid_usage_allows_only_a_new_confirmation():
+    db = CreditDB()
+    db.usage["feature:image_edit"] = 100
+    service = FeatureService(db)
+    account = user("professional")
+    usage_key = "retry-after-refund:image-edit"
+
+    first_authorization = await confirmed_authorization(
+        service,
+        account,
+        code="image_edit",
+        usage_key=usage_key,
+    )
+    first = await service.consume(
+        account,
+        "image_edit",
+        authorization=first_authorization,
+        instance_key=usage_key,
+        usage_idempotency_key=usage_key,
+        scope=SCOPE,
+    )
+    await service.refund(USER_ID, first)
+    assert db.balance == 1000
+
+    with pytest.raises(FeatureAccessError) as stale:
+        await service.consume(
+            account,
+            "image_edit",
+            authorization=first_authorization,
+            instance_key=usage_key,
+            usage_idempotency_key=usage_key,
+            scope=SCOPE,
+        )
+    assert stale.value.code == "CREDIT_QUOTE_INVALID"
+
+    retry_authorization = await confirmed_authorization(
+        service,
+        account,
+        code="image_edit",
+        usage_key=usage_key,
+    )
+    retry = await service.consume(
+        account,
+        "image_edit",
+        authorization=retry_authorization,
+        instance_key=usage_key,
+        usage_idempotency_key=usage_key,
+        scope=SCOPE,
+    )
+
+    assert retry["creditsSpent"] == 10
+    assert retry["idempotentReplay"] is False
+    assert db.balance == 990
+    assert len(db.ledger) == 2
+
+
+@pytest.mark.asyncio
+async def test_legacy_credit_instance_key_does_not_dedupe_distinct_draft_actions():
+    db = CreditDB()
+    service = FeatureService(db)
+    account = user("professional")
+
+    first = await service.consume(
+        account,
+        "manuscript_draft",
+        instance_key="same-manuscript-id",
+    )
+    second = await service.consume(
+        account,
+        "manuscript_draft",
+        instance_key="same-manuscript-id",
+    )
+
+    assert first["paymentSource"] == "included"
+    assert second["paymentSource"] == "included"
+    assert first["eventId"] != second["eventId"]
+    assert db.usage["feature:manuscript_draft"] == 2
+    assert db.usage_replays == {}
+
+
+@pytest.mark.asyncio
 async def test_positive_charge_waits_for_matching_confirmation_and_deduplicates():
     db = CreditDB()
     service = FeatureService(db)
@@ -256,9 +612,12 @@ async def test_positive_charge_waits_for_matching_confirmation_and_deduplicates(
     assert first["idempotentReplay"] is False
     assert duplicate["creditsSpent"] == 0
     assert duplicate["idempotentReplay"] is True
-    assert duplicate["eventId"] == first["eventId"]
+    assert duplicate["eventId"] is None
     assert db.balance == 990
     assert len(db.ledger) == 1
+    await service.refund(USER_ID, duplicate)
+    assert db.balance == 990
+    assert next(iter(db.ledger.values()))["refunded"] is False
 
 
 @pytest.mark.asyncio

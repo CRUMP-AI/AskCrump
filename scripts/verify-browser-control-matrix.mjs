@@ -22,6 +22,7 @@ const expectedVerifiers = Object.freeze([
   'verify-checkout-session-recovery.cjs',
   'verify-code-lazy-load.cjs',
   'verify-cross-device-verification-handoff.cjs',
+  'verify-document-delivery-cache-upgrade.cjs',
   'verify-file-delivery.cjs',
   'verify-file-library-usability.cjs',
   'verify-first-action-browser.cjs',

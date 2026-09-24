@@ -1038,7 +1038,7 @@ def test_generated_artifact_can_join_a_project_with_its_source_conversation():
     assert "kind: 'imageFile', role: 'generated_image'" in ui
     assert "window.CrumpProduct53?.keepArtifact" in ui
     assert "result['projectAttachments'] = project_attachments" in route
-    assert "assistant_message['projectAttachments'] = result['projectAttachments']" in route
+    assert "assistant_message['projectAttachments'] = project_attachments" in route
     assert "async function keepArtifact(file, options = {})" in product
     assert "notify: false" in product
     assert "refresh: false" in product
