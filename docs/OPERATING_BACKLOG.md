@@ -11,7 +11,8 @@ retention, and referral behavior. No acquisition spend should scale on impressio
 Every item below needs four things before it is called shipped: an accountable product
 outcome, privacy and safety constraints, automated coverage, and production evidence.
 
-The 2026-09-24 source-only Image Studio acquisition handoff adds exactly one homepage card in a
+The 2026-09-24 source-only Image Studio acquisition handoff at behavior commit `e2c92941` adds
+exactly one homepage card in a
 Professional context. Its content-free `intent=image` destination is allowlisted by the landing
 and authentication clients and by the server verification and attribution boundaries; arbitrary
 intent text is rejected. Same-tab continuation and verification-link return open only Image Studio
@@ -19,10 +20,15 @@ setup, consume the matching captured intent, remove it from the URL, and clear t
 handoff so the Professional context cannot open plan review or checkout. The real Edge verifier
 now covers same-tab continuation, cross-device verification, reload non-replay, invalid-intent
 fail-closed behavior, and the existing presentation-plus-plan regression while asserting zero
-generation, provider, credit, or checkout side effects. This remains a draft, unmerged, undeployed
-candidate and does not change production. Record exact-head clean-checkout CI and preview/Edge
-evidence next; the owner-gated authenticated signed-storage PDF check remains the next release
-action. Evidence: `docs/PR37_RELIABILITY_INTEGRATION_CANDIDATE_2026-09-21.md` and
+generation, provider, credit, or checkout side effects. The exact committed source passed the full
+Python suite **1,370/1,370**, JavaScript validation across **55** files, browser controls **52/52**,
+accessibility **33/33**, build/native/privacy/credential gates, and the production preflight. GitHub
+CI `35968107346`, PostgreSQL fence `35968107315`, Android structural `35968107371`, and iOS
+structural `35968107311` passed. Vercel preview `dpl_5BSgp77xBKpqWXyCraZb7wE5u9YE` is Ready,
+target `null`, with no alias error on exact commit `e2c92941`; protected content remained Vercel-login
+gated, so no byte-level hosted marker claim is made. This remains a draft, unmerged, undeployed
+candidate and does not change production. The owner-gated authenticated signed-storage PDF check
+remains the next release action. Evidence: `docs/PR37_RELIABILITY_INTEGRATION_CANDIDATE_2026-09-21.md` and
 `docs/REFERENCE_AND_ARTIFACT_FIDELITY_CANDIDATE_2026-09-24.md`.
 
 The 2026-09-24 draft candidate closes two directly observed trust gaps. Confirmed image references

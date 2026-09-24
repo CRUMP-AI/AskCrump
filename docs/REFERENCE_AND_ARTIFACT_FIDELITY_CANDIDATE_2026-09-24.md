@@ -4,11 +4,13 @@ Status: **draft PR #37, unmerged, undeployed, and migration-free.** The reviewed
 `081a1d3dc596789f458b29476b185cdb797c84a5`,
 `c9af9bcca6cf32d175593f8478677becb2798b97`,
 `4fb627a3cbea2f57fe49b2c2d98779da3696f194`, and
-`653d576076095c3bceab8131b0d88b94f5ec0bfa`. This record is review evidence, not permission to
+`653d576076095c3bceab8131b0d88b94f5ec0bfa`; the later Image Studio acquisition handoff is
+`e2c929413e2e4c8b32d7bb897b2054dc7c4031e7`. This record is review evidence, not permission to
 merge, deploy production, run a migration, spend provider credits, or submit a store build.
 
 The Image Studio acquisition-to-auth handoff below is a later source-only follow-up. Its exact
-behavior head, final suite counts, hosted CI, and preview receipt are intentionally not claimed yet.
+behavior head, final suite counts, hosted CI, and preview receipt are recorded separately from the
+preceding reference/artifact behavior evidence.
 
 ## User outcomes
 
@@ -64,16 +66,19 @@ and do not claim automated visual verification.
 - Returning PWA clients move from cache `r257` to `r258`. Only the changed runtime plan and composer
   receive the `5.9.76-artifact-card-open-1` token; precision-editor assets retain their prior token
   and lazy-loading boundary.
+- The later Image Studio handoff advances the PWA cache from `r258` to `r259` and unifies its changed
+  assets under `5.9.76-image-intent-handoff-1`; the artifact-card and exact-overlay tokens remain
+  intact and precision-editor assets remain lazy.
 
 ## Verification
 
-- Complete Python suite with the exact pinned Argon2 dependencies: **1,363/1,363 passed**.
+- Complete Python suite with the exact pinned Argon2 dependencies: **1,370/1,370 passed**.
 - Focused conversation, artifact, and routing regressions: **70/70 passed**.
 - JavaScript integration: **55 files**, plus attribution fixtures **24/24**, **10/10**, and
   **10/10**; store-packet self-test **51/51**.
 - Browser-control matrix: **52/52**. It includes mobile and desktop artifact-card Open/Download,
   Files-layer ordering, zero popup windows, owner-scoped download targets, the `r257 → r258`
-  returning-client transition, image stability and precision editing, video references, Projects,
+  artifact transition, the `r258 → r259` Image Studio handoff transition, image stability and precision editing, video references, Projects,
   navigation, billing-review controls, and lifecycle recovery.
 - Production preflight, native web-bundle generation, client credential scan, store metadata, and
   native privacy source verification passed.
@@ -81,7 +86,7 @@ and do not claim automated visual verification.
 - The real Edge verifier now covers Image Studio same-tab continuation, verification-success
   cross-device return, reload non-replay, invalid-intent fail-closed behavior, and the existing
   presentation-plus-plan regression. It asserts setup-open only and no generation, provider,
-  credit, or checkout side effect. Exact-head CI and preview receipts remain pending.
+  credit, or checkout side effect. These checks passed on exact behavior commit `e2c92941`.
 
 ## Hosted verification
 
@@ -97,13 +102,23 @@ and do not claim automated visual verification.
   health, `/app`, the versioned runtime, the versioned composer, and the worker; the served bytes
   contained the artifact-card Open control, reference-plan control, runtime/composer token, and
   `r258` cache marker.
+- [GitHub CI `35968107346`](https://github.com/CRUMP-AI/AskCrump/actions/runs/35968107346),
+  [PostgreSQL fence `35968107315`](https://github.com/CRUMP-AI/AskCrump/actions/runs/35968107315),
+  [Android structural `35968107371`](https://github.com/CRUMP-AI/AskCrump/actions/runs/35968107371),
+  and [iOS structural `35968107311`](https://github.com/CRUMP-AI/AskCrump/actions/runs/35968107311)
+  all passed on the later Image Studio handoff behavior commit `e2c92941`.
+- Vercel preview `dpl_5BSgp77xBKpqWXyCraZb7wE5u9YE` is **READY**, target `null` (preview),
+  with no alias error for exact commit `e2c929413e2e4c8b32d7bb897b2054dc7c4031e7`. Final content
+  inspection remained protected by the Vercel login boundary, so this receipt proves exact-commit
+  deployment readiness but does not claim byte-level hosted markers.
 
 These checks do not change production. The canonical production deployment remains on `main`.
 
 ## Remaining boundaries
 
-1. The Image Studio acquisition handoff still requires exact-head clean-checkout CI and protected
-   preview/Edge evidence; the hosted receipts above cover only the preceding behavior commit.
+1. The Image Studio acquisition handoff has exact-head clean-checkout CI, Edge verifier coverage,
+   and a Ready exact-commit preview receipt. An authorized protected-preview session or production
+   release check must still prove hosted-byte markers before that narrower parity claim is made.
 2. A real authenticated, owned signed-storage check is still required for small and large PDF Open
    and Download under production-equivalent redirect and CSP behavior. The committed browser proof
    uses content-free local owner-route fixtures and does not claim that external journey.

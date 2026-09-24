@@ -1,14 +1,14 @@
 # PR 37 reliability integration candidate — 2026-09-21
 
 Status: **draft PR #37, unmerged, and undeployed.** The current reviewed behavior head is
-`653d576076095c3bceab8131b0d88b94f5ec0bfa`; the predecessor hosted-green head at the start of
+`e2c929413e2e4c8b32d7bb897b2054dc7c4031e7`; the predecessor hosted-green head at the start of
 this release-hardening pass was `1a7d23bf5f4193c83304d522b9655f3af060f76a`. This document records evidence for review; it is not
 permission to apply a database migration, deploy production, sign a native build, submit to either
 store, or spend money.
 
-The later Image Studio acquisition-to-auth work described below is a source-only follow-up. This
-record intentionally does not assign that follow-up the preceding behavior hash or hosted receipts;
-its exact-head CI and preview evidence must be recorded separately.
+The later Image Studio acquisition-to-auth work described below is the source-only behavior commit
+`e2c929413e2e4c8b32d7bb897b2054dc7c4031e7`. Its exact-head local, GitHub, and Vercel deployment
+receipts are recorded separately below from the preceding `653d5760` reference/artifact evidence.
 
 ## Candidate identity and scope
 
@@ -52,11 +52,11 @@ sticky native-billing cleanup evidence, and fails closed for a live durable job 
 fence. The route compensates ambiguous initial acquisition, replacement acquisition, billing
 failure, and durable-begin failure with the exact operation token.
 
-## Local verification through `653d5760`
+## Local verification through `e2c92941`
 
 - Final focused deletion/fence/authority/demo suite: **124 passed**.
 - Final independent source re-read: no remaining P0, P1, or P2 finding.
-- Full Python suite with the exact `pyproject.toml` Argon2 pins loaded: **1,363/1,363 passed**.
+- Full Python suite with the exact `pyproject.toml` Argon2 pins loaded: **1,370/1,370 passed**.
 - Focused conversation, artifact, and routing regressions: **70/70 passed**. Browser fixtures
   verified owner-scoped DOCX/PDF/PPTX Open and Download targets, zero new windows, Files-layer
   ordering, and behavior at desktop and mobile sizes.
@@ -72,8 +72,8 @@ failure, and durable-begin failure with the exact operation token.
   precedence and intentional long-form DOCX preservation.
 - JavaScript contract: **55 files**; attribution fixtures **24/24**, **10/10**, and **10/10**;
   submission-packet self-test **51/51**.
-- Browser-control matrix: **52/52**, including the new `r257 → r258` returning-PWA transition,
-  chat artifact Open/Download, file delivery, image stability,
+- Browser-control matrix: **52/52**, including the `r257 → r258` artifact transition and current
+  `r258 → r259` Image Studio handoff transition, chat artifact Open/Download, file delivery, image stability,
   precision editing, mobile navigation, Projects, Video, and owner continuity.
 - Accessibility matrix: **33/33** phone, tablet, and desktop scenarios.
 - Store-source tests: **29 passed**; metadata fits Apple and Google field limits; native privacy
@@ -82,7 +82,7 @@ failure, and durable-begin failure with the exact operation token.
 - Relevant Ruff checks, Python compilation, staged and unstaged diff checks, conflict-marker check,
   and whitespace checks passed.
 
-## Image Studio handoff verification scope (exact-head receipts pending)
+## Image Studio handoff verification on `e2c92941`
 
 - The real Edge verifier covers the signed-out same-tab capture and continuation path, a
   verification-success cross-device return, reload non-replay, an invalid non-allowlisted intent,
@@ -95,8 +95,9 @@ failure, and durable-begin failure with the exact operation token.
   arbitrary intent content, and the invalid browser case clears stale pending state without opening
   any creation tool.
 
-This describes the verifier boundary only; no final suite count, exact behavior head, hosted CI
-run, or preview receipt for this follow-up is claimed here yet.
+The exact committed source passed the **1,370/1,370** Python suite, **55-file** JavaScript contract,
+**52/52** real-browser matrix, **33/33** accessibility matrix, production preflight, native web
+bundle, client-credential boundary, store-metadata checks, and native privacy source verification.
 
 ## Predecessor hosted verification on `1a7d23b`
 
@@ -139,6 +140,26 @@ physical-device/store behavior.
 These runs cover the behavior commit only. They do not apply the staged SQL, deploy production,
 sign a native artifact, or prove physical-device/store behavior.
 
+## Image Studio handoff hosted verification on `e2c92941`
+
+- Clean-checkout CI passed Python 3.12 and JavaScript, including the complete test suite, browser
+  controls, accessibility, production bundle, client-secret, and store-evidence gates:
+  <https://github.com/CRUMP-AI/AskCrump/actions/runs/35968107346>.
+- Disposable PostgreSQL fence verification passed:
+  <https://github.com/CRUMP-AI/AskCrump/actions/runs/35968107315>.
+- Android unsigned structural verification passed:
+  <https://github.com/CRUMP-AI/AskCrump/actions/runs/35968107371>.
+- iOS unsigned structural verification passed:
+  <https://github.com/CRUMP-AI/AskCrump/actions/runs/35968107311>.
+- Vercel preview `dpl_5BSgp77xBKpqWXyCraZb7wE5u9YE` is **READY**, target `null` (preview), with
+  no alias error for exact commit `e2c929413e2e4c8b32d7bb897b2054dc7c4031e7` on
+  `feature/autonomous-crump-brand-20260917`.
+
+The preview's content remained protected by the Vercel login boundary during final inspection.
+The deployment receipt proves the exact commit reached a Ready preview, but it is not represented as
+a byte-level hosted marker check. These checks do not apply the staged SQL, merge PR #37, deploy
+production, sign a native artifact, or prove physical-device/store behavior.
+
 ## Remaining owner and release gates
 
 1. The SQL remains a staged source candidate. Create and inspect one numbered Supabase migration
@@ -154,8 +175,10 @@ sign a native artifact, or prove physical-device/store behavior.
    atomic with account deletion.
 5. The source PDF policy correction still needs an authenticated owned signed-storage check for
    real small/large PDF opening and download.
-6. The Image Studio acquisition handoff still needs exact-head clean-checkout CI and protected
-   preview/Edge evidence. None of the earlier hosted receipts above covers that later follow-up.
+6. The Image Studio acquisition handoff has exact-head clean-checkout CI and a Ready exact-commit
+   preview receipt. Because final preview content inspection remained Vercel-login gated, repeat the
+   marker check through an authorized protected-preview session or at production release time before
+   representing hosted-byte parity as proven.
 7. If an outside release specialist is used, hand over only the owner-recorded CI-green commit
    through the restricted roles and evidence milestones in
    `docs/STORE_RELEASE_SPECIALIST_HANDOFF_2026-09-21.md` and `docs/STORE_LAUNCH_RUNBOOK.md`.
