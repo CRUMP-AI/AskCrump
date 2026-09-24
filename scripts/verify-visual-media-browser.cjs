@@ -21,7 +21,7 @@ const { chromium } = require(playwrightModule);
   const initialStudio = {
     modal: await studio.getAttribute('aria-modal'),
     closeFocused: await studio.getByRole('button', {name: 'Close Image Studio'}).evaluate(node => document.activeElement === node),
-    addReferenceVisible: await studio.getByRole('button', {name: /Add an image to edit/}).isVisible(),
+    addReferenceVisible: await studio.getByRole('button', {name: /Add images to guide the result/}).isVisible(),
     createWithoutReferenceVisible: await studio.getByRole('button', {name: 'Create without reference'}).isVisible(),
     squarePressed: await studio.getByRole('button', {name: 'Square'}).getAttribute('aria-pressed'),
     guidance: await studio.locator('.crump50-image-guidance').textContent(),
@@ -58,19 +58,20 @@ const { chromium } = require(playwrightModule);
     'base64',
   );
   const fileChooser = page.waitForEvent('filechooser');
-  await studio.getByRole('button', {name: /Add an image to edit/}).click();
+  await studio.getByRole('button', {name: /Add images to guide the result/}).click();
   await (await fileChooser).setFiles({name: 'fixture.png', mimeType: 'image/png', buffer: png});
   await page.waitForFunction(() => document.querySelector('[data-crump50-upload-meta]')?.textContent.includes('B'));
 
-  await page.locator('#openImageStudio').click();
-  await studio.getByRole('button', {name: /Reference image ready/}).waitFor();
+  await studio.getByRole('button', {name: /1 reference image ready/}).waitFor();
   const readyStudio = {
-    referenceReadyVisible: await studio.getByRole('button', {name: /Reference image ready/}).isVisible(),
-    continueWithReferenceVisible: await studio.getByRole('button', {name: 'Continue with reference'}).isVisible(),
-    referenceNameVisible: (await studio.textContent()).includes('fixture.png will be the starting point.'),
+    referenceReadyVisible: await studio.getByRole('button', {name: /1 reference image ready/}).isVisible(),
+    confirmReferencePlanVisible: await studio.getByRole('button', {name: 'Confirm reference plan'}).isVisible(),
+    referenceNameVisible: (await studio.textContent()).includes('Reference 1 · fixture.png'),
+    referenceRole: await studio.locator('[aria-label="Role for reference 1"]').inputValue(),
+    referenceSummaryVisible: (await studio.textContent()).includes('Reference 1 → Starting canvas / composition'),
   };
   const invalidReplacementChooser = page.waitForEvent('filechooser');
-  await studio.getByRole('button', {name: /Reference image ready/}).click();
+  await studio.getByRole('button', {name: /1 reference image ready/}).click();
   await (await invalidReplacementChooser).setFiles({name: 'not-an-image.txt', mimeType: 'text/plain', buffer: Buffer.from('not an image')});
   await page.waitForFunction(() => window.__lastToast?.tone === 'error');
   const invalidReplacement = await page.evaluate(() => ({
@@ -80,7 +81,7 @@ const { chromium } = require(playwrightModule);
   }));
   await page.waitForTimeout(250);
   await page.screenshot({path: 'artifacts/visual-media-reference-entry.png', fullPage: true});
-  await studio.getByRole('button', {name: 'Continue with reference'}).click();
+  await studio.getByRole('button', {name: 'Confirm reference plan'}).click();
 
   const result = await page.evaluate(() => ({
     previewImagesAdded: window.__previewImagesAdded,
@@ -115,9 +116,11 @@ const { chromium } = require(playwrightModule);
     || transientCloseFocus.workspaceInert
     || transientCloseFocus.workspaceAriaHidden !== null
     || !readyStudio.referenceReadyVisible
-    || !readyStudio.continueWithReferenceVisible
+    || !readyStudio.confirmReferencePlanVisible
     || !readyStudio.referenceNameVisible
-    || invalidReplacement.toast?.message !== 'Choose a JPG, PNG, WebP, HEIC, or HEIF image.'
+    || readyStudio.referenceRole !== 'base'
+    || !readyStudio.referenceSummaryVisible
+    || invalidReplacement.toast?.message !== 'Choose JPG, PNG, WebP, HEIC, or HEIF reference images.'
     || invalidReplacement.cardCount !== 1
     || !invalidReplacement.studioOpen
     || result.previewImagesAdded !== 1
@@ -125,7 +128,7 @@ const { chromium } = require(playwrightModule);
     || result.cardCount !== 1
     || !result.bodyHasContent
     || !result.imageModeVisible
-    || result.editPlaceholder !== 'Describe what to keep and what to change…'
+    || result.editPlaceholder !== 'Describe the result. Crump will follow the confirmed reference plan…'
     || result.errorOverlay
   ) {
     throw new Error(JSON.stringify({initialStudio, reverseWrapFocus, forwardWrapFocus, directCloseFocus, transientCloseFocus, readyStudio, invalidReplacement, result, consoleErrors}));

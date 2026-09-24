@@ -16,7 +16,7 @@ from ..auth_service import authenticate_request
 from ..checkin_service import mark_check_in_responded
 from ..db import eq
 from ..feature_service import FeatureAccessError
-from ..file_service import FileServiceError
+from ..file_service import FileService, FileServiceError
 from ..manuscript_service import ManuscriptError, chapter_count_from_prompt
 from ..product53_hooks import (
     apply_project_context,
@@ -55,6 +55,30 @@ def _ai_error_recovery(error_code: str) -> dict | None:
 
 def _artifact_file_id(*, user_id: str, message_id: str, format_name: str) -> str:
     return normalize_chat_id(f'artifact:{user_id}:{message_id}:{format_name}')
+
+
+def _video_creation_handoff(
+    *,
+    brief: str,
+    idempotency_key: str,
+    current_file_rows: list[dict],
+) -> dict:
+    """Carry only already owner-resolved images from this message into Video Studio."""
+    reference_files = [
+        FileService.public_file(row)
+        for row in current_file_rows
+        if str(row.get('mime_type') or '').lower().startswith('image/')
+    ]
+    return {
+        'kind': 'video',
+        'brief': brief[:12000],
+        'autoOpen': True,
+        # A reference changes both provider semantics and fidelity expectations.
+        # Let the user review the images and choose an engine before spending.
+        'autoStart': not reference_files,
+        'idempotencyKey': idempotency_key[:160],
+        'referenceFiles': reference_files,
+    }
 
 
 def _chat_job_is_stale(updated_at) -> bool:
@@ -968,16 +992,22 @@ async def chat(request: Request):
             project_id = str(result.get('projectId') or project_id or '') or None
         elif semantic_creation and creation_kind == 'video' and creation_stage == 'execute':
             handoff_key = f"chat-video:{chat_id or 'chat'}:{message_id or request_id}"
+            creation_handoff = _video_creation_handoff(
+                brief=execution_brief,
+                idempotency_key=handoff_key,
+                current_file_rows=current_file_rows,
+            )
+            has_video_references = bool(creation_handoff['referenceFiles'])
             result = {
-                'response': "Yep — I’ve got the scene. I carried what we worked out into Video Studio and I’m starting it from there so you don’t have to repeat the prompt.",
+                'response': (
+                    "Yep — I carried the scene and your attached images into Video Studio. "
+                    "Review how the selected engine uses them, then create the video when you’re ready. "
+                    "Exact logos and readable text still need an approved overlay for pixel-accurate branding."
+                    if has_video_references
+                    else "Yep — I’ve got the scene. I carried what we worked out into Video Studio and I’m starting it from there so you don’t have to repeat the prompt."
+                ),
                 'model': ai.settings.anthropic_model,
-                'creationHandoff': {
-                    'kind': 'video',
-                    'brief': execution_brief[:12000],
-                    'autoOpen': True,
-                    'autoStart': True,
-                    'idempotencyKey': handoff_key[:160],
-                },
+                'creationHandoff': creation_handoff,
             }
         elif (
             not request_payload.get('suppressCreativeExecution')
@@ -1175,6 +1205,7 @@ async def chat(request: Request):
             key: request_payload.get(key)
             for key in (
                 'creativeTool', 'imageAspect', 'imageQuality', 'imageUseReference',
+                'imageReferencePlan', 'imageReferencePlanConfirmed',
                 'artifactFormat', 'artifactPurpose', 'needsSearch', 'taskType', 'longForm',
             )
             if request_payload.get(key) is not None

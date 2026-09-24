@@ -90,8 +90,13 @@ def feature_for_request(
 ) -> tuple[str | None, dict[str, Any]]:
     message = str(payload.get("message") or "")
     creative_tool = str(payload.get("creativeTool") or "") or None
-    editing = media.is_edit_request(message, file_rows)
-    image = media.is_image_request(message, creative_tool) or editing
+    image_requested = media.is_image_request(message, creative_tool)
+    has_image_reference = any(
+        str(row.get("mime_type") or "").lower().startswith("image/")
+        for row in file_rows
+    )
+    editing = media.is_edit_request(message, file_rows) or (image_requested and has_image_reference)
+    image = image_requested or editing
     visual_analysis = bool(file_rows and media.has_visual_files(file_rows) and not image)
 
     research_requested = (

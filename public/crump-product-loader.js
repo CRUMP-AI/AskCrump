@@ -4,8 +4,8 @@
   if (window.__crumpProductLoaderLoaded) return;
   window.__crumpProductLoaderLoaded = true;
 
-  const STYLE_URL = '/crump-product-5.3.css?v=5.9.76-file-library-window-1';
-  const SCRIPT_URL = '/crump-product-5.3.js?v=5.9.76-owner-reconciliation-1';
+  const STYLE_URL = '/crump-product-5.3.css?v=5.9.76-reference-fidelity-1';
+  const SCRIPT_URL = '/crump-product-5.3.js?v=5.9.76-reference-fidelity-1';
   const ACTIVE_PROJECT_KEY = 'askcrump.activeProject53';
   const VIDEO_JOB_KEY = 'askcrump.videoJob53';
   const VIDEO_REQUEST_KEY = 'askcrump.videoRequest53';

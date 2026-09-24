@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 
 from backend.intelligence_service import IntelligenceService
-from backend.routes.chat import _promote_explicit_document_delivery
+from backend.routes.chat import _promote_explicit_document_delivery, _video_creation_handoff
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -150,6 +150,77 @@ def test_video_handoff_reuses_existing_guarded_video_engine():
     assert "idempotencyKey: key" in product
     assert "CrumpProduct53?.handleCreationHandoff" in composer
 
+
+def test_video_handoff_preserves_current_owned_image_descriptors_and_pauses_start():
+    image_id = "00000000-0000-4000-8000-000000000201"
+    handoff = _video_creation_handoff(
+        brief="Animate the supplied product and keep its appearance consistent.",
+        idempotency_key="chat-video:fixture",
+        current_file_rows=[
+            {
+                "id": image_id,
+                "file_name": "approved-product.png",
+                "mime_type": "image/png",
+                "size_bytes": 2048,
+                "kind": "upload",
+                "status": "ready",
+                "metadata": {},
+            },
+            {
+                "id": "00000000-0000-4000-8000-000000000202",
+                "file_name": "brief.pdf",
+                "mime_type": "application/pdf",
+                "size_bytes": 4096,
+                "kind": "upload",
+                "status": "ready",
+                "metadata": {},
+            },
+        ],
+    )
+
+    assert handoff["autoStart"] is False
+    assert handoff["referenceFiles"] == [{
+        "id": image_id,
+        "name": "approved-product.png",
+        "type": "image/png",
+        "size": 2048,
+        "kind": "upload",
+        "status": "ready",
+        "metadata": {},
+        "createdAt": None,
+        "updatedAt": None,
+        "url": f"/api/files/{image_id}/content",
+    }]
+
+    route = read("backend/routes/chat.py")
+    video_branch = route[
+        route.index("elif semantic_creation and creation_kind == 'video'"):
+        route.index("elif (", route.index("elif semantic_creation and creation_kind == 'video'"))
+    ]
+    assert "current_file_rows=current_file_rows" in video_branch
+    assert "'creationHandoff': creation_handoff" in video_branch
+
+
+def test_reference_handoff_requires_browser_review_before_generation():
+    product = read("public/crump-product-5.3.js")
+    handoff = product[
+        product.index("function hydrateVideoHandoffReferences"):
+        product.index("async function handleCreationHandoff")
+    ]
+    referenced_branch = handoff[
+        handoff.index("if (references.length)"):
+        handoff.index("if (!start)")
+    ]
+
+    assert "state.videoReferenceFiles = references" in handoff
+    assert "data-video-reference-role" in product
+    assert "referencePlan: videoReferencePlan()" in product
+    assert "press Create video to confirm" in referenced_branch
+    assert "Confirm each reference role" in referenced_branch
+    assert "await startVideo" not in referenced_branch
+    assert "Exact logos and readable text are not locked" in referenced_branch
+
+
 def test_crump_voice_avoids_generic_assistant_form_language():
     service = read("backend/ai_service.py")
     assert "Never default to canned assistant language" in service
@@ -159,9 +230,9 @@ def test_crump_voice_avoids_generic_assistant_form_language():
 def test_conversation_intelligence_advances_shell_cache():
     sw = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
-    assert "ask-crump-new-body-v1-r254" in sw
+    assert "ask-crump-new-body-v1-r255" in sw
     assert "CACHE_NAME = 'ask-crump-new-body-v1-r229'" not in sw
-    assert "ask-crump-new-body-v1-r254" in checker
+    assert "ask-crump-new-body-v1-r255" in checker
 
 
 def test_reload_opens_a_clean_conversation_without_discarding_history():

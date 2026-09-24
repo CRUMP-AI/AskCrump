@@ -5,6 +5,15 @@
   window.__crump50Loaded = true;
 
   const MAX_FILES = 10;
+  const IMAGE_REFERENCE_LIMIT = 4;
+  const IMAGE_REFERENCE_ROLES = [
+    ['base', 'Starting canvas / composition'],
+    ['subject', 'Subject / product'],
+    ['mascot', 'Mascot / character identity'],
+    ['logo', 'Logo / wordmark'],
+    ['typography', 'Typography / layout'],
+    ['style', 'Palette / visual style'],
+  ];
   const MAX_FILE_BYTES = 50 * 1024 * 1024;
   const ACCEPT = [
     'image/*', 'application/pdf', '.docx', '.xlsx', '.pptx', '.txt', '.md', '.csv', '.tsv', '.json', '.html', '.rtf',
@@ -23,6 +32,7 @@
     lightboxReturnFocus: null,
     imageRecovery: null,
     precisionImageEdit: null,
+    imageReferencePlanConfirmed: false,
   };
   let attachmentOwner = String(window.currentUser?.id || '').trim();
 
@@ -125,7 +135,7 @@
     };
   }
 
-  function addRemoteReference(file, { imageReference = false } = {}) {
+  function addRemoteReference(file, { imageReference = false, imageReferenceRole = '' } = {}) {
     if (!file?.id) return;
     const existing = state.attachments.find(item => item.server?.id === file.id);
     if (existing) return;
@@ -133,7 +143,9 @@
       localId: uid(), file: null, name: file.name || 'Image', type: file.type || 'image/png',
       size: file.size || 0, status: 'ready', progress: 100, server: file, previewUrl: file.url || null,
       imageReference,
+      imageReferenceRole,
     });
+    if (imageReference) state.imageReferencePlanConfirmed = false;
     renderAttachmentTray();
   }
 
@@ -214,7 +226,7 @@
     }
   }
 
-  async function addFiles(fileList) {
+  async function addFiles(fileList, {imageReference = false} = {}) {
     syncAttachmentOwner();
     const owner = attachmentOwner;
     const incoming = [...(fileList || [])];
@@ -233,6 +245,11 @@
         continue;
       }
       const item = makeLocalAttachment(file);
+      if (imageReference && isSupportedImageFile(file)) {
+        item.imageReference = true;
+        item.imageReferenceRole = imageReferenceRoleFor(item, state.attachments.filter(isImageAttachment).length);
+        state.imageReferencePlanConfirmed = false;
+      }
       state.attachments.push(item);
       item.promise = uploadItem(item, {expectedOwner: owner});
     }
@@ -414,6 +431,7 @@
     if (index < 0) return;
     const [item] = state.attachments.splice(index, 1);
     if (state.precisionImageEdit?.sourceId === item.server?.id) state.precisionImageEdit = null;
+    if (isImageAttachment(item)) state.imageReferencePlanConfirmed = false;
     item.controller?.abort?.();
     if (item.previewUrl?.startsWith('blob:')) URL.revokeObjectURL(item.previewUrl);
     renderAttachmentTray();
@@ -488,6 +506,7 @@
     state.attachments = [];
     state.imageRecovery = null;
     state.precisionImageEdit = null;
+    state.imageReferencePlanConfirmed = false;
     renderAttachmentTray();
   }
 
@@ -516,6 +535,7 @@
 
   function clearToolMode({focus = false} = {}) {
     if (state.tool === 'image') state.imageRecovery = null;
+    if (state.tool === 'image') state.imageReferencePlanConfirmed = false;
     state.tool = null;
     state.documentFormat = null;
     state.documentPurpose = null;
@@ -729,6 +749,41 @@
       || /\.(jpe?g|png|webp|hei[cf])$/i.test(name);
   }
 
+  function looksLikeReferenceImageAction(message) {
+    const text = String(message || '').toLowerCase();
+    const create = ['generate', 'create', 'make', 'draw', 'design', 'render', 'visualize'].some(term => text.includes(term))
+      && ['image', 'picture', 'photo', 'artwork', 'cover', 'logo', 'illustration', 'poster'].some(term => text.includes(term));
+    const edit = ['edit', 'change', 'remove', 'replace', 'add ', 'retouch', 'fix ', 'enhance', 'upscale', 'background', 'recolor', 'transform', 'turn ', 'dress ', 'style ', 'put ']
+      .some(term => text.includes(term));
+    return create || edit;
+  }
+
+  function imageReferenceRoleFor(item, index = 0) {
+    const allowed = new Set(IMAGE_REFERENCE_ROLES.map(([value]) => value));
+    const role = String(item?.imageReferenceRole || '').toLowerCase();
+    return allowed.has(role) ? role : (index === 0 ? 'base' : 'subject');
+  }
+
+  function imageReferencePlan(items = state.attachments) {
+    return (Array.isArray(items) ? items : [])
+      .filter(isImageAttachment)
+      .slice(0, IMAGE_REFERENCE_LIMIT)
+      .map((item, index) => ({
+        fileId: String(item.server?.id || ''),
+        role: imageReferenceRoleFor(item, index),
+      }))
+      .filter(item => item.fileId);
+  }
+
+  function imageReferencePlanSummary(items = state.attachments) {
+    const labels = new Map(IMAGE_REFERENCE_ROLES);
+    return (Array.isArray(items) ? items : [])
+      .filter(isImageAttachment)
+      .slice(0, IMAGE_REFERENCE_LIMIT)
+      .map((item, index) => `Reference ${index + 1} → ${labels.get(imageReferenceRoleFor(item, index))}`)
+      .join('; ');
+  }
+
   function clearImageAttachments() {
     state.attachments.filter(isImageAttachment).forEach(item => {
       void item.promise?.catch?.(() => {});
@@ -737,6 +792,7 @@
     });
     state.attachments = state.attachments.filter(item => !isImageAttachment(item));
     state.precisionImageEdit = null;
+    state.imageReferencePlanConfirmed = false;
     renderAttachmentTray();
   }
 
@@ -745,8 +801,9 @@
       throw new Error('The selected edit area could not be prepared.');
     }
     clearImageAttachments();
-    addRemoteReference(file, {imageReference: true});
+    addRemoteReference(file, {imageReference: true, imageReferenceRole: 'base'});
     state.precisionImageEdit = {sourceId: String(file.id), maskDataUrl: String(maskDataUrl)};
+    state.imageReferencePlanConfirmed = true;
     if (Number(width) > Number(height) * 1.08) state.imageAspect = 'landscape';
     else if (Number(height) > Number(width) * 1.08) state.imageAspect = 'portrait';
     else state.imageAspect = 'square';
@@ -826,6 +883,7 @@
   function chooseImageReference({replace = false} = {}) {
     const input = document.createElement('input');
     input.type = 'file';
+    input.multiple = true;
     input.accept = 'image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif';
     input.hidden = true;
     const cleanup = () => input.remove();
@@ -836,25 +894,37 @@
         cleanup();
         return;
       }
-      const issue = validateFile(selected[0]);
-      if (issue || !isSupportedImageFile(selected[0])) {
-        show(issue || 'Choose a JPG, PNG, WebP, HEIC, or HEIF image.', 'error');
-        cleanup();
-        return;
-      }
-      if (!replace && state.attachments.length >= MAX_FILES) {
-        show(`You can attach up to ${MAX_FILES} files to one message.`, 'warning');
-        cleanup();
-        return;
+      for (const file of selected) {
+        const issue = validateFile(file);
+        if (issue || !isSupportedImageFile(file)) {
+          show(issue || 'Choose JPG, PNG, WebP, HEIC, or HEIF reference images.', 'error');
+          cleanup();
+          return;
+        }
       }
       if (replace) clearImageAttachments();
+      const existingImages = state.attachments.filter(isImageAttachment).length;
+      const available = Math.min(
+        IMAGE_REFERENCE_LIMIT - existingImages,
+        MAX_FILES - state.attachments.length,
+      );
+      if (available <= 0) {
+        show(`Image Studio accepts up to ${IMAGE_REFERENCE_LIMIT} reference images.`, 'warning');
+        cleanup();
+        return;
+      }
       state.imageRecovery = null;
       state.tool = 'image';
-      await addFiles(selected.slice(0, 1));
+      state.imageReferencePlanConfirmed = false;
+      await addFiles(selected.slice(0, available), {imageReference: true});
       closeMenu();
       renderToolChip();
-      focusComposer('Describe what to keep and what to change…');
-      show('Reference image added. Describe what should stay the same and what should change.', 'info');
+      showImageOptions();
+      if (selected.length > available) {
+        show(`Only ${available} more reference image${available === 1 ? '' : 's'} fit this request.`, 'warning');
+      } else {
+        show('References added. Assign what each image controls, then confirm the plan.', 'info');
+      }
       cleanup();
     }, {once: true});
     document.body.appendChild(input);
@@ -890,8 +960,9 @@
     };
     qualityControl = segmented([['medium','Balanced'],['high','Highest']], state.imageQuality, value => { state.imageQuality = value; rebuildQuality(); }, 'Image quality');
 
-    const currentReference = state.attachments.find(isImageAttachment) || null;
-    const referenceLabel = document.createElement('label'); referenceLabel.textContent = 'Reference image · optional';
+    const currentReferences = state.attachments.filter(isImageAttachment).slice(0, IMAGE_REFERENCE_LIMIT);
+    const currentReference = currentReferences[0] || null;
+    const referenceLabel = document.createElement('label'); referenceLabel.textContent = 'Reference images · optional · up to 4';
     const reference = document.createElement('button');
     reference.type = 'button';
     reference.className = `crump50-reference-action${currentReference ? ' has-reference' : ''}`;
@@ -899,20 +970,71 @@
     referenceIcon.innerHTML = iconFor('image');
     const referenceCopy = document.createElement('span');
     const referenceTitle = document.createElement('strong');
-    referenceTitle.textContent = currentReference ? 'Reference image ready' : 'Add an image to edit';
+    referenceTitle.textContent = currentReference
+      ? `${currentReferences.length} reference image${currentReferences.length === 1 ? '' : 's'} ready`
+      : 'Add images to guide the result';
     const referenceDescription = document.createElement('small');
     referenceDescription.textContent = currentReference
-      ? `${currentReference.name || 'Your image'} will be the starting point.`
-      : 'Use a photo or visual as the starting point.';
+      ? 'Assign what each image controls before Crump renders.'
+      : 'Use a base photo, subject, mascot, logo, typography, or style reference.';
     referenceCopy.append(referenceTitle, referenceDescription);
     const referenceAction = document.createElement('b');
-    referenceAction.textContent = currentReference ? 'Change' : 'Choose';
+    referenceAction.textContent = currentReferences.length >= IMAGE_REFERENCE_LIMIT ? 'Full' : (currentReference ? 'Add' : 'Choose');
     reference.append(referenceIcon, referenceCopy, referenceAction);
-    reference.addEventListener('click', () => chooseImageReference({replace: Boolean(currentReference)}));
+    reference.addEventListener('click', () => {
+      if (currentReferences.length >= IMAGE_REFERENCE_LIMIT) {
+        show(`Image Studio accepts up to ${IMAGE_REFERENCE_LIMIT} reference images.`, 'warning');
+        return;
+      }
+      chooseImageReference();
+    });
+
+    const planLabel = document.createElement('label');
+    planLabel.textContent = 'Reference plan · confirm before generating';
+    const plan = document.createElement('div');
+    plan.className = 'settings-list';
+    currentReferences.forEach((item, index) => {
+      item.imageReference = true;
+      item.imageReferenceRole = imageReferenceRoleFor(item, index);
+      const row = document.createElement('label');
+      row.className = 'settings-row';
+      const copy = document.createElement('span');
+      copy.className = 'settings-info';
+      const title = document.createElement('span');
+      title.className = 'settings-label';
+      title.textContent = `Reference ${index + 1} · ${item.name || 'Image'}`;
+      const help = document.createElement('small');
+      help.className = 'settings-help';
+      help.textContent = index === 0 ? 'The first image is the masked source for Precision Edit.' : 'This role is sent with the numbered provider input.';
+      copy.append(title, help);
+      const select = document.createElement('select');
+      select.className = 'settings-select';
+      select.setAttribute('aria-label', `Role for reference ${index + 1}`);
+      IMAGE_REFERENCE_ROLES.forEach(([value, label]) => {
+        const option = document.createElement('option');
+        option.value = value;
+        option.textContent = label;
+        option.selected = item.imageReferenceRole === value;
+        select.appendChild(option);
+      });
+      select.addEventListener('change', () => {
+        item.imageReferenceRole = select.value;
+        state.imageReferencePlanConfirmed = false;
+        planSummary.textContent = imageReferencePlanSummary(currentReferences);
+      });
+      row.append(copy, select);
+      plan.appendChild(row);
+    });
+
+    const planSummary = document.createElement('p');
+    planSummary.className = 'crump50-image-guidance';
+    planSummary.textContent = currentReferences.length
+      ? imageReferencePlanSummary(currentReferences)
+      : 'No references selected. Crump will create from your written direction only.';
 
     const guidance = document.createElement('p');
     guidance.className = 'crump50-image-guidance';
-    guidance.textContent = 'Editing a person? Select the pixels yourself and describe only the appearance change you want. Crump does not infer race or ethnicity. Logos and readable text should be placed as overlays for exact fidelity.';
+    guidance.textContent = 'Crump sends every confirmed reference as a numbered visual constraint. Generative models can still vary in exact logos and readable text; use Exact Overlay when original pixels must remain unchanged. Editing a person? Select the pixels yourself—Crump does not infer race or ethnicity.';
 
     const precision = document.createElement('button');
     precision.type = 'button';
@@ -934,9 +1056,19 @@
       }
     });
 
-    const activate = document.createElement('button'); activate.type = 'button'; activate.className = 'crump50-primary-action'; activate.textContent = currentReference ? 'Continue with reference' : 'Create without reference';
-    activate.addEventListener('click', () => { state.imageRecovery = null; state.tool = 'image'; closeMenu(); renderToolChip(); focusComposer(currentReference ? 'Describe what to keep and what to change…' : 'Describe the image you want…'); });
-    body.append(aspectLabel, aspectControl, qualityLabel, qualityControl, referenceLabel, reference, precision, guidance, activate);
+    const activate = document.createElement('button'); activate.type = 'button'; activate.className = 'crump50-primary-action'; activate.textContent = currentReference ? 'Confirm reference plan' : 'Create without reference';
+    activate.addEventListener('click', () => {
+      state.imageRecovery = null;
+      state.tool = 'image';
+      state.imageReferencePlanConfirmed = Boolean(currentReferences.length);
+      closeMenu();
+      renderToolChip();
+      focusComposer(currentReference ? 'Describe the result. Crump will follow the confirmed reference plan…' : 'Describe the image you want…');
+      if (currentReferences.length) show(`Confirmed: ${imageReferencePlanSummary(currentReferences)}`, 'info');
+    });
+    body.append(aspectLabel, aspectControl, qualityLabel, qualityControl, referenceLabel, reference);
+    if (currentReferences.length) body.append(planLabel, plan, planSummary);
+    body.append(precision, guidance, activate);
     wireMenuKeyboard(sheet, dismiss);
     sheet.appendChild(body);
     mountMenu(sheet, close);
@@ -1031,7 +1163,12 @@
     if (state.tool === 'code') body.taskType = 'code';
     if (state.tool === 'image') {
       body.creativeTool = 'image'; body.imageAspect = state.imageAspect; body.imageQuality = state.imageQuality;
-      body.imageUseReference = readyFiles.some(item => String(item.server?.type || '').startsWith('image/'));
+      const references = readyFiles.filter(isImageAttachment);
+      body.imageUseReference = Boolean(references.length);
+      if (references.length) {
+        body.imageReferencePlan = imageReferencePlan(references);
+        body.imageReferencePlanConfirmed = state.imageReferencePlanConfirmed;
+      }
       const precision = state.precisionImageEdit;
       if (precision && readyFiles.some(item => String(item.server?.id) === precision.sourceId)) {
         body.imageEditMask = precision.maskDataUrl;
@@ -1133,6 +1270,39 @@
     const input = $('#userInput');
     const text = String(input?.value || '').trim();
     if (!text && !state.attachments.length) return;
+    const draftReferences = state.attachments.filter(isImageAttachment);
+    const referenceImageAction = state.tool === 'image' || looksLikeReferenceImageAction(text);
+    if (referenceImageAction && draftReferences.length > IMAGE_REFERENCE_LIMIT) {
+      state.tool = 'image';
+      renderToolChip();
+      const excess = draftReferences.length - IMAGE_REFERENCE_LIMIT;
+      show(
+        `Image Studio can use up to ${IMAGE_REFERENCE_LIMIT} references. Remove ${excess} image${excess === 1 ? '' : 's'} before generating.`,
+        'warning',
+      );
+      return;
+    }
+    if (unchangedRecoveredImageRequest(text, state.attachments)) {
+      show(
+        state.imageRecovery?.changeRequired === 'reference'
+          ? 'Add a different JPG, PNG, or WebP reference before sending again.'
+          : 'Change the wording or reference image before sending this request again.',
+        'info',
+      );
+      return;
+    }
+    if (
+      referenceImageAction
+      && draftReferences.length
+      && !state.precisionImageEdit
+      && !state.imageReferencePlanConfirmed
+    ) {
+      state.tool = 'image';
+      renderToolChip();
+      showImageOptions();
+      show('Confirm what each reference controls before Crump uses credits.', 'info');
+      return;
+    }
     state.sending = true;
     document.body.classList.add('crump50-sending');
     let userMessage = null;
@@ -1158,7 +1328,16 @@
         requestMeta: {
           ...(state.tool === 'web' ? {needsSearch:true} : {}),
           ...(state.tool === 'code' ? {taskType:'code'} : {}),
-          ...(state.tool === 'image' ? {creativeTool:'image', imageAspect:state.imageAspect, imageQuality:state.imageQuality, imageUseReference:ready.some(item => String(item.server?.type || '').startsWith('image/'))} : {}),
+          ...(state.tool === 'image' ? {
+            creativeTool:'image',
+            imageAspect:state.imageAspect,
+            imageQuality:state.imageQuality,
+            imageUseReference:ready.some(isImageAttachment),
+            ...(ready.some(isImageAttachment) ? {
+              imageReferencePlan:imageReferencePlan(ready),
+              imageReferencePlanConfirmed:state.imageReferencePlanConfirmed,
+            } : {}),
+          } : {}),
           ...(state.tool === 'document' && state.documentFormat ? {artifactFormat:state.documentFormat} : {}),
           ...(state.tool === 'document' && state.documentPurpose ? {artifactPurpose:state.documentPurpose} : {}),
         },
@@ -1172,6 +1351,7 @@
       const body = buildRequestBody(currentChat() || fresh, userMessage, ready);
       state.attachments = [];
       state.precisionImageEdit = null;
+      state.imageReferencePlanConfirmed = false;
       renderAttachmentTray();
       const sentTool = state.tool;
       clearToolMode();
@@ -1788,7 +1968,19 @@
 
 
   window.CrumpFileTools = Object.freeze({
-    addReference: file => addRemoteReference(file),
+    addReference: file => {
+      const isImage = String(file?.type || file?.mime_type || '').toLowerCase().startsWith('image/');
+      addRemoteReference(file, {
+        imageReference: isImage,
+        imageReferenceRole: isImage ? (state.attachments.some(isImageAttachment) ? 'subject' : 'base') : '',
+      });
+      if (isImage) {
+        state.tool = 'image';
+        state.imageReferencePlanConfirmed = false;
+        renderToolChip();
+        show('Image added. Confirm its role in Image Studio before generating.', 'info');
+      }
+    },
     open: (file, download = false) => openFile(file, download),
     upload: async (file, {expectedOwner = String(window.currentUser?.id || '').trim()} = {}) => {
       requireUploadOwner(expectedOwner);

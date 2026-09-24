@@ -25,6 +25,7 @@
     videoReferenceUploading: false,
     videoReferenceUploadingOwner: '',
     videoReferenceFiles: [],
+    videoReferenceHandoffInvalid: false,
     activeVideoJob: null,
     activeVideoJobOwner: '',
     libraryFiles: [],
@@ -42,6 +43,12 @@
   const VIDEO_JOB_STORAGE_KEY = 'askcrump.videoJob53';
   const VIDEO_REQUEST_STORAGE_KEY = 'askcrump.videoRequest53';
   const VIDEO_REQUEST_TTL_MS = 30 * 60 * 1000;
+  const VIDEO_REFERENCE_ROLE_OPTIONS = Object.freeze([
+    {value: 'subject', label: 'Subject / product'},
+    {value: 'mascot', label: 'Mascot / character'},
+    {value: 'logo', label: 'Logo / wordmark'},
+    {value: 'style', label: 'Style / palette'},
+  ]);
   const LIBRARY_PAGE_SIZE = 12;
   const conversationProjectCache = new Map();
   const conversationProjectRequests = new Map();
@@ -155,6 +162,7 @@
     state.videoReferenceUploading = false;
     state.videoReferenceUploadingOwner = '';
     state.videoReferenceFiles = [];
+    state.videoReferenceHandoffInvalid = false;
     state.activeVideoJob = null;
     state.activeVideoJobOwner = '';
     state.libraryFiles = [];
@@ -256,6 +264,9 @@
       request.durationSeconds,
       request.projectId || '',
       ...(Array.isArray(request.referenceFileIds) ? request.referenceFileIds : []),
+      ...(Array.isArray(request.referencePlan)
+        ? request.referencePlan.map(reference => `${reference?.fileId || ''}:${reference?.role || ''}`)
+        : []),
     ]);
   }
 
@@ -273,6 +284,9 @@
     if (projectButton) projectButton.disabled = Boolean(busy);
     document.querySelectorAll('[data-video-reference-remove]').forEach(remove => {
       remove.disabled = Boolean(busy);
+    });
+    document.querySelectorAll('[data-video-reference-role]').forEach(select => {
+      select.disabled = Boolean(busy);
     });
   }
 
@@ -851,7 +865,7 @@
                 <label class="crump53-label">Prompt<textarea id="crump53VideoPrompt" class="crump53-textarea" maxlength="3600" placeholder="Describe the scene, subject, camera movement, atmosphere, and sound..."></textarea></label>
                 <div class="crump53-video-reference">
                   <div class="crump53-video-reference-head">
-                    <div><strong id="crump53VideoReferenceLabel">Optional starting image</strong><span id="crump53VideoReferenceHelp">Quick animates one image as the opening frame.</span></div>
+                    <div><strong id="crump53VideoReferenceLabel">Optional starting frame</strong><span id="crump53VideoReferenceHelp">Quick uses one image as the starting frame; the selected role says what to emphasize.</span></div>
                     <button class="crump53-button" type="button" id="crump53AddVideoReference" aria-label="Add video reference image">Add image</button>
                     <input id="crump53VideoReferenceInput" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" hidden>
                   </div>
@@ -1069,20 +1083,55 @@
     return engine === 'extendable' ? 3 : 1;
   }
 
+  function normalizeVideoReferenceRole(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    return VIDEO_REFERENCE_ROLE_OPTIONS.some(option => option.value === normalized) ? normalized : 'subject';
+  }
+
+  function videoReferencePlan() {
+    return state.videoReferenceFiles.map(file => ({
+      fileId: String(file.id || ''),
+      role: normalizeVideoReferenceRole(file.role),
+    })).filter(reference => reference.fileId);
+  }
+
   function renderVideoReferences() {
     const grid = byId('crump53VideoReferenceGrid');
     if (!grid) return;
-    grid.innerHTML = state.videoReferenceFiles.map(file => `
-      <div class="crump53-video-reference-card">
+    grid.innerHTML = state.videoReferenceFiles.map(file => {
+      const role = normalizeVideoReferenceRole(file.role);
+      return `
+      <div class="crump53-video-reference-card" data-video-reference-id="${escapeHtml(file.id || '')}">
         <img src="${escapeHtml(file.url || '')}" alt="">
         <span title="${escapeHtml(file.name || 'Reference image')}">${escapeHtml(file.name || 'Reference image')}</span>
+        <label class="crump53-video-reference-role">Use as
+          <select data-video-reference-role="${escapeHtml(file.id || '')}" aria-label="Role for ${escapeHtml(file.name || 'reference image')}">
+            ${VIDEO_REFERENCE_ROLE_OPTIONS.map(option => `<option value="${option.value}"${option.value === role ? ' selected' : ''}>${option.label}</option>`).join('')}
+          </select>
+        </label>
         <button type="button" aria-label="Remove ${escapeHtml(file.name || 'reference image')}" data-video-reference-remove="${escapeHtml(file.id || '')}">Remove</button>
-      </div>`).join('');
+      </div>`;
+    }).join('');
+    grid.querySelectorAll('[data-video-reference-role]').forEach(select => {
+      select.addEventListener('change', () => {
+        const fileId = String(select.dataset.videoReferenceRole || '');
+        const file = state.videoReferenceFiles.find(item => String(item.id) === fileId);
+        if (!file) return;
+        file.role = normalizeVideoReferenceRole(select.value);
+        const engine = byId('crump53VideoEngine')?.value || 'quick';
+        setStatus(
+          'crump53VideoStatus',
+          engine === 'extendable'
+            ? 'Reference role updated. Extendable uses the role as best-effort appearance guidance; review every role, then press Create video to confirm.'
+            : 'Reference role updated. This engine still uses one image as its starting frame; the role tells Crump what to emphasize, not what can be pixel-locked.',
+        );
+      });
+    });
     grid.querySelectorAll('[data-video-reference-remove]').forEach(button => {
       button.addEventListener('click', () => {
         const fileId = String(button.dataset.videoReferenceRemove || '');
         state.videoReferenceFiles = state.videoReferenceFiles.filter(file => String(file.id) !== fileId);
-        renderVideoReferences();
+        updateVideoReferenceMode(byId('crump53VideoEngine')?.value || 'quick');
       });
     });
     const owner = videoOwner();
@@ -1121,11 +1170,12 @@
         if (!isCurrentVideoSession(owner, ownerEpoch)) return;
         if (!stored?.id || !stored?.url) throw new Error('The reference upload did not finish.');
         if (!state.videoReferenceFiles.some(item => String(item.id) === String(stored.id))) {
-          state.videoReferenceFiles.push(stored);
+          state.videoReferenceFiles.push({...stored, role: 'subject'});
         }
       }
       renderVideoReferences();
       const count = state.videoReferenceFiles.length;
+      state.videoReferenceHandoffInvalid = false;
       setStatus('crump53VideoStatus', `${count} private reference image${count === 1 ? '' : 's'} ready.`);
       if (incoming.length > available) {
         window.showToast?.(`Only ${available} image${available === 1 ? '' : 's'} fit this engine's reference limit.`, 'warning');
@@ -1145,23 +1195,34 @@
 
   function updateVideoReferenceMode(engine) {
     const limit = videoReferenceLimit(engine);
+    const status = byId('crump53VideoStatus');
     if (state.videoReferenceFiles.length > limit) {
-      state.videoReferenceFiles = state.videoReferenceFiles.slice(0, limit);
-      window.showToast?.('Extra references remain safe in Files but were removed from this video request.', 'info');
+      if (status) status.dataset.videoReferenceLimitError = 'true';
+      setStatus(
+        'crump53VideoStatus',
+        `${engine === 'extendable' ? 'Extendable accepts up to three appearance references.' : 'This engine accepts one starting image.'} Remove ${state.videoReferenceFiles.length - limit} before creating.`,
+        true,
+      );
+    } else if (status?.dataset.videoReferenceLimitError === 'true') {
+      delete status.dataset.videoReferenceLimitError;
+      const count = state.videoReferenceFiles.length;
+      setStatus('crump53VideoStatus', count
+        ? `${count} private reference image${count === 1 ? '' : 's'} ready. Review the engine, then press Create video to confirm.`
+        : 'Add an optional reference image, or create the video from the prompt alone.');
     }
     const input = byId('crump53VideoReferenceInput');
     const label = byId('crump53VideoReferenceLabel');
     const help = byId('crump53VideoReferenceHelp');
     if (input) input.multiple = limit > 1;
     if (engine === 'extendable') {
-      if (label) label.textContent = 'Optional appearance references · up to 3';
-      if (help) help.textContent = 'Use a person, character, product, vehicle, or logo-on-product image to guide appearance across the scene.';
+      if (label) label.textContent = 'Optional appearance guidance · up to 3';
+      if (help) help.textContent = 'Veo Fast uses each assigned role as best-effort appearance guidance, not as a pixel-locked frame or layout.';
     } else if (engine === 'cinematic') {
-      if (label) label.textContent = 'Optional cinematic starting image';
-      if (help) help.textContent = 'Runway animates this image as the first frame of the 5- or 10-second scene.';
+      if (label) label.textContent = 'Optional cinematic starting frame';
+      if (help) help.textContent = 'Runway uses one image as the starting frame; the selected role says what to emphasize.';
     } else {
-      if (label) label.textContent = 'Optional starting image';
-      if (help) help.textContent = 'Veo Lite animates this image as the first frame of the 8-second scene.';
+      if (label) label.textContent = 'Optional starting frame';
+      if (help) help.textContent = 'Veo Lite uses one image as the starting frame; the selected role says what to emphasize.';
     }
     renderVideoReferences();
   }
@@ -2754,6 +2815,10 @@
       setStatus('crump53VideoStatus', 'Wait for the private reference upload to finish before creating the video.', true);
       return;
     }
+    if (state.videoReferenceHandoffInvalid) {
+      setStatus('crump53VideoStatus', 'One or more chat reference images could not be loaded. Reattach them before creating the video.', true);
+      return;
+    }
     const unresolvedRequest = readStoredVideoRequest(owner);
     const pendingJob = readStoredVideoJob(owner) || (
       unresolvedRequest?.reconciliationPending ? String(unresolvedRequest.jobId || '') : ''
@@ -2776,6 +2841,18 @@
     const resolution = byId('crump53VideoResolution')?.value || '720p';
     const aspectRatio = byId('crump53VideoAspect')?.value || '16:9';
     const durationSeconds = Number(byId('crump53VideoDuration')?.value || 5);
+    const referenceLimit = videoReferenceLimit(engine);
+    if (state.videoReferenceFiles.length > referenceLimit) {
+      const status = byId('crump53VideoStatus');
+      if (status) status.dataset.videoReferenceLimitError = 'true';
+      setStatus(
+        'crump53VideoStatus',
+        `${engine === 'extendable' ? 'Extendable can use up to three appearance references.' : 'Quick and Cinematic use one starting image.'} Remove ${state.videoReferenceFiles.length - referenceLimit} before creating.`,
+        true,
+      );
+      byId('crump53VideoEngine')?.focus({preventScroll: true});
+      return;
+    }
     const request = {
       prompt,
       engine,
@@ -2784,6 +2861,7 @@
       durationSeconds,
       projectId: state.activeProject?.id || null,
       referenceFileIds: state.videoReferenceFiles.map(file => String(file.id || '')).filter(Boolean),
+      referencePlan: videoReferencePlan(),
     };
     const fingerprint = videoRequestFingerprint(request);
     const storedRequest = readStoredVideoRequest(owner);
@@ -3169,11 +3247,73 @@
     return true;
   }
 
+  function hydrateVideoHandoffReferences(handoff) {
+    const requestedReferences = Array.isArray(handoff?.referenceFiles) ? handoff.referenceFiles : [];
+    const seen = new Set();
+    const references = requestedReferences.flatMap(file => {
+      const id = String(file?.id || '').trim();
+      const type = String(file?.type || '').toLowerCase();
+      if (!id || !type.startsWith('image/') || seen.has(id)) return [];
+      seen.add(id);
+      return [{
+        id,
+        name: String(file?.name || 'Reference image'),
+        type,
+        size: Math.max(0, Number(file?.size || 0)),
+        role: normalizeVideoReferenceRole(file?.role),
+        status: 'ready',
+        url: `/api/files/${encodeURIComponent(id)}/content`,
+      }];
+    });
+    state.videoReferenceFiles = references;
+    state.videoReferenceHandoffInvalid = false;
+    const status = byId('crump53VideoStatus');
+    if (status) delete status.dataset.videoReferenceLimitError;
+    renderVideoReferences();
+    return references;
+  }
+
   async function openVideoCreationHandoff(handoff, {start = false} = {}) {
     const brief = String(handoff?.brief || '').trim();
     openStudio('video');
     const prompt = byId('crump53VideoPrompt');
     if (prompt && brief) prompt.value = brief;
+    const requestedReferenceCount = Array.isArray(handoff?.referenceFiles) ? handoff.referenceFiles.length : 0;
+    const references = hydrateVideoHandoffReferences(handoff);
+    if (requestedReferenceCount !== references.length) {
+      state.videoReferenceHandoffInvalid = true;
+      setStatus(
+        'crump53VideoStatus',
+        `Only ${references.length} of ${requestedReferenceCount} chat reference images could be loaded. Reattach the missing images before creating; the video has not started.`,
+        true,
+      );
+      byId('crump53AddVideoReference')?.focus({preventScroll: true});
+      return true;
+    }
+    if (references.length) {
+      const engine = byId('crump53VideoEngine');
+      if (references.length > 1 && engine) {
+        engine.value = 'extendable';
+        updateVideoStudio();
+      }
+      const modeGuidance = references.length > videoReferenceLimit('extendable')
+        ? `Video engines accept at most three references, so remove ${references.length - videoReferenceLimit('extendable')} before creating.`
+        : references.length > 1
+          ? 'Extendable is selected because it can use up to three images as best-effort appearance references.'
+          : 'Choose Quick or Cinematic to animate this as a starting frame, or Extendable to use it as a best-effort appearance reference.';
+      const status = byId('crump53VideoStatus');
+      if (status) {
+        if (references.length > videoReferenceLimit('extendable')) status.dataset.videoReferenceLimitError = 'true';
+        else delete status.dataset.videoReferenceLimitError;
+      }
+      setStatus(
+        'crump53VideoStatus',
+        `${references.length} chat reference image${references.length === 1 ? '' : 's'} ready. ${modeGuidance} Confirm each reference role, review the engine and images, then press Create video to confirm. Exact logos and readable text are not locked by generative video; use an approved overlay when exact branding matters.`,
+        references.length > videoReferenceLimit('extendable'),
+      );
+      byId('crump53VideoEngine')?.focus({preventScroll: true});
+      return true;
+    }
     if (!start) {
       prompt?.focus({preventScroll: true});
       return true;

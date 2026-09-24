@@ -1249,6 +1249,7 @@ def test_browser_completion_path_cannot_claim_server_activation():
 
 def test_server_activation_boundary_is_versioned_for_web_pwa_and_native():
     version = "5.9.76-server-authoritative-activation-1"
+    runtime_version = "5.9.76-reference-fidelity-1"
     shell = (ROOT / "public" / "app.html").read_text(encoding="utf-8")
     runtime = (ROOT / "public" / "runtime-body-v1.js").read_text(encoding="utf-8")
     worker = (ROOT / "public" / "sw.js").read_text(encoding="utf-8")
@@ -1260,14 +1261,14 @@ def test_server_activation_boundary_is_versioned_for_web_pwa_and_native():
         encoding="utf-8"
     )
 
-    assert f"/runtime-body-v1.js?v={version}" in shell
-    assert f"/runtime-body-v1.js?v={version}" in worker
+    assert f"/runtime-body-v1.js?v={runtime_version}" in shell
+    assert f"/runtime-body-v1.js?v={runtime_version}" in worker
     for asset in ("app.js", "product-analytics.js"):
         versioned = f"/{asset}?v={version}"
         assert versioned in runtime
         assert versioned in worker
         assert versioned in native
-    assert "ask-crump-new-body-v1-r254" in worker
+    assert "ask-crump-new-body-v1-r255" in worker
     assert "ask-crump-new-body-v1-r253" in upgrade
     assert "ask-crump-new-body-v1-r254" in upgrade
     assert "tests', 'fixtures', 'activation-cache-r253" in upgrade

@@ -188,8 +188,10 @@ async def create_video(request: Request):
         reference_images = await video.prepare_reference_images(
             user_id=auth.user["id"],
             file_ids=payload.get("referenceFileIds"),
+            reference_plan=payload.get("referencePlan"),
             engine=engine,
         )
+        reference_receipt = video.reference_receipt(reference_images)
     except VideoServiceError as exc:
         return _video_error(exc, stage="references")
 
@@ -231,6 +233,12 @@ async def create_video(request: Request):
         "resolution": resolution,
         "durationSeconds": duration,
         "referenceImageCount": len(reference_images),
+        "referencePlan": reference_receipt,
+        "referenceMode": (
+            "appearance-guidance" if reference_images and engine == video.EXTENDABLE
+            else "initial-frame" if reference_images
+            else None
+        ),
     }
     try:
         authorization = await features.authorize(

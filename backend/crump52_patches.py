@@ -31,8 +31,10 @@ _FILE_KINDS = {"upload", "generated_image", "generated_document"}
 _FILE_STATUS = {"pending", "ready", "failed"}
 _REQUEST_META_KEYS = {
     "creativeTool", "imageAspect", "imageQuality", "imageUseReference",
+    "imageReferencePlanConfirmed",
     "artifactFormat", "artifactPurpose", "needsSearch", "taskType", "longForm",
 }
+_IMAGE_REFERENCE_ROLES = {"base", "subject", "mascot", "logo", "typography", "style"}
 _METADATA_STRING_LIMITS = {
     "prompt": 4000,
     "title": 500,
@@ -151,6 +153,26 @@ def _safe_artifact_recovery(value: Any) -> dict[str, Any] | None:
     if str(value.get("purpose") or "").strip().lower() == "resume" and fmt in {"docx", "pdf"}:
         recovery["purpose"] = "resume"
     return recovery
+
+
+def _safe_image_reference_plan(value: Any) -> list[dict[str, str]]:
+    if not isinstance(value, list) or not 1 <= len(value) <= 4:
+        return []
+    result: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for item in value:
+        if not isinstance(item, dict):
+            return []
+        try:
+            file_id = str(uuid.UUID(str(item.get("fileId") or "").strip()))
+        except (ValueError, TypeError, AttributeError):
+            return []
+        role = sync_module.clean_text(item.get("role"), 20).lower()
+        if file_id in seen or role not in _IMAGE_REFERENCE_ROLES:
+            return []
+        seen.add(file_id)
+        result.append({"fileId": file_id, "role": role})
+    return result
 
 
 def _safe_project_attachments(value: Any) -> dict[str, dict[str, Any]]:
@@ -294,6 +316,9 @@ def _sanitize_message_v52(item: Any) -> dict[str, Any] | None:
                 cleaned = sync_module.clean_text(value, 100)
                 if cleaned:
                     clean_meta[key] = cleaned
+        image_reference_plan = _safe_image_reference_plan(request_meta.get("imageReferencePlan"))
+        if image_reference_plan:
+            clean_meta["imageReferencePlan"] = image_reference_plan
         if clean_meta:
             message["requestMeta"] = clean_meta
 

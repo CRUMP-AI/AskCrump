@@ -17,10 +17,10 @@ def test_product_starter_waits_for_the_real_runtime_instead_of_a_timer_guess():
     assert "window.addEventListener('crump:body-runtime-ready', flushPendingProduct);" in body
     assert "document.documentElement.dataset.crumpBodyRuntime === 'ready'" in body
     assert "window.setTimeout(() => window.CrumpProduct53?.open?.(tab), 120)" not in body
-    assert runtime.index("['/crump-product-loader.js?v=5.9.76-product-studio-owner-reconciliation-1', 'crumpproductloader']") < runtime.index(
+    assert runtime.index("['/crump-product-loader.js?v=5.9.76-reference-fidelity-1', 'crumpproductloader']") < runtime.index(
         "window.dispatchEvent(new CustomEvent('crump:body-runtime-ready'))"
     )
-    assert "/crump-product-5.3.js?v=5.9.76-owner-reconciliation-1" not in runtime
+    assert "/crump-product-5.3.js?v=5.9.76-reference-fidelity-1" not in runtime
     assert "for (const [url, key] of scriptPlan)" in runtime
 
 

@@ -36,6 +36,16 @@ logger = logging.getLogger('askcrump.media')
 IMAGE_REQUEST_TIMEOUT_SECONDS = 240.0
 IMAGE_TRANSIENT_RETRY_DELAY_SECONDS = 0.75
 IMAGE_MAX_ATTEMPTS = 2
+IMAGE_REFERENCE_LIMIT = 4
+IMAGE_REFERENCE_TOTAL_MAX_BYTES = 48 * 1024 * 1024
+IMAGE_REFERENCE_ROLES = {
+    'base': 'starting canvas and composition',
+    'subject': 'subject or product appearance',
+    'mascot': 'mascot or character identity and appearance',
+    'logo': 'logo or wordmark identity',
+    'typography': 'typography and text-layout treatment',
+    'style': 'color palette, lighting, and visual style',
+}
 EDIT_IMAGE_MAX_EDGE = 4096
 EDIT_IMAGE_MAX_PIXELS = 8_388_608
 IMAGE_EDIT_PROVIDER_MAX_BYTES = 50 * 1024 * 1024
@@ -775,6 +785,98 @@ class MediaService:
         )
 
     @staticmethod
+    def _image_reference_plan(
+        payload: dict[str, Any],
+        image_rows: list[dict[str, Any]],
+    ) -> list[dict[str, str]]:
+        """Return one bounded, owner-resolved role for every provider input."""
+        if len(image_rows) > IMAGE_REFERENCE_LIMIT:
+            raise AIServiceError(
+                f'Image Studio accepts up to {IMAGE_REFERENCE_LIMIT} reference images per generation.',
+                400,
+                'TOO_MANY_IMAGE_REFERENCES',
+                False,
+                0,
+            )
+        if not image_rows:
+            return []
+
+        raw_plan = payload.get('imageReferencePlan')
+        if raw_plan is None:
+            return [
+                {
+                    'fileId': str(row.get('id') or ''),
+                    'role': 'base' if index == 0 else 'subject',
+                    'name': str(row.get('file_name') or f'Reference {index + 1}')[:255],
+                }
+                for index, row in enumerate(image_rows)
+            ]
+        if payload.get('imageReferencePlanConfirmed') is not True:
+            raise AIServiceError(
+                'Review and confirm what each reference controls before generating.',
+                400,
+                'IMAGE_REFERENCE_CONFIRMATION_REQUIRED',
+                False,
+                0,
+            )
+        if not isinstance(raw_plan, list) or len(raw_plan) != len(image_rows):
+            raise AIServiceError(
+                'Confirm one reference role for every attached image before generating.',
+                400,
+                'IMAGE_REFERENCE_PLAN_INVALID',
+                False,
+                0,
+            )
+
+        roles_by_id: dict[str, str] = {}
+        for item in raw_plan:
+            if not isinstance(item, dict):
+                roles_by_id = {}
+                break
+            file_id = str(item.get('fileId') or '').strip()
+            role = str(item.get('role') or '').strip().lower()
+            if not file_id or file_id in roles_by_id or role not in IMAGE_REFERENCE_ROLES:
+                roles_by_id = {}
+                break
+            roles_by_id[file_id] = role
+
+        expected_ids = [str(row.get('id') or '') for row in image_rows]
+        if set(roles_by_id) != set(expected_ids):
+            raise AIServiceError(
+                'The reference plan no longer matches the attached images. Reopen Image Studio and confirm it again.',
+                400,
+                'IMAGE_REFERENCE_PLAN_INVALID',
+                False,
+                0,
+            )
+        return [
+            {
+                'fileId': file_id,
+                'role': roles_by_id[file_id],
+                'name': str(row.get('file_name') or f'Reference {index + 1}')[:255],
+            }
+            for index, (file_id, row) in enumerate(zip(expected_ids, image_rows))
+        ]
+
+    @staticmethod
+    def _reference_fidelity_prompt(prompt: str, reference_plan: list[dict[str, str]]) -> str:
+        """Index every input and make its role explicit to the edit model."""
+        mapping = '\n'.join(
+            f"- Input image {index}: {IMAGE_REFERENCE_ROLES[item['role']]} ({item['role']})."
+            for index, item in enumerate(reference_plan, start=1)
+        )
+        return (
+            f'{prompt}\n\n'
+            'Reference plan — treat these inputs as visual constraints, not a mood board:\n'
+            f'{mapping}\n'
+            'Use only the assigned role from each numbered input. Preserve distinctive silhouette, proportions, '
+            'facial or character features, colors, and design details. Do not substitute, reimagine, or merge identities. '
+            'For a logo or typography reference, copy only what is visibly supplied: do not invent letters, redraw the '
+            'mark in another style, or replace it with a similar symbol. If the exact mark cannot be preserved reliably, '
+            'leave that area clean for deterministic overlay instead of fabricating it.'
+        )
+
+    @staticmethod
     def _generation_fidelity_prompt(prompt: str) -> str:
         request = str(prompt or '').strip() or 'Create a polished image.'
         return (
@@ -1008,11 +1110,19 @@ class MediaService:
             raise AIServiceError('Image generation is not configured.', 503, 'IMAGE_NOT_CONFIGURED', False, 0)
         prompt = str(payload.get('message') or '').strip()
         precision_editing = bool(image_edit_mask)
-        editing = precision_editing or self.is_edit_request(prompt, file_rows) or bool(payload.get('imageUseReference') and any(row.get('mime_type') in IMAGE_TYPES for row in file_rows))
+        image_rows = [row for row in file_rows if row.get('mime_type') in IMAGE_TYPES]
+        reference_plan = self._image_reference_plan(payload, image_rows)
+        # This method is called only after the request has been classified as image creation.
+        # Any attached image is therefore a provider input, even for legacy clients that did
+        # not set imageUseReference. Never silently fall back to text-only generation.
+        editing = precision_editing or bool(image_rows) or self.is_edit_request(prompt, file_rows)
         if precision_editing:
             provider_prompt = self._precision_edit_prompt(prompt)
         elif editing:
-            provider_prompt = self._edit_fidelity_prompt(prompt)
+            provider_prompt = self._reference_fidelity_prompt(
+                self._edit_fidelity_prompt(prompt),
+                reference_plan,
+            )
         else:
             provider_prompt = self._generation_fidelity_prompt(prompt)
         if not prompt:
@@ -1025,8 +1135,7 @@ class MediaService:
         try:
             async with httpx.AsyncClient(timeout=httpx.Timeout(IMAGE_REQUEST_TIMEOUT_SECONDS, connect=20.0)) as client:
                 if editing:
-                    source = next((row for row in file_rows if row.get('mime_type') in IMAGE_TYPES), None)
-                    if not source:
+                    if not image_rows:
                         raise AIServiceError(
                             'Add the image you want to edit and try again.',
                             400,
@@ -1034,35 +1143,46 @@ class MediaService:
                             False,
                             0,
                         )
-                    image_bytes = await self.files.download_bytes(row=source, max_bytes=25 * 1024 * 1024)
                     provider_mask_bytes: bytes | None = None
-                    if precision_editing:
-                        if self.settings.openai_image_model != 'gpt-image-2':
+                    multipart: list[tuple[str, tuple[str, bytes, str]]] = []
+                    prepared_total = 0
+                    for index, source in enumerate(image_rows):
+                        image_bytes = await self.files.download_bytes(row=source, max_bytes=25 * 1024 * 1024)
+                        if precision_editing and index == 0:
+                            if self.settings.openai_image_model != 'gpt-image-2':
+                                raise AIServiceError(
+                                    'Precision Edit is temporarily unavailable on the configured image model.',
+                                    503,
+                                    'PRECISION_EDIT_MODEL_UNAVAILABLE',
+                                    False,
+                                    0,
+                                )
+                            (
+                                image_bytes,
+                                provider_mask_bytes,
+                                precision_source,
+                                precision_selection,
+                                size,
+                            ) = self._prepare_precision_edit(image_bytes, str(image_edit_mask or ''))
+                            output_format = 'png'
+                        else:
+                            image_bytes, _, _ = self._prepare_edit_image(image_bytes)
+                        prepared_total += len(image_bytes)
+                        if prepared_total > IMAGE_REFERENCE_TOTAL_MAX_BYTES:
                             raise AIServiceError(
-                                'Precision Edit is temporarily unavailable on the configured image model.',
-                                503,
-                                'PRECISION_EDIT_MODEL_UNAVAILABLE',
+                                'Those reference images are too large together. Use fewer or smaller images and try again.',
+                                413,
+                                'IMAGE_REFERENCES_TOO_LARGE',
                                 False,
                                 0,
                             )
-                        (
-                            image_bytes,
-                            provider_mask_bytes,
-                            precision_source,
-                            precision_selection,
-                            size,
-                        ) = self._prepare_precision_edit(image_bytes, str(image_edit_mask or ''))
-                        output_format = 'png'
-                    else:
-                        image_bytes, image_name, image_mime = self._prepare_edit_image(image_bytes)
-                    image_name = 'Crump_Edit_Source.png'
-                    image_mime = 'image/png'
+                        multipart.append((
+                            'image[]',
+                            (f'Crump_Reference_{index + 1:02d}.png', image_bytes, 'image/png'),
+                        ))
                     endpoint = 'https://api.openai.com/v1/images/edits'
-                    multipart = {
-                        'image[]': (image_name, image_bytes, image_mime),
-                    }
                     if provider_mask_bytes is not None:
-                        multipart['mask'] = ('Crump_Edit_Mask.png', provider_mask_bytes, 'image/png')
+                        multipart.append(('mask', ('Crump_Edit_Mask.png', provider_mask_bytes, 'image/png')))
                     form = {
                         'model': self.settings.openai_image_model,
                         'prompt': provider_prompt,
@@ -1137,22 +1257,49 @@ class MediaService:
                 'quality': quality,
                 'edited': editing,
                 'precisionEdit': precision_editing,
-                'sourceFileId': str(file_rows[0].get('id') or '') if editing and file_rows else None,
+                'sourceFileId': reference_plan[0]['fileId'] if reference_plan else None,
+                'sourceFileIds': [item['fileId'] for item in reference_plan],
+                'referencePlan': [
+                    {'fileId': item['fileId'], 'role': item['role']}
+                    for item in reference_plan
+                ],
             },
         )
         public = self.files.public_file(stored)
         image_aspect = self.image_aspect_for_size(size)
+        reference_receipt = [
+            {'fileId': item['fileId'], 'role': item['role'], 'input': index}
+            for index, item in enumerate(reference_plan, start=1)
+        ]
+        if precision_editing:
+            response_text = 'I edited only the area you selected.'
+        elif reference_receipt:
+            mapping = ', '.join(
+                f"reference {item['input']} as {item['role']}"
+                for item in reference_receipt
+            )
+            response_text = (
+                f'I used {mapping}. The references were sent as visual constraints, not just prompt inspiration. '
+                'Generative output can still vary in logos and typography, so verify those before publishing; '
+                'use Exact Overlay when the original pixels must remain unchanged.'
+            )
+        else:
+            response_text = 'I created the image you requested.'
         return {
-            'response': (
-                'I edited only the area you selected.'
-                if precision_editing
-                else ('I edited the image you provided.' if editing else 'I created the image you requested.')
-            ),
+            'response': response_text,
             'model': self.settings.openai_image_model,
             'imageUrl': public['url'],
             'imagePrompt': str(item.get('revised_prompt') or prompt),
             'imageAspect': image_aspect,
             'imageFile': public,
+            'referencePlan': reference_receipt,
+            'referenceReview': {
+                'status': 'review-required' if reference_receipt else 'not-applicable',
+                'message': (
+                    'Verify logos, wordmarks, readable text, and mascot details before publishing.'
+                    if reference_receipt else ''
+                ),
+            },
         }
 
     async def understand(

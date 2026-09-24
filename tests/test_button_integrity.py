@@ -49,15 +49,15 @@ DYNAMIC_BUTTON_INVENTORY = {
     "public/ui-functions.js": 16,
 }
 INDIRECT_DYNAMIC_BUTTON_OWNERS = {
-    "public/crump-5.0.js:1451:close": (
+    "public/crump-5.0.js:1631:close": (
         "mountLightbox(box, close);",
         "closeButton.addEventListener('click', dismiss)",
     ),
-    "public/crump-5.0.js:1528:close": (
+    "public/crump-5.0.js:1708:close": (
         "mountLightbox(box, close);",
         "closeButton.addEventListener('click', dismiss)",
     ),
-    "public/crump-5.0.js:1748:project": (
+    "public/crump-5.0.js:1928:project": (
         "wireOutputProjectAction(project, {",
         "button.addEventListener('click', async () => {",
     ),
@@ -634,10 +634,13 @@ def test_browser_control_matrix_is_fail_closed_and_one_command() -> None:
     package_lock = json.loads((ROOT / "package-lock.json").read_text(encoding="utf-8"))
     workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     verifier_names = sorted(path.name for path in (ROOT / "scripts").glob("verify-*.cjs"))
-    historical = {"verify-autonomous-crump-cache-upgrade.cjs"}
+    historical = {
+        "verify-autonomous-crump-cache-upgrade.cjs",
+        "verify-server-authoritative-activation-cache-upgrade.cjs",
+    }
     active_verifiers = [name for name in verifier_names if name not in historical]
 
-    assert len(verifier_names) == 53
+    assert len(verifier_names) == 54
     assert len(active_verifiers) == 52
     for name in verifier_names:
         assert f"'{name}'" in runner
