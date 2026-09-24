@@ -451,7 +451,7 @@ reset role;
 select pg_temp.assert_true(
   (
     select count(*) = 1
-      and min(id) = '31000000-0000-4000-8000-000000000001'::uuid
+      and bool_and(id = '31000000-0000-4000-8000-000000000001'::uuid)
     from fairness_second
   ),
   'the formerly locked oldest row was starved after its lock cleared'
