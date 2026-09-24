@@ -34,6 +34,8 @@
     precisionImageEdit: null,
     imageReferencePlanConfirmed: false,
   };
+  let composerAuthSequence = 0;
+  const activeUploads = new Set();
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
@@ -129,9 +131,28 @@
       progress: 0,
       server: null,
       controller: null,
+      authController: new AbortController(),
+      authSequence: composerAuthSequence,
       previewUrl: file.type?.startsWith('image/') ? URL.createObjectURL(file) : null,
       promise: null,
     };
+  }
+
+  function composerBoundaryAbortError() {
+    return Object.assign(new Error('This upload belongs to a previous authentication session.'), {name: 'AbortError'});
+  }
+
+  function composerUploadIsCurrent(item, sequence = item?.authSequence) {
+    return Number(sequence) === composerAuthSequence && !item?.authController?.signal?.aborted;
+  }
+
+  function assertComposerUploadCurrent(item, sequence = item?.authSequence) {
+    if (!composerUploadIsCurrent(item, sequence)) throw composerBoundaryAbortError();
+  }
+
+  function revokeAttachmentPreview(item) {
+    if (item?.previewUrl?.startsWith('blob:')) URL.revokeObjectURL(item.previewUrl);
+    if (item) item.previewUrl = null;
   }
 
   function addRemoteReference(file, { imageReference = false, imageReferenceRole = '' } = {}) {
@@ -232,6 +253,7 @@
   }
 
   async function addFiles(fileList, {imageReference = false} = {}) {
+    const authSequence = composerAuthSequence;
     const incoming = [...(fileList || [])];
     if (!incoming.length) return;
     const available = Math.max(0, MAX_FILES - state.attachments.length);
@@ -241,12 +263,14 @@
     }
     for (const original of incoming.slice(0, available)) {
       const file = await normalizeInputFile(original);
+      if (authSequence !== composerAuthSequence) return;
       const issue = validateFile(file);
       if (issue) {
         show(issue, 'error');
         continue;
       }
       const item = makeLocalAttachment(file);
+      item.authSequence = authSequence;
       if (imageReference && isSupportedImageFile(file)) {
         item.imageReference = true;
         item.imageReferenceRole = imageReferenceRoleFor(item, state.attachments.filter(isImageAttachment).length);
@@ -255,20 +279,27 @@
       state.attachments.push(item);
       item.promise = uploadItem(item);
     }
-    renderAttachmentTray();
+    if (authSequence === composerAuthSequence) renderAttachmentTray();
   }
 
   async function uploadItem(item) {
+    const authSequence = Number.isInteger(item?.authSequence) ? item.authSequence : composerAuthSequence;
+    item.authSequence = authSequence;
+    item.authController ||= new AbortController();
+    activeUploads.add(item);
+    assertComposerUploadCurrent(item, authSequence);
     item.status = 'signing';
     renderAttachmentTray();
     try {
       const signed = await api('/api/files/sign-upload', {
         method: 'POST',
+        signal: item.authController.signal,
         body: JSON.stringify({
           name: item.name, type: item.type, size: item.size,
           chatId: window.currentChatId || null,
         }),
       });
+      assertComposerUploadCurrent(item, authSequence);
       item.server = signed.file;
       item.status = 'uploading';
       item.progress = 1;
@@ -281,27 +312,37 @@
           } else {
             await uploadSigned(item, signed.uploadUrl, signed.uploadToken);
           }
+          assertComposerUploadCurrent(item, authSequence);
           uploadError = null;
           break;
         } catch (error) {
           uploadError = error;
           if (error?.name === 'AbortError' || attempt === 1) throw error;
           await new Promise(resolve => setTimeout(resolve, 700));
+          assertComposerUploadCurrent(item, authSequence);
         }
       }
       if (uploadError) throw uploadError;
-      const completed = await api(`/api/files/${encodeURIComponent(item.server.id)}/complete`, {method: 'POST', body: '{}'});
+      const completed = await api(`/api/files/${encodeURIComponent(item.server.id)}/complete`, {
+        method: 'POST',
+        signal: item.authController.signal,
+        body: '{}',
+      });
+      assertComposerUploadCurrent(item, authSequence);
       item.server = completed.file;
       item.status = 'ready';
       item.progress = 100;
       renderAttachmentTray();
       return item.server;
     } catch (error) {
+      if (!composerUploadIsCurrent(item, authSequence)) throw error;
       item.status = error?.name === 'AbortError' ? 'cancelled' : 'failed';
       item.error = error.message || 'Upload failed.';
       renderAttachmentTray();
       if (item.status === 'failed') show(`${item.name}: ${item.error}`, 'error');
       throw error;
+    } finally {
+      activeUploads.delete(item);
     }
   }
 
@@ -314,7 +355,7 @@
       xhr.open('PUT', url, true);
       xhr.setRequestHeader('x-upsert', 'false');
       xhr.upload.addEventListener('progress', event => {
-        if (!event.lengthComputable) return;
+        if (!event.lengthComputable || !composerUploadIsCurrent(item)) return;
         item.progress = Math.max(1, Math.min(99, Math.round((event.loaded / event.total) * 100)));
         renderAttachmentTray();
       });
@@ -339,10 +380,11 @@
     return btoa(binary);
   }
 
-  async function tusOffset(url, token) {
+  async function tusOffset(url, token, signal) {
     const response = await fetch(url, {
       method: 'HEAD',
       headers: {'Tus-Resumable': '1.0.0', 'x-signature': token},
+      signal,
     });
     if (!response.ok) throw new Error(`Could not resume upload (${response.status}).`);
     return Number(response.headers.get('Upload-Offset') || 0);
@@ -358,7 +400,7 @@
       xhr.setRequestHeader('Content-Type', 'application/offset+octet-stream');
       xhr.setRequestHeader('x-signature', token);
       xhr.upload.addEventListener('progress', event => {
-        if (!event.lengthComputable) return;
+        if (!event.lengthComputable || !composerUploadIsCurrent(item)) return;
         const sent = offset + event.loaded;
         item.progress = Math.max(1, Math.min(99, Math.round((sent / item.size) * 100)));
         renderAttachmentTray();
@@ -382,6 +424,7 @@
     ].map(([key,value]) => `${key} ${tusMeta(value)}`).join(',');
     const create = await fetch(signed.resumableUrl, {
       method: 'POST',
+      signal: item.authController.signal,
       headers: {
         'Tus-Resumable': '1.0.0',
         'Upload-Length': String(item.size),
@@ -390,6 +433,7 @@
         'x-upsert': 'false',
       },
     });
+    assertComposerUploadCurrent(item);
     if (!create.ok) throw new Error(`Could not start resumable upload (${create.status}).`);
     let location = create.headers.get('Location');
     if (!location) throw new Error('Storage did not return a resumable upload location.');
@@ -401,13 +445,15 @@
       let uploaded = false;
       for (const delay of [0, 700, 1800]) {
         if (delay) await new Promise(resolve => setTimeout(resolve, delay));
+        assertComposerUploadCurrent(item);
         try {
           offset = await uploadTusChunk(item, location, signed.uploadToken, offset, chunk);
           uploaded = true;
           break;
         } catch (error) {
           if (error?.name === 'AbortError') throw error;
-          try { offset = await tusOffset(location, signed.uploadToken); } catch (_) {}
+          try { offset = await tusOffset(location, signed.uploadToken, item.authController.signal); } catch (_) {}
+          assertComposerUploadCurrent(item);
           if (offset >= item.size) { uploaded = true; break; }
         }
       }
@@ -422,7 +468,9 @@
     if (state.precisionImageEdit?.sourceId === item.server?.id) state.precisionImageEdit = null;
     if (isImageAttachment(item)) state.imageReferencePlanConfirmed = false;
     item.controller?.abort?.();
-    if (item.previewUrl?.startsWith('blob:')) URL.revokeObjectURL(item.previewUrl);
+    item.authController?.abort?.();
+    revokeAttachmentPreview(item);
+    item.file = null;
     renderAttachmentTray();
   }
 
@@ -515,6 +563,51 @@
     state.documentPurpose = null;
     renderToolChip();
     restoreComposerPlaceholder({focus});
+  }
+
+  function scrubComposerAuthBoundary() {
+    composerAuthSequence += 1;
+    const privateItems = new Set([...state.attachments, ...activeUploads]);
+    privateItems.forEach(item => {
+      void item?.promise?.catch?.(() => {});
+      item?.authController?.abort?.();
+      item?.controller?.abort?.();
+      revokeAttachmentPreview(item);
+      if (item) {
+        item.file = null;
+        item.server = null;
+      }
+    });
+    state.attachments = [];
+    state.imageAspect = 'square';
+    state.imageQuality = 'medium';
+    state.imageRecovery = null;
+    state.precisionImageEdit = null;
+    state.imageReferencePlanConfirmed = false;
+    state.sending = false;
+    document.body.classList.remove('crump50-sending');
+    window.CrumpPresence?.stop?.();
+
+    const input = $('#userInput');
+    if (input) {
+      input.value = '';
+      input.style.height = 'auto';
+      input.dispatchEvent(new Event('input', {bubbles: true}));
+    }
+    const fileInput = $('#fileInput');
+    if (fileInput) fileInput.value = '';
+    $$('input[data-crump50-reference-input]').forEach(referenceInput => {
+      referenceInput.value = '';
+      referenceInput.remove();
+    });
+
+    closeMenu();
+    state.lightbox?.remove();
+    state.lightbox = null;
+    state.lightboxReturnFocus = null;
+    try { window.CrumpPrecisionImageEditor?.close?.(); } catch (_) {}
+    renderAttachmentTray();
+    clearToolMode();
   }
 
   function renderToolChip() {
@@ -761,8 +854,10 @@
   function clearImageAttachments() {
     state.attachments.filter(isImageAttachment).forEach(item => {
       void item.promise?.catch?.(() => {});
+      item.authController?.abort?.();
       item.controller?.abort?.();
-      if (item.previewUrl?.startsWith('blob:')) URL.revokeObjectURL(item.previewUrl);
+      revokeAttachmentPreview(item);
+      item.file = null;
     });
     state.attachments = state.attachments.filter(item => !isImageAttachment(item));
     state.precisionImageEdit = null;
@@ -827,6 +922,7 @@
   }
 
   async function openPrecisionImageEdit(file, url, options = {}) {
+    const authSequence = composerAuthSequence;
     const overlayEntry = options.entryMode === 'overlay';
     const requestedReturnFocus = options.returnFocus instanceof HTMLElement && options.returnFocus.isConnected
       ? options.returnFocus
@@ -842,13 +938,16 @@
         show('Opening Precision Edit…', 'info');
         editor = await window.CrumpPrecisionImageEditLoader.load();
       }
+      if (authSequence !== composerAuthSequence) return false;
       if (editor?.open) {
         await editor.open({
           file,
           url,
           entryMode: overlayEntry ? 'overlay' : 'precision',
           returnFocus: requestedReturnFocus,
-          onApplied: ({file: savedFile}) => reflectAppliedImage(savedFile, options),
+          onApplied: ({file: savedFile}) => (
+            authSequence === composerAuthSequence && reflectAppliedImage(savedFile, options)
+          ),
         });
         return true;
       }
@@ -881,6 +980,7 @@
     input.type = 'file';
     input.multiple = true;
     input.accept = 'image/jpeg,image/png,image/webp,image/heic,image/heif,.heic,.heif';
+    input.dataset.crump50ReferenceInput = 'true';
     input.hidden = true;
     const cleanup = () => input.remove();
     input.addEventListener('cancel', cleanup, {once: true});
@@ -1311,6 +1411,7 @@
 
   async function studioSendMessage() {
     if (state.sending) return;
+    const authSequence = composerAuthSequence;
     const input = $('#userInput');
     const text = String(input?.value || '').trim();
     if (!text && !state.attachments.length) return;
@@ -1353,6 +1454,7 @@
     let referencePlanRecoveryMessage = null;
     try {
       const ready = await waitForUploads();
+      if (authSequence !== composerAuthSequence) throw composerBoundaryAbortError();
       if (unchangedRecoveredImageRequest(text, ready)) {
         show(
           state.imageRecovery?.changeRequired === 'reference'
@@ -1363,6 +1465,7 @@
         return;
       }
       await ensureUsage();
+      if (authSequence !== composerAuthSequence) throw composerBoundaryAbortError();
       let fresh = currentChat() || window.ensureCurrentChat?.();
       if (!fresh) throw new Error('Crump could not start a new conversation. Try again.');
       const now = new Date().toISOString();
@@ -1395,6 +1498,10 @@
       input.value = ''; input.style.height = 'auto';
       input.dispatchEvent(new Event('input', {bubbles: true}));
       const body = buildRequestBody(currentChat() || fresh, userMessage, ready);
+      ready.forEach(item => {
+        revokeAttachmentPreview(item);
+        item.file = null;
+      });
       state.attachments = [];
       state.precisionImageEdit = null;
       state.imageReferencePlanConfirmed = false;
@@ -1403,6 +1510,7 @@
       clearToolMode();
 
       const sync = await window.syncChatsToServer?.();
+      if (authSequence !== composerAuthSequence) throw composerBoundaryAbortError();
       if (sync && sync.success === false) throw Object.assign(new Error('This message is waiting to sync.'), {quiet: true});
       fresh = currentChat() || fresh;
       const liveUser = fresh.messages.find(item => item.id === userMessage.id) || userMessage;
@@ -1413,6 +1521,7 @@
         chatId: fresh.id || fresh.chat_id, messageId: userMessage.id, message: text,
         fileTypes: ready.map(item => item.server.type),
       });
+      if (authSequence !== composerAuthSequence) throw composerBoundaryAbortError();
       fresh = currentChat() || fresh;
       const acknowledged = fresh.messages.find(item => item.id === userMessage.id) || liveUser;
       Object.assign(acknowledged, {deliveryStatus: 'seen', deliveredAt: ack.deliveredAt, seenAt: ack.seenAt, replyStatus: 'processing', replyError: null});
@@ -1422,8 +1531,10 @@
       window.CrumpPresence?.start?.(sentTool === 'image' ? 'creating' : ready.length ? 'reading' : ack.activity || 'thinking');
 
       const data = await window.CrumpChatTransport.send(body);
+      if (authSequence !== composerAuthSequence) throw composerBoundaryAbortError();
       await applyCompletedReplySafely(fresh, userMessage, data);
     } catch (error) {
+      if (authSequence !== composerAuthSequence) return;
       window.CrumpPresence?.stop?.();
       const fresh = currentChat();
       const target = fresh?.messages?.find(item => item.id === userMessage?.id);
@@ -1446,10 +1557,12 @@
       if (!error.quiet) show(error.message || 'Crump could not complete that request.', 'error');
       window.CrumpPresence?.haptic?.('error');
     } finally {
-      state.sending = false;
-      document.body.classList.remove('crump50-sending');
-      if (referencePlanRecoveryMessage) reopenImageReferencePlan(referencePlanRecoveryMessage);
-      else focusComposer();
+      if (authSequence === composerAuthSequence) {
+        state.sending = false;
+        document.body.classList.remove('crump50-sending');
+        if (referencePlanRecoveryMessage) reopenImageReferencePlan(referencePlanRecoveryMessage);
+        else focusComposer();
+      }
     }
   }
 
@@ -1484,9 +1597,17 @@
 
   async function retryMessage(id) {
     if (state.sending) return;
+    const authSequence = composerAuthSequence;
     let chat = currentChat();
     let message = chat?.messages?.find(item => item.id === id && item.role === 'user');
     if (!chat || !message) return;
+    const retryChatId = String(chat.id || chat.chat_id || '');
+    const retryIsCurrent = () => authSequence === composerAuthSequence;
+    const retryChat = () => (
+      (Array.isArray(window.chats) ? window.chats : []).find(
+        item => String(item?.id || item?.chat_id || '') === retryChatId,
+      ) || chat
+    );
     if (IMAGE_REVISION_CODES.has(message.replyErrorCode)) {
       reviseImageMessage(id);
       return;
@@ -1496,32 +1617,38 @@
     try {
       window.CrumpPresence?.start?.('thinking');
       const recovered = await window.CrumpChatTransport?.recover?.(id);
+      if (!retryIsCurrent()) return;
       if (recovered) {
         await applyCompletedReplySafely(chat, message, recovered);
         return;
       }
       window.CrumpPresence?.stop?.();
       await ensureUsage();
+      if (!retryIsCurrent()) return;
       const ready = (message.files || []).filter(file => file?.id).map(file => ({status:'ready', server:file, name:file.name, type:file.type, size:file.size}));
       message.deliveryStatus = 'sending'; message.replyStatus = 'pending'; message.replyError = null;
       delete message.replyErrorCode;
       delete message.replyRecovery;
       saveAndRender(chat);
       await window.syncChatsToServer?.();
-      chat = currentChat() || chat;
+      if (!retryIsCurrent()) return;
+      chat = retryChat();
       message = chat.messages.find(item => item.id === id) || message;
       const ack = await window.CrumpChatTransport.acknowledge({
         chatId:chat.id || chat.chat_id, messageId:id, message:message.content || '', fileTypes:ready.map(item => item.server.type),
       });
+      if (!retryIsCurrent()) return;
       Object.assign(message, {deliveryStatus:'seen', deliveredAt:ack.deliveredAt, seenAt:ack.seenAt, replyStatus:'processing'});
       saveAndRender(chat);
       window.CrumpPresence?.start?.(ready.length ? 'reading' : ack.activity || 'thinking');
       const body = buildRequestBody(chat, message, ready);
       const data = await window.CrumpChatTransport.send(body);
+      if (!retryIsCurrent()) return;
       await applyCompletedReplySafely(chat, message, data);
     } catch (error) {
+      if (!retryIsCurrent()) return;
       window.CrumpPresence?.stop?.();
-      chat=currentChat() || chat; message=chat?.messages?.find(item => item.id===id) || message;
+      chat=retryChat(); message=chat?.messages?.find(item => item.id===id) || message;
       if (message) {
         message.replyStatus='failed'; message.replyError=error.message || 'Reply failed.';
         if (IMAGE_REVISION_CODES.has(error.code)) {
@@ -1533,7 +1660,9 @@
       }
       show(error.message || 'Retry failed.', 'error');
     } finally {
-      state.sending=false; document.body.classList.remove('crump50-sending');
+      if (retryIsCurrent()) {
+        state.sending=false; document.body.classList.remove('crump50-sending');
+      }
     }
   }
 
@@ -2224,10 +2353,13 @@
     },
     open: (file, download = false) => openFile(file, download),
     upload: async file => {
+      const authSequence = composerAuthSequence;
       const normalized = await normalizeInputFile(file);
+      if (authSequence !== composerAuthSequence) throw composerBoundaryAbortError();
       const issue = validateFile(normalized);
       if (issue) throw new Error(issue);
       const item = makeLocalAttachment(normalized);
+      item.authSequence = authSequence;
       try {
         return await uploadItem(item);
       } finally {
@@ -2258,6 +2390,7 @@
     window.setTimeout(sync, 700);
   }
   window.addEventListener('crump:conversation-opened', scheduleComposerPlaceholderSync);
+  window.CrumpAuthBoundary?.register?.('main-composer', scrubComposerAuthBoundary);
   function boot() {
     if (document.documentElement.dataset.crump50Booted === 'true') return;
     document.documentElement.dataset.crump50Booted = 'true';

@@ -21,7 +21,17 @@ const { chromium } = require(playwrightModule);
   page.on('pageerror', error => consoleErrors.push(error.message));
 
   await page.goto('http://127.0.0.1:8765/tests/fixtures/video-reference-upload.html', {waitUntil: 'networkidle'});
-  await page.evaluate(() => localStorage.removeItem('askcrump.videoRequest53'));
+  await page.evaluate(() => {
+    for (const base of ['askcrump.videoJob53', 'askcrump.videoRequest53']) {
+      localStorage.removeItem(base);
+      localStorage.removeItem(`${base}:${encodeURIComponent(window.__fixtureUser.id)}`);
+    }
+    localStorage.removeItem('askcrump.fixtureVideoAttempts');
+    localStorage.removeItem('askcrump.fixtureVideoProviderStarts');
+    localStorage.removeItem('askcrump.fixtureRecoveredVideoRequest');
+    localStorage.removeItem('askcrump.fixtureHoldNextVideoStart');
+    localStorage.removeItem('askcrump.fixtureHoldVideoPolls');
+  });
   await page.evaluate(() => {
     localStorage.removeItem('askcrump.videoReferenceDraft53');
     localStorage.removeItem(`askcrump.videoReferenceDraft53:${encodeURIComponent(window.__fixtureUser.id)}`);
@@ -118,7 +128,10 @@ const { chromium } = require(playwrightModule);
     localStorage.removeItem(`askcrump.videoReferenceDraft53:${encodeURIComponent(window.__fixtureUser.id)}`);
   });
   await page.reload({waitUntil: 'networkidle'});
-  await page.evaluate(() => localStorage.removeItem('askcrump.videoRequest53'));
+  await page.evaluate(() => {
+    localStorage.removeItem('askcrump.videoRequest53');
+    localStorage.removeItem(`askcrump.videoRequest53:${encodeURIComponent(window.currentUser.id)}`);
+  });
   await page.locator('#openVideo').click();
   await page.locator('#crump53VideoEngine').selectOption('extendable');
   await page.locator('#crump53VideoReferenceInput').setInputFiles([
@@ -163,7 +176,32 @@ const { chromium } = require(playwrightModule);
     };
   });
   await page.locator('#crump53VideoPrompt').fill('A blue school bus drives carefully through a quiet neighborhood.');
+  await page.evaluate(() => {
+    localStorage.removeItem('askcrump.fixtureVideoAttempts');
+    localStorage.setItem('askcrump.fixtureHoldNextVideoStart', 'true');
+  });
   await page.locator('#crump53GenerateVideo').click();
+  await page.waitForFunction(() => {
+    const key = `askcrump.videoRequest53:${encodeURIComponent(window.currentUser.id)}`;
+    return Boolean(localStorage.getItem(key));
+  });
+  const pendingRequestBeforeReload = await page.evaluate(() => {
+    const key = `askcrump.videoRequest53:${encodeURIComponent(window.currentUser.id)}`;
+    const raw = localStorage.getItem(key) || '';
+    return {
+      key,
+      raw,
+      value: JSON.parse(raw || 'null'),
+      globalJob: localStorage.getItem('askcrump.videoJob53') || '',
+      globalRequest: localStorage.getItem('askcrump.videoRequest53') || '',
+      attempts: JSON.parse(localStorage.getItem('askcrump.fixtureVideoAttempts') || '[]'),
+    };
+  });
+  await page.reload({waitUntil: 'networkidle'});
+  await page.locator('#openVideo').click();
+  await page.waitForFunction(() => (
+    window.__videoRecoveryLookups.length >= 1
+  ));
   await page.waitForFunction(() => Boolean(window.__videoRequest));
   await page.waitForFunction(() => (
     !localStorage.getItem(`askcrump.videoReferenceDraft53:${encodeURIComponent(window.currentUser.id)}`)
@@ -171,7 +209,7 @@ const { chromium } = require(playwrightModule);
   await page.waitForFunction(() => document.querySelectorAll('[data-video-reference-receipt] [data-reference-input]').length === 2);
 
   const result = await page.evaluate(() => {
-    const storedRequest = localStorage.getItem('askcrump.videoRequest53') || '';
+    const storedRequest = localStorage.getItem(`askcrump.videoRequest53:${encodeURIComponent(window.currentUser.id)}`) || '';
     const receipt = document.querySelector('[data-video-reference-receipt]');
     return {
       label: document.querySelector('#crump53VideoReferenceLabel')?.textContent || '',
@@ -198,6 +236,8 @@ const { chromium } = require(playwrightModule);
       runwayAttributionVisible: document.querySelector('#crump53RunwayAttribution')?.getClientRects().length > 0,
       mobileOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
       errorOverlay: Boolean(document.querySelector('[data-nextjs-dialog], .vite-error-overlay, #webpack-dev-server-client-overlay')),
+      attempts: JSON.parse(localStorage.getItem('askcrump.fixtureVideoAttempts') || '[]'),
+      recoveryLookups: window.__videoRecoveryLookups.slice(),
     };
   });
   const startingFrameReceipt = await page.evaluate(() => {
@@ -298,6 +338,7 @@ const { chromium } = require(playwrightModule);
   });
   await accountPage.waitForFunction(() => document.querySelectorAll('.crump53-video-reference-card').length === 1);
   await accountPage.locator('[data-video-reference-role]').selectOption('logo');
+  await accountPage.locator('#crump53VideoPrompt').fill('Private unsent account A video prompt.');
   const accountABeforeLogout = await accountPage.evaluate(() => {
     const key = `askcrump.videoReferenceDraft53:${encodeURIComponent(window.currentUser.id)}`;
     return {
@@ -316,6 +357,9 @@ const { chromium } = require(playwrightModule);
     cards: document.querySelectorAll('.crump53-video-reference-card').length,
     planHidden: document.querySelector('#crump53VideoReferencePlan')?.hidden === true,
     resultEmpty: !document.querySelector('#crump53VideoResult')?.textContent?.trim(),
+    promptEmpty: !document.querySelector('#crump53VideoPrompt')?.value,
+    fileInputEmpty: !document.querySelector('#crump53VideoReferenceInput')?.value,
+    generationBusy: document.querySelector('#crump53GenerateVideo')?.getAttribute('aria-busy') || '',
     accountADraftPreserved: Boolean(localStorage.getItem(key)),
   }), accountABeforeLogout.key);
   await accountPage.evaluate(user => {
@@ -326,12 +370,22 @@ const { chromium } = require(playwrightModule);
   const sameUserRestored = await accountPage.evaluate(() => ({
     names: [...document.querySelectorAll('.crump53-video-reference-card span')].map(item => item.textContent),
     roles: [...document.querySelectorAll('[data-video-reference-role]')].map(select => select.value),
+    prompt: document.querySelector('#crump53VideoPrompt')?.value || '',
   }));
+  await accountPage.evaluate(() => {
+    document.querySelector('#crump53VideoPrompt').value = 'Account A direct-switch secret.';
+    document.querySelector('#crump53VideoResult').textContent = 'Account A private result';
+  });
   await accountPage.evaluate(userId => {
     window.currentUser = {id: userId};
     window.dispatchEvent(new Event('crump:authenticated-ready'));
   }, accountBId);
   await accountPage.waitForFunction(() => document.querySelectorAll('.crump53-video-reference-card').length === 0);
+  const directSwitchScrub = await accountPage.evaluate(() => ({
+    promptEmpty: !document.querySelector('#crump53VideoPrompt')?.value,
+    resultEmpty: !document.querySelector('#crump53VideoResult')?.textContent?.trim(),
+    fileInputEmpty: !document.querySelector('#crump53VideoReferenceInput')?.value,
+  }));
   await accountPage.locator('#crump53VideoReferenceInput').setInputFiles({
     name: 'account-b.png',
     mimeType: 'image/png',
@@ -412,6 +466,7 @@ const { chromium } = require(playwrightModule);
     accountABeforeLogout,
     signedOutState,
     sameUserRestored,
+    directSwitchScrub,
     accountBStored,
     switchedBackToA,
     staleUserBlocked,
@@ -419,6 +474,296 @@ const { chromium } = require(playwrightModule);
     safeStorageMemoryFallback,
   };
   await accountPage.close();
+
+  const delayedRecoveryPage = await browser.newPage({viewport: {width: 390, height: 844}});
+  delayedRecoveryPage.on('console', message => {
+    if (message.type() === 'error') consoleErrors.push(`delayed recovery: ${message.text()}`);
+  });
+  delayedRecoveryPage.on('pageerror', error => consoleErrors.push(`delayed recovery: ${error.message}`));
+  await delayedRecoveryPage.goto('http://127.0.0.1:8765/tests/fixtures/video-reference-upload.html', {waitUntil: 'networkidle'});
+  const delayedRecovery = await delayedRecoveryPage.evaluate(async () => {
+    const userId = window.__fixtureUser.id;
+    const accountRequestKey = `askcrump.videoRequest53:${encodeURIComponent(userId)}`;
+    for (const base of ['askcrump.videoJob53', 'askcrump.videoRequest53']) {
+      localStorage.removeItem(base);
+      localStorage.removeItem(`${base}:${encodeURIComponent(userId)}`);
+    }
+    localStorage.removeItem('askcrump.fixtureRecoveredVideoRequest');
+    const providerStartsBefore = window.__videoProviderStarts;
+    localStorage.setItem(accountRequestKey, JSON.stringify({
+      version: 1,
+      userId,
+      idempotencyKey: 'delayed-recovery-key',
+      requestDigest: 'a'.repeat(64),
+      createdAt: Date.now(),
+    }));
+    window.dispatchEvent(new Event('crump:authenticated-ready'));
+    const startedAt = Date.now();
+    while (!window.__videoRecoveryLookups.length && Date.now() - startedAt < 3000) {
+      await new Promise(resolve => window.setTimeout(resolve, 25));
+    }
+    await new Promise(resolve => window.setTimeout(resolve, 250));
+    return {
+      lookups: window.__videoRecoveryLookups.slice(),
+      requestPreserved: Boolean(localStorage.getItem(accountRequestKey)),
+      providerStartsBefore,
+      providerStartsAfter: window.__videoProviderStarts,
+      status: document.querySelector('#crump53VideoStatus')?.textContent || '',
+    };
+  });
+  await delayedRecoveryPage.close();
+
+  const legacyWrongAccountPage = await browser.newPage({viewport: {width: 390, height: 844}});
+  legacyWrongAccountPage.on('console', message => {
+    if (message.type() === 'error') consoleErrors.push(`legacy wrong account: ${message.text()}`);
+  });
+  legacyWrongAccountPage.on('pageerror', error => consoleErrors.push(`legacy wrong account: ${error.message}`));
+  await legacyWrongAccountPage.goto('http://127.0.0.1:8765/tests/fixtures/video-reference-upload.html', {waitUntil: 'networkidle'});
+  const legacyWrongAccountIds = {
+    accountA: '00000000-0000-0000-0000-000000000001',
+    accountB: '00000000-0000-0000-0000-000000000002',
+    jobA: '00000000-0000-0000-0000-000000000093',
+  };
+  await legacyWrongAccountPage.evaluate(ids => {
+    for (const base of ['askcrump.videoJob53', 'askcrump.videoRequest53']) {
+      localStorage.removeItem(base);
+      localStorage.removeItem(`${base}:${encodeURIComponent(ids.accountA)}`);
+      localStorage.removeItem(`${base}:${encodeURIComponent(ids.accountB)}`);
+    }
+    localStorage.removeItem(`askcrump.videoLegacyJobIgnored53:${encodeURIComponent(ids.accountA)}`);
+    localStorage.removeItem(`askcrump.videoLegacyJobIgnored53:${encodeURIComponent(ids.accountB)}`);
+    localStorage.removeItem('askcrump.fixtureRecoveredVideoRequest');
+    localStorage.removeItem('askcrump.fixtureHoldVideoPolls');
+    localStorage.setItem('askcrump.fixtureVideoOwners', JSON.stringify({[ids.jobA]: ids.accountA}));
+    localStorage.setItem('askcrump.videoJob53', ids.jobA);
+    window.currentUser = {id: ids.accountB};
+    window.dispatchEvent(new Event('crump:authenticated-ready'));
+    window.CrumpProduct53.open('video');
+  }, legacyWrongAccountIds);
+  await legacyWrongAccountPage.waitForFunction(ids => (
+    window.__videoPollRequests.some(request => request.jobId === ids.jobA && request.userId === ids.accountB)
+    && localStorage.getItem(`askcrump.videoLegacyJobIgnored53:${encodeURIComponent(ids.accountB)}`) === ids.jobA
+  ), legacyWrongAccountIds);
+  const wrongAccountIgnored = await legacyWrongAccountPage.evaluate(ids => ({
+    rawLegacyJob: localStorage.getItem('askcrump.videoJob53') || '',
+    ignoredForB: localStorage.getItem(`askcrump.videoLegacyJobIgnored53:${encodeURIComponent(ids.accountB)}`) || '',
+    ignoredForA: localStorage.getItem(`askcrump.videoLegacyJobIgnored53:${encodeURIComponent(ids.accountA)}`) || '',
+    busy: document.querySelector('#crump53GenerateVideo')?.getAttribute('aria-busy') || '',
+  }), legacyWrongAccountIds);
+  await legacyWrongAccountPage.locator('#crump53VideoPrompt').fill('Account B can create after the foreign legacy job is ignored.');
+  await legacyWrongAccountPage.locator('#crump53GenerateVideo').click();
+  await legacyWrongAccountPage.waitForFunction(() => window.__videoProviderStarts >= 1);
+  await legacyWrongAccountPage.waitForFunction(() => (
+    document.querySelector('#crump53VideoStatus')?.textContent?.includes('Saved to Files')
+  ));
+  const wrongAccountCanCreate = await legacyWrongAccountPage.evaluate(ids => ({
+    providerStarts: window.__videoProviderStarts,
+    rawLegacyJob: localStorage.getItem('askcrump.videoJob53') || '',
+    ignoredForB: localStorage.getItem(`askcrump.videoLegacyJobIgnored53:${encodeURIComponent(ids.accountB)}`) || '',
+  }), legacyWrongAccountIds);
+  await legacyWrongAccountPage.evaluate(ids => {
+    window.currentUser = {id: ids.accountA};
+    window.dispatchEvent(new Event('crump:authenticated-ready'));
+  }, legacyWrongAccountIds);
+  await legacyWrongAccountPage.waitForFunction(ids => (
+    window.__videoPollRequests.some(request => request.jobId === ids.jobA && request.userId === ids.accountA)
+    && !localStorage.getItem('askcrump.videoJob53')
+  ), legacyWrongAccountIds);
+  const rightfulAccountRecovered = await legacyWrongAccountPage.evaluate(ids => ({
+    rawLegacyRemoved: !localStorage.getItem('askcrump.videoJob53'),
+    ignoredForA: localStorage.getItem(`askcrump.videoLegacyJobIgnored53:${encodeURIComponent(ids.accountA)}`) || '',
+    polls: window.__videoPollRequests.slice(),
+  }), legacyWrongAccountIds);
+  const legacyWrongAccountResume = {wrongAccountIgnored, wrongAccountCanCreate, rightfulAccountRecovered};
+  await legacyWrongAccountPage.close();
+
+  const resumePage = await browser.newPage({viewport: {width: 390, height: 844}});
+  resumePage.on('console', message => {
+    if (message.type() === 'error') consoleErrors.push(`owner resume: ${message.text()}`);
+  });
+  resumePage.on('pageerror', error => consoleErrors.push(`owner resume: ${error.message}`));
+  await resumePage.goto('http://127.0.0.1:8765/tests/fixtures/video-reference-upload.html', {waitUntil: 'networkidle'});
+  const ownerResumeIds = {
+    accountA: '00000000-0000-0000-0000-000000000001',
+    accountB: '00000000-0000-0000-0000-000000000002',
+    jobA: '00000000-0000-0000-0000-000000000091',
+    jobB: '00000000-0000-0000-0000-000000000092',
+  };
+  await resumePage.evaluate(ids => {
+    for (const base of ['askcrump.videoJob53', 'askcrump.videoRequest53']) {
+      localStorage.removeItem(base);
+      localStorage.removeItem(`${base}:${encodeURIComponent(ids.accountA)}`);
+      localStorage.removeItem(`${base}:${encodeURIComponent(ids.accountB)}`);
+    }
+    localStorage.removeItem('askcrump.fixtureVideoAttempts');
+    localStorage.setItem('askcrump.fixtureHoldVideoPolls', 'true');
+    localStorage.setItem('askcrump.videoRequest53', JSON.stringify({
+      idempotencyKey: 'legacy-request-without-owner',
+      fingerprint: '["private legacy prompt"]',
+      createdAt: Date.now(),
+    }));
+    // Production HEAD stored the pre-upgrade job as a raw UUID with no owner
+    // envelope. It must be owner-checked through the authenticated status API
+    // before it is migrated to the account-scoped record.
+    localStorage.setItem('askcrump.videoJob53', ids.jobA);
+  }, ownerResumeIds);
+  await resumePage.reload({waitUntil: 'networkidle'});
+  await resumePage.waitForFunction(jobA => (
+    window.__videoPollRequests.some(request => request.jobId === jobA)
+  ), ownerResumeIds.jobA);
+  const sameAccountJobResume = await resumePage.evaluate(ids => {
+    const accountKey = `askcrump.videoJob53:${encodeURIComponent(ids.accountA)}`;
+    return {
+      polls: window.__videoPollRequests.slice(),
+      accountRecord: JSON.parse(localStorage.getItem(accountKey) || 'null'),
+      legacyRemoved: !localStorage.getItem('askcrump.videoJob53'),
+      unownedLegacyRequestRemoved: !localStorage.getItem('askcrump.videoRequest53'),
+    };
+  }, ownerResumeIds);
+  const pollsBeforeAccountB = sameAccountJobResume.polls.length;
+  await resumePage.evaluate(ids => {
+    window.currentUser = {id: ids.accountB};
+    window.dispatchEvent(new Event('crump:authenticated-ready'));
+  }, ownerResumeIds);
+  await resumePage.waitForTimeout(250);
+  const crossAccountJobIsolation = await resumePage.evaluate(({pollsBeforeAccountB}) => ({
+    polls: window.__videoPollRequests.slice(),
+    noForeignResume: window.__videoPollRequests.length === pollsBeforeAccountB,
+    promptEmpty: !document.querySelector('#crump53VideoPrompt')?.value,
+    resultEmpty: !document.querySelector('#crump53VideoResult')?.textContent?.trim(),
+  }), {pollsBeforeAccountB});
+  await resumePage.evaluate(ids => {
+    const accountKey = `askcrump.videoJob53:${encodeURIComponent(ids.accountB)}`;
+    localStorage.setItem(accountKey, JSON.stringify({
+      version: 1,
+      userId: ids.accountB,
+      jobId: ids.jobB,
+      updatedAt: Date.now(),
+    }));
+    window.dispatchEvent(new Event('crump:authenticated-ready'));
+  }, ownerResumeIds);
+  await resumePage.waitForFunction(jobB => (
+    window.__videoPollRequests.some(request => request.jobId === jobB)
+  ), ownerResumeIds.jobB);
+  const accountBJobResume = await resumePage.evaluate(() => ({
+    polls: window.__videoPollRequests.slice(),
+  }));
+
+  await resumePage.evaluate(ids => {
+    window.currentUser = null;
+    window.dispatchEvent(new CustomEvent('crump:authentication-required', {detail: {reason: 'checkout'}}));
+    for (const base of ['askcrump.videoJob53', 'askcrump.videoRequest53']) {
+      localStorage.removeItem(base);
+      localStorage.removeItem(`${base}:${encodeURIComponent(ids.accountA)}`);
+      localStorage.removeItem(`${base}:${encodeURIComponent(ids.accountB)}`);
+    }
+    localStorage.removeItem('askcrump.fixtureHoldVideoPolls');
+    window.currentUser = {id: ids.accountA};
+    window.dispatchEvent(new Event('crump:authenticated-ready'));
+    window.CrumpProduct53.open('video');
+  }, ownerResumeIds);
+  await resumePage.locator('#crump53VideoPrompt').fill('Account A in-flight private video prompt.');
+  await resumePage.evaluate(() => localStorage.setItem('askcrump.fixtureHoldNextVideoStart', 'true'));
+  await resumePage.locator('#crump53GenerateVideo').click();
+  await resumePage.waitForFunction(accountA => (
+    Boolean(localStorage.getItem(`askcrump.videoRequest53:${encodeURIComponent(accountA)}`))
+  ), ownerResumeIds.accountA);
+  await resumePage.evaluate(ids => {
+    window.currentUser = null;
+    window.dispatchEvent(new CustomEvent('crump:authentication-required', {detail: {reason: 'checkout'}}));
+    window.currentUser = {id: ids.accountB};
+    window.dispatchEvent(new Event('crump:authenticated-ready'));
+  }, ownerResumeIds);
+  await resumePage.waitForFunction(() => (
+    !document.querySelector('#crump53VideoPrompt')?.value
+    && document.querySelector('#crump53GenerateVideo')?.getAttribute('aria-busy') !== 'true'
+  ));
+  const inFlightAccountSwitch = await resumePage.evaluate(ids => {
+    const accountAKey = `askcrump.videoRequest53:${encodeURIComponent(ids.accountA)}`;
+    const accountBKey = `askcrump.videoRequest53:${encodeURIComponent(ids.accountB)}`;
+    const accountARaw = localStorage.getItem(accountAKey) || '';
+    return {
+      accountARequest: JSON.parse(accountARaw || 'null'),
+      accountARaw,
+      accountBRequest: localStorage.getItem(accountBKey) || '',
+      promptEmpty: !document.querySelector('#crump53VideoPrompt')?.value,
+      resultEmpty: !document.querySelector('#crump53VideoResult')?.textContent?.trim(),
+      generationBusy: document.querySelector('#crump53GenerateVideo')?.getAttribute('aria-busy') || '',
+    };
+  }, ownerResumeIds);
+
+  await resumePage.evaluate(ids => {
+    window.currentUser = null;
+    window.dispatchEvent(new CustomEvent('crump:authentication-required', {detail: {reason: 'checkout'}}));
+    localStorage.removeItem('askcrump.fixtureHoldNextVideoStart');
+    localStorage.removeItem('askcrump.fixtureHoldVideoPolls');
+    localStorage.setItem('askcrump.fixtureHoldProjectRetry', 'true');
+    localStorage.setItem(`askcrump.videoJob53:${encodeURIComponent(ids.accountA)}`, JSON.stringify({
+      version: 1,
+      userId: ids.accountA,
+      jobId: ids.jobA,
+      updatedAt: Date.now(),
+    }));
+    window.currentUser = {id: ids.accountA};
+    window.dispatchEvent(new Event('crump:authenticated-ready'));
+    window.CrumpProduct53.open('video');
+  }, ownerResumeIds);
+  await resumePage.waitForSelector('#crump53RetryVideoProject');
+  await resumePage.locator('#crump53RetryVideoProject').click();
+  await resumePage.waitForFunction(() => window.__projectRetryRequests.length > 0);
+  await resumePage.evaluate(ids => {
+    window.currentUser = {id: ids.accountB};
+    window.dispatchEvent(new Event('crump:authenticated-ready'));
+  }, ownerResumeIds);
+  await resumePage.waitForFunction(() => !document.querySelector('#crump53VideoResult')?.textContent?.trim());
+  const projectRetryAccountSwitch = await resumePage.evaluate(() => ({
+    requests: window.__projectRetryRequests.slice(),
+    aborts: window.__projectRetryAborts,
+    resultEmpty: !document.querySelector('#crump53VideoResult')?.textContent?.trim(),
+    retryButtonMissing: !document.querySelector('#crump53RetryVideoProject'),
+  }));
+  await resumePage.evaluate(() => localStorage.removeItem('askcrump.fixtureHoldProjectRetry'));
+  const serverResumeJobId = '00000000-0000-0000-0000-000000000033';
+  await resumePage.evaluate(({ids, serverResumeJobId}) => {
+    window.currentUser = null;
+    window.dispatchEvent(new CustomEvent('crump:authentication-required', {detail: {reason: 'checkout'}}));
+    for (const base of ['askcrump.videoJob53', 'askcrump.videoRequest53']) {
+      localStorage.removeItem(base);
+      localStorage.removeItem(`${base}:${encodeURIComponent(ids.accountA)}`);
+    }
+    localStorage.setItem('askcrump.fixtureRecentVideoJobs', JSON.stringify([{
+      ownerId: ids.accountA,
+      job: {
+        id: serverResumeJobId,
+        status: 'processing',
+        engine: 'quick',
+        createdAt: new Date().toISOString(),
+      },
+    }]));
+    window.currentUser = {id: ids.accountA};
+    window.dispatchEvent(new Event('crump:authenticated-ready'));
+    window.CrumpProduct53.open('video');
+  }, {ids: ownerResumeIds, serverResumeJobId});
+  await resumePage.waitForFunction(jobId => (
+    window.__videoPollRequests.some(request => request.jobId === jobId)
+  ), serverResumeJobId);
+  await resumePage.waitForSelector('#crump53VideoRecentList .crump53-video-recent-item');
+  const serverHistoryResume = await resumePage.evaluate(jobId => ({
+    lookups: window.__recentVideoLookups.slice(),
+    polls: window.__videoPollRequests.filter(request => request.jobId === jobId),
+    recentText: document.querySelector('#crump53VideoRecent')?.textContent || '',
+    resultReady: Boolean(document.querySelector('#crump53VideoResult video')),
+  }), serverResumeJobId);
+  await resumePage.evaluate(() => localStorage.removeItem('askcrump.fixtureRecentVideoJobs'));
+  const ownerScopedResume = {
+    sameAccountJobResume,
+    crossAccountJobIsolation,
+    accountBJobResume,
+    inFlightAccountSwitch,
+    projectRetryAccountSwitch,
+    serverHistoryResume,
+  };
+  await resumePage.close();
   await page.screenshot({path: 'artifacts/video-reference-mobile.png', fullPage: true});
   await browser.close();
 
@@ -455,6 +800,20 @@ const { chromium } = require(playwrightModule);
     || result.referencePlan[1]?.role !== 'logo'
     || result.requestContainsImageData
     || result.recoveryContainsImageData
+    || pendingRequestBeforeReload.value?.version !== 1
+    || pendingRequestBeforeReload.value?.userId !== '00000000-0000-0000-0000-000000000001'
+    || !/^[a-f0-9]{64}$|^fallback-[a-f0-9]{16}$/.test(pendingRequestBeforeReload.value?.requestDigest || '')
+    || pendingRequestBeforeReload.raw.includes('A blue school bus drives carefully through a quiet neighborhood.')
+    || pendingRequestBeforeReload.raw.includes('00000000-0000-0000-0000-000000000011')
+    || pendingRequestBeforeReload.raw.includes('00000000-0000-0000-0000-000000000012')
+    || pendingRequestBeforeReload.globalJob
+    || pendingRequestBeforeReload.globalRequest
+    || pendingRequestBeforeReload.attempts.length !== 1
+    || result.attempts.length !== 1
+    || result.attempts.some(attempt => attempt.userId !== '00000000-0000-0000-0000-000000000001')
+    || result.recoveryLookups.length < 1
+    || result.recoveryLookups[0]?.idempotencyKey !== pendingRequestBeforeReload.value?.idempotencyKey
+    || result.recoveryLookups.some(attempt => attempt.userId !== '00000000-0000-0000-0000-000000000001')
     || !result.referenceDraftCleared
     || result.selectedEngine !== 'extendable'
     || result.providerStarts !== 1
@@ -489,9 +848,16 @@ const { chromium } = require(playwrightModule);
     || accountLifecycle.signedOutState.cards !== 0
     || !accountLifecycle.signedOutState.planHidden
     || !accountLifecycle.signedOutState.resultEmpty
+    || !accountLifecycle.signedOutState.promptEmpty
+    || !accountLifecycle.signedOutState.fileInputEmpty
+    || accountLifecycle.signedOutState.generationBusy
     || !accountLifecycle.signedOutState.accountADraftPreserved
     || JSON.stringify(accountLifecycle.sameUserRestored.names) !== JSON.stringify(['account-a.png'])
     || JSON.stringify(accountLifecycle.sameUserRestored.roles) !== JSON.stringify(['logo'])
+    || accountLifecycle.sameUserRestored.prompt
+    || !accountLifecycle.directSwitchScrub.promptEmpty
+    || !accountLifecycle.directSwitchScrub.resultEmpty
+    || !accountLifecycle.directSwitchScrub.fileInputEmpty
     || accountLifecycle.accountBStored.accountA?.userId !== '00000000-0000-0000-0000-000000000001'
     || accountLifecycle.accountBStored.accountB?.userId !== accountBId
     || accountLifecycle.accountBStored.accountA?.files?.[0]?.name !== 'account-a.png'
@@ -511,13 +877,60 @@ const { chromium } = require(playwrightModule);
     || accountLifecycle.safeStorageMemoryFallback.accountBInLocalStorage
     || JSON.stringify(accountLifecycle.safeStorageMemoryFallback.names) !== JSON.stringify(['account-b.png'])
     || JSON.stringify(accountLifecycle.safeStorageMemoryFallback.roles) !== JSON.stringify(['style'])
+    || delayedRecovery.lookups.length < 1
+    || !delayedRecovery.requestPreserved
+    || delayedRecovery.providerStartsAfter !== delayedRecovery.providerStartsBefore
+    || !delayedRecovery.status.includes('same request key')
+    || legacyWrongAccountResume.wrongAccountIgnored.rawLegacyJob !== legacyWrongAccountIds.jobA
+    || legacyWrongAccountResume.wrongAccountIgnored.ignoredForB !== legacyWrongAccountIds.jobA
+    || legacyWrongAccountResume.wrongAccountIgnored.ignoredForA
+    || legacyWrongAccountResume.wrongAccountIgnored.busy
+    || legacyWrongAccountResume.wrongAccountCanCreate.providerStarts < 1
+    || legacyWrongAccountResume.wrongAccountCanCreate.rawLegacyJob !== legacyWrongAccountIds.jobA
+    || legacyWrongAccountResume.wrongAccountCanCreate.ignoredForB !== legacyWrongAccountIds.jobA
+    || !legacyWrongAccountResume.rightfulAccountRecovered.rawLegacyRemoved
+    || legacyWrongAccountResume.rightfulAccountRecovered.ignoredForA
+    || !legacyWrongAccountResume.rightfulAccountRecovered.polls.some(request => (
+      request.jobId === legacyWrongAccountIds.jobA && request.userId === legacyWrongAccountIds.accountA
+    ))
+    || ownerScopedResume.sameAccountJobResume.accountRecord?.userId !== ownerResumeIds.accountA
+    || ownerScopedResume.sameAccountJobResume.accountRecord?.jobId !== ownerResumeIds.jobA
+    || !ownerScopedResume.sameAccountJobResume.legacyRemoved
+    || !ownerScopedResume.sameAccountJobResume.unownedLegacyRequestRemoved
+    || !ownerScopedResume.sameAccountJobResume.polls.some(request => (
+      request.userId === ownerResumeIds.accountA && request.jobId === ownerResumeIds.jobA
+    ))
+    || !ownerScopedResume.crossAccountJobIsolation.noForeignResume
+    || !ownerScopedResume.crossAccountJobIsolation.promptEmpty
+    || !ownerScopedResume.crossAccountJobIsolation.resultEmpty
+    || !ownerScopedResume.accountBJobResume.polls.some(request => (
+      request.userId === ownerResumeIds.accountB && request.jobId === ownerResumeIds.jobB
+    ))
+    || ownerScopedResume.inFlightAccountSwitch.accountARequest?.userId !== ownerResumeIds.accountA
+    || !/^[a-f0-9]{64}$|^fallback-[a-f0-9]{16}$/.test(ownerScopedResume.inFlightAccountSwitch.accountARequest?.requestDigest || '')
+    || ownerScopedResume.inFlightAccountSwitch.accountARaw.includes('Account A in-flight private video prompt.')
+    || ownerScopedResume.inFlightAccountSwitch.accountBRequest
+    || !ownerScopedResume.inFlightAccountSwitch.promptEmpty
+    || !ownerScopedResume.inFlightAccountSwitch.resultEmpty
+    || ownerScopedResume.inFlightAccountSwitch.generationBusy
+    || ownerScopedResume.projectRetryAccountSwitch.requests.length !== 1
+    || ownerScopedResume.projectRetryAccountSwitch.requests[0]?.userId !== ownerResumeIds.accountA
+    || ownerScopedResume.projectRetryAccountSwitch.aborts < 1
+    || !ownerScopedResume.projectRetryAccountSwitch.resultEmpty
+    || !ownerScopedResume.projectRetryAccountSwitch.retryButtonMissing
+    || !ownerScopedResume.serverHistoryResume.lookups.some(item => (
+      item.ownerId === ownerResumeIds.accountA && item.count === 1
+    ))
+    || ownerScopedResume.serverHistoryResume.polls.length < 1
+    || !ownerScopedResume.serverHistoryResume.recentText.includes('Recent videos')
+    || !ownerScopedResume.serverHistoryResume.resultReady
     || result.runwayAttributionVisible
     || result.mobileOverflow
     || result.errorOverlay
   ) {
-    throw new Error(JSON.stringify({beforeConfirmation, restoredDraft, result, startingFrameReceipt, accountLifecycle, consoleErrors}));
+    throw new Error(JSON.stringify({beforeConfirmation, restoredDraft, pendingRequestBeforeReload, result, startingFrameReceipt, accountLifecycle, delayedRecovery, legacyWrongAccountResume, ownerScopedResume, consoleErrors}));
   }
-  process.stdout.write(`${JSON.stringify({beforeConfirmation, restoredDraft, result, startingFrameReceipt, accountLifecycle, consoleErrors})}\n`);
+  process.stdout.write(`${JSON.stringify({beforeConfirmation, restoredDraft, pendingRequestBeforeReload, result, startingFrameReceipt, accountLifecycle, delayedRecovery, legacyWrongAccountResume, ownerScopedResume, consoleErrors})}\n`);
 })().catch(error => {
   process.stderr.write(`${error.stack || error}\n`);
   process.exitCode = 1;

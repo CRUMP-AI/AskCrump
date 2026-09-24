@@ -1,0 +1,214 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Product Studio detail auth-boundary fixture</title>
+  <link rel="icon" href="data:,">
+</head>
+<body>
+  <main id="crump53Studio">
+    <section id="crump53Sheet" data-crump53-section="projects" data-project-view="detail">
+      <div data-crump53-panel="projects">
+        <form id="crump53ProjectForm">
+          <h2 id="crump53ProjectFormTitle">Edit Project</h2>
+          <label>Project description<textarea id="crump53ProjectDescription"></textarea></label>
+          <label>Project instructions<textarea id="crump53ProjectInstructions"></textarea></label>
+          <button type="submit">Save Project</button>
+        </form>
+        <div class="crump53-grid">
+          <div id="crump53ProjectConversationsCard"></div>
+        </div>
+      </div>
+    </section>
+  </main>
+  <button id="crump53NewProject" type="button">New Project</button>
+  <button id="crump53ProjectBack" type="button">Back</button>
+  <button id="crump53Close" type="button">Close</button>
+  <output id="fixtureErrors" aria-label="Browser errors">0</output>
+  <script>
+    (() => {
+      const accountA = {id: 'fixture-product-user-a'};
+      const accountB = {id: 'fixture-product-user-b'};
+      const projectA = {
+        id: '00000000-0000-4000-8000-000000000151',
+        name: 'Account A Launch',
+      };
+      const projectB = {
+        id: '00000000-0000-4000-8000-000000000152',
+        name: 'Account B Launch',
+      };
+      window.fixtureAccounts = {accountA, accountB, projectA, projectB};
+      window.currentUser = accountA;
+      let authenticatedUserId = accountA.id;
+      const scrubbers = new Map();
+      window.CrumpAuthBoundary = Object.freeze({
+        register(name, scrub) {
+          scrubbers.set(String(name), scrub);
+          return () => scrubbers.delete(String(name));
+        },
+        authenticatedUserId: () => authenticatedUserId,
+        revision: () => 0,
+      });
+      window.CrumpProductLoader = Object.freeze({
+        authenticatedUserId: () => authenticatedUserId,
+      });
+      window.fixtureAuthenticationRequired = () => {
+        const previousUserId = authenticatedUserId;
+        scrubbers.forEach(scrub => scrub({
+          reason: 'authentication-required',
+          previousUserId,
+          nextUserId: '',
+          revision: 1,
+        }));
+        authenticatedUserId = '';
+        window.currentUser = null;
+        window.dispatchEvent(new Event('crump:authentication-required'));
+      };
+      window.fixtureLogin = user => {
+        window.currentUser = user;
+        authenticatedUserId = String(user?.id || '');
+        window.dispatchEvent(new Event('crump:authenticated-ready'));
+      };
+      window.CrumpProduct53 = Object.freeze({
+        projectTarget() {
+          if (authenticatedUserId === accountA.id) return {...projectA};
+          if (authenticatedUserId === accountB.id) return {...projectB};
+          return null;
+        },
+      });
+      window.showToast = () => {};
+
+      const NativeAbortController = window.AbortController;
+      window.fixtureAbortControllers = [];
+      window.AbortController = class FixtureAbortController extends NativeAbortController {
+        constructor() {
+          super();
+          this.fixtureRecord = {
+            signal: this.signal,
+            purpose: '',
+            abortCalls: 0,
+          };
+          window.fixtureAbortControllers.push(this.fixtureRecord);
+        }
+
+        abort(reason) {
+          this.fixtureRecord.abortCalls += 1;
+          super.abort(reason);
+        }
+      };
+
+      window.fixtureProjectFileRequests = [];
+      window.fixtureProjectAttachRequests = [];
+      window.fixtureUploads = [];
+      window.fetch = (input, options = {}) => {
+        const url = new URL(typeof input === 'string' ? input : input.url, location.href);
+        const method = String(options.method || 'GET').toUpperCase();
+        const ownerUserId = authenticatedUserId;
+        if (/^\/api\/projects\/[^/]+\/files$/.test(url.pathname) && method === 'GET') {
+          const controller = window.fixtureAbortControllers.find(
+            item => item.signal === options.signal,
+          );
+          if (controller) controller.purpose = 'project-files-fetch';
+          const request = {
+            ownerUserId,
+            projectId: decodeURIComponent(url.pathname.split('/')[3] || ''),
+            signal: options.signal || null,
+            abortEvents: 0,
+            settled: false,
+            resolve: null,
+          };
+          if (request.signal) {
+            request.signal.addEventListener('abort', () => {
+              request.abortEvents += 1;
+            }, {once: true});
+          }
+          window.fixtureProjectFileRequests.push(request);
+          return new Promise(resolve => {
+            request.resolve = files => {
+              request.settled = true;
+              resolve(new Response(JSON.stringify({success: true, files}), {
+                status: 200,
+                headers: {'Content-Type': 'application/json'},
+              }));
+            };
+          });
+        }
+        if (/^\/api\/projects\/[^/]+\/files$/.test(url.pathname) && method === 'POST') {
+          window.fixtureProjectAttachRequests.push({
+            ownerUserId,
+            projectId: decodeURIComponent(url.pathname.split('/')[3] || ''),
+            body: JSON.parse(String(options.body || '{}')),
+            signalAborted: Boolean(options.signal?.aborted),
+          });
+          return Promise.resolve(new Response(JSON.stringify({success: true}), {
+            status: 200,
+            headers: {'Content-Type': 'application/json'},
+          }));
+        }
+        return Promise.resolve(new Response(JSON.stringify({
+          success: false,
+          error: `Unexpected fixture request: ${method} ${url.pathname}`,
+        }), {
+          status: 500,
+          headers: {'Content-Type': 'application/json'},
+        }));
+      };
+      window.CrumpFileTools = Object.freeze({
+        upload(file) {
+          const controller = [...window.fixtureAbortControllers]
+            .reverse()
+            .find(item => !item.purpose);
+          if (controller) controller.purpose = 'project-reference-upload';
+          const upload = {
+            ownerUserId: authenticatedUserId,
+            file,
+            controller,
+            settled: false,
+            resolve: null,
+          };
+          window.fixtureUploads.push(upload);
+          return new Promise(resolve => {
+            upload.resolve = () => {
+              upload.settled = true;
+              resolve({
+                id: `fixture-upload-${window.fixtureUploads.indexOf(upload) + 1}`,
+                name: file.name,
+                type: file.type,
+                size: file.size,
+              });
+            };
+          });
+        },
+        open() {},
+        addReference() {},
+      });
+      window.fixtureResolveProjectFiles = (index, files) => {
+        window.fixtureProjectFileRequests[index]?.resolve?.(files);
+      };
+      window.fixtureResolveUpload = index => {
+        window.fixtureUploads[index]?.resolve?.();
+      };
+      document.getElementById('crump53ProjectForm').addEventListener('submit', event => {
+        event.preventDefault();
+      });
+      const recordBrowserError = () => {
+        const output = document.getElementById('fixtureErrors');
+        output.textContent = String(Number(output.textContent || 0) + 1);
+      };
+      window.addEventListener('error', recordBrowserError);
+      window.addEventListener('unhandledrejection', recordBrowserError);
+    })();
+  </script>
+  <script src="/public/crump-product-5.3.1.js?v=product-detail-auth-boundary-1"></script>
+  <script>
+    window.addEventListener('load', () => {
+      const ready = window.setInterval(() => {
+        if (!document.getElementById('crump531ReferenceInput')) return;
+        window.clearInterval(ready);
+        document.documentElement.dataset.fixtureReady = 'true';
+      }, 10);
+    }, {once: true});
+  </script>
+</body>
+</html>

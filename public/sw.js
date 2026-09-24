@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r250';
+const CACHE_NAME = 'ask-crump-new-body-v1-r252';
 
 const CORE = [
   '/app',
@@ -26,7 +26,7 @@ const CORE = [
   '/crump-navigation-5.9.30.css?v=5.9.76-mobile-drawer-destinations-1',
   '/crump-navigation-5.9.30.js?v=5.9.76-navigation-discovery-1',
   '/crump-code-loader.js?v=5.9.76-code-lazy-load-1',
-  '/crump-product-loader.js?v=5.9.76-reference-fidelity-focused-1',
+  '/crump-product-loader.js?v=5.9.76-reference-fidelity-focused-3',
   '/crump-product-5.3.1.css',
   '/crump-product-5.3.1.js?v=5.9.76-conversation-action-labels-2',
   '/crump-polish-5.6.css',
@@ -34,7 +34,7 @@ const CORE = [
   '/crump-media-save.js?v=5.9.76-library-lazy-load-1',
   '/crump-library-loader.js?v=5.9.76-library-lazy-load-1',
   '/crump-subscriptions-5.3.2.js?v=5.9.76-checkout-destination-label-1',
-  '/runtime-body-v1.js?v=5.9.76-reference-fidelity-focused-1',
+  '/runtime-body-v1.js?v=5.9.76-reference-fidelity-focused-3',
   '/native-runtime.js',
   '/mobile-bridge.js',
   '/safe-storage.js',
@@ -53,7 +53,7 @@ const CORE = [
   '/sync-manager.js?v=5.9.76-sync-cursor-1',
   '/chat-sync.js?v=5.9.76-settings-sync-1',
   '/account-manager.js?v=5.9.76-account-deletion-billing-1',
-  '/app.js?v=5.9.76-reference-fidelity-focused-1',
+  '/app.js?v=5.9.76-reference-fidelity-focused-3',
   '/product-analytics.js?v=5.9.76-navigation-discovery-1',
   '/lifecycle-share.js?v=5.9.76-settings-invite-1',
   '/lifecycle-manager.js?v=5.9.76-lifecycle-idle-send-1',
@@ -62,9 +62,9 @@ const CORE = [
   '/crump-4.3.js?v=5.9.76-composer-actionability-1',
   '/crump-4.4.css',
   '/crump-4.4.js?v=5.9.76-navigation-discovery-1',
-  '/crump-5.0.css?v=5.9.76-reference-fidelity-focused-1',
-  '/crump-5.0.js?v=5.9.76-reference-fidelity-focused-1',
-  '/crump-precision-image-edit-loader.js?v=5.9.76-reference-fidelity-focused-1',
+  '/crump-5.0.css?v=5.9.76-reference-fidelity-focused-3',
+  '/crump-5.0.js?v=5.9.76-reference-fidelity-focused-3',
+  '/crump-precision-image-edit-loader.js?v=5.9.76-reference-fidelity-focused-3',
   '/crump-billing-5.1.css?v=5.9.76-credit-truth-1',
   '/crump-billing-5.1.js?v=5.9.76-checkout-destination-label-1',
   '/crump-5.2.css',

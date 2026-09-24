@@ -9,6 +9,7 @@ from io import BytesIO
 import logging
 import math
 import re
+import warnings
 from typing import Any
 from uuid import NAMESPACE_URL, uuid5
 
@@ -38,6 +39,7 @@ IMAGE_TRANSIENT_RETRY_DELAY_SECONDS = 0.75
 IMAGE_MAX_ATTEMPTS = 2
 IMAGE_REFERENCE_LIMIT = 4
 IMAGE_REFERENCE_TOTAL_MAX_BYTES = 48 * 1024 * 1024
+IMAGE_PROVIDER_OUTPUT_MAX_BYTES = 32 * 1024 * 1024
 IMAGE_REFERENCE_ROLES = {
     'base': 'starting canvas and composition',
     'subject': 'subject or product appearance',
@@ -69,6 +71,7 @@ PRECISION_MASK_MAX_BYTES = 2 * 1024 * 1024
 PRECISION_MASK_MAX_COVERAGE = 0.90
 LOCAL_ADJUSTMENT_LIMIT = 30.0
 LOCAL_ADJUSTMENT_MAX_PIXELS = 16_777_216
+LOCAL_IMAGE_MAX_EDGE = 8192
 LOCAL_OVERLAY_MAX_BYTES = 2 * 1024 * 1024
 LOCAL_TRANSFORM_MAX_OPERATIONS = 8
 LOCAL_TRANSFORM_MIN_EDGE = 32
@@ -146,12 +149,38 @@ class MediaService:
     @staticmethod
     def _load_edit_image(data: bytes) -> Image.Image:
         try:
-            with Image.open(BytesIO(data)) as source:
-                source.seek(0)
-                image = ImageOps.exif_transpose(source)
-                image.load()
-                return image.copy()
-        except (UnidentifiedImageError, OSError, ValueError) as exc:
+            with warnings.catch_warnings():
+                warnings.simplefilter('error', Image.DecompressionBombWarning)
+                with Image.open(BytesIO(data)) as source:
+                    source.seek(0)
+                    width, height = (int(value or 0) for value in source.size)
+                    if width <= 0 or height <= 0:
+                        raise ValueError('image dimensions are invalid')
+                    if int(getattr(source, 'n_frames', 1) or 1) != 1:
+                        raise ValueError('image must contain one frame')
+                    if (
+                        max(width, height) > LOCAL_IMAGE_MAX_EDGE
+                        or width * height > LOCAL_ADJUSTMENT_MAX_PIXELS
+                    ):
+                        raise AIServiceError(
+                            'This image is too large to edit safely. Resize it below 16 megapixels and try again.',
+                            413,
+                            'IMAGE_EDIT_SOURCE_TOO_LARGE',
+                            False,
+                            0,
+                        )
+                    image = ImageOps.exif_transpose(source)
+                    image.load()
+                    return image.copy()
+        except AIServiceError:
+            raise
+        except (
+            Image.DecompressionBombError,
+            Image.DecompressionBombWarning,
+            UnidentifiedImageError,
+            OSError,
+            ValueError,
+        ) as exc:
             raise AIServiceError(
                 'This image could not be prepared for editing. Use a JPG, PNG, or WebP image and try again.',
                 400,
@@ -307,12 +336,38 @@ class MediaService:
                 0,
             )
         try:
-            with Image.open(BytesIO(raw)) as source:
-                if source.format != 'PNG' or 'A' not in source.getbands():
-                    raise ValueError('mask must be an alpha PNG')
-                source.load()
-                alpha = source.getchannel('A').copy()
-        except (UnidentifiedImageError, OSError, ValueError) as exc:
+            with warnings.catch_warnings():
+                warnings.simplefilter('error', Image.DecompressionBombWarning)
+                with Image.open(BytesIO(raw)) as source:
+                    width, height = (int(value or 0) for value in source.size)
+                    if source.format != 'PNG' or 'A' not in source.getbands():
+                        raise ValueError('mask must be an alpha PNG')
+                    if width <= 0 or height <= 0:
+                        raise ValueError('mask dimensions are invalid')
+                    if int(getattr(source, 'n_frames', 1) or 1) != 1:
+                        raise ValueError('mask must contain one frame')
+                    if (
+                        max(width, height) > LOCAL_IMAGE_MAX_EDGE
+                        or width * height > LOCAL_ADJUSTMENT_MAX_PIXELS
+                    ):
+                        raise AIServiceError(
+                            'The selected edit area is too large. Resize the source image and try again.',
+                            413,
+                            'IMAGE_EDIT_MASK_TOO_LARGE',
+                            False,
+                            0,
+                        )
+                    source.load()
+                    alpha = source.getchannel('A').copy()
+        except AIServiceError:
+            raise
+        except (
+            Image.DecompressionBombError,
+            Image.DecompressionBombWarning,
+            UnidentifiedImageError,
+            OSError,
+            ValueError,
+        ) as exc:
             raise AIServiceError(
                 'The selected edit area could not be read. Paint the area again and retry.',
                 400,
@@ -567,8 +622,18 @@ class MediaService:
                 False,
                 0,
             )
+        encoded_payload = encoded[len(prefix):]
+        max_encoded_length = ((LOCAL_OVERLAY_MAX_BYTES + 2) // 3) * 4
+        if len(encoded_payload) > max_encoded_length:
+            raise AIServiceError(
+                'The exact overlay is too complex. Use a smaller logo or less text and try again.',
+                413,
+                'LOCAL_IMAGE_OVERLAY_TOO_LARGE',
+                False,
+                0,
+            )
         try:
-            raw = base64.b64decode(encoded[len(prefix):], validate=True)
+            raw = base64.b64decode(encoded_payload, validate=True)
         except (binascii.Error, ValueError) as exc:
             raise AIServiceError(
                 'The exact overlay could not be read. Add the logo or text again.',
@@ -780,7 +845,8 @@ class MediaService:
             'Precision Edit requirements: modify only the transparent selected area in the supplied mask. '
             'Keep composition, identity, facial structure, age, body proportions, and every unselected detail stable. '
             'Do not infer or label race or ethnicity. If the user asks for an appearance adjustment, apply only the '
-            'explicitly requested visual change inside the selection. Do not recreate visible logos or readable text.'
+            'explicitly requested visual change inside the selection. Do not recreate visible logos or readable text '
+            'unless a confirmed numbered logo or typography reference below visibly supplies it.'
         )
 
     @staticmethod
@@ -933,9 +999,117 @@ class MediaService:
     @staticmethod
     def _fidelity_image(data: bytes) -> Image.Image:
         """Decode one image for a bounded, local-only comparison."""
-        with Image.open(BytesIO(data)) as opened:
-            opened.seek(0)
-            return ImageOps.exif_transpose(opened).convert('RGB').copy()
+        return MediaService._load_edit_image(data).convert('RGB')
+
+    @staticmethod
+    def _provider_output_bytes(encoded: Any, output_format: str) -> bytes:
+        """Decode, validate, and canonically re-encode one generated image.
+
+        Provider responses are not trusted merely because they came from an
+        authenticated upstream. Keep compressed and decoded sizes bounded,
+        reject animated or unexpected containers, and make the stored bytes
+        match the MIME type Ask Crump advertises to the client.
+        """
+        if not isinstance(encoded, str):
+            raise AIServiceError(
+                'The image provider returned invalid image data.',
+                502,
+                'IMAGE_INVALID_RESPONSE',
+                True,
+                5,
+            )
+        encoded = encoded.strip()
+        encoded_limit = 4 * ((IMAGE_PROVIDER_OUTPUT_MAX_BYTES + 2) // 3)
+        if not encoded or len(encoded) > encoded_limit:
+            raise AIServiceError(
+                'The image provider returned an image that was too large to process safely.',
+                502,
+                'IMAGE_INVALID_RESPONSE',
+                True,
+                5,
+            )
+        try:
+            raw = base64.b64decode(encoded, validate=True)
+        except (binascii.Error, ValueError, TypeError) as exc:
+            raise AIServiceError(
+                'The image provider returned invalid image data.',
+                502,
+                'IMAGE_INVALID_RESPONSE',
+                True,
+                5,
+            ) from exc
+        if not raw or len(raw) > IMAGE_PROVIDER_OUTPUT_MAX_BYTES:
+            raise AIServiceError(
+                'The image provider returned an image that was too large to process safely.',
+                502,
+                'IMAGE_INVALID_RESPONSE',
+                True,
+                5,
+            )
+
+        try:
+            with warnings.catch_warnings():
+                warnings.simplefilter('error', Image.DecompressionBombWarning)
+                with Image.open(BytesIO(raw)) as source:
+                    width, height = (int(value or 0) for value in source.size)
+                    if source.format not in {'PNG', 'JPEG', 'WEBP'}:
+                        raise ValueError('unsupported provider image container')
+                    if width <= 0 or height <= 0:
+                        raise ValueError('provider image dimensions are invalid')
+                    if int(getattr(source, 'n_frames', 1) or 1) != 1:
+                        raise ValueError('provider image must contain one frame')
+                    if (
+                        max(width, height) > LOCAL_IMAGE_MAX_EDGE
+                        or width * height > LOCAL_ADJUSTMENT_MAX_PIXELS
+                    ):
+                        raise ValueError('provider image dimensions exceed the safe limit')
+                    image = ImageOps.exif_transpose(source)
+                    image.load()
+                    image = image.copy()
+        except (
+            Image.DecompressionBombError,
+            Image.DecompressionBombWarning,
+            UnidentifiedImageError,
+            OSError,
+            ValueError,
+        ) as exc:
+            raise AIServiceError(
+                'The image provider returned invalid image data.',
+                502,
+                'IMAGE_INVALID_RESPONSE',
+                True,
+                5,
+            ) from exc
+
+        prepared = BytesIO()
+        if output_format == 'jpeg':
+            if image.mode != 'RGB':
+                if 'A' in image.getbands() or 'transparency' in image.info:
+                    rgba = image.convert('RGBA')
+                    background = Image.new('RGB', rgba.size, 'white')
+                    background.paste(rgba, mask=rgba.getchannel('A'))
+                    image = background
+                else:
+                    image = image.convert('RGB')
+            image.save(prepared, format='JPEG', quality=95, optimize=False)
+        elif output_format == 'webp':
+            if image.mode not in {'RGB', 'RGBA'}:
+                image = image.convert('RGBA' if 'A' in image.getbands() or 'transparency' in image.info else 'RGB')
+            image.save(prepared, format='WEBP', lossless=True, method=4)
+        else:
+            if image.mode not in {'RGB', 'RGBA'}:
+                image = image.convert('RGBA' if 'A' in image.getbands() or 'transparency' in image.info else 'RGB')
+            image.save(prepared, format='PNG', optimize=False)
+        canonical = prepared.getvalue()
+        if not canonical or len(canonical) > IMAGE_PROVIDER_OUTPUT_MAX_BYTES:
+            raise AIServiceError(
+                'The image provider returned an image that was too large to process safely.',
+                502,
+                'IMAGE_INVALID_RESPONSE',
+                True,
+                5,
+            )
+        return canonical
 
     @staticmethod
     def _fidelity_sample(image: Image.Image) -> Image.Image:
@@ -1444,6 +1618,11 @@ class MediaService:
         editing = precision_editing or bool(image_rows) or self.is_edit_request(prompt, file_rows)
         if precision_editing:
             provider_prompt = self._precision_edit_prompt(prompt)
+            if len(reference_plan) > 1:
+                provider_prompt = self._reference_fidelity_prompt(
+                    provider_prompt,
+                    reference_plan,
+                )
         elif editing:
             provider_prompt = self._reference_fidelity_prompt(
                 self._edit_fidelity_prompt(prompt),
@@ -1558,15 +1737,17 @@ class MediaService:
         item = ((data.get('data') or [{}])[0]) if isinstance(data, dict) else {}
         image_bytes: bytes | None = None
         if item.get('b64_json'):
-            try:
-                image_bytes = base64.b64decode(item['b64_json'], validate=True)
-            except (binascii.Error, ValueError, TypeError) as exc:
-                raise AIServiceError('The image provider returned invalid image data.', 502, 'IMAGE_INVALID_RESPONSE', True, 5) from exc
+            image_bytes = self._provider_output_bytes(item['b64_json'], output_format)
         elif item.get('url'):
-            async with httpx.AsyncClient(timeout=60, follow_redirects=True) as client:
-                download = await client.get(item['url'])
-            if download.status_code < 400:
-                image_bytes = download.content
+            # GPT Image is requested with inline base64 output. Do not turn an
+            # unexpected provider-controlled URL into a server-side fetch.
+            raise AIServiceError(
+                'The image provider returned an unsupported output location.',
+                502,
+                'IMAGE_INVALID_RESPONSE',
+                True,
+                5,
+            )
         if not image_bytes:
             raise AIServiceError('The image service returned no image.', 502, 'EMPTY_IMAGE', True, 5)
         if precision_editing:

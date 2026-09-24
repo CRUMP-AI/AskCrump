@@ -1228,4 +1228,6 @@ def test_project_return_timeout_fixture_uses_real_project_runtime_without_creden
         product.index("async function refreshProjectContext"):
         product.index("async function addProjectContext")
     ]
-    assert context.count("if (state.activeProject?.id !== projectId) return") == 2
+    assert context.count(
+        "if (!projectOperationIsCurrent(operation) || state.activeProject?.id !== projectId) return"
+    ) == 2

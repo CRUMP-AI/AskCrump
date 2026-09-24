@@ -845,6 +845,175 @@ class FeatureService:
             "idempotentReplay": duplicate,
         }
 
+    async def consume_video_reservation(
+        self,
+        user: dict[str, Any],
+        code: str,
+        *,
+        media_job_id: str,
+        idempotency_key: str,
+        request_fingerprint: str,
+        reservation_token: str,
+        metadata: dict[str, Any] | None = None,
+        confirmation: dict[str, Any] | None = None,
+        instance_key: str | None = None,
+        scope: Any = None,
+    ) -> dict[str, Any]:
+        """Atomically consume video entitlement and bind its durable receipt.
+
+        The database function locks the token-owned media row, consumes either
+        included usage or a confirmed credit charge, and stores the receipt in
+        that same transaction. Its write is safe to retry when an HTTP response
+        is lost because a committed row returns the already-bound receipt.
+        """
+        normalized = str(code or "").strip().lower()
+        policy = await self.require_tier(user, normalized)
+        resolved_scope = (
+            scope
+            if scope is not None
+            else {
+                "feature": normalized,
+                "instanceKey": str(instance_key or ""),
+                "metadata": metadata or {},
+            }
+        )
+        authorization = await self.authorize(
+            user,
+            {normalized: 1},
+            confirmation,
+            scope=resolved_scope,
+        )
+        if str(authorization.user_id) != str(user["id"]):
+            raise FeatureAccessError(
+                "Credit authorization account mismatch.",
+                "CREDIT_QUOTE_INVALID",
+                409,
+            )
+
+        internal = has_internal_access(user)
+        included = -1 if internal else policy.included_daily[tier_name(user)]
+        credit_cost = 0 if internal else policy.credit_cost
+        payment_source = (
+            "internal"
+            if internal
+            else "subscription" if included < 0 else "metered"
+        )
+        details = {
+            "feature": normalized,
+            "creditActionKey": authorization.action_key,
+            **(metadata or {}),
+        }
+        charge_component = (
+            str(instance_key or normalized).strip()[:120] or normalized
+        )
+        result = await self.db.rpc(
+            "consume_video_reservation",
+            {
+                "p_user_id": user["id"],
+                "p_job_id": media_job_id,
+                "p_idempotency_key": str(idempotency_key or "").strip()[:120],
+                "p_request_fingerprint": str(request_fingerprint or "")
+                .strip()
+                .lower()[:64],
+                "p_reservation_token": str(reservation_token or "")[:128],
+                "p_feature": normalized,
+                "p_payment_source": payment_source,
+                "p_event_type": f"feature:{normalized}",
+                "p_included_limit": included,
+                "p_credit_cost": credit_cost,
+                "p_credit_reason": f"feature_{normalized}",
+                "p_credit_action_key": authorization.action_key,
+                "p_credit_component": charge_component,
+                "p_confirmed_max": authorization.confirmed_credits,
+                "p_approved_feature_max": int(
+                    authorization.max_by_code.get(normalized, 0)
+                ),
+                "p_metadata": details,
+            },
+            retry_transient=True,
+        )
+        row = (
+            result[0]
+            if isinstance(result, list) and result
+            else (result or {})
+        )
+        outcome = str(row.get("outcome") or "")
+        receipt = row.get("receipt")
+        if outcome in {"bound", "existing"} and isinstance(receipt, dict):
+            return receipt
+
+        balance = max(0, int(row.get("balance") or 0))
+        if outcome == "allowance_exhausted":
+            raise FeatureAccessError(
+                f"Your included {policy.label.lower()} allowance is exhausted.",
+                "FEATURE_LIMIT_REACHED",
+                403,
+                policy.minimum_tier,
+            )
+        if outcome == "confirmation_required":
+            fresh = await self.quote(
+                user,
+                {normalized: 1},
+                scope=resolved_scope,
+            )
+            raise self._confirmation_error(
+                fresh,
+                "Your account state changed and this action now needs "
+                "credits. Review the new quote.",
+            )
+        if outcome == "credit_limit_exceeded":
+            raise FeatureAccessError(
+                "This confirmed credit maximum has already been used. "
+                "Start the action again for a fresh review.",
+                "CREDIT_QUOTE_INVALID",
+                409,
+                policy.minimum_tier,
+                credit_cost,
+                balance,
+            )
+        if outcome == "credits_required":
+            raise FeatureAccessError(
+                f"{policy.label} needs {credit_cost} Crump Credits after "
+                "included usage.",
+                "CREDITS_REQUIRED",
+                402,
+                policy.minimum_tier,
+                credit_cost,
+                balance,
+            )
+        if outcome == "reservation_expired":
+            raise FeatureAccessError(
+                "This video request expired before any allowance or credits "
+                "were used. Start it again.",
+                "VIDEO_RESERVATION_EXPIRED",
+                409,
+            )
+        if outcome == "settlement_pending":
+            raise FeatureAccessError(
+                "Ask Crump is still settling an earlier video safely. Retry "
+                "this request shortly.",
+                "VIDEO_PREBILLING_SETTLEMENT_PENDING",
+                503,
+            )
+        if outcome in {
+            "reservation_missing",
+            "request_conflict",
+            "reservation_conflict",
+            "capacity_not_authorized",
+        }:
+            raise FeatureAccessError(
+                "This video request could not be matched to its protected "
+                "billing reservation. Start it again.",
+                "VIDEO_RESERVATION_CONFLICT",
+                409,
+            )
+        raise FeatureAccessError(
+            "Ask Crump could not confirm this video charge safely. Retry with "
+            "the same request key.",
+            "VIDEO_BILLING_STATE_UNAVAILABLE",
+            503,
+        )
+
     async def consume(
         self,
         user: dict[str, Any],

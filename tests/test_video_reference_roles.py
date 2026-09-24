@@ -11,6 +11,7 @@ from backend.video_service import VideoService, VideoServiceError
 
 ROOT = Path(__file__).resolve().parents[1]
 USER_ID = "00000000-0000-0000-0000-000000000001"
+REQUEST_FINGERPRINT = "b" * 64
 REFERENCE_IDS = [
     "00000000-0000-0000-0000-000000000011",
     "00000000-0000-0000-0000-000000000012",
@@ -211,6 +212,32 @@ class CaptureDB:
         self.rows[job_id].update(payload)
         return [dict(self.rows[job_id])]
 
+    async def rpc(self, function_name, payload, *, retry_transient=False):
+        assert retry_transient is True
+        row = self.rows[payload["p_job_id"]]
+        assert row["idempotency_key"] == payload["p_idempotency_key"]
+        assert row["request_fingerprint"] == payload["p_request_fingerprint"]
+        if function_name == "claim_video_provider_launch":
+            row["video_phase"] = "launching"
+            row["lease_token"] = payload["p_launch_token"]
+            return [{"outcome": "claimed", "job": dict(row)}]
+        if function_name == "complete_video_provider_launch":
+            row.update(
+                {
+                    "status": "processing",
+                    "video_phase": "processing",
+                    "lease_token": None,
+                    "lease_expires_at": None,
+                    "provider_job_id": payload["p_provider_job_id"],
+                    "metadata": {
+                        **(row.get("metadata") or {}),
+                        "providerAccepted": True,
+                    },
+                }
+            )
+            return [{"outcome": "completed", "job": dict(row)}]
+        raise AssertionError(f"Unexpected RPC: {function_name}")
+
 
 @pytest.mark.asyncio
 async def test_video_job_persists_only_safe_role_receipt_and_sends_extendable_guidance() -> None:
@@ -245,6 +272,8 @@ async def test_video_job_persists_only_safe_role_receipt_and_sends_extendable_gu
         aspect_ratio="16:9",
         resolution="720p",
         duration_seconds=8,
+        idempotency_key="reference-role-receipt",
+        request_fingerprint=REQUEST_FINGERPRINT,
         reference_images=references,
         charge_receipt={"eventId": "credit:test"},
     )
@@ -271,10 +300,10 @@ async def test_video_job_persists_only_safe_role_receipt_and_sends_extendable_gu
 def test_video_route_validates_reference_plan_before_budget_charge_and_provider() -> None:
     source = (ROOT / "backend/routes/media.py").read_text(encoding="utf-8")
     prepare = source.index("reference_images = await video.prepare_reference_images")
-    plan = source.index('reference_plan=payload.get("referencePlan")', prepare)
+    plan = source.index("reference_plan=normalized_reference_plan", prepare)
     prompt = source.index("video.prepare_provider_prompt", plan)
     budget = source.index("await video.guard_provider_budget", prompt)
-    charge = source.index("receipt = await features.consume", budget)
+    charge = source.index("receipt = await features.consume_video_reservation", budget)
     provider = source.index("row = await video.start", charge)
 
     assert prepare < plan < prompt < budget < charge < provider

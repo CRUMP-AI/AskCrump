@@ -365,7 +365,7 @@ def _safe_creation_handoff(value: Any) -> dict[str, Any] | None:
         "autoStart": value.get("autoStart") is True and not references,
         "referenceFiles": references,
     }
-    idempotency_key = sync_module.clean_text(value.get("idempotencyKey"), 160)
+    idempotency_key = sync_module.clean_text(value.get("idempotencyKey"), 120)
     if idempotency_key:
         handoff["idempotencyKey"] = idempotency_key
     return handoff

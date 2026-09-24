@@ -13,6 +13,7 @@ from backend.media_service import (
     EDIT_IMAGE_MAX_EDGE,
     EDIT_IMAGE_MAX_PIXELS,
     IMAGE_EDIT_PROVIDER_MAX_BYTES,
+    IMAGE_PROVIDER_OUTPUT_MAX_BYTES,
     MediaService,
 )
 from backend.product53_hooks import feature_for_request
@@ -117,6 +118,78 @@ def test_invalid_edit_source_is_rejected_before_provider_spend() -> None:
     assert caught.value.status_code == 400
     assert caught.value.code == "INVALID_IMAGE_EDIT_SOURCE"
     assert caught.value.retryable is False
+
+
+def test_provider_output_is_bounded_and_canonically_matches_requested_format(monkeypatch) -> None:
+    source = Image.new("RGBA", (12, 8), color=(20, 40, 60, 128))
+    raw = BytesIO()
+    source.save(raw, format="PNG")
+    encoded = base64.b64encode(raw.getvalue()).decode("ascii")
+
+    jpeg = MediaService._provider_output_bytes(encoded, "jpeg")
+
+    with Image.open(BytesIO(jpeg)) as prepared:
+        assert prepared.format == "JPEG"
+        assert prepared.mode == "RGB"
+        assert prepared.size == (12, 8)
+
+    assert IMAGE_PROVIDER_OUTPUT_MAX_BYTES > len(raw.getvalue())
+    monkeypatch.setattr(media_module, "IMAGE_PROVIDER_OUTPUT_MAX_BYTES", 8)
+    with pytest.raises(AIServiceError) as caught:
+        MediaService._provider_output_bytes(encoded, "png")
+    assert caught.value.code == "IMAGE_INVALID_RESPONSE"
+    assert caught.value.status_code == 502
+
+
+def test_provider_output_rejects_non_image_or_animated_payload() -> None:
+    with pytest.raises(AIServiceError) as non_image:
+        MediaService._provider_output_bytes(
+            base64.b64encode(b"not an image").decode("ascii"),
+            "png",
+        )
+    assert non_image.value.code == "IMAGE_INVALID_RESPONSE"
+
+    first = Image.new("RGB", (4, 4), color=(255, 0, 0))
+    second = Image.new("RGB", (4, 4), color=(0, 0, 255))
+    animated = BytesIO()
+    first.save(
+        animated,
+        format="WEBP",
+        save_all=True,
+        append_images=[second],
+        duration=100,
+        loop=0,
+    )
+    with pytest.raises(AIServiceError) as multi_frame:
+        MediaService._provider_output_bytes(
+            base64.b64encode(animated.getvalue()).decode("ascii"),
+            "webp",
+        )
+    assert multi_frame.value.code == "IMAGE_INVALID_RESPONSE"
+
+
+def test_edit_source_rejects_oversized_dimensions_before_pixel_decode(monkeypatch) -> None:
+    original = Image.new("RGB", (64, 64), color=(20, 40, 60))
+    raw = BytesIO()
+    original.save(raw, format="PNG")
+    monkeypatch.setattr(media_module, "LOCAL_ADJUSTMENT_MAX_PIXELS", 1024)
+
+    with pytest.raises(AIServiceError) as caught:
+        MediaService._load_edit_image(raw.getvalue())
+
+    assert caught.value.status_code == 413
+    assert caught.value.code == "IMAGE_EDIT_SOURCE_TOO_LARGE"
+
+
+def test_precision_mask_rejects_oversized_dimensions_before_pixel_decode(monkeypatch) -> None:
+    mask = Image.new("RGBA", (64, 64), color=(209, 191, 150, 255))
+    monkeypatch.setattr(media_module, "LOCAL_ADJUSTMENT_MAX_PIXELS", 1024)
+
+    with pytest.raises(AIServiceError) as caught:
+        MediaService._decode_precision_mask(_png_data_url(mask))
+
+    assert caught.value.status_code == 413
+    assert caught.value.code == "IMAGE_EDIT_MASK_TOO_LARGE"
 
 
 def _png_data_url(image: Image.Image) -> str:
@@ -502,6 +575,116 @@ class MultiReferenceImageFiles(PrecisionImageFiles):
         assert max_bytes == 25 * 1024 * 1024
         self.downloaded.append(row["id"])
         return self.sources[row["id"]]
+
+
+@pytest.mark.asyncio
+async def test_precision_edit_keeps_numbered_roles_for_additional_references(monkeypatch) -> None:
+    source = BytesIO()
+    logo = BytesIO()
+    mascot = BytesIO()
+    style = BytesIO()
+    generated = BytesIO()
+    Image.new("RGBA", (1024, 1024), color=(30, 50, 70, 255)).save(source, format="PNG")
+    Image.new("RGB", (64, 64), color=(220, 190, 80)).save(logo, format="PNG")
+    Image.new("RGB", (64, 64), color=(110, 60, 160)).save(mascot, format="PNG")
+    Image.new("RGB", (64, 64), color=(20, 170, 130)).save(style, format="PNG")
+    Image.new("RGBA", (1024, 1024), color=(80, 100, 180, 255)).save(
+        generated,
+        format="PNG",
+    )
+    mask = Image.new("RGBA", (1024, 1024), color=(209, 191, 150, 0))
+    mask.paste((209, 191, 150, 255), (384, 384, 640, 640))
+    files = MultiReferenceImageFiles({
+        "source-image": source.getvalue(),
+        "logo-image": logo.getvalue(),
+        "mascot-image": mascot.getvalue(),
+        "style-image": style.getvalue(),
+    })
+    service = MediaService(
+        SimpleNamespace(
+            openai_api_key="test-only",
+            image_generation_enabled=True,
+            openai_image_model="gpt-image-2",
+        ),
+        files,
+    )
+    provider_request: dict = {}
+
+    async def fake_post(client, endpoint, **kwargs):
+        provider_request.update({"endpoint": endpoint, **kwargs})
+        return httpx.Response(
+            200,
+            request=httpx.Request("POST", endpoint),
+            json={
+                "data": [{
+                    "b64_json": base64.b64encode(generated.getvalue()).decode("ascii")
+                }]
+            },
+        )
+
+    monkeypatch.setattr(MediaService, "_post_image_request", staticmethod(fake_post))
+    result = await service.generate_or_edit_image(
+        user_id="user-one",
+        payload={
+            "message": "Replace the selected package while keeping these brand references",
+            "creativeTool": "image",
+            "imageReferenceContractVersion": 2,
+            "imageReferencePlanConfirmed": True,
+            "imageReferencePlan": [
+                {"fileId": "source-image", "role": "base"},
+                {"fileId": "logo-image", "role": "logo"},
+                {"fileId": "mascot-image", "role": "mascot"},
+                {"fileId": "style-image", "role": "style"},
+            ],
+        },
+        file_rows=[
+            {"id": "source-image", "mime_type": "image/png", "file_name": "source.png"},
+            {"id": "logo-image", "mime_type": "image/png", "file_name": "logo.png"},
+            {"id": "mascot-image", "mime_type": "image/png", "file_name": "mascot.png"},
+            {"id": "style-image", "mime_type": "image/png", "file_name": "style.png"},
+        ],
+        chat_id=None,
+        message_id=None,
+        image_edit_mask=_png_data_url(mask),
+    )
+
+    prompt = provider_request["data"]["prompt"]
+    assert provider_request["endpoint"].endswith("/v1/images/edits")
+    assert [name for name, _ in provider_request["files"]] == [
+        "image[]",
+        "image[]",
+        "image[]",
+        "image[]",
+        "mask",
+    ]
+    assert files.downloaded == [
+        "source-image",
+        "logo-image",
+        "mascot-image",
+        "style-image",
+    ]
+    assert prompt.index("Precision Edit requirements") < prompt.index("Reference plan")
+    assert "modify only the transparent selected area" in prompt
+    assert "Input image 1: starting canvas and composition (base)" in prompt
+    assert "Input image 2: logo or wordmark identity (logo)" in prompt
+    assert "Input image 3: mascot or character identity and appearance (mascot)" in prompt
+    assert "Input image 4: color palette, lighting, and visual style (style)" in prompt
+    assert "Use only the assigned role from each numbered input" in prompt
+    assert "unless a confirmed numbered logo or typography reference below" in prompt
+    assert "do not invent letters" in prompt
+    assert files.stored["metadata"]["referencePlan"] == [
+        {"fileId": "source-image", "role": "base"},
+        {"fileId": "logo-image", "role": "logo"},
+        {"fileId": "mascot-image", "role": "mascot"},
+        {"fileId": "style-image", "role": "style"},
+    ]
+    assert result["response"] == "I edited only the area you selected."
+    assert result["referencePlan"] == [
+        {"fileId": "source-image", "role": "base", "input": 1},
+        {"fileId": "logo-image", "role": "logo", "input": 2},
+        {"fileId": "mascot-image", "role": "mascot", "input": 3},
+        {"fileId": "style-image", "role": "style", "input": 4},
+    ]
 
 
 def test_no_version_image_reference_preserves_stale_client_compatibility() -> None:
@@ -1375,14 +1558,14 @@ def test_precision_editor_is_manual_private_and_pixel_protected() -> None:
     assert "stage.clientHeight" in editor
     assert "state.fitWidth = Math.max(1" in editor
     assert "state.fitHeight = Math.max(1" in editor
-    exact_script = "/crump-precision-image-edit.js?v=5.9.76-reference-fidelity-focused-1"
-    exact_style = "/crump-precision-image-edit.css?v=5.9.76-reference-fidelity-focused-1"
+    exact_script = "/crump-precision-image-edit.js?v=5.9.76-reference-fidelity-focused-3"
+    exact_style = "/crump-precision-image-edit.css?v=5.9.76-reference-fidelity-focused-3"
     for asset in (exact_script, exact_style):
         assert asset in loader
         assert asset not in runtime
         assert asset not in worker
         assert asset not in native
-    exact_loader = "/crump-precision-image-edit-loader.js?v=5.9.76-reference-fidelity-focused-1"
+    exact_loader = "/crump-precision-image-edit-loader.js?v=5.9.76-reference-fidelity-focused-3"
     for source in (runtime, worker, native):
         assert exact_loader in source
     assert "CrumpPrecisionImageEditLoader?.load" in composer
@@ -1503,13 +1686,18 @@ def test_video_job_survives_navigation_and_duplicate_submission() -> None:
 
     for contract in (
         "VIDEO_REQUEST_STORAGE_KEY",
-        "videoRequestFingerprint",
+        "videoRequestDigest",
+        "crypto.subtle.digest('SHA-256'",
+        "requestDigest",
+        "videoStorageKey(VIDEO_JOB_STORAGE_KEY",
         "if (state.videoStarting) return",
-        "Your current video is still generating",
+        "instead of starting or charging for another",
+        "/api/media/video/request-status",
+        "recoverPendingVideoRequest",
         "resumePendingVideoJob",
         "document.addEventListener('visibilitychange'",
         "window.addEventListener('online', resumePendingVideoJob)",
-        "event.key === VIDEO_JOB_STORAGE_KEY",
+        "event.key === videoStorageKey(VIDEO_JOB_STORAGE_KEY, ownerUserId)",
     ):
         assert contract in script
 

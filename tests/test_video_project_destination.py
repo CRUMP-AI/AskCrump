@@ -17,7 +17,8 @@ def test_video_studio_names_the_project_destination_and_offers_files_only():
     assert "Use Files only" in product
     assert "renderVideoProjectDestination();" in product
     assert "clearActiveProject({announce: true});" in product
-    assert "projectId: state.activeProject?.id || null" in product
+    assert "const projectTarget = currentProjectTarget() || await restoreStoredProjectTarget();" in product
+    assert "projectId: projectTarget?.id || null" in product
 
 
 def test_video_project_destination_is_responsive_and_hidden_when_inactive():

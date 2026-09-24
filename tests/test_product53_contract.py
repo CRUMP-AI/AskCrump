@@ -12,16 +12,16 @@ def test_product53_runtime_is_lazy_loaded_and_cache_addressable():
     worker = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
     loader = read("public/crump-product-loader.js")
-    assert "/crump-product-loader.js?v=5.9.76-reference-fidelity-focused-1" in runtime
-    assert "/crump-product-loader.js?v=5.9.76-reference-fidelity-focused-1" in worker
-    assert "/crump-product-5.3.css?v=5.9.76-reference-fidelity-focused-1" not in runtime
-    assert "/crump-product-5.3.js?v=5.9.76-reference-fidelity-focused-1" not in runtime
-    assert "/crump-product-5.3.css?v=5.9.76-reference-fidelity-focused-1" not in worker
-    assert "/crump-product-5.3.js?v=5.9.76-reference-fidelity-focused-1" not in worker
-    assert "/crump-product-5.3.css?v=5.9.76-reference-fidelity-focused-1" in loader
-    assert "/crump-product-5.3.js?v=5.9.76-reference-fidelity-focused-1" in loader
+    assert "/crump-product-loader.js?v=5.9.76-reference-fidelity-focused-3" in runtime
+    assert "/crump-product-loader.js?v=5.9.76-reference-fidelity-focused-3" in worker
+    assert "/crump-product-5.3.css?v=5.9.76-reference-fidelity-focused-3" not in runtime
+    assert "/crump-product-5.3.js?v=5.9.76-reference-fidelity-focused-3" not in runtime
+    assert "/crump-product-5.3.css?v=5.9.76-reference-fidelity-focused-3" not in worker
+    assert "/crump-product-5.3.js?v=5.9.76-reference-fidelity-focused-3" not in worker
+    assert "/crump-product-5.3.css?v=5.9.76-reference-fidelity-focused-3" in loader
+    assert "/crump-product-5.3.js?v=5.9.76-reference-fidelity-focused-3" in loader
     assert runtime.index("/crump-navigation-5.2.5.js") < runtime.index("/crump-product-loader.js")
-    assert "ask-crump-new-body-v1-r250" in worker
+    assert "ask-crump-new-body-v1-r252" in worker
     assert "crump-product-5.3.js" in checker
     assert "crump-product-loader.js" in checker
 
@@ -120,9 +120,10 @@ def test_internal_entitlement_schema_is_billing_independent_and_generic():
 def test_video_retry_does_not_bill_twice():
     route = read("backend/routes/media.py")
     existing_lookup = route.index('existing = await _existing_job(')
-    consume = route.index("receipt = await features.consume(")
+    consume = route.index("receipt = await features.consume_video_reservation(")
     assert existing_lookup < consume
     assert "idempotentReplay" in route
+    assert "request_fingerprint" in route
     video = read("backend/video_service.py")
     providers = read("backend/video_providers.py")
     assert "duration = 8" in video
@@ -133,8 +134,11 @@ def test_video_retry_does_not_bill_twice():
     assert 'parameters["numberOfVideos"] = 1' not in providers
     assert 'parameters["resolution"] = "720p"' in providers
     assert 'parameters["durationSeconds"] = 8' in providers
-    assert "async def _mark_failed" in video
-    assert "could not save the file" in video
+    assert "async def _claim_finalization" in video
+    assert "async def _complete_finalization" in video
+    assert "async def _fail_finalization" in video
+    assert "VIDEO_FILE_FINALIZATION_PENDING" in video
+    assert "file_id=str(row[\"id\"])" in video
 
 
 def test_private_account_files_surface_saved_creations_under_projects():

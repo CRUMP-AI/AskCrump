@@ -207,10 +207,58 @@ class FileService:
         if response.status_code >= 400:
             raise FileServiceError('The upload has not finished yet.', 409, 'UPLOAD_INCOMPLETE')
         info = response.json() if response.content else {}
-        actual_size = int((info.get('metadata') or {}).get('size') or info.get('size') or row.get('size_bytes') or 0)
+        metadata = info.get('metadata') if isinstance(info.get('metadata'), dict) else {}
+        actual_size = int(metadata.get('size') or info.get('size') or 0)
+        actual_mime_value = (
+            metadata.get('mimetype')
+            or metadata.get('contentType')
+            or info.get('mimetype')
+            or info.get('contentType')
+            or info.get('content_type')
+            or ''
+        )
+        try:
+            if actual_size <= 0:
+                raise FileServiceError('The upload is empty.', 400, 'EMPTY_FILE')
+            _, actual_mime = self.validate_upload(
+                filename=str(row.get('file_name') or 'file'),
+                mime_type=str(actual_mime_value or row.get('mime_type') or ''),
+                size_bytes=actual_size,
+            )
+            declared_size = int(row.get('size_bytes') or 0)
+            declared_mime = str(row.get('mime_type') or '')
+            if declared_size <= 0 or actual_size != declared_size:
+                raise FileServiceError(
+                    'The completed upload does not match its signed file size.',
+                    409,
+                    'UPLOAD_SIZE_MISMATCH',
+                )
+            if actual_mime != declared_mime:
+                raise FileServiceError(
+                    'The completed upload does not match its signed file type.',
+                    415,
+                    'UPLOAD_TYPE_MISMATCH',
+                )
+        except FileServiceError:
+            try:
+                await self._storage_json(
+                    'DELETE',
+                    f'object/{self.bucket}',
+                    payload={'prefixes': [str(row.get('storage_path') or '')]},
+                    timeout=60.0,
+                )
+            except Exception:
+                # The row remains failed and can never be resolved as an owned
+                # ready file even if best-effort object cleanup is unavailable.
+                pass
+            await self.db.update(
+                'user_files',
+                {'status': 'failed', 'updated_at': self._now()},
+                filters={'id': eq(file_id), 'user_id': eq(user_id)},
+            )
+            raise
         updates = {'status': 'ready', 'updated_at': self._now()}
-        if actual_size:
-            updates['size_bytes'] = actual_size
+        updates['size_bytes'] = actual_size
         updated = await self.db.update('user_files', updates, filters={'id': eq(file_id), 'user_id': eq(user_id)})
         return self.public_file((updated or [row])[0])
 
@@ -257,15 +305,36 @@ class FileService:
 
     async def download_bytes(self, *, row: dict[str, Any], max_bytes: int | None = None) -> bytes:
         encoded = quote(str(row['storage_path']), safe='/')
+        limit = max(1, int(max_bytes or self.settings.max_upload_bytes))
         async with httpx.AsyncClient(timeout=httpx.Timeout(60.0, connect=15.0), follow_redirects=True) as client:
-            response = await client.get(f"{self.storage_url}/object/{self.bucket}/{encoded}", headers=self.headers)
-        if response.status_code >= 400:
-            raise FileServiceError('Could not read the file.', 503, 'FILE_READ_FAILED')
-        data = response.content
-        limit = int(max_bytes or self.settings.max_upload_bytes)
-        if len(data) > limit:
-            raise FileServiceError('The file is too large to process in this operation.', 413, 'FILE_PROCESSING_LIMIT')
-        return data
+            async with client.stream(
+                'GET',
+                f"{self.storage_url}/object/{self.bucket}/{encoded}",
+                headers=self.headers,
+            ) as response:
+                if response.status_code >= 400:
+                    raise FileServiceError('Could not read the file.', 503, 'FILE_READ_FAILED')
+                content_length = response.headers.get('content-length')
+                if content_length:
+                    try:
+                        if int(content_length) > limit:
+                            raise FileServiceError(
+                                'The file is too large to process in this operation.',
+                                413,
+                                'FILE_PROCESSING_LIMIT',
+                            )
+                    except ValueError:
+                        pass
+                data = bytearray()
+                async for chunk in response.aiter_bytes():
+                    if len(data) + len(chunk) > limit:
+                        raise FileServiceError(
+                            'The file is too large to process in this operation.',
+                            413,
+                            'FILE_PROCESSING_LIMIT',
+                        )
+                    data.extend(chunk)
+        return bytes(data)
 
     async def store_bytes(
         self,
@@ -279,6 +348,7 @@ class FileService:
         message_id: str | None = None,
         metadata: dict[str, Any] | None = None,
         file_id: str | None = None,
+        persist_metadata: bool = True,
     ) -> dict[str, Any]:
         name = self.clean_filename(filename)
         mime = self.normalized_mime(name, mime_type)
@@ -328,12 +398,42 @@ class FileService:
             'metadata': metadata or {},
             'updated_at': self._now(),
         }
+        if not persist_metadata:
+            # Video finalization binds this row and its media job in one
+            # database transaction after the object upload succeeds.
+            return row
         if stable_file_id:
             row['deleted_at'] = None
             stored = await self.db.upsert('user_files', row, on_conflict='id')
         else:
             stored = await self.db.insert('user_files', row)
         return stored[0] if isinstance(stored, list) and stored else row
+
+    async def discard_generated_file(
+        self,
+        *,
+        user_id: str,
+        file_id: str,
+        filename: str,
+    ) -> None:
+        """Remove one deterministic, unbound generated object and metadata row."""
+        normalized_file_id = normalize_chat_id(file_id)
+        name = self.clean_filename(filename)
+        storage_path = self._path(user_id, normalized_file_id, name)
+        await self._storage_json(
+            'DELETE',
+            f'object/{self.bucket}',
+            payload={'prefixes': [storage_path]},
+            timeout=60.0,
+        )
+        await self.db.delete(
+            'user_files',
+            filters={
+                'id': eq(normalized_file_id),
+                'user_id': eq(user_id),
+                'kind': eq('generated_video'),
+            },
+        )
 
     async def soft_delete(self, *, user_id: str, file_id: str) -> None:
         await self.get_owned(user_id=user_id, file_id=file_id, include_pending=True)

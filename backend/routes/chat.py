@@ -83,7 +83,7 @@ def _video_creation_handoff(
         # A reference changes both provider semantics and fidelity expectations.
         # Let the user review the images and choose an engine before spending.
         'autoStart': not reference_files,
-        'idempotencyKey': idempotency_key[:160],
+        'idempotencyKey': idempotency_key[:120],
         'referenceFiles': reference_files,
     }
 

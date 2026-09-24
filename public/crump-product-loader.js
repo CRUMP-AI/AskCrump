@@ -4,11 +4,14 @@
   if (window.__crumpProductLoaderLoaded) return;
   window.__crumpProductLoaderLoaded = true;
 
-  const STYLE_URL = '/crump-product-5.3.css?v=5.9.76-reference-fidelity-focused-1';
-  const SCRIPT_URL = '/crump-product-5.3.js?v=5.9.76-reference-fidelity-focused-1';
+  const STYLE_URL = '/crump-product-5.3.css?v=5.9.76-reference-fidelity-focused-3';
+  const SCRIPT_URL = '/crump-product-5.3.js?v=5.9.76-reference-fidelity-focused-3';
   const ACTIVE_PROJECT_KEY = 'askcrump.activeProject53';
   const VIDEO_JOB_KEY = 'askcrump.videoJob53';
   const VIDEO_REQUEST_KEY = 'askcrump.videoRequest53';
+  const VIDEO_STORAGE_VERSION = 1;
+  const VIDEO_REQUEST_TTL_MS = 30 * 60 * 1000;
+  const VIDEO_JOB_ID_PATTERN = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
   const VIDEO_REFERENCE_DRAFT_KEY = 'askcrump.videoReferenceDraft53';
   const DESTINATIONS = new Set(['projects', 'manuscripts', 'video', 'library']);
   const DESTINATION_LABELS = Object.freeze({
@@ -260,7 +263,9 @@
   }
 
   function cachedProjectTarget() {
-    const id = String(stored(ACTIVE_PROJECT_KEY) || '').trim();
+    const userId = currentLoaderUserId();
+    const key = userId ? `${ACTIVE_PROJECT_KEY}:${encodeURIComponent(userId)}` : '';
+    const id = String(key ? stored(key) : '').trim();
     return id ? {id, name: 'Project'} : null;
   }
 
@@ -283,13 +288,91 @@
     authenticatedUserId: () => authenticatedUserId,
   });
 
-  function videoReferenceDraftKey(userId = window.currentUser?.id) {
+  function currentLoaderUserId() {
+    const currentUserId = String(window.currentUser?.id || '').trim();
+    return currentUserId && currentUserId === authenticatedUserId ? currentUserId : '';
+  }
+
+  function videoReferenceDraftKey(userId = currentLoaderUserId()) {
     const normalized = String(userId || '').trim();
     return normalized ? `${VIDEO_REFERENCE_DRAFT_KEY}:${encodeURIComponent(normalized)}` : '';
   }
 
+  function videoAccountStorageKey(baseKey, userId = currentLoaderUserId()) {
+    const normalized = String(userId || '').trim();
+    return normalized ? `${baseKey}:${encodeURIComponent(normalized)}` : '';
+  }
+
+  function hasStoredVideoRecord(baseKey, kind) {
+    const userId = currentLoaderUserId();
+    const accountKey = videoAccountStorageKey(baseKey, userId);
+    if (!userId || !accountKey) return false;
+    let sourceKey = accountKey;
+    try {
+      let rawValue = localStorage.getItem(accountKey) || '';
+      if (!rawValue) {
+        const legacyRawValue = localStorage.getItem(baseKey) || '';
+        if (legacyRawValue) {
+          if (kind === 'job' && VIDEO_JOB_ID_PATTERN.test(legacyRawValue.trim())) {
+            return true;
+          }
+          sourceKey = baseKey;
+          const legacyValue = JSON.parse(legacyRawValue);
+          if (String(legacyValue?.userId || '') === userId) rawValue = legacyRawValue;
+          else localStorage.removeItem(baseKey);
+        }
+      }
+      if (!rawValue) return false;
+      const value = JSON.parse(rawValue);
+      if (value?.version !== VIDEO_STORAGE_VERSION || String(value?.userId || '') !== userId) {
+        localStorage.removeItem(sourceKey);
+        return false;
+      }
+      let sanitized = null;
+      if (kind === 'job') {
+        const jobId = String(value.jobId || '').trim().slice(0, 200);
+        if (jobId) {
+          sanitized = {
+            version: VIDEO_STORAGE_VERSION,
+            userId,
+            jobId,
+            updatedAt: Number(value.updatedAt || Date.now()),
+          };
+        }
+      } else {
+        const idempotencyKey = String(value.idempotencyKey || '').trim().slice(0, 200);
+        const requestDigest = String(value.requestDigest || '').trim().slice(0, 128);
+        const createdAt = Number(value.createdAt || 0);
+        if (
+          idempotencyKey
+          && /^(?:[a-f0-9]{64}|fallback-[a-f0-9]{16})$/.test(requestDigest)
+          && createdAt
+          && Date.now() - createdAt <= VIDEO_REQUEST_TTL_MS
+        ) {
+          sanitized = {
+            version: VIDEO_STORAGE_VERSION,
+            userId,
+            idempotencyKey,
+            requestDigest,
+            createdAt,
+          };
+        }
+      }
+      if (!sanitized) {
+        localStorage.removeItem(sourceKey);
+        return false;
+      }
+      localStorage.setItem(accountKey, JSON.stringify(sanitized));
+      if (sourceKey !== accountKey) localStorage.removeItem(sourceKey);
+      return true;
+    } catch (_) {
+      try { localStorage.removeItem(sourceKey); } catch (_) { /* storage is optional */ }
+      return false;
+    }
+  }
+
   function hasStoredVideoReferenceDraft() {
-    const userId = String(window.currentUser?.id || '').trim();
+    const userId = currentLoaderUserId();
     const accountKey = videoReferenceDraftKey(userId);
     if (!userId || !accountKey) return false;
     if (stored(accountKey)) return true;
@@ -302,10 +385,15 @@
   }
 
   function shouldResumeAfterAuthentication() {
+    const hasVideoJob = hasStoredVideoRecord(VIDEO_JOB_KEY, 'job');
+    const hasVideoRequest = hasStoredVideoRecord(VIDEO_REQUEST_KEY, 'request');
     if (
-      stored(VIDEO_JOB_KEY)
-      || stored(VIDEO_REQUEST_KEY)
+      hasVideoJob
+      || hasVideoRequest
       || hasStoredVideoReferenceDraft()
+      || cachedProjectTarget()
+      // A legacy unscoped value may only wake the full owner resolver. It is
+      // never exposed as the facade's active target.
       || stored(ACTIVE_PROJECT_KEY)
     ) return true;
     const chatId = String(window.currentChatId || '').trim();

@@ -21,11 +21,18 @@
     videoPollTimer: null,
     videoPollSequence: 0,
     videoStarting: false,
+    videoStartAbortController: null,
+    videoContinuationAbortController: null,
+    videoProjectRetryAbortController: null,
+    videoRequestRecoveryAbortController: null,
+    videoRequestRecoveryPromise: null,
     videoReferenceUploading: false,
     videoReferenceFiles: [],
     videoReferenceHandoffInvalid: false,
     videoReferencePlanConfirmation: '',
     activeVideoJob: null,
+    recentVideoJobs: [],
+    videoRecentLoading: false,
     libraryFiles: [],
     libraryFilter: 'all',
     libraryQuery: '',
@@ -38,9 +45,15 @@
   const PROJECT_SAVE_TIMEOUT_MS = 15_000;
   const PROJECT_READ_TIMEOUT_MS = 15_000;
   const PROJECT_ROUTE_PARAM = 'project';
+  const ACTIVE_PROJECT_STORAGE_KEY = 'askcrump.activeProject53';
   const VIDEO_JOB_STORAGE_KEY = 'askcrump.videoJob53';
   const VIDEO_REQUEST_STORAGE_KEY = 'askcrump.videoRequest53';
+  const VIDEO_STORAGE_VERSION = 1;
   const VIDEO_REQUEST_TTL_MS = 30 * 60 * 1000;
+  const VIDEO_REQUEST_RECOVERY_GRACE_MS = 5 * 60 * 1000;
+  const VIDEO_REQUEST_RECOVERY_POLL_MS = 10 * 1000;
+  const VIDEO_LEGACY_JOB_IGNORE_KEY = 'askcrump.videoLegacyJobIgnored53';
+  const VIDEO_JOB_ID_PATTERN = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
   const VIDEO_REFERENCE_DRAFT_STORAGE_KEY = 'askcrump.videoReferenceDraft53';
   const VIDEO_REFERENCE_DRAFT_TTL_MS = 24 * 60 * 60 * 1000;
   const VIDEO_REFERENCE_DRAFT_LIMIT = 5;
@@ -57,6 +70,11 @@
   let conversationContextSequence = 0;
   let storedProjectTargetPromise = null;
   let storedProjectTargetId = '';
+  let projectRefreshPromise = null;
+  let projectAuthSequence = 0;
+  let projectStateUserId = '';
+  let legacyStoredProjectTargetId = '';
+  let legacyStoredProjectTargetUserId = '';
   let restoredVideoReferenceDraftUserId = '';
   let videoReferenceStateUserId = '';
   let videoReferenceAuthSequence = 0;
@@ -71,9 +89,37 @@
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
   })[character]);
 
+  function projectStorageKey(userId = currentVideoReferenceUserId()) {
+    const normalized = String(userId || '').trim();
+    return normalized
+      ? `${ACTIVE_PROJECT_STORAGE_KEY}:${encodeURIComponent(normalized)}`
+      : '';
+  }
+
   function readStoredProject() {
-    try { return localStorage.getItem('askcrump.activeProject53') || ''; }
+    const key = projectStorageKey();
+    if (!key) return '';
+    try { return localStorage.getItem(key) || ''; }
     catch (_) { return ''; }
+  }
+
+  function claimLegacyStoredProject() {
+    const userId = currentVideoReferenceUserId();
+    if (!userId) return '';
+    if (legacyStoredProjectTargetUserId && legacyStoredProjectTargetUserId !== userId) return '';
+    if (legacyStoredProjectTargetUserId === userId) return legacyStoredProjectTargetId;
+    let legacyId = '';
+    try {
+      legacyId = String(localStorage.getItem(ACTIVE_PROJECT_STORAGE_KEY) || '').trim();
+      localStorage.removeItem(ACTIVE_PROJECT_STORAGE_KEY);
+    } catch (_) { /* storage is optional */ }
+    legacyStoredProjectTargetId = legacyId;
+    legacyStoredProjectTargetUserId = userId;
+    return legacyId;
+  }
+
+  function storedProjectCandidate() {
+    return readStoredProject() || claimLegacyStoredProject();
   }
 
   function storeProject(value) {
@@ -81,10 +127,18 @@
     if (String(state.rememberedProjectTarget?.id || '') !== normalized) {
       state.rememberedProjectTarget = null;
     }
+    const userId = currentVideoReferenceUserId();
+    const key = projectStorageKey(userId);
+    if (!userId || !key) return;
+    if (projectStateUserId && projectStateUserId !== userId) return;
+    projectStateUserId = userId;
     try {
-      if (normalized) localStorage.setItem('askcrump.activeProject53', normalized);
-      else localStorage.removeItem('askcrump.activeProject53');
+      if (normalized) localStorage.setItem(key, normalized);
+      else localStorage.removeItem(key);
+      localStorage.removeItem(ACTIVE_PROJECT_STORAGE_KEY);
     } catch (_) { /* storage is optional */ }
+    legacyStoredProjectTargetId = '';
+    legacyStoredProjectTargetUserId = '';
   }
 
   function readProjectRoute() {
@@ -115,6 +169,8 @@
   }
 
   function currentProjectTarget() {
+    const userId = currentVideoReferenceUserId();
+    if (!userId || projectStateUserId !== userId) return null;
     const storedProjectId = readStoredProject();
     const rememberedProject = storedProjectId
       && String(state.rememberedProjectTarget?.id || '') === storedProjectId
@@ -129,39 +185,236 @@
     };
   }
 
+  function bindProjectStateToCurrentUser() {
+    const userId = currentVideoReferenceUserId();
+    if (!userId) return '';
+    if (projectStateUserId && projectStateUserId !== userId) {
+      resetProjectAuthMemory();
+    }
+    projectStateUserId = userId;
+    claimLegacyStoredProject();
+    return userId;
+  }
+
+  function projectOperationContext() {
+    return {
+      userId: bindProjectStateToCurrentUser(),
+      sequence: projectAuthSequence,
+    };
+  }
+
+  function projectOperationIsCurrent(context) {
+    return Boolean(
+      context?.userId
+      && context.sequence === projectAuthSequence
+      && context.userId === currentVideoReferenceUserId()
+      && context.userId === projectStateUserId
+    );
+  }
+
   function notifyProjectTargetChanged() {
     window.dispatchEvent(new Event('crump:project-target-changed'));
   }
 
-  function readStoredVideoJob() {
-    try { return localStorage.getItem(VIDEO_JOB_STORAGE_KEY) || ''; }
-    catch (_) { return ''; }
+  function videoStorage() {
+    try { return window.localStorage; }
+    catch (_) { return null; }
   }
 
-  function storeVideoJob(value) {
-    try {
-      if (value) localStorage.setItem(VIDEO_JOB_STORAGE_KEY, value);
-      else localStorage.removeItem(VIDEO_JOB_STORAGE_KEY);
-    } catch (_) { /* storage is optional */ }
+  function videoStorageKey(baseKey, userId = currentVideoReferenceUserId()) {
+    const normalized = String(userId || '').trim();
+    return normalized ? `${baseKey}:${encodeURIComponent(normalized)}` : '';
   }
 
-  function readStoredVideoRequest() {
+  function rawVideoStorageRecord(baseKey, userId = currentVideoReferenceUserId()) {
+    const normalizedUserId = String(userId || '').trim();
+    const accountKey = videoStorageKey(baseKey, normalizedUserId);
+    const storage = videoStorage();
+    if (!storage || !normalizedUserId || !accountKey) return null;
+    let sourceKey = accountKey;
     try {
-      const value = JSON.parse(localStorage.getItem(VIDEO_REQUEST_STORAGE_KEY) || 'null');
-      if (!value?.idempotencyKey || Date.now() - Number(value.createdAt || 0) > VIDEO_REQUEST_TTL_MS) {
-        localStorage.removeItem(VIDEO_REQUEST_STORAGE_KEY);
+      let rawValue = storage.getItem(accountKey) || '';
+      if (!rawValue) {
+        const legacyRawValue = storage.getItem(baseKey) || '';
+        if (legacyRawValue) {
+          sourceKey = baseKey;
+          const legacyValue = JSON.parse(legacyRawValue);
+          if (String(legacyValue?.userId || '') === normalizedUserId) {
+            rawValue = legacyRawValue;
+          } else {
+            storage.removeItem(baseKey);
+          }
+        }
+      }
+      if (!rawValue) return null;
+      const value = JSON.parse(rawValue);
+      if (value?.version !== VIDEO_STORAGE_VERSION || String(value?.userId || '') !== normalizedUserId) {
+        storage.removeItem(sourceKey);
         return null;
       }
-      return value;
+      return {value, sourceKey, accountKey, storage, userId: normalizedUserId};
     } catch (_) {
+      try { storage.removeItem(sourceKey); } catch (_) { /* storage is optional */ }
       return null;
     }
   }
 
-  function storeVideoRequest(value) {
+  function legacyVideoJobIgnoreKey(userId = currentVideoReferenceUserId()) {
+    const normalized = String(userId || '').trim();
+    return normalized ? `${VIDEO_LEGACY_JOB_IGNORE_KEY}:${encodeURIComponent(normalized)}` : '';
+  }
+
+  function ignoredLegacyVideoJob(userId = currentVideoReferenceUserId()) {
+    const storage = videoStorage();
+    const key = legacyVideoJobIgnoreKey(userId);
+    if (!storage || !key) return '';
+    try { return String(storage.getItem(key) || '').trim(); }
+    catch (_) { return ''; }
+  }
+
+  function ignoreLegacyVideoJob(jobId, userId = currentVideoReferenceUserId()) {
+    const storage = videoStorage();
+    const key = legacyVideoJobIgnoreKey(userId);
+    const normalizedJobId = String(jobId || '').trim();
+    if (!storage || !key || !VIDEO_JOB_ID_PATTERN.test(normalizedJobId)) return;
+    try { storage.setItem(key, normalizedJobId); }
+    catch (_) { /* storage is optional */ }
+  }
+
+  function clearIgnoredLegacyVideoJob(userId = currentVideoReferenceUserId(), jobId = '') {
+    const storage = videoStorage();
+    const key = legacyVideoJobIgnoreKey(userId);
+    if (!storage || !key) return;
     try {
-      if (value) localStorage.setItem(VIDEO_REQUEST_STORAGE_KEY, JSON.stringify(value));
-      else localStorage.removeItem(VIDEO_REQUEST_STORAGE_KEY);
+      const ignoredJobId = String(storage.getItem(key) || '').trim();
+      const normalizedJobId = String(jobId || '').trim();
+      if (!ignoredJobId || !normalizedJobId || ignoredJobId === normalizedJobId) {
+        storage.removeItem(key);
+      }
+    }
+    catch (_) { /* storage is optional */ }
+  }
+
+  function clearMatchingLegacyVideoRecord(baseKey, userId, storage = videoStorage(), jobId = '') {
+    try {
+      const raw = String(storage?.getItem(baseKey) || '').trim();
+      if (!raw) return;
+      if (baseKey === VIDEO_JOB_STORAGE_KEY && VIDEO_JOB_ID_PATTERN.test(raw)) {
+        if (raw === String(jobId || '').trim()) storage?.removeItem(baseKey);
+        return;
+      }
+      const legacy = JSON.parse(raw || 'null');
+      if (String(legacy?.userId || '') === String(userId || '').trim()) storage?.removeItem(baseKey);
+    } catch (_) {
+      try { storage?.removeItem(baseKey); } catch (_) { /* storage is optional */ }
+    }
+  }
+
+  function readStoredVideoJob(userId = currentVideoReferenceUserId()) {
+    const normalizedUserId = String(userId || '').trim();
+    const accountKey = videoStorageKey(VIDEO_JOB_STORAGE_KEY, normalizedUserId);
+    const storage = videoStorage();
+    if (storage && normalizedUserId && accountKey && !storage.getItem(accountKey)) {
+      const legacyJobId = String(storage.getItem(VIDEO_JOB_STORAGE_KEY) || '').trim();
+      if (VIDEO_JOB_ID_PATTERN.test(legacyJobId)) {
+        if (ignoredLegacyVideoJob(normalizedUserId) === legacyJobId) return '';
+        return legacyJobId;
+      }
+    }
+    const record = rawVideoStorageRecord(VIDEO_JOB_STORAGE_KEY, userId);
+    if (!record) return '';
+    const jobId = String(record.value?.jobId || '').trim().slice(0, 200);
+    if (!jobId) {
+      record.storage.removeItem(record.sourceKey);
+      return '';
+    }
+    const sanitized = {
+      version: VIDEO_STORAGE_VERSION,
+      userId: record.userId,
+      jobId,
+      updatedAt: Number(record.value?.updatedAt || Date.now()),
+    };
+    record.storage.setItem(record.accountKey, JSON.stringify(sanitized));
+    if (record.sourceKey !== record.accountKey) record.storage.removeItem(record.sourceKey);
+    return jobId;
+  }
+
+  function isUnscopedLegacyVideoJob(jobId, userId = currentVideoReferenceUserId()) {
+    const normalizedUserId = String(userId || '').trim();
+    const accountKey = videoStorageKey(VIDEO_JOB_STORAGE_KEY, normalizedUserId);
+    const storage = videoStorage();
+    if (!storage || !normalizedUserId || !accountKey || storage.getItem(accountKey)) return false;
+    const legacyJobId = String(storage.getItem(VIDEO_JOB_STORAGE_KEY) || '').trim();
+    return VIDEO_JOB_ID_PATTERN.test(legacyJobId) && legacyJobId === String(jobId || '').trim();
+  }
+
+  function storeVideoJob(value, userId = currentVideoReferenceUserId()) {
+    const normalizedUserId = String(userId || '').trim();
+    const accountKey = videoStorageKey(VIDEO_JOB_STORAGE_KEY, normalizedUserId);
+    const storage = videoStorage();
+    if (!storage || !normalizedUserId || !accountKey) return;
+    try {
+      const jobId = String(value || '').trim().slice(0, 200);
+      if (jobId) {
+        storage.setItem(accountKey, JSON.stringify({
+          version: VIDEO_STORAGE_VERSION,
+          userId: normalizedUserId,
+          jobId,
+          updatedAt: Date.now(),
+        }));
+        clearIgnoredLegacyVideoJob(normalizedUserId, jobId);
+      } else {
+        storage.removeItem(accountKey);
+      }
+      clearMatchingLegacyVideoRecord(VIDEO_JOB_STORAGE_KEY, normalizedUserId, storage, jobId);
+    } catch (_) { /* storage is optional */ }
+  }
+
+  function readStoredVideoRequest(userId = currentVideoReferenceUserId()) {
+    const record = rawVideoStorageRecord(VIDEO_REQUEST_STORAGE_KEY, userId);
+    if (!record) return null;
+    const createdAt = Number(record.value?.createdAt || 0);
+    const idempotencyKey = String(record.value?.idempotencyKey || '').trim().slice(0, 200);
+    const requestDigest = String(record.value?.requestDigest || '').trim().slice(0, 128);
+    if (
+      !idempotencyKey
+      || !/^(?:[a-f0-9]{64}|fallback-[a-f0-9]{16})$/.test(requestDigest)
+      || !createdAt
+      || Date.now() - createdAt > VIDEO_REQUEST_TTL_MS
+    ) {
+      record.storage.removeItem(record.sourceKey);
+      return null;
+    }
+    const sanitized = {
+      version: VIDEO_STORAGE_VERSION,
+      userId: record.userId,
+      idempotencyKey,
+      requestDigest,
+      createdAt,
+    };
+    record.storage.setItem(record.accountKey, JSON.stringify(sanitized));
+    if (record.sourceKey !== record.accountKey) record.storage.removeItem(record.sourceKey);
+    return sanitized;
+  }
+
+  function storeVideoRequest(value, userId = currentVideoReferenceUserId()) {
+    const normalizedUserId = String(userId || '').trim();
+    const accountKey = videoStorageKey(VIDEO_REQUEST_STORAGE_KEY, normalizedUserId);
+    const storage = videoStorage();
+    if (!storage || !normalizedUserId || !accountKey) return;
+    try {
+      if (value?.idempotencyKey && value?.requestDigest) {
+        storage.setItem(accountKey, JSON.stringify({
+          version: VIDEO_STORAGE_VERSION,
+          userId: normalizedUserId,
+          idempotencyKey: String(value.idempotencyKey).trim().slice(0, 200),
+          requestDigest: String(value.requestDigest).trim().slice(0, 128),
+          createdAt: Number(value.createdAt || Date.now()),
+        }));
+      } else {
+        storage.removeItem(accountKey);
+      }
+      clearMatchingLegacyVideoRecord(VIDEO_REQUEST_STORAGE_KEY, normalizedUserId, storage);
     } catch (_) { /* storage is optional */ }
   }
 
@@ -300,9 +553,24 @@
     videoReferenceAuthSequence += 1;
     state.videoPollSequence += 1;
     if (state.videoPollTimer) window.clearTimeout(state.videoPollTimer);
+    state.videoStartAbortController?.abort?.();
+    state.videoContinuationAbortController?.abort?.();
+    state.videoProjectRetryAbortController?.abort?.();
+    state.videoRequestRecoveryAbortController?.abort?.();
     state.videoPollTimer = null;
+    state.videoStartAbortController = null;
+    state.videoContinuationAbortController = null;
+    state.videoProjectRetryAbortController = null;
+    state.videoRequestRecoveryAbortController = null;
+    state.videoRequestRecoveryPromise = null;
     state.activeVideoJob = null;
+    state.recentVideoJobs = [];
+    state.videoRecentLoading = false;
+    state.videoStarting = false;
     state.videoReferenceUploading = false;
+    state.videoReferenceFiles.forEach(file => {
+      if (String(file?.url || '').startsWith('blob:')) URL.revokeObjectURL(file.url);
+    });
     state.videoReferenceFiles = [];
     state.videoReferenceHandoffInvalid = false;
     state.videoReferencePlanConfirmation = '';
@@ -310,7 +578,14 @@
     if (engine) engine.value = 'quick';
     const grid = byId('crump53VideoReferenceGrid');
     if (grid) grid.replaceChildren();
+    const prompt = byId('crump53VideoPrompt');
+    if (prompt) prompt.value = '';
+    const continuationPrompt = byId('crump53ContinuePrompt');
+    if (continuationPrompt) continuationPrompt.value = '';
+    const referenceInput = byId('crump53VideoReferenceInput');
+    if (referenceInput) referenceInput.value = '';
     byId('crump53VideoResult')?.replaceChildren();
+    renderRecentVideos();
     const plan = byId('crump53VideoReferencePlan');
     if (plan) {
       plan.hidden = true;
@@ -322,13 +597,105 @@
       setStatus('crump53VideoStatus', '');
     }
     const button = byId('crump53GenerateVideo');
-    if (button && button.getAttribute('aria-busy') !== 'true') button.textContent = 'Create video';
+    if (button) button.textContent = 'Create video';
+    setVideoGenerationBusy(false);
+  }
+
+  function resetProjectAuthMemory() {
+    projectAuthSequence += 1;
+    conversationContextSequence += 1;
+    if (state.manuscriptPollTimer) window.clearTimeout(state.manuscriptPollTimer);
+    state.manuscriptPollTimer = null;
+    state.projects = [];
+    state.activeProject = null;
+    state.chatProject = null;
+    state.chatProjectChatId = '';
+    state.chatProjectOptOuts.clear();
+    state.rememberedProjectTarget = null;
+    state.editingProject = null;
+    state.projectView = 'index';
+    state.projectConversations = [];
+    state.manuscripts = [];
+    state.activeManuscript = null;
+    state.activeSection = null;
+    state.manuscriptProgress = null;
+    state.manuscriptRun = null;
+    state.libraryFiles = [];
+    conversationProjectCache.clear();
+    conversationProjectRequests.clear();
+    storedProjectTargetPromise = null;
+    storedProjectTargetId = '';
+    projectRefreshPromise = null;
+    projectStateUserId = '';
+    legacyStoredProjectTargetId = '';
+    legacyStoredProjectTargetUserId = '';
+    authenticatedHydrationStarted = false;
+    try { localStorage.removeItem(ACTIVE_PROJECT_STORAGE_KEY); }
+    catch (_) { /* storage is optional */ }
+    if (readProjectRoute()) writeProjectRoute('', {replace: true});
+
+    renderProjectIndicator({targetChanged: true});
+    renderProjectList(state.features?.projectLimit);
+    renderManuscriptProjectState();
+    const projectBack = byId('crump53ProjectBack');
+    if (projectBack) projectBack.hidden = true;
+    const projectsPanel = document.querySelector('[data-crump53-panel="projects"]');
+    projectsPanel?.classList.remove('is-project-open');
+    const sheet = byId('crump53Sheet');
+    if (sheet) sheet.dataset.projectView = 'index';
+    const projectHero = byId('crump53ProjectHero');
+    if (projectHero) projectHero.hidden = true;
+    const projectSettings = byId('crump53ProjectSettings');
+    if (projectSettings) projectSettings.open = true;
+    [
+      'crump53ProjectName',
+      'crump53ProjectDescription',
+      'crump53ProjectInstructions',
+      'crump53ContextLabel',
+      'crump53ContextContent',
+      'crump53LibrarySearch',
+    ].forEach(id => {
+      const input = byId(id);
+      if (input) input.value = '';
+    });
+    const workspaceName = byId('crump53ProjectWorkspaceName');
+    if (workspaceName) workspaceName.textContent = 'Project';
+    const workspaceDescription = byId('crump53ProjectWorkspaceDescription');
+    if (workspaceDescription) workspaceDescription.textContent = 'Everything for this Project stays together.';
+    const formTitle = byId('crump53ProjectFormTitle');
+    if (formTitle) formTitle.textContent = 'New project';
+    const settingsHint = byId('crump53ProjectSettingsHint');
+    if (settingsHint) settingsHint.textContent = 'Name it, describe it, and set the context Crump should keep.';
+    [
+      'crump53ProjectConversationList',
+      'crump53ContextList',
+      'crump53ManuscriptList',
+      'crump53LibraryGrid',
+    ].forEach(id => byId(id)?.replaceChildren());
+    const conversationCount = byId('crump53ProjectConversationCount');
+    if (conversationCount) conversationCount.textContent = '';
+    [
+      'crump53ProjectConversationsCard',
+      'crump53ProjectContextCard',
+    ].forEach(id => {
+      const card = byId(id);
+      if (card) card.hidden = true;
+    });
+    setStatus('crump53ProjectStatus', '');
+    setStatus('crump53ContextStatus', '');
+    setStatus('crump53LibraryStatus', '');
+    renderVideoProjectDestination();
   }
 
   function clearVideoReferenceAuthState() {
     resetVideoReferenceMemory();
     videoReferenceStateUserId = '';
     restoredVideoReferenceDraftUserId = '';
+  }
+
+  function clearProductAuthState() {
+    clearVideoReferenceAuthState();
+    resetProjectAuthMemory();
   }
 
   function persistVideoReferenceDraft() {
@@ -432,8 +799,10 @@
     return true;
   }
 
-  function videoRequestFingerprint(request) {
+  function videoRequestCanonicalValue(request) {
     return JSON.stringify([
+      request.operationType || 'generate',
+      request.parentJobId || '',
       request.prompt,
       request.engine,
       request.resolution,
@@ -445,6 +814,21 @@
         ? request.referencePlan.map(reference => `${reference?.fileId || ''}:${reference?.role || ''}`)
         : []),
     ]);
+  }
+
+  async function videoRequestDigest(request) {
+    const bytes = new TextEncoder().encode(videoRequestCanonicalValue(request));
+    if (globalThis.crypto?.subtle?.digest) {
+      const digest = await globalThis.crypto.subtle.digest('SHA-256', bytes);
+      return Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+    }
+    let first = 0x811c9dc5;
+    let second = 0x9e3779b9;
+    bytes.forEach(byte => {
+      first = Math.imul(first ^ byte, 0x01000193) >>> 0;
+      second = Math.imul(second ^ byte, 0x85ebca6b) >>> 0;
+    });
+    return `fallback-${first.toString(16).padStart(8, '0')}${second.toString(16).padStart(8, '0')}`;
   }
 
   function setVideoGenerationBusy(busy) {
@@ -651,6 +1035,7 @@
   }
 
   function setChatProject(project, {chatId = currentChatId(), targetChanged = false} = {}) {
+    if (!bindProjectStateToCurrentUser()) return null;
     const normalized = normalizedProject(project);
     const normalizedChatId = String(chatId || '').trim();
     state.chatProject = normalized;
@@ -1041,6 +1426,14 @@
                 <div class="crump53-actions"><button class="crump53-button is-primary" type="submit" id="crump53GenerateVideo">Create video</button><span id="crump53VideoEntitlement" class="crump53-lock">Checking access…</span></div>
                 <div id="crump53VideoStatus" class="crump53-status" aria-live="polite"></div>
               </form>
+              <section class="crump53-video-recent" id="crump53VideoRecent" aria-labelledby="crump53VideoRecentTitle">
+                <div class="crump53-video-recent-head">
+                  <div><strong id="crump53VideoRecentTitle">Recent videos</strong><span>Jobs keep running securely when you leave this screen.</span></div>
+                  <button class="crump53-button" type="button" id="crump53RefreshVideos">Refresh</button>
+                </div>
+                <div id="crump53VideoRecentStatus" class="crump53-video-recent-status" aria-live="polite"></div>
+                <div id="crump53VideoRecentList" class="crump53-video-recent-list"></div>
+              </section>
               <div id="crump53VideoResult"></div>
             </div>
           </section>
@@ -1079,6 +1472,26 @@
     byId('crump53VideoResolution')?.addEventListener('change', () => updateVideoStudio());
     byId('crump53AddVideoReference')?.addEventListener('click', () => byId('crump53VideoReferenceInput')?.click());
     byId('crump53VideoReferenceInput')?.addEventListener('change', handleVideoReferenceUpload);
+    byId('crump53RefreshVideos')?.addEventListener('click', () => void loadRecentVideoJobs());
+    byId('crump53VideoRecentList')?.addEventListener('click', event => {
+      const button = event.target.closest?.('[data-video-job-action]');
+      if (!button) return;
+      const jobId = String(button.dataset.videoJobAction || '');
+      const job = state.recentVideoJobs.find(item => String(item?.id || '') === jobId);
+      if (!job) return;
+      if (job.status === 'ready' && job.file?.url) {
+        setStatus('crump53VideoStatus', 'Opened your saved video.');
+        renderReadyVideo(job);
+        return;
+      }
+      if (job.status === 'queued' || job.status === 'processing') {
+        const ownerUserId = currentVideoReferenceUserId();
+        if (!ownerUserId) return;
+        storeVideoJob(jobId, ownerUserId);
+        setStatus('crump53VideoStatus', 'Resuming status checks for this video.');
+        pollVideo(jobId, ownerUserId);
+      }
+    });
     byId('crump53VideoProjectClear')?.addEventListener('click', () => {
       clearActiveProject({announce: true});
       setStatus('crump53VideoStatus', 'This video will save to your private Files only.');
@@ -1165,10 +1578,15 @@
       });
     } else if (section === 'video') {
       void refreshFeatures();
+      void restoreStoredProjectTarget().then(project => {
+        if (project) renderVideoProjectDestination();
+      });
     }
   }
 
   async function openProject(projectId) {
+    const operation = projectOperationContext();
+    if (!operation.userId) return false;
     const normalizedProjectId = String(projectId || '').trim();
     if (!normalizedProjectId) {
       openStudio('projects');
@@ -1188,6 +1606,7 @@
     }
     if (!project) {
       await refreshProjects();
+      if (!projectOperationIsCurrent(operation)) return false;
       project = state.projects.find(item => String(item.id || '') === normalizedProjectId);
     }
     if (!project) {
@@ -1226,6 +1645,7 @@
         setVideoGenerationBusy(true);
         pollVideo(pendingJob);
       }
+      void loadRecentVideoJobs({resumeNewest: !pendingJob});
     }
     if (tab === 'library') void window.CrumpLibrary57?.refresh?.();
   }
@@ -1501,17 +1921,19 @@
     }
   }
 
-  let projectRefreshPromise = null;
-
   async function refreshProjects() {
+    const operation = projectOperationContext();
+    if (!operation.userId) return;
     if (projectRefreshPromise) return projectRefreshPromise;
-    projectRefreshPromise = (async () => {
+    const request = (async () => {
       try {
         const data = await api('/api/projects', {timeoutMs: PROJECT_READ_TIMEOUT_MS});
+        if (!projectOperationIsCurrent(operation)) return;
         state.projects = Array.isArray(data.projects) ? data.projects : [];
-        const stored = state.activeProject?.id || readStoredProject();
+        const stored = state.activeProject?.id || storedProjectCandidate();
         state.activeProject = state.projects.find(item => item.id === stored) || null;
-        if (!state.activeProject && stored) storeProject('');
+        if (state.activeProject) storeProject(state.activeProject.id);
+        else if (stored) storeProject('');
         renderProjectList(data.limit);
         renderProjectIndicator({targetChanged: true});
         renderManuscriptProjectState();
@@ -1532,6 +1954,7 @@
           renderActiveProjectWorkspace({open: false});
         }
       } catch (error) {
+        if (!projectOperationIsCurrent(operation)) return;
         const message = error.message || 'Could not load Projects.';
         setStatus('crump53ProjectStatus', message, true);
         renderRetryableListError(
@@ -1542,10 +1965,11 @@
         );
       }
     })();
+    projectRefreshPromise = request;
     try {
-      return await projectRefreshPromise;
+      return await request;
     } finally {
-      projectRefreshPromise = null;
+      if (projectRefreshPromise === request) projectRefreshPromise = null;
     }
   }
 
@@ -1556,6 +1980,7 @@
   }
 
   function rememberConversationProject(chatId, project) {
+    if (!bindProjectStateToCurrentUser()) return null;
     const normalizedChatId = String(chatId || '').trim();
     if (!normalizedChatId) return null;
     const projectId = String(project?.id || '').trim();
@@ -1570,6 +1995,8 @@
   }
 
   async function projectForConversation(chatId) {
+    const operation = projectOperationContext();
+    if (!operation.userId) return null;
     const normalizedChatId = String(chatId || '').trim();
     if (!normalizedChatId) return null;
     if (conversationProjectCache.has(normalizedChatId)) {
@@ -1578,19 +2005,29 @@
     if (conversationProjectRequests.has(normalizedChatId)) {
       return conversationProjectRequests.get(normalizedChatId);
     }
-    const request = api(
+    let request;
+    request = api(
       `/api/projects/for-chat/${encodeURIComponent(normalizedChatId)}`,
       {timeoutMs: PROJECT_READ_TIMEOUT_MS},
-    ).then(data => rememberConversationProject(normalizedChatId, data.project))
-      .finally(() => conversationProjectRequests.delete(normalizedChatId));
+    ).then(data => (
+      projectOperationIsCurrent(operation)
+        ? rememberConversationProject(normalizedChatId, data.project)
+        : null
+    )).finally(() => {
+      if (conversationProjectRequests.get(normalizedChatId) === request) {
+        conversationProjectRequests.delete(normalizedChatId);
+      }
+    });
     conversationProjectRequests.set(normalizedChatId, request);
     return request;
   }
 
   async function restoreStoredProjectTarget() {
+    const operation = projectOperationContext();
+    if (!operation.userId) return null;
     const current = currentProjectTarget();
     if (current) return current;
-    const projectId = String(readStoredProject() || '').trim();
+    const projectId = String(storedProjectCandidate() || '').trim();
     if (!projectId) return null;
     if (storedProjectTargetPromise && storedProjectTargetId === projectId) {
       return storedProjectTargetPromise;
@@ -1602,11 +2039,18 @@
           `/api/projects/target/${encodeURIComponent(projectId)}`,
           {timeoutMs: PROJECT_READ_TIMEOUT_MS},
         );
+        if (!projectOperationIsCurrent(operation)) return null;
         const returnedId = String(data.project?.id || '').trim();
         if (!returnedId || returnedId !== projectId) return null;
         const selectedDuringLookup = currentProjectTarget();
         if (selectedDuringLookup) return selectedDuringLookup;
-        if (readStoredProject() !== projectId) return currentProjectTarget();
+        const currentCandidate = readStoredProject() || (
+          legacyStoredProjectTargetUserId === operation.userId
+            ? legacyStoredProjectTargetId
+            : ''
+        );
+        if (currentCandidate !== projectId) return currentProjectTarget();
+        storeProject(returnedId);
         state.rememberedProjectTarget = {
           id: returnedId,
           name: String(data.project?.name || 'Project').replace(/\s+/g, ' ').trim() || 'Project',
@@ -1648,13 +2092,16 @@
   }
 
   async function keepConversation(options = {}) {
+    const operation = projectOperationContext();
+    if (!operation.userId) return {success: false, cancelled: true};
     const chat = currentConversation();
     const chatId = String(chat?.id || chat?.chat_id || '').trim();
     if (!chatId) throw new Error('Open a conversation before saving it to a Project.');
     const hasExplicitTarget = Object.prototype.hasOwnProperty.call(options, 'projectId');
+    const activeTarget = currentProjectTarget();
     const targetProjectId = hasExplicitTarget
       ? String(options.projectId || '').trim()
-      : String(state.activeProject?.id || '').trim();
+      : String(activeTarget?.id || '').trim();
     const continuitySource = options.continuitySource === 'result_action'
       ? 'result_action'
       : '';
@@ -1662,6 +2109,7 @@
     try {
       const sync = await window.syncChatsToServer?.();
       if (sync?.success === false) throw new Error('This conversation is still syncing. Try again in a moment.');
+      if (!projectOperationIsCurrent(operation)) return {success: false, cancelled: true};
 
       const data = targetProjectId
         ? await api(`/api/projects/${targetProjectId}/chats`, {
@@ -1679,6 +2127,7 @@
             },
             timeoutMs: PROJECT_SAVE_TIMEOUT_MS,
           });
+      if (!projectOperationIsCurrent(operation)) return {success: false, cancelled: true};
       state.activeProject = data.project;
       state.editingProject = data.project;
       storeProject(data.project.id);
@@ -1690,6 +2139,7 @@
       if (options.refresh !== false) void refreshProjects();
       return {success: true, project: data.project};
     } catch (error) {
+      if (!projectOperationIsCurrent(operation)) return {success: false, cancelled: true};
       if (featureAccessCode(error) === 'PROJECT_LIMIT_REACHED') {
         openFeatureAccessRecovery(error);
       }
@@ -1766,6 +2216,7 @@
   }
 
   function selectProject(projectId, {updateRoute = true, replaceRoute = false, focus = true, reveal = true} = {}) {
+    if (!bindProjectStateToCurrentUser()) return false;
     const normalizedProjectId = String(projectId || '').trim();
     const project = state.projects.find(item => String(item.id || '') === normalizedProjectId);
     if (!project) {
@@ -1869,6 +2320,7 @@
   }
 
   function renderActiveProjectWorkspace({open = false} = {}) {
+    if (!currentProjectTarget()) return;
     const project = state.activeProject;
     if (!project) return;
     byId('crump53ProjectName').value = project.name || '';
@@ -1912,6 +2364,8 @@
   }
 
   async function refreshProjectConversations() {
+    const operation = projectOperationContext();
+    if (!operation.userId) return;
     const card = byId('crump53ProjectConversationsCard');
     const list = byId('crump53ProjectConversationList');
     const count = byId('crump53ProjectConversationCount');
@@ -1930,7 +2384,7 @@
       const data = await api(`/api/projects/${projectId}/chats`, {
         timeoutMs: PROJECT_READ_TIMEOUT_MS,
       });
-      if (state.activeProject?.id !== projectId) return;
+      if (!projectOperationIsCurrent(operation) || state.activeProject?.id !== projectId) return;
       state.projectConversations = Array.isArray(data.conversations) ? data.conversations : [];
       if (count) count.textContent = String(state.projectConversations.length);
       if (!state.projectConversations.length) {
@@ -1947,7 +2401,7 @@
         button.addEventListener('click', () => void resumeProjectConversation(button.dataset.projectChatId));
       });
     } catch (error) {
-      if (state.activeProject?.id !== projectId) return;
+      if (!projectOperationIsCurrent(operation) || state.activeProject?.id !== projectId) return;
       state.projectConversations = [];
       if (count) count.textContent = '';
       renderRetryableListError(
@@ -1994,6 +2448,8 @@
 
   async function saveProject(event) {
     event.preventDefault();
+    const operation = projectOperationContext();
+    if (!operation.userId) return;
     const payload = {
       name: byId('crump53ProjectName')?.value || '',
       description: byId('crump53ProjectDescription')?.value || '',
@@ -2004,6 +2460,7 @@
       const data = state.editingProject?.id
         ? await api(`/api/projects/${state.editingProject.id}`, {method: 'PATCH', body: payload})
         : await api('/api/projects', {method: 'POST', body: payload});
+      if (!projectOperationIsCurrent(operation)) return;
       state.activeProject = data.project;
       state.editingProject = data.project;
       storeProject(data.project.id);
@@ -2013,11 +2470,14 @@
       const settings = byId('crump53ProjectSettings');
       if (settings) settings.open = false;
     } catch (error) {
+      if (!projectOperationIsCurrent(operation)) return;
       setFeatureAccessStatus('crump53ProjectStatus', error);
     }
   }
 
   async function refreshProjectContext() {
+    const operation = projectOperationContext();
+    if (!operation.userId) return;
     const card = byId('crump53ProjectContextCard');
     const list = byId('crump53ContextList');
     if (!card || !list) return;
@@ -2032,7 +2492,7 @@
       const data = await api(`/api/projects/${projectId}`, {
         timeoutMs: PROJECT_READ_TIMEOUT_MS,
       });
-      if (state.activeProject?.id !== projectId) return;
+      if (!projectOperationIsCurrent(operation) || state.activeProject?.id !== projectId) return;
       const rows = Array.isArray(data.context?.canon) ? data.context.canon : [];
       if (!rows.length) {
         list.innerHTML = '<div class="crump53-note">No canon or durable Project notes yet.</div>';
@@ -2045,7 +2505,7 @@
         return `<div class="crump53-context-item"><small>${kind}</small><strong>${label}</strong><p>${content}</p></div>`;
       }).join('');
     } catch (error) {
-      if (state.activeProject?.id !== projectId) return;
+      if (!projectOperationIsCurrent(operation) || state.activeProject?.id !== projectId) return;
       renderRetryableListError(
         list,
         error.message || 'Could not load Project context.',
@@ -2085,17 +2545,19 @@
   }
 
   function activateSelectedProject() {
-    if (!state.activeProject?.id) {
+    const project = currentProjectTarget();
+    if (!project?.id || !state.activeProject?.id) {
       setStatus('crump53ProjectStatus', 'Choose or save a project first.', true);
       return;
     }
-    storeProject(state.activeProject.id);
+    storeProject(project.id);
     setChatProject(state.activeProject, {chatId: currentChatId()});
     setStatus('crump53ProjectStatus', 'This conversation will use this Project context.');
   }
 
   function startProjectConversation() {
-    if (!state.activeProject?.id) {
+    const target = currentProjectTarget();
+    if (!target?.id || !state.activeProject?.id) {
       setStatus('crump53ProjectStatus', 'Choose or save a Project first.', true);
       return;
     }
@@ -2155,8 +2617,9 @@
     const context = byId('crump53VideoProjectContext');
     const name = byId('crump53VideoProjectName');
     if (!context) return;
-    context.hidden = !state.activeProject;
-    if (name && state.activeProject) name.textContent = state.activeProject.name || 'Project';
+    const project = currentProjectTarget();
+    context.hidden = !project;
+    if (name) name.textContent = project?.name || '';
   }
 
   function clearActiveProject({announce = false} = {}) {
@@ -2963,6 +3426,8 @@
   }
 
   async function refreshLibrary() {
+    const operation = projectOperationContext();
+    if (!operation.userId) return;
     const grid = byId('crump53LibraryGrid');
     if (!grid) return;
     state.libraryVisibleLimit = LIBRARY_PAGE_SIZE;
@@ -2972,9 +3437,11 @@
     }
     try {
       const data = await api('/api/files?limit=200');
+      if (!projectOperationIsCurrent(operation)) return;
       state.libraryFiles = Array.isArray(data.files) ? data.files : [];
       renderLibrary();
     } catch (error) {
+      if (!projectOperationIsCurrent(operation)) return;
       setStatus('crump53LibraryStatus', error.message || 'Could not load your saved files.', true);
       grid.innerHTML = '<div class="crump53-library-empty is-error">Your files could not be loaded.</div>';
     }
@@ -2986,20 +3453,20 @@
       setStatus('crump53VideoStatus', 'Your account changed before this video could start. Reopen Video Studio and review the current account\'s references.', true);
       return;
     }
+    const ownerUserId = currentVideoReferenceUserId();
+    const authSequence = videoReferenceAuthSequence;
     if (state.videoStarting) return;
+    if (await resumePendingVideoJob(ownerUserId)) return;
+    if (
+      authSequence !== videoReferenceAuthSequence
+      || currentVideoReferenceUserId() !== ownerUserId
+    ) return;
     if (state.videoReferenceUploading) {
       setStatus('crump53VideoStatus', 'Wait for the private reference upload to finish before creating the video.', true);
       return;
     }
     if (state.videoReferenceHandoffInvalid) {
       setStatus('crump53VideoStatus', 'One or more chat reference images could not be loaded. Reattach them before creating the video.', true);
-      return;
-    }
-    const pendingJob = readStoredVideoJob();
-    if (pendingJob) {
-      setStatus('crump53VideoStatus', 'Your current video is still generating. Crump is checking that job instead of starting and charging for another.');
-      setVideoGenerationBusy(true);
-      pollVideo(pendingJob);
       return;
     }
     const prompt = String(overrides.prompt ?? byId('crump53VideoPrompt')?.value ?? '');
@@ -3040,23 +3507,24 @@
       }
       return;
     }
+    const projectTarget = currentProjectTarget() || await restoreStoredProjectTarget();
+    if (
+      authSequence !== videoReferenceAuthSequence
+      || currentVideoReferenceUserId() !== ownerUserId
+    ) return;
+    renderVideoProjectDestination();
     const request = {
       prompt,
       engine,
       resolution,
       aspectRatio,
       durationSeconds,
-      projectId: state.activeProject?.id || null,
+      projectId: projectTarget?.id || null,
       referenceFileIds: state.videoReferenceFiles.map(file => String(file.id || '')).filter(Boolean),
       referencePlan,
     };
-    const fingerprint = videoRequestFingerprint(request);
-    const storedRequest = readStoredVideoRequest();
-    const idempotencyKey = String(overrides.idempotencyKey || '')
-      || (storedRequest?.fingerprint === fingerprint ? storedRequest.idempotencyKey : '')
-      || globalThis.crypto?.randomUUID?.()
-      || `${Date.now()}-${Math.random()}`;
-    storeVideoRequest({idempotencyKey, fingerprint, createdAt: Date.now()});
+    const startController = new AbortController();
+    state.videoStartAbortController = startController;
     state.videoStarting = true;
     const generateButton = byId('crump53GenerateVideo');
     if (generateButton) generateButton.textContent = 'Create video';
@@ -3064,34 +3532,65 @@
     try {
       setStatus('crump53VideoStatus', 'Starting video generation…');
       state.activeVideoJob = null;
-      byId('crump53VideoResult').innerHTML = '';
+      byId('crump53VideoResult')?.replaceChildren();
+      const requestDigest = await videoRequestDigest(request);
+      if (
+        authSequence !== videoReferenceAuthSequence
+        || currentVideoReferenceUserId() !== ownerUserId
+        || startController.signal.aborted
+      ) return;
+      const storedRequest = readStoredVideoRequest(ownerUserId);
+      const idempotencyKey = String(overrides.idempotencyKey || '')
+        || (storedRequest?.requestDigest === requestDigest ? storedRequest.idempotencyKey : '')
+        || globalThis.crypto?.randomUUID?.()
+        || `${Date.now()}-${Math.random()}`;
+      storeVideoRequest({idempotencyKey, requestDigest, createdAt: Date.now()}, ownerUserId);
       const data = await api('/api/media/video', {
         method: 'POST',
         headers: {'X-Idempotency-Key': idempotencyKey},
         body: request,
+        signal: startController.signal,
       });
-      storeVideoRequest(null);
-      clearStoredVideoReferenceDraft();
-      storeVideoJob(data.job.id);
+      storeVideoRequest(null, ownerUserId);
+      clearStoredVideoReferenceDraft(ownerUserId);
+      storeVideoJob(data.job.id, ownerUserId);
+      if (
+        authSequence !== videoReferenceAuthSequence
+        || currentVideoReferenceUserId() !== ownerUserId
+      ) return;
       setStatus('crump53VideoStatus', 'Generating… this can take a few minutes. You can close this panel and return.');
-      pollVideo(data.job.id);
+      pollVideo(data.job.id, ownerUserId);
     } catch (error) {
-      if (Number(error.status || 0) > 0) storeVideoRequest(null);
+      if (Number(error.status || 0) > 0 && !error.data?.shouldRetry) {
+        storeVideoRequest(null, ownerUserId);
+      }
+      if (
+        authSequence !== videoReferenceAuthSequence
+        || currentVideoReferenceUserId() !== ownerUserId
+        || startController.signal.aborted
+      ) return;
       const suffix = error.data?.creditsRequired
         ? ` Needs ${error.data.creditsRequired} credits; balance ${error.data.creditBalance ?? 0}.`
         : '';
       setFeatureAccessStatus('crump53VideoStatus', error, `${error.message}${suffix}`);
       setVideoGenerationBusy(false);
     } finally {
-      state.videoStarting = false;
+      if (state.videoStartAbortController === startController) state.videoStartAbortController = null;
+      if (authSequence === videoReferenceAuthSequence) state.videoStarting = false;
     }
   }
 
   async function retryVideoProjectAttachment(job) {
+    if (!videoReferenceInteractionIsCurrent()) return;
+    const ownerUserId = currentVideoReferenceUserId();
+    const authSequence = videoReferenceAuthSequence;
     const fileId = String(job?.file?.id || '').trim();
     const receipt = job?.projectAttachment || {};
     const projectId = String(receipt.projectId || '').trim();
     if (!fileId || !projectId || receipt.status !== 'failed' || !receipt.shouldRetry) return;
+    const retryController = new AbortController();
+    state.videoProjectRetryAbortController?.abort?.();
+    state.videoProjectRetryAbortController = retryController;
     const button = byId('crump53RetryVideoProject');
     if (button) {
       button.disabled = true;
@@ -3102,7 +3601,13 @@
         method: 'POST',
         body: {fileId, role: 'generated_video'},
         timeoutMs: PROJECT_SAVE_TIMEOUT_MS,
+        signal: retryController.signal,
       });
+      if (
+        authSequence !== videoReferenceAuthSequence
+        || currentVideoReferenceUserId() !== ownerUserId
+        || retryController.signal.aborted
+      ) return;
       const updated = {
         ...job,
         file: data.file || job.file,
@@ -3117,10 +3622,18 @@
       renderReadyVideo(updated);
       void refreshProjects();
     } catch (error) {
+      if (
+        authSequence !== videoReferenceAuthSequence
+        || currentVideoReferenceUserId() !== ownerUserId
+        || retryController.signal.aborted
+      ) return;
       window.showToast?.(error.message || 'The video is safe in Files, but its Project link still needs a retry.', 'error');
       if (button) button.disabled = false;
     } finally {
-      button?.removeAttribute('aria-busy');
+      if (state.videoProjectRetryAbortController === retryController) {
+        state.videoProjectRetryAbortController = null;
+      }
+      if (authSequence === videoReferenceAuthSequence) button?.removeAttribute('aria-busy');
     }
   }
 
@@ -3188,86 +3701,323 @@
     }
   }
 
+  function renderRecentVideos() {
+    const list = byId('crump53VideoRecentList');
+    const status = byId('crump53VideoRecentStatus');
+    if (!list || !status) return;
+    if (state.videoRecentLoading) {
+      status.textContent = 'Checking your private video jobs…';
+    } else if (!state.recentVideoJobs.length) {
+      status.textContent = 'No video jobs yet.';
+    } else {
+      status.textContent = `${state.recentVideoJobs.length} recent video job${state.recentVideoJobs.length === 1 ? '' : 's'}`;
+    }
+    list.innerHTML = state.recentVideoJobs.map(job => {
+      const rawStatus = String(job?.status || 'processing').toLowerCase();
+      const safeStatus = ['queued', 'processing', 'ready', 'failed'].includes(rawStatus)
+        ? rawStatus
+        : 'processing';
+      const label = safeStatus === 'ready'
+        ? 'Ready'
+        : (safeStatus === 'failed' ? 'Needs attention' : 'Generating');
+      const engine = String(job?.engine || 'quick');
+      const created = formatLibraryDate(job?.createdAt);
+      const action = safeStatus === 'ready' && job?.file?.url
+        ? `<button class="crump53-button" type="button" data-video-job-action="${escapeHtml(job.id)}">View</button>`
+        : (safeStatus === 'queued' || safeStatus === 'processing'
+            ? `<button class="crump53-button" type="button" data-video-job-action="${escapeHtml(job.id)}">Check status</button>`
+            : '');
+      return `<article class="crump53-video-recent-item" data-video-job-status="${safeStatus}">
+        <div><strong>${escapeHtml(label)}</strong><span>${escapeHtml(engine)} · ${escapeHtml(created || 'Recent')}</span></div>
+        ${action}
+      </article>`;
+    }).join('');
+  }
+
+  async function loadRecentVideoJobs({resumeNewest = false} = {}) {
+    const ownerUserId = currentVideoReferenceUserId();
+    const authSequence = videoReferenceAuthSequence;
+    if (!ownerUserId || state.videoRecentLoading) return false;
+    state.videoRecentLoading = true;
+    renderRecentVideos();
+    try {
+      const data = await api('/api/media/video');
+      if (
+        authSequence !== videoReferenceAuthSequence
+        || currentVideoReferenceUserId() !== ownerUserId
+      ) return false;
+      state.recentVideoJobs = Array.isArray(data?.jobs) ? data.jobs.slice(0, 12) : [];
+      state.videoRecentLoading = false;
+      renderRecentVideos();
+      if (resumeNewest && !readStoredVideoJob(ownerUserId)) {
+        const active = state.recentVideoJobs.find(job => (
+          job?.status === 'queued' || job?.status === 'processing'
+        ));
+        if (active?.id) {
+          storeVideoJob(active.id, ownerUserId);
+          setStatus('crump53VideoStatus', 'Found your in-progress video. Crump is checking its saved job now.');
+          pollVideo(active.id, ownerUserId);
+        }
+      }
+      return true;
+    } catch (error) {
+      if (
+        authSequence !== videoReferenceAuthSequence
+        || currentVideoReferenceUserId() !== ownerUserId
+      ) return false;
+      state.videoRecentLoading = false;
+      renderRecentVideos();
+      const status = byId('crump53VideoRecentStatus');
+      if (status) status.textContent = error.message || 'Recent videos are temporarily unavailable.';
+      return false;
+    }
+  }
+
   async function continueVideoScene(parentJob) {
+    if (!videoReferenceInteractionIsCurrent()) return;
+    const ownerUserId = currentVideoReferenceUserId();
+    const authSequence = videoReferenceAuthSequence;
     const prompt = byId('crump53ContinuePrompt')?.value || '';
     const button = byId('crump53SubmitContinuation');
-    const idempotencyKey = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`;
+    const continuationController = new AbortController();
+    state.videoContinuationAbortController = continuationController;
     if (button) button.disabled = true;
     try {
       setStatus('crump53VideoStatus', 'Continuing from the final moment of your scene…');
+      const continuationRequest = {
+        operationType: 'extend',
+        parentJobId: String(parentJob?.id || ''),
+        prompt,
+        engine: 'extendable',
+        resolution: '720p',
+        aspectRatio: String(parentJob?.aspectRatio || '16:9'),
+        durationSeconds: 8,
+        projectId: String(parentJob?.projectId || ''),
+        referenceFileIds: [],
+        referencePlan: [],
+      };
+      const requestDigest = await videoRequestDigest(continuationRequest);
+      if (
+        authSequence !== videoReferenceAuthSequence
+        || currentVideoReferenceUserId() !== ownerUserId
+        || continuationController.signal.aborted
+      ) return;
+      const storedRequest = readStoredVideoRequest(ownerUserId);
+      const idempotencyKey = storedRequest?.requestDigest === requestDigest
+        ? storedRequest.idempotencyKey
+        : (globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random()}`);
+      storeVideoRequest({idempotencyKey, requestDigest, createdAt: Date.now()}, ownerUserId);
       const data = await api(`/api/media/video/${parentJob.id}/continue`, {
         method: 'POST',
         headers: {'X-Idempotency-Key': idempotencyKey},
         body: {prompt},
+        signal: continuationController.signal,
       });
-      storeVideoJob(data.job.id);
+      storeVideoRequest(null, ownerUserId);
+      storeVideoJob(data.job.id, ownerUserId);
+      if (
+        authSequence !== videoReferenceAuthSequence
+        || currentVideoReferenceUserId() !== ownerUserId
+      ) return;
       state.activeVideoJob = data.job;
       setStatus('crump53VideoStatus', 'Extending… Crump is preserving the previous scene and building the next seven seconds.');
-      pollVideo(data.job.id);
+      pollVideo(data.job.id, ownerUserId);
     } catch (error) {
+      if (Number(error.status || 0) > 0 && !error.data?.shouldRetry) {
+        storeVideoRequest(null, ownerUserId);
+      }
+      if (
+        authSequence !== videoReferenceAuthSequence
+        || currentVideoReferenceUserId() !== ownerUserId
+        || continuationController.signal.aborted
+      ) return;
       const suffix = error.data?.creditsRequired
         ? ` Needs ${error.data.creditsRequired} credits; balance ${error.data.creditBalance ?? 0}.`
         : '';
       setFeatureAccessStatus('crump53VideoStatus', error, `${error.message}${suffix}`);
       if (button) button.disabled = false;
+    } finally {
+      if (state.videoContinuationAbortController === continuationController) {
+        state.videoContinuationAbortController = null;
+      }
     }
   }
 
-  function pollVideo(jobId) {
+  function pollVideo(jobId, ownerUserId = currentVideoReferenceUserId()) {
+    const normalizedOwnerUserId = String(ownerUserId || '').trim();
+    if (!normalizedOwnerUserId || currentVideoReferenceUserId() !== normalizedOwnerUserId) return;
+    const unscopedLegacyJob = isUnscopedLegacyVideoJob(jobId, normalizedOwnerUserId);
     if (state.videoPollTimer) window.clearTimeout(state.videoPollTimer);
     const sequence = ++state.videoPollSequence;
     setVideoGenerationBusy(true);
     const check = async () => {
-      if (sequence !== state.videoPollSequence) return;
+      if (
+        sequence !== state.videoPollSequence
+        || currentVideoReferenceUserId() !== normalizedOwnerUserId
+      ) return;
       try {
         const data = await api(`/api/media/video/${jobId}`);
-        if (sequence !== state.videoPollSequence) return;
+        if (
+          sequence !== state.videoPollSequence
+          || currentVideoReferenceUserId() !== normalizedOwnerUserId
+        ) return;
         const job = data.job || {};
         state.activeVideoJob = job;
+        if (unscopedLegacyJob) storeVideoJob(jobId, normalizedOwnerUserId);
         if (job.status === 'ready' && job.file?.url) {
-          storeVideoJob('');
-          storeVideoRequest(null);
+          storeVideoJob('', normalizedOwnerUserId);
+          storeVideoRequest(null, normalizedOwnerUserId);
           setVideoGenerationBusy(false);
           setStatus('crump53VideoStatus', `Saved to Files · ${job.durationSeconds || 8}s · ${job.resolution || '720p'}`);
           renderReadyVideo(job);
+          void loadRecentVideoJobs();
           void refreshLibrary();
           return;
         }
         if (job.status === 'failed') {
-          storeVideoJob('');
-          storeVideoRequest(null);
+          storeVideoJob('', normalizedOwnerUserId);
+          storeVideoRequest(null, normalizedOwnerUserId);
           setVideoGenerationBusy(false);
           const billingMessage = job.chargeReturned
             ? ' Your generation charge was returned.'
             : ' No video was delivered; this provider failure may still have incurred provider cost.';
           setStatus('crump53VideoStatus', `${job.error || 'Video generation failed.'}${billingMessage}`, true);
+          void loadRecentVideoJobs();
           return;
         }
+        storeVideoJob(jobId, normalizedOwnerUserId);
         setStatus('crump53VideoStatus', job.provider === 'runway' && job.providerStatus === 'THROTTLED'
           ? 'Runway queued the job because provider concurrency is busy. Crump will keep checking.'
           : 'Generating… Crump is checking the provider status.');
         state.videoPollTimer = window.setTimeout(check, 8000);
       } catch (error) {
-        if (sequence !== state.videoPollSequence) return;
-        setStatus('crump53VideoStatus', error.message, true);
+        if (
+          sequence !== state.videoPollSequence
+          || currentVideoReferenceUserId() !== normalizedOwnerUserId
+        ) return;
         if (error.data?.shouldRetry) {
+          setStatus('crump53VideoStatus', error.message, true);
           state.videoPollTimer = window.setTimeout(check, 10000);
         } else if (Number(error.status || 0) === 404) {
-          storeVideoJob('');
-          storeVideoRequest(null);
+          if (unscopedLegacyJob) ignoreLegacyVideoJob(jobId, normalizedOwnerUserId);
+          else storeVideoJob('', normalizedOwnerUserId);
+          storeVideoRequest(null, normalizedOwnerUserId);
           setVideoGenerationBusy(false);
+          setStatus(
+            'crump53VideoStatus',
+            unscopedLegacyJob
+              ? 'No saved video job belongs to this account. You can create a new video here.'
+              : error.message,
+            !unscopedLegacyJob,
+          );
+        } else {
+          setStatus('crump53VideoStatus', error.message, true);
         }
       }
     };
     void check();
   }
 
-  function resumePendingVideoJob() {
-    if (!window.currentUser) return;
-    const jobId = readStoredVideoJob();
-    if (!jobId) return;
-    setStatus('crump53VideoStatus', 'Your saved video job is generating. Crump will keep its status current while you explore the app.');
-    pollVideo(jobId);
+  async function recoverPendingVideoRequest(ownerUserId) {
+    const request = readStoredVideoRequest(ownerUserId);
+    if (!request) return false;
+    const controller = new AbortController();
+    state.videoRequestRecoveryAbortController?.abort?.();
+    state.videoRequestRecoveryAbortController = controller;
+    const recoveryDeadline = Math.min(
+      Number(request.createdAt || 0) + VIDEO_REQUEST_RECOVERY_GRACE_MS,
+      Number(request.createdAt || 0) + VIDEO_REQUEST_TTL_MS,
+    );
+    try {
+      while (true) {
+        if (
+          controller.signal.aborted
+          || currentVideoReferenceUserId() !== ownerUserId
+        ) return true;
+        try {
+          const data = await apiOnce('/api/media/video/request-status', {
+            method: 'GET',
+            headers: {'X-Idempotency-Key': request.idempotencyKey},
+            signal: controller.signal,
+            timeoutMs: 12_000,
+          });
+          if (
+            controller.signal.aborted
+            || currentVideoReferenceUserId() !== ownerUserId
+          ) return true;
+          const jobId = String(data?.job?.id || '').trim();
+          if (!jobId) throw new Error('The recovered video request did not include a job.');
+          storeVideoRequest(null, ownerUserId);
+          clearStoredVideoReferenceDraft(ownerUserId);
+          storeVideoJob(jobId, ownerUserId);
+          setStatus('crump53VideoStatus', 'Recovered your in-progress video after the interrupted response. Crump will keep checking it.');
+          pollVideo(jobId, ownerUserId);
+          return true;
+        } catch (error) {
+          if (
+            controller.signal.aborted
+            || currentVideoReferenceUserId() !== ownerUserId
+          ) return true;
+          const status = Number(error.status || 0);
+          const canRetryLookup = status === 404 || error.data?.shouldRetry || error.code === 'REQUEST_TIMEOUT';
+          if (status === 404) {
+            const remainingMs = recoveryDeadline - Date.now();
+            if (remainingMs > 0) {
+              setStatus(
+                'crump53VideoStatus',
+                'Crump is reconciling the original video request. It will keep the same request key and will not start or charge a duplicate.',
+              );
+              await new Promise(resolve => window.setTimeout(
+                resolve,
+                Math.min(VIDEO_REQUEST_RECOVERY_POLL_MS, remainingMs),
+              ));
+              continue;
+            }
+            storeVideoRequest(null, ownerUserId);
+            return false;
+          }
+          if (canRetryLookup) {
+            setStatus(
+              'crump53VideoStatus',
+              'Crump is still reconciling an interrupted video request. It will not start or charge another video until that check completes.',
+              false,
+            );
+            return true;
+          }
+          setStatus(
+            'crump53VideoStatus',
+            'Crump is still reconciling an interrupted video request. It will not start or charge another video until that check completes.',
+            false,
+          );
+          return true;
+        }
+      }
+      return true;
+    } finally {
+      if (state.videoRequestRecoveryAbortController === controller) {
+        state.videoRequestRecoveryAbortController = null;
+      }
+    }
+  }
+
+  function resumePendingVideoJob(ownerUserId = currentVideoReferenceUserId()) {
+    const normalizedOwnerUserId = String(ownerUserId || '').trim();
+    if (!normalizedOwnerUserId || currentVideoReferenceUserId() !== normalizedOwnerUserId) {
+      return Promise.resolve(false);
+    }
+    const jobId = readStoredVideoJob(normalizedOwnerUserId);
+    if (jobId) {
+      setStatus('crump53VideoStatus', 'Your saved video job is generating. Crump is checking that job instead of starting or charging for another.');
+      pollVideo(jobId, normalizedOwnerUserId);
+      return Promise.resolve(true);
+    }
+    if (!readStoredVideoRequest(normalizedOwnerUserId)) return Promise.resolve(false);
+    if (state.videoRequestRecoveryPromise) return state.videoRequestRecoveryPromise;
+    state.videoRequestRecoveryPromise = recoverPendingVideoRequest(normalizedOwnerUserId)
+      .finally(() => {
+        state.videoRequestRecoveryPromise = null;
+      });
+    return state.videoRequestRecoveryPromise;
   }
 
   async function openManuscriptWorkspace(workspace) {
@@ -3468,6 +4218,7 @@
 
   function hydrateAuthenticatedState() {
     if (authenticatedHydrationStarted || !window.currentUser) return;
+    if (!bindProjectStateToCurrentUser()) return;
     if (!readProjectRoute()) return;
     authenticatedHydrationStarted = true;
     openStudio('projects', {preserveProjectRoute: true});
@@ -3487,6 +4238,7 @@
   });
 
   function init() {
+    bindProjectStateToCurrentUser();
     injectNavigation();
     injectStudio();
     restoreVideoReferenceDraft();
@@ -3503,7 +4255,10 @@
     });
     window.addEventListener('online', resumePendingVideoJob);
     window.addEventListener('storage', event => {
-      if (event.key === VIDEO_JOB_STORAGE_KEY && event.newValue) resumePendingVideoJob();
+      const ownerUserId = currentVideoReferenceUserId();
+      if (event.key === videoStorageKey(VIDEO_JOB_STORAGE_KEY, ownerUserId) && event.newValue) {
+        resumePendingVideoJob();
+      }
     });
     const scrollButton = byId('scrollToEndBtn');
     if (scrollButton) scrollButton.title = 'Jump to newest message';
@@ -3537,11 +4292,16 @@
   }
 
   window.addEventListener('crump:authenticated-ready', () => {
+    bindProjectStateToCurrentUser();
     restoreVideoReferenceDraft();
     hydrateAuthenticatedState();
     resumePendingVideoJob();
   });
-  window.addEventListener('crump:authentication-required', clearVideoReferenceAuthState);
+  if (window.CrumpAuthBoundary?.register) {
+    window.CrumpAuthBoundary.register('product-studio', clearProductAuthState);
+  } else {
+    window.addEventListener('crump:authentication-required', clearProductAuthState);
+  }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, {once: true});
   else init();
 })();

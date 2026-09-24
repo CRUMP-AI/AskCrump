@@ -24,6 +24,10 @@
     <output id="fixtureResult">waiting</output>
   </main>
   <script>
+    window.__fixtureUserA = {id: '00000000-0000-0000-0000-000000000001'};
+    window.__fixtureUserB = {id: '00000000-0000-0000-0000-000000000002'};
+    window.currentUser = null;
+    window.__xhrAborts = 0;
     window.fetch = async path => {
       const url = String(path || '');
       if (url === '/api/files/sign-upload') {
@@ -51,7 +55,7 @@
       setRequestHeader() {}
       getResponseHeader() { return null; }
       addEventListener(name, handler) { this.listeners[name] = handler; }
-      abort() { this.listeners.abort?.(); }
+      abort() { window.__xhrAborts += 1; this.listeners.abort?.(); }
       send() {
         [20, 45, 70, 95].forEach((loaded, index) => {
           setTimeout(() => this.uploadListeners.progress?.({lengthComputable: true, loaded, total: 100}), 45 * (index + 1));
@@ -73,6 +77,14 @@
     });
     observer.observe(document.getElementById('filePreview'), {childList: true, subtree: true});
   </script>
+  <script src="/public/safe-storage.js"></script>
+  <script src="/public/app.js?v=auth-boundary-fixture-1"></script>
   <script src="/public/crump-5.0.js?v=image-reference-entry-fixture-1"></script>
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      window.currentUser = window.__fixtureUserA;
+      window.dispatchEvent(new Event('crump:authenticated-ready'));
+    }, {once: true});
+  </script>
 </body>
 </html>

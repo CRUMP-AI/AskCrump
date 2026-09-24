@@ -185,6 +185,10 @@
     {
       "path": "/api/cron/manuscripts",
       "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/videos",
+      "schedule": "*/5 * * * *"
     }
   ],
   "functions": {

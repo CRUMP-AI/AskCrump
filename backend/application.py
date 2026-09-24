@@ -64,6 +64,7 @@ def create_app() -> FastAPI:
     application.include_router(voice.router)
     application.include_router(features.router)
     application.include_router(media.router)
+    application.include_router(media.cron_router)
     application.include_router(manuscripts.router)
     application.include_router(library.router)
     application.include_router(chat.router)
