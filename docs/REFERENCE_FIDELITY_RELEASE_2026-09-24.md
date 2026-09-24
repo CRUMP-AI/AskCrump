@@ -162,7 +162,7 @@ change therefore cannot reveal or submit the prior account's Project name or ide
   two-session tests for old-writer/new-RPC lock order, absolute-deadline/finalization races, rollback,
   idempotent refund behavior, and global-sweep progress while the owners of the earliest candidate
   rows are deliberately locked. Static parsing and mocked tests do not replace that gate. The
-  migration creates eight ordinary indexes, validates new CHECK constraints, and classifies the
+  migration creates nine ordinary indexes, validates new CHECK constraints, and classifies the
   existing video rows in one transaction, so table size and lock duration must be measured; use a
   maintenance window or split migration plan if staging shows material blocking.
 - Drain pre-release application instances before migration/app cutover and keep overlap at zero or
@@ -211,8 +211,14 @@ change therefore cannot reveal or submit the prior account's Project name or ide
   byte payloads failed closed, while all six real local MP4 assets and the covered v0/v1,
   extended-size, UUID, fragmented, and terminal-`mdat` layouts passed.
 - Full Python suite with the repository's optional security dependencies: 1,293/1,293 tests passed.
-- PostgreSQL grammar validation accepted all 74 migration statements. Real PostgreSQL apply and
-  concurrency execution remains the explicit production gate above.
+- PostgreSQL grammar validation accepted all 74 migration statements. A disposable PostgreSQL 17
+  job then applied the real migration after its minimal pre-atomic prerequisites and passed
+  two-session coverage for legacy-row fencing, exactly-one capacity authorization, service-role
+  internal billing plus idempotent replay, oldest-first `SKIP LOCKED` progress without starvation,
+  and the rolling-deploy row-lock/owner-lock inversion without deadlock. This proves the executable
+  lock/RPC behavior exercised by the gate; it does not measure the production table size or index
+  lock duration, identify the hosted database's PostgreSQL major, or exercise every metered-credit
+  and refund helper path. Those live-environment checks remain part of the production cutover.
 - JavaScript contract: 54 files validated; 24/24, 10/10, and 10/10 attribution/runtime fixtures
   passed; Store packet self-test passed 21/21.
 - Browser-control matrix: 49/49 verifiers passed in installed Microsoft Edge, including the lazy
