@@ -1,6 +1,7 @@
 # PR 37 reliability integration candidate — 2026-09-21
 
-Status: **draft PR #37, unmerged, and undeployed.** The predecessor hosted-green head at the start of
+Status: **draft PR #37, unmerged, and undeployed.** The current reviewed behavior head is
+`653d576076095c3bceab8131b0d88b94f5ec0bfa`; the predecessor hosted-green head at the start of
 this release-hardening pass was `1a7d23bf5f4193c83304d522b9655f3af060f76a`. This document records evidence for review; it is not
 permission to apply a database migration, deploy production, sign a native build, submit to either
 store, or spend money.
@@ -16,7 +17,13 @@ The candidate includes:
 
 - conversational DOCX, PDF, and PPTX delivery through owned Ask Crump routes, plus direct-download
   and Files-viewer behavior that does not expose a Supabase tab; an explicitly selected DOCX, PDF,
-  PPTX, or XLSX format remains authoritative over conflicting image, video, or book keywords;
+  PPTX, or XLSX format remains authoritative over conflicting image, video, or book keywords, and
+  the same precedence now applies when the user types the explicit format without using the picker;
+- generated artifact cards expose the existing owner-scoped in-app Open viewer as well as Download
+  and Add to Project, with an `r257 → r258` returning-PWA cache proof;
+- confirmed image references remain ordered, role-mapped edit inputs; reference review receipts are
+  persisted; video reference limits are disclosed; and exact logo/wordmark pixels can be placed by
+  the deterministic no-AI/no-credit overlay path;
 - checkout/account owner isolation, owner-scoped video continuity, and a fresh PWA cache generation;
 - native-store source gates, Android page-size verification, and the existing no-credential iOS and
   Android hosted workflows;
@@ -36,17 +43,14 @@ sticky native-billing cleanup evidence, and fails closed for a live durable job 
 fence. The route compensates ambiguous initial acquisition, replacement acquisition, billing
 failure, and durable-begin failure with the exact operation token.
 
-## Local verification
+## Local verification through `653d5760`
 
 - Final focused deletion/fence/authority/demo suite: **124 passed**.
 - Final independent source re-read: no remaining P0, P1, or P2 finding.
-- Full Python suite: exactly two expected local-environment failures, both requiring Argon2:
-  `test_successful_legacy_login_upgrades_password_hash` and
-  `test_password_round_trip_and_rejection`. With only those two tests deselected, the complete
-  remaining suite passed. `pyproject.toml` declares the Argon2 dependency for hosted CI.
-- Conversational document-delivery and PDF policy suite: **4 passed**. Browser fixtures verified
-  owned DOCX/PDF/PPTX download targets, zero new windows, and Files behavior at desktop and mobile
-  sizes.
+- Full Python suite with the exact `pyproject.toml` Argon2 pins loaded: **1,363/1,363 passed**.
+- Focused conversation, artifact, and routing regressions: **70/70 passed**. Browser fixtures
+  verified owner-scoped DOCX/PDF/PPTX Open and Download targets, zero new windows, Files-layer
+  ordering, and behavior at desktop and mobile sizes.
 - Activation-authority regressions passed: the authenticated client endpoint returns **422** for
   `ActivationReached`; browser completion has no activation sender; a durably persisted reply
   records the exact server key; exception and malformed-receipt persistence failures return **503**
@@ -59,7 +63,8 @@ failure, and durable-begin failure with the exact operation token.
   precedence and intentional long-form DOCX preservation.
 - JavaScript contract: **55 files**; attribution fixtures **24/24**, **10/10**, and **10/10**;
   submission-packet self-test **51/51**.
-- Browser-control matrix: **52/52**, including returning-PWA cache, file delivery, image stability,
+- Browser-control matrix: **52/52**, including the new `r257 → r258` returning-PWA transition,
+  chat artifact Open/Download, file delivery, image stability,
   precision editing, mobile navigation, Projects, Video, and owner continuity.
 - Accessibility matrix: **33/33** phone, tablet, and desktop scenarios.
 - Store-source tests: **29 passed**; metadata fits Apple and Google field limits; native privacy
@@ -89,6 +94,25 @@ failure, and durable-begin failure with the exact operation token.
 These runs superseded this document's earlier pending-hosted-check statements for their exact SHA.
 They do not cover later release-hardening changes, apply the staged SQL, or prove signed
 physical-device/store behavior.
+
+## Current behavior-head hosted verification on `653d5760`
+
+- Clean-checkout CI passed Python 3.12 and JavaScript, including the complete test suite, browser
+  controls, accessibility, production bundle, client-secret, and store-evidence gates:
+  <https://github.com/CRUMP-AI/AskCrump/actions/runs/35964017283>.
+- Disposable PostgreSQL fence verification passed:
+  <https://github.com/CRUMP-AI/AskCrump/actions/runs/35964017124>.
+- Android unsigned structural verification passed:
+  <https://github.com/CRUMP-AI/AskCrump/actions/runs/35964017134>.
+- iOS unsigned structural verification passed:
+  <https://github.com/CRUMP-AI/AskCrump/actions/runs/35964017328>.
+- Vercel preview `dpl_6dSmABiXUUvQWr3iRuFXeJNAJG5g` is Ready for exact commit `653d5760`.
+  Authenticated protected-preview reads returned HTTP 200 for health, `/app`, the versioned
+  runtime, composer, and worker, with the expected reference-plan, artifact Open, runtime token,
+  and `r258` markers.
+
+These runs cover the behavior commit only. They do not apply the staged SQL, deploy production,
+sign a native artifact, or prove physical-device/store behavior.
 
 ## Remaining owner and release gates
 

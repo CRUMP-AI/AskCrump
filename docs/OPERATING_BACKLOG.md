@@ -1,6 +1,6 @@
 # Ask Crump operating backlog
 
-Last updated: 2026-09-20
+Last updated: 2026-09-24
 
 ## Operating standard
 
@@ -10,6 +10,22 @@ retention, and referral behavior. No acquisition spend should scale on impressio
 
 Every item below needs four things before it is called shipped: an accountable product
 outcome, privacy and safety constraints, automated coverage, and production evidence.
+
+The 2026-09-24 draft candidate closes two directly observed trust gaps. Confirmed image references
+now remain ordered, role-mapped inputs to image editing; Video references carry explicit roles and
+honest provider limits; reference review receipts survive chat persistence; and exact logo/wordmark
+placement has a deterministic, no-AI, no-credit path. Separately, typed DOCX/PDF/PPTX/XLSX intent
+now wins conflicting image/video semantics, and generated chat artifacts expose the existing
+owner-scoped in-app **Open** viewer alongside Download and Add to Project. Returning PWA proof moves
+the changed runtime and composer from cache `r257` to `r258` while preserving lazy precision assets.
+The full Python suite passed **1,363/1,363**, JavaScript validated **55** files, the browser matrix
+passed **52/52**, and production/native/privacy/credential gates passed locally. GitHub CI,
+PostgreSQL fence, Android structural, and iOS structural runs all passed on behavior commit
+`653d5760`; Vercel preview `dpl_6dSmABiXUUvQWr3iRuFXeJNAJG5g` is Ready and served the exact new
+runtime, composer, and worker markers. PR #37 remains draft and production is unchanged. The exact
+next release action is an explicitly authorized authenticated signed-storage PDF check; the next source-only
+growth slice is the bounded Image Studio acquisition-to-auth handoff. Evidence:
+`docs/REFERENCE_AND_ARTIFACT_FIDELITY_CANDIDATE_2026-09-24.md`.
 
 The 2026-09-20 draft native-store privacy review found a RevenueCat deletion
 failure could be logged and then lost after local-account deletion, while a late
