@@ -155,6 +155,12 @@ change therefore cannot reveal or submit the prior account's Project name or ide
 - The remote migration ledger was read on 2026-09-24 and ended at
   `20260917233900 ai_gateway_cost_observability`; this new migration follows it and has not been
   applied by this release-preparation task.
+- A read-only production preflight on 2026-09-24 found PostgreSQL 17.6, matching the disposable
+  PostgreSQL 17 gate; `public.media_jobs` occupied 270,336 bytes and contained 33 video rows with
+  zero queued or processing jobs. The existing `consume_usage_event`, `spend_credits_confirmed`,
+  and `refund_credit_spend` functions had the exact signatures used by this migration, and
+  `service_role` retained the required table and function privileges. These are point-in-time
+  facts and must be rechecked immediately before cutover; the query changed no production data.
 - Rollout order is mandatory: recheck the remote ledger, apply the migration, verify its entry,
   columns, functions, constraints, and grants, and only then deploy the application and cron.
   App-first deployment would call database functions that do not yet exist and is prohibited.
