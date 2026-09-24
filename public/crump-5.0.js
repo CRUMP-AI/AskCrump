@@ -1918,16 +1918,19 @@
       }
       if (message.artifact) {
         const artifact = document.createElement('div'); artifact.className = 'crump50-artifact';
-        artifact.innerHTML = `<span>${String(message.artifact.format || 'FILE').toUpperCase()}</span><div class="crump50-artifact-copy"><strong></strong><small>Created by Crump · ${formatBytes(message.artifact.size)}</small></div><div class="crump50-artifact-actions"><button type="button" data-artifact-project>Add to Project</button><button type="button" data-artifact-download>Download</button></div>`;
+        artifact.innerHTML = `<span>${String(message.artifact.format || 'FILE').toUpperCase()}</span><div class="crump50-artifact-copy"><strong></strong><small>Created by Crump · ${formatBytes(message.artifact.size)}</small></div><div class="crump50-artifact-actions"><button type="button" data-artifact-project>Add to Project</button><button type="button" data-artifact-open>Open</button><button type="button" data-artifact-download>Download</button></div>`;
         $('strong', artifact).textContent = message.artifact.title || message.artifact.name || 'Crump document';
         const projectButton = $('[data-artifact-project]', artifact);
+        const openButton = $('[data-artifact-open]', artifact);
         const downloadButton = $('[data-artifact-download]', artifact);
         const artifactName = message.artifact.title || message.artifact.name || 'this file';
         wireOutputProjectAction(projectButton, {
           message, file: message.artifact, kind: 'artifact', role: 'generated_document',
           label: artifactName, statusNode: $('small', artifact),
         });
-        downloadButton?.addEventListener('click', () => openFile(message.artifact, true)); wrapper.appendChild(artifact);
+        openButton?.addEventListener('click', () => { void openFile(message.artifact); });
+        downloadButton?.addEventListener('click', () => { void openFile(message.artifact, true); });
+        wrapper.appendChild(artifact);
       }
       const artifactRecovery = message.artifactRecovery && typeof message.artifactRecovery === 'object'
         ? message.artifactRecovery

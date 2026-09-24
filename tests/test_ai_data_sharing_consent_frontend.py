@@ -23,7 +23,7 @@ def test_consent_guard_is_versioned_early_and_cached_for_web_and_native() -> Non
     assert 'id="aiDataSharingConsentModal"' in shell
     assert asset in worker
     assert style in worker
-    assert "ask-crump-new-body-v1-r257" in worker
+    assert "ask-crump-new-body-v1-r258" in worker
     assert "url.pathname === '/ai-data-sharing-consent.js'" in worker
     assert "url.pathname === '/ai-data-sharing-consent.css'" in worker
 

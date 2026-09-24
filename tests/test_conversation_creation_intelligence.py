@@ -99,6 +99,35 @@ def test_picker_selected_document_format_wins_keyword_kind_conflicts(
     assert intent["format"] == selected_format
 
 
+@pytest.mark.parametrize(
+    ("detected_format", "message", "misclassified_kind"),
+    [
+        ("pdf", "Create a PDF report analyzing this image.", "image"),
+        ("pptx", "Create a PowerPoint presentation about our video campaign.", "video"),
+    ],
+)
+def test_natural_language_document_format_wins_keyword_kind_conflicts(
+    detected_format, message, misclassified_kind,
+):
+    intent = _promote_explicit_document_delivery(
+        {
+            "kind": misclassified_kind,
+            "stage": "execute",
+            "confidence": 0.9,
+            "brief": message,
+            "question": "",
+            "format": "",
+        },
+        detected_format,
+        message=message,
+    )
+
+    assert intent["kind"] == "document"
+    assert intent["stage"] == "execute"
+    assert intent["question"] == ""
+    assert intent["format"] == detected_format
+
+
 def test_picker_selected_docx_preserves_intentional_manuscript_creation():
     original = {
         "kind": "manuscript",
@@ -112,6 +141,24 @@ def test_picker_selected_docx_preserves_intentional_manuscript_creation():
         original,
         "docx",
         explicit_format="docx",
+        message=original["brief"],
+    )
+
+    assert intent == original
+
+
+def test_natural_language_docx_preserves_intentional_manuscript_creation():
+    original = {
+        "kind": "manuscript",
+        "stage": "execute",
+        "confidence": 0.9,
+        "brief": "Write a 70,000-word novel as a Word manuscript.",
+        "question": "",
+        "format": "docx",
+    }
+    intent = _promote_explicit_document_delivery(
+        original,
+        "docx",
         message=original["brief"],
     )
 
@@ -230,9 +277,9 @@ def test_crump_voice_avoids_generic_assistant_form_language():
 def test_conversation_intelligence_advances_shell_cache():
     sw = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
-    assert "ask-crump-new-body-v1-r257" in sw
+    assert "ask-crump-new-body-v1-r258" in sw
     assert "CACHE_NAME = 'ask-crump-new-body-v1-r229'" not in sw
-    assert "ask-crump-new-body-v1-r257" in checker
+    assert "ask-crump-new-body-v1-r258" in checker
 
 
 def test_reload_opens_a_clean_conversation_without_discarding_history():

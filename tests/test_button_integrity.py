@@ -18,7 +18,7 @@ DYNAMIC_BUTTON_PATTERN = re.compile(
 EXPECTED_BUTTON_INVENTORY = {
     "public/app.html": 53,
     "public/credit-confirmation.js": 3,
-    "public/crump-5.0.js": 3,
+    "public/crump-5.0.js": 4,
     "public/crump-5.2.js": 6,
     "public/crump-billing-5.1.js": 3,
     "public/crump-code-5.9.35.js": 4,
@@ -57,7 +57,7 @@ INDIRECT_DYNAMIC_BUTTON_OWNERS = {
         "mountLightbox(box, close);",
         "closeButton.addEventListener('click', dismiss)",
     ),
-    "public/crump-5.0.js:1997:project": (
+    "public/crump-5.0.js:2000:project": (
         "wireOutputProjectAction(project, {",
         "button.addEventListener('click', async () => {",
     ),
@@ -288,7 +288,7 @@ def test_rendered_button_inventory_requires_explicit_review() -> None:
             inventory[page.relative_to(ROOT).as_posix()] = len(parser.buttons)
 
     assert inventory == EXPECTED_BUTTON_INVENTORY
-    assert sum(inventory.values()) == 188
+    assert sum(inventory.values()) == 189
 
 
 def test_programmatically_created_button_inventory_requires_explicit_review() -> None:
@@ -300,7 +300,7 @@ def test_programmatically_created_button_inventory_requires_explicit_review() ->
 
     assert inventory == DYNAMIC_BUTTON_INVENTORY
     assert sum(inventory.values()) == 96
-    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 284
+    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 285
 
 
 def test_programmatically_created_buttons_declare_type_and_runtime_owner() -> None:

@@ -518,19 +518,25 @@ def _promote_explicit_document_delivery(
     message: str = '',
 ) -> dict:
     """Keep an explicit file choice authoritative over conflicting semantics."""
-    if explicit_format and isinstance(creation_intent, dict):
+    if isinstance(creation_intent, dict):
         kind = str(creation_intent.get('kind') or '')
+        authoritative_format = explicit_format
+        if not authoritative_format and kind in {'image', 'video', 'manuscript'}:
+            authoritative_format = detected_format
         if (
-            kind != 'manuscript'
-            or explicit_format != 'docx'
-            or not _is_intentional_manuscript_request(message)
+            authoritative_format
+            and (
+                kind != 'manuscript'
+                or authoritative_format != 'docx'
+                or not _is_intentional_manuscript_request(message)
+            )
         ):
             return {
                 **creation_intent,
                 'kind': 'document',
                 'stage': 'execute',
                 'question': '',
-                'format': explicit_format,
+                'format': authoritative_format,
             }
     if (
         not detected_format

@@ -19,7 +19,7 @@ const historicalVerifiers = Object.freeze([
 const expectedVerifiers = Object.freeze([
   'verify-ai-data-sharing-consent.cjs',
   'verify-attach-creation-routing.cjs',
-  'verify-exact-overlay-cache-upgrade.cjs',
+  'verify-artifact-card-cache-upgrade.cjs',
   'verify-button-state-integrity.cjs',
   'verify-chat-action-accessibility.cjs',
   'verify-create-destination-handoff.cjs',

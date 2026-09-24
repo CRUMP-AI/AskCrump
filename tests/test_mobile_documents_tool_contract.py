@@ -94,9 +94,9 @@ def test_documents_mobile_hotfix_advances_shell_cache():
     v1_config = read("public/runtime-config-v1.js")
     native = read("scripts/build-native.mjs")
 
-    assert "ask-crump-new-body-v1-r257" in sw
+    assert "ask-crump-new-body-v1-r258" in sw
     assert "ask-crump-new-body-v1-r209" not in sw
-    assert "ask-crump-new-body-v1-r257" in checker
-    exact_asset = "/crump-5.0.js?v=5.9.76-exact-overlay-entry-1"
+    assert "ask-crump-new-body-v1-r258" in checker
+    artifact_open_asset = "/crump-5.0.js?v=5.9.76-artifact-card-open-1"
     for source in (sw, runtime, legacy_config, v1_config, native):
-        assert exact_asset in source
+        assert artifact_open_asset in source

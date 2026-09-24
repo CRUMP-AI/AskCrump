@@ -1249,7 +1249,7 @@ def test_browser_completion_path_cannot_claim_server_activation():
 
 def test_server_activation_boundary_is_versioned_for_web_pwa_and_native():
     version = "5.9.76-server-authoritative-activation-1"
-    runtime_version = "5.9.76-exact-overlay-entry-1"
+    runtime_version = "5.9.76-artifact-card-open-1"
     app_version = "5.9.76-reference-review-persistence-1"
     shell = (ROOT / "public" / "app.html").read_text(encoding="utf-8")
     runtime = (ROOT / "public" / "runtime-body-v1.js").read_text(encoding="utf-8")
@@ -1272,7 +1272,7 @@ def test_server_activation_boundary_is_versioned_for_web_pwa_and_native():
         assert versioned in runtime
         assert versioned in worker
         assert versioned in native
-    assert "ask-crump-new-body-v1-r257" in worker
+    assert "ask-crump-new-body-v1-r258" in worker
     assert "ask-crump-new-body-v1-r253" in upgrade
     assert "ask-crump-new-body-v1-r254" in upgrade
     assert "tests', 'fixtures', 'activation-cache-r253" in upgrade

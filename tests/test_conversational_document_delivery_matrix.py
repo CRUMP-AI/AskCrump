@@ -172,12 +172,23 @@ def delivery(monkeypatch):
 
     async def prepare(_user_id, payload, **_kwargs):
         creation_intent = None
-        if payload.get("artifactFormat") == "xlsx":
+        message = str(payload.get("message") or "")
+        if payload.get("artifactFormat") == "xlsx" or "video campaign" in message.lower():
             creation_intent = {
                 "kind": "video",
                 "stage": "execute",
                 "confidence": 0.9,
-                "brief": str(payload.get("message") or ""),
+                "brief": message,
+                "question": "",
+                "title": "",
+                "format": "",
+            }
+        elif "analyzing this image" in message.lower():
+            creation_intent = {
+                "kind": "image",
+                "stage": "execute",
+                "confidence": 0.9,
+                "brief": message,
                 "question": "",
                 "title": "",
                 "format": "",
@@ -233,6 +244,14 @@ def delivery(monkeypatch):
     [
         ("docx", "Write a decision memo and deliver it as a Word document.", [], "document", None),
         ("pdf", "Write a decision memo and deliver it as a PDF.", [], "pdf", None),
+        ("pdf", "Create a PDF report analyzing this image.", [], "pdf", None),
+        (
+            "pptx",
+            "Create a PowerPoint presentation about our video campaign.",
+            [],
+            "presentation",
+            None,
+        ),
         ("pptx", "Can you export it?", [
             {"role": "user", "content": "Build a presentation for the product launch."},
             {"role": "assistant", "content": "Here is the completed slide narrative."},

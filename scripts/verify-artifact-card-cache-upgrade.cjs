@@ -6,24 +6,22 @@ const {chromium} = require('playwright');
 
 const root = path.resolve(__dirname, '..');
 const publicDirectory = path.join(root, 'public');
-const oldCacheName = 'ask-crump-new-body-v1-r256';
-const newCacheName = 'ask-crump-new-body-v1-r257';
+const oldCacheName = 'ask-crump-new-body-v1-r257';
+const newCacheName = 'ask-crump-new-body-v1-r258';
 const oldUrls = Object.freeze([
-  '/runtime-body-v1.js?v=5.9.76-reference-review-persistence-1',
-  '/crump-5.0.css?v=5.9.76-precision-edit-entry-1',
-  '/crump-5.0.js?v=5.9.76-reference-review-persistence-1',
-  '/crump-precision-image-edit-loader.js?v=5.9.76-precision-lazy-load-1',
+  '/runtime-body-v1.js?v=5.9.76-exact-overlay-entry-1',
+  '/crump-5.0.js?v=5.9.76-exact-overlay-entry-1',
 ]);
 const newUrls = Object.freeze({
-  runtime: '/runtime-body-v1.js?v=5.9.76-exact-overlay-entry-1',
+  runtime: '/runtime-body-v1.js?v=5.9.76-artifact-card-open-1',
   style: '/crump-5.0.css?v=5.9.76-exact-overlay-entry-1',
-  composer: '/crump-5.0.js?v=5.9.76-exact-overlay-entry-1',
+  composer: '/crump-5.0.js?v=5.9.76-artifact-card-open-1',
   loader: '/crump-precision-image-edit-loader.js?v=5.9.76-exact-overlay-entry-1',
   editorStyle: '/crump-precision-image-edit.css?v=5.9.76-exact-overlay-entry-1',
   editorScript: '/crump-precision-image-edit.js?v=5.9.76-exact-overlay-entry-1',
 });
-const fixturePath = '/__exact-overlay-cache-upgrade.html';
-const oldWorkerPath = '/__exact-overlay-r256-sw.js';
+const fixturePath = '/__artifact-card-cache-upgrade.html';
+const oldWorkerPath = '/__artifact-card-r257-sw.js';
 const contentTypes = Object.freeze({
   '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8',
@@ -41,7 +39,7 @@ function oldWorkerSource() {
     "self.addEventListener('install', event => {",
     '  event.waitUntil(caches.open(CACHE_NAME)',
     '    .then(cache => Promise.all(URLS.map(url => cache.put(',
-    "      new Request(url), new Response('stale-r256:' + url, {headers: {'Content-Type': 'text/javascript'}}),",
+    "      new Request(url), new Response('stale-r257:' + url, {headers: {'Content-Type': 'text/javascript'}}),",
     '    ))))',
     '    .then(() => self.skipWaiting()));',
     '});',
@@ -62,7 +60,7 @@ async function startServer() {
     response.setHeader('Cache-Control', 'no-store');
     if (url.pathname === fixturePath) {
       response.writeHead(200, {'Content-Type': contentTypes['.html']});
-      response.end('<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Exact overlay cache upgrade</title></head><body>Exact overlay cache upgrade</body></html>');
+      response.end('<!doctype html><html lang="en"><head><meta charset="utf-8"><title>Artifact card cache upgrade</title></head><body>Artifact card cache upgrade</body></html>');
       return;
     }
     if (url.pathname === '/favicon.ico') {
@@ -139,7 +137,7 @@ async function startServer() {
       if (upgraded) break;
       await new Promise(resolve => setTimeout(resolve, 50));
     }
-    assert.equal(upgraded, true, 'r257 did not replace the frozen r256 cache');
+    assert.equal(upgraded, true, 'r258 did not replace the frozen r257 cache');
 
     const result = await page.evaluate(async ({cacheName, previousUrls, urls}) => {
       const cache = await caches.open(cacheName);
@@ -162,8 +160,8 @@ async function startServer() {
     assert.ok(result.runtimeSource.includes(newUrls.composer));
     assert.ok(result.runtimeSource.includes(newUrls.loader));
     assert.ok(result.styleSource.includes('flex-wrap: wrap'));
-    assert.ok(result.composerSource.includes('Exact logo'));
-    assert.ok(result.composerSource.includes("entryMode: 'overlay'"));
+    assert.ok(result.composerSource.includes('data-artifact-open'));
+    assert.ok(result.composerSource.includes('openFile(message.artifact)'));
     assert.ok(result.loaderSource.includes(newUrls.editorStyle));
     assert.ok(result.loaderSource.includes(newUrls.editorScript));
     assert.equal(result.editorStylePrecached, false, 'Precision editor CSS must remain lazy-loaded');
@@ -174,7 +172,7 @@ async function startServer() {
     process.stdout.write(JSON.stringify({
       legacyCache: oldCacheName,
       activeCache: newCacheName,
-      exactOverlayEntryDelivered: true,
+      artifactCardOpenDelivered: true,
       precisionEditorRemainsLazy: true,
       errors,
     }));

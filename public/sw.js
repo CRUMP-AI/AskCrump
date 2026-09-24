@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r257';
+const CACHE_NAME = 'ask-crump-new-body-v1-r258';
 
 const CORE = [
   '/app',
@@ -35,7 +35,7 @@ const CORE = [
   '/crump-media-save.js?v=5.9.76-library-lazy-load-1',
   '/crump-library-loader.js?v=5.9.76-library-lazy-load-1',
   '/crump-subscriptions-5.3.2.js?v=5.9.76-native-store-billing-1',
-  '/runtime-body-v1.js?v=5.9.76-exact-overlay-entry-1',
+  '/runtime-body-v1.js?v=5.9.76-artifact-card-open-1',
   '/native-runtime.js',
   '/mobile-bridge.js?v=5.9.76-native-store-billing-1',
   '/ai-data-sharing-consent.js?v=5.9.76-ai-data-sharing-consent-1',
@@ -65,7 +65,7 @@ const CORE = [
   '/crump-4.4.css',
   '/crump-4.4.js?v=5.9.76-navigation-discovery-1',
   '/crump-5.0.css?v=5.9.76-exact-overlay-entry-1',
-  '/crump-5.0.js?v=5.9.76-exact-overlay-entry-1',
+  '/crump-5.0.js?v=5.9.76-artifact-card-open-1',
   '/crump-precision-image-edit-loader.js?v=5.9.76-exact-overlay-entry-1',
   '/crump-billing-5.1.css?v=5.9.76-credit-truth-1',
   '/crump-billing-5.1.js?v=5.9.76-autonomous-crump-1',
