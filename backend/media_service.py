@@ -1295,10 +1295,13 @@ class MediaService:
             'referencePlan': reference_receipt,
             'referenceReview': {
                 'status': 'review-required' if reference_receipt else 'not-applicable',
+                'method': 'manual-review' if reference_receipt else 'none',
+                'humanReviewRequired': bool(reference_receipt),
                 'message': (
                     'Verify logos, wordmarks, readable text, and mascot details before publishing.'
                     if reference_receipt else ''
                 ),
+                'references': reference_receipt,
             },
         }
 

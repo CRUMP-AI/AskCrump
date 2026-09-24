@@ -56,14 +56,14 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/sync-manager.js?v=5.9.76-sync-cursor-1', 'workspacesync'],
     ['/chat-sync.js?v=5.9.76-settings-sync-1', 'workspacechatsync'],
     ['/account-manager.js?v=5.9.76-owner-isolation-native-store-1', 'workspaceaccount'],
-    ['/app.js?v=5.9.76-server-authoritative-activation-1', 'workspaceapp'],
+    ['/app.js?v=5.9.76-reference-review-persistence-1', 'workspaceapp'],
     ['/product-analytics.js?v=5.9.76-server-authoritative-activation-1', 'workspaceanalytics'],
   ]);
 
   const enhancementScripts = Object.freeze([
     ['/crump-4.3.js?v=5.9.76-composer-actionability-1', 'crump43'],
     ['/crump-4.4.js?v=5.9.76-navigation-discovery-1', 'crump44'],
-    ['/crump-5.0.js?v=5.9.76-reference-fidelity-1', 'crump50'],
+    ['/crump-5.0.js?v=5.9.76-reference-review-persistence-1', 'crump50'],
     ['/crump-precision-image-edit-loader.js?v=5.9.76-precision-lazy-load-1', 'crumpprecisionloader'],
     ['/crump-billing-5.1.js?v=5.9.76-autonomous-crump-1', 'billing51'],
     ['/crump-5.2.js?v=5.9.76-owner-isolation-native-store-1', 'crump52'],
@@ -74,7 +74,7 @@ window.CRUMP_CONFIG = Object.freeze({
 
   const finalScripts = Object.freeze([
     ['/crump-navigation-5.2.5.js?v=5.9.76-chats-language-1', 'crumpnav525'],
-    ['/crump-product-loader.js?v=5.9.76-reference-fidelity-1', 'crumpproductloader'],
+    ['/crump-product-loader.js?v=5.9.76-reference-review-persistence-1', 'crumpproductloader'],
     ['/crump-product-5.3.1.js?v=5.9.76-conversation-action-labels-2', 'crumpproduct531'],
     ['/crump-subscriptions-5.3.2.js?v=5.9.76-native-store-billing-1', 'crumpsubscriptions532'],
     ['/crump-polish-5.6.js?v=5.9.76-video-destination-1', 'crumppolish56'],

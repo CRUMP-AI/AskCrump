@@ -591,7 +591,7 @@ function completeUserMessage(chat, userMessage, data) {
         origin: 'reply',
         inReplyTo: userMessage.id,
     };
-    for (const key of ['imageUrl', 'imagePrompt', 'imageFile', 'artifact', 'artifactRecovery', 'projectAttachments', 'manuscriptWorkspace', 'creationHandoff', 'intelligence']) {
+    for (const key of ['imageUrl', 'imagePrompt', 'imageFile', 'referencePlan', 'referenceReview', 'artifact', 'artifactRecovery', 'projectAttachments', 'manuscriptWorkspace', 'creationHandoff', 'intelligence']) {
         if (assistantMessage[key] == null && data[key] != null) assistantMessage[key] = data[key];
     }
     const existingIndex = chat.messages.findIndex(item =>

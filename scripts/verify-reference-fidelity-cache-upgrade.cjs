@@ -6,19 +6,21 @@ const {chromium} = require('playwright');
 
 const root = path.resolve(__dirname, '..');
 const publicDirectory = path.join(root, 'public');
-const oldCacheName = 'ask-crump-new-body-v1-r254';
-const newCacheName = 'ask-crump-new-body-v1-r255';
-const oldRuntimeUrl = '/runtime-body-v1.js?v=5.9.76-server-authoritative-activation-1';
-const newRuntimeUrl = '/runtime-body-v1.js?v=5.9.76-reference-fidelity-1';
-const oldComposerUrl = '/crump-5.0.js?v=5.9.76-video-owner-upload-1';
-const newComposerUrl = '/crump-5.0.js?v=5.9.76-reference-fidelity-1';
-const oldProductLoaderUrl = '/crump-product-loader.js?v=5.9.76-product-studio-owner-reconciliation-1';
-const newProductLoaderUrl = '/crump-product-loader.js?v=5.9.76-reference-fidelity-1';
-const oldProductUrl = '/crump-product-5.3.js?v=5.9.76-owner-reconciliation-1';
-const newProductUrl = '/crump-product-5.3.js?v=5.9.76-reference-fidelity-1';
-const newProductStyleUrl = '/crump-product-5.3.css?v=5.9.76-reference-fidelity-1';
+const oldCacheName = 'ask-crump-new-body-v1-r255';
+const newCacheName = 'ask-crump-new-body-v1-r256';
+const oldRuntimeUrl = '/runtime-body-v1.js?v=5.9.76-reference-fidelity-1';
+const newRuntimeUrl = '/runtime-body-v1.js?v=5.9.76-reference-review-persistence-1';
+const oldComposerUrl = '/crump-5.0.js?v=5.9.76-reference-fidelity-1';
+const newComposerUrl = '/crump-5.0.js?v=5.9.76-reference-review-persistence-1';
+const oldProductLoaderUrl = '/crump-product-loader.js?v=5.9.76-reference-fidelity-1';
+const newProductLoaderUrl = '/crump-product-loader.js?v=5.9.76-reference-review-persistence-1';
+const oldProductUrl = '/crump-product-5.3.js?v=5.9.76-reference-fidelity-1';
+const newProductUrl = '/crump-product-5.3.js?v=5.9.76-reference-review-persistence-1';
+const newProductStyleUrl = '/crump-product-5.3.css?v=5.9.76-reference-review-persistence-1';
+const oldAppUrl = '/app.js?v=5.9.76-server-authoritative-activation-1';
+const newAppUrl = '/app.js?v=5.9.76-reference-review-persistence-1';
 const fixturePath = '/__reference-fidelity-cache-upgrade.html';
-const oldWorkerPath = '/__reference-fidelity-r254-sw.js';
+const oldWorkerPath = '/__reference-fidelity-r255-sw.js';
 const contentTypes = Object.freeze({
   '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8',
@@ -36,14 +38,14 @@ function fixtureHtml() {
 }
 
 function oldWorkerSource() {
-  const oldUrls = [oldRuntimeUrl, oldComposerUrl, oldProductLoaderUrl, oldProductUrl];
+  const oldUrls = [oldRuntimeUrl, oldComposerUrl, oldProductLoaderUrl, oldProductUrl, oldAppUrl];
   return [
     `const CACHE_NAME = ${JSON.stringify(oldCacheName)};`,
     `const URLS = ${JSON.stringify(oldUrls)};`,
     "self.addEventListener('install', event => {",
     '  event.waitUntil(caches.open(CACHE_NAME)',
     '    .then(cache => Promise.all(URLS.map(url => cache.put(',
-    "      new Request(url), new Response('stale-r254:' + url, {headers: {'Content-Type': 'text/javascript'}}),",
+    "      new Request(url), new Response('stale-r255:' + url, {headers: {'Content-Type': 'text/javascript'}}),",
     '    ))))',
     '    .then(() => self.skipWaiting()));',
     '});',
@@ -127,9 +129,9 @@ async function startServer() {
         cachePresent: keys.includes(cacheName),
         entries: await Promise.all(urls.map(url => caches.match(url).then(Boolean))),
       };
-    }, {cacheName: oldCacheName, urls: [oldRuntimeUrl, oldComposerUrl, oldProductLoaderUrl, oldProductUrl]});
+    }, {cacheName: oldCacheName, urls: [oldRuntimeUrl, oldComposerUrl, oldProductLoaderUrl, oldProductUrl, oldAppUrl]});
     assert.equal(seeded.cachePresent, true);
-    assert.deepEqual(seeded.entries, [true, true, true, true]);
+    assert.deepEqual(seeded.entries, [true, true, true, true, true]);
 
     await page.evaluate(async () => {
       await navigator.serviceWorker.register('/sw.js', {scope: '/'});
@@ -146,43 +148,48 @@ async function startServer() {
       if (upgraded) break;
       await new Promise(resolve => setTimeout(resolve, 50));
     }
-    assert.equal(upgraded, true, 'r255 did not replace the frozen r254 cache');
+    assert.equal(upgraded, true, 'r256 did not replace the frozen r255 cache');
 
     const result = await page.evaluate(async ({
-      cacheName, oldUrls, runtimeUrl, composerUrl, productLoaderUrl, productUrl,
+      cacheName, oldUrls, runtimeUrl, composerUrl, productLoaderUrl, productUrl, appUrl,
     }) => {
       const cache = await caches.open(cacheName);
       const runtime = await cache.match(runtimeUrl);
       const composer = await cache.match(composerUrl);
       const loader = await cache.match(productLoaderUrl);
+      const app = await cache.match(appUrl);
       return {
         runtimeSource: runtime ? await runtime.text() : '',
         composerSource: composer ? await composer.text() : '',
         loaderSource: loader ? await loader.text() : '',
+        appSource: app ? await app.text() : '',
         productWasPrecached: Boolean(await cache.match(productUrl)),
         staleEntries: await Promise.all(oldUrls.map(url => caches.match(url).then(Boolean))),
       };
     }, {
       cacheName: newCacheName,
-      oldUrls: [oldRuntimeUrl, oldComposerUrl, oldProductLoaderUrl, oldProductUrl],
+      oldUrls: [oldRuntimeUrl, oldComposerUrl, oldProductLoaderUrl, oldProductUrl, oldAppUrl],
       runtimeUrl: newRuntimeUrl,
       composerUrl: newComposerUrl,
       productLoaderUrl: newProductLoaderUrl,
       productUrl: newProductUrl,
+      appUrl: newAppUrl,
     });
     assert.ok(result.runtimeSource.includes(newComposerUrl));
     assert.ok(result.runtimeSource.includes(newProductLoaderUrl));
     assert.ok(result.composerSource.includes('imageReferencePlanConfirmed'));
     assert.ok(result.loaderSource.includes(newProductUrl));
     assert.ok(result.loaderSource.includes(newProductStyleUrl));
+    assert.ok(result.appSource.includes('referenceReview'));
     assert.equal(result.productWasPrecached, false, 'Product Studio must remain lazy-loaded');
-    assert.deepEqual(result.staleEntries, [false, false, false, false]);
+    assert.deepEqual(result.staleEntries, [false, false, false, false, false]);
     assert.deepEqual(errors, []);
 
     process.stdout.write(JSON.stringify({
       legacyCache: oldCacheName,
       activeCache: newCacheName,
       referencePlanDelivered: true,
+      referenceReviewPersistenceDelivered: true,
       productStudioRemainsLazy: true,
       errors,
     }));

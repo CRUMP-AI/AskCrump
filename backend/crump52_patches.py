@@ -35,6 +35,10 @@ _REQUEST_META_KEYS = {
     "artifactFormat", "artifactPurpose", "needsSearch", "taskType", "longForm",
 }
 _IMAGE_REFERENCE_ROLES = {"base", "subject", "mascot", "logo", "typography", "style"}
+_REFERENCE_REVIEW_MESSAGES = {
+    "review-required": "Verify logos, wordmarks, readable text, and mascot details before publishing.",
+    "not-applicable": "",
+}
 _METADATA_STRING_LIMITS = {
     "prompt": 4000,
     "title": 500,
@@ -175,6 +179,36 @@ def _safe_image_reference_plan(value: Any) -> list[dict[str, str]]:
     return result
 
 
+def _safe_image_reference_receipt(value: Any) -> list[dict[str, Any]]:
+    plan = _safe_image_reference_plan(value)
+    return [
+        {**item, "input": index}
+        for index, item in enumerate(plan, start=1)
+    ]
+
+
+def _safe_reference_review(
+    value: Any,
+    reference_plan: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    if not isinstance(value, dict):
+        return None
+    status = sync_module.clean_text(value.get("status"), 30).lower()
+    if status not in _REFERENCE_REVIEW_MESSAGES:
+        return None
+    if status == "review-required" and not reference_plan:
+        return None
+    if status == "not-applicable" and reference_plan:
+        return None
+    return {
+        "status": status,
+        "method": "manual-review" if status == "review-required" else "none",
+        "humanReviewRequired": status == "review-required",
+        "message": _REFERENCE_REVIEW_MESSAGES[status],
+        "references": reference_plan,
+    }
+
+
 def _safe_project_attachments(value: Any) -> dict[str, dict[str, Any]]:
     if not isinstance(value, dict):
         return {}
@@ -298,6 +332,17 @@ def _sanitize_message_v52(item: Any) -> dict[str, Any] | None:
     manuscript_workspace = _safe_manuscript_workspace(item.get("manuscriptWorkspace"))
     if manuscript_workspace:
         message["manuscriptWorkspace"] = manuscript_workspace
+
+    if message.get("role") == "assistant":
+        reference_plan = _safe_image_reference_receipt(item.get("referencePlan"))
+        if reference_plan:
+            message["referencePlan"] = reference_plan
+        reference_review = _safe_reference_review(
+            item.get("referenceReview"),
+            reference_plan,
+        )
+        if reference_review:
+            message["referenceReview"] = reference_review
 
     request_meta = item.get("requestMeta") or item.get("request_meta")
     if isinstance(request_meta, dict):

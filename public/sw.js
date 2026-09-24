@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r255';
+const CACHE_NAME = 'ask-crump-new-body-v1-r256';
 
 const CORE = [
   '/app',
@@ -27,7 +27,7 @@ const CORE = [
   '/crump-navigation-5.9.30.css?v=5.9.76-mobile-drawer-destinations-1',
   '/crump-navigation-5.9.30.js?v=5.9.76-autonomous-crump-1',
   '/crump-code-loader.js?v=5.9.76-autonomous-crump-1',
-  '/crump-product-loader.js?v=5.9.76-reference-fidelity-1',
+  '/crump-product-loader.js?v=5.9.76-reference-review-persistence-1',
   '/crump-product-5.3.1.css',
   '/crump-product-5.3.1.js?v=5.9.76-conversation-action-labels-2',
   '/crump-polish-5.6.css',
@@ -35,7 +35,7 @@ const CORE = [
   '/crump-media-save.js?v=5.9.76-library-lazy-load-1',
   '/crump-library-loader.js?v=5.9.76-library-lazy-load-1',
   '/crump-subscriptions-5.3.2.js?v=5.9.76-native-store-billing-1',
-  '/runtime-body-v1.js?v=5.9.76-reference-fidelity-1',
+  '/runtime-body-v1.js?v=5.9.76-reference-review-persistence-1',
   '/native-runtime.js',
   '/mobile-bridge.js?v=5.9.76-native-store-billing-1',
   '/ai-data-sharing-consent.js?v=5.9.76-ai-data-sharing-consent-1',
@@ -55,7 +55,7 @@ const CORE = [
   '/sync-manager.js?v=5.9.76-sync-cursor-1',
   '/chat-sync.js?v=5.9.76-settings-sync-1',
   '/account-manager.js?v=5.9.76-owner-isolation-native-store-1',
-  '/app.js?v=5.9.76-server-authoritative-activation-1',
+  '/app.js?v=5.9.76-reference-review-persistence-1',
   '/product-analytics.js?v=5.9.76-server-authoritative-activation-1',
   '/lifecycle-share.js?v=5.9.76-settings-invite-1',
   '/lifecycle-manager.js?v=5.9.76-lifecycle-idle-send-1',
@@ -65,7 +65,7 @@ const CORE = [
   '/crump-4.4.css',
   '/crump-4.4.js?v=5.9.76-navigation-discovery-1',
   '/crump-5.0.css?v=5.9.76-precision-edit-entry-1',
-  '/crump-5.0.js?v=5.9.76-reference-fidelity-1',
+  '/crump-5.0.js?v=5.9.76-reference-review-persistence-1',
   '/crump-precision-image-edit-loader.js?v=5.9.76-precision-lazy-load-1',
   '/crump-billing-5.1.css?v=5.9.76-credit-truth-1',
   '/crump-billing-5.1.js?v=5.9.76-autonomous-crump-1',
