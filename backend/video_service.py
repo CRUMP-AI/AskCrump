@@ -49,6 +49,12 @@ class VideoService:
     ENGINES = {QUICK, EXTENDABLE, CINEMATIC}
     REFERENCE_IMAGE_MAX_BYTES = 20 * 1024 * 1024
     REFERENCE_IMAGE_MAX_EDGE = 2048
+    REFERENCE_ROLES = {
+        "subject": "Subject / product",
+        "mascot": "Mascot / character",
+        "logo": "Logo / wordmark",
+        "style": "Style / palette",
+    }
 
     def __init__(self, settings: Settings, db: SupabaseDB, files: FileService) -> None:
         self.settings = settings
@@ -111,16 +117,57 @@ class VideoService:
             raise VideoServiceError(f"Video prompts for this engine must be {max_chars:,} characters or fewer.", "PROMPT_TOO_LONG")
         return prompt
 
-    @staticmethod
-    def provider_prompt(prompt: str, *, max_chars: int, has_visual_reference: bool = False) -> str:
+    @classmethod
+    def provider_prompt(
+        cls,
+        prompt: str,
+        *,
+        max_chars: int,
+        reference_plan: list[dict[str, Any]] | None = None,
+        reference_mode: str | None = None,
+        has_visual_reference: bool = False,
+    ) -> str:
         """Add bounded continuity/brand constraints without changing saved copy."""
-        brand_guard = (
-            'Use the supplied visual reference to preserve the subject, product, colors, proportions, and visible mark; '
-            'do not restyle the mark, add letters, or substitute symbols.'
-            if has_visual_reference
-            else 'Never invent or approximate a logo, wordmark, label, or branded text. If an exact mark is not supplied '
-                 'as visual input, keep branding absent or out of frame.'
-        )
+        plan = list(reference_plan or [])
+        role_lines: list[str] = []
+        for index, item in enumerate(plan, start=1):
+            role = str(item.get("role") or "").strip().lower() if isinstance(item, dict) else ""
+            if role not in cls.REFERENCE_ROLES:
+                raise VideoServiceError(
+                    "Choose a valid role for every video reference.",
+                    "INVALID_VIDEO_REFERENCE_PLAN",
+                )
+            role_lines.append(f"Input image {index}: {cls.REFERENCE_ROLES[role]} ({role}).")
+
+        if role_lines:
+            if reference_mode == "initial-frame":
+                reference_guard = (
+                    "The provider uses Input image 1 as the single starting frame, not as a loose mood board. "
+                    f"{role_lines[0]} Preserve its composition and assigned visual identity as closely as the model allows."
+                )
+            else:
+                reference_guard = (
+                    "The provider uses these inputs as best-effort appearance guidance, not pixel-locked frames or layout "
+                    f"templates. {' '.join(role_lines)} Apply each input only to its assigned role; do not merge or "
+                    "substitute identities."
+                )
+            brand_guard = (
+                f"{reference_guard} For a logo or wordmark, do not invent letters, redraw it in another style, or replace "
+                "it with a similar symbol. Exact pixels and readable text are not guaranteed by video generation; leave "
+                "the area clean for an approved overlay when exact branding is required."
+            )
+        elif has_visual_reference:
+            # Compatibility for already-running callers while every new request
+            # carries an indexed reference plan.
+            brand_guard = (
+                "Use the supplied visual reference to preserve the subject, product, colors, proportions, and visible "
+                "mark as closely as the model allows; do not restyle the mark, add letters, or substitute symbols."
+            )
+        else:
+            brand_guard = (
+                "Never invent or approximate a logo, wordmark, label, or branded text. If an exact mark is not supplied "
+                "as visual input, keep branding absent or out of frame."
+            )
         guard = (
             'Continuity requirements: keep subject identity, colors, geometry, object counts, anatomy, and spatial '
             'relationships stable across every frame; avoid morphing, duplicates, substitutions, and unreadable details. '
@@ -138,6 +185,170 @@ class VideoService:
     @staticmethod
     def reference_limit(engine: str) -> int:
         return 3 if engine == VideoService.EXTENDABLE else 1
+
+    @classmethod
+    def _normalize_reference_plan(
+        cls,
+        *,
+        file_ids: Any,
+        reference_plan: Any,
+        engine: str,
+    ) -> list[dict[str, str]]:
+        """Validate reference identities, roles, count, and exact client order."""
+        has_file_ids = file_ids is not None and file_ids != ""
+        has_plan = reference_plan is not None
+        if not has_file_ids and not has_plan:
+            return []
+        if has_file_ids and not isinstance(file_ids, list):
+            raise VideoServiceError(
+                "Video references must be selected from your private Files.",
+                "INVALID_VIDEO_REFERENCE",
+            )
+
+        normalized_ids: list[str] = []
+        for value in file_ids if isinstance(file_ids, list) else []:
+            raw_file_id = str(value or "").strip()
+            if not raw_file_id:
+                raise VideoServiceError(
+                    "One video reference is invalid. Remove it and upload the image again.",
+                    "INVALID_VIDEO_REFERENCE",
+                )
+            try:
+                file_id = normalize_chat_id(raw_file_id)
+            except Exception as exc:
+                raise VideoServiceError(
+                    "One video reference is invalid. Remove it and upload the image again.",
+                    "INVALID_VIDEO_REFERENCE",
+                ) from exc
+            if file_id in normalized_ids:
+                raise VideoServiceError(
+                    "Each video reference can appear only once.",
+                    "INVALID_VIDEO_REFERENCE_PLAN",
+                )
+            normalized_ids.append(file_id)
+
+        if has_plan:
+            if not isinstance(reference_plan, list):
+                raise VideoServiceError(
+                    "Confirm one role for every selected video reference.",
+                    "INVALID_VIDEO_REFERENCE_PLAN",
+                )
+            entries: list[dict[str, str]] = []
+            plan_ids: list[str] = []
+            for item in reference_plan:
+                if not isinstance(item, dict):
+                    raise VideoServiceError(
+                        "Confirm one role for every selected video reference.",
+                        "INVALID_VIDEO_REFERENCE_PLAN",
+                    )
+                raw_file_id = str(item.get("fileId") or "").strip()
+                if not raw_file_id:
+                    raise VideoServiceError(
+                        "The video reference plan contains an invalid file.",
+                        "INVALID_VIDEO_REFERENCE_PLAN",
+                    )
+                try:
+                    file_id = normalize_chat_id(raw_file_id)
+                except Exception as exc:
+                    raise VideoServiceError(
+                        "The video reference plan contains an invalid file.",
+                        "INVALID_VIDEO_REFERENCE_PLAN",
+                    ) from exc
+                role = str(item.get("role") or "").strip().lower()
+                if role not in cls.REFERENCE_ROLES or file_id in plan_ids:
+                    raise VideoServiceError(
+                        "Choose one valid, non-duplicate role assignment for every video reference.",
+                        "INVALID_VIDEO_REFERENCE_PLAN",
+                    )
+                plan_ids.append(file_id)
+                entries.append({"fileId": file_id, "role": role})
+            if has_file_ids and plan_ids != normalized_ids:
+                raise VideoServiceError(
+                    "The video reference plan no longer matches the selected images or their order. Review it again.",
+                    "INVALID_VIDEO_REFERENCE_PLAN",
+                )
+        else:
+            # Legacy clients selected images without assigning roles. Keep them
+            # working while treating each input as subject/product guidance.
+            entries = [{"fileId": file_id, "role": "subject"} for file_id in normalized_ids]
+
+        normalized_engine = cls.validate_engine(engine)
+        limit = cls.reference_limit(normalized_engine)
+        if len(entries) > limit:
+            label = "Extendable" if normalized_engine == cls.EXTENDABLE else normalized_engine.title()
+            raise VideoServiceError(
+                f"{label} accepts up to {limit} reference image{'s' if limit != 1 else ''}.",
+                "TOO_MANY_VIDEO_REFERENCES",
+            )
+        return entries
+
+    @classmethod
+    def reference_receipt(cls, references: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+        """Return the bounded, byte-free role receipt safe to persist and expose."""
+        receipt: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        for index, reference in enumerate(references or [], start=1):
+            if not isinstance(reference, dict):
+                raise VideoServiceError(
+                    "The video reference plan is invalid.",
+                    "INVALID_VIDEO_REFERENCE_PLAN",
+                )
+            raw_file_id = str(reference.get("fileId") or "").strip()
+            if not raw_file_id:
+                raise VideoServiceError(
+                    "The video reference plan contains an invalid file.",
+                    "INVALID_VIDEO_REFERENCE_PLAN",
+                )
+            try:
+                file_id = normalize_chat_id(raw_file_id)
+            except Exception as exc:
+                raise VideoServiceError(
+                    "The video reference plan contains an invalid file.",
+                    "INVALID_VIDEO_REFERENCE_PLAN",
+                ) from exc
+            role = str(reference.get("role") or "subject").strip().lower()
+            if role not in cls.REFERENCE_ROLES or file_id in seen:
+                raise VideoServiceError(
+                    "The video reference plan is invalid.",
+                    "INVALID_VIDEO_REFERENCE_PLAN",
+                )
+            seen.add(file_id)
+            receipt.append({"input": index, "fileId": file_id, "role": role})
+        return receipt
+
+    @classmethod
+    def prepare_provider_prompt(
+        cls,
+        *,
+        prompt: Any,
+        engine: Any,
+        references: list[dict[str, Any]] | None,
+    ) -> tuple[str, str, list[dict[str, Any]], str | None]:
+        """Validate the final reference-expanded prompt before any credit or provider spend."""
+        normalized_engine = cls.validate_engine(engine)
+        prepared_references = list(references or [])
+        limit = cls.reference_limit(normalized_engine)
+        if len(prepared_references) > limit:
+            raise VideoServiceError(
+                f"This video engine accepts up to {limit} reference image{'s' if limit != 1 else ''}.",
+                "TOO_MANY_VIDEO_REFERENCES",
+            )
+        provider_prompt_limit = 1000 if normalized_engine == cls.CINEMATIC else 4000
+        validated_prompt = cls.validate_prompt(prompt, max_chars=provider_prompt_limit)
+        reference_receipt = cls.reference_receipt(prepared_references)
+        reference_mode = (
+            "appearance-guidance"
+            if prepared_references and normalized_engine == cls.EXTENDABLE
+            else "initial-frame" if prepared_references
+            else None
+        )
+        guarded_prompt = cls.provider_prompt(
+            validated_prompt,
+            max_chars=provider_prompt_limit,
+            reference_plan=reference_receipt,
+            reference_mode=reference_mode,
+        )
+        return validated_prompt, guarded_prompt, reference_receipt, reference_mode
 
     @classmethod
     def _prepare_reference_image(cls, data: bytes) -> tuple[str, str]:
@@ -185,47 +396,43 @@ class VideoService:
         *,
         user_id: str,
         file_ids: Any,
+        reference_plan: Any = None,
         engine: str,
     ) -> list[dict[str, str]]:
         """Resolve owner-scoped Files before credits or provider spend."""
-        if file_ids is None or file_ids == "":
-            return []
-        if not isinstance(file_ids, list):
-            raise VideoServiceError(
-                "Video references must be selected from your private Files.",
-                "INVALID_VIDEO_REFERENCE",
-            )
-
-        normalized_engine = self.validate_engine(engine)
-        normalized_ids: list[str] = []
-        for value in file_ids:
-            try:
-                file_id = normalize_chat_id(str(value))
-            except Exception as exc:
-                raise VideoServiceError(
-                    "One video reference is invalid. Remove it and upload the image again.",
-                    "INVALID_VIDEO_REFERENCE",
-                ) from exc
-            if file_id not in normalized_ids:
-                normalized_ids.append(file_id)
-
-        limit = self.reference_limit(normalized_engine)
-        if len(normalized_ids) > limit:
-            label = "Extendable" if normalized_engine == self.EXTENDABLE else normalized_engine.title()
-            raise VideoServiceError(
-                f"{label} accepts up to {limit} reference image{'s' if limit != 1 else ''}.",
-                "TOO_MANY_VIDEO_REFERENCES",
-            )
-
-        prepared: list[dict[str, str]] = []
-        for file_id in normalized_ids:
+        entries = self._normalize_reference_plan(
+            file_ids=file_ids,
+            reference_plan=reference_plan,
+            engine=engine,
+        )
+        owned: list[tuple[dict[str, str], dict[str, Any]]] = []
+        for entry in entries:
+            file_id = entry["fileId"]
             try:
                 row = await self.files.get_owned(user_id=user_id, file_id=file_id)
-                if not str(row.get("mime_type") or "").lower().startswith("image/"):
-                    raise VideoServiceError(
-                        "Video references must be JPG, PNG, or WebP images.",
-                        "INVALID_VIDEO_REFERENCE_IMAGE",
-                    )
+            except FileServiceError as exc:
+                raise VideoServiceError(
+                    "A selected video reference is unavailable. Remove it and upload the image again.",
+                    "VIDEO_REFERENCE_UNAVAILABLE",
+                    exc.status_code,
+                    exc.status_code >= 500,
+                ) from exc
+            if str(row.get("id") or "") != file_id:
+                raise VideoServiceError(
+                    "A selected video reference is unavailable. Remove it and upload the image again.",
+                    "VIDEO_REFERENCE_UNAVAILABLE",
+                    404,
+                )
+            if not str(row.get("mime_type") or "").lower().startswith("image/"):
+                raise VideoServiceError(
+                    "Video references must be JPG, PNG, or WebP images.",
+                    "INVALID_VIDEO_REFERENCE_IMAGE",
+                )
+            owned.append((entry, row))
+
+        prepared: list[dict[str, str]] = []
+        for entry, row in owned:
+            try:
                 raw = await self.files.download_bytes(row=row, max_bytes=self.REFERENCE_IMAGE_MAX_BYTES)
             except FileServiceError as exc:
                 raise VideoServiceError(
@@ -235,7 +442,12 @@ class VideoService:
                     exc.status_code >= 500,
                 ) from exc
             mime_type, encoded = self._prepare_reference_image(raw)
-            prepared.append({"fileId": file_id, "mimeType": mime_type, "data": encoded})
+            prepared.append({
+                "fileId": entry["fileId"],
+                "role": entry["role"],
+                "mimeType": mime_type,
+                "data": encoded,
+            })
         return prepared
 
     @staticmethod
@@ -389,6 +601,18 @@ class VideoService:
     @staticmethod
     def _public_base(row: dict[str, Any]) -> dict[str, Any]:
         metadata = row.get("metadata") or {}
+        safe_reference_plan = []
+        for index, item in enumerate(metadata.get("referencePlan") or [], start=1):
+            if not isinstance(item, dict):
+                continue
+            role = str(item.get("role") or "").strip().lower()
+            file_id = str(item.get("fileId") or "").strip()
+            if role in VideoService.REFERENCE_ROLES and file_id:
+                safe_reference_plan.append({
+                    "input": index,
+                    "fileId": file_id[:64],
+                    "role": role,
+                })
         return {
             "id": row.get("id"),
             "status": row.get("status"),
@@ -408,6 +632,8 @@ class VideoService:
             "error": row.get("error_message"),
             "chargeReturned": bool(row.get("billing_refunded")),
             "providerStatus": metadata.get("providerStatus"),
+            "referenceMode": metadata.get("referenceMode"),
+            "referencePlan": safe_reference_plan,
             "createdAt": row.get("created_at"),
             "updatedAt": row.get("updated_at"),
         }
@@ -465,19 +691,18 @@ class VideoService:
             resolution=resolution,
             duration_seconds=duration_seconds,
         )
-        provider_prompt_limit = 1000 if engine == self.CINEMATIC else 4000
-        prompt = self.validate_prompt(prompt, max_chars=provider_prompt_limit)
-        references = list(reference_images or [])
-        limit = self.reference_limit(engine)
-        if len(references) > limit:
-            raise VideoServiceError(
-                f"This video engine accepts up to {limit} reference image{'s' if limit != 1 else ''}.",
-                "TOO_MANY_VIDEO_REFERENCES",
-            )
-        guarded_prompt = self.provider_prompt(
-            prompt,
-            max_chars=provider_prompt_limit,
-            has_visual_reference=bool(references),
+        references: list[dict[str, Any]] = []
+        for reference in reference_images or []:
+            if not isinstance(reference, dict):
+                raise VideoServiceError(
+                    "The video reference plan is invalid.",
+                    "INVALID_VIDEO_REFERENCE_PLAN",
+                )
+            references.append(dict(reference))
+        prompt, guarded_prompt, reference_receipt, reference_mode = self.prepare_provider_prompt(
+            prompt=prompt,
+            engine=engine,
+            references=references,
         )
         aspect_ratio = self.validate_aspect_ratio(aspect_ratio)
         project = normalize_chat_id(project_id) if project_id else None
@@ -530,12 +755,9 @@ class VideoService:
             "metadata": {
                 "refundEligible": True,
                 "providerAccepted": False,
-                "referenceFileIds": [str(reference.get("fileId") or "") for reference in references],
-                "referenceMode": (
-                    "asset" if references and engine == self.EXTENDABLE
-                    else "initial-frame" if references
-                    else None
-                ),
+                "referenceFileIds": [item["fileId"] for item in reference_receipt],
+                "referenceMode": reference_mode,
+                "referencePlan": reference_receipt,
             },
             "updated_at": _now(),
         }

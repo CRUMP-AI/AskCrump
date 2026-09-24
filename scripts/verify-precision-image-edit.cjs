@@ -299,6 +299,42 @@ const {chromium} = require(playwrightModule);
     focused: document.activeElement?.id,
   }));
 
+  await page.evaluate(() => {
+    const button = document.createElement('button');
+    button.id = 'openOverlay';
+    button.type = 'button';
+    button.textContent = 'Open Exact Overlay';
+    button.addEventListener('click', () => {
+      const url = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
+        '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="480"><rect width="640" height="480" fill="#18222d"/></svg>',
+      )}`;
+      window.CrumpPrecisionImageEditor.open({
+        file: {id: '11111111-1111-4111-8111-111111111111', name: 'private-photo.png', type: 'image/png'},
+        url,
+        entryMode: 'overlay',
+        returnFocus: button,
+      });
+    });
+    document.getElementById('fixtureWorkspace').appendChild(button);
+  });
+  const openOverlay = page.locator('#openOverlay');
+  await openOverlay.click();
+  const exactEditor = page.getByRole('dialog', {name: /Place an exact logo or wordmark/});
+  await exactEditor.waitFor();
+  await page.waitForFunction(() => document.activeElement?.textContent?.trim() === 'Add logo or image');
+  const exactEntry = {
+    entryMode: await exactEditor.getAttribute('data-entry-mode'),
+    heading: await exactEditor.getByRole('heading').textContent(),
+    placePressed: await exactEditor.getByRole('button', {name: 'Place'}).getAttribute('aria-pressed'),
+    firstPanel: await exactEditor.locator('.crump-precision-controls').evaluate(node => node.children[1]?.className || ''),
+    focused: await page.evaluate(() => document.activeElement?.textContent?.trim() || ''),
+    status: await exactEditor.locator('.crump-precision-status').textContent(),
+    copy: await exactEditor.locator('.crump-precision-exact-overlay').textContent(),
+  };
+  await exactEditor.getByRole('button', {name: 'Close Exact Overlay'}).click();
+  await page.waitForFunction(() => document.activeElement?.id === 'openOverlay');
+  const exactCloseFocus = await page.evaluate(() => document.activeElement?.id || '');
+
   await page.setViewportSize({width: 390, height: 844});
   await open.click();
   await editor.waitFor();
@@ -420,6 +456,15 @@ const {chromium} = require(playwrightModule);
     || overlaySave.fileId !== '33333333-3333-4333-8333-333333333333'
     || !overlaySave.toast?.message?.includes('Changes applied in this conversation')
     || overlaySave.focused !== 'openPrecision'
+    || exactEntry.entryMode !== 'overlay'
+    || exactEntry.heading !== 'Place an exact logo or wordmark.'
+    || exactEntry.placePressed !== 'true'
+    || exactEntry.firstPanel !== 'crump-precision-exact-overlay'
+    || exactEntry.focused !== 'Add logo or image'
+    || !exactEntry.status.includes('drag the approved artwork into place')
+    || !exactEntry.copy.includes('NO AI OR CREDITS')
+    || !exactEntry.copy.includes('flattened PNG or WebP wordmark')
+    || exactCloseFocus !== 'openOverlay'
     || mobile.overflowX
     || Math.abs(mobile.editorWidth - mobile.viewportWidth) > 4
     || !mobile.closeVisible
@@ -433,9 +478,9 @@ const {chromium} = require(playwrightModule);
     || !mobile.workspaceScrollable
     || !escaped
   ) {
-    throw new Error(JSON.stringify({desktop, visibleImage, versions, cropGuideVisible, resetFrameEnabled, transformedSize, geometrySave, zoomed, fittedWidth, movePressed, lassoProof, broadInvertGuard, redoEnabled, feather, guidedInstruction, staged, preview, originalVisible, localSave, overlayPreview, overlaySave, mobile, escaped, errors}));
+    throw new Error(JSON.stringify({desktop, visibleImage, versions, cropGuideVisible, resetFrameEnabled, transformedSize, geometrySave, zoomed, fittedWidth, movePressed, lassoProof, broadInvertGuard, redoEnabled, feather, guidedInstruction, staged, preview, originalVisible, localSave, overlayPreview, overlaySave, exactEntry, exactCloseFocus, mobile, escaped, errors}));
   }
-  process.stdout.write(`${JSON.stringify({desktop, visibleImage, versions, cropGuideVisible, resetFrameEnabled, transformedSize, geometrySave, zoomed, fittedWidth, movePressed, lassoProof, broadInvertGuard, redoEnabled, feather, guidedInstruction, staged, preview, originalVisible, localSave, overlayPreview, overlaySave, mobile, escaped, errors})}\n`);
+  process.stdout.write(`${JSON.stringify({desktop, visibleImage, versions, cropGuideVisible, resetFrameEnabled, transformedSize, geometrySave, zoomed, fittedWidth, movePressed, lassoProof, broadInvertGuard, redoEnabled, feather, guidedInstruction, staged, preview, originalVisible, localSave, overlayPreview, overlaySave, exactEntry, exactCloseFocus, mobile, escaped, errors})}\n`);
 })().catch(error => {
   process.stderr.write(`${error.stack || error}\n`);
   process.exitCode = 1;

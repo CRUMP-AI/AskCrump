@@ -292,7 +292,8 @@ def test_video_ui_surfaces_engines_continue_flow_and_runway_attribution():
     assert "Powered by Runway" in ui
     assert "https://runwayml.com" in ui
     assert ".crump53-video-continuation" in css
-    assert "Optional appearance references · up to 3" in ui
+    assert "Optional appearance guidance · up to 3" in ui
+    assert "best-effort appearance guidance, not as a pixel-locked frame or layout" in ui
     assert "referenceFileIds" in ui
     assert "window.CrumpFileTools.upload(file)" in ui
     assert ".crump53-video-reference-card" in css

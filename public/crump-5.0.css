@@ -342,6 +342,8 @@ body.crump-50 .crump50-precision-entry > span:nth-child(2) { min-width: 0; displ
 body.crump-50 .crump50-precision-entry strong { font-size: 11px; font-weight: 620; }
 body.crump-50 .crump50-precision-entry small { color: var(--c50-text-3); font-size: 9px; }
 body.crump-50 .crump50-precision-entry b { color: var(--c50-gold); font-size: 9px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
+body.crump-50 .crump50-precision-entry.is-exact-overlay { border-color: rgba(143,192,171,.24); background: rgba(103,171,142,.065); }
+body.crump-50 .crump50-precision-entry.is-exact-overlay:hover:not(:disabled) { border-color: rgba(143,192,171,.42); background: rgba(103,171,142,.1); }
 body.crump-50 .crump50-image-guidance { margin: 1px 2px 0; color: var(--c50-text-3); font-size: 9.5px; line-height: 1.55; }
 body.crump-50 .crump50-primary-action { min-height: 48px; margin-top: 7px; border: 0; border-radius: 14px; background: #e7e2d7; color: #11151a; font-size: 12px; font-weight: 650; }
 body.crump-50 .crump50-format-grid { display: grid; grid-template-columns: repeat(2,1fr); gap: 7px; padding: 2px 7px 8px; }
@@ -361,12 +363,18 @@ body.crump-50 .crump50-file-card > span:nth-child(2) { min-width: 0; display: gr
 body.crump-50 .crump50-file-card strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; font-weight: 590; }
 body.crump-50 .crump50-file-card small { color: var(--c50-text-3); font-size: 8.8px; }
 body.crump-50 .crump50-file-card b { color: #727985; font-weight: 400; }
+body.crump-50 .crump50-reference-receipt { width: min(100%, 520px); margin-top: 10px; display: grid; gap: 7px; padding: 11px 13px; border: 1px solid rgba(209,191,150,.16); border-radius: 14px; background: rgba(209,191,150,.045); color: var(--c50-text-2); }
+body.crump-50 .crump50-reference-receipt > strong { color: var(--c50-text); font-size: 10px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
+body.crump-50 .crump50-reference-receipt ol { margin: 0; padding-left: 20px; display: grid; gap: 3px; color: var(--c50-text-2); font-size: 10px; }
+body.crump-50 .crump50-reference-receipt small { color: var(--c50-text-3); font-size: 9px; line-height: 1.45; }
 body.crump-50 .generated-image-wrapper.crump50-generated { width: min(100%, 650px); margin-top: 12px; border: 1px solid var(--c50-line); border-radius: 20px; background: #0e1319; overflow: hidden; box-shadow: 0 18px 50px rgba(0,0,0,.22); }
 body.crump-50 .generated-image-wrapper.crump50-generated .message-image { display: block; width: 100%; max-height: 650px; object-fit: contain; cursor: zoom-in; background: #090c10; }
 body.crump-50 .generated-image-wrapper .image-actions { display: none !important; }
-body.crump-50 .crump50-image-actions { display: flex; gap: 5px; padding: 8px; border-top: 1px solid var(--c50-line); }
-body.crump-50 .crump50-image-actions button { min-height: 34px; padding: 0 11px; border: 0; border-radius: 10px; background: rgba(255,255,255,.04); color: var(--c50-text-2); font-size: 10px; font-weight: 550; }
+body.crump-50 .crump50-image-actions { display: flex; flex-wrap: wrap; gap: 5px; padding: 8px; border-top: 1px solid var(--c50-line); }
+body.crump-50 .crump50-image-actions button { flex: 1 1 78px; min-height: 34px; padding: 0 11px; border: 0; border-radius: 10px; background: rgba(255,255,255,.04); color: var(--c50-text-2); font-size: 10px; font-weight: 550; }
 body.crump-50 .crump50-image-actions button:hover { background: rgba(255,255,255,.07); color: var(--c50-text); }
+body.crump-50 .crump50-image-actions .crump50-exact-overlay-action { background: rgba(209,191,150,.1); color: #ead9b3; }
+body.crump-50 .crump50-image-actions .crump50-exact-overlay-action:hover { background: rgba(209,191,150,.16); color: #fff4d8; }
 body.crump-50 .crump50-artifact { width: min(100%, 520px); min-height: 74px; margin-top: 12px; display: grid; grid-template-columns: 46px 1fr auto; align-items: center; gap: 11px; padding: 10px; border: 1px solid rgba(209,191,150,.14); border-radius: 17px; background: linear-gradient(145deg, rgba(209,191,150,.07), rgba(255,255,255,.02)); }
 body.crump-50 .crump50-artifact > span { width: 46px; height: 46px; display: grid; place-items: center; border-radius: 12px; background: rgba(209,191,150,.1); color: var(--c50-gold); font-size: 9px; font-weight: 700; letter-spacing: .06em; }
 body.crump-50 .crump50-artifact > div { min-width: 0; display: grid; gap: 4px; }

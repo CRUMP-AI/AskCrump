@@ -24,7 +24,7 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/conversation.css?v=5.9.76-continuity-handoff-1', 'workspaceconversation'],
     ['/crump-4.3.css', 'crump43'],
     ['/crump-4.4.css', 'crump44'],
-    ['/crump-5.0.css?v=5.9.76-precision-edit-entry-1', 'crump50'],
+    ['/crump-5.0.css?v=5.9.76-reference-fidelity-focused-1', 'crump50'],
     ['/crump-billing-5.1.css?v=5.9.76-credit-truth-1', 'billing51'],
     ['/crump-5.2.css', 'crump52'],
     ['/crump-5.2.2.css?v=5.9.76-new-response-cue-1', 'crump522'],
@@ -54,15 +54,15 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/sync-manager.js?v=5.9.76-sync-cursor-1', 'workspacesync'],
     ['/chat-sync.js?v=5.9.76-settings-sync-1', 'workspacechatsync'],
     ['/account-manager.js?v=5.9.76-account-deletion-billing-1', 'workspaceaccount'],
-    ['/app.js?v=5.9.76-settings-save-isolation-1', 'workspaceapp'],
+    ['/app.js?v=5.9.76-reference-fidelity-focused-1', 'workspaceapp'],
     ['/product-analytics.js?v=5.9.76-navigation-discovery-1', 'workspaceanalytics'],
   ]);
 
   const enhancementScripts = Object.freeze([
     ['/crump-4.3.js?v=5.9.76-composer-actionability-1', 'crump43'],
     ['/crump-4.4.js?v=5.9.76-navigation-discovery-1', 'crump44'],
-    ['/crump-5.0.js?v=5.9.76-project-save-offer-1', 'crump50'],
-    ['/crump-precision-image-edit-loader.js?v=5.9.76-precision-lazy-load-1', 'crumpprecisionloader'],
+    ['/crump-5.0.js?v=5.9.76-reference-fidelity-focused-1', 'crump50'],
+    ['/crump-precision-image-edit-loader.js?v=5.9.76-reference-fidelity-focused-1', 'crumpprecisionloader'],
     ['/crump-billing-5.1.js?v=5.9.76-checkout-destination-label-1', 'billing51'],
     ['/crump-5.2.js?v=5.9.76-stripe-destination-integrity-1', 'crump52'],
     ['/crump-5.2.2.js?v=5.9.76-stripe-destination-integrity-1', 'crump522'],
@@ -72,7 +72,7 @@ window.CRUMP_CONFIG = Object.freeze({
 
   const finalScripts = Object.freeze([
     ['/crump-navigation-5.2.5.js?v=5.9.76-chats-language-1', 'crumpnav525'],
-    ['/crump-product-loader.js?v=5.9.76-product-studio-lazy-load-2', 'crumpproductloader'],
+    ['/crump-product-loader.js?v=5.9.76-reference-fidelity-focused-1', 'crumpproductloader'],
     ['/crump-product-5.3.1.js?v=5.9.76-conversation-action-labels-2', 'crumpproduct531'],
     ['/crump-subscriptions-5.3.2.js?v=5.9.76-checkout-destination-label-1', 'crumpsubscriptions532'],
     ['/crump-polish-5.6.js?v=5.9.76-video-destination-1', 'crumppolish56'],

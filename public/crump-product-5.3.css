@@ -588,7 +588,7 @@ body.crump-v1-body .crump53-video-reference-card {
   background: rgba(217,191,132,.028);
 }
 body.crump-v1-body .crump53-video-reference-card img {
-  grid-row: 1 / span 2;
+  grid-row: 1 / span 3;
   width: 42px;
   height: 42px;
   border-radius: 8px;
@@ -602,6 +602,34 @@ body.crump-v1-body .crump53-video-reference-card span {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+body.crump-v1-body .crump53-video-reference-role {
+  display: grid;
+  gap: 3px;
+  color: #8f9697;
+  font-size: 8px;
+}
+body.crump-v1-body .crump53-video-reference-role select {
+  min-width: 0;
+  width: 100%;
+  padding: 4px 18px 4px 6px;
+  border: 1px solid rgba(217,191,132,.16);
+  border-radius: 7px;
+  background: #0b0f13;
+  color: #d9d7d1;
+  font: inherit;
+}
+body.crump-v1-body .crump53-video-reference-plan {
+  display: grid;
+  gap: 6px;
+  padding: 9px 11px;
+  border: 1px solid rgba(217,191,132,.14);
+  border-radius: 10px;
+  background: rgba(217,191,132,.025);
+}
+body.crump-v1-body .crump53-video-reference-plan[hidden] { display: none; }
+body.crump-v1-body .crump53-video-reference-plan strong { color: #d9d7d1; font-size: 8px; letter-spacing: .05em; }
+body.crump-v1-body .crump53-video-reference-plan ol { margin: 0; padding-left: 18px; display: grid; gap: 2px; color: #b8bbb8; font-size: 8px; }
+body.crump-v1-body .crump53-video-reference-plan small { color: #8f9697; font-size: 8px; line-height: 1.45; }
 body.crump-v1-body .crump53-video-reference-card button {
   width: fit-content;
   padding: 0;

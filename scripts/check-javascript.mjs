@@ -1038,6 +1038,7 @@ const settingsInviteVersion = `${releaseVersion}-settings-invite-1`;
 const precisionEditEntryVersion = `${releaseVersion}-precision-edit-entry-1`;
 const precisionEditStudioVersion = `${releaseVersion}-precision-studio-1`;
 const creationSheetContainmentVersion = `${releaseVersion}-creation-sheet-containment-1`;
+const referenceFidelityVersion = `${releaseVersion}-reference-fidelity-focused-1`;
 const requiredBodyFiles = [
   'public/crump-v1-body.css',
   'public/crump-v1-body.js',
@@ -1238,7 +1239,7 @@ if (!referringAcquisitionSource ||
   process.exit(1);
 }
 const requiredHtmlSignals = [
-  `/runtime-body-v1.js?v=${navigationDiscoveryVersion}`,
+  `/runtime-body-v1.js?v=${referenceFidelityVersion}`,
   `/auth-controller.js?v=${authControllerVersion}`,
   `/telemetry-config.js?v=${releaseVersion}`,
   '/_vercel/speed-insights/script.js',
@@ -1312,12 +1313,12 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/lifecycle-manager.js?v=${lifecycleIdleSendVersion}`) ||
     !runtime.includes(`/chat-sync.js?v=${settingsSyncVersion}`) ||
     !runtime.includes(`/product-analytics.js?v=${navigationDiscoveryVersion}`) ||
-    !runtime.includes(`/app.js?v=${settingsSaveIsolationVersion}`) ||
+    !runtime.includes(`/app.js?v=${referenceFidelityVersion}`) ||
     !runtime.includes(`/crump-v1-body.js?v=${navigationDiscoveryVersion}`) ||
     !runtime.includes(`/crump-v1-body.css?v=${brandDeliveryVersion}`) ||
-    !runtime.includes(`/crump-5.0.css?v=${precisionEditEntryVersion}`) ||
-    !runtime.includes(`/crump-5.0.js?v=${projectSaveOfferVersion}`) ||
-    !runtime.includes(`/crump-precision-image-edit-loader.js?v=${precisionLazyLoadVersion}`) ||
+    !runtime.includes(`/crump-5.0.css?v=${referenceFidelityVersion}`) ||
+    !runtime.includes(`/crump-5.0.js?v=${referenceFidelityVersion}`) ||
+    !runtime.includes(`/crump-precision-image-edit-loader.js?v=${referenceFidelityVersion}`) ||
     runtime.includes(`/crump-precision-image-edit.css?v=${precisionEditStudioVersion}`) ||
     runtime.includes(`/crump-precision-image-edit.js?v=${liveImagePreviewVersion}`) ||
     !runtime.includes(`/crump-billing-5.1.js?v=${checkoutDestinationLabelVersion}`) ||
@@ -1327,7 +1328,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/crump-4.3.js?v=${composerActionabilityVersion}`) ||
     !runtime.includes(`/crump-4.4.js?v=${navigationDiscoveryVersion}`) ||
     !runtime.includes(`/crump-v1-stability.js?v=${intelligenceArchitectureVersion}`) ||
-    !runtime.includes(`/crump-product-loader.js?v=${productStudioLazyLoadVersion}`) ||
+    !runtime.includes(`/crump-product-loader.js?v=${referenceFidelityVersion}`) ||
     runtime.includes(`/crump-product-5.3.js?v=${studioActionLabelsVersion}`) ||
     runtime.includes(`/crump-product-5.3.css?v=${fileLibraryWindowVersion}`) ||
     !runtime.includes(`/crump-product-5.3.1.js?v=${conversationActionLabelsVersion}`) || !runtime.includes('/crump-product-5.3.1.css') ||
@@ -1414,8 +1415,8 @@ if (runtimeDocument.documentElement.dataset.crumpBodyRuntime !== 'ready' ||
     preloadedRuntimeScripts.length !== 34 ||
     loadedRuntimeScripts.length !== 34 ||
     !loadedRuntimeScripts.every(asset => preloadedRuntimeScripts.includes(asset)) ||
-    loadedRuntimeScripts.indexOf(`/credit-confirmation.js?v=${creditConfirmationVersion}`) > loadedRuntimeScripts.indexOf(`/app.js?v=${settingsSaveIsolationVersion}`) ||
-    loadedRuntimeScripts.indexOf(`/app.js?v=${settingsSaveIsolationVersion}`) > loadedRuntimeScripts.indexOf(`/crump-4.3.js?v=${composerActionabilityVersion}`) ||
+    loadedRuntimeScripts.indexOf(`/credit-confirmation.js?v=${creditConfirmationVersion}`) > loadedRuntimeScripts.indexOf(`/app.js?v=${referenceFidelityVersion}`) ||
+    loadedRuntimeScripts.indexOf(`/app.js?v=${referenceFidelityVersion}`) > loadedRuntimeScripts.indexOf(`/crump-4.3.js?v=${composerActionabilityVersion}`) ||
     loadedRuntimeScripts.at(-1) !== `/lifecycle-manager.js?v=${lifecycleIdleSendVersion}`) {
   console.error('Authenticated workspace runtime load order or completion contract failed.');
   process.exit(1);
@@ -1425,6 +1426,16 @@ const crump43 = await readFile(new URL('public/crump-4.3.js', repoRoot), 'utf8')
 const v1Body = await readFile(new URL('public/crump-v1-body.js', repoRoot), 'utf8');
 const appRuntime = await readFile(new URL('public/app.js', repoRoot), 'utf8');
 const product53 = await readFile(new URL('public/crump-product-5.3.js', repoRoot), 'utf8');
+const precisionEditor = await readFile(new URL('public/crump-precision-image-edit.js', repoRoot), 'utf8');
+const precisionLoader = await readFile(new URL('public/crump-precision-image-edit-loader.js', repoRoot), 'utf8');
+const productLoader = await readFile(new URL('public/crump-product-loader.js', repoRoot), 'utf8');
+if (!precisionLoader.includes(`/crump-precision-image-edit.css?v=${referenceFidelityVersion}`) ||
+    !precisionLoader.includes(`/crump-precision-image-edit.js?v=${referenceFidelityVersion}`) ||
+    !productLoader.includes(`/crump-product-5.3.css?v=${referenceFidelityVersion}`) ||
+    !productLoader.includes(`/crump-product-5.3.js?v=${referenceFidelityVersion}`)) {
+  console.error('Reference-fidelity lazy loaders must use the same atomic release token as the shell.');
+  process.exit(1);
+}
 const studioSectionIsolation = product53.slice(
   product53.indexOf('function configureStudioSection'),
   product53.indexOf('function openStudio'),
@@ -1484,26 +1495,26 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r249') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r250') ||
     !serviceWorker.includes("'/assets/brand/crump-shell-lockup-light.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-shell-lockup-light.png'") ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
-    !serviceWorker.includes(`/runtime-body-v1.js?v=${navigationDiscoveryVersion}`) ||
+    !serviceWorker.includes(`/runtime-body-v1.js?v=${referenceFidelityVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${continuityHandoffVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.css?v=${creditConfirmationVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.js?v=${creditConfirmationVersion}`) ||
     !serviceWorker.includes(`/chat-resilience.js?v=${creditConfirmationVersion}`) ||
     !serviceWorker.includes(`/account-manager.js?v=${accountDeletionBillingVersion}`) ||
-    !serviceWorker.includes(`/crump-5.0.css?v=${precisionEditEntryVersion}`) ||
+    !serviceWorker.includes(`/crump-5.0.css?v=${referenceFidelityVersion}`) ||
     !serviceWorker.includes(`/scroll-manager.js?v=${userControlledScrollVersion}`) ||
-    !serviceWorker.includes(`/crump-5.0.js?v=${projectSaveOfferVersion}`) ||
-    !serviceWorker.includes(`/crump-precision-image-edit-loader.js?v=${precisionLazyLoadVersion}`) ||
+    !serviceWorker.includes(`/crump-5.0.js?v=${referenceFidelityVersion}`) ||
+    !serviceWorker.includes(`/crump-precision-image-edit-loader.js?v=${referenceFidelityVersion}`) ||
     serviceWorker.includes(`/crump-precision-image-edit.css?v=${precisionEditStudioVersion}`) ||
     serviceWorker.includes(`/crump-precision-image-edit.js?v=${liveImagePreviewVersion}`) ||
     !serviceWorker.includes(`/ui-functions.js?v=${projectSaveOfferVersion}`) ||
-    !serviceWorker.includes(`/app.js?v=${settingsSaveIsolationVersion}`) ||
+    !serviceWorker.includes(`/app.js?v=${referenceFidelityVersion}`) ||
     !serviceWorker.includes(`/crump-5.2.2.css?v=${newResponseCueVersion}`) ||
     !serviceWorker.includes(`/crump-5.2.2.js?v=${stripeDestinationIntegrityVersion}`) ||
     !serviceWorker.includes(`/onboarding.css?v=${videoDestinationVersion}`) ||
@@ -1526,7 +1537,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r249') ||
     !serviceWorker.includes(`/crump-4.3.js?v=${composerActionabilityVersion}`) ||
     !serviceWorker.includes(`/crump-4.4.js?v=${navigationDiscoveryVersion}`) ||
     !serviceWorker.includes(`/crump-v1-stability.js?v=${intelligenceArchitectureVersion}`) ||
-    !serviceWorker.includes(`/crump-product-loader.js?v=${productStudioLazyLoadVersion}`) ||
+    !serviceWorker.includes(`/crump-product-loader.js?v=${referenceFidelityVersion}`) ||
     !serviceWorker.includes(`/crump-product-5.3.1.js?v=${conversationActionLabelsVersion}`) ||
     serviceWorker.includes(`/crump-product-5.3.js?v=${studioActionLabelsVersion}`) ||
     serviceWorker.includes(`/crump-product-5.3.css?v=${fileLibraryWindowVersion}`) ||
@@ -1804,6 +1815,33 @@ if (!projectSaveActivationGuard.includes("window.CrumpAnalytics?.track?.('Projec
   process.exit(1);
 }
 const composer50 = await readFile(new URL('public/crump-5.0.js', repoRoot), 'utf8');
+if (!composer50.includes('const IMAGE_REFERENCE_LIMIT = 4;') ||
+    !composer50.includes('imageReferenceContractVersion = 2') ||
+    !composer50.includes('imageReferenceContractVersion:2') ||
+    !composer50.includes('body.imageReferencePlan = imageReferencePlan(references);') ||
+    !composer50.includes('Confirm what each reference controls before Crump uses credits.') ||
+    !composer50.includes('Crump sends every confirmed reference as a numbered visual constraint') ||
+    !composer50.includes('IMAGE_REFERENCE_CONFIRMATION_REQUIRED') ||
+    !composer50.includes('IMAGE_REFERENCE_PLAN_INVALID') ||
+    !composer50.includes('reopenImageReferencePlan') ||
+    !composer50.includes('crump50-reference-receipt') ||
+    !composer50.includes('Add exact logo or wordmark') ||
+    !appRuntime.includes("'referencePlan', 'referenceReview'") ||
+    !product53.includes('const VIDEO_REFERENCE_ROLE_OPTIONS = Object.freeze([') ||
+    !product53.includes('const referencePlan = videoReferencePlan();') ||
+    !product53.includes('state.videoReferencePlanConfirmation !== confirmationSignature') ||
+    !product53.includes("button.textContent = 'Confirm & create video';") ||
+    !product53.includes('referenceFileIds: state.videoReferenceFiles.map') ||
+    !product53.includes('referencePlan,') ||
+    !product53.includes('function hydrateVideoHandoffReferences') ||
+    !product53.includes('state.videoReferenceHandoffInvalid = true;') ||
+    !product53.includes('best-effort appearance guidance') ||
+    !precisionEditor.includes("entryMode === 'overlay'") ||
+    !precisionEditor.includes('Place an exact logo or wordmark.') ||
+    !precisionEditor.includes('flattened PNG or WebP wordmark')) {
+  console.error('Image and video reference plans must stay ordered, explicitly confirmed, recoverable, and truthful about exact overlays.');
+  process.exit(1);
+}
 const outputProjectActionGuard = composer50.slice(
   composer50.indexOf('function wireOutputProjectAction'),
   composer50.indexOf('function enhanceRenderedMessages'),

@@ -204,7 +204,9 @@
     const list = state.versionsList;
     if (!list) return;
     list.replaceChildren();
-    const safe = Array.isArray(versions) && versions.length ? versions.slice(-20) : [{...state.file, isCurrent: true, isOriginal: true, editKind: 'original'}];
+    const safe = Array.isArray(versions) && versions.length
+      ? versions.slice(-20)
+      : [{...state.file, url: state.file?.url || state.sourceUrl || '', isCurrent: true, isOriginal: true, editKind: 'original'}];
     safe.forEach(version => {
       const button = document.createElement('button');
       button.type = 'button';
@@ -212,7 +214,9 @@
       button.classList.toggle('is-current', Boolean(version.isCurrent));
       button.setAttribute('aria-current', version.isCurrent ? 'true' : 'false');
       const preview = document.createElement('img');
-      preview.src = String(version.url || `/api/files/${encodeURIComponent(version.id)}/content`);
+      const previewUrl = version.url || (version.id ? `/api/files/${encodeURIComponent(version.id)}/content` : '');
+      if (previewUrl) preview.src = String(previewUrl);
+      else preview.hidden = true;
       preview.alt = '';
       preview.loading = 'lazy';
       const copy = document.createElement('span');
@@ -1182,10 +1186,13 @@
     return {savedFile, applyResult};
   }
 
-  async function open({file, url = '', onApplied = null} = {}) {
+  async function open({file, url = '', onApplied = null, entryMode = 'precision', returnFocus = null} = {}) {
     if (!file?.id && !url) throw new Error('This image is not available for Precision Edit.');
     close();
-    state.returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const normalizedEntryMode = entryMode === 'overlay' ? 'overlay' : 'precision';
+    state.returnFocus = returnFocus instanceof HTMLElement && returnFocus.isConnected
+      ? returnFocus
+      : document.activeElement instanceof HTMLElement ? document.activeElement : null;
     state.file = file;
     state.onApplied = typeof onApplied === 'function' ? onApplied : null;
     state.strokes = [];
@@ -1209,16 +1216,22 @@
     modal.setAttribute('role', 'dialog');
     modal.setAttribute('aria-modal', 'true');
     modal.setAttribute('aria-labelledby', 'crumpPrecisionTitle');
+    modal.dataset.entryMode = normalizedEntryMode;
+    let userNavigatedDuringLoad = false;
+    modal.addEventListener('keydown', () => { userNavigatedDuringLoad = true; }, {capture: true});
+    modal.addEventListener('pointerdown', () => { userNavigatedDuringLoad = true; }, {capture: true});
     modal.addEventListener('keydown', trapKeyboard);
     state.modal = modal;
 
     const header = document.createElement('header');
     const heading = document.createElement('div');
-    heading.innerHTML = '<span>PRECISION EDIT</span><h2 id="crumpPrecisionTitle">Choose exactly what may change.</h2><p>Brush or outline the area yourself. Zoom in to isolate the smallest possible detail, then describe the visible change. Crump will not identify or label anyone’s race or ethnicity.</p>';
+    heading.innerHTML = normalizedEntryMode === 'overlay'
+      ? '<span>EXACT OVERLAY</span><h2 id="crumpPrecisionTitle">Place an exact logo or wordmark.</h2><p>Upload the finished brand asset and place it directly into the image without asking AI to redraw it. For exact branded typography, use a flattened PNG or WebP wordmark; typed text uses Ask Crump\'s built-in font.</p>'
+      : '<span>PRECISION EDIT</span><h2 id="crumpPrecisionTitle">Choose exactly what may change.</h2><p>Brush or outline the area yourself. Zoom in to isolate the smallest possible detail, then describe the visible change. Crump will not identify or label anyone’s race or ethnicity.</p>';
     const closeButton = document.createElement('button');
     closeButton.type = 'button';
     closeButton.className = 'crump-precision-close';
-    closeButton.setAttribute('aria-label', 'Close Precision Edit');
+    closeButton.setAttribute('aria-label', normalizedEntryMode === 'overlay' ? 'Close Exact Overlay' : 'Close Precision Edit');
     closeButton.textContent = '×';
     closeButton.addEventListener('click', close);
     header.append(heading, closeButton);
@@ -1231,7 +1244,9 @@
     state.stage = stage;
     const controls = document.createElement('aside');
     controls.className = 'crump-precision-controls';
-    controls.innerHTML = '<div class="crump-precision-control-head"><span>SELECTION</span><strong>Protect everything outside your selection.</strong></div>';
+    controls.innerHTML = normalizedEntryMode === 'overlay'
+      ? '<div class="crump-precision-control-head"><span>EXACT PLACEMENT</span><strong>Place the approved asset without generative redrawing.</strong></div>'
+      : '<div class="crump-precision-control-head"><span>SELECTION</span><strong>Protect everything outside your selection.</strong></div>';
 
     const modeGroup = document.createElement('div');
     modeGroup.className = 'crump-precision-modes';
@@ -1436,7 +1451,7 @@
     overlayLabel.id = 'crumpPrecisionOverlayLabel';
     overlayLabel.textContent = 'EXACT OVERLAY · NO AI OR CREDITS';
     const overlayCopy = document.createElement('small');
-    overlayCopy.textContent = 'Place a rights-cleared logo, image, or exact text as pixels. Crump does not ask a model to redraw it, and the separate source is not saved.';
+    overlayCopy.textContent = 'Place a rights-cleared logo, image, or simple typed label as pixels. Crump does not ask a model to redraw it, and the separate source is not saved. Upload a flattened PNG or WebP wordmark when branded typography must remain exact.';
     const overlayActions = document.createElement('div');
     overlayActions.className = 'crump-precision-overlay-actions';
     const addOverlayImage = document.createElement('button');
@@ -1585,7 +1600,11 @@
     versionsList.innerHTML = '<p>Loading private versions…</p>';
     state.versionsList = versionsList;
     versions.append(versionsLabel, versionsCopy, versionsList);
-    controls.append(modeGroup, zoom, sizeLabel, featherLabel, history, geometry, boundary, appearance, local, exactOverlay, versions, adjustment, status);
+    if (normalizedEntryMode === 'overlay') {
+      controls.append(exactOverlay, modeGroup, zoom, sizeLabel, featherLabel, history, geometry, boundary, appearance, local, versions, adjustment, status);
+    } else {
+      controls.append(modeGroup, zoom, sizeLabel, featherLabel, history, geometry, boundary, appearance, local, exactOverlay, versions, adjustment, status);
+    }
     workspace.append(stage, controls);
 
     const footer = document.createElement('footer');
@@ -1740,7 +1759,16 @@
       updateZoomControls();
       use.disabled = false;
       updateLocalControls();
-      setStatus('Brush or outline the smallest area that should change.');
+      if (normalizedEntryMode === 'overlay') {
+        setMode('place', modeButtons);
+        setStatus('Choose Add logo or image, then drag the approved artwork into place.');
+        requestAnimationFrame(() => {
+          if (state.modal !== modal || userNavigatedDuringLoad || document.activeElement !== closeButton) return;
+          addOverlayImage.focus({preventScroll: true});
+        });
+      } else {
+        setStatus('Brush or outline the smallest area that should change.');
+      }
       void loadVersions(file?.id);
     } catch (error) {
       if (state.modal !== modal) return;

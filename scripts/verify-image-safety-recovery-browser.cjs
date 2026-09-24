@@ -40,14 +40,74 @@ const { chromium } = require(playwrightModule);
     lastToast: [...document.querySelectorAll('.toast__message')].at(-1)?.textContent || '',
   }));
 
+  await page.evaluate(() => {
+    window.CrumpFileTools.addReference({
+      id: '55555555-5555-4555-8555-555555555555',
+      name: 'approved-logo.png',
+      type: 'image/png',
+      size: 68,
+      url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+    });
+  });
   await page.locator('#userInput').fill('Create a gentle storybook portrait using this reference, with a blue garden background.');
   await page.locator('#sendButton').click();
+  const referenceDialog = page.getByRole('dialog', {name: 'Image Studio'});
+  await referenceDialog.waitFor();
+  const beforeConfirmation = await page.evaluate(() => ({
+    ensureUsageCalls: window.__fixture.ensureUsageCalls,
+    sendCalls: window.__fixture.sendCalls,
+    roles: [...document.querySelectorAll('[aria-label^="Role for reference"]')].map(select => select.value),
+    summary: [...document.querySelectorAll('.crump50-image-guidance')].map(node => node.textContent || '').join(' '),
+    projectReferenceName: document.body.textContent.includes('approved-logo.png'),
+  }));
+  await referenceDialog.locator('[aria-label="Role for reference 2"]').selectOption('logo');
+  await referenceDialog.getByRole('button', {name: 'Confirm reference plan'}).click();
+  await page.evaluate(() => {
+    const send = window.CrumpChatTransport.send;
+    window.__referenceContractFailurePending = true;
+    window.CrumpChatTransport.send = async body => {
+      const data = await send(body);
+      if (window.__referenceContractFailurePending) {
+        window.__referenceContractFailurePending = false;
+        const error = new Error('The reference plan no longer matches the attached images.');
+        error.code = 'IMAGE_REFERENCE_PLAN_INVALID';
+        throw error;
+      }
+      data.referencePlan = [
+        {input: 1, fileId: '11111111-1111-4111-8111-111111111111', role: 'base'},
+        {input: 2, fileId: '55555555-5555-4555-8555-555555555555', role: 'logo'},
+      ];
+      data.referenceReview = {
+        status: 'review-required',
+        humanReviewRequired: true,
+        message: 'Verify logos, wordmarks, readable text, and mascot details before publishing.',
+      };
+      return data;
+    };
+  });
+  await page.locator('#sendButton').click();
   await page.waitForFunction(() => window.__fixture.sendCalls === 1);
+  await referenceDialog.waitFor();
+  const contractRecovery = await page.evaluate(() => ({
+    ensureUsageCalls: window.__fixture.ensureUsageCalls,
+    sendCalls: window.__fixture.sendCalls,
+    roles: [...document.querySelectorAll('[aria-label^="Role for reference"]')].map(select => select.value),
+    prompt: document.querySelector('#userInput')?.value || '',
+    toast: [...document.querySelectorAll('.toast__message')].at(-1)?.textContent || '',
+    studioOpen: Boolean(document.querySelector('[role="dialog"][aria-label="Image Studio"]')),
+  }));
+  await referenceDialog.getByRole('button', {name: 'Confirm reference plan'}).click();
+  await page.locator('#sendButton').click();
+  await page.waitForFunction(() => window.__fixture.sendCalls === 2);
   const revised = await page.evaluate(() => ({
     ensureUsageCalls: window.__fixture.ensureUsageCalls,
     sendCalls: window.__fixture.sendCalls,
     message: window.__fixture.sentBody?.message || '',
     fileRefs: window.__fixture.sentBody?.fileRefs || [],
+    referencePlan: window.__fixture.sentBody?.imageReferencePlan || [],
+    referencePlanConfirmed: window.__fixture.sentBody?.imageReferencePlanConfirmed,
+    referenceContractVersion: window.__fixture.sentBody?.imageReferenceContractVersion,
+    receipt: document.querySelector('.crump50-reference-receipt')?.textContent || '',
   }));
 
   await page.screenshot({path: 'artifacts/image-safety-recovery.png', fullPage: true});
@@ -80,11 +140,34 @@ const { chromium } = require(playwrightModule);
     && unchanged.ensureUsageCalls === 0
     && unchanged.sendCalls === 0
     && unchanged.lastToast.includes('Change the wording or reference image')
-    && revised.ensureUsageCalls === 1
-    && revised.sendCalls === 1
+    && beforeConfirmation.ensureUsageCalls === 0
+    && beforeConfirmation.sendCalls === 0
+    && JSON.stringify(beforeConfirmation.roles) === JSON.stringify(['base', 'subject'])
+    && beforeConfirmation.summary.includes('Reference 1 → Starting canvas / composition')
+    && beforeConfirmation.summary.includes('Reference 2 → Subject / product')
+    && beforeConfirmation.projectReferenceName
+    && contractRecovery.ensureUsageCalls === 1
+    && contractRecovery.sendCalls === 1
+    && JSON.stringify(contractRecovery.roles) === JSON.stringify(['base', 'logo'])
+    && contractRecovery.prompt.includes('blue garden background')
+    && contractRecovery.toast.includes('Review every ordered reference role')
+    && contractRecovery.studioOpen
+    && revised.ensureUsageCalls === 2
+    && revised.sendCalls === 2
     && revised.message.includes('blue garden background')
-    && revised.fileRefs.length === 1
+    && revised.fileRefs.length === 2
     && revised.fileRefs[0] === '11111111-1111-4111-8111-111111111111'
+    && revised.fileRefs[1] === '55555555-5555-4555-8555-555555555555'
+    && JSON.stringify(revised.referencePlan) === JSON.stringify([
+      {fileId: '11111111-1111-4111-8111-111111111111', role: 'base'},
+      {fileId: '55555555-5555-4555-8555-555555555555', role: 'logo'},
+    ])
+    && revised.referencePlanConfirmed === true
+    && revised.referenceContractVersion === 2
+    && revised.receipt.includes('Reference receipt · 2 provider inputs')
+    && revised.receipt.includes('Reference 1 · Starting canvas / composition')
+    && revised.receipt.includes('Reference 2 · Logo / wordmark')
+    && revised.receipt.includes('Verify logos, wordmarks, readable text, and mascot details before publishing.')
     && replacementRestored.label.includes('Tap to replace')
     && replacementRestored.prompt.includes('gentle storybook portrait')
     && replacementRestored.attachmentCount === 0
@@ -96,8 +179,8 @@ const { chromium } = require(playwrightModule);
     && consoleErrors.length === 0
   );
   await browser.close();
-  if (!valid) throw new Error(JSON.stringify({restored, unchanged, revised, replacementRestored, replacementBlocked, consoleErrors}));
-  process.stdout.write(`${JSON.stringify({restored, unchanged, revised, replacementRestored, replacementBlocked, consoleErrors})}\n`);
+  if (!valid) throw new Error(JSON.stringify({restored, unchanged, beforeConfirmation, contractRecovery, revised, replacementRestored, replacementBlocked, consoleErrors}));
+  process.stdout.write(`${JSON.stringify({restored, unchanged, beforeConfirmation, contractRecovery, revised, replacementRestored, replacementBlocked, consoleErrors})}\n`);
 })().catch(error => {
   process.stderr.write(`${error.stack || error}\n`);
   process.exitCode = 1;

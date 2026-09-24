@@ -178,7 +178,13 @@ async def create_video(request: Request):
         reference_images = await video.prepare_reference_images(
             user_id=auth.user["id"],
             file_ids=payload.get("referenceFileIds"),
+            reference_plan=payload.get("referencePlan"),
             engine=engine,
+        )
+        _, _, reference_receipt, reference_mode = video.prepare_provider_prompt(
+            prompt=payload.get("prompt"),
+            engine=engine,
+            references=reference_images,
         )
     except VideoServiceError as exc:
         return _video_error(exc, stage="references")
@@ -208,6 +214,8 @@ async def create_video(request: Request):
                 "resolution": resolution,
                 "durationSeconds": duration,
                 "referenceImageCount": len(reference_images),
+                "referencePlan": reference_receipt,
+                "referenceMode": reference_mode,
             },
             confirmation=payload.get("creditConfirmation"),
             instance_key=idempotency_key,

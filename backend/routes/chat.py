@@ -55,6 +55,39 @@ def _artifact_file_id(*, user_id: str, message_id: str, format_name: str) -> str
     return normalize_chat_id(f'artifact:{user_id}:{message_id}:{format_name}')
 
 
+def _video_creation_handoff(
+    *,
+    brief: str,
+    idempotency_key: str,
+    current_file_rows: list[dict],
+) -> dict:
+    """Carry only already owner-resolved images from this message into Video Studio."""
+    reference_files: list[dict] = []
+    for row in current_file_rows:
+        media_type = str(row.get('mime_type') or '').strip().lower()
+        if not media_type.startswith('image/') or len(reference_files) >= 10:
+            continue
+        reference = {
+            'id': str(row.get('id') or ''),
+            'name': str(row.get('file_name') or 'Reference image')[:255],
+            'type': media_type[:120],
+        }
+        size = max(0, int(row.get('size_bytes') or 0))
+        if size:
+            reference['size'] = min(size, 100 * 1024 * 1024)
+        reference_files.append(reference)
+    return {
+        'kind': 'video',
+        'brief': brief[:4000],
+        'autoOpen': True,
+        # A reference changes both provider semantics and fidelity expectations.
+        # Let the user review the images and choose an engine before spending.
+        'autoStart': not reference_files,
+        'idempotencyKey': idempotency_key[:160],
+        'referenceFiles': reference_files,
+    }
+
+
 def _chat_job_is_stale(updated_at) -> bool:
     if isinstance(updated_at, datetime):
         value = updated_at
@@ -102,7 +135,8 @@ async def _durable_reply_for_job(*, user_id: str, message_id: str, job: dict) ->
         'assistantMessage': assistant,
     }
     for key in (
-        'imageUrl', 'imagePrompt', 'imageAspect', 'imageFile', 'artifact', 'artifactRecovery',
+        'imageUrl', 'imagePrompt', 'imageAspect', 'imageFile', 'referencePlan', 'referenceReview',
+        'artifact', 'artifactRecovery',
         'projectAttachments', 'manuscriptWorkspace', 'creationHandoff',
     ):
         if assistant.get(key) is not None:
@@ -570,6 +604,58 @@ async def chat(request: Request):
         await refund_usage(db, auth.user['id'], usage.get('eventId'))
         return JSONResponse(status_code=exc.status_code, content={'success': False, 'error': exc.message, 'message': exc.message, 'code': exc.code})
 
+    reference_contract_fields = {
+        key: request_payload[key]
+        for key in (
+            'imageUseReference',
+            'imageReferencePlan',
+            'imageReferencePlanConfirmed',
+            'imageReferenceContractVersion',
+        )
+        if key in request_payload
+    }
+    reference_contract_requested = (
+        request_payload.get('imageUseReference') is True
+        or request_payload.get('imageReferencePlan') is not None
+        or request_payload.get('imageReferencePlanConfirmed') is True
+        or request_payload.get('imageReferenceContractVersion') is not None
+    )
+    image_execution_requested = (
+        reference_contract_requested
+        or media.is_image_request(
+            str(request_payload.get('message') or ''),
+            str(request_payload.get('creativeTool') or '') or None,
+        )
+        or media.is_edit_request(str(request_payload.get('message') or ''), file_rows)
+    )
+    if image_execution_requested:
+        try:
+            media._image_reference_plan(
+                request_payload,
+                [
+                    row for row in file_rows
+                    if str(row.get('mime_type') or '').lower().startswith('image/')
+                ],
+            )
+        except AIServiceError as exc:
+            if message_id:
+                await db.update(
+                    'chat_jobs',
+                    {'status': 'failed', 'error_code': exc.code, 'updated_at': iso_now()},
+                    filters={'user_id': eq(auth.user['id']), 'message_id': eq(message_id)},
+                )
+            return JSONResponse(
+                status_code=exc.status_code,
+                content={
+                    'success': False,
+                    'error': exc.message,
+                    'message': exc.message,
+                    'code': exc.code,
+                    'shouldRetry': exc.retryable,
+                    'retryAfter': exc.retry_after,
+                },
+            )
+
     user_settings = await db.select_one('user_settings', filters={'user_id': eq(auth.user['id'])}) or {}
     request_payload['assistantName'] = user_settings.get('assistant_name') or 'Crump'
     request_payload['workMode'] = 'work' if user_settings.get('work_mode') else 'companion'
@@ -663,6 +749,7 @@ async def chat(request: Request):
         user_tier=effective_user_tier,
     )
     request_payload = prepared.payload
+    request_payload.update(reference_contract_fields)
     creation_intent = _promote_explicit_document_delivery(
         prepared.creation_intent or {},
         legacy_artifact,
@@ -892,21 +979,31 @@ async def chat(request: Request):
             project_id = str(result.get('projectId') or project_id or '') or None
         elif semantic_creation and creation_kind == 'video' and creation_stage == 'execute':
             handoff_key = f"chat-video:{chat_id or 'chat'}:{message_id or request_id}"
+            creation_handoff = _video_creation_handoff(
+                brief=execution_brief,
+                idempotency_key=handoff_key,
+                current_file_rows=current_file_rows,
+            )
+            has_video_references = bool(creation_handoff['referenceFiles'])
             result = {
-                'response': "Yep — I’ve got the scene. I carried what we worked out into Video Studio and I’m starting it from there so you don’t have to repeat the prompt.",
+                'response': (
+                    "Yep — I carried the scene and your attached images into Video Studio. "
+                    "Review how the selected engine uses them, then create the video when you’re ready. "
+                    "Exact logos and readable text still need an approved overlay for pixel-accurate branding."
+                    if has_video_references
+                    else "Yep — I’ve got the scene. I carried what we worked out into Video Studio and I’m starting it from there so you don’t have to repeat the prompt."
+                ),
                 'model': ai.settings.anthropic_model,
-                'creationHandoff': {
-                    'kind': 'video',
-                    'brief': execution_brief[:12000],
-                    'autoOpen': True,
-                    'autoStart': True,
-                    'idempotencyKey': handoff_key[:160],
-                },
+                'creationHandoff': creation_handoff,
             }
         elif (
             not request_payload.get('suppressCreativeExecution')
             and (
-                media.is_image_request(str(request_payload.get('message') or ''), str(request_payload.get('creativeTool') or '') or None)
+                reference_contract_requested
+                or media.is_image_request(
+                    str(request_payload.get('message') or ''),
+                    str(request_payload.get('creativeTool') or '') or None,
+                )
                 or media.is_edit_request(str(request_payload.get('message') or ''), file_rows)
             )
         ):
@@ -1098,6 +1195,7 @@ async def chat(request: Request):
             key: request_payload.get(key)
             for key in (
                 'creativeTool', 'imageAspect', 'imageQuality', 'imageUseReference',
+                'imageReferencePlan', 'imageReferencePlanConfirmed', 'imageReferenceContractVersion',
                 'artifactFormat', 'artifactPurpose', 'needsSearch', 'taskType', 'longForm',
             )
             if request_payload.get(key) is not None
@@ -1120,6 +1218,10 @@ async def chat(request: Request):
                 assistant_message['imageAspect'] = image_aspect
         if result.get('imageFile'):
             assistant_message['imageFile'] = result['imageFile']
+        if result.get('referencePlan'):
+            assistant_message['referencePlan'] = result['referencePlan']
+        if result.get('referenceReview'):
+            assistant_message['referenceReview'] = result['referenceReview']
         if result.get('artifact'):
             assistant_message['artifact'] = result['artifact']
         if result.get('artifactRecovery'):
