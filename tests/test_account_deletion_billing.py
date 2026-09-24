@@ -30,7 +30,13 @@ class FakeStripeResponse:
         return self.payload
 
 
-def configure_account(monkeypatch, user, *, stripe_key='sk_test_fixture'):
+def configure_account(
+    monkeypatch,
+    user,
+    *,
+    stripe_key='sk_test_fixture',
+    storage_bucket='crump-files',
+):
     fake_db = FakeDB()
 
     async def fake_authenticate(*_args, **_kwargs):
@@ -44,6 +50,7 @@ def configure_account(monkeypatch, user, *, stripe_key='sk_test_fixture'):
         SimpleNamespace(
             stripe_secret_key=stripe_key,
             revenuecat_secret_api_key=None,
+            storage_bucket=storage_bucket,
         ),
     )
     return fake_db
@@ -154,7 +161,11 @@ def test_open_web_subscription_blocks_unconfirmed_success_payload(monkeypatch):
 
 
 def test_confirmed_stripe_deletion_allows_atomic_local_deletion(monkeypatch):
-    fake_db = configure_account(monkeypatch, account_user())
+    fake_db = configure_account(
+        monkeypatch,
+        account_user(),
+        storage_bucket='private-account-files',
+    )
     install_stripe_response(
         monkeypatch,
         FakeStripeResponse(200, {'deleted': True, 'id': 'cus_delete_fixture'}),
@@ -162,9 +173,16 @@ def test_confirmed_stripe_deletion_allows_atomic_local_deletion(monkeypatch):
 
     response = delete_request()
 
-    assert response.status_code == 200
+    assert response.status_code == 202
+    assert response.json()['deletionStatus'] == 'scheduled'
     assert fake_db.rpc_calls == [
-        ('delete_user_account', {'p_user_id': 'user-delete-1'}),
+        (
+            'delete_user_account',
+            {
+                'p_user_id': 'user-delete-1',
+                'p_storage_bucket': 'private-account-files',
+            },
+        ),
     ]
 
 
@@ -177,9 +195,16 @@ def test_terminal_subscription_preserves_privacy_deletion_when_cleanup_fails(mon
 
     response = delete_request()
 
-    assert response.status_code == 200
+    assert response.status_code == 202
+    assert response.json()['deletionStatus'] == 'scheduled'
     assert fake_db.rpc_calls == [
-        ('delete_user_account', {'p_user_id': 'user-delete-1'}),
+        (
+            'delete_user_account',
+            {
+                'p_user_id': 'user-delete-1',
+                'p_storage_bucket': 'crump-files',
+            },
+        ),
     ]
 
 
@@ -193,3 +218,6 @@ def test_account_deletion_copy_distinguishes_web_and_store_billing():
         assert 'refund' in source
         assert 'Apple App Store' in source
         assert 'Google Play' in source
+    assert 'background cleanup' in account_manager
+    assert 'background cleanup' in deletion_page
+    assert 'background purge' in legal_page

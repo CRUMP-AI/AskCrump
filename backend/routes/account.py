@@ -170,12 +170,21 @@ async def delete_account(payload: DeleteAccountRequest, request: Request, respon
         except Exception:
             logger.exception('RevenueCat customer cleanup failed during account deletion')
 
-    await db.rpc('delete_user_account', {'p_user_id': user_id})
+    await db.rpc(
+        'delete_user_account',
+        {
+            'p_user_id': user_id,
+            'p_storage_bucket': settings.storage_bucket,
+        },
+    )
     clear_session_cookie(response)
+    response.status_code = 202
     return {
         'success': True,
+        'deletionStatus': 'scheduled',
         'message': (
-            'Your Ask Crump account and conversation data were deleted. '
+            'Your account access and synchronized records were deleted. '
+            'Private file removal is scheduled and verified in the background. '
             'Apple or Google subscriptions must be canceled separately in the applicable store.'
         ),
     }

@@ -1004,7 +1004,7 @@ const visibleWorkspaceReturnVersion = `${releaseVersion}-visible-workspace-retur
 const authControllerVersion = `${releaseVersion}-facebook-reel-attribution-1`;
 const continuityHandoffVersion = `${releaseVersion}-continuity-handoff-1`;
 const composerModeResetVersion = `${releaseVersion}-composer-mode-reset-1`;
-const accountDeletionBillingVersion = `${releaseVersion}-account-deletion-billing-1`;
+const accountDeletionStorageVersion = `${releaseVersion}-account-storage-deletion-1`;
 const intelligenceReceiptVersion = `${releaseVersion}-intelligence-receipt-1`;
 const intelligenceArchitectureVersion = `${releaseVersion}-intelligence-architecture-1`;
 const composerActionabilityVersion = `${releaseVersion}-composer-actionability-1`;
@@ -1238,7 +1238,7 @@ if (!referringAcquisitionSource ||
   process.exit(1);
 }
 const requiredHtmlSignals = [
-  `/runtime-body-v1.js?v=${navigationDiscoveryVersion}`,
+  `/runtime-body-v1.js?v=${accountDeletionStorageVersion}`,
   `/auth-controller.js?v=${authControllerVersion}`,
   `/telemetry-config.js?v=${releaseVersion}`,
   '/_vercel/speed-insights/script.js',
@@ -1304,7 +1304,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/credit-confirmation.css?v=${creditConfirmationVersion}`) ||
     !runtime.includes(`/credit-confirmation.js?v=${creditConfirmationVersion}`) ||
     !runtime.includes(`/chat-resilience.js?v=${creditConfirmationVersion}`) ||
-    !runtime.includes(`/account-manager.js?v=${accountDeletionBillingVersion}`) ||
+    !runtime.includes(`/account-manager.js?v=${accountDeletionStorageVersion}`) ||
     !runtime.includes(`/scroll-manager.js?v=${userControlledScrollVersion}`) ||
     !runtime.includes(`/ui-functions.js?v=${projectSaveOfferVersion}`) ||
     !runtime.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-1`) ||
@@ -1490,12 +1490,12 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r249') ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-shell-lockup-light.png'") ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
-    !serviceWorker.includes(`/runtime-body-v1.js?v=${navigationDiscoveryVersion}`) ||
+    !serviceWorker.includes(`/runtime-body-v1.js?v=${accountDeletionStorageVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${continuityHandoffVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.css?v=${creditConfirmationVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.js?v=${creditConfirmationVersion}`) ||
     !serviceWorker.includes(`/chat-resilience.js?v=${creditConfirmationVersion}`) ||
-    !serviceWorker.includes(`/account-manager.js?v=${accountDeletionBillingVersion}`) ||
+    !serviceWorker.includes(`/account-manager.js?v=${accountDeletionStorageVersion}`) ||
     !serviceWorker.includes(`/crump-5.0.css?v=${precisionEditEntryVersion}`) ||
     !serviceWorker.includes(`/scroll-manager.js?v=${userControlledScrollVersion}`) ||
     !serviceWorker.includes(`/crump-5.0.js?v=${projectSaveOfferVersion}`) ||

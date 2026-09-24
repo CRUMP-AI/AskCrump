@@ -314,5 +314,15 @@ def test_account_deletion_uses_atomic_database_rpc(monkeypatch):
         'confirmation': 'DELETE',
     })
 
-    assert response.status_code == 200
-    assert fake_db.rpc_calls == [('delete_user_account', {'p_user_id': 'user-2'})]
+    assert response.status_code == 202
+    assert response.json()['deletionStatus'] == 'scheduled'
+    assert 'Max-Age=0' in response.headers.get('set-cookie', '')
+    assert fake_db.rpc_calls == [
+        (
+            'delete_user_account',
+            {
+                'p_user_id': 'user-2',
+                'p_storage_bucket': 'crump-files',
+            },
+        ),
+    ]
