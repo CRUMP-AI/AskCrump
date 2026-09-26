@@ -50,11 +50,11 @@ def test_parallel_runtime_asset_is_versioned_for_web_pwa_and_native():
     worker = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
 
-    asset = "/runtime-body-v1.js?v=5.9.76-reference-fidelity-hard-contract-1"
+    asset = "/runtime-body-v1.js?v=5.9.76-image-studio-entry-1"
     assert asset in shell
     assert asset in worker
-    assert "ask-crump-new-body-v1-r252" in worker
-    assert "ask-crump-new-body-v1-r252" in checker
+    assert "ask-crump-new-body-v1-r253" in worker
+    assert "ask-crump-new-body-v1-r253" in checker
 
 
 def test_runtime_fetch_fixture_is_credential_free_and_measures_the_full_plan():
@@ -110,5 +110,31 @@ def test_returning_workspace_uses_precache_without_staling_the_shell():
     assert "assert.equal(counts.get(fixturePath), 1" in verifier
     assert "verify-service-worker-returning-load.cjs" in matrix
     assert "verify-document-delivery-cache-upgrade.cjs" in matrix
+    assert "verify-image-studio-entry-cache-upgrade.cjs" in matrix
     assert "askcrump.com" not in verifier.lower()
     assert "password" not in verifier.lower()
+
+
+def test_image_studio_entry_replaces_the_frozen_r252_runtime_cache():
+    verifier = read("scripts/verify-image-studio-entry-cache-upgrade.cjs")
+    matrix = read("scripts/verify-browser-control-matrix.mjs")
+
+    assert "oldCacheName = 'ask-crump-new-body-v1-r252'" in verifier
+    assert "newCacheName = 'ask-crump-new-body-v1-r253'" in verifier
+    for old_url in (
+        "/runtime-body-v1.js?v=5.9.76-reference-fidelity-hard-contract-1",
+        "/crump-navigation-5.9.30.js?v=5.9.76-navigation-discovery-1",
+        "/auth-controller.js?v=5.9.76-facebook-reel-attribution-1",
+    ):
+        assert old_url in verifier
+    for new_url in (
+        "/runtime-body-v1.js?v=5.9.76-image-studio-entry-1",
+        "/crump-navigation-5.9.30.js?v=5.9.76-image-studio-entry-1",
+        "/auth-controller.js?v=5.9.76-image-studio-entry-1",
+    ):
+        assert new_url in verifier
+    assert "detail: {kind, capturedAt}" in verifier
+    assert "if (creationKind !== 'image') dispatchPendingPlanIntent();" in verifier
+    assert "url.searchParams.delete('signup')" in verifier
+    assert "result.staleEntries" in verifier
+    assert "verify-image-studio-entry-cache-upgrade.cjs" in matrix

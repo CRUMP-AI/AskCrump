@@ -30,11 +30,12 @@
   const CREATION_INTENT_TTL_MS = 24 * 60 * 60 * 1000;
   const FIRST_TOUCH_TTL_MS = 24 * 60 * 60 * 1000;
   const PAID_PLAN_INTENTS = new Set(['professional', 'enterprise']);
-  const CREATION_INTENTS = new Set(['document', 'presentation', 'resume', 'video', 'projects']);
+  const CREATION_INTENTS = new Set(['document', 'presentation', 'resume', 'image', 'video', 'projects']);
   const CREATION_INTENT_EXPLORE_DESTINATIONS = Object.freeze({
     document: {href: '/ai-document-generator', label: 'See document examples first'},
     presentation: {href: '/ai-presentation-maker', label: 'See presentation examples first'},
     resume: {href: '/ai-resume-builder', label: 'See résumé examples first'},
+    image: {href: '/#use-cases', label: 'See Image Studio details first'},
     video: {href: '/ai-video-generator', label: 'Explore Video Studio first'},
     projects: {href: '/ai-project-workspace', label: 'See how Projects work first'},
   });
@@ -50,6 +51,10 @@
     resume: {
       title: 'Build your résumé workspace.',
       description: 'After verification, Ask Crump opens the résumé workspace so you can shape your real experience into an editable Word résumé without invented credentials.',
+    },
+    image: {
+      title: 'Open your Image Studio.',
+      description: 'After verification, Ask Crump opens Image Studio so you can review the setup and optional ordered references before anything generates or uses Crump Credits.',
     },
     video: {
       title: 'Open your Video Studio.',
@@ -398,7 +403,9 @@
         : 'Ask questions, create useful work, and pick up where you left off. Free to start—no card required.');
     if (plan) description.textContent += ` ${plan.disclosure}`;
     else if (creation) description.textContent += ' Free to start—no card required.';
-    button.textContent = plan?.button || (creation ? 'Create account & continue' : 'Create free account');
+    button.textContent = creationKind === 'image'
+      ? 'Create account & open Image Studio'
+      : (plan?.button || (creation ? 'Create account & continue' : 'Create free account'));
     if (assurance) assurance.textContent = plan
       ? PAID_REGISTRATION_ASSURANCE
       : FREE_REGISTRATION_ASSURANCE;
@@ -417,7 +424,7 @@
     const params = new URLSearchParams(location.search);
     const kind = creationIntentValue(params.get('intent'));
     if (!kind) {
-      if (params.get('signup') === '1') {
+      if (params.has('intent') || params.get('signup') === '1') {
         try { localStorage.removeItem(CREATION_INTENT_KEY); } catch (_) {}
       }
       return;
@@ -456,13 +463,35 @@
 
   function dispatchPendingCreationIntent() {
     const intent = pendingCreationIntent();
-    if (!intent) return;
+    if (!intent) return '';
 
     const deliver = () => {
-      window.addEventListener('crump:creation-intent-consumed', event => {
+      const consumed = event => {
         if (event.detail?.kind !== intent.kind) return;
-        try { localStorage.removeItem(CREATION_INTENT_KEY); } catch (_) {}
-      }, {once: true});
+        if (Number(event.detail?.capturedAt || 0) !== intent.capturedAt) return;
+        window.removeEventListener('crump:creation-intent-consumed', consumed);
+        try {
+          const stored = JSON.parse(localStorage.getItem(CREATION_INTENT_KEY) || 'null');
+          if (
+            creationIntentValue(stored?.kind) === intent.kind
+            && Number(stored?.capturedAt || 0) === intent.capturedAt
+          ) localStorage.removeItem(CREATION_INTENT_KEY);
+        } catch (_) {
+          try { localStorage.removeItem(CREATION_INTENT_KEY); } catch (_) {}
+        }
+        const url = new URL(location.href);
+        if (creationIntentValue(url.searchParams.get('intent')) === intent.kind) {
+          url.searchParams.delete('intent');
+          if (intent.kind === 'image') {
+            url.searchParams.delete('plan');
+            url.searchParams.delete('signup');
+            url.searchParams.delete('source');
+          }
+          history.replaceState({}, document.title, `${url.pathname}${url.search}${url.hash}`);
+        }
+        if (intent.kind === 'image') discardPendingPlanIntent();
+      };
+      window.addEventListener('crump:creation-intent-consumed', consumed);
       window.dispatchEvent(new CustomEvent('crump:creation-intent', {detail: intent}));
     };
 
@@ -471,6 +500,7 @@
     } else {
       window.addEventListener('crump:body-runtime-ready', deliver, {once: true});
     }
+    return intent.kind;
   }
 
   function pendingPlanIntent() {
@@ -501,6 +531,19 @@
       try { localStorage.removeItem(PLAN_INTENT_KEY); } catch (_) {}
       return null;
     }
+  }
+
+  function discardPendingPlanIntent() {
+    pagePlanIntent = null;
+    clearTimeout(planIntentDeliveryTimer);
+    planIntentDeliveryTimer = 0;
+    planIntentDeliveryAttempts = 0;
+    planIntentDeliveryKey = '';
+    if (planIntentConsumedHandler) {
+      window.removeEventListener('crump:plan-intent-consumed', planIntentConsumedHandler);
+      planIntentConsumedHandler = null;
+    }
+    try { localStorage.removeItem(PLAN_INTENT_KEY); } catch (_) {}
   }
 
   function dispatchPendingPlanIntent() {
@@ -702,8 +745,8 @@
     scheduleWorkspaceRuntimeGateRelease();
     recordWorkspaceOpenedWhenVisible();
     setTimeout(() => window.tutorial?.autoStart?.(), 450);
-    dispatchPendingCreationIntent();
-    dispatchPendingPlanIntent();
+    const creationKind = dispatchPendingCreationIntent();
+    if (creationKind !== 'image') dispatchPendingPlanIntent();
   }
 
   function profileNudgeKey() {
@@ -1205,6 +1248,7 @@
       try {
         const email = byId('registerEmail').value.trim();
         const attribution = firstTouchAttribution();
+        const creationIntent = pendingCreationIntent();
         const planIntent = pendingPlanIntent();
         const {response, data} = await authRequest('/api/auth/register', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1216,7 +1260,7 @@
             placement: attribution.placement,
             campaign: attribution.campaign,
             creative: attribution.creative,
-            intent: attribution.intent,
+            intent: creationIntent?.kind || attribution.intent,
             plan: planIntent?.plan || null,
             termsAccepted: byId('registerTerms')?.checked === true,
             termsVersion: TERMS_VERSION,
