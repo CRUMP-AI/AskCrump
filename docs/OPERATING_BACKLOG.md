@@ -1,6 +1,6 @@
 # Ask Crump operating backlog
 
-Last updated: 2026-09-16
+Last updated: 2026-09-26
 
 ## Operating standard
 
@@ -10,6 +10,20 @@ retention, and referral behavior. No acquisition spend should scale on impressio
 
 Every item below needs four things before it is called shipped: an accountable product
 outcome, privacy and safety constraints, automated coverage, and production evidence.
+
+The 2026-09-26 Image Studio entry candidate closes the discovery gap around the reference-fidelity
+release without expanding the generation, billing, or analytics boundary. The public product page
+now exposes Image Studio as a fifth creation path; signup and verification preserve only the fixed
+`image` destination plus an optional paid-plan review, then open the existing studio exactly once.
+Opening the studio makes no provider, generation, upload, billing, checkout, or credit request. If
+the studio runtime is temporarily unavailable, both handoffs remain recoverable and are consumed
+only after the exact `{kind, capturedAt}` acknowledgement. Image remains intentionally excluded
+from authoritative acquisition attribution until a coordinated measurement migration exists. The
+complete **1,506/1,506** Python suite, **54/54** JavaScript validation, **51/51** browser-control
+matrix, production preflight, native web bundle, client-secret boundary, and r249/r252-to-r253
+returning-cache transitions passed locally. Hosted CI, merge, deployment, and production probes
+remain the release gate; do not call the candidate shipped until those are recorded. Evidence:
+`docs/IMAGE_STUDIO_ENTRY_HANDOFF_RELEASE_2026-09-26.md`.
 
 The 2026-09-16 guarded-control follow-up proves the intentionally disabled controls that a static
 button inventory cannot exercise. The real billing scripts replace two disabled `Loading plan…`

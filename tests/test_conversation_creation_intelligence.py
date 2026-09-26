@@ -259,9 +259,9 @@ def test_crump_voice_avoids_generic_assistant_form_language():
 def test_conversation_intelligence_advances_shell_cache():
     sw = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
-    assert "ask-crump-new-body-v1-r252" in sw
+    assert "ask-crump-new-body-v1-r253" in sw
     assert "CACHE_NAME = 'ask-crump-new-body-v1-r229'" not in sw
-    assert "ask-crump-new-body-v1-r252" in checker
+    assert "ask-crump-new-body-v1-r253" in checker
 
 
 def test_reload_opens_a_clean_conversation_without_discarding_history():

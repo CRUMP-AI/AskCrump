@@ -29,7 +29,7 @@ class RegisterRequest(APIModel):
     placement: str | None = Field(default=None, max_length=32)
     campaign: str | None = Field(default=None, max_length=32)
     creative: str | None = Field(default=None, max_length=32)
-    intent: str | None = Field(default=None, max_length=32)
+    intent: Literal["document", "image", "presentation", "resume", "video", "projects"] | None = None
     plan: Literal["professional", "enterprise"] | None = None
     termsAccepted: bool = False
     termsVersion: Literal["2026-08-01"] | None = None
@@ -40,7 +40,7 @@ class EmailRequest(APIModel):
 
 
 class ResendVerificationRequest(EmailRequest):
-    intent: Literal["document", "presentation", "resume", "video", "projects"] | None = None
+    intent: Literal["document", "image", "presentation", "resume", "video", "projects"] | None = None
     plan: Literal["professional", "enterprise"] | None = None
 
 

@@ -1001,7 +1001,7 @@ const outputProjectActionVersion = `${releaseVersion}-output-project-action-1`;
 const studioActionLabelsVersion = `${releaseVersion}-studio-action-labels-1`;
 const productStudioLazyLoadVersion = `${releaseVersion}-product-studio-lazy-load-2`;
 const visibleWorkspaceReturnVersion = `${releaseVersion}-visible-workspace-return-1`;
-const authControllerVersion = `${releaseVersion}-facebook-reel-attribution-1`;
+const authControllerVersion = `${releaseVersion}-image-studio-entry-1`;
 const continuityHandoffVersion = `${releaseVersion}-continuity-handoff-1`;
 const composerModeResetVersion = `${releaseVersion}-composer-mode-reset-1`;
 const accountDeletionStorageVersion = `${releaseVersion}-account-storage-deletion-1`;
@@ -1022,6 +1022,7 @@ const projectSaveMeasurementVersion = `${releaseVersion}-project-save-measuremen
 const outcomeIssueCategoriesVersion = `${releaseVersion}-outcome-issue-categories-1`;
 const projectSaveOfferVersion = `${releaseVersion}-project-save-offer-1`;
 const navigationDiscoveryVersion = `${releaseVersion}-navigation-discovery-1`;
+const imageStudioEntryVersion = `${releaseVersion}-image-studio-entry-1`;
 const documentDeliveryFocusedVersion = `${releaseVersion}-reference-fidelity-hard-contract-1`;
 const outcomeRefinementRecoveryVersion = `${releaseVersion}-outcome-refinement-recovery-1`;
 const authUpdateGuardVersion = `${releaseVersion}-update-work-guard-1`;
@@ -1240,7 +1241,7 @@ if (!referringAcquisitionSource ||
   process.exit(1);
 }
 const requiredHtmlSignals = [
-  `/runtime-body-v1.js?v=${documentDeliveryFocusedVersion}`,
+  `/runtime-body-v1.js?v=${imageStudioEntryVersion}`,
   `/auth-controller.js?v=${authControllerVersion}`,
   `/telemetry-config.js?v=${releaseVersion}`,
   '/_vercel/speed-insights/script.js',
@@ -1338,7 +1339,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/crump-media-save.js?v=${libraryLazyLoadVersion}`) ||
     !runtime.includes(`/crump-library-loader.js?v=${libraryLazyLoadVersion}`) ||
     runtime.includes('/crump-library-5.7.js') || runtime.includes('/crump-library-5.7.css') ||
-    !runtime.includes(`/crump-navigation-5.9.30.js?v=${navigationDiscoveryVersion}`) ||
+    !runtime.includes(`/crump-navigation-5.9.30.js?v=${imageStudioEntryVersion}`) ||
     !runtime.includes(`/crump-navigation-5.9.30.css?v=${mobileDrawerDestinationsVersion}`) ||
     !runtime.includes(`/crump-code-loader.js?v=${codeLazyLoadVersion}`) ||
     runtime.includes(`/crump-code-5.9.35.js?v=${creditConfirmationVersion}`) ||
@@ -1496,13 +1497,13 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r252') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r253') ||
     !serviceWorker.includes("'/assets/brand/crump-shell-lockup-light.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-shell-lockup-light.png'") ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
-    !serviceWorker.includes(`/runtime-body-v1.js?v=${documentDeliveryFocusedVersion}`) ||
+    !serviceWorker.includes(`/runtime-body-v1.js?v=${imageStudioEntryVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${continuityHandoffVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.css?v=${creditConfirmationVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.js?v=${creditConfirmationVersion}`) ||
@@ -1522,7 +1523,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r252') ||
     !serviceWorker.includes(`/onboarding.js?v=${brandDeliveryVersion}`) ||
     !serviceWorker.includes(`/crump-polish-5.6.js?v=${videoDestinationVersion}`) ||
     !serviceWorker.includes(`/crump-navigation-5.9.30.css?v=${mobileDrawerDestinationsVersion}`) ||
-    !serviceWorker.includes(`/crump-navigation-5.9.30.js?v=${navigationDiscoveryVersion}`) ||
+    !serviceWorker.includes(`/crump-navigation-5.9.30.js?v=${imageStudioEntryVersion}`) ||
     !serviceWorker.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-1`) ||
     !serviceWorker.includes(`/lifecycle-share.js?v=${settingsInviteVersion}`) ||
     !serviceWorker.includes(`/lifecycle-manager.js?v=${lifecycleIdleSendVersion}`) ||
@@ -1542,7 +1543,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r252') ||
     !serviceWorker.includes(`/crump-product-5.3.1.js?v=${conversationActionLabelsVersion}`) ||
     serviceWorker.includes(`/crump-product-5.3.js?v=${studioActionLabelsVersion}`) ||
     serviceWorker.includes(`/crump-product-5.3.css?v=${fileLibraryWindowVersion}`) ||
-    !serviceWorker.includes(`/crump-navigation-5.9.30.js?v=${navigationDiscoveryVersion}`) ||
+    !serviceWorker.includes(`/crump-navigation-5.9.30.js?v=${imageStudioEntryVersion}`) ||
     !serviceWorker.includes(`/crump-navigation-5.9.30.css?v=${mobileDrawerDestinationsVersion}`) ||
     !serviceWorker.includes(`/crump-code-loader.js?v=${codeLazyLoadVersion}`) ||
     serviceWorker.includes(`/crump-code-5.9.35.js?v=${creditConfirmationVersion}`) ||

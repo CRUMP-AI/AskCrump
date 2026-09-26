@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r252';
+const CACHE_NAME = 'ask-crump-new-body-v1-r253';
 
 const CORE = [
   '/app',
@@ -24,7 +24,7 @@ const CORE = [
   '/crump-navigation-5.2.5.css',
   '/crump-navigation-5.2.5.js?v=5.9.76-chats-language-1',
   '/crump-navigation-5.9.30.css?v=5.9.76-mobile-drawer-destinations-1',
-  '/crump-navigation-5.9.30.js?v=5.9.76-navigation-discovery-1',
+  '/crump-navigation-5.9.30.js?v=5.9.76-image-studio-entry-1',
   '/crump-code-loader.js?v=5.9.76-code-lazy-load-1',
   '/crump-product-loader.js?v=5.9.76-reference-fidelity-hard-contract-1',
   '/crump-product-5.3.1.css',
@@ -34,7 +34,7 @@ const CORE = [
   '/crump-media-save.js?v=5.9.76-library-lazy-load-1',
   '/crump-library-loader.js?v=5.9.76-library-lazy-load-1',
   '/crump-subscriptions-5.3.2.js?v=5.9.76-checkout-destination-label-1',
-  '/runtime-body-v1.js?v=5.9.76-reference-fidelity-hard-contract-1',
+  '/runtime-body-v1.js?v=5.9.76-image-studio-entry-1',
   '/native-runtime.js',
   '/mobile-bridge.js',
   '/safe-storage.js',
@@ -57,7 +57,7 @@ const CORE = [
   '/product-analytics.js?v=5.9.76-navigation-discovery-1',
   '/lifecycle-share.js?v=5.9.76-settings-invite-1',
   '/lifecycle-manager.js?v=5.9.76-lifecycle-idle-send-1',
-  '/auth-controller.js?v=5.9.76-facebook-reel-attribution-1',
+  '/auth-controller.js?v=5.9.76-image-studio-entry-1',
   '/crump-4.3.css',
   '/crump-4.3.js?v=5.9.76-composer-actionability-1',
   '/crump-4.4.css',

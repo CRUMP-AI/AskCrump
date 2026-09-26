@@ -5,6 +5,7 @@ from types import SimpleNamespace
 from urllib.parse import parse_qs, urlparse
 
 import pytest
+from pydantic import ValidationError
 
 from backend.routes import auth as auth_routes
 from backend.schemas import RegisterRequest, ResendVerificationRequest
@@ -39,6 +40,14 @@ def test_verification_handoff_urls_carry_only_allowlisted_content_free_destinati
         "https://www.askcrump.com/app?verification=success"
         "&intent=video&plan=enterprise"
     )
+    assert verified_workspace_url(
+        "https://www.askcrump.com",
+        intent="IMAGE",
+        plan="professional",
+    ) == (
+        "https://www.askcrump.com/app?verification=success"
+        "&intent=image&plan=professional"
+    )
 
     invalid = verification_email_url(
         "https://www.askcrump.com",
@@ -49,6 +58,17 @@ def test_verification_handoff_urls_carry_only_allowlisted_content_free_destinati
     assert parse_qs(urlparse(invalid).query) == {"token": ["token"]}
     assert creation_intent("race") is None
     assert paid_plan_intent("admin") is None
+    with pytest.raises(ValidationError):
+        ResendVerificationRequest(
+            email="new-user@example.com",
+            intent="private-prompt",
+        )
+    with pytest.raises(ValidationError):
+        RegisterRequest(
+            email="new-user@example.com",
+            password="StrongPass1",
+            intent="private-prompt",
+        )
 
 
 class _RegistrationDB:
@@ -91,7 +111,11 @@ class _VerificationEmailCapture:
 
 
 @pytest.mark.asyncio
-async def test_registration_and_resend_preserve_the_promised_destination(monkeypatch) -> None:
+@pytest.mark.parametrize("intent", ["presentation", "image"])
+async def test_registration_and_resend_preserve_the_promised_destination(
+    monkeypatch,
+    intent: str,
+) -> None:
     database = _RegistrationDB()
     email = _VerificationEmailCapture()
 
@@ -117,26 +141,26 @@ async def test_registration_and_resend_preserve_the_promised_destination(monkeyp
         RegisterRequest(
             email="new-user@example.com",
             password="StrongPass1",
-            intent="presentation",
+            intent=intent,
             plan="professional",
         ),
         request,
     )
 
     assert result["success"] is True
-    assert email.calls[0]["intent"] == "presentation"
+    assert email.calls[0]["intent"] == intent
     assert email.calls[0]["plan"] == "professional"
 
     await auth_routes.resend_verification(
         ResendVerificationRequest(
             email="new-user@example.com",
-            intent="presentation",
+            intent=intent,
             plan="professional",
         ),
         request,
     )
     assert len(email.calls) == 2
-    assert email.calls[1]["intent"] == "presentation"
+    assert email.calls[1]["intent"] == intent
     assert email.calls[1]["plan"] == "professional"
 
 
@@ -144,7 +168,7 @@ def test_browser_contract_sends_destination_context_without_customer_content() -
     controller = (Path(auth_routes.__file__).resolve().parents[2] / "public" / "auth-controller.js").read_text(
         encoding="utf-8"
     )
-    register_start = controller.index("const planIntent = pendingPlanIntent();")
+    register_start = controller.index("const creationIntent = pendingCreationIntent();")
     register_flow = controller[
         register_start : controller.index("termsVersion: TERMS_VERSION", register_start)
     ]
@@ -158,7 +182,8 @@ def test_browser_contract_sends_destination_context_without_customer_content() -
         resend_flow.index("}, 'Sending the verification email")
     ]
 
-    assert "intent: attribution.intent" in register
+    assert "const creationIntent = pendingCreationIntent();" in register_flow
+    assert "intent: creationIntent?.kind || attribution.intent" in register
     assert "plan: planIntent?.plan || null" in register
     assert "intent: pendingCreationIntent()?.kind || null" in resend
     assert "plan: pendingPlanIntent()?.plan || null" in resend
