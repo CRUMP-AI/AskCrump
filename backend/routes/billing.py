@@ -776,6 +776,7 @@ async def stripe_webhook(request: Request):
     event_type = event.get('type')
     if event_type not in {
         'checkout.session.completed',
+        'customer.subscription.created',
         'customer.subscription.updated',
         'customer.subscription.deleted',
     }:
@@ -823,7 +824,7 @@ async def stripe_webhook(request: Request):
             # Invalid ownership or an incomplete subscription must never grant
             # access. Later subscription events can reconcile a valid state.
             logger.warning('Ignoring unentitled Stripe checkout: %s', exc)
-    elif event_type in {'customer.subscription.updated', 'customer.subscription.deleted'} and customer_id:
+    elif event_type in {'customer.subscription.created', 'customer.subscription.updated', 'customer.subscription.deleted'} and customer_id:
         try:
             await reconcile_stripe_subscription_event(
                 event_object=obj,
