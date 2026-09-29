@@ -863,14 +863,14 @@ async function sendMessage() {
                 updateMessageState(chat, userMessage, {
                     deliveryStatus: state,
                     replyStatus: state === 'failed' ? 'pending' : 'failed',
-                    replyError: error.message || 'Reply failed.',
+                    replyError: error.message || 'Crump’s reply didn’t come through.',
                 });
                 window.CrumpPresence?.haptic?.('error');
-                showToast(error.message || 'Failed to send message.', 'error');
+                showToast(error.message || 'That didn’t send — let’s try that again.', 'error');
             }
         } else {
             window.CrumpPresence?.haptic?.('error');
-            showToast(error.message || 'Crump could not start this message. Try again.', 'error');
+            showToast(error.message || 'Hmm, that didn’t go through — want to try again?', 'error');
             userInput?.focus({ preventScroll: true });
         }
     } finally {
@@ -911,10 +911,10 @@ window.retryMessage = async function retryMessage(id) {
             updateMessageState(chat, message, {
                 deliveryStatus: message.deliveryStatus === 'sending' ? 'failed' : message.deliveryStatus,
                 replyStatus: message.deliveryStatus === 'sending' ? 'pending' : 'failed',
-                replyError: error.message || 'Reply failed.',
+                replyError: error.message || 'Crump’s reply didn’t come through.',
             });
             window.CrumpPresence?.haptic?.('error');
-            showToast(error.message || 'Retry failed.', 'error');
+            showToast(error.message || 'The retry didn’t land — one more try?', 'error');
         }
     } finally {
         isProcessing = false;
