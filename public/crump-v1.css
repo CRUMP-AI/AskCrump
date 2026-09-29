@@ -890,7 +890,11 @@ body.crump-v1 .crump-message-avatar {
   overflow: hidden;
   border: 0 !important;
   border-radius: 0 !important;
-  background: url('/assets/brand/crump-mark-320.webp') center / contain no-repeat !important;
+  /* Official Crump mascot artwork on top; the C-mark shows through only if
+     the mascot file is missing. */
+  background:
+    url('/assets/brand/crump-mascot.png') center / cover no-repeat,
+    url('/assets/brand/crump-mark-320.webp') center / contain no-repeat !important;
   color: transparent !important;
   font-size: 0 !important;
   box-shadow: none !important;
