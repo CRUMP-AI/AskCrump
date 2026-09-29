@@ -155,6 +155,14 @@
 }
 .billing51-recovery + .billing51-balance-card { margin-top: 12px; }
 
+.billing51-plan-status {
+  margin: 18px 22px 0;
+  color: #d9c393;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .02em;
+}
+
 .billing51-balance-card {
   display: grid;
   grid-template-columns: 1.05fr .95fr;
