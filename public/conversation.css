@@ -383,6 +383,28 @@ button.message-status {
   white-space: nowrap;
 }
 
+/* Simulated-streaming caret shown while a new reply reveals word-by-word. */
+.crump-typewriter-active {
+  position: relative;
+}
+
+.crump-typewriter-active::after {
+  content: '';
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 3px;
+  vertical-align: -0.15em;
+  background: #d5b971;
+  animation: crump-typewriter-blink 0.8s steps(2, start) infinite;
+}
+
+@keyframes crump-typewriter-blink {
+  to {
+    visibility: hidden;
+  }
+}
+
 .message-actions {
   min-height: 30px;
   margin-top: 5px;

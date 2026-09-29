@@ -388,6 +388,24 @@
     }
   }
 
+  // Tappable conversation starters: prefill the composer with a prompt.
+  function wireStarterChips() {
+    const chips = $$('#v1StarterChips .v1-starter-chip');
+    if (!chips.length) return;
+    const input = byId('userInput');
+    if (!input) return;
+    chips.forEach(chip => {
+      if (chip.dataset.starterWired === 'true') return;
+      chip.dataset.starterWired = 'true';
+      chip.addEventListener('click', () => {
+        input.value = chip.dataset.starterPrompt || chip.textContent.trim();
+        input.style.height = 'auto';
+        input.style.height = input.scrollHeight + 'px';
+        input.focus({ preventScroll: true });
+      });
+    });
+  }
+
   function wireCommands() {
     $$('[data-v1-command]').forEach(button => {
       if (button.dataset.v1Wired === 'true') return;
@@ -636,6 +654,7 @@
     document.body.classList.add('crump-v1-body');
     restoreDesktopPreference();
     wireCommands();
+    wireStarterChips();
     wireRecentWork();
     wireComposer();
     wireSettingsTabs();
