@@ -390,6 +390,29 @@
       </div>`;
   }
 
+  const PLAN_STATUS_NAMES = { professional: 'Professional', enterprise: 'Enterprise' };
+
+  function formatPlanRenewal(iso) {
+    if (!iso) return null;
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+  }
+
+  function planStatusLine(billingStatus) {
+    // Key off the stored subscription record, not the effective usage tier:
+    // internal staff access must never read as a paid plan.
+    const plan = String(billingStatus?.plan || '').toLowerCase();
+    const planName = PLAN_STATUS_NAMES[plan];
+    if (!planName) return 'Current plan: Free';
+    const renewal = formatPlanRenewal(billingStatus?.periodEnd);
+    const status = String(billingStatus?.status || '').toLowerCase();
+    if (status === 'canceling') {
+      return renewal ? `Current plan: ${planName} · ends ${renewal}` : `Current plan: ${planName}`;
+    }
+    return renewal ? `Current plan: ${planName} · renews ${renewal}` : `Current plan: ${planName}`;
+  }
+
   function creditHistoryLabel(item) {
     const delta = Number(item?.delta || 0);
     const reason = String(item?.reason || '');
@@ -572,6 +595,12 @@
         manageButton.textContent = 'Manage subscription';
       }
 
+      const planStatus = $('#billing51PlanStatus', modal);
+      if (planStatus) {
+        planStatus.textContent = planStatusLine(billingStatus);
+        planStatus.hidden = false;
+      }
+
       renderHistory(creditData.history || []);
     } catch (error) {
       window.showToast?.(error.message || 'Billing information could not be loaded.', 'error');
@@ -599,6 +628,8 @@
         </header>
 
         ${billingRecoveryMarkup(recovery)}
+
+        <p class="billing51-plan-status" id="billing51PlanStatus" hidden></p>
 
         <div class="billing51-balance-card">
           <div>
