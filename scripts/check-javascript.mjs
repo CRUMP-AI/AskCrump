@@ -990,6 +990,7 @@ const planRendererVersion = `${releaseVersion}-credit-pack-accessibility-1`;
 const commerceRecoveryVersion = `${releaseVersion}-commerce-recovery-1`;
 const nativeBillingIdentityVersion = `${releaseVersion}-native-billing-identity-1`;
 const stripeDestinationIntegrityVersion = `${releaseVersion}-stripe-destination-integrity-1`;
+const planStatusLineVersion = `${releaseVersion}-plan-status-line-1`;
 const checkoutDestinationLabelVersion = `${releaseVersion}-checkout-destination-label-1`;
 const creditPackTruthVersion = `${releaseVersion}-credit-pack-truth-1`;
 const creditTruthVersion = `${releaseVersion}-credit-truth-1`;
@@ -1324,7 +1325,7 @@ if (!runtime.includes('/billing.css') ||
     runtime.includes(`/crump-precision-image-edit.css?v=${precisionEditStudioVersion}`) ||
     runtime.includes(`/crump-precision-image-edit.js?v=${liveImagePreviewVersion}`) ||
     !runtime.includes(`/crump-billing-5.1.js?v=${checkoutDestinationLabelVersion}`) ||
-    !runtime.includes(`/crump-5.2.js?v=${stripeDestinationIntegrityVersion}`) ||
+    !runtime.includes(`/crump-5.2.js?v=${planStatusLineVersion}`) ||
     !runtime.includes(`/crump-5.2.2.css?v=${newResponseCueVersion}`) ||
     !runtime.includes(`/crump-5.2.2.js?v=${stripeDestinationIntegrityVersion}`) ||
     !runtime.includes(`/crump-4.3.js?v=${composerActionabilityVersion}`) ||
@@ -1580,7 +1581,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r253') ||
     !serviceWorker.includes(`/subscription-ui.js?v=${commerceRecoveryVersion}`) ||
     !serviceWorker.includes(`/crump-billing-5.1.css?v=${creditTruthVersion}`) ||
     !serviceWorker.includes(`/crump-billing-5.1.js?v=${checkoutDestinationLabelVersion}`) ||
-    !serviceWorker.includes(`/crump-5.2.js?v=${stripeDestinationIntegrityVersion}`) ||
+    !serviceWorker.includes(`/crump-5.2.js?v=${planStatusLineVersion}`) ||
     !serviceWorker.includes(`/crump-subscriptions-5.3.2.js?v=${checkoutDestinationLabelVersion}`) ||
     !serviceWorker.includes(`/crump-media-save.js?v=${libraryLazyLoadVersion}`) ||
     !serviceWorker.includes(`/crump-library-loader.js?v=${libraryLazyLoadVersion}`) ||
