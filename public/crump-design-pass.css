@@ -1,0 +1,121 @@
+/* ASK CRUMP — UI DESIGN PASS
+   ------------------------------------------------------------------
+   Additive refinement layer for the v1 app shell. Loaded last so it
+   wins specificity ties without touching the layers beneath.
+
+   Rules of this file (per Greg):
+   - Every capability and feature stays intact: nothing is removed,
+     hidden, or downgraded here. Enhancements only.
+   - Presentational only: no selectors that gate functionality, no
+     layout-structural changes, no API/auth/billing/store touchpoints.
+   - Brand system: ink-black #070a0e, gold #d5b971/#b69855,
+     off-white #f1efe9, muted gray #8a9196. Georgia-style serif for
+     display, Inter-style for body, tiny tracked-out gold eyebrows.
+*/
+
+/* ------------------------------------------------------------------
+   1. Message entrance — a calm rise-and-settle as replies arrive.
+   The base layer disables message animation; this restores a subtle
+   one. `prefers-reduced-motion` is already neutralized globally. */
+@keyframes dp-msg-in {
+  from { opacity: 0; transform: translateY(9px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+body.crump-v1-body .message {
+  animation: dp-msg-in .34s cubic-bezier(.2,.78,.2,1) both !important;
+}
+
+/* ------------------------------------------------------------------
+   2. Typing indicator — the base layer never sizes these dots, so in
+   the live app they render 0x0 (invisible). Give them a proper,
+   premium staggered pulse in gold. */
+@keyframes dp-dot-pulse {
+  0%, 60%, 100% { transform: translateY(0) scale(1);   opacity: .45; }
+  30%           { transform: translateY(-3px) scale(1.12); opacity: 1; }
+}
+body.crump-v1-body .typing-dots {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 5px !important;
+  height: 18px !important;
+  padding: 0 2px !important;
+}
+body.crump-v1-body .typing-dots i {
+  width: 6px !important;
+  height: 6px !important;
+  border-radius: 50% !important;
+  background: var(--ac-gold) !important;
+  opacity: .45 !important;
+  box-shadow: 0 0 8px rgba(217,191,132,.35) !important;
+  animation: dp-dot-pulse 1.3s ease-in-out infinite !important;
+}
+body.crump-v1-body .typing-dots i:nth-child(2) { animation-delay: .18s !important; }
+body.crump-v1-body .typing-dots i:nth-child(3) { animation-delay: .36s !important; }
+/* The "Crump is thinking…" label was unstyled in the live app; set it
+   in the warm secondary tone so it reads as status, not body copy. */
+body.crump-v1-body .presence-label {
+  margin-left: 9px !important;
+  color: var(--ac-text-3) !important;
+  font-size: 13px !important;
+  font-style: italic !important;
+  letter-spacing: .01em !important;
+  white-space: nowrap !important;
+}
+
+/* ------------------------------------------------------------------
+   3. Editorial response typography — assistant prose gets the serif
+   display voice for headings, gold list markers, and calmer rules. */
+body.crump-v1-body .assistant-message .message-content {
+  text-wrap: pretty !important;
+}
+body.crump-v1-body .assistant-message .message-content :is(h1,h2) {
+  font-family: var(--ac-display) !important;
+  font-weight: 500 !important;
+  letter-spacing: -.02em !important;
+}
+body.crump-v1-body .assistant-message .message-content ul > li::marker {
+  color: rgba(217,191,132,.8) !important;
+}
+body.crump-v1-body .assistant-message .message-content hr {
+  margin: 24px 0 !important;
+  border: 0 !important;
+  height: 1px !important;
+  background: linear-gradient(90deg, transparent, rgba(217,191,132,.35), transparent) !important;
+}
+body.crump-v1-body .assistant-message .message-content a {
+  transition: color .15s ease, text-decoration-color .15s ease !important;
+}
+body.crump-v1-body .assistant-message .message-content a:hover {
+  color: #f0dca8 !important;
+  text-decoration-color: rgba(240,220,168,.8) !important;
+}
+body.crump-v1-body .assistant-message :is(code,.inline-code) {
+  padding: .16em .44em !important;
+}
+
+/* ------------------------------------------------------------------
+   4. Launchpad — eyebrow tracking to the brand spec, chips with a
+   softer golden hover. */
+body.crump-v1-body .v1-launchpad-greeting {
+  letter-spacing: .16em !important;
+}
+body.crump-v1-body .v1-starter-chip:hover {
+  box-shadow: 0 6px 18px rgba(217,191,132,.10) !important;
+}
+
+/* ------------------------------------------------------------------
+   5. Composer — the gold send button earns a soft halo when armed. */
+body.crump-v1-body .input-container.has-content :is(.crump50-send,#sendButton),
+body.crump-v1-body.v1-composer-active :is(.crump50-send,#sendButton) {
+  box-shadow:
+    0 0 0 1px rgba(217,191,132,.28),
+    0 10px 26px rgba(217,191,132,.16),
+    inset 0 1px rgba(255,255,255,.32) !important;
+}
+
+/* ------------------------------------------------------------------
+   6. Micro-polish — scrollbar thumb brightens on hover. */
+body.crump-v1-body :is(.chat-container,.v1-library-list,.settings-sheet-body,.billing51-sheet,.crump44-panel-content,.crump50-sheet,.crump52-attach-sheet)::-webkit-scrollbar-thumb:hover {
+  background: rgba(217,191,132,.32) !important;
+  background-clip: padding-box !important;
+}
