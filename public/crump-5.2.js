@@ -693,6 +693,29 @@
     });
   }
 
+  const PLAN_STATUS_NAMES_52 = { professional: 'Professional', enterprise: 'Enterprise' };
+
+  function formatPlanRenewal52(iso) {
+    if (!iso) return null;
+    const date = new Date(iso);
+    if (Number.isNaN(date.getTime())) return null;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' });
+  }
+
+  function planStatusLine52(billingStatus) {
+    // Key off the stored subscription record, not the effective usage tier:
+    // internal staff access must never read as a paid plan.
+    const plan = String(billingStatus?.plan || '').toLowerCase();
+    const planName = PLAN_STATUS_NAMES_52[plan];
+    if (!planName) return 'Current plan: Free';
+    const renewal = formatPlanRenewal52(billingStatus?.periodEnd);
+    const status = String(billingStatus?.status || '').toLowerCase();
+    if (status === 'canceling') {
+      return renewal ? `Current plan: ${planName} · ends ${renewal}` : `Current plan: ${planName}`;
+    }
+    return renewal ? `Current plan: ${planName} · renews ${renewal}` : `Current plan: ${planName}`;
+  }
+
   function renderAllowance(host, daily = {}) {
     const limit = Number(daily?.limit ?? 0);
     const used = Number(daily?.used ?? 0);
@@ -707,13 +730,19 @@
     const allowance = $('#billing52Allowance', modal);
     const history = $('#billing52History', modal);
     try {
-      const [creditData, usageData] = await Promise.all([
+      const [creditData, usageData, billingStatus] = await Promise.all([
         jsonFetch('/api/billing/credits/status'),
         jsonFetch('/api/usage/check').catch(() => ({daily:{limit:0,used:0,remaining:0}})),
+        jsonFetch('/api/billing/status').catch(() => ({tier:'free', plan:null, status:'inactive', provider:null, manageable:false})),
       ]);
       if (!modal.isConnected || state.billing !== modal) return;
       if (balance) balance.textContent = String(Math.max(0, Number(creditData.credits?.balance || 0)));
       if (allowance) renderAllowance(allowance, usageData.daily || {});
+      const planStatus = $('#billing52PlanStatus', modal);
+      if (planStatus) {
+        planStatus.textContent = planStatusLine52(billingStatus);
+        planStatus.hidden = false;
+      }
       if (packs) {
         packs.replaceChildren();
         const catalog = Array.isArray(creditData.catalog) && creditData.catalog.length
@@ -755,6 +784,7 @@
           <button type="button" class="billing51-close" data-close aria-label="Close">×</button>
         </header>
         ${billingRecoveryMarkup(recovery)}
+        <p class="billing51-plan-status" id="billing52PlanStatus" hidden></p>
         <div class="billing51-balance-card">
           <div><span>YOUR BALANCE</span><strong><b id="billing52Balance">…</b> <small>credits</small></strong><p>Some premium or overflow actions use credits. The exact charge appears before you confirm.</p></div>
           <div id="billing52Allowance"><div class="billing51-allowance"><div><span>Included today</span><strong>Loading…</strong></div><div class="billing51-progress"><i style="width:25%"></i></div></div></div>
