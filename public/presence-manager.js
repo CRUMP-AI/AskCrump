@@ -18,6 +18,8 @@
   let activity = null;
   let expanded = false;
   let activityTimer = null;
+  let warmVerbIndex = 0;
+  let warmVerbTimer = null;
   let preferences = { ...DEFAULTS };
   let notificationToken = null;
   let online = navigator.onLine;
@@ -29,27 +31,59 @@
     if (region) region.textContent = text || '';
   };
 
+  function assistantName() {
+    return SafeStorage.getItem(window.STORAGE_KEYS?.ASSISTANT_NAME || 'crump_assistant_name') || 'Crump';
+  }
+
+  function warmThinkingVerbs() {
+    const name = assistantName();
+    return [
+      `${name} is thinking…`,
+      `${name} is connecting the thread…`,
+      `${name} is putting it together…`,
+      `${name} is checking the details…`,
+      `${name} is lining it up…`,
+    ];
+  }
+
   function labelFor(value) {
-    const name = SafeStorage.getItem(window.STORAGE_KEYS?.ASSISTANT_NAME || 'crump_assistant_name') || 'Crump';
+    const name = assistantName();
+    if (value === 'thinking') {
+      // Rotate warm verbs on long generations so the wait feels alive.
+      const verbs = warmThinkingVerbs();
+      return verbs[warmVerbIndex % verbs.length];
+    }
     const labels = {
       reading: `${name} is reading…`,
       searching: `${name} is searching…`,
       creating: `${name} is creating…`,
-      thinking: `${name} is thinking…`,
     };
-    return labels[value] || labels.thinking;
+    return labels[value] || warmThinkingVerbs()[warmVerbIndex % warmThinkingVerbs().length];
   }
 
   function start(nextActivity = 'thinking') {
     clearTimeout(activityTimer);
+    clearInterval(warmVerbTimer);
     activity = nextActivity;
     expanded = false;
+    warmVerbIndex = 0;
     announce(labelFor(activity));
     rerender();
     activityTimer = setTimeout(() => {
       expanded = true;
       rerender();
     }, 2800);
+    // Rotate the visible verb every few seconds while Crump works.
+    warmVerbTimer = setInterval(() => {
+      if (!activity) {
+        clearInterval(warmVerbTimer);
+        warmVerbTimer = null;
+        return;
+      }
+      warmVerbIndex += 1;
+      announce(labelFor(activity));
+      rerender();
+    }, 4200);
   }
 
   function update(nextActivity) {
@@ -62,6 +96,9 @@
   function stop() {
     clearTimeout(activityTimer);
     activityTimer = null;
+    clearInterval(warmVerbTimer);
+    warmVerbTimer = null;
+    warmVerbIndex = 0;
     activity = null;
     expanded = false;
     announce('');
