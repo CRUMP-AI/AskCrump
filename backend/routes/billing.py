@@ -975,6 +975,7 @@ async def billing_status(request: Request):
         'status': 'internal' if internal_access else auth.user.get('subscription_status') or 'inactive',
         'provider': provider,
         'manageable': manageable,
+        'periodEnd': auth.user.get('subscription_current_period_end'),
         'user': public_user(auth.user),
     }
 
