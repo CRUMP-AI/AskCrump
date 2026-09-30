@@ -91,6 +91,11 @@ def test_first_action_browser_proof_is_credential_free_and_covers_all_six_choice
     ):
         assert label in verifier
     assert "first-starter-intent" in verifier
+    assert "starterPrompts" in verifier
+    assert "window.__starterChipInputEvents" in verifier
+    assert "sendDisabled: false" in verifier
+    assert "sendAriaDisabled: 'false'" in verifier
+    assert "sendClicks: 0" in verifier
     assert "password" not in verifier.lower()
     assert "fetch(" not in verifier
 

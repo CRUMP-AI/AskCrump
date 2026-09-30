@@ -20,6 +20,7 @@ async function composerActions(browser) {
   await page.goto(`${fixtureOrigin}/tests/fixtures/composer-mode-handoff.html`, {
     waitUntil: 'domcontentloaded',
   });
+  await page.waitForFunction(() => document.documentElement.dataset.crump43Booted === 'true');
 
   const think = page.getByRole('button', {name: 'Think with Crump', exact: true});
   const research = page.getByRole('button', {name: 'Research something', exact: true});
@@ -43,6 +44,38 @@ async function composerActions(browser) {
 
   await file.click();
   assert.equal(await page.evaluate(() => window.__filePickerClicks), 1);
+
+  await page.evaluate(() => { window.__starterChipInputEvents = 0; });
+
+  const starterPrompts = [
+    'Pick up where we left off.',
+    'Help me plan my week.',
+    'Research a topic for me.',
+    'Help me think through an idea.',
+  ];
+  for (const [index, prompt] of starterPrompts.entries()) {
+    await page.locator(`[data-starter-prompt="${prompt}"]`).click();
+    const state = await page.evaluate(() => ({
+      activeElement: document.activeElement?.id,
+      value: document.getElementById('userInput')?.value,
+      hasContent: document.querySelector('.input-container')?.classList.contains('has-content'),
+      composerActive: document.body.classList.contains('v1-composer-active'),
+      inputEvents: window.__starterChipInputEvents,
+      sendClicks: window.__sendClicks,
+      sendDisabled: document.getElementById('sendButton')?.disabled,
+      sendAriaDisabled: document.getElementById('sendButton')?.getAttribute('aria-disabled'),
+    }));
+    assert.deepEqual(state, {
+      activeElement: 'userInput',
+      value: prompt,
+      hasContent: true,
+      composerActive: true,
+      inputEvents: index + 1,
+      sendClicks: 0,
+      sendDisabled: false,
+      sendAriaDisabled: 'false',
+    });
+  }
 
   await page.waitForFunction(() => window.__starterEvents.length === 5);
   const events = await page.evaluate(() => window.__starterEvents);
@@ -91,7 +124,7 @@ async function delayedProductActions(browser) {
   try {
     await composerActions(browser);
     await delayedProductActions(browser);
-    process.stdout.write('First-action proof passed: six cleanly named choices preserve their exact behavior and latest runtime-delayed destination.\n');
+    process.stdout.write('First-action proof passed: named choices and starter prompts preserve their exact behavior and latest runtime-delayed destination.\n');
   } finally {
     await browser.close();
   }

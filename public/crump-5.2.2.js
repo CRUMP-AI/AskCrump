@@ -277,7 +277,7 @@
     const container = state.scroll.container;
     if (!container) return;
     clearNewResponse();
-    container.scrollTo({top: container.scrollHeight, behavior: 'smooth'});
+    container.scrollTo({top: container.scrollHeight, behavior: 'auto'});
     updateDownButton();
   }
 

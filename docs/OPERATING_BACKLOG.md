@@ -1,6 +1,6 @@
 # Ask Crump operating backlog
 
-Last updated: 2026-09-26
+Last updated: 2026-09-29
 
 ## Operating standard
 
@@ -10,6 +10,26 @@ retention, and referral behavior. No acquisition spend should scale on impressio
 
 Every item below needs four things before it is called shipped: an accountable product
 outcome, privacy and safety constraints, automated coverage, and production evidence.
+
+The 2026-09-29 Muse release-integrity candidate keeps the new visual tone while restoring the
+previously released user-controlled viewport and stable-image contracts. It removes simulated
+typewriter delivery and replayed message entrance animation, updates rotating presence copy in
+place instead of rebuilding conversation rows, makes **Jump to newest message** immediate and
+explicit, and lets all four starter chips update composer readiness without sending. The refinement
+stylesheet is again authenticated-workspace-only, its typing dots honor reduced motion, and
+browser/PWA/native source delivery advances atomically to `5.9.76-muse-release-repair-1` and cache
+`r254`, including an immediate-predecessor r253-to-r254 proof. The complete pytest suite passed at
+100% with no failures and one Starlette deprecation warning; focused contracts passed **61/61**;
+JavaScript validated **54** files plus the **21/21** packet self-test; browser controls passed
+**52/52**; accessibility passed **33/33**; focused cache, starter, and image/viewport proofs ended
+with zero browser errors; and `git diff --check` passed. A user-reported Stripe QR/passkey delay is
+external to Ask Crump: Ask Crump has no QR/device-code sign-in flow, and healthy live health/session
+assets plus a stable authenticated session do not justify an Ask Crump authentication change.
+Hosted CI exposed newly published PyJWT 2.13.0 advisories; all tracked production manifests now use
+the first patched release, 2.14.0, and the production dependency audit reports no known vulnerabilities.
+Hosted CI, merge, production deployment, exact live asset/cache adoption, and post-deploy probes
+remain required before calling this candidate shipped. Evidence:
+`docs/MUSE_RELEASE_INTEGRITY_REPAIR_RELEASE_2026-09-29.md`.
 
 The 2026-09-26 Image Studio entry candidate closes the discovery gap around the reference-fidelity
 release without expanding the generation, billing, or analytics boundary. The public product page
@@ -21,8 +41,8 @@ only after the exact `{kind, capturedAt}` acknowledgement. Image remains intenti
 from authoritative acquisition attribution until a coordinated measurement migration exists. The
 complete **1,506/1,506** Python suite, **54/54** JavaScript validation, **51/51** browser-control
 matrix, production preflight, native web bundle, client-secret boundary, and r249/r252-to-r253
-returning-cache transitions passed locally. Hosted CI, merge, deployment, and production probes
-remain the release gate; do not call the candidate shipped until those are recorded. Evidence:
+returning-cache transitions passed locally. The candidate was merged to `main` as commit
+`9cbe7619`; hosted CI, deployment, and production-probe identifiers remain unrecorded here. Evidence:
 `docs/IMAGE_STUDIO_ENTRY_HANDOFF_RELEASE_2026-09-26.md`.
 
 The 2026-09-16 guarded-control follow-up proves the intentionally disabled controls that a static

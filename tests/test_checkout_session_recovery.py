@@ -77,7 +77,7 @@ def test_checkout_recovery_fixture_is_local_and_content_free():
 def test_checkout_recovery_assets_are_cache_addressable_on_web_pwa_and_native():
     integrity_version = "5.9.76-stripe-destination-integrity-1"
     label_version = "5.9.76-checkout-destination-label-1"
-    runtime_version = "5.9.76-image-studio-entry-1"
+    runtime_version = "5.9.76-muse-release-repair-1"
     auth_version = "5.9.76-image-studio-entry-1"
     shell = read_public("app.html")
     runtime = read_public("runtime-body-v1.js")
@@ -86,8 +86,11 @@ def test_checkout_recovery_assets_are_cache_addressable_on_web_pwa_and_native():
 
     assert f"/runtime-body-v1.js?v={runtime_version}" in shell
     assert f"/auth-controller.js?v={auth_version}" in shell
-    for asset in ("billing-manager.js", "crump-5.2.2.js"):
-        versioned = f"/{asset}?v={integrity_version}"
+    for asset, version in (
+        ("billing-manager.js", integrity_version),
+        ("crump-5.2.2.js", "5.9.76-muse-release-repair-1"),
+    ):
+        versioned = f"/{asset}?v={version}"
         assert versioned in runtime
         assert versioned in worker
         assert versioned in native
@@ -97,4 +100,4 @@ def test_checkout_recovery_assets_are_cache_addressable_on_web_pwa_and_native():
         assert versioned in worker
         assert versioned in native
     assert f"/auth-controller.js?v={auth_version}" in worker
-    assert "ask-crump-new-body-v1-r253" in worker
+    assert "ask-crump-new-body-v1-r254" in worker

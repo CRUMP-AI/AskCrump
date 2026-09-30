@@ -1,7 +1,7 @@
 # Image Studio entry handoff release evidence — 2026-09-26
 
-Status: local release candidate verified; hosted CI, merge, production deployment, and live probes
-remain required before this is called shipped
+Status: merged to `main` as commit `9cbe7619`; hosted CI, production deployment, and live-probe
+identifiers remain unrecorded in this evidence
 
 ## Product outcome
 

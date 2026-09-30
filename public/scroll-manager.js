@@ -31,7 +31,10 @@
     function jumpToNewest(event) {
         if (!chatContainer) return;
         event?.preventDefault?.();
-        chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'smooth' });
+        // This is the sole user-authorized viewport movement. Apply it
+        // immediately so the control is deterministic even when animation is
+        // disabled or the feed contains large media.
+        chatContainer.scrollTo({ top: chatContainer.scrollHeight, behavior: 'auto' });
         scrollToEndButton?.classList.remove('visible');
         scrollToEndButton?.setAttribute('aria-hidden', 'true');
     }

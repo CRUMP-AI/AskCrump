@@ -62,5 +62,10 @@ def test_browser_fixture_is_credential_free_and_uses_the_real_handoff_sources():
     assert 'data-v1-command="research"' in fixture
     assert 'data-v1-command="image"' in fixture
     assert 'data-v1-command="file"' in fixture
+    assert fixture.count('data-starter-prompt=') == 4
+    assert "window.__starterChipInputEvents += 1" in fixture
+    assert '<script src="/public/crump-4.3.js"></script>' in fixture
+    assert 'disabled aria-disabled="true"' in fixture
+    assert "window.__sendClicks += 1" in fixture
     assert "fetch(" not in fixture
     assert "password" not in fixture.lower()

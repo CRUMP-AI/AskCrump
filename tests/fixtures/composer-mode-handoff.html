@@ -12,12 +12,18 @@
       <button id="researchStarter" type="button" data-v1-command="research" aria-labelledby="researchTitle" aria-describedby="researchDescription"><strong id="researchTitle">Research something</strong><small id="researchDescription">Work with current information and sources.</small><b aria-hidden="true">↗</b></button>
       <button id="imageStarter" type="button" data-v1-command="image" aria-labelledby="imageTitle" aria-describedby="imageDescription"><strong id="imageTitle">Create an image</strong><small id="imageDescription">Generate, edit, or build a visual concept.</small><b aria-hidden="true">↗</b></button>
       <button id="fileStarter" type="button" data-v1-command="file" aria-labelledby="fileTitle" aria-describedby="fileDescription"><strong id="fileTitle">Analyze a file</strong><small id="fileDescription">PDFs, documents, images, spreadsheets, and more.</small><b aria-hidden="true">↗</b></button>
+      <div id="v1StarterChips">
+        <button type="button" data-starter-prompt="Pick up where we left off.">Pick up where we left off</button>
+        <button type="button" data-starter-prompt="Help me plan my week.">Plan my week</button>
+        <button type="button" data-starter-prompt="Research a topic for me.">Research a topic</button>
+        <button type="button" data-starter-prompt="Help me think through an idea.">Think through an idea</button>
+      </div>
     </section>
     <div id="chatContainer"></div>
     <div id="chatsList"></div>
     <div class="input-container">
       <textarea id="userInput" placeholder="Message Crump"></textarea>
-      <button id="sendButton" type="button">Send</button>
+      <button id="sendButton" type="button" disabled aria-disabled="true">Send</button>
     </div>
     <button id="attachBtn" type="button">Attach</button>
     <input id="fileInput" type="file" hidden>
@@ -30,6 +36,8 @@
     window.__filePickerClicks = 0;
     window.__imageStudioOpens = 0;
     window.__starterEvents = [];
+    window.__starterChipInputEvents = 0;
+    window.__sendClicks = 0;
     window.__lastToast = null;
     window.CrumpAnalytics = {
       track(name, detail) {
@@ -41,7 +49,12 @@
     window.CrumpImageStudio = { open() { window.__imageStudioOpens += 1; } };
   </script>
   <script src="/public/app.js"></script>
+  <script src="/public/crump-4.3.js"></script>
   <script>
+    document.addEventListener('input', event => {
+      if (event.target?.id === 'userInput') window.__starterChipInputEvents += 1;
+    });
+    document.getElementById('sendButton').addEventListener('click', () => { window.__sendClicks += 1; });
     document.getElementById('attachBtn').addEventListener('click', () => document.getElementById('fileInput').click());
     document.getElementById('fileInput').addEventListener('click', () => { window.__filePickerClicks += 1; });
   </script>

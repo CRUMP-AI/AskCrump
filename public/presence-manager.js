@@ -31,6 +31,19 @@
     if (region) region.textContent = text || '';
   };
 
+  function refreshVisiblePresence({ensureLabel = false} = {}) {
+    const label = labelFor(activity);
+    const bubble = document.querySelector('.presence-message .presence-bubble');
+    let visibleLabel = bubble?.querySelector('.presence-label') || null;
+    if (!visibleLabel && ensureLabel && bubble) {
+      visibleLabel = document.createElement('span');
+      visibleLabel.className = 'presence-label';
+      bubble.appendChild(visibleLabel);
+    }
+    if (visibleLabel) visibleLabel.textContent = label;
+    announce(label);
+  }
+
   function assistantName() {
     return SafeStorage.getItem(window.STORAGE_KEYS?.ASSISTANT_NAME || 'crump_assistant_name') || 'Crump';
   }
@@ -71,7 +84,7 @@
     rerender();
     activityTimer = setTimeout(() => {
       expanded = true;
-      rerender();
+      refreshVisiblePresence({ensureLabel: true});
     }, 2800);
     // Rotate the visible verb every few seconds while Crump works.
     warmVerbTimer = setInterval(() => {
@@ -81,16 +94,17 @@
         return;
       }
       warmVerbIndex += 1;
-      announce(labelFor(activity));
-      rerender();
+      // The status copy can change without rebuilding every message node.
+      // Keeping those nodes stable prevents image flicker and preserves the
+      // viewport while a long-running response is still in progress.
+      refreshVisiblePresence();
     }, 4200);
   }
 
   function update(nextActivity) {
     if (!activity || nextActivity === activity) return;
     activity = nextActivity;
-    announce(labelFor(activity));
-    rerender();
+    refreshVisiblePresence({ensureLabel: expanded});
   }
 
   function stop() {
