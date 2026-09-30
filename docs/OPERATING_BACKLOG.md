@@ -25,8 +25,11 @@ JavaScript validated **54** files plus the **21/21** packet self-test; browser c
 with zero browser errors; and `git diff --check` passed. A user-reported Stripe QR/passkey delay is
 external to Ask Crump: Ask Crump has no QR/device-code sign-in flow, and healthy live health/session
 assets plus a stable authenticated session do not justify an Ask Crump authentication change.
-Hosted CI exposed newly published PyJWT 2.13.0 advisories; all tracked production manifests now use
-the first patched release, 2.14.0, and the production dependency audit reports no known vulnerabilities.
+Hosted CI exposed newly published PyJWT 2.13.0 advisories, and the shipped repair advanced to the
+then-patched 2.14.0 release. Follow-up verification on 2026-09-30 detected CVE-2026-101918 against
+2.14.0 plus three brace-expansion denial-of-service advisories against the locked 5.0.9 build
+dependency. All tracked PyJWT manifests now use 2.15.0, the JavaScript lock uses brace-expansion
+5.0.12, and both current dependency audits report no known vulnerabilities.
 Pull request `#47` merged as `9ed322251452574a642cd30dc2a15823667f29f3`; head CI
 `36656205226`, main CI `36656663658`, Android `36656663627`, iOS `36656663596`, and public health
 `36747024483` passed. Deployment `dpl_8pQ6vitc51drFMMKHVRCqA4pCaK6` is Ready on the production

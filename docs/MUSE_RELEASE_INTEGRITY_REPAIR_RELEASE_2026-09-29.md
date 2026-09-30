@@ -32,9 +32,12 @@ field, provider call, upload, generation, credit, entitlement, checkout, or bill
 The current plan-status-line asset identity is reflected in the release contracts without changing
 plan or checkout behavior.
 
-Hosted CI also identified newly published PyJWT advisories against the pinned 2.13.0 release. The
-production and package manifests now use the first patched release, PyJWT 2.14.0; authentication
-and dependency-parity coverage remained green through merge and production release.
+Hosted CI identified newly published PyJWT advisories against the pinned 2.13.0 release, so the
+shipping repair advanced to PyJWT 2.14.0 and remained green through merge and production release.
+On 2026-09-30, the next verification run detected CVE-2026-101918 against 2.14.0 and three new
+brace-expansion denial-of-service advisories against the locked 5.0.9 build dependency. The
+follow-up advances every tracked PyJWT manifest to the first patched release, 2.15.0, and the
+JavaScript lock to brace-expansion 5.0.12 without changing product behavior.
 
 ## Delivery boundary
 
@@ -53,7 +56,8 @@ and dependency-parity coverage remained green through merge and production relea
 
 - Complete pytest suite: **100% passed with no failures**; one Starlette deprecation warning was
   reported.
-- Production dependency audit under PyJWT 2.14.0: **no known vulnerabilities found**.
+- Current production dependency audit under PyJWT 2.15.0: **no known vulnerabilities found**.
+- Current JavaScript package-lock audit under brace-expansion 5.0.12: **0 vulnerabilities**.
 - Focused release contracts: **61/61 passed**.
 - JavaScript release contract: **54 files validated**, including **24/24**, **10/10**, and **10/10**
   runtime/attribution cases and the **21/21** store-packet self-test.
