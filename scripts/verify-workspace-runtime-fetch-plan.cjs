@@ -30,6 +30,7 @@ const assert = require('node:assert/strict');
           runtimeState: text('runtimeState'),
           styleCount: number('styleCount'),
           maxStyles: number('maxStyles'),
+          lastStyle: text('lastStyle'),
           preloadCount: number('preloadCount'),
           scriptCount: number('scriptCount'),
           firstScript: text('firstScript'),
@@ -44,8 +45,9 @@ const assert = require('node:assert/strict');
       });
 
       assert.equal(evidence.runtimeState, 'ready');
-      assert.equal(evidence.styleCount, mode === 'style-retry' ? 18 : 17);
+      assert.equal(evidence.styleCount, mode === 'style-retry' ? 19 : 18);
       assert.equal(evidence.maxStyles, 17);
+      assert.equal(evidence.lastStyle, '/crump-design-pass.css?v=5.9.76-muse-release-repair-1');
       assert.equal(evidence.preloadCount, 34);
       assert.equal(evidence.scriptCount, mode === 'script-retry' ? 35 : 34);
       assert.equal(evidence.firstScript, '/onboarding.js?v=5.9.76-brand-retina-1');
@@ -82,6 +84,7 @@ const assert = require('node:assert/strict');
       styleAttempts: Number(document.getElementById('styleAttempts')?.textContent),
       readyEvents: Number(document.getElementById('readyEvents')?.textContent),
       failureMessage: document.getElementById('failureMessage')?.textContent,
+      lastStyle: document.getElementById('lastStyle')?.textContent,
     }));
     assert.deepEqual(failed, {
       runtimeState: 'failed',
@@ -90,6 +93,7 @@ const assert = require('node:assert/strict');
       styleAttempts: 2,
       readyEvents: 0,
       failureMessage: 'Ask Crump could not finish loading your workspace. Your sign-in is safe—check your connection and reload to try again.',
+      lastStyle: 'none',
     });
     await failPage.evaluate(async () => {
       window.__fixtureAllowAssetSuccess = true;
@@ -107,14 +111,16 @@ const assert = require('node:assert/strict');
       styleAttempts: Number(document.getElementById('styleAttempts')?.textContent),
       readyEvents: Number(document.getElementById('readyEvents')?.textContent),
       failureMessage: document.getElementById('failureMessage')?.textContent,
+      lastStyle: document.getElementById('lastStyle')?.textContent,
     }));
     assert.deepEqual(recovered, {
       runtimeState: 'ready',
-      styleCount: 19,
+      styleCount: 20,
       scriptCount: 34,
       styleAttempts: 3,
       readyEvents: 1,
       failureMessage: 'none',
+      lastStyle: '/crump-design-pass.css?v=5.9.76-muse-release-repair-1',
     });
     results['style-fail-recovery'] = {failed, recovered};
     await failPage.close();

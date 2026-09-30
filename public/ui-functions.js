@@ -1084,109 +1084,6 @@
     return receipt;
   }
 
-  // --- Crump simulated streaming (typewriter reveal) ---
-  // The chat API answers in one synchronous round-trip, so the client reveals
-  // each new assistant message word-by-word for a Muse-like streaming feel.
-  // Presentational only: it replays already-delivered text and never touches
-  // the message store, the claim system, or the backend. Disable at runtime
-  // with `window.CRUMP_TYPEWRITER_ENABLED = false` or
-  // `localStorage.setItem('crump_typewriter', 'off')`.
-  const TYPEWRITER_STORAGE_KEY = 'crump_typewriter';
-  let typewriter = null; // { id, tokens, fullHTML, shown, stickToBottom, timer }
-
-  function typewriterEnabled() {
-    if (window.CRUMP_TYPEWRITER_ENABLED === false) return false;
-    try {
-      return localStorage.getItem(TYPEWRITER_STORAGE_KEY) !== 'off';
-    } catch (e) {
-      return true;
-    }
-  }
-
-  function stopTypewriterTimer() {
-    if (typewriter && typewriter.timer) clearInterval(typewriter.timer);
-    if (typewriter) typewriter.timer = null;
-  }
-
-  function rowForMessageId(container, id) {
-    if (!container || !id) return null;
-    try {
-      return container.querySelector(
-        `.message.assistant-message[data-message-id="${CSS.escape(id)}"]`,
-      );
-    } catch (e) {
-      return null;
-    }
-  }
-
-  function paintTypewriterProgress(container) {
-    if (!typewriter) return;
-    const row = rowForMessageId(container, typewriter.id);
-    const content = row ? row.querySelector('.message-content') : null;
-    if (!content) return;
-    content.textContent = typewriter.tokens.slice(0, typewriter.shown).join('');
-    content.classList.add('crump-typewriter-active');
-    if (typewriter.stickToBottom) container.scrollTop = container.scrollHeight;
-  }
-
-  function finishTypewriter(container) {
-    if (!typewriter) return;
-    stopTypewriterTimer();
-    const row = rowForMessageId(container, typewriter.id);
-    const content = row ? row.querySelector('.message-content') : null;
-    if (content) {
-      content.innerHTML = typewriter.fullHTML;
-      content.classList.remove('crump-typewriter-active');
-    }
-    typewriter = null;
-  }
-
-  function tickTypewriter(container) {
-    if (!typewriter) return;
-    typewriter.shown += 1;
-    if (typewriter.shown >= typewriter.tokens.length) {
-      finishTypewriter(container);
-      return;
-    }
-    paintTypewriterProgress(container);
-  }
-
-  function maybeTypewriterReveal(container, messages, lastAssistantIndex) {
-    if (!typewriterEnabled() || lastAssistantIndex < 0 || !container) return;
-    const message = messages[lastAssistantIndex];
-    const id = String(message?.id || '');
-    const plain = String(message?.content || '');
-    if (!id || !plain.trim()) return;
-    if (typewriter && typewriter.id === id) {
-      // Same message re-rendered (presence tick, wrapper pass): resume the
-      // reveal on the fresh node instead of restarting or dropping it.
-      paintTypewriterProgress(container);
-      return;
-    }
-    // A previous reveal is still running for an older message: settle it on
-    // its own row before starting the new one.
-    if (typewriter) finishTypewriter(container);
-    const row = rowForMessageId(container, id);
-    const fullHTML = row?.querySelector('.message-content')?.innerHTML || '';
-    const tokens = plain.split(/(\s+)/);
-    const perToken = tokens.length * 14 <= 2200 ? 14 : 2200 / tokens.length;
-    typewriter = {
-      id,
-      tokens,
-      fullHTML,
-      shown: 0,
-      stickToBottom:
-        container.scrollHeight - container.scrollTop - container.clientHeight < 140,
-      timer: null,
-    };
-    paintTypewriterProgress(container);
-    typewriter.timer = setInterval(() => tickTypewriter(container), Math.max(8, perToken));
-    // Safety net: never leave unformatted partial text on screen.
-    setTimeout(() => {
-      if (typewriter && typewriter.id === id) finishTypewriter(container);
-    }, 6000);
-  }
-
   function renderMessages(messages) {
     const container = document.getElementById('chatContainer');
     if (!container) return;
@@ -1309,8 +1206,6 @@
     // viewport position for the user. Restore only if the browser clamped the
     // existing numeric offset during the synchronous replacement.
     if (container.scrollTop !== preservedScrollTop) container.scrollTop = preservedScrollTop;
-    // Simulated streaming: reveal a brand-new assistant message word-by-word.
-    maybeTypewriterReveal(container, safeMessages, lastAssistantIndex);
   }
 
   window.renderMessages = renderMessages;

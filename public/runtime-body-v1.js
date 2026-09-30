@@ -21,7 +21,7 @@ window.CRUMP_CONFIG = Object.freeze({
   const workspaceStyles = Object.freeze([
     ['/billing.css', 'workspacebilling'],
     ['/onboarding.css?v=5.9.76-video-destination-1', 'workspaceonboarding'],
-    ['/conversation.css?v=5.9.76-continuity-handoff-1', 'workspaceconversation'],
+    ['/conversation.css?v=5.9.76-muse-release-repair-1', 'workspaceconversation'],
     ['/crump-4.3.css', 'crump43'],
     ['/crump-4.4.css', 'crump44'],
     ['/crump-5.0.css?v=5.9.76-reference-fidelity-hard-contract-1', 'crump50'],
@@ -41,16 +41,20 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/crump-navigation-5.9.30.css?v=5.9.76-mobile-drawer-destinations-1', 'crumpnav5930'],
   ]);
 
+  const finalStyles = Object.freeze([
+    ['/crump-design-pass.css?v=5.9.76-muse-release-repair-1', 'crumpdesignpass'],
+  ]);
+
   const workspaceScripts = Object.freeze([
     ['/onboarding.js?v=5.9.76-brand-retina-1', 'workspaceonboarding'],
-    ['/scroll-manager.js?v=5.9.76-user-controlled-scroll-1', 'workspacescroll'],
+    ['/scroll-manager.js?v=5.9.76-muse-release-repair-1', 'workspacescroll'],
     ['/profile-manager.js', 'workspaceprofile'],
     ['/billing-manager.js?v=5.9.76-stripe-destination-integrity-1', 'workspacebilling'],
     ['/subscription-ui.js?v=5.9.76-commerce-recovery-1', 'workspacesubscription'],
     ['/credit-confirmation.js?v=5.9.76-credit-confirmation-1', 'workspacecreditconfirmation'],
     ['/chat-resilience.js?v=5.9.76-credit-confirmation-1', 'workspacechatresilience'],
-    ['/ui-functions.js?v=5.9.76-project-save-offer-1', 'workspaceui'],
-    ['/presence-manager.js?v=5.9.76', 'workspacepresence'],
+    ['/ui-functions.js?v=5.9.76-muse-release-repair-1', 'workspaceui'],
+    ['/presence-manager.js?v=5.9.76-muse-release-repair-1', 'workspacepresence'],
     ['/sync-manager.js?v=5.9.76-sync-cursor-1', 'workspacesync'],
     ['/chat-sync.js?v=5.9.76-settings-sync-1', 'workspacechatsync'],
     ['/account-manager.js?v=5.9.76-account-storage-deletion-1', 'workspaceaccount'],
@@ -65,8 +69,8 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/crump-precision-image-edit-loader.js?v=5.9.76-reference-fidelity-hard-contract-1', 'crumpprecisionloader'],
     ['/crump-billing-5.1.js?v=5.9.76-checkout-destination-label-1', 'billing51'],
     ['/crump-5.2.js?v=5.9.76-plan-status-line-1', 'crump52'],
-    ['/crump-5.2.2.js?v=5.9.76-stripe-destination-integrity-1', 'crump522'],
-    ['/crump-v1-body.js?v=5.9.76-navigation-discovery-1', 'crumpbodyv1'],
+    ['/crump-5.2.2.js?v=5.9.76-muse-release-repair-1', 'crump522'],
+    ['/crump-v1-body.js?v=5.9.76-muse-release-repair-1', 'crumpbodyv1'],
     ['/crump-v1-stability.js?v=5.9.76-intelligence-architecture-1', 'crumpv1stability'],
   ]);
 
@@ -178,14 +182,15 @@ window.CRUMP_CONFIG = Object.freeze({
 
   async function boot() {
     document.documentElement.dataset.crumpBodyRuntime = 'loading';
-    // Insert every stylesheet in final cascade order before awaiting the network.
-    // CSS keeps DOM-order authority while downloading concurrently.
-    const stylesReady = Promise.all(
+    // Fetch the base cascade concurrently, including any retry, before inserting
+    // the final refinement sheet so it keeps last-in-cascade authority.
+    const baseStylesReady = Promise.all(
       [...workspaceStyles, ...enhancementStyles].map(([url, key]) => loadStyle(url, key)),
     );
     // Fetch classic scripts in parallel, then preserve the proven execution order below.
     primeScripts(scriptPlan);
-    await stylesReady;
+    await baseStylesReady;
+    for (const [url, key] of finalStyles) await loadStyle(url, key);
 
     for (const [url, key] of scriptPlan) {
       await loadScript(url, key);

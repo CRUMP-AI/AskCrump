@@ -11,6 +11,7 @@
     <output id="runtimeState" aria-label="Runtime state">starting</output>
     <output id="styleCount" aria-label="Styles requested">0</output>
     <output id="maxStyles" aria-label="Maximum concurrent styles">0</output>
+    <output id="lastStyle" aria-label="Last requested style">none</output>
     <output id="preloadCount" aria-label="Scripts preloaded before execution">0</output>
     <output id="scriptCount" aria-label="Scripts executed">0</output>
     <output id="firstScript" aria-label="First executed script">none</output>
@@ -32,6 +33,7 @@
     let activeStyles = 0;
     let maximumStyles = 0;
     let stylesRequested = 0;
+    const requestedStyles = [];
     let preloadsBeforeExecution = 0;
     let executionStarted = false;
     let firstStyleAttempts = 0;
@@ -58,6 +60,7 @@
     document.head.appendChild = node => {
       if (node.tagName === 'LINK' && node.rel === 'stylesheet') {
         const asset = assetName(node.href);
+        requestedStyles.push(asset);
         if (asset === '/billing.css') firstStyleAttempts += 1;
         stylesRequested += 1;
         activeStyles += 1;
@@ -116,6 +119,7 @@
       setOutput('runtimeState', document.documentElement.dataset.crumpBodyRuntime || 'missing');
       setOutput('styleCount', stylesRequested);
       setOutput('maxStyles', maximumStyles);
+      setOutput('lastStyle', requestedStyles.at(-1) || 'none');
       setOutput('preloadCount', preloadsBeforeExecution);
       setOutput('scriptCount', executedScripts.length);
       setOutput('firstScript', executedScripts[0] || 'none');

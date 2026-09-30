@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r253';
+const CACHE_NAME = 'ask-crump-new-body-v1-r254';
 
 const CORE = [
   '/app',
@@ -13,12 +13,13 @@ const CORE = [
   '/billing.css',
   '/install-prompt.css?v=5.9.76',
   '/onboarding.css?v=5.9.76-video-destination-1',
-  '/conversation.css?v=5.9.76-continuity-handoff-1',
+  '/conversation.css?v=5.9.76-muse-release-repair-1',
   '/auth-styles.css',
   '/crump-v1-body.css?v=5.9.76-brand-retina-1',
   '/credit-confirmation.css?v=5.9.76-credit-confirmation-1',
   '/lifecycle.css?v=5.9.76-lifecycle-activation-1',
-  '/crump-v1-body.js?v=5.9.76-navigation-discovery-1',
+  '/crump-design-pass.css?v=5.9.76-muse-release-repair-1',
+  '/crump-v1-body.js?v=5.9.76-muse-release-repair-1',
   '/crump-v1-stability.css',
   '/crump-v1-stability.js?v=5.9.76-intelligence-architecture-1',
   '/crump-navigation-5.2.5.css',
@@ -34,20 +35,20 @@ const CORE = [
   '/crump-media-save.js?v=5.9.76-library-lazy-load-1',
   '/crump-library-loader.js?v=5.9.76-library-lazy-load-1',
   '/crump-subscriptions-5.3.2.js?v=5.9.76-checkout-destination-label-1',
-  '/runtime-body-v1.js?v=5.9.76-image-studio-entry-1',
+  '/runtime-body-v1.js?v=5.9.76-muse-release-repair-1',
   '/native-runtime.js',
   '/mobile-bridge.js',
   '/safe-storage.js',
   '/install-prompt.js?v=5.9.76-update-work-guard-1',
   '/onboarding.js?v=5.9.76-brand-retina-1',
-  '/scroll-manager.js?v=5.9.76-user-controlled-scroll-1',
+  '/scroll-manager.js?v=5.9.76-muse-release-repair-1',
   '/profile-manager.js',
   '/billing-manager.js?v=5.9.76-stripe-destination-integrity-1',
   '/subscription-ui.js?v=5.9.76-commerce-recovery-1',
   '/credit-confirmation.js?v=5.9.76-credit-confirmation-1',
   '/chat-resilience.js?v=5.9.76-credit-confirmation-1',
-  '/ui-functions.js?v=5.9.76-project-save-offer-1',
-  '/presence-manager.js?v=5.9.76',
+  '/ui-functions.js?v=5.9.76-muse-release-repair-1',
+  '/presence-manager.js?v=5.9.76-muse-release-repair-1',
   '/auth-resilience.js?v=5.9.76',
   '/device-auth.js?v=5.9.76-native-billing-identity-1',
   '/sync-manager.js?v=5.9.76-sync-cursor-1',
@@ -70,8 +71,9 @@ const CORE = [
   '/crump-5.2.css',
   '/crump-5.2.js?v=5.9.76-plan-status-line-1',
   '/crump-5.2.2.css?v=5.9.76-new-response-cue-1',
-  '/crump-5.2.2.js?v=5.9.76-stripe-destination-integrity-1',
+  '/crump-5.2.2.js?v=5.9.76-muse-release-repair-1',
   '/assets/brand/crump-shell-lockup-light.webp',
+  '/assets/brand/crump-mascot.png',
 ];
 
 async function preCache() {

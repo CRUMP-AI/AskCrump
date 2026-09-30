@@ -14,19 +14,7 @@
 */
 
 /* ------------------------------------------------------------------
-   1. Message entrance — a calm rise-and-settle as replies arrive.
-   The base layer disables message animation; this restores a subtle
-   one. `prefers-reduced-motion` is already neutralized globally. */
-@keyframes dp-msg-in {
-  from { opacity: 0; transform: translateY(9px); }
-  to   { opacity: 1; transform: translateY(0); }
-}
-body.crump-v1-body .message {
-  animation: dp-msg-in .34s cubic-bezier(.2,.78,.2,1) both !important;
-}
-
-/* ------------------------------------------------------------------
-   2. Typing indicator — the base layer never sizes these dots, so in
+   1. Typing indicator - the base layer never sizes these dots, so in
    the live app they render 0x0 (invisible). Give them a proper,
    premium staggered pulse in gold. */
 @keyframes dp-dot-pulse {
@@ -63,7 +51,7 @@ body.crump-v1-body .presence-label {
 }
 
 /* ------------------------------------------------------------------
-   3. Editorial response typography — assistant prose gets the serif
+   2. Editorial response typography - assistant prose gets the serif
    display voice for headings, gold list markers, and calmer rules. */
 body.crump-v1-body .assistant-message .message-content {
   text-wrap: pretty !important;
@@ -94,7 +82,7 @@ body.crump-v1-body .assistant-message :is(code,.inline-code) {
 }
 
 /* ------------------------------------------------------------------
-   4. Launchpad — eyebrow tracking to the brand spec, chips with a
+   3. Launchpad - eyebrow tracking to the brand spec, chips with a
    softer golden hover. */
 body.crump-v1-body .v1-launchpad-greeting {
   letter-spacing: .16em !important;
@@ -104,7 +92,7 @@ body.crump-v1-body .v1-starter-chip:hover {
 }
 
 /* ------------------------------------------------------------------
-   5. Composer — the gold send button earns a soft halo when armed. */
+   4. Composer - the gold send button earns a soft halo when armed. */
 body.crump-v1-body .input-container.has-content :is(.crump50-send,#sendButton),
 body.crump-v1-body.v1-composer-active :is(.crump50-send,#sendButton) {
   box-shadow:
@@ -114,8 +102,14 @@ body.crump-v1-body.v1-composer-active :is(.crump50-send,#sendButton) {
 }
 
 /* ------------------------------------------------------------------
-   6. Micro-polish — scrollbar thumb brightens on hover. */
+   5. Micro-polish - scrollbar thumb brightens on hover. */
 body.crump-v1-body :is(.chat-container,.v1-library-list,.settings-sheet-body,.billing51-sheet,.crump44-panel-content,.crump50-sheet,.crump52-attach-sheet)::-webkit-scrollbar-thumb:hover {
   background: rgba(217,191,132,.32) !important;
   background-clip: padding-box !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.crump-v1-body .typing-dots i {
+    animation: none !important;
+  }
 }

@@ -41,7 +41,7 @@ def test_pre_message_failure_preserves_the_draft_and_explains_recovery():
     assert "Message check took too long. Your draft is still here — try again." in app
     assert "if (userMessage)" in send
     assert "} else {" in send
-    assert "showToast(error.message || 'Crump could not start this message. Try again.', 'error')" in send
+    assert "showToast(error.message || 'Hmm, that didn’t go through — want to try again?', 'error')" in send
     assert "userInput?.focus({ preventScroll: true })" in send
     assert send.index("await ensureUsageAvailable()") < send.index("userInput.value = ''")
 

@@ -1024,6 +1024,7 @@ const outcomeIssueCategoriesVersion = `${releaseVersion}-outcome-issue-categorie
 const projectSaveOfferVersion = `${releaseVersion}-project-save-offer-1`;
 const navigationDiscoveryVersion = `${releaseVersion}-navigation-discovery-1`;
 const imageStudioEntryVersion = `${releaseVersion}-image-studio-entry-1`;
+const museReleaseRepairVersion = `${releaseVersion}-muse-release-repair-1`;
 const documentDeliveryFocusedVersion = `${releaseVersion}-reference-fidelity-hard-contract-1`;
 const outcomeRefinementRecoveryVersion = `${releaseVersion}-outcome-refinement-recovery-1`;
 const authUpdateGuardVersion = `${releaseVersion}-update-work-guard-1`;
@@ -1045,6 +1046,7 @@ const referenceFidelityVersion = `${releaseVersion}-reference-fidelity-hard-cont
 const requiredBodyFiles = [
   'public/crump-v1-body.css',
   'public/crump-v1-body.js',
+  'public/crump-design-pass.css',
   'public/crump-product-5.3.css',
   'public/crump-product-5.3.js',
   'public/crump-product-loader.js',
@@ -1079,6 +1081,7 @@ const requiredBodyFiles = [
   'public/assets/brand/crump-horizontal-light.png',
   'public/assets/brand/crump-shell-lockup-light.png',
   'public/assets/brand/crump-shell-lockup-light.webp',
+  'public/assets/brand/crump-mascot.png',
   'public/assets/brand/crump-horizontal-dark.png',
   'public/assets/brand/crump-mark-master.png',
   'public/assets/brand/crump-horizontal-light-master.png',
@@ -1242,7 +1245,7 @@ if (!referringAcquisitionSource ||
   process.exit(1);
 }
 const requiredHtmlSignals = [
-  `/runtime-body-v1.js?v=${imageStudioEntryVersion}`,
+  `/runtime-body-v1.js?v=${museReleaseRepairVersion}`,
   `/auth-controller.js?v=${authControllerVersion}`,
   `/telemetry-config.js?v=${releaseVersion}`,
   '/_vercel/speed-insights/script.js',
@@ -1300,24 +1303,42 @@ if (appHtml.includes('<span>Saved</span>')) {
 }
 
 const runtime = await readFile(new URL('public/runtime-body-v1.js', repoRoot), 'utf8');
+const nativeBuildSource = await readFile(new URL('scripts/build-native.mjs', repoRoot), 'utf8');
+const finalStyleUrls = source => {
+  const start = source.indexOf('const finalStyles = Object.freeze([');
+  const end = source.indexOf(']);', start);
+  if (start < 0 || end < 0) return [];
+  return [...source.slice(start, end).matchAll(/\['([^']+)'/g)].map(match => match[1]);
+};
+const expectedFinalStyle = `/crump-design-pass.css?v=${museReleaseRepairVersion}`;
+for (const source of [runtime, nativeBuildSource]) {
+  const finalStyles = finalStyleUrls(source);
+  if (finalStyles.length !== 1 || finalStyles[0] !== expectedFinalStyle ||
+      !source.includes('of finalStyles) await loadStyle')) {
+    console.error('Web and native loaders must insert the refinement stylesheet last after base-style retries.');
+    process.exit(1);
+  }
+}
 if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/billing-manager.js?v=${stripeDestinationIntegrityVersion}`) ||
     !runtime.includes(`/onboarding.css?v=${videoDestinationVersion}`) ||
     !runtime.includes(`/onboarding.js?v=${brandDeliveryVersion}`) ||
-    !runtime.includes(`/conversation.css?v=${continuityHandoffVersion}`) ||
+    !runtime.includes(`/conversation.css?v=${museReleaseRepairVersion}`) ||
+    !runtime.includes(`/crump-design-pass.css?v=${museReleaseRepairVersion}`) ||
     !runtime.includes(`/credit-confirmation.css?v=${creditConfirmationVersion}`) ||
     !runtime.includes(`/credit-confirmation.js?v=${creditConfirmationVersion}`) ||
     !runtime.includes(`/chat-resilience.js?v=${creditConfirmationVersion}`) ||
     !runtime.includes(`/account-manager.js?v=${accountDeletionStorageVersion}`) ||
-    !runtime.includes(`/scroll-manager.js?v=${userControlledScrollVersion}`) ||
-    !runtime.includes(`/ui-functions.js?v=${projectSaveOfferVersion}`) ||
+    !runtime.includes(`/scroll-manager.js?v=${museReleaseRepairVersion}`) ||
+    !runtime.includes(`/ui-functions.js?v=${museReleaseRepairVersion}`) ||
+    !runtime.includes(`/presence-manager.js?v=${museReleaseRepairVersion}`) ||
     !runtime.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-1`) ||
     !runtime.includes(`/lifecycle-share.js?v=${settingsInviteVersion}`) ||
     !runtime.includes(`/lifecycle-manager.js?v=${lifecycleIdleSendVersion}`) ||
     !runtime.includes(`/chat-sync.js?v=${settingsSyncVersion}`) ||
     !runtime.includes(`/product-analytics.js?v=${navigationDiscoveryVersion}`) ||
     !runtime.includes(`/app.js?v=${referenceFidelityVersion}`) ||
-    !runtime.includes(`/crump-v1-body.js?v=${navigationDiscoveryVersion}`) ||
+    !runtime.includes(`/crump-v1-body.js?v=${museReleaseRepairVersion}`) ||
     !runtime.includes(`/crump-v1-body.css?v=${brandDeliveryVersion}`) ||
     !runtime.includes(`/crump-5.0.css?v=${referenceFidelityVersion}`) ||
     !runtime.includes(`/crump-5.0.js?v=${referenceFidelityVersion}`) ||
@@ -1327,7 +1348,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/crump-billing-5.1.js?v=${checkoutDestinationLabelVersion}`) ||
     !runtime.includes(`/crump-5.2.js?v=${planStatusLineVersion}`) ||
     !runtime.includes(`/crump-5.2.2.css?v=${newResponseCueVersion}`) ||
-    !runtime.includes(`/crump-5.2.2.js?v=${stripeDestinationIntegrityVersion}`) ||
+    !runtime.includes(`/crump-5.2.2.js?v=${museReleaseRepairVersion}`) ||
     !runtime.includes(`/crump-4.3.js?v=${composerActionabilityVersion}`) ||
     !runtime.includes(`/crump-4.4.js?v=${navigationDiscoveryVersion}`) ||
     !runtime.includes(`/crump-v1-stability.js?v=${intelligenceArchitectureVersion}`) ||
@@ -1414,10 +1435,11 @@ await runtimeWindow.CrumpWorkspaceRuntime.load();
 if (runtimeDocument.documentElement.dataset.crumpBodyRuntime !== 'ready' ||
     dispatchedRuntimeEvents.filter(type => type === 'crump:body-runtime-ready').length !== 1 ||
     appendedRuntimeAssets.length !== loadedRuntimeAssetCount ||
-    loadedRuntimeStyles.length !== 17 ||
+    loadedRuntimeStyles.length !== 18 ||
     preloadedRuntimeScripts.length !== 34 ||
     loadedRuntimeScripts.length !== 34 ||
     !loadedRuntimeScripts.every(asset => preloadedRuntimeScripts.includes(asset)) ||
+    loadedRuntimeStyles.at(-1) !== expectedFinalStyle ||
     loadedRuntimeScripts.indexOf(`/credit-confirmation.js?v=${creditConfirmationVersion}`) > loadedRuntimeScripts.indexOf(`/app.js?v=${referenceFidelityVersion}`) ||
     loadedRuntimeScripts.indexOf(`/app.js?v=${referenceFidelityVersion}`) > loadedRuntimeScripts.indexOf(`/crump-4.3.js?v=${composerActionabilityVersion}`) ||
     loadedRuntimeScripts.at(-1) !== `/lifecycle-manager.js?v=${lifecycleIdleSendVersion}`) {
@@ -1460,6 +1482,11 @@ if (!v1Body.includes('removeLegacyEmptyState(container)')) {
   console.error('V1 must remove stale legacy empty-state nodes.');
   process.exit(1);
 }
+if (!v1Body.includes("const chips = $$('[data-starter-prompt]');") ||
+    !v1Body.includes("input.dispatchEvent(new Event('input', {bubbles: true}));")) {
+  console.error('Every starter prompt must have an explicit owner and update the composer action state.');
+  process.exit(1);
+}
 const projectChatInjection = product53.slice(
   product53.indexOf('function injectProjectIntoChatRequests'),
   product53.indexOf('function injectNavigation'),
@@ -1498,28 +1525,30 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
-if (!serviceWorker.includes('ask-crump-new-body-v1-r253') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r254') ||
     !serviceWorker.includes("'/assets/brand/crump-shell-lockup-light.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-shell-lockup-light.png'") ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
-    !serviceWorker.includes(`/runtime-body-v1.js?v=${imageStudioEntryVersion}`) ||
-    !serviceWorker.includes(`/conversation.css?v=${continuityHandoffVersion}`) ||
+    !serviceWorker.includes(`/runtime-body-v1.js?v=${museReleaseRepairVersion}`) ||
+    !serviceWorker.includes(`/conversation.css?v=${museReleaseRepairVersion}`) ||
+    !serviceWorker.includes(`/crump-design-pass.css?v=${museReleaseRepairVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.css?v=${creditConfirmationVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.js?v=${creditConfirmationVersion}`) ||
     !serviceWorker.includes(`/chat-resilience.js?v=${creditConfirmationVersion}`) ||
     !serviceWorker.includes(`/account-manager.js?v=${accountDeletionStorageVersion}`) ||
     !serviceWorker.includes(`/crump-5.0.css?v=${referenceFidelityVersion}`) ||
-    !serviceWorker.includes(`/scroll-manager.js?v=${userControlledScrollVersion}`) ||
+    !serviceWorker.includes(`/scroll-manager.js?v=${museReleaseRepairVersion}`) ||
     !serviceWorker.includes(`/crump-5.0.js?v=${referenceFidelityVersion}`) ||
     !serviceWorker.includes(`/crump-precision-image-edit-loader.js?v=${referenceFidelityVersion}`) ||
     serviceWorker.includes(`/crump-precision-image-edit.css?v=${precisionEditStudioVersion}`) ||
     serviceWorker.includes(`/crump-precision-image-edit.js?v=${liveImagePreviewVersion}`) ||
-    !serviceWorker.includes(`/ui-functions.js?v=${projectSaveOfferVersion}`) ||
+    !serviceWorker.includes(`/ui-functions.js?v=${museReleaseRepairVersion}`) ||
+    !serviceWorker.includes(`/presence-manager.js?v=${museReleaseRepairVersion}`) ||
     !serviceWorker.includes(`/app.js?v=${referenceFidelityVersion}`) ||
     !serviceWorker.includes(`/crump-5.2.2.css?v=${newResponseCueVersion}`) ||
-    !serviceWorker.includes(`/crump-5.2.2.js?v=${stripeDestinationIntegrityVersion}`) ||
+    !serviceWorker.includes(`/crump-5.2.2.js?v=${museReleaseRepairVersion}`) ||
     !serviceWorker.includes(`/onboarding.css?v=${videoDestinationVersion}`) ||
     !serviceWorker.includes(`/onboarding.js?v=${brandDeliveryVersion}`) ||
     !serviceWorker.includes(`/crump-polish-5.6.js?v=${videoDestinationVersion}`) ||
@@ -1567,7 +1596,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r253') ||
     !serviceWorker.includes("url.pathname === '/install-prompt.css'") ||
     !serviceWorker.includes("url.pathname === '/sync-manager.js'") ||
     !serviceWorker.includes("url.pathname === '/auth-controller.js'") ||
-    !serviceWorker.includes(`/crump-v1-body.js?v=${navigationDiscoveryVersion}`) ||
+    !serviceWorker.includes(`/crump-v1-body.js?v=${museReleaseRepairVersion}`) ||
     !serviceWorker.includes('/crump-navigation-5.2.5.js?v=5.9.76-chats-language-1') ||
     !serviceWorker.includes("url.pathname === '/crump-navigation-5.2.5.js'") ||
     !serviceWorker.includes("url.pathname === '/crump-navigation-5.2.5.css'") ||
@@ -1788,6 +1817,8 @@ if (freshRegistrationScenario.afterLoad !== 0 || freshRegistrationScenario.after
 }
 
 const uiFunctions = await readFile(new URL('public/ui-functions.js', repoRoot), 'utf8');
+const presenceManager = await readFile(new URL('public/presence-manager.js', repoRoot), 'utf8');
+const designPass = await readFile(new URL('public/crump-design-pass.css', repoRoot), 'utf8');
 const projectRelationshipGuard = uiFunctions.slice(
   uiFunctions.indexOf('async function hydrateOutcomeProjectAction'),
   uiFunctions.indexOf('function syncOutcomeProjectActions'),
@@ -1977,8 +2008,32 @@ if (!chatResilience.includes("!['prompt_or_reference', 'reference'].includes(cha
 }
 if (!uiFunctions.includes('const preservedScrollTop = container.scrollTop;') ||
     !uiFunctions.includes('if (container.scrollTop !== preservedScrollTop) container.scrollTop = preservedScrollTop;') ||
-    uiFunctions.includes("window.crumpScrollManager.scrollToBottom('auto')")) {
+    uiFunctions.includes("window.crumpScrollManager.scrollToBottom('auto')") ||
+    uiFunctions.includes('typewriter') ||
+    uiFunctions.includes('container.scrollTop = container.scrollHeight')) {
   console.error('Conversation rendering must preserve the user-selected viewport without automatic movement.');
+  process.exit(1);
+}
+const presenceExpansionTimer = presenceManager.slice(
+  presenceManager.indexOf('activityTimer = setTimeout'),
+  presenceManager.indexOf('// Rotate the visible verb'),
+);
+const presenceRotationTimer = presenceManager.slice(
+  presenceManager.indexOf('warmVerbTimer = setInterval'),
+  presenceManager.indexOf('function update'),
+);
+if (presenceExpansionTimer.includes('rerender()') ||
+    presenceRotationTimer.includes('rerender()') ||
+    !presenceManager.includes('refreshVisiblePresence({ensureLabel: true});') ||
+    !presenceManager.includes('refreshVisiblePresence();')) {
+  console.error('Presence timers must update their visible status without rebuilding conversation nodes.');
+  process.exit(1);
+}
+if (appHtml.includes('/crump-design-pass.css') ||
+    designPass.includes('@keyframes dp-msg-in') ||
+    !designPass.includes('@media (prefers-reduced-motion: reduce)') ||
+    !designPass.includes('animation: none !important;')) {
+  console.error('Design polish must remain authenticated, message-stable, and reduced-motion safe.');
   process.exit(1);
 }
 if (!scroll522.includes('function jumpToNewest()') ||
@@ -1988,6 +2043,8 @@ if (!scroll522.includes('function jumpToNewest()') ||
     !scroll522.includes('scrollToMessageTop: () => undefined') ||
     scroll522.includes('anchorNewReply') ||
     scroll522.includes('activeReplyShouldHold') ||
+    !scroll522.includes("behavior: 'auto'") ||
+    scroll522.includes("behavior: 'smooth'") ||
     (scroll522.match(/\.scrollTo\(/g) || []).length !== 1) {
   console.error('Only the explicit newest-message control may move the enhanced conversation feed.');
   process.exit(1);
@@ -1996,6 +2053,8 @@ if (!baseScroll.includes('function jumpToNewest(event)') ||
     !baseScroll.includes('scrollToBottom: () => undefined') ||
     !baseScroll.includes('autoScrollToBottom: () => undefined') ||
     !baseScroll.includes('scrollToMessageTop: () => undefined') ||
+    !baseScroll.includes("behavior: 'auto'") ||
+    baseScroll.includes("behavior: 'smooth'") ||
     (baseScroll.match(/\.scrollTo\(/g) || []).length !== 1) {
   console.error('Only the explicit newest-message control may move the base conversation feed.');
   process.exit(1);

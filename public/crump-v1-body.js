@@ -390,7 +390,7 @@
 
   // Tappable conversation starters: prefill the composer with a prompt.
   function wireStarterChips() {
-    const chips = $$('#v1StarterChips .v1-starter-chip');
+    const chips = $$('[data-starter-prompt]');
     if (!chips.length) return;
     const input = byId('userInput');
     if (!input) return;
@@ -399,6 +399,7 @@
       chip.dataset.starterWired = 'true';
       chip.addEventListener('click', () => {
         input.value = chip.dataset.starterPrompt || chip.textContent.trim();
+        input.dispatchEvent(new Event('input', {bubbles: true}));
         input.style.height = 'auto';
         input.style.height = input.scrollHeight + 'px';
         input.focus({ preventScroll: true });

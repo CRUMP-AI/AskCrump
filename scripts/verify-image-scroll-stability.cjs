@@ -89,11 +89,38 @@ const { chromium } = require('playwright');
     const imageIdentity = [initialImageIsStable()];
     const uploadedImageIdentity = [uploadedImageIsStable()];
 
-    window.__setPresence(true);
-    window.renderMessages(window.chats[0].messages);
+    const renderCallsBeforePresence = window.__renderCalls;
+    window.CrumpPresence.start('thinking');
     await new Promise(resolve => setTimeout(resolve, 80));
     const afterPresence = Math.round(chat.scrollTop);
     const presencePending = document.getElementById('scrollToEndBtn')?.dataset.newResponse || '';
+    window.__presenceNode = document.querySelector('.presence-message');
+    const renderCallsAfterPresenceStart = window.__renderCalls;
+    imageIdentity.push(initialImageIsStable());
+    uploadedImageIdentity.push(uploadedImageIsStable());
+
+    await new Promise(resolve => setTimeout(resolve, 2900));
+    const afterPresenceExpansion = Math.round(chat.scrollTop);
+    const renderCallsAfterPresenceExpansion = window.__renderCalls;
+    const expansionPresenceNodeStable = document.querySelector('.presence-message') === window.__presenceNode;
+    const expansionLabel = document.querySelector('.presence-message .presence-label')?.textContent || '';
+    imageIdentity.push(initialImageIsStable());
+    uploadedImageIdentity.push(uploadedImageIsStable());
+
+    await new Promise(resolve => setTimeout(resolve, 1450));
+    const afterPresenceRotation = Math.round(chat.scrollTop);
+    const renderCallsAfterPresenceRotation = window.__renderCalls;
+    const rotationPresenceNodeStable = document.querySelector('.presence-message') === window.__presenceNode;
+    const rotationLabel = document.querySelector('.presence-message .presence-label')?.textContent || '';
+    imageIdentity.push(initialImageIsStable());
+    uploadedImageIdentity.push(uploadedImageIsStable());
+
+    window.CrumpPresence.update('searching');
+    await new Promise(resolve => setTimeout(resolve, 40));
+    const afterPresenceUpdate = Math.round(chat.scrollTop);
+    const renderCallsAfterPresenceUpdate = window.__renderCalls;
+    const updatePresenceNodeStable = document.querySelector('.presence-message') === window.__presenceNode;
+    const updateLabel = document.querySelector('.presence-message .presence-label')?.textContent || '';
     imageIdentity.push(initialImageIsStable());
     uploadedImageIdentity.push(uploadedImageIsStable());
 
@@ -180,6 +207,20 @@ const { chromium } = require('playwright');
       before,
       afterPresence,
       presencePending,
+      renderCallsBeforePresence,
+      renderCallsAfterPresenceStart,
+      afterPresenceExpansion,
+      renderCallsAfterPresenceExpansion,
+      expansionPresenceNodeStable,
+      expansionLabel,
+      afterPresenceRotation,
+      renderCallsAfterPresenceRotation,
+      rotationPresenceNodeStable,
+      rotationLabel,
+      afterPresenceUpdate,
+      renderCallsAfterPresenceUpdate,
+      updatePresenceNodeStable,
+      updateLabel,
       afterReply,
       replyCue,
       afterStream,
@@ -198,6 +239,31 @@ const { chromium } = require('playwright');
   assert(userControlledResult.before > 0);
   assert.equal(userControlledResult.afterPresence, userControlledResult.before);
   assert.equal(userControlledResult.presencePending, '');
+  assert.equal(
+    userControlledResult.renderCallsAfterPresenceStart,
+    userControlledResult.renderCallsBeforePresence + 1,
+  );
+  assert.equal(userControlledResult.afterPresenceExpansion, userControlledResult.before);
+  assert.equal(
+    userControlledResult.renderCallsAfterPresenceExpansion,
+    userControlledResult.renderCallsAfterPresenceStart,
+  );
+  assert.equal(userControlledResult.expansionPresenceNodeStable, true);
+  assert.equal(userControlledResult.expansionLabel, 'Crump is thinking…');
+  assert.equal(userControlledResult.afterPresenceRotation, userControlledResult.before);
+  assert.equal(
+    userControlledResult.renderCallsAfterPresenceRotation,
+    userControlledResult.renderCallsAfterPresenceStart,
+  );
+  assert.equal(userControlledResult.rotationPresenceNodeStable, true);
+  assert.equal(userControlledResult.rotationLabel, 'Crump is connecting the thread…');
+  assert.equal(userControlledResult.afterPresenceUpdate, userControlledResult.before);
+  assert.equal(
+    userControlledResult.renderCallsAfterPresenceUpdate,
+    userControlledResult.renderCallsAfterPresenceStart,
+  );
+  assert.equal(userControlledResult.updatePresenceNodeStable, true);
+  assert.equal(userControlledResult.updateLabel, 'Crump is searching…');
   assert.equal(userControlledResult.afterReply, userControlledResult.before);
   assert.equal(userControlledResult.replyCue.pending, 'true');
   assert.equal(userControlledResult.replyCue.label, 'New response available. Jump to newest message');
@@ -221,14 +287,35 @@ const { chromium } = require('playwright');
   assert.equal(imageRequests.get('changed-reference'), 1);
   assert.equal(userControlledResult.jumpVisible, true);
 
-  await page.locator('#scrollToEndBtn').click();
-  await page.waitForFunction(() => {
+  const presenceStopResult = await page.evaluate(() => {
     const chat = document.getElementById('chatContainer');
-    return chat && Math.round(chat.scrollHeight - chat.scrollTop - chat.clientHeight) <= 1;
-  }, undefined, {timeout: 5000});
-  const explicitJumpDistance = await page.locator('#chatContainer').evaluate(chat => (
-    Math.round(chat.scrollHeight - chat.scrollTop - chat.clientHeight)
-  ));
+    const scrollTop = Math.round(chat.scrollTop);
+    const image = document.querySelector('[data-message-id="image-answer"] .message-image');
+    const renderCalls = window.__renderCalls;
+    window.CrumpPresence.stop();
+    return {
+      before: scrollTop,
+      after: Math.round(chat.scrollTop),
+      imageStable: document.querySelector('[data-message-id="image-answer"] .message-image') === image,
+      renderCallsBefore: renderCalls,
+      renderCallsAfter: window.__renderCalls,
+      presenceRemoved: !document.querySelector('.presence-message'),
+    };
+  });
+  assert.equal(presenceStopResult.after, presenceStopResult.before);
+  assert.equal(presenceStopResult.imageStable, true);
+  assert.equal(presenceStopResult.renderCallsAfter, presenceStopResult.renderCallsBefore + 1);
+  assert.equal(presenceStopResult.presenceRemoved, true);
+
+  const explicitJump = await page.evaluate(() => {
+    const chat = document.getElementById('chatContainer');
+    const before = Math.round(chat.scrollHeight - chat.scrollTop - chat.clientHeight);
+    document.getElementById('scrollToEndBtn').click();
+    const after = Math.round(chat.scrollHeight - chat.scrollTop - chat.clientHeight);
+    return {before, after};
+  });
+  assert(explicitJump.before > 1);
+  const explicitJumpDistance = explicitJump.after;
   assert(explicitJumpDistance <= 1);
   const clearedCue = await page.evaluate(() => ({
     pending: document.getElementById('scrollToEndBtn')?.dataset.newResponse || '',
@@ -254,6 +341,8 @@ const { chromium } = require('playwright');
     reserved,
     initialCue,
     userControlledResult,
+    presenceStopResult,
+    explicitJump,
     explicitJumpDistance,
     clearedCue,
     manualScrollResult,

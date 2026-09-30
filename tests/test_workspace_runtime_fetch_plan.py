@@ -14,12 +14,13 @@ def test_web_and_native_runtime_fetch_assets_in_parallel_without_reordering_exec
 
     for source in (web, native):
         assert "const enhancementStyles = Object.freeze([" in source
+        assert "const finalStyles = Object.freeze([" in source
         assert "const finalScripts = Object.freeze([" in source
         assert "const scriptPlan = Object.freeze([" in source
         assert "function primeScript(url, key)" in source
         assert "function primeScripts(entries)" in source
         assert "primeScripts(scriptPlan);" in source
-        assert "const stylesReady = Promise.all(" in source
+        assert "const baseStylesReady = Promise.all(" in source
         assert "[...workspaceStyles, ...enhancementStyles].map" in source
         assert "async function loadStyle(url, key)" in source
         assert "async function loadScript(url, key)" in source
@@ -33,12 +34,14 @@ def test_web_and_native_runtime_fetch_assets_in_parallel_without_reordering_exec
         assert "document.documentElement.dataset.crumpBodyRuntime = 'failed';" in source
         assert "Your sign-in is safe" in source
         assert "for (const [url, key] of scriptPlan)" in source or "for (const [url,key] of scriptPlan)" in source
+        assert "of finalStyles) await loadStyle" in source
 
-        styles_start = source.index("const stylesReady = Promise.all(")
+        styles_start = source.index("const baseStylesReady = Promise.all(")
         prime_start = source.index("primeScripts(scriptPlan);", styles_start)
-        await_start = source.index("await stylesReady;", prime_start)
-        execute_start = source.index("for (const [url", await_start)
-        assert styles_start < prime_start < await_start < execute_start
+        await_start = source.index("await baseStylesReady;", prime_start)
+        final_style_start = source.index("of finalStyles) await loadStyle", await_start)
+        execute_start = source.index("of scriptPlan)", final_style_start)
+        assert styles_start < prime_start < await_start < final_style_start < execute_start
 
     assert "node.rel = 'preload';" in web
     assert "node.as = 'script';" in web
@@ -50,11 +53,11 @@ def test_parallel_runtime_asset_is_versioned_for_web_pwa_and_native():
     worker = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
 
-    asset = "/runtime-body-v1.js?v=5.9.76-image-studio-entry-1"
+    asset = "/runtime-body-v1.js?v=5.9.76-muse-release-repair-1"
     assert asset in shell
     assert asset in worker
-    assert "ask-crump-new-body-v1-r253" in worker
-    assert "ask-crump-new-body-v1-r253" in checker
+    assert "ask-crump-new-body-v1-r254" in worker
+    assert "ask-crump-new-body-v1-r254" in checker
 
 
 def test_runtime_fetch_fixture_is_credential_free_and_measures_the_full_plan():
@@ -64,6 +67,7 @@ def test_runtime_fetch_fixture_is_credential_free_and_measures_the_full_plan():
 
     assert "/public/runtime-body-v1.js?v=workspace-fetch-plan-fixture-3" in fixture
     assert 'aria-label="Maximum concurrent styles"' in fixture
+    assert 'aria-label="Last requested style"' in fixture
     assert 'aria-label="Scripts preloaded before execution"' in fixture
     assert 'aria-label="First executed script"' in fixture
     assert 'aria-label="Last executed script"' in fixture
@@ -83,8 +87,9 @@ def test_runtime_fetch_fixture_is_credential_free_and_measures_the_full_plan():
     assert "askcrump.com" not in fixture.lower()
     assert "verify-workspace-runtime-fetch-plan.cjs" in matrix
     assert "evidence.maxStyles, 17" in verifier
+    assert "evidence.lastStyle, '/crump-design-pass.css?v=5.9.76-muse-release-repair-1'" in verifier
     assert "evidence.preloadCount, 34" in verifier
-    assert "mode === 'style-retry' ? 18 : 17" in verifier
+    assert "mode === 'style-retry' ? 19 : 18" in verifier
     assert "mode === 'script-retry' ? 35 : 34" in verifier
     assert "evidence.styleAttempts, mode === 'style-retry' ? 2 : 1" in verifier
     assert "evidence.scriptAttempts, mode === 'script-retry' ? 2 : 1" in verifier
@@ -111,6 +116,7 @@ def test_returning_workspace_uses_precache_without_staling_the_shell():
     assert "verify-service-worker-returning-load.cjs" in matrix
     assert "verify-document-delivery-cache-upgrade.cjs" in matrix
     assert "verify-image-studio-entry-cache-upgrade.cjs" in matrix
+    assert "verify-muse-release-cache-upgrade.cjs" in matrix
     assert "askcrump.com" not in verifier.lower()
     assert "password" not in verifier.lower()
 
@@ -120,7 +126,7 @@ def test_image_studio_entry_replaces_the_frozen_r252_runtime_cache():
     matrix = read("scripts/verify-browser-control-matrix.mjs")
 
     assert "oldCacheName = 'ask-crump-new-body-v1-r252'" in verifier
-    assert "newCacheName = 'ask-crump-new-body-v1-r253'" in verifier
+    assert "newCacheName = 'ask-crump-new-body-v1-r254'" in verifier
     for old_url in (
         "/runtime-body-v1.js?v=5.9.76-reference-fidelity-hard-contract-1",
         "/crump-navigation-5.9.30.js?v=5.9.76-navigation-discovery-1",
@@ -128,7 +134,7 @@ def test_image_studio_entry_replaces_the_frozen_r252_runtime_cache():
     ):
         assert old_url in verifier
     for new_url in (
-        "/runtime-body-v1.js?v=5.9.76-image-studio-entry-1",
+        "/runtime-body-v1.js?v=5.9.76-muse-release-repair-1",
         "/crump-navigation-5.9.30.js?v=5.9.76-image-studio-entry-1",
         "/auth-controller.js?v=5.9.76-image-studio-entry-1",
     ):
@@ -138,3 +144,15 @@ def test_image_studio_entry_replaces_the_frozen_r252_runtime_cache():
     assert "url.searchParams.delete('signup')" in verifier
     assert "result.staleEntries" in verifier
     assert "verify-image-studio-entry-cache-upgrade.cjs" in matrix
+
+
+def test_muse_release_repair_replaces_the_immediate_r253_runtime_cache():
+    verifier = read("scripts/verify-muse-release-cache-upgrade.cjs")
+    matrix = read("scripts/verify-browser-control-matrix.mjs")
+
+    assert "oldCacheName = 'ask-crump-new-body-v1-r253'" in verifier
+    assert "newCacheName = 'ask-crump-new-body-v1-r254'" in verifier
+    assert "5.9.76-muse-release-repair-1" in verifier
+    assert "userControlledViewport: true" in verifier
+    assert "cachedRepairAssets: true" in verifier
+    assert "verify-muse-release-cache-upgrade.cjs" in matrix

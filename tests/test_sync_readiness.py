@@ -29,9 +29,9 @@ def test_changed_sync_manager_is_release_versioned_and_network_first():
     assert '<script defer src="/sync-manager.js?v=5.9.76-sync-cursor-1"></script>' not in shell
     assert "['/sync-manager.js?v=5.9.76-sync-cursor-1', 'workspacesync']" in runtime
     assert "'/sync-manager.js?v=5.9.76-sync-cursor-1'" in worker
-    assert '<script defer src="/presence-manager.js?v=5.9.76"></script>' not in shell
-    assert "['/presence-manager.js?v=5.9.76', 'workspacepresence']" in runtime
-    assert "'/presence-manager.js?v=5.9.76'" in worker
+    assert '<script defer src="/presence-manager.js?v=5.9.76-muse-release-repair-1"></script>' not in shell
+    assert "['/presence-manager.js?v=5.9.76-muse-release-repair-1', 'workspacepresence']" in runtime
+    assert "'/presence-manager.js?v=5.9.76-muse-release-repair-1'" in worker
     assert '<script defer src="/chat-sync.js?v=5.9.76-settings-sync-1"></script>' not in shell
     assert "['/chat-sync.js?v=5.9.76-settings-sync-1', 'workspacechatsync']" in runtime
     assert "'/chat-sync.js?v=5.9.76-settings-sync-1'" in worker

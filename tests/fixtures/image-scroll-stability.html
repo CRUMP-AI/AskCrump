@@ -56,15 +56,23 @@
       imageAspect: 'portrait',
     });
     window.chats = [{id: window.currentChatId, messages}];
-    let presenceActive = false;
-    window.CrumpPresence = {
-      indicator: () => presenceActive ? {activity: 'creating', expanded: true, label: 'Crump is creating…'} : null,
+    window.SafeStorage = {
+      getItem() { return null; },
+      setItem() {},
     };
-    window.__setPresence = value => { presenceActive = Boolean(value); };
   </script>
   <script src="/public/scroll-manager.js?v=user-controlled-scroll-fixture-1"></script>
   <script>window.crumpScrollManager.init();</script>
   <script src="/public/ui-functions.js?v=user-controlled-scroll-fixture-1"></script>
+  <script>
+    window.__renderCalls = 0;
+    const fixtureRenderMessages = window.renderMessages;
+    window.renderMessages = (...args) => {
+      window.__renderCalls += 1;
+      return fixtureRenderMessages(...args);
+    };
+  </script>
+  <script src="/public/presence-manager.js?v=muse-release-repair-fixture-1"></script>
   <script>window.renderMessages(messages);</script>
   <script src="/public/crump-5.2.js?v=uploaded-image-node-stability-fixture-1"></script>
   <script src="/public/crump-5.2.2.js?v=user-controlled-scroll-fixture-1"></script>
