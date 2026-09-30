@@ -31,6 +31,10 @@ field, provider call, upload, generation, credit, entitlement, checkout, or bill
 The current plan-status-line asset identity is reflected in the release contracts without changing
 plan or checkout behavior.
 
+Hosted CI also identified newly published PyJWT advisories against the pinned 2.13.0 release. The
+production and package manifests now use the first patched release, PyJWT 2.14.0; authentication
+and dependency-parity coverage must remain green before merge.
+
 ## Delivery boundary
 
 - Browser/PWA/native source asset token: `5.9.76-muse-release-repair-1`.
@@ -48,6 +52,7 @@ plan or checkout behavior.
 
 - Complete pytest suite: **100% passed with no failures**; one Starlette deprecation warning was
   reported.
+- Production dependency audit under PyJWT 2.14.0: **no known vulnerabilities found**.
 - Focused release contracts: **61/61 passed**.
 - JavaScript release contract: **54 files validated**, including **24/24**, **10/10**, and **10/10**
   runtime/attribution cases and the **21/21** store-packet self-test.

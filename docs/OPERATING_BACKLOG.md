@@ -25,6 +25,8 @@ JavaScript validated **54** files plus the **21/21** packet self-test; browser c
 with zero browser errors; and `git diff --check` passed. A user-reported Stripe QR/passkey delay is
 external to Ask Crump: Ask Crump has no QR/device-code sign-in flow, and healthy live health/session
 assets plus a stable authenticated session do not justify an Ask Crump authentication change.
+Hosted CI exposed newly published PyJWT 2.13.0 advisories; all tracked production manifests now use
+the first patched release, 2.14.0, and the production dependency audit reports no known vulnerabilities.
 Hosted CI, merge, production deployment, exact live asset/cache adoption, and post-deploy probes
 remain required before calling this candidate shipped. Evidence:
 `docs/MUSE_RELEASE_INTEGRITY_REPAIR_RELEASE_2026-09-29.md`.
