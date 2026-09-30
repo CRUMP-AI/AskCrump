@@ -1,7 +1,8 @@
 # Muse release integrity repair evidence - 2026-09-29
 
-Status: local release candidate verified; hosted CI, merge, production deployment, exact live
-asset/cache adoption, and post-deploy probes remain required before this is called shipped
+Status: shipped on `main` as commit `9ed322251452574a642cd30dc2a15823667f29f3`; hosted CI,
+production deployment, exact live asset/cache adoption, signed-in smoke testing, and post-deploy
+runtime probes passed
 
 ## Product outcome
 
@@ -31,9 +32,12 @@ field, provider call, upload, generation, credit, entitlement, checkout, or bill
 The current plan-status-line asset identity is reflected in the release contracts without changing
 plan or checkout behavior.
 
-Hosted CI also identified newly published PyJWT advisories against the pinned 2.13.0 release. The
-production and package manifests now use the first patched release, PyJWT 2.14.0; authentication
-and dependency-parity coverage must remain green before merge.
+Hosted CI identified newly published PyJWT advisories against the pinned 2.13.0 release, so the
+shipping repair advanced to PyJWT 2.14.0 and remained green through merge and production release.
+On 2026-09-30, the next verification run detected CVE-2026-101918 against 2.14.0 and three new
+brace-expansion denial-of-service advisories against the locked 5.0.9 build dependency. The
+follow-up advances every tracked PyJWT manifest to the first patched release, 2.15.0, and the
+JavaScript lock to brace-expansion 5.0.12 without changing product behavior.
 
 ## Delivery boundary
 
@@ -52,7 +56,8 @@ and dependency-parity coverage must remain green before merge.
 
 - Complete pytest suite: **100% passed with no failures**; one Starlette deprecation warning was
   reported.
-- Production dependency audit under PyJWT 2.14.0: **no known vulnerabilities found**.
+- Current production dependency audit under PyJWT 2.15.0: **no known vulnerabilities found**.
+- Current JavaScript package-lock audit under brace-expansion 5.0.12: **0 vulnerabilities**.
 - Focused release contracts: **61/61 passed**.
 - JavaScript release contract: **54 files validated**, including **24/24**, **10/10**, and **10/10**
   runtime/attribution cases and the **21/21** store-packet self-test.
@@ -73,6 +78,21 @@ and dependency-parity coverage must remain green before merge.
 - The first-action proof verified every starter prompt updates focus and composer readiness without
   clicking Send.
 - `git diff --check` passed.
+- Pull request `#47` merged as `9ed322251452574a642cd30dc2a15823667f29f3`. Head CI run
+  `36656205226`, main CI `36656663658`, Android verification `36656663627`, iOS source verification
+  `36656663596`, and the next scheduled public-destination run `36747024483` all completed
+  successfully.
+- Vercel deployment `dpl_8pQ6vitc51drFMMKHVRCqA4pCaK6` reached `READY` at
+  `2026-09-30T01:46:23.689Z` for the exact merge commit and promoted without an alias error to the
+  Ask Crump and Clever Crump production domains.
+- Live `/api/health`, `/app`, `/`, the r254 worker, runtime loader, UI, and presence assets returned
+  HTTP 200. The exact repair token, cache, and `refreshVisiblePresence` implementation were present;
+  the inspected UI asset contained neither the retired typewriter nor smooth-autoscroll marker.
+- The signed-in production workspace completed the two-stage service-worker handoff, reopened with
+  the conversation list intact, filled the composer from a starter without sending, enabled Send,
+  and returned to an empty disabled-Send state. Browser error/warning logs were empty.
+- From production readiness through `2026-09-30T23:02:00Z`, Vercel reported no grouped runtime
+  error, error/fatal log, 4xx, or 5xx response; the status view contained 1,588 HTTP 200 responses.
 
 ## External Stripe QR observation
 
@@ -81,10 +101,9 @@ found no Ask Crump QR or device-code sign-in flow. Live health/session assets we
 existing authenticated Ask Crump session remained stable. Stripe's alternate authentication path
 is the appropriate recovery route; the report does not justify an Ask Crump authentication change.
 
-## Production gate
+## Production evidence
 
-Push the isolated repair, open the pull request, and require hosted CI. After merge, verify the
-exact deployment is Ready; confirm the r254 worker and `5.9.76-muse-release-repair-1` assets on the
-production aliases; replay the signed-in starter, presence, image-stability, and explicit-jump
-paths; then inspect the initial runtime-error and severe-log window. Record those identifiers before
-calling the repair shipped.
+The release gate is closed. The exact merge, hosted checks, Ready deployment, production assets,
+signed-in starter behavior, service-worker transition, and post-deploy health window are recorded
+above. Preserve the user-controlled viewport and stable-image contracts; require a new reproducible
+defect or measured regression before changing those owners again.

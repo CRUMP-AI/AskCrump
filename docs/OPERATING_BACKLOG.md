@@ -1,6 +1,6 @@
 # Ask Crump operating backlog
 
-Last updated: 2026-09-29
+Last updated: 2026-09-30
 
 ## Operating standard
 
@@ -11,7 +11,7 @@ retention, and referral behavior. No acquisition spend should scale on impressio
 Every item below needs four things before it is called shipped: an accountable product
 outcome, privacy and safety constraints, automated coverage, and production evidence.
 
-The 2026-09-29 Muse release-integrity candidate keeps the new visual tone while restoring the
+The shipped 2026-09-29 Muse release-integrity repair keeps the new visual tone while restoring the
 previously released user-controlled viewport and stable-image contracts. It removes simulated
 typewriter delivery and replayed message entrance animation, updates rotating presence copy in
 place instead of rebuilding conversation rows, makes **Jump to newest message** immediate and
@@ -25,10 +25,17 @@ JavaScript validated **54** files plus the **21/21** packet self-test; browser c
 with zero browser errors; and `git diff --check` passed. A user-reported Stripe QR/passkey delay is
 external to Ask Crump: Ask Crump has no QR/device-code sign-in flow, and healthy live health/session
 assets plus a stable authenticated session do not justify an Ask Crump authentication change.
-Hosted CI exposed newly published PyJWT 2.13.0 advisories; all tracked production manifests now use
-the first patched release, 2.14.0, and the production dependency audit reports no known vulnerabilities.
-Hosted CI, merge, production deployment, exact live asset/cache adoption, and post-deploy probes
-remain required before calling this candidate shipped. Evidence:
+Hosted CI exposed newly published PyJWT 2.13.0 advisories, and the shipped repair advanced to the
+then-patched 2.14.0 release. Follow-up verification on 2026-09-30 detected CVE-2026-101918 against
+2.14.0 plus three brace-expansion denial-of-service advisories against the locked 5.0.9 build
+dependency. All tracked PyJWT manifests now use 2.15.0, the JavaScript lock uses brace-expansion
+5.0.12, and both current dependency audits report no known vulnerabilities.
+Pull request `#47` merged as `9ed322251452574a642cd30dc2a15823667f29f3`; head CI
+`36656205226`, main CI `36656663658`, Android `36656663627`, iOS `36656663596`, and public health
+`36747024483` passed. Deployment `dpl_8pQ6vitc51drFMMKHVRCqA4pCaK6` is Ready on the production
+aliases with r254 and `5.9.76-muse-release-repair-1` live. Signed-in starter/update smoke testing
+passed, and the through-2026-09-30T23:02:00Z post-release view contained 1,588 HTTP 200 responses
+with no grouped runtime error, error/fatal log, 4xx, or 5xx response. Evidence:
 `docs/MUSE_RELEASE_INTEGRITY_REPAIR_RELEASE_2026-09-29.md`.
 
 The 2026-09-26 Image Studio entry candidate closes the discovery gap around the reference-fidelity
