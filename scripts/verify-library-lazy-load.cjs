@@ -163,7 +163,12 @@ async function state(page) {
     await retryPage.waitForFunction(() => window.libraryOpens === 1);
     const recovered = await state(retryPage);
     assert.equal(recovered.loadedStyleNodes, 1);
-    assert.equal(recovered.loadedScriptNodes, 1);
+    assert.equal(recovered.library, true);
+    // A script can execute just before the failed style load removes its still-pending
+    // DOM node. In that valid browser ordering the retry reuses the ready library
+    // global, so there is no loaded script node to retain or request again.
+    assert.ok(recovered.loadedScriptNodes === 0 || recovered.loadedScriptNodes === 1);
+    assert.equal(recovered.scriptNodes, recovered.loadedScriptNodes);
     assert.equal(counts.get(`retry:${assetPaths.style}`), 2);
     assert.equal(counts.get(`retry:${assetPaths.script}`), 1);
     await retryContext.close();
