@@ -35,7 +35,7 @@
     "@aparajita/capacitor-secure-storage": "8.0.0",
     "@capacitor-community/media": "9.1.0",
     "@capacitor/app": "8.0.0",
-    "@capacitor/core": "8.4.3",
+    "@capacitor/core": "8.5.2",
     "@capacitor/haptics": "8.0.0",
     "@capacitor/keyboard": "8.0.0",
     "@capacitor/network": "8.0.1",
@@ -44,9 +44,9 @@
     "@capacitor/status-bar": "8.0.3"
   },
   "devDependencies": {
-    "@capacitor/android": "8.4.3",
-    "@capacitor/cli": "8.4.3",
-    "@capacitor/ios": "8.4.3",
+    "@capacitor/android": "8.5.2",
+    "@capacitor/cli": "8.5.2",
+    "@capacitor/ios": "8.5.2",
     "axe-core": "4.13.0",
     "esbuild": "0.28.2",
     "playwright": "1.63.0",
