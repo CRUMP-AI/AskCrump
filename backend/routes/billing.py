@@ -517,20 +517,97 @@ def verify_stripe_signature(body: bytes, header: str) -> bool:
     return any(hmac.compare_digest(expected, signature) for signature in signatures)
 
 
-def stripe_catalog_tier(price_id: str | None) -> str:
-    """Return the catalog plan represented by a recognized Stripe Price."""
-    if price_id == subscription_price_id('enterprise'):
+# Price rotations (a new Stripe Price on the same Product) must not silently
+# downgrade entitled subscribers to 'free'. Resolved tiers are cached per
+# process and keyed by price ID, consulted only after the exact-match fast
+# path, so catalog environment changes still take effect for current prices.
+_STRIPE_PRICE_TIER_CACHE: dict[str, str | None] = {}
+_STRIPE_TIER_PRODUCT_CACHE: dict[str, str] = {}
+
+
+async def stripe_price_tier(price_id: str | None) -> str | None:
+    """Return the catalog tier for a Stripe Price, or None when unrecognized.
+
+    An exact price-ID match is tried first. A rotated price (same Stripe
+    Product, new Price ID) is resolved through the product so an entitled
+    subscription keeps its tier while Stripe still bills it. Returns None
+    instead of guessing so callers can fail closed.
+    """
+    if not price_id:
+        return None
+    enterprise_price_id = subscription_price_id('enterprise')
+    professional_price_id = subscription_price_id('professional')
+    if price_id == enterprise_price_id:
         return 'enterprise'
-    if price_id == subscription_price_id('professional'):
+    if price_id == professional_price_id:
         return 'professional'
-    return 'free'
+    if price_id in _STRIPE_PRICE_TIER_CACHE:
+        return _STRIPE_PRICE_TIER_CACHE[price_id]
+    tier = await _stripe_price_tier_by_product(
+        price_id,
+        enterprise_price_id=enterprise_price_id,
+        professional_price_id=professional_price_id,
+    )
+    _STRIPE_PRICE_TIER_CACHE[price_id] = tier
+    return tier
 
 
-def stripe_entitlement_tier(status: str, price_id: str | None) -> str:
-    """Return the paid tier only when Stripe says the subscription is entitled."""
-    if status not in STRIPE_ENTITLED_STATUSES:
-        return 'free'
-    return stripe_catalog_tier(price_id)
+async def _stripe_configured_product_id(tier: str, price_id: str | None) -> str:
+    cached = _STRIPE_TIER_PRODUCT_CACHE.get(tier)
+    if cached is not None:
+        return cached
+    product_id = ''
+    if price_id:
+        try:
+            price = await stripe_get(f'prices/{quote(price_id, safe="")}')
+        except StripeAPIError:
+            logger.warning('Unable to resolve configured %s price for tier matching.', tier)
+        else:
+            product = price.get('product')
+            product_id = str(
+                product.get('id') if isinstance(product, dict) else product or ''
+            )
+    _STRIPE_TIER_PRODUCT_CACHE[tier] = product_id
+    return product_id
+
+
+async def _stripe_price_tier_by_product(
+    price_id: str,
+    *,
+    enterprise_price_id: str | None,
+    professional_price_id: str | None,
+) -> str | None:
+    """Map an unrecognized price to a tier via its Stripe Product."""
+    try:
+        price = await stripe_get(f'prices/{quote(price_id, safe="")}')
+    except StripeAPIError:
+        logger.warning(
+            'Unable to resolve unrecognized Stripe price id=%s during tier resolution.',
+            price_id,
+        )
+        return None
+    product = price.get('product')
+    product_id = str(product.get('id') if isinstance(product, dict) else product or '')
+    if not product_id:
+        return None
+    for tier, configured_price_id in (
+        ('enterprise', enterprise_price_id),
+        ('professional', professional_price_id),
+    ):
+        configured_product = await _stripe_configured_product_id(tier, configured_price_id)
+        if configured_product and product_id == configured_product:
+            logger.info(
+                'Matched unrecognized Stripe price id=%s to %s tier by product.',
+                price_id,
+                tier,
+            )
+            return tier
+    logger.warning(
+        'Unrecognized Stripe price id=%s (product=%s): no catalog tier matched.',
+        price_id,
+        product_id,
+    )
+    return None
 
 
 def stripe_subscription_period_end(subscription: dict[str, Any]) -> str | None:
@@ -551,9 +628,29 @@ def stripe_subscription_price_id(subscription: dict[str, Any]) -> str | None:
     return str(price.get('id') or '') or None
 
 
-def stripe_subscription_values(subscription: dict[str, Any]) -> dict[str, Any]:
+async def stripe_subscription_values(
+    subscription: dict[str, Any],
+    *,
+    previous: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     status = str(subscription.get('status') or 'inactive').lower()
-    tier = stripe_catalog_tier(stripe_subscription_price_id(subscription))
+    tier = await stripe_price_tier(stripe_subscription_price_id(subscription))
+    if tier is None:
+        if status in STRIPE_ENTITLED_STATUSES and previous is not None:
+            # Never revoke a paid tier because the price catalog is stale: an
+            # entitled subscription on a rotated or legacy price keeps its
+            # stored tier until the catalog recognizes the new price.
+            # Downgrading here is what showed "Free" while Stripe reported an
+            # active Professional subscription.
+            stored = str(previous.get('subscription_tier') or '').lower()
+            if stored in {'professional', 'enterprise'}:
+                logger.warning(
+                    'Preserving stored %s tier for entitled subscription on unrecognized price.',
+                    stored,
+                )
+                tier = stored
+        if tier is None:
+            tier = 'free'
     return {
         'stripe_subscription_id': str(subscription.get('id') or '') or None,
         'subscription_tier': tier,
@@ -611,7 +708,7 @@ async def reconcile_stripe_subscription_event(
         logger.warning('Ignoring mismatched Stripe subscription lookup event=%s', event_id)
         return False
 
-    values = stripe_subscription_values(subscription)
+    values = await stripe_subscription_values(subscription, previous=user)
     if event_type == 'customer.subscription.deleted':
         values['subscription_status'] = 'canceled'
         values['subscription_tier'] = 'free'
@@ -665,7 +762,7 @@ async def reconcile_stripe_checkout_session(
 
     values = {
         'stripe_customer_id': customer_id,
-        **stripe_subscription_values(subscription),
+        **(await stripe_subscription_values(subscription, previous=user)),
     }
     await db.update('users', values, filters={'id': eq(user_id)})
     user.update(values)
