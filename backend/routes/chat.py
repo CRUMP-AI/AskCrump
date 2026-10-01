@@ -49,6 +49,7 @@ class DurableReplyLookupUnavailable(RuntimeError):
 def _ai_error_recovery(error_code: str) -> dict | None:
     change_required = {
         'IMAGE_SAFETY_REJECTED': 'prompt_or_reference',
+        'IMAGE_PROVIDER_REJECTED': 'prompt_or_reference',
         'INVALID_IMAGE_EDIT_SOURCE': 'reference',
         'IMAGE_EDIT_SOURCE_TOO_LARGE': 'reference',
     }.get(str(error_code or '').upper())

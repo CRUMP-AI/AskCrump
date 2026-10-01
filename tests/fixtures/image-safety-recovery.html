@@ -21,7 +21,9 @@
     <output id="fixtureResult">waiting</output>
   </main>
   <script>
-    const invalidReferenceScenario = new URLSearchParams(location.search).get('scenario') === 'invalid-reference';
+    const scenario = new URLSearchParams(location.search).get('scenario') || 'safety';
+    const invalidReferenceScenario = scenario === 'invalid-reference';
+    const providerRejectedScenario = scenario === 'provider-rejected';
     const failedMessage = {
       id: '22222222-2222-4222-8222-222222222222',
       role: 'user',
@@ -31,8 +33,14 @@
       replyStatus: 'failed',
       replyError: invalidReferenceScenario
         ? 'That reference image could not be prepared for editing.'
-        : 'That image request was blocked by a safety check.',
-      replyErrorCode: invalidReferenceScenario ? 'INVALID_IMAGE_EDIT_SOURCE' : 'IMAGE_SAFETY_REJECTED',
+        : providerRejectedScenario
+          ? 'The image provider could not complete that request. Try one clear transformation at a time.'
+          : 'That image request was blocked by a safety check.',
+      replyErrorCode: invalidReferenceScenario
+        ? 'INVALID_IMAGE_EDIT_SOURCE'
+        : providerRejectedScenario
+          ? 'IMAGE_PROVIDER_REJECTED'
+          : 'IMAGE_SAFETY_REJECTED',
       replyRecovery: {
         action: 'revise_image_request',
         usageRestored: true,

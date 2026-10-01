@@ -145,6 +145,7 @@ def sanitize_message(item: Any) -> dict[str, Any] | None:
     reply_error_code = clean_text(item.get('replyErrorCode') or item.get('reply_error_code'), 80).upper()
     if role == 'user' and reply_error_code in {
         'IMAGE_SAFETY_REJECTED',
+        'IMAGE_PROVIDER_REJECTED',
         'INVALID_IMAGE_EDIT_SOURCE',
         'IMAGE_EDIT_SOURCE_TOO_LARGE',
     }:
@@ -153,7 +154,7 @@ def sanitize_message(item: Any) -> dict[str, Any] | None:
         change_required = clean_text(recovery.get('changeRequired'), 30).lower() if isinstance(recovery, dict) else ''
         expected_change = (
             'prompt_or_reference'
-            if reply_error_code == 'IMAGE_SAFETY_REJECTED'
+            if reply_error_code in {'IMAGE_SAFETY_REJECTED', 'IMAGE_PROVIDER_REJECTED'}
             else 'reference'
         )
         if isinstance(recovery, dict) and not change_required:
