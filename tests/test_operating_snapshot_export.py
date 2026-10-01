@@ -10,8 +10,11 @@ from urllib import error
 
 import pytest
 
+from backend.product_analytics import ARTIFACT_TYPES as PRODUCT_ARTIFACT_TYPES
 import scripts.export_operating_snapshot as operating_snapshot
 from scripts.export_operating_snapshot import (
+    ARTIFACT_JOURNEY_COUNT_FIELDS,
+    ARTIFACT_JOURNEY_TYPES,
     EXPECTED_SUPABASE_HOST,
     NAVIGATION_DESTINATIONS,
     PROJECT_CONTINUITY_COUNT_FIELDS,
@@ -25,6 +28,20 @@ from scripts.export_operating_snapshot import (
 SINCE = "2026-09-01T00:00:00Z"
 UNTIL = "2026-09-15T00:00:00Z"
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def artifact_journey_row(**overrides) -> dict:
+    row = {
+        "artifact_type": "document",
+        "requested": 2,
+        "packaged": 1,
+        "packaging_failed": 1,
+        "downloaded": 1,
+        "request_to_package_rate_pct": 50.0,
+        "package_to_download_rate_pct": 100.0,
+    }
+    row.update(overrides)
+    return row
 
 
 def project_continuity_row(**overrides) -> dict:
@@ -252,6 +269,255 @@ def test_snapshot_exposes_exact_retention_denominators_without_content_or_identi
         "proves_destination_selection_only": True,
         "does_not_prove_task_completion": True,
     }
+
+
+def test_artifact_journey_vocabulary_matches_product_analytics() -> None:
+    assert ARTIFACT_JOURNEY_TYPES == PRODUCT_ARTIFACT_TYPES
+
+
+def test_artifact_journey_preserves_valid_delivery_evidence() -> None:
+    sections = fixture_sections()
+    sections["product_artifact_journey_snapshot"] = [
+        artifact_journey_row(),
+        artifact_journey_row(
+            artifact_type="presentation",
+            requested=3,
+            packaged=2,
+            packaging_failed=1,
+            downloaded=1,
+            request_to_package_rate_pct=66.7,
+            package_to_download_rate_pct=50.0,
+        ),
+    ]
+
+    report = build_operating_snapshot(
+        sections,
+        since=SINCE,
+        until=UNTIL,
+        environment="production",
+        include_internal=False,
+    )
+
+    assert report["sections"]["product_artifact_journey_snapshot"] == [
+        artifact_journey_row(),
+        artifact_journey_row(
+            artifact_type="presentation",
+            requested=3,
+            packaged=2,
+            packaging_failed=1,
+            downloaded=1,
+            request_to_package_rate_pct=66.7,
+            package_to_download_rate_pct=50.0,
+        ),
+    ]
+
+
+def test_artifact_journey_accepts_an_empty_aggregate() -> None:
+    report = build_operating_snapshot(
+        fixture_sections(),
+        since=SINCE,
+        until=UNTIL,
+        environment="production",
+        include_internal=False,
+    )
+
+    assert report["sections"]["product_artifact_journey_snapshot"] == []
+
+
+@pytest.mark.parametrize(
+    ("mutate", "message"),
+    [
+        (lambda row: row.pop("packaged"), "schema drifted"),
+        (lambda row: row.update(extra=0), "schema drifted"),
+        (lambda row: row.update(artifact_type="audio"), "invalid artifact type"),
+        (lambda row: row.update(artifact_type=None), "invalid artifact type"),
+    ],
+)
+def test_artifact_journey_rejects_schema_or_category_drift(mutate, message: str) -> None:
+    sections = fixture_sections()
+    row = artifact_journey_row()
+    mutate(row)
+    sections["product_artifact_journey_snapshot"] = [row]
+
+    with pytest.raises(ValueError, match=message):
+        build_operating_snapshot(
+            sections,
+            since=SINCE,
+            until=UNTIL,
+            environment="production",
+            include_internal=False,
+        )
+
+
+def test_artifact_journey_rejects_duplicate_or_unsorted_types() -> None:
+    duplicate = fixture_sections()
+    duplicate["product_artifact_journey_snapshot"] = [
+        artifact_journey_row(),
+        artifact_journey_row(),
+    ]
+    with pytest.raises(ValueError, match="duplicate artifact type"):
+        build_operating_snapshot(
+            duplicate,
+            since=SINCE,
+            until=UNTIL,
+            environment="production",
+            include_internal=False,
+        )
+
+    unsorted = fixture_sections()
+    unsorted["product_artifact_journey_snapshot"] = [
+        artifact_journey_row(artifact_type="presentation"),
+        artifact_journey_row(),
+    ]
+    with pytest.raises(ValueError, match="canonical artifact-type order"):
+        build_operating_snapshot(
+            unsorted,
+            since=SINCE,
+            until=UNTIL,
+            environment="production",
+            include_internal=False,
+        )
+
+
+@pytest.mark.parametrize("value", [True, "1", 1.0, -1])
+@pytest.mark.parametrize("field", ARTIFACT_JOURNEY_COUNT_FIELDS)
+def test_artifact_journey_rejects_invalid_count_types_or_values(
+    field: str,
+    value,
+) -> None:
+    sections = fixture_sections()
+    row = artifact_journey_row()
+    row[field] = value
+    sections["product_artifact_journey_snapshot"] = [row]
+
+    with pytest.raises(ValueError, match="invalid nonnegative integer count"):
+        build_operating_snapshot(
+            sections,
+            since=SINCE,
+            until=UNTIL,
+            environment="production",
+            include_internal=False,
+        )
+
+
+def test_artifact_journey_rejects_an_empty_returned_row() -> None:
+    sections = fixture_sections()
+    sections["product_artifact_journey_snapshot"] = [
+        artifact_journey_row(
+            requested=0,
+            packaged=0,
+            packaging_failed=0,
+            downloaded=0,
+            request_to_package_rate_pct=None,
+            package_to_download_rate_pct=None,
+        )
+    ]
+
+    with pytest.raises(ValueError, match="at least one observed event"):
+        build_operating_snapshot(
+            sections,
+            since=SINCE,
+            until=UNTIL,
+            environment="production",
+            include_internal=False,
+        )
+
+
+@pytest.mark.parametrize(
+    ("overrides", "message"),
+    [
+        (
+            {
+                "requested": 0,
+                "request_to_package_rate_pct": 100.0,
+            },
+            "must be unavailable with a zero denominator",
+        ),
+        (
+            {
+                "packaged": 0,
+                "downloaded": 1,
+                "request_to_package_rate_pct": 0.0,
+                "package_to_download_rate_pct": 100.0,
+            },
+            "must be unavailable with a zero denominator",
+        ),
+        (
+            {
+                "requested": 3,
+                "packaged": 2,
+                "request_to_package_rate_pct": 66.6,
+                "package_to_download_rate_pct": 50.0,
+            },
+            "does not match its exact denominator",
+        ),
+        ({"request_to_package_rate_pct": True}, "invalid numeric rate"),
+        ({"request_to_package_rate_pct": "50.0"}, "invalid numeric rate"),
+        ({"request_to_package_rate_pct": float("nan")}, "invalid numeric rate"),
+        ({"request_to_package_rate_pct": float("inf")}, "invalid numeric rate"),
+    ],
+)
+def test_artifact_journey_rejects_invalid_or_inconsistent_rates(
+    overrides: dict,
+    message: str,
+) -> None:
+    sections = fixture_sections()
+    sections["product_artifact_journey_snapshot"] = [
+        artifact_journey_row(**overrides)
+    ]
+
+    with pytest.raises(ValueError, match=message):
+        build_operating_snapshot(
+            sections,
+            since=SINCE,
+            until=UNTIL,
+            environment="production",
+            include_internal=False,
+        )
+
+
+def test_artifact_journey_matches_postgres_one_decimal_rounding() -> None:
+    sections = fixture_sections()
+    sections["product_artifact_journey_snapshot"] = [
+        artifact_journey_row(
+            requested=16,
+            packaged=1,
+            packaging_failed=0,
+            downloaded=1,
+            request_to_package_rate_pct=6.3,
+            package_to_download_rate_pct=100.0,
+        )
+    ]
+
+    build_operating_snapshot(
+        sections,
+        since=SINCE,
+        until=UNTIL,
+        environment="production",
+        include_internal=False,
+    )
+
+
+def test_artifact_journey_allows_cross_window_count_ordering() -> None:
+    sections = fixture_sections()
+    sections["product_artifact_journey_snapshot"] = [
+        artifact_journey_row(
+            requested=1,
+            packaged=2,
+            packaging_failed=0,
+            downloaded=3,
+            request_to_package_rate_pct=200.0,
+            package_to_download_rate_pct=150.0,
+        )
+    ]
+
+    build_operating_snapshot(
+        sections,
+        since=SINCE,
+        until=UNTIL,
+        environment="production",
+        include_internal=False,
+    )
 
 
 def test_project_continuity_preserves_valid_conversation_artifact_and_resume_evidence() -> None:
