@@ -14,6 +14,7 @@ import scripts.export_operating_snapshot as operating_snapshot
 from scripts.export_operating_snapshot import (
     EXPECTED_SUPABASE_HOST,
     NAVIGATION_DESTINATIONS,
+    PROJECT_CONTINUITY_COUNT_FIELDS,
     build_operating_snapshot,
     collect_rpc_rows,
     fetch_rpc_rows,
@@ -24,6 +25,36 @@ from scripts.export_operating_snapshot import (
 SINCE = "2026-09-01T00:00:00Z"
 UNTIL = "2026-09-15T00:00:00Z"
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def project_continuity_row(**overrides) -> dict:
+    row = {
+        "cohort_since": SINCE,
+        "cohort_until": UNTIL,
+        "offer_measurement_since": "2026-09-14T18:34:14Z",
+        "acquisition": "clevercrump",
+        "placement": None,
+        "campaign": None,
+        "creative": None,
+        "intent": None,
+        "accounts_created": 1,
+        "activation_reached": 0,
+        "project_save_offer_shown": 0,
+        "project_save_offer_to_intent": 0,
+        "project_save_offer_without_later_intent": 0,
+        "project_save_intent_without_prior_offer": 0,
+        "project_save_intent_reached": 0,
+        "project_save_completed": 0,
+        "project_save_paired_completion": 0,
+        "project_save_intent_without_completion": 0,
+        "project_save_completion_without_intent": 0,
+        "project_resumed_after_save": 0,
+        "offer_to_intent_rate_pct": None,
+        "intent_to_completion_rate_pct": None,
+        "completion_to_resume_rate_pct": None,
+    }
+    row.update(overrides)
+    return row
 
 
 def fixture_sections() -> dict[str, list[dict]]:
@@ -82,6 +113,45 @@ def fixture_sections() -> dict[str, list[dict]]:
         "editable_artifact_ready": False,
         "proof_ready": False,
     }]
+    sections["product_project_continuity_snapshot"] = [
+        project_continuity_row(
+            accounts_created=2,
+            activation_reached=2,
+            project_save_offer_shown=2,
+            project_save_offer_to_intent=1,
+            project_save_offer_without_later_intent=1,
+            project_save_intent_reached=1,
+            project_save_completed=1,
+            project_save_paired_completion=1,
+            offer_to_intent_rate_pct=50.0,
+            intent_to_completion_rate_pct=100.0,
+            completion_to_resume_rate_pct=0.0,
+        ),
+        project_continuity_row(
+            acquisition="organic",
+            activation_reached=1,
+            project_save_completed=1,
+            project_save_completion_without_intent=1,
+            completion_to_resume_rate_pct=0.0,
+        ),
+        project_continuity_row(
+            acquisition="facebook",
+            placement="organic-social",
+            campaign="real-product-continuity",
+            creative="continuity-feed",
+            intent="projects",
+            activation_reached=1,
+            project_save_offer_shown=1,
+            project_save_offer_to_intent=1,
+            project_save_intent_reached=1,
+            project_save_completed=1,
+            project_save_paired_completion=1,
+            project_resumed_after_save=1,
+            offer_to_intent_rate_pct=100.0,
+            intent_to_completion_rate_pct=100.0,
+            completion_to_resume_rate_pct=100.0,
+        ),
+    ]
     sections["product_navigation_discovery_snapshot"] = [
         {
             "measurement_since": "2026-09-14T20:57:00+00:00",
@@ -182,6 +252,303 @@ def test_snapshot_exposes_exact_retention_denominators_without_content_or_identi
         "proves_destination_selection_only": True,
         "does_not_prove_task_completion": True,
     }
+
+
+def test_project_continuity_preserves_valid_conversation_artifact_and_resume_evidence() -> None:
+    report = build_operating_snapshot(
+        fixture_sections(),
+        since=SINCE,
+        until=UNTIL,
+        environment="production",
+        include_internal=False,
+    )
+
+    rows = report["sections"]["product_project_continuity_snapshot"]
+    assert len(rows) == 3
+    assert rows[0]["project_save_paired_completion"] == 1
+    assert rows[1]["project_save_completion_without_intent"] == 1
+    assert rows[2]["project_resumed_after_save"] == 1
+
+
+def test_project_continuity_accepts_an_empty_aggregate() -> None:
+    sections = fixture_sections()
+    sections["product_project_continuity_snapshot"] = []
+
+    report = build_operating_snapshot(
+        sections,
+        since=SINCE,
+        until=UNTIL,
+        environment="production",
+        include_internal=False,
+    )
+
+    assert report["sections"]["product_project_continuity_snapshot"] == []
+
+
+def test_project_continuity_rejects_an_impossible_zero_account_row() -> None:
+    sections = fixture_sections()
+    sections["product_project_continuity_snapshot"] = [
+        project_continuity_row(accounts_created=0)
+    ]
+
+    with pytest.raises(ValueError, match="must contain at least one account"):
+        build_operating_snapshot(
+            sections,
+            since=SINCE,
+            until=UNTIL,
+            environment="production",
+            include_internal=False,
+        )
+
+
+@pytest.mark.parametrize(
+    ("mutate", "message"),
+    [
+        (
+            lambda row: row.pop("project_save_completed"),
+            "schema drifted",
+        ),
+        (
+            lambda row: row.update(invented_metric=1),
+            "schema drifted",
+        ),
+        (
+            lambda row: row.update(acquisition=[]),
+            "invalid attribution tuple",
+        ),
+    ],
+)
+def test_project_continuity_rejects_schema_or_dimension_drift(mutate, message: str) -> None:
+    sections = fixture_sections()
+    mutate(sections["product_project_continuity_snapshot"][0])
+
+    with pytest.raises(ValueError, match=message):
+        build_operating_snapshot(
+            sections,
+            since=SINCE,
+            until=UNTIL,
+            environment="production",
+            include_internal=False,
+        )
+
+
+@pytest.mark.parametrize("value", [True, "1", 1.0, -1])
+def test_project_continuity_rejects_invalid_count_types_or_values(value) -> None:
+    sections = fixture_sections()
+    sections["product_project_continuity_snapshot"][0]["activation_reached"] = value
+
+    with pytest.raises(ValueError, match="invalid nonnegative integer count"):
+        build_operating_snapshot(
+            sections,
+            since=SINCE,
+            until=UNTIL,
+            environment="production",
+            include_internal=False,
+        )
+
+
+@pytest.mark.parametrize(
+    "field",
+    [field for field in PROJECT_CONTINUITY_COUNT_FIELDS if field != "accounts_created"],
+)
+def test_project_continuity_rejects_counts_above_the_account_cohort(field: str) -> None:
+    sections = fixture_sections()
+    sections["product_project_continuity_snapshot"][0][field] = 3
+
+    with pytest.raises(ValueError, match=rf"{field} above accounts_created"):
+        build_operating_snapshot(
+            sections,
+            since=SINCE,
+            until=UNTIL,
+            environment="production",
+            include_internal=False,
+        )
+
+
+def test_project_continuity_rejects_inconsistent_or_duplicate_cohorts() -> None:
+    inconsistent = fixture_sections()
+    inconsistent["product_project_continuity_snapshot"][1]["cohort_until"] = (
+        "2026-09-14T00:00:00Z"
+    )
+    with pytest.raises(ValueError, match="inconsistent reporting boundaries"):
+        build_operating_snapshot(
+            inconsistent,
+            since=SINCE,
+            until=UNTIL,
+            environment="production",
+            include_internal=False,
+        )
+
+    duplicate = fixture_sections()
+    duplicate["product_project_continuity_snapshot"].append(
+        copy.deepcopy(duplicate["product_project_continuity_snapshot"][0])
+    )
+    with pytest.raises(ValueError, match="duplicate attribution tuple"):
+        build_operating_snapshot(
+            duplicate,
+            since=SINCE,
+            until=UNTIL,
+            environment="production",
+            include_internal=False,
+        )
+
+
+@pytest.mark.parametrize(
+    ("field", "value", "message"),
+    [
+        ("cohort_since", "2026-09-02T00:00:00Z", "cohort start does not match"),
+        ("cohort_until", "2026-09-16T00:00:00Z", "cohort end does not match"),
+        (
+            "offer_measurement_since",
+            "2026-09-14T18:34:15Z",
+            "offer measurement boundary is not authoritative",
+        ),
+    ],
+)
+def test_project_continuity_rejects_non_authoritative_boundaries(
+    field: str,
+    value: str,
+    message: str,
+) -> None:
+    sections = fixture_sections()
+    for row in sections["product_project_continuity_snapshot"]:
+        row[field] = value
+
+    with pytest.raises(ValueError, match=message):
+        build_operating_snapshot(
+            sections,
+            since=SINCE,
+            until=UNTIL,
+            environment="production",
+            include_internal=False,
+        )
+
+
+def test_project_continuity_enforces_the_instrumentation_floor_for_early_windows() -> None:
+    early_since = "2026-08-01T00:00:00Z"
+    sections = fixture_sections()
+    for row in sections["product_project_continuity_snapshot"]:
+        row["cohort_since"] = "2026-08-23T09:10:55.602863Z"
+
+    build_operating_snapshot(
+        sections,
+        since=early_since,
+        until=UNTIL,
+        environment="production",
+        include_internal=False,
+    )
+
+    for row in sections["product_project_continuity_snapshot"]:
+        row["cohort_since"] = early_since
+    with pytest.raises(ValueError, match="cohort start does not match"):
+        build_operating_snapshot(
+            sections,
+            since=early_since,
+            until=UNTIL,
+            environment="production",
+            include_internal=False,
+        )
+
+
+@pytest.mark.parametrize(
+    ("mutate", "message"),
+    [
+        (
+            lambda row: row.update(project_save_offer_without_later_intent=0),
+            "invalid offer partition",
+        ),
+        (
+            lambda row: row.update(project_save_intent_without_completion=1),
+            "invalid intent partition",
+        ),
+        (
+            lambda row: row.update(project_save_completion_without_intent=1),
+            "invalid completion partition",
+        ),
+        (
+            lambda row: row.update(project_save_intent_without_prior_offer=1),
+            "more comparable intent than total intent",
+        ),
+        (
+            lambda row: row.update(accounts_created=2, project_resumed_after_save=2),
+            "resumed Projects above completions",
+        ),
+    ],
+)
+def test_project_continuity_rejects_broken_partitions(mutate, message: str) -> None:
+    sections = fixture_sections()
+    mutate(sections["product_project_continuity_snapshot"][0])
+
+    with pytest.raises(ValueError, match=message):
+        build_operating_snapshot(
+            sections,
+            since=SINCE,
+            until=UNTIL,
+            environment="production",
+            include_internal=False,
+        )
+
+
+@pytest.mark.parametrize(
+    ("row_index", "field", "value", "message"),
+    [
+        (1, "offer_to_intent_rate_pct", 0.0, "zero denominator"),
+        (0, "offer_to_intent_rate_pct", None, "invalid numeric rate"),
+        (0, "offer_to_intent_rate_pct", 50.01, "exact denominator"),
+        (0, "offer_to_intent_rate_pct", True, "invalid numeric rate"),
+        (0, "offer_to_intent_rate_pct", float("nan"), "invalid numeric rate"),
+        (0, "offer_to_intent_rate_pct", float("inf"), "invalid numeric rate"),
+    ],
+)
+def test_project_continuity_rejects_invalid_or_inconsistent_rates(
+    row_index: int,
+    field: str,
+    value,
+    message: str,
+) -> None:
+    sections = fixture_sections()
+    sections["product_project_continuity_snapshot"][row_index][field] = value
+
+    with pytest.raises(ValueError, match=message):
+        build_operating_snapshot(
+            sections,
+            since=SINCE,
+            until=UNTIL,
+            environment="production",
+            include_internal=False,
+        )
+
+
+def test_project_continuity_matches_postgres_two_decimal_rounding() -> None:
+    sections = fixture_sections()
+    row = sections["product_project_continuity_snapshot"][0]
+    row.update(
+        accounts_created=3,
+        activation_reached=3,
+        project_save_intent_reached=3,
+        project_save_completed=2,
+        project_save_paired_completion=2,
+        project_save_intent_without_completion=1,
+        intent_to_completion_rate_pct=66.67,
+    )
+
+    build_operating_snapshot(
+        sections,
+        since=SINCE,
+        until=UNTIL,
+        environment="production",
+        include_internal=False,
+    )
+
+    row["intent_to_completion_rate_pct"] = 66.66
+    with pytest.raises(ValueError, match="exact denominator"):
+        build_operating_snapshot(
+            sections,
+            since=SINCE,
+            until=UNTIL,
+            environment="production",
+            include_internal=False,
+        )
 
 
 def test_snapshot_refuses_impossible_retention_evidence() -> None:
