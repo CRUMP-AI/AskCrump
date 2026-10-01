@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Ask Crump conversational document delivery fixture</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/public/crump-5.0.css?v=conversational-document-delivery-browser-1">
+  <style>
+    body { margin:0; min-height:100vh; background:#090c10; color:#f7f3e9; font:16px/1.5 system-ui,sans-serif; }
+    main { max-width:900px; margin:0 auto; padding:24px; }
+    .input-area, .input-container { display:grid; gap:12px; }
+    textarea { width:100%; min-height:88px; font:inherit; }
+    button { font:inherit; }
+  </style>
+</head>
+<body class="crump-50">
+  <main>
+    <button id="openDocumentStudio" type="button" onclick="window.CrumpDocumentStudio?.open()">Create document</button>
+    <div id="chatContainer" aria-live="polite"></div>
+    <div class="input-area">
+      <div id="filePreview"></div>
+      <div class="input-container">
+        <button id="attachBtn" type="button">Attach</button>
+        <textarea id="userInput" aria-label="Message Crump"></textarea>
+        <button id="sendButton" type="button" aria-label="Send message">Send</button>
+      </div>
+    </div>
+    <input id="fileInput" type="file" hidden>
+    <div id="toastContainer" aria-live="polite"></div>
+  </main>
+  <script>
+    window.currentChatId = '00000000-0000-4000-8000-000000000010';
+    window.chats = [{
+      id: window.currentChatId,
+      title: 'Document delivery acceptance',
+      revision: 0,
+      updatedAt: '2026-10-01T00:00:00Z',
+      messages: [],
+    }];
+    window.__fixture = {analytics: [], syncPushes: 0, syncPulls: 0, downloadLinks: []};
+    window.saveChats = () => {};
+    window.renderChatsList = () => {};
+    window.ensureCurrentChat = () => window.chats[0];
+    window.syncChatsToServer = async () => { window.__fixture.syncPushes += 1; return {success:true}; };
+    window.syncChatsFromServer = async () => { window.__fixture.syncPulls += 1; return {success:true}; };
+    window.CrumpPresence = {start() {}, stop() {}, update() {}, haptic() {}};
+    window.CrumpAnalytics = {
+      track: async (eventName, values) => {
+        window.__fixture.analytics.push({eventName, values});
+        return true;
+      },
+    };
+    window.crumpScrollManager = {scrollToBottom() {}};
+    document.addEventListener('click', event => {
+      const link = event.target.closest('a[download]');
+      if (!link) return;
+      window.__fixture.downloadLinks.push({
+        href: link.getAttribute('href'),
+        target: link.getAttribute('target'),
+        download: link.getAttribute('download'),
+      });
+    });
+  </script>
+  <script src="/public/ui-functions.js?v=conversational-document-delivery-browser-1"></script>
+  <script>
+    window.renderMessages(window.chats[0].messages);
+  </script>
+  <script src="/public/chat-resilience.js?v=conversational-document-delivery-browser-1"></script>
+  <script src="/public/crump-5.0.js?v=conversational-document-delivery-browser-1"></script>
+</body>
+</html>

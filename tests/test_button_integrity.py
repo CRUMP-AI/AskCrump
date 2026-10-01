@@ -636,15 +636,17 @@ def test_browser_control_matrix_is_fail_closed_and_one_command() -> None:
     workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     verifier_names = sorted(path.name for path in (ROOT / "scripts").glob("verify-*.cjs"))
 
-    assert len(verifier_names) == 52
+    assert len(verifier_names) == 53
     for name in verifier_names:
         assert f"'{name}'" in runner
     assert "Browser verifier inventory drifted." in runner
     assert "Browser verifier ports are already occupied" in runner
     assert "await assertPortsAvailable();" in runner
     assert "await stopServers(servers);" in runner
+    assert "existsSync(localPython) ? localPython" in runner
     assert "existsSync(requestedBrowserExecutable)" in runner
-    assert "chromium.executablePath()" in runner
+    assert "const bundledBrowserExecutable = chromium.executablePath();" in runner
+    assert "process.platform === 'win32' ? '' : bundledBrowserExecutable" in runner
     assert "ASKCRUMP_PLAN_DELAY_RUNS" in runner
     for port in (4173, 8765, 8766, 8767, 8770):
         assert f"port: {port}" in runner
@@ -653,6 +655,9 @@ def test_browser_control_matrix_is_fail_closed_and_one_command() -> None:
     assert re.fullmatch(r"\d+\.\d+\.\d+", playwright_version)
     assert package_lock["packages"][""]["devDependencies"]["playwright"] == playwright_version
     assert package_lock["packages"]["node_modules/playwright"]["version"] == playwright_version
+    assert "actions/setup-python@v7" in workflow
+    assert 'python-version: "3.12"' in workflow
+    assert "pip install -r requirements.txt" in workflow
     assert "npx playwright install --with-deps chromium" in workflow
     assert "npm run test:browser-controls" in workflow
 
