@@ -22,6 +22,7 @@ const expectedVerifiers = Object.freeze([
   'verify-checkout-session-recovery.cjs',
   'verify-code-lazy-load.cjs',
   'verify-cross-device-verification-handoff.cjs',
+  'verify-conversational-document-delivery.cjs',
   'verify-document-delivery-cache-upgrade.cjs',
   'verify-file-delivery.cjs',
   'verify-file-library-usability.cjs',
@@ -73,7 +74,9 @@ const serverPlan = Object.freeze([
   {port: 8767, directory: root},
   {port: 8770, directory: publicDirectory},
 ]);
-const pythonExecutable = process.env.ASKCRUMP_PYTHON || (process.platform === 'win32' ? 'python' : 'python3');
+const localPython = path.join(root, '.venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
+const pythonExecutable = process.env.ASKCRUMP_PYTHON
+  || (existsSync(localPython) ? localPython : (process.platform === 'win32' ? 'python' : 'python3'));
 const verifierTimeoutMs = Math.max(30_000, Number(process.env.ASKCRUMP_BROWSER_MATRIX_TIMEOUT_MS || 120_000));
 
 function sorted(values) {
@@ -197,9 +200,16 @@ const requestedBrowserExecutable = process.env.ASKCRUMP_BROWSER_EXECUTABLE
   || process.env.ASK_CRUMP_BROWSER_PATH
   || process.env.CODEX_BROWSER_EXECUTABLE
   || '';
+const bundledBrowserExecutable = chromium.executablePath();
+if (!existsSync(bundledBrowserExecutable)) {
+  throw new Error(`Playwright Chromium is missing: ${bundledBrowserExecutable}`);
+}
+// Some legacy verifiers fall back to installed Edge when the override is empty. Keep that working
+// on Windows, where re-injecting Playwright's own path can fail with spawn UNKNOWN, while exporting
+// bundled Chromium on Linux CI so those verifiers never select a Windows-only fallback.
 const browserExecutable = requestedBrowserExecutable && existsSync(requestedBrowserExecutable)
   ? requestedBrowserExecutable
-  : chromium.executablePath();
+  : (process.platform === 'win32' ? '' : bundledBrowserExecutable);
 const environment = {
   ...process.env,
   ASKCRUMP_PLAN_DELAY_RUNS: process.env.ASKCRUMP_PLAN_DELAY_RUNS || '1',
