@@ -59,6 +59,33 @@ NAVIGATION_DESTINATIONS = (
     "intelligence",
     "code",
 )
+ARTIFACT_JOURNEY_TYPES = frozenset({
+    "document",
+    "image",
+    "video",
+    "manuscript",
+    "code",
+    "spreadsheet",
+    "presentation",
+    "pdf",
+    "project",
+    "file",
+})
+ARTIFACT_JOURNEY_COUNT_FIELDS = (
+    "requested",
+    "packaged",
+    "packaging_failed",
+    "downloaded",
+)
+ARTIFACT_JOURNEY_RATE_FIELDS = (
+    ("request_to_package_rate_pct", "packaged", "requested"),
+    ("package_to_download_rate_pct", "downloaded", "packaged"),
+)
+ARTIFACT_JOURNEY_FIELDS = frozenset(
+    ("artifact_type",)
+    + ARTIFACT_JOURNEY_COUNT_FIELDS
+    + tuple(field for field, _numerator, _denominator in ARTIFACT_JOURNEY_RATE_FIELDS)
+)
 PROJECT_CONTINUITY_COUNT_FIELDS = (
     "accounts_created",
     "activation_reached",
@@ -215,6 +242,106 @@ def collect_rpc_rows(
         ensure_aggregate_rows(rows)
         sections[rpc_name] = rows
     return sections
+
+
+def _artifact_journey_count(
+    row: dict[str, Any],
+    *,
+    row_index: int,
+    field: str,
+) -> int:
+    value = row[field]
+    if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+        raise ValueError(
+            f"Artifact journey row {row_index} has invalid nonnegative integer count {field}."
+        )
+    return value
+
+
+def _artifact_journey_rate(
+    row: dict[str, Any],
+    *,
+    row_index: int,
+    field: str,
+    numerator: int,
+    denominator: int,
+) -> None:
+    observed = row[field]
+    if denominator == 0:
+        if observed is not None:
+            raise ValueError(
+                f"Artifact journey row {row_index} rate {field} must be unavailable "
+                "with a zero denominator."
+            )
+        return
+    if not isinstance(observed, (int, float)) or isinstance(observed, bool):
+        raise ValueError(
+            f"Artifact journey row {row_index} has invalid numeric rate {field}."
+        )
+    try:
+        observed_decimal = Decimal(str(observed))
+    except InvalidOperation as exc:
+        raise ValueError(
+            f"Artifact journey row {row_index} has invalid numeric rate {field}."
+        ) from exc
+    if not observed_decimal.is_finite():
+        raise ValueError(
+            f"Artifact journey row {row_index} has invalid numeric rate {field}."
+        )
+    expected = (
+        Decimal(100) * Decimal(numerator) / Decimal(denominator)
+    ).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
+    if observed_decimal != expected:
+        raise ValueError(
+            f"Artifact journey row {row_index} rate {field} does not match "
+            "its exact denominator."
+        )
+
+
+def validate_artifact_journey(rows: list[dict[str, Any]]) -> None:
+    """Reject malformed artifact-delivery evidence before it reaches operators."""
+    ensure_aggregate_rows(rows)
+    observed_types: list[str] = []
+
+    for index, row in enumerate(rows):
+        observed_fields = {str(field) for field in row}
+        if observed_fields != ARTIFACT_JOURNEY_FIELDS:
+            missing = sorted(ARTIFACT_JOURNEY_FIELDS - observed_fields)
+            unexpected = sorted(observed_fields - ARTIFACT_JOURNEY_FIELDS)
+            raise ValueError(
+                f"Artifact journey row {index} schema drifted. "
+                f"Missing: {missing}; unexpected: {unexpected}."
+            )
+
+        artifact_type = row["artifact_type"]
+        if not isinstance(artifact_type, str) or artifact_type not in ARTIFACT_JOURNEY_TYPES:
+            raise ValueError(
+                f"Artifact journey row {index} has an invalid artifact type."
+            )
+        if artifact_type in observed_types:
+            raise ValueError("Artifact journey contains a duplicate artifact type.")
+        observed_types.append(artifact_type)
+
+        counts = {
+            field: _artifact_journey_count(row, row_index=index, field=field)
+            for field in ARTIFACT_JOURNEY_COUNT_FIELDS
+        }
+        if sum(counts.values()) == 0:
+            raise ValueError(
+                f"Artifact journey row {index} must contain at least one observed event."
+            )
+
+        for field, numerator_field, denominator_field in ARTIFACT_JOURNEY_RATE_FIELDS:
+            _artifact_journey_rate(
+                row,
+                row_index=index,
+                field=field,
+                numerator=counts[numerator_field],
+                denominator=counts[denominator_field],
+            )
+
+    if observed_types != sorted(observed_types):
+        raise ValueError("Artifact journey rows are not in canonical artifact-type order.")
 
 
 def _project_continuity_count(
@@ -536,6 +663,7 @@ def build_operating_snapshot(
     for rows in sections.values():
         ensure_aggregate_rows(rows)
 
+    validate_artifact_journey(sections["product_artifact_journey_snapshot"])
     navigation_discovery = validated_navigation_discovery(
         sections["product_navigation_discovery_snapshot"]
     )

@@ -149,6 +149,8 @@ before making a database request, excludes internal accounts unless explicitly r
 the production-only Project-limit experiment outside production, retries only transient transport
 failures, refuses to transmit the service key to any origin other than Ask Crump's exact Supabase
 project, and fails closed if an aggregate unexpectedly exposes an identity or content field.
+The artifact section also fails closed on schema, artifact-vocabulary, row-order, count, or rate
+drift while preserving an empty result and legitimate cross-window package/download counts.
 The navigation section also fails closed unless all nine fixed destinations appear exactly once in
 their canonical order with consistent denominators, valid counts, and correctly derived rates. Its
 summary proves only that a destination was selected; it must never be interpreted as proof that a
