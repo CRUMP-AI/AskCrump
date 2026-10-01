@@ -1170,6 +1170,45 @@ def test_project_save_offer_measurement_adds_a_private_comparable_exposure_denom
         assert forbidden not in return_contract
 
 
+def test_project_artifact_save_completion_is_included_in_the_private_continuity_snapshot():
+    migration = (
+        ROOT / "migrations" / "20261001084000_project_artifact_continuity_aggregate.sql"
+    ).read_text(encoding="utf-8")
+    previous = (
+        ROOT / "migrations" / "20260914185224_project_save_offer_measurement.sql"
+    ).read_text(encoding="utf-8")
+    normalized = " ".join(migration.lower().split())
+    previous_normalized = " ".join(previous.lower().split())
+    return_contract = normalized[
+        normalized.index("returns table") : normalized.index("language plpgsql")
+    ]
+    previous_return_contract = previous_normalized[
+        previous_normalized.index("returns table") : previous_normalized.index("language plpgsql")
+    ]
+
+    assert "create or replace function public.product_project_continuity_snapshot" in normalized
+    assert return_contract == previous_return_contract
+    assert "event_key = 'result-action-save'" in normalized
+    assert "e.source in ('new_project', 'existing_project')" in normalized
+    assert "event_key = 'result-artifact-save'" in normalized
+    assert "e.source in ('generated_document', 'generated_image')" in normalized
+    assert "project_save_completed" in return_contract
+    assert "project_save_paired_completion" in return_contract
+    assert "project_save_intent_without_completion" in return_contract
+    assert "project_save_completion_without_intent" in return_contract
+    assert "project_resumed_after_save" in return_contract
+    assert "registration_environment = p_environment" in normalized
+    assert "coalesce(u.internal_tier, '') = ''" in normalized
+    assert "security invoker" in normalized
+    assert "security definer" not in normalized
+    assert "set search_path = ''" in normalized
+    assert "from public, anon, authenticated" in normalized
+    assert "to service_role" in normalized
+    assert "user_id" not in return_contract
+    for forbidden in ("p_prompt", "p_response", "p_filename", "email", "metadata jsonb"):
+        assert forbidden not in normalized
+
+
 def test_growth_snapshot_excludes_pre_instrumentation_accounts_from_comparable_cohorts():
     migration = (
         ROOT / "migrations" / "20260827180833_product_growth_measurement_boundary.sql"
