@@ -69,7 +69,7 @@ snapshot.
 | `StarterIntentReached` | Authenticated client | The account selected its first task category from the launchpad. Only one allowlisted category such as `research`, `file`, or `projects` is stored in `source`; no prompt or content is stored. |
 | `ProjectSaveOfferShown` | Authenticated client | A result-to-Project action was actually presented for an unsaved conversation or generated artifact. The client can send only the fixed `project-save-offer-shown` key and `conversation_result` or `artifact_result`; the server replaces the key with the fixed source and its UTC day, limiting the record to one row per account, source, and day. Plan, content, filenames, and identifiers are forbidden. |
 | `ProjectSaveIntentReached` | Authenticated client | The user selected the one-click result-to-Project action. The server accepts only the fixed `project-save-intent` key and `new_project` or `existing_project` source; plan and customer content are forbidden. |
-| `ProjectSaveCompleted` | Server | The ownership-checked Project route successfully created a Project from the conversation or attached the conversation to an owned Project after a result action. Clients cannot submit this event; only the fixed `result-action-save` key and bounded Project source are retained. |
+| `ProjectSaveCompleted` | Server | The ownership-checked Project route successfully created a Project from the conversation, attached the conversation to an owned Project, or attached a generated document or image to an owned Project after a result action. Clients cannot submit this event. Conversation saves retain only the fixed `result-action-save` key with `new_project` or `existing_project`; generated artifact saves retain only `result-artifact-save` with `generated_document` or `generated_image`. |
 | `ActivationReached` | Server | The first successful, persisted AI response completed. |
 | `AhaReached` | Server | The first durable artifact, generated image, manuscript workspace, or ownership-checked conversation-to-Project transition completed. Project analytics retain only the `project` category—not the Project ID, name, chat ID, title, or content. |
 | `OutcomeFeedbackSubmitted` | Authenticated client | The user answered whether one result moved the work forward. Only `useful` or `needs_work` is stored in `source`; no prompt, response, filename, comment, or other content is accepted. |
@@ -170,6 +170,12 @@ one source-specific key per UTC day on the server, and adds offer-to-later-inten
 the same protected snapshot. The comparable offer funnel begins at
 `2026-09-14 18:34:14+00`; earlier save intent remains visible in the original journey fields but is
 never treated as if a preceding offer had been observed.
+
+Migration `20261001084000_project_artifact_continuity_aggregate.sql` closes a reporting gap without
+changing the event writer or snapshot schema. A server-confirmed generated document or image
+attachment now counts as a Project save completion alongside the existing conversation-save path.
+Historical allowlisted completion events become visible automatically; no content inspection,
+synthetic event, or customer-data backfill is performed.
 
 The cohort is bounded by `users.registration_environment`, excludes deleted and internal accounts
 by default, and is grouped only by the immutable allowlisted first-touch attribution tuple. The
