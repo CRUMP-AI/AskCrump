@@ -548,3 +548,139 @@ def test_all_web_subscription_launchers_send_retry_identity_and_recover_billing(
     assert 'recoveryRequired' in subscriptions
     assert 'Boolean(billingStatus?.manageable)' in subscriptions
     assert 'Boolean(billingStatus?.manageable)' in billing
+
+
+def reset_price_resolution_caches(monkeypatch):
+    monkeypatch.setattr(billing_routes, '_STRIPE_PRICE_TIER_CACHE', {})
+    monkeypatch.setattr(billing_routes, '_STRIPE_TIER_PRODUCT_CACHE', {})
+
+
+@pytest.mark.asyncio
+async def test_checkout_reconciliation_resolves_rotated_price_by_product(monkeypatch):
+    """An entitled subscription on a rotated (legacy) price keeps its tier.
+
+    Regression test for the Free-while-Pro sync gap: the old code mapped any
+    price ID outside the configured catalog to 'free' even while Stripe
+    reported the subscription as active.
+    """
+    fake_db = BillingDB()
+    monkeypatch.setattr(billing_routes, 'db', fake_db)
+    monkeypatch.setattr(billing_routes, 'settings', settings_stub())
+    reset_price_resolution_caches(monkeypatch)
+
+    async def stripe_get(path):
+        if path == 'subscriptions/sub_legacy':
+            return stripe_subscription(
+                status='active',
+                price_id='price_legacy_professional_20',
+                subscription_id='sub_legacy',
+            )
+        if path == 'prices/price_legacy_professional_20':
+            return {'id': 'price_legacy_professional_20', 'product': 'prod_pro_legacy'}
+        if path == 'prices/price_professional':
+            return {'id': 'price_professional', 'product': 'prod_pro_legacy'}
+        if path == 'prices/price_enterprise':
+            return {'id': 'price_enterprise', 'product': 'prod_ent'}
+        raise AssertionError(f'unexpected Stripe lookup {path}')
+
+    monkeypatch.setattr(billing_routes, 'stripe_get', stripe_get)
+    user = {
+        'id': 'user-1',
+        'email': 'owner@example.com',
+        'stripe_customer_id': 'cus_owner',
+        'subscription_tier': 'free',
+        'subscription_status': 'inactive',
+    }
+
+    result = await billing_routes.reconcile_stripe_checkout_session(
+        user=user,
+        session=checkout_session(subscription='sub_legacy'),
+        request=request_stub(),
+    )
+
+    assert result['entitled'] is True
+    assert result['tier'] == 'professional'
+    assert fake_db.updates[0][1]['subscription_tier'] == 'professional'
+    assert fake_db.updates[0][1]['subscription_status'] == 'active'
+    assert fake_db.events[0]['p_plan'] == 'professional'
+
+
+@pytest.mark.asyncio
+async def test_subscription_event_preserves_paid_tier_when_price_unresolvable(monkeypatch):
+    """An entitled subscription on a fully unrecognized price keeps its tier.
+
+    When even product-level resolution fails, reconciliation must fail closed
+    on entitlements: it preserves the stored paid tier instead of writing
+    'free' while Stripe still bills the customer.
+    """
+    user = {
+        'id': 'user-1',
+        'stripe_customer_id': 'cus_owner',
+        'stripe_subscription_id': 'sub_paid',
+        'subscription_tier': 'professional',
+        'subscription_status': 'active',
+    }
+    fake_db = BillingDB(user=user)
+    monkeypatch.setattr(billing_routes, 'db', fake_db)
+    monkeypatch.setattr(billing_routes, 'settings', settings_stub())
+    reset_price_resolution_caches(monkeypatch)
+
+    async def stripe_get(path):
+        if path == 'subscriptions/sub_paid':
+            return stripe_subscription(status='active', price_id='price_mystery')
+        if path == 'prices/price_mystery':
+            return {'id': 'price_mystery', 'product': 'prod_unknown'}
+        if path == 'prices/price_professional':
+            return {'id': 'price_professional', 'product': 'prod_pro'}
+        if path == 'prices/price_enterprise':
+            return {'id': 'price_enterprise', 'product': 'prod_ent'}
+        raise AssertionError(f'unexpected Stripe lookup {path}')
+
+    monkeypatch.setattr(billing_routes, 'stripe_get', stripe_get)
+    applied = await billing_routes.reconcile_stripe_subscription_event(
+        event_object=stripe_subscription(status='active', price_id='price_mystery'),
+        event_id='evt_unknown_price',
+        event_type='customer.subscription.updated',
+        request=request_stub(),
+    )
+
+    assert applied is True
+    assert fake_db.updates[0][1]['subscription_tier'] == 'professional'
+    assert fake_db.updates[0][1]['subscription_status'] == 'active'
+
+
+@pytest.mark.asyncio
+async def test_subscription_event_still_defaults_free_for_unentitled_unknown_price(monkeypatch):
+    """Preservation never grants a paid tier: unknown price + no entitlement stays free."""
+    user = {
+        'id': 'user-1',
+        'stripe_customer_id': 'cus_owner',
+        'stripe_subscription_id': 'sub_paid',
+        'subscription_tier': 'free',
+        'subscription_status': 'inactive',
+    }
+    fake_db = BillingDB(user=user)
+    monkeypatch.setattr(billing_routes, 'db', fake_db)
+    monkeypatch.setattr(billing_routes, 'settings', settings_stub())
+    reset_price_resolution_caches(monkeypatch)
+
+    async def stripe_get(path):
+        if path == 'subscriptions/sub_paid':
+            return stripe_subscription(status='incomplete_expired', price_id='price_mystery')
+        if path == 'prices/price_mystery':
+            raise billing_routes.StripeAPIError('price lookup failed')
+        raise AssertionError(f'unexpected Stripe lookup {path}')
+
+    monkeypatch.setattr(billing_routes, 'stripe_get', stripe_get)
+    applied = await billing_routes.reconcile_stripe_subscription_event(
+        event_object=stripe_subscription(
+            status='incomplete_expired', price_id='price_mystery'
+        ),
+        event_id='evt_unknown_price_expired',
+        event_type='customer.subscription.updated',
+        request=request_stub(),
+    )
+
+    assert applied is True
+    assert fake_db.updates[0][1]['subscription_tier'] == 'free'
+    assert fake_db.updates[0][1]['subscription_status'] == 'incomplete_expired'
