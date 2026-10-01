@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import copy
+from decimal import Decimal, ROUND_HALF_UP
 from io import BytesIO
 import json
 from pathlib import Path
+import re
 import subprocess
 import sys
 from urllib import error
@@ -16,6 +18,8 @@ from scripts.export_operating_snapshot import (
     ARTIFACT_JOURNEY_COUNT_FIELDS,
     ARTIFACT_JOURNEY_TYPES,
     EXPECTED_SUPABASE_HOST,
+    GROWTH_FUNNEL_COHORT_ELIGIBLE_METRICS,
+    GROWTH_FUNNEL_METRICS,
     NAVIGATION_DESTINATIONS,
     PROJECT_CONTINUITY_COUNT_FIELDS,
     build_operating_snapshot,
@@ -74,6 +78,63 @@ def project_continuity_row(**overrides) -> dict:
     return row
 
 
+def growth_funnel_rows(
+    *,
+    cohort_accounts: int = 2,
+    activation_accounts: int = 1,
+    d1_eligible: int = 1,
+    d7_eligible: int = 0,
+) -> list[dict]:
+    accounts_by_metric = {
+        "accounts_created": cohort_accounts,
+        "account_event_recorded": cohort_accounts,
+        "verified_now": cohort_accounts,
+        "optional_profile_completed": 0,
+        "workspace_opened": cohort_accounts,
+        "starter_intent_reached": cohort_accounts,
+        "activation_reached": activation_accounts,
+        "outcome_confirmed_useful": min(1, activation_accounts),
+        "outcome_reported_needs_work": 0,
+        "durable_value_reached": min(1, cohort_accounts),
+        "recent_work_resumed": 0,
+        "response_shared": 0,
+        "plan_intent_reached": min(1, cohort_accounts),
+        "checkout_opened": min(1, cohort_accounts),
+        "checkout_completed": 0,
+        "active_paid_now": 0,
+        "d1_returned": min(1, d1_eligible),
+        "d7_returned": 0,
+    }
+    rows = []
+    for stage_order, metric in enumerate(GROWTH_FUNNEL_METRICS, start=1):
+        if metric in {"outcome_confirmed_useful", "outcome_reported_needs_work"}:
+            eligible = activation_accounts
+        elif metric == "d1_returned":
+            eligible = d1_eligible
+        elif metric == "d7_returned":
+            eligible = d7_eligible
+        else:
+            eligible = cohort_accounts
+        accounts = accounts_by_metric[metric]
+        rows.append({
+            "stage_order": stage_order,
+            "metric": metric,
+            "accounts": accounts,
+            "eligible": eligible,
+            "rate_pct": (
+                None
+                if eligible == 0
+                else float(
+                    (Decimal(100) * Decimal(accounts) / Decimal(eligible)).quantize(
+                        Decimal("0.1"),
+                        rounding=ROUND_HALF_UP,
+                    )
+                )
+            ),
+        })
+    return rows
+
+
 def fixture_sections() -> dict[str, list[dict]]:
     sections = {
         name: []
@@ -121,6 +182,7 @@ def fixture_sections() -> dict[str, list[dict]]:
         "recognized_revenue_cents": None,
         "variable_cost_cents": None,
     }]
+    sections["product_growth_funnel_snapshot"] = growth_funnel_rows()
     sections["demo_recording_proof_snapshot"] = [{
         "configured": False,
         "protected_identity": False,
@@ -269,6 +331,274 @@ def test_snapshot_exposes_exact_retention_denominators_without_content_or_identi
         "proves_destination_selection_only": True,
         "does_not_prove_task_completion": True,
     }
+
+
+def test_growth_funnel_preserves_the_exact_company_stage_contract() -> None:
+    sections = fixture_sections()
+
+    report = build_operating_snapshot(
+        sections,
+        since=SINCE,
+        until=UNTIL,
+        environment="production",
+        include_internal=False,
+    )
+
+    rows = report["sections"]["product_growth_funnel_snapshot"]
+    assert tuple(row["metric"] for row in rows) == GROWTH_FUNNEL_METRICS
+    assert tuple(row["stage_order"] for row in rows) == tuple(range(1, 19))
+    assert rows[3]["metric"] == "optional_profile_completed"
+    assert rows[7]["eligible"] == rows[6]["accounts"]
+    assert rows[16]["eligible"] == 1
+    assert rows[17]["eligible"] == 0
+
+
+def test_growth_funnel_contract_matches_the_authoritative_migrations() -> None:
+    growth_sql = (
+        ROOT / "migrations" / "20260908134343_durable_growth_measurement.sql"
+    ).read_text(encoding="utf-8")
+    rename_sql = (
+        ROOT / "migrations" / "20260913192512_clarify_optional_profile_growth_metric.sql"
+    ).read_text(encoding="utf-8")
+    stage_pattern = re.compile(
+        r"\((\d+)::smallint, '([^']+)'::text, ([a-z0-9_]+), ([a-z0-9_]+)\)"
+    )
+    source_rows = [
+        (int(stage), metric, accounts, eligible)
+        for stage, metric, accounts, eligible in stage_pattern.findall(growth_sql)
+    ]
+
+    assert len(source_rows) == 18
+    assert tuple(stage for stage, _metric, _accounts, _eligible in source_rows) == tuple(
+        range(1, 19)
+    )
+    assert "'''onboarding_completed''::text" in rename_sql
+    assert "'''optional_profile_completed''::text" in rename_sql
+
+    runtime_rows = [
+        (
+            stage,
+            "optional_profile_completed" if metric == "onboarding_completed" else metric,
+            accounts,
+            eligible,
+        )
+        for stage, metric, accounts, eligible in source_rows
+    ]
+    assert tuple(metric for _stage, metric, _accounts, _eligible in runtime_rows) == (
+        GROWTH_FUNNEL_METRICS
+    )
+    assert {
+        metric
+        for _stage, metric, _accounts, eligible in runtime_rows
+        if eligible == "cohort_accounts"
+    } == GROWTH_FUNNEL_COHORT_ELIGIBLE_METRICS
+    assert {
+        metric: eligible
+        for _stage, metric, _accounts, eligible in runtime_rows
+        if metric in {
+            "outcome_confirmed_useful",
+            "outcome_reported_needs_work",
+            "d1_returned",
+            "d7_returned",
+        }
+    } == {
+        "outcome_confirmed_useful": "activation_accounts",
+        "outcome_reported_needs_work": "activation_accounts",
+        "d1_returned": "d1_eligible_accounts",
+        "d7_returned": "d7_eligible_accounts",
+    }
+
+
+def test_growth_funnel_accepts_a_valid_zero_cohort() -> None:
+    sections = fixture_sections()
+    sections["product_growth_funnel_snapshot"] = growth_funnel_rows(
+        cohort_accounts=0,
+        activation_accounts=0,
+        d1_eligible=0,
+        d7_eligible=0,
+    )
+
+    build_operating_snapshot(
+        sections,
+        since=SINCE,
+        until=UNTIL,
+        environment="production",
+        include_internal=False,
+    )
+
+    assert all(
+        row["rate_pct"] is None
+        for row in sections["product_growth_funnel_snapshot"]
+    )
+
+
+@pytest.mark.parametrize(
+    ("mutate", "message"),
+    [
+        (lambda rows: rows.pop(), "18 fixed stages"),
+        (lambda rows: rows.append(copy.deepcopy(rows[-1])), "18 fixed stages"),
+        (lambda rows: rows[0].update(extra=1), "schema drifted"),
+        (lambda rows: rows[0].pop("rate_pct"), "schema drifted"),
+        (lambda rows: rows[0].update(stage_order=2), "canonical order"),
+        (lambda rows: rows[0].update(stage_order=True), "canonical order"),
+        (lambda rows: rows[0].update(stage_order=1.0), "canonical order"),
+        (lambda rows: rows[0].update(stage_order="1"), "canonical order"),
+        (lambda rows: rows[3].update(metric="onboarding_completed"), "canonical order"),
+        (lambda rows: rows.reverse(), "canonical order"),
+    ],
+)
+def test_growth_funnel_rejects_schema_stage_or_metric_drift(mutate, message: str) -> None:
+    sections = fixture_sections()
+    mutate(sections["product_growth_funnel_snapshot"])
+
+    with pytest.raises(ValueError, match=message):
+        build_operating_snapshot(
+            sections,
+            since=SINCE,
+            until=UNTIL,
+            environment="production",
+            include_internal=False,
+        )
+
+
+@pytest.mark.parametrize("field", ["accounts", "eligible"])
+@pytest.mark.parametrize("value", [True, "1", 1.0, -1])
+def test_growth_funnel_rejects_invalid_count_types_or_values(field: str, value) -> None:
+    sections = fixture_sections()
+    sections["product_growth_funnel_snapshot"][0][field] = value
+
+    with pytest.raises(ValueError, match="invalid nonnegative integer count"):
+        build_operating_snapshot(
+            sections,
+            since=SINCE,
+            until=UNTIL,
+            environment="production",
+            include_internal=False,
+        )
+
+
+def test_growth_funnel_rejects_accounts_above_eligible() -> None:
+    sections = fixture_sections()
+    sections["product_growth_funnel_snapshot"][11].update(
+        accounts=2,
+        eligible=1,
+        rate_pct=200.0,
+    )
+
+    with pytest.raises(ValueError, match="accounts above eligible"):
+        build_operating_snapshot(
+            sections,
+            since=SINCE,
+            until=UNTIL,
+            environment="production",
+            include_internal=False,
+        )
+
+
+@pytest.mark.parametrize(
+    ("row_index", "updates", "message"),
+    [
+        (1, {"accounts": 1, "eligible": 1, "rate_pct": 100.0}, "accounts_created"),
+        (7, {"eligible": 2, "rate_pct": 50.0}, "activation_reached"),
+        (8, {"eligible": 2, "rate_pct": 0.0}, "activation_reached"),
+        (16, {"eligible": 2, "rate_pct": 50.0}, "cannot exceed activated"),
+        (17, {"eligible": 2, "rate_pct": 0.0}, "cannot exceed activated"),
+    ],
+)
+def test_growth_funnel_rejects_non_authoritative_denominators(
+    row_index: int,
+    updates: dict,
+    message: str,
+) -> None:
+    sections = fixture_sections()
+    sections["product_growth_funnel_snapshot"][row_index].update(updates)
+
+    with pytest.raises(ValueError, match=message):
+        build_operating_snapshot(
+            sections,
+            since=SINCE,
+            until=UNTIL,
+            environment="production",
+            include_internal=False,
+        )
+
+
+def test_growth_funnel_rejects_d7_eligibility_above_d1() -> None:
+    sections = fixture_sections()
+    sections["product_growth_funnel_snapshot"] = growth_funnel_rows(
+        activation_accounts=2,
+        d1_eligible=1,
+        d7_eligible=2,
+    )
+
+    with pytest.raises(ValueError, match="D7 eligibility cannot exceed D1"):
+        build_operating_snapshot(
+            sections,
+            since=SINCE,
+            until=UNTIL,
+            environment="production",
+            include_internal=False,
+        )
+
+
+@pytest.mark.parametrize(
+    ("row_index", "value", "message"),
+    [
+        (17, 0.0, "zero denominator"),
+        (0, None, "invalid numeric rate"),
+        (0, True, "invalid numeric rate"),
+        (0, "100.0", "invalid numeric rate"),
+        (0, float("nan"), "invalid numeric rate"),
+        (0, float("inf"), "invalid numeric rate"),
+        (6, 50.1, "exact denominator"),
+    ],
+)
+def test_growth_funnel_rejects_invalid_or_inconsistent_rates(
+    row_index: int,
+    value,
+    message: str,
+) -> None:
+    sections = fixture_sections()
+    sections["product_growth_funnel_snapshot"][row_index]["rate_pct"] = value
+
+    with pytest.raises(ValueError, match=message):
+        build_operating_snapshot(
+            sections,
+            since=SINCE,
+            until=UNTIL,
+            environment="production",
+            include_internal=False,
+        )
+
+
+def test_growth_funnel_matches_postgres_one_decimal_half_up_rounding() -> None:
+    sections = fixture_sections()
+    sections["product_growth_funnel_snapshot"] = growth_funnel_rows(
+        cohort_accounts=16,
+        activation_accounts=1,
+        d1_eligible=1,
+        d7_eligible=0,
+    )
+
+    build_operating_snapshot(
+        sections,
+        since=SINCE,
+        until=UNTIL,
+        environment="production",
+        include_internal=False,
+    )
+
+    activation = sections["product_growth_funnel_snapshot"][6]
+    assert activation["rate_pct"] == 6.3
+    activation["rate_pct"] = 6.2
+    with pytest.raises(ValueError, match="exact denominator"):
+        build_operating_snapshot(
+            sections,
+            since=SINCE,
+            until=UNTIL,
+            environment="production",
+            include_internal=False,
+        )
 
 
 def test_artifact_journey_vocabulary_matches_product_analytics() -> None:
