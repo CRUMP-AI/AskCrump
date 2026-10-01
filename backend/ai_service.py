@@ -37,6 +37,7 @@ class AIServiceError(RuntimeError):
 
 class AIService:
     AI_GATEWAY_URL = 'https://ai-gateway.vercel.sh/v1/chat/completions'
+    _TRANSIENT_GATEWAY_SIGNALS = frozenset({'NO_PROVIDERS_AVAILABLE'})
 
     def __init__(self, settings: Settings, db: Any | None = None) -> None:
         self.settings = settings
@@ -428,6 +429,32 @@ Current date and time context: {json.dumps(date_context, ensure_ascii=False)[:20
             return purpose
         return 'other'
 
+    @staticmethod
+    def _gateway_error_signals(detail: dict[str, Any]) -> tuple[str, ...]:
+        error = detail.get('error') if isinstance(detail, dict) else None
+        error = error if isinstance(error, dict) else {}
+        signals: list[str] = []
+        for key in ('code', 'type'):
+            value = re.sub(r'[^A-Z0-9]+', '_', str(error.get(key) or '').upper()).strip('_')
+            bounded = value[:40]
+            if bounded and bounded not in signals:
+                signals.append(bounded)
+        return tuple(signals)
+
+    @staticmethod
+    def _gateway_diagnostic_code(status_code: int, signal: str) -> str:
+        status = max(400, min(599, int(status_code or 500)))
+        safe_signal = re.sub(r'[^A-Z0-9_]+', '_', str(signal or '').upper()).strip('_')
+        return f'FREE_AI_HTTP_{status}_{safe_signal or "UNCLASSIFIED"}'[:80]
+
+    @staticmethod
+    def _gateway_request_id(response: httpx.Response) -> str:
+        for name in ('x-vercel-id', 'x-request-id', 'request-id'):
+            value = str(response.headers.get(name) or '').strip()
+            if value:
+                return re.sub(r'[^A-Za-z0-9:._-]+', '_', value)[:120]
+        return 'unavailable'
+
     def _gateway_observability_context(
         self,
         *,
@@ -722,12 +749,17 @@ Current date and time context: {json.dumps(date_context, ensure_ascii=False)[:20
 
         if response.status_code >= 400:
             detail: dict[str, Any] = {}
+            error_message = response.text[:500]
             try:
                 raw_detail = response.json()
                 detail = raw_detail if isinstance(raw_detail, dict) else {}
-                error_message = ((detail.get('error') or {}).get('message') or response.text)[:500]
-            except (AttributeError, ValueError):
-                error_message = response.text[:500]
+                error_detail = detail.get('error')
+                error_detail = error_detail if isinstance(error_detail, dict) else {}
+                error_message = str(error_detail.get('message') or response.text)[:500]
+            except ValueError:
+                pass
+            gateway_signals = self._gateway_error_signals(detail)
+            gateway_signal = gateway_signals[0] if gateway_signals else 'UNCLASSIFIED'
             error = AIServiceError(
                 'The free AI service rejected the request.',
                 502,
@@ -754,6 +786,14 @@ Current date and time context: {json.dumps(date_context, ensure_ascii=False)[:20
                     30,
                 )
                 receipt_status = 'rate_limited'
+            elif any(signal in self._TRANSIENT_GATEWAY_SIGNALS for signal in gateway_signals):
+                error = AIServiceError(
+                    'The free AI provider is temporarily unavailable.',
+                    503,
+                    'FREE_AI_PROVIDER_UNAVAILABLE',
+                    True,
+                    10,
+                )
             elif response.status_code in {401, 403}:
                 error = AIServiceError(
                     'The free AI route is not configured.',
@@ -780,10 +820,23 @@ Current date and time context: {json.dumps(date_context, ensure_ascii=False)[:20
                     False,
                     0,
                 )
+            receipt_error_code = error.code
+            if error.code == 'FREE_AI_UPSTREAM_ERROR':
+                receipt_error_code = self._gateway_diagnostic_code(
+                    response.status_code,
+                    gateway_signal,
+                )
+            if error.code in {'FREE_AI_UPSTREAM_ERROR', 'FREE_AI_PROVIDER_UNAVAILABLE'}:
+                logger.warning(
+                    'Free AI Gateway rejection status=%s diagnostic=%s request_id=%s',
+                    response.status_code,
+                    receipt_error_code,
+                    self._gateway_request_id(response),
+                )
             await self._settle_gateway_receipt(
                 receipt_id,
                 status=receipt_status,
-                error_code=error.code,
+                error_code=receipt_error_code,
                 model=str(detail.get('model') or model),
                 provider=provider,
                 latency_ms=round((time.perf_counter() - started) * 1000),
