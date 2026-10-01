@@ -80,6 +80,13 @@ disable prompt training, and fail closed instead of silently falling back to a
 premium provider. Image generation continues to use the configured OpenAI image
 model behind paid-plan limits.
 
+Free-route failure handling is deliberately bounded. A recognized temporary
+provider-availability failure may receive one same-message client retry;
+deterministic request failures do not retry. Operational receipts and logs keep
+only the bounded HTTP/error category and provider request identifier—never the
+provider message, prompt, response, attachment, or account identity. The route
+continues to fail closed and never falls through to a premium model.
+
 ## Evaluation direction
 
 The deterministic tests in `tests/test_intelligence_service.py` protect routing

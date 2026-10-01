@@ -355,3 +355,129 @@ async def test_rate_limit_is_settled_as_failed_subset(monkeypatch):
     assert captured.value.code == "FREE_AI_RATE_LIMIT"
     assert db.calls[1][1]["p_status"] == "rate_limited"
     assert db.calls[1][1]["p_error_code"] == "FREE_AI_RATE_LIMIT"
+
+
+@pytest.mark.parametrize(
+    (
+        "status_code",
+        "error_detail",
+        "expected_code",
+        "expected_retryable",
+        "expected_retry_after",
+        "expected_receipt_status",
+        "expected_receipt_code",
+    ),
+    [
+        (
+            400,
+            {"type": "invalid_request_error", "code": "missing_parameter"},
+            "FREE_AI_UPSTREAM_ERROR",
+            False,
+            0,
+            "failed",
+            "FREE_AI_HTTP_400_MISSING_PARAMETER",
+        ),
+        (
+            404,
+            {"type": "invalid_request_error", "code": "model_not_found"},
+            "FREE_AI_UPSTREAM_ERROR",
+            False,
+            0,
+            "failed",
+            "FREE_AI_HTTP_404_MODEL_NOT_FOUND",
+        ),
+        (
+            422,
+            {"type": "invalid_request_error"},
+            "FREE_AI_UPSTREAM_ERROR",
+            False,
+            0,
+            "failed",
+            "FREE_AI_HTTP_422_INVALID_REQUEST_ERROR",
+        ),
+        (
+            403,
+            {"type": "no_providers_available", "code": "provider_selection_failed"},
+            "FREE_AI_PROVIDER_UNAVAILABLE",
+            True,
+            10,
+            "failed",
+            "FREE_AI_PROVIDER_UNAVAILABLE",
+        ),
+        (
+            403,
+            {"type": "forbidden", "code": "account_blocked"},
+            "FREE_AI_NOT_CONFIGURED",
+            False,
+            0,
+            "failed",
+            "FREE_AI_NOT_CONFIGURED",
+        ),
+        (
+            429,
+            {"type": "rate_limit_error"},
+            "FREE_AI_RATE_LIMIT",
+            True,
+            30,
+            "rate_limited",
+            "FREE_AI_RATE_LIMIT",
+        ),
+        (
+            503,
+            {"type": "provider_error"},
+            "FREE_AI_OVERLOADED",
+            True,
+            10,
+            "failed",
+            "FREE_AI_OVERLOADED",
+        ),
+    ],
+)
+@pytest.mark.asyncio
+async def test_gateway_failure_classifier_is_bounded_content_free_and_single_attempt(
+    monkeypatch,
+    caplog,
+    status_code,
+    error_detail,
+    expected_code,
+    expected_retryable,
+    expected_retry_after,
+    expected_receipt_status,
+    expected_receipt_code,
+):
+    from backend import ai_service as ai_module
+
+    _production_env(monkeypatch)
+    provider_message = "PRIVATE_PROVIDER_DIAGNOSTIC_MUST_NOT_BE_LOGGED"
+    FakeAsyncClient.response = httpx.Response(
+        status_code,
+        headers={"x-request-id": "gateway-request-test-123"},
+        json={"error": {**error_detail, "message": provider_message}},
+    )
+    monkeypatch.setattr(ai_module.httpx, "AsyncClient", FakeAsyncClient)
+    caplog.set_level("WARNING", logger="askcrump.ai")
+    db = ReceiptDB()
+    service = AIService(_settings(environment="production"), db)
+
+    with pytest.raises(AIServiceError) as captured:
+        await service.chat({
+            "message": "Hello",
+            "user": {"id": "free-user"},
+            "_userTier": "free",
+        })
+
+    assert captured.value.code == expected_code
+    assert captured.value.retryable is expected_retryable
+    assert captured.value.retry_after == expected_retry_after
+    assert len(FakeAsyncClient.calls) == 1
+    assert FakeAsyncClient.calls[0]["url"] == AIService.AI_GATEWAY_URL
+    assert [name for name, _ in db.calls] == [
+        "claim_ai_gateway_cost_receipt",
+        "settle_ai_gateway_cost_receipt",
+    ]
+    settled = db.calls[1][1]
+    assert settled["p_status"] == expected_receipt_status
+    assert settled["p_error_code"] == expected_receipt_code
+    assert provider_message not in caplog.text
+    if expected_code in {"FREE_AI_UPSTREAM_ERROR", "FREE_AI_PROVIDER_UNAVAILABLE"}:
+        assert "gateway-request-test-123" in caplog.text
