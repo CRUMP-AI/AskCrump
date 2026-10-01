@@ -68,7 +68,7 @@ const loader = String.raw`
   ]);
 
   const finalStyles = Object.freeze([
-    ['/crump-design-pass.css?v=5.9.76-muse-release-repair-1', 'crumpdesignpass'],
+    ['/crump-design-pass.css?v=5.9.76-muse-feel-pass-1', 'crumpdesignpass'],
   ]);
 
   const workspaceScripts = Object.freeze([
@@ -79,7 +79,7 @@ const loader = String.raw`
     ['/subscription-ui.js?v=5.9.76-commerce-recovery-1', 'workspacesubscription'],
     ['/credit-confirmation.js?v=5.9.76-credit-confirmation-1', 'workspacecreditconfirmation'],
     ['/chat-resilience.js?v=5.9.76-credit-confirmation-1', 'workspacechatresilience'],
-    ['/ui-functions.js?v=5.9.76-muse-release-repair-1', 'workspaceui'],
+    ['/ui-functions.js?v=5.9.76-muse-feel-pass-1', 'workspaceui'],
     ['/presence-manager.js?v=5.9.76-muse-release-repair-1', 'workspacepresence'],
     ['/sync-manager.js?v=5.9.76', 'workspacesync'],
     ['/chat-sync.js?v=5.9.76-image-stability-1', 'workspacechatsync'],
