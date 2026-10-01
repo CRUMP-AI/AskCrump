@@ -1680,6 +1680,7 @@ def test_blocked_image_request_has_revision_instead_of_exact_retry_contract() ->
     assert "safeImageRecovery(data?.recovery)" in transport
     assert "const IMAGE_REVISION_CODES = new Set([" in composer
     assert "'IMAGE_SAFETY_REJECTED'" in composer
+    assert "'IMAGE_PROVIDER_REJECTED'" in composer
     assert "'INVALID_IMAGE_EDIT_SOURCE'" in composer
     assert "'IMAGE_EDIT_SOURCE_TOO_LARGE'" in composer
     assert "IMAGE_REVISION_CODES.has(message.replyErrorCode)" in composer
@@ -1688,6 +1689,7 @@ def test_blocked_image_request_has_revision_instead_of_exact_retry_contract() ->
     assert "Change the wording or reference image before sending this request again." in composer
     assert "window.reviseImageMessage = reviseImageMessage" in composer
     assert "Image request needs changes — Tap to revise" in renderer
+    assert "'IMAGE_PROVIDER_REJECTED'" in renderer
     assert "Reference image needs replacement — Tap to replace" in renderer
     assert "window.reviseImageMessage?.(message.id)" in renderer
     assert "index === lastUserIndex || message?.replyStatus === 'failed'" in renderer
@@ -1705,13 +1707,16 @@ def test_image_rejection_browser_fixture_is_private_and_credential_free() -> Non
     assert '<script src="/public/ui-functions.js?v=image-safety-recovery-fixture-1"></script>' in fixture
     assert '<script src="/public/crump-5.0.js?v=image-safety-recovery-fixture-1"></script>' in fixture
     assert "IMAGE_SAFETY_REJECTED" in fixture
+    assert "IMAGE_PROVIDER_REJECTED" in fixture
     assert "revise_image_request" in fixture
-    assert "scenario') === 'invalid-reference'" in fixture
+    assert "const invalidReferenceScenario = scenario === 'invalid-reference'" in fixture
+    assert "const providerRejectedScenario = scenario === 'provider-rejected'" in fixture
     assert "sendCalls" in verifier
     assert "ensureUsageCalls" in verifier
     assert "replacementRestored.attachmentCount === 0" in verifier
     assert "replacementRestored.fileInputClicks === 1" in verifier
     assert "replacementBlocked.ensureUsageCalls === 0" in verifier
+    assert "providerRejectedBlocked.ensureUsageCalls === 0" in verifier
     assert "Reference check · 2 local comparisons" in verifier
     assert "Local color and structure checks only · no extra generation or credits" in verifier
     assert "Confirm reference 1 was reviewed" in verifier

@@ -218,6 +218,42 @@ def test_image_safety_recovery_survives_sync_with_a_closed_allowlist():
     assert 'replyRecovery' not in rejected
 
 
+def test_provider_rejection_recovery_survives_sync_with_server_owned_policy():
+    allowed = sanitize_message({
+        'id': '95d26092-c5b7-4662-bb6f-c9e82e3e65fa',
+        'role': 'user',
+        'content': 'Create a promotional image from this reference.',
+        'replyStatus': 'failed',
+        'replyError': 'The image provider could not complete that request.',
+        'replyErrorCode': 'image_provider_rejected',
+        'replyRecovery': {
+            'action': 'revise_image_request',
+            'usageRestored': True,
+            'providerPolicy': 'must not persist',
+        },
+    })
+    mismatched = sanitize_message({
+        'id': '9f583979-a53f-4b66-9686-916f7d6b59cf',
+        'role': 'user',
+        'content': 'Create a promotional image from this reference.',
+        'replyErrorCode': 'image_provider_rejected',
+        'replyRecovery': {
+            'action': 'revise_image_request',
+            'usageRestored': True,
+            'changeRequired': 'reference',
+        },
+    })
+
+    assert allowed['replyErrorCode'] == 'IMAGE_PROVIDER_REJECTED'
+    assert allowed['replyRecovery'] == {
+        'action': 'revise_image_request',
+        'usageRestored': True,
+        'changeRequired': 'prompt_or_reference',
+    }
+    assert mismatched['replyErrorCode'] == 'IMAGE_PROVIDER_REJECTED'
+    assert 'replyRecovery' not in mismatched
+
+
 def test_invalid_reference_recovery_survives_sync_without_accepting_client_policy():
     allowed = sanitize_message({
         'id': '8f611900-68b0-41c1-b6db-62460fa6ea12',

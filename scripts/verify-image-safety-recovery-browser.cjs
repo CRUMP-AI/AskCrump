@@ -184,6 +184,24 @@ const { chromium } = require(playwrightModule);
   }));
   await replacementPage.screenshot({path: 'artifacts/image-reference-replacement.png', fullPage: true});
 
+  const providerRejectedPage = await mobilePage('/tests/fixtures/image-safety-recovery.html?scenario=provider-rejected');
+  await providerRejectedPage.locator('.message-status').click();
+  await providerRejectedPage.waitForFunction(() => document.querySelectorAll('[data-crump50-attachment-id]').length === 1);
+  const providerRejectedRestored = await providerRejectedPage.evaluate(() => ({
+    label: document.querySelector('.message-status')?.textContent || '',
+    prompt: document.querySelector('#userInput')?.value || '',
+    attachmentCount: document.querySelectorAll('[data-crump50-attachment-id]').length,
+    attachmentName: document.querySelector('[data-crump50-attachment-id] strong')?.textContent || '',
+    toast: document.querySelector('.toast__message')?.textContent || '',
+  }));
+  await providerRejectedPage.locator('#sendButton').click();
+  await providerRejectedPage.waitForTimeout(80);
+  const providerRejectedBlocked = await providerRejectedPage.evaluate(() => ({
+    ensureUsageCalls: window.__fixture.ensureUsageCalls,
+    sendCalls: window.__fixture.sendCalls,
+    lastToast: [...document.querySelectorAll('.toast__message')].at(-1)?.textContent || '',
+  }));
+
   const valid = (
     restored.label.includes('Tap to revise')
     && restored.prompt.includes('gentle storybook portrait')
@@ -248,11 +266,19 @@ const { chromium } = require(playwrightModule);
     && replacementBlocked.ensureUsageCalls === 0
     && replacementBlocked.sendCalls === 0
     && replacementBlocked.lastToast.includes('Add a different JPG, PNG, or WebP')
+    && providerRejectedRestored.label.includes('Tap to revise')
+    && providerRejectedRestored.prompt.includes('gentle storybook portrait')
+    && providerRejectedRestored.attachmentCount === 1
+    && providerRejectedRestored.attachmentName === 'reference.png'
+    && providerRejectedRestored.toast.includes('failed attempt was refunded')
+    && providerRejectedBlocked.ensureUsageCalls === 0
+    && providerRejectedBlocked.sendCalls === 0
+    && providerRejectedBlocked.lastToast.includes('Change the wording or reference image')
     && consoleErrors.length === 0
   );
   await browser.close();
-  if (!valid) throw new Error(JSON.stringify({restored, unchanged, beforeConfirmation, contractRecovery, revised, userReviewed, mismatchCleared, replacementRestored, replacementBlocked, consoleErrors}));
-  process.stdout.write(`${JSON.stringify({restored, unchanged, beforeConfirmation, contractRecovery, revised, userReviewed, mismatchCleared, replacementRestored, replacementBlocked, consoleErrors})}\n`);
+  if (!valid) throw new Error(JSON.stringify({restored, unchanged, beforeConfirmation, contractRecovery, revised, userReviewed, mismatchCleared, replacementRestored, replacementBlocked, providerRejectedRestored, providerRejectedBlocked, consoleErrors}));
+  process.stdout.write(`${JSON.stringify({restored, unchanged, beforeConfirmation, contractRecovery, revised, userReviewed, mismatchCleared, replacementRestored, replacementBlocked, providerRejectedRestored, providerRejectedBlocked, consoleErrors})}\n`);
 })().catch(error => {
   process.stderr.write(`${error.stack || error}\n`);
   process.exitCode = 1;

@@ -997,7 +997,12 @@
   function deliveryLabel(message) {
     if (
       message?.replyStatus === 'failed'
-      && ['IMAGE_SAFETY_REJECTED', 'INVALID_IMAGE_EDIT_SOURCE', 'IMAGE_EDIT_SOURCE_TOO_LARGE'].includes(message?.replyErrorCode)
+      && [
+        'IMAGE_SAFETY_REJECTED',
+        'IMAGE_PROVIDER_REJECTED',
+        'INVALID_IMAGE_EDIT_SOURCE',
+        'IMAGE_EDIT_SOURCE_TOO_LARGE',
+      ].includes(message?.replyErrorCode)
     ) {
       const replaceReference = message.replyRecovery?.changeRequired === 'reference';
       return {
