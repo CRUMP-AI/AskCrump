@@ -35,7 +35,8 @@ no referrer URL, search term, content, filename, or arbitrary metadata is stored
 
 users.registration_environment is derived from the registration request host and is the
 authoritative production-cohort boundary even when the optional analytics insert fails.
-Existing pre-release accounts with no environment are excluded rather than backfilled.
+Legacy accounts with no recorded environment are included only in production cohorts;
+preview and development cohorts still require an exact recorded environment.
 product_weekly_attribution_export is service-role-only and returns grouped counts with
 explicit denominators. Its D1/D7 populations contain activated accounts only and are
 anchored on ActivationReached. Finance fields remain null until an authoritative aggregate
@@ -209,9 +210,10 @@ eligible populations, and conversion rates for:
 - response sharing, plan intent, Checkout open/completion, and current paid status;
 - D1 and D7 workspace return among accounts whose full UTC observation window has elapsed.
 
-Internal accounts are excluded by default. Retention is anchored on the first activation
-when one exists and otherwise on account creation. `verified_now` and `active_paid_now` are
-explicitly current-state metrics rather than historical claims.
+Internal accounts are excluded by default. Retention requires and is anchored on the first
+activation; account creation is never substituted for a missing activation anchor.
+`verified_now` and `active_paid_now` are explicitly current-state metrics rather than
+historical claims.
 
 Call this function only from a trusted service-role operating session. It is not available
 to `public`, `anon`, or `authenticated`, and it returns no account identifier, email,
