@@ -461,6 +461,28 @@
     syncRecentWork();
   }
 
+  function showLaunchpad() {
+    const launchpad = byId('v1Launchpad');
+    if (!launchpad) return;
+    launchpad.classList.remove('is-hidden');
+    launchpad.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('v1-home');
+    syncRecentWork();
+  }
+
+  function hideLaunchpad() {
+    const launchpad = byId('v1Launchpad');
+    if (!launchpad) return;
+    launchpad.classList.add('is-hidden');
+    launchpad.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('v1-home');
+  }
+
+  function isLaunchpadVisible() {
+    const launchpad = byId('v1Launchpad');
+    return Boolean(launchpad && !launchpad.classList.contains('is-hidden'));
+  }
+
   function syncWorkspaceTitle() {
     const active = $('.chat-item.active .chat-title');
     const title = byId('v1WorkspaceTitle');
@@ -681,6 +703,9 @@
     command,
     syncConversationLibrary: syncLibraryControl,
     toggleConversationLibrary: openLibrary,
+    showLaunchpad,
+    hideLaunchpad,
+    isLaunchpadVisible,
   });
 
   if (document.readyState === 'loading') {

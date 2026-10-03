@@ -19,14 +19,14 @@ textually aligned with it. Reviewer credentials belong only in the ignored
 ## Apple App Store
 
 - **Subtitle:** Create, research, and build
-- **Promotional text:** Move from question to continuing work across Ask, Projects, Create, Video, Library, and You—with research, files, documents, presentations, images, and motion.
+- **Promotional text:** Move from question to continuing work across Home, Chats, Projects, Library, Studios, and You—with research, files, documents, presentations, images, and motion.
 - **Keywords:** `AI,assistant,research,writer,documents,images,video,manuscript,productivity,files`
 
 ### Description
 
 Ask Crump is a multimodal AI workspace built to help you move from an idea to something useful.
 
-The workspace stays clear across six destinations: Ask, Projects, Create, Video, Library, and You. Ask handles conversations and guided research. Projects keep instructions, reference files, conversations, creations, and a separate Files view together. Create opens documents, presentations, images, and long-form manuscript work. Video has a dedicated studio for Quick, Extendable, and Cinematic generation, optional visual references, and returning to a saved active job. Library is a private bookshelf for manuscripts and books. You contains settings, sessions, purchase restoration, and account controls.
+The workspace stays clear across six destinations: Home, Chats, Projects, Library, Studios, and You. Home welcomes you back and Chats handles conversations and guided research. Projects keep instructions, reference files, conversations, creations, and a separate Files view together. Studios brings documents, presentations, images, video, manuscripts, and Code Studio together. Library is a private bookshelf for manuscripts and books. You contains settings, sessions, purchase restoration, and account controls.
 
 Create and organize:
 
@@ -57,7 +57,7 @@ Some features require a paid plan, credits, provider availability, or an interne
 
 Ask Crump is a multimodal AI workspace for turning questions and ideas into useful work.
 
-The workspace is organized around six clear destinations: Ask, Projects, Create, Video, Library, and You. Ask handles conversations and guided research. Projects keep ongoing work, reference context, and a separate Files view together. Create opens documents, presentations, images, and long-form manuscript work. Video has a dedicated studio for Quick, Extendable, and Cinematic generation, optional visual references, and returning to a saved active job. Library is a private bookshelf for manuscripts and books. You contains settings, sessions, purchase restoration, and account controls.
+The workspace is organized around six clear destinations: Home, Chats, Projects, Library, Studios, and You. Home welcomes you back and Chats handles conversations and guided research. Projects keep ongoing work, reference context, and a separate Files view together. Studios brings documents, presentations, images, video, manuscripts, and Code Studio together. Library is a private bookshelf for manuscripts and books. You contains settings, sessions, purchase restoration, and account controls.
 
 WHAT YOU CAN DO
 

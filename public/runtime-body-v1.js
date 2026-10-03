@@ -38,7 +38,7 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/crump-product-5.3.1.css', 'crumpproduct531'],
     ['/crump-polish-5.6.css', 'crumppolish56'],
     ['/crump-v1-stability.css', 'crumpv1stability'],
-    ['/crump-navigation-5.9.30.css?v=5.9.76-nav-focus-visibility-1', 'crumpnav5930'],
+    ['/crump-navigation-5.9.30.css?v=5.9.76-nav-reorg-1', 'crumpnav5930'],
   ]);
 
   const finalStyles = Object.freeze([
@@ -46,7 +46,7 @@ window.CRUMP_CONFIG = Object.freeze({
   ]);
 
   const workspaceScripts = Object.freeze([
-    ['/onboarding.js?v=5.9.76-brand-retina-1', 'workspaceonboarding'],
+    ['/onboarding.js?v=5.9.76-nav-reorg-1', 'workspaceonboarding'],
     ['/scroll-manager.js?v=5.9.76-muse-release-repair-1', 'workspacescroll'],
     ['/profile-manager.js', 'workspaceprofile'],
     ['/billing-manager.js?v=5.9.76-stripe-destination-integrity-1', 'workspacebilling'],
@@ -70,7 +70,7 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/crump-billing-5.1.js?v=5.9.76-checkout-destination-label-1', 'billing51'],
     ['/crump-5.2.js?v=5.9.76-plan-status-line-1', 'crump52'],
     ['/crump-5.2.2.js?v=5.9.76-muse-release-repair-1', 'crump522'],
-    ['/crump-v1-body.js?v=5.9.76-muse-release-repair-1', 'crumpbodyv1'],
+    ['/crump-v1-body.js?v=5.9.76-nav-reorg-1', 'crumpbodyv1'],
     ['/crump-v1-stability.js?v=5.9.76-intelligence-architecture-1', 'crumpv1stability'],
   ]);
 
@@ -82,10 +82,10 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/crump-polish-5.6.js?v=5.9.76-video-destination-1', 'crumppolish56'],
     ['/crump-media-save.js?v=5.9.76-library-lazy-load-1', 'crumpmediasave'],
     ['/crump-library-loader.js?v=5.9.76-library-lazy-load-1', 'crumplibraryloader'],
-    ['/crump-navigation-5.9.30.js?v=5.9.76-image-studio-entry-1', 'crumpnav5930'],
+    ['/crump-navigation-5.9.30.js?v=5.9.76-nav-reorg-1', 'crumpnav5930'],
     ['/crump-code-loader.js?v=5.9.76-code-lazy-load-1', 'crumpcodeloader'],
     ['/lifecycle-share.js?v=5.9.76-settings-invite-1', 'lifecycleshare'],
-    ['/lifecycle-manager.js?v=5.9.76-lifecycle-idle-send-1', 'lifecyclemanager'],
+    ['/lifecycle-manager.js?v=5.9.76-nav-reorg-1', 'lifecyclemanager'],
   ]);
 
   const scriptPlan = Object.freeze([

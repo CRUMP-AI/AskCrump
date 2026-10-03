@@ -18,8 +18,13 @@
 
   const destinations = Object.freeze([
     {
-      id: 'ask',
-      label: 'Ask',
+      id: 'home',
+      label: 'Home',
+      icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m4 11 8-7 8 7"/><path d="M6 9.5V20h12V9.5"/><path d="M10 20v-6h4v6"/></svg>',
+    },
+    {
+      id: 'chats',
+      label: 'Chats',
       icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v11H9l-4 3z"/><path d="M8 9h8M8 12h5"/></svg>',
     },
     {
@@ -28,24 +33,14 @@
       icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h6l2 2h8v10H4z"/><path d="M4 7V5h7l2 2"/></svg>',
     },
     {
-      id: 'code',
-      label: 'Code',
-      icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 7-5 5 5 5M15 7l5 5-5 5M13 4l-2 16"/></svg>',
-    },
-    {
-      id: 'create',
-      label: 'Create',
-      icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M4 12h16"/><path d="m17 5 .8 1.7L19.5 7.5l-1.7.8L17 10l-.8-1.7-1.7-.8 1.7-.8z"/></svg>',
-    },
-    {
-      id: 'video',
-      label: 'Video',
-      icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="13" height="14" rx="2"/><path d="m16.5 10 4-2v8l-4-2zM8 9l5 3-5 3z"/></svg>',
-    },
-    {
       id: 'library',
       label: 'Library',
       icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z"/><path d="M7 4v16M10 8h6"/></svg>',
+    },
+    {
+      id: 'studios',
+      label: 'Studios',
+      icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v4M12 17v4M3 12h4M17 12h4"/><circle cx="12" cy="12" r="3.2"/><path d="m18.5 5.5 .8 1.7 1.7.8-1.7.8-.8 1.7-.8-1.7-1.7-.8 1.7-.8z"/></svg>',
     },
     {
       id: 'you',
@@ -67,7 +62,7 @@
   }
 
   function setActive(destination) {
-    const value = destinations.some(item => item.id === destination) ? destination : 'ask';
+    const value = destinations.some(item => item.id === destination) ? destination : 'home';
     document.documentElement.dataset.crumpNavigationDestination = value;
     destinationButtons().forEach(button => {
       const active = button.dataset.crump5930Destination === value;
@@ -78,12 +73,11 @@
   }
 
   function buttonMarkup(destination) {
-    const codeBoundary = destination.id === 'code' ? ' data-crump-code-destination hidden' : '';
-    return `<button type="button" class="crump5930-destination" data-crump5930-destination="${destination.id}"${codeBoundary} aria-label="${destination.label}">${destination.icon}<span>${destination.label}</span></button>`;
+    return `<button type="button" class="crump5930-destination" data-crump5930-destination="${destination.id}" aria-label="${destination.label}">${destination.icon}<span>${destination.label}</span></button>`;
   }
 
   function conversationLibraryMarkup() {
-    return `<button type="button" class="crump5930-destination crump5930-chats-toggle" data-crump5930-library-toggle aria-label="Hide Chats" title="Hide Chats" aria-controls="sidebar" aria-expanded="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9"/></svg><span>Chats</span></button>`;
+    return `<button type="button" class="crump5930-rail-toggle" data-crump5930-library-toggle aria-label="Show or hide conversation list" title="Conversations" aria-controls="sidebar" aria-expanded="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9"/></svg></button>`;
   }
 
   function injectDesktopNavigation() {
@@ -209,7 +203,7 @@
 
   function syncDestinationBackground() {
     setDestinationBackgroundInert(
-      studioIsOpen() || settingsIsOpen() || codeWorkspaceIsOpen() || createHubIsOpen(),
+      studioIsOpen() || settingsIsOpen() || codeWorkspaceIsOpen() || studiosHubIsOpen(),
     );
   }
 
@@ -265,7 +259,7 @@
       if (persistentDestination()) return;
       const target = opener?.isConnected && !opener.disabled
         ? opener
-        : visibleDestinationButton('ask');
+        : visibleDestinationButton('chats');
       target?.focus?.({preventScroll: true});
     });
   }
@@ -310,59 +304,60 @@
     document.querySelector('.crump50-sheet .crump50-sheet-close')?.click();
   }
 
-  function createHubIsOpen() {
-    const hub = byId('crump5930CreateHub');
+  function studiosHubIsOpen() {
+    const hub = byId('crump5930StudiosHub');
     return Boolean(hub && !hub.hidden);
   }
 
-  function closeCreateHub({restoreFocus = false} = {}) {
-    const hub = byId('crump5930CreateHub');
+  function closeStudiosHub({restoreFocus = false} = {}) {
+    const hub = byId('crump5930StudiosHub');
     if (!hub || hub.hidden) return;
     hub.hidden = true;
-    document.body.classList.remove('crump5930-create-open');
+    document.body.classList.remove('crump5930-studios-open');
     setDestinationBackgroundInert(false);
     if (restoreFocus) lastFocus?.focus?.({preventScroll: true});
     lastFocus = null;
     scheduleSurfaceSync();
   }
 
-  function createCard(action, eyebrow, title, detail, icon) {
-    return `<button type="button" class="crump5930-create-card" data-crump5930-create="${action}"><span class="crump5930-create-icon">${icon}</span><span><small>${eyebrow}</small><strong>${title}</strong><b>${detail}</b></span><i aria-hidden="true">↗</i></button>`;
+  function studioCard(action, eyebrow, title, detail, icon) {
+    return `<button type="button" class="crump5930-studios-card" data-crump5930-studio="${action}"><span class="crump5930-studios-icon">${icon}</span><span><small>${eyebrow}</small><strong>${title}</strong><b>${detail}</b></span><i aria-hidden="true">↗</i></button>`;
   }
 
-  function injectCreateHub() {
-    if (byId('crump5930CreateHub')) return;
+  function injectStudiosHub() {
+    if (byId('crump5930StudiosHub')) return;
     const overlay = document.createElement('div');
-    overlay.id = 'crump5930CreateHub';
-    overlay.className = 'crump5930-create-overlay';
+    overlay.id = 'crump5930StudiosHub';
+    overlay.className = 'crump5930-studios-overlay';
     overlay.hidden = true;
     overlay.innerHTML = `
-      <section class="crump5930-create-sheet" role="dialog" aria-modal="false" aria-labelledby="crump5930CreateTitle">
-        <header class="crump5930-create-head">
-          <div><span>CREATE</span><h2 id="crump5930CreateTitle">Make something useful.</h2><p>Choose an outcome. Crump will open the right workspace and keep the result connected to your account.</p></div>
-          <button type="button" id="crump5930CreateClose" aria-label="Close Create">×</button>
+      <section class="crump5930-studios-sheet" role="dialog" aria-modal="false" aria-labelledby="crump5930StudiosTitle">
+        <header class="crump5930-studios-head">
+          <div><span>STUDIOS</span><h2 id="crump5930StudiosTitle">What shall we make?</h2><p>Pick a studio and I'll set everything up. Your work stays connected to your account.</p></div>
+          <button type="button" id="crump5930StudiosClose" aria-label="Close Studios">×</button>
         </header>
-        <div class="crump5930-create-grid">
-          ${createCard('document', 'WRITING', 'Documents', 'Reports, résumés, PDFs, spreadsheets, and more.', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v5h5M10 12h5M10 16h5"/></svg>')}
-          ${createCard('presentation', 'STORYTELLING', 'Presentations', 'Editable PowerPoint built around a clear narrative.', '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="12" rx="2"/><path d="M8 21h8M12 17v4M8 13l3-3 2 2 3-4"/></svg>')}
-          ${createCard('image', 'VISUALS', 'Images', 'Generate, edit, or build from a reference.', '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="m7 16 4-4 3 3 2-2 2 3"/><circle cx="9" cy="9" r="1.5"/></svg>')}
-          ${createCard('manuscript', 'LONG-FORM', 'Manuscripts', 'Plan, draft, pause, and continue chapter by chapter.', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h6a3 3 0 0 1 3 3v13a3 3 0 0 0-3-3H5z"/><path d="M19 4h-3a2 2 0 0 0-2 2v14a3 3 0 0 1 3-3h2z"/></svg>')}
-          ${createCard('video', 'MOTION', 'Video', 'Create a scene or continue a compatible clip.', '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="13" height="14" rx="2"/><path d="m16.5 10 4-2v8l-4-2zM8 9l5 3-5 3z"/></svg>')}
+        <div class="crump5930-studios-grid">
+          ${studioCard('document', 'WRITING', 'Documents', 'Reports, résumés, PDFs, spreadsheets, and more.', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v5h5M10 12h5M10 16h5"/></svg>')}
+          ${studioCard('presentation', 'STORYTELLING', 'Presentations', 'Editable PowerPoint built around a clear narrative.', '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="12" rx="2"/><path d="M8 21h8M12 17v4M8 13l3-3 2 2 3-4"/></svg>')}
+          ${studioCard('image', 'VISUALS', 'Images', 'Generate, edit, or build from a reference.', '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="m7 16 4-4 3 3 2-2 2 3"/><circle cx="9" cy="9" r="1.5"/></svg>')}
+          ${studioCard('manuscript', 'LONG-FORM', 'Manuscripts', 'Plan, draft, pause, and continue chapter by chapter.', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h6a3 3 0 0 1 3 3v13a3 3 0 0 0-3-3H5z"/><path d="M19 4h-3a2 2 0 0 0-2 2v14a3 3 0 0 1 3-3h2z"/></svg>')}
+          ${studioCard('video', 'MOTION', 'Video', 'Create a scene or continue a compatible clip.', '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="13" height="14" rx="2"/><path d="m16.5 10 4-2v8l-4-2zM8 9l5 3-5 3z"/></svg>')}
+          ${studioCard('code', 'BUILD', 'Code Studio', 'Write, run, and refine code with Crump pairing alongside.', '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 7-5 5 5 5M15 7l5 5-5 5M13 4l-2 16"/></svg>')}
         </div>
         <footer><span>Nothing generates until you review the setup and send your request.</span></footer>
       </section>`;
     document.body.appendChild(overlay);
 
-    byId('crump5930CreateClose')?.addEventListener('click', () => closeCreateHub({restoreFocus: true}));
+    byId('crump5930StudiosClose')?.addEventListener('click', () => closeStudiosHub({restoreFocus: true}));
     overlay.addEventListener('click', event => {
-      if (event.target === overlay) closeCreateHub({restoreFocus: true});
+      if (event.target === overlay) closeStudiosHub({restoreFocus: true});
     });
-    overlay.querySelectorAll('[data-crump5930-create]').forEach(button => {
-      button.addEventListener('click', () => openCreateTool(button.dataset.crump5930Create));
+    overlay.querySelectorAll('[data-crump5930-studio]').forEach(button => {
+      button.addEventListener('click', () => openStudioTool(button.dataset.crump5930Studio));
     });
   }
 
-  function openCreateHub() {
+  function openStudios() {
     closeSidebar();
     suppressPersistentDestinationRestore();
     closeStudio();
@@ -371,26 +366,26 @@
     setDestinationBackgroundInert(false);
     syncDestinationFocus();
     closeToolSheet();
-    injectCreateHub();
-    const hub = byId('crump5930CreateHub');
+    injectStudiosHub();
+    const hub = byId('crump5930StudiosHub');
     if (!hub) return;
     lastFocus = document.activeElement;
     hub.hidden = false;
-    document.body.classList.add('crump5930-create-open');
+    document.body.classList.add('crump5930-studios-open');
     setDestinationBackgroundInert(true);
-    setActive('create');
-    recordDestinationSelection('create');
+    setActive('studios');
+    recordDestinationSelection('studios');
     void (window.CrumpCodeWorkspace?.refreshAvailability?.() || window.CrumpCodeLoader?.refreshAvailability?.());
-    requestAnimationFrame(() => byId('crump5930CreateClose')?.focus({preventScroll: true}));
+    requestAnimationFrame(() => byId('crump5930StudiosClose')?.focus({preventScroll: true}));
   }
 
-  function openCreateTool(action) {
-    closeCreateHub();
+  function openStudioTool(action) {
+    closeStudiosHub();
     if (action === 'projects') {
       openProjects();
       return true;
     }
-    setActive('create');
+    setActive('studios');
     if (action === 'document') {
       window.CrumpDocumentStudio?.open?.();
       return true;
@@ -413,10 +408,14 @@
       return true;
     }
     if (action === 'manuscript') {
-      rememberDestinationOpener('create');
+      rememberDestinationOpener('studios');
       window.CrumpProduct53?.open?.('manuscripts');
       syncDestinationBackground();
       syncDestinationFocus();
+      return true;
+    }
+    if (action === 'code') {
+      void openCodeStudio();
       return true;
     }
     return false;
@@ -424,7 +423,7 @@
 
   function continueCreationIntent(detail = {}) {
     const kind = String(detail.kind || '').trim().toLowerCase();
-    if (!CREATION_HANDOFF_INTENTS.has(kind) || !openCreateTool(kind)) return false;
+    if (!CREATION_HANDOFF_INTENTS.has(kind) || !openStudioTool(kind)) return false;
     const capturedAt = Number(detail.capturedAt || 0);
     window.va?.('event', {
       name: 'CreationIntentContinued',
@@ -440,7 +439,7 @@
     return true;
   }
 
-  function openAsk() {
+  function openHome() {
     closeSidebar();
     suppressPersistentDestinationRestore();
     closeStudio();
@@ -448,10 +447,26 @@
     closeCodeWorkspace();
     setDestinationBackgroundInert(false);
     syncDestinationFocus();
-    closeCreateHub();
+    closeStudiosHub();
     closeToolSheet();
-    setActive('ask');
-    recordDestinationSelection('ask');
+    setActive('home');
+    recordDestinationSelection('home');
+    window.CrumpBodyV1?.showLaunchpad?.();
+  }
+
+  function openChats() {
+    closeSidebar();
+    suppressPersistentDestinationRestore();
+    closeStudio();
+    closeSettings();
+    closeCodeWorkspace();
+    setDestinationBackgroundInert(false);
+    syncDestinationFocus();
+    closeStudiosHub();
+    closeToolSheet();
+    setActive('chats');
+    recordDestinationSelection('chats');
+    window.CrumpBodyV1?.hideLaunchpad?.();
     requestAnimationFrame(() => byId('userInput')?.focus({preventScroll: true}));
   }
 
@@ -460,7 +475,7 @@
     closeSidebar();
     closeSettings();
     closeCodeWorkspace();
-    closeCreateHub();
+    closeStudiosHub();
     closeToolSheet();
     window.CrumpProduct53?.open?.('projects');
     syncDestinationBackground();
@@ -474,7 +489,7 @@
     closeSidebar();
     closeSettings();
     closeCodeWorkspace();
-    closeCreateHub();
+    closeStudiosHub();
     closeToolSheet();
     window.CrumpProduct53?.open?.('library');
     syncDestinationBackground();
@@ -484,16 +499,16 @@
   }
 
   function openVideo() {
-    rememberDestinationOpener('video');
+    rememberDestinationOpener('studios');
     closeSidebar();
     closeSettings();
     closeCodeWorkspace();
-    closeCreateHub();
+    closeStudiosHub();
     closeToolSheet();
     window.CrumpProduct53?.open?.('video');
     syncDestinationBackground();
-    setActive('video');
-    recordDestinationSelection('video');
+    setActive('studios');
+    recordDestinationSelection('studios-video');
     syncDestinationFocus();
   }
 
@@ -502,7 +517,7 @@
     closeSidebar();
     closeStudio();
     closeCodeWorkspace();
-    closeCreateHub();
+    closeStudiosHub();
     closeToolSheet();
     if (typeof window.openSettings === 'function') window.openSettings();
     else byId('settingsBtn')?.click();
@@ -512,23 +527,23 @@
     syncDestinationFocus();
   }
 
-  async function openCode() {
-    rememberDestinationOpener('code');
+  async function openCodeStudio() {
+    rememberDestinationOpener('studios');
     closeSidebar();
     closeStudio();
     closeSettings();
-    closeCreateHub();
+    closeStudiosHub();
     closeToolSheet();
     const opened = window.CrumpCodeWorkspace?.open
       ? await window.CrumpCodeWorkspace.open()
       : await window.CrumpCodeLoader?.open?.();
     if (!opened) {
-      setActive('ask');
+      setActive('studios');
       return;
     }
     syncDestinationBackground();
-    setActive('code');
-    recordDestinationSelection('code');
+    setActive('studios');
+    recordDestinationSelection('studios-code');
     syncDestinationFocus();
   }
 
@@ -540,13 +555,13 @@
   }
 
   function openDestination(destination) {
-    if (destination === 'projects') openProjects();
-    else if (destination === 'code') void openCode();
-    else if (destination === 'create') openCreateHub();
-    else if (destination === 'video') openVideo();
+    if (destination === 'home') openHome();
+    else if (destination === 'chats') openChats();
+    else if (destination === 'projects') openProjects();
     else if (destination === 'library') openLibrary();
+    else if (destination === 'studios') openStudios();
     else if (destination === 'you') openYou();
-    else openAsk();
+    else openHome();
   }
 
   function wireDestinations() {
@@ -568,8 +583,7 @@
     const section = byId('crump53Sheet')?.dataset.crump53Section;
     if (section === 'library') return 'library';
     if (section === 'projects') return 'projects';
-    if (section === 'video') return 'video';
-    if (section === 'manuscripts') return 'create';
+    if (section === 'video' || section === 'manuscripts') return 'studios';
     return null;
   }
 
@@ -577,13 +591,14 @@
     syncFrame = 0;
     syncDestinationBackground();
     syncDestinationFocus();
-    if (codeWorkspaceIsOpen()) return setActive('code');
-    if (createHubIsOpen()) return setActive('create');
+    if (codeWorkspaceIsOpen()) return setActive('studios');
+    if (studiosHubIsOpen()) return setActive('studios');
     const studioDestination = selectedStudioDestination();
     if (studioDestination) return setActive(studioDestination);
     if (settingsIsOpen()) return setActive('you');
-    if (document.querySelector('.crump50-options-sheet')) return setActive('create');
-    setActive('ask');
+    if (document.querySelector('.crump50-options-sheet')) return setActive('studios');
+    if (window.CrumpBodyV1?.isLaunchpadVisible?.()) return setActive('home');
+    setActive('chats');
   }
 
   function scheduleSurfaceSync() {
@@ -602,13 +617,13 @@
     });
     document.addEventListener('click', event => {
       if (event.target.closest?.('.chat-item, #newChatBtn, [data-v1-command="focus"], [data-v1-command="research"]')) {
-        requestAnimationFrame(() => setActive('ask'));
+        requestAnimationFrame(() => setActive('chats'));
       }
     }, true);
     document.addEventListener('keydown', event => {
-      if (event.key === 'Escape' && createHubIsOpen()) {
+      if (event.key === 'Escape' && studiosHubIsOpen()) {
         event.preventDefault();
-        closeCreateHub({restoreFocus: true});
+        closeStudiosHub({restoreFocus: true});
         return;
       }
     });
@@ -621,7 +636,7 @@
     }
     injectDesktopNavigation();
     injectMobileNavigation();
-    injectCreateHub();
+    injectStudiosHub();
     consolidateAccountNavigation();
     wireDestinations();
     window.CrumpBodyV1?.syncConversationLibrary?.();
