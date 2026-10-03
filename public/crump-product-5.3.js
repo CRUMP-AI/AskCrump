@@ -2219,7 +2219,17 @@
     const list = byId('crump53ProjectList');
     if (!list) return;
     if (!state.projects.length) {
-      list.innerHTML = '<div class="crump53-note">No projects yet. Create one on the right.</div>';
+      // First-run: the empty list teaches the concept and offers the same
+      // New Project form as the section header, so the guidance works on
+      // every viewport (the old copy pointed "right", which mobile has).
+      list.innerHTML = `
+        <div class="crump53-empty-projects">
+          <div class="crump53-kicker">PROJECTS</div>
+          <h4>Keep it all together.</h4>
+          <p>Start a Project and Crump will remember the details, the files, and where you left off — so you never start from scratch.</p>
+          <button type="button" class="crump53-button is-primary" data-crump53-empty-new>Start your first project</button>
+        </div>`;
+      list.querySelector('[data-crump53-empty-new]')?.addEventListener('click', () => byId('crump53CreateProject')?.click());
       return;
     }
     list.innerHTML = state.projects.map(item => `

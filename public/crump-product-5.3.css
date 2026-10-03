@@ -1272,3 +1272,30 @@ body.crump-v1-body .crump50-artifact-actions button:focus-visible {
     flex: 1 1 130px;
   }
 }
+
+/* ------------------------------------------------------------------
+   First-run Projects empty state - the list teaches the concept and
+   offers the New Project form directly, on every viewport. */
+body.crump-v1-body .crump53-empty-projects {
+  padding: 28px 22px;
+  border: 1px dashed rgba(217,191,132,.22);
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(217,191,132,.05), rgba(217,191,132,.015));
+  text-align: center;
+}
+body.crump-v1-body .crump53-empty-projects .crump53-kicker { margin-bottom: 8px; }
+body.crump-v1-body .crump53-empty-projects h4 {
+  margin: 0 0 8px;
+  color: #f2eee5;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 21px;
+  font-weight: 400;
+  letter-spacing: -.02em;
+}
+body.crump-v1-body .crump53-empty-projects p {
+  margin: 0 auto 16px;
+  max-width: 360px;
+  color: #8f9495;
+  font-size: 11px;
+  line-height: 1.65;
+}
