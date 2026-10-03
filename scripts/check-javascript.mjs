@@ -1033,6 +1033,7 @@ const userControlledScrollVersion = `${releaseVersion}-user-controlled-scroll-1`
 const newResponseCueVersion = `${releaseVersion}-new-response-cue-1`;
 const videoDestinationVersion = `${releaseVersion}-video-destination-1`;
 const mobileDrawerDestinationsVersion = `${releaseVersion}-mobile-drawer-destinations-1`;
+const navFocusVisibilityVersion = `${releaseVersion}-nav-focus-visibility-1`;
 const destinationBackgroundGuardVersion = `${releaseVersion}-destination-background-guard-1`;
 const codeLazyLoadVersion = `${releaseVersion}-code-lazy-load-1`;
 const precisionLazyLoadVersion = `${releaseVersion}-precision-lazy-load-1`;
@@ -1364,7 +1365,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/crump-library-loader.js?v=${libraryLazyLoadVersion}`) ||
     runtime.includes('/crump-library-5.7.js') || runtime.includes('/crump-library-5.7.css') ||
     !runtime.includes(`/crump-navigation-5.9.30.js?v=${imageStudioEntryVersion}`) ||
-    !runtime.includes(`/crump-navigation-5.9.30.css?v=${mobileDrawerDestinationsVersion}`) ||
+    !runtime.includes(`/crump-navigation-5.9.30.css?v=${navFocusVisibilityVersion}`) ||
     !runtime.includes(`/crump-code-loader.js?v=${codeLazyLoadVersion}`) ||
     runtime.includes(`/crump-code-5.9.35.js?v=${creditConfirmationVersion}`) ||
     runtime.includes(`/crump-code-5.9.35.css?v=${intelligenceArchitectureVersion}`)) {
