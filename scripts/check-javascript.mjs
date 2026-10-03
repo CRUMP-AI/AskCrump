@@ -1026,6 +1026,7 @@ const navigationDiscoveryVersion = `${releaseVersion}-navigation-discovery-1`;
 const imageStudioEntryVersion = `${releaseVersion}-image-studio-entry-1`;
 const museReleaseRepairVersion = `${releaseVersion}-muse-release-repair-1`;
 const museFeelPassVersion = `${releaseVersion}-muse-feel-pass-1`;
+const mascotFaceVersion = `${releaseVersion}-mascot-face-1`;
 const documentDeliveryFocusedVersion = `${releaseVersion}-reference-fidelity-hard-contract-1`;
 const outcomeRefinementRecoveryVersion = `${releaseVersion}-outcome-refinement-recovery-1`;
 const authUpdateGuardVersion = `${releaseVersion}-update-work-guard-1`;
@@ -1313,7 +1314,7 @@ const finalStyleUrls = source => {
   if (start < 0 || end < 0) return [];
   return [...source.slice(start, end).matchAll(/\['([^']+)'/g)].map(match => match[1]);
 };
-const expectedFinalStyle = `/crump-design-pass.css?v=${museFeelPassVersion}`;
+const expectedFinalStyle = `/crump-design-pass.css?v=${mascotFaceVersion}`;
 for (const source of [runtime, nativeBuildSource]) {
   const finalStyles = finalStyleUrls(source);
   if (finalStyles.length !== 1 || finalStyles[0] !== expectedFinalStyle ||
@@ -1327,7 +1328,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/onboarding.css?v=${videoDestinationVersion}`) ||
     !runtime.includes(`/onboarding.js?v=${brandDeliveryVersion}`) ||
     !runtime.includes(`/conversation.css?v=${museReleaseRepairVersion}`) ||
-    !runtime.includes(`/crump-design-pass.css?v=${museFeelPassVersion}`) ||
+    !runtime.includes(`/crump-design-pass.css?v=${mascotFaceVersion}`) ||
     !runtime.includes(`/credit-confirmation.css?v=${creditConfirmationVersion}`) ||
     !runtime.includes(`/credit-confirmation.js?v=${creditConfirmationVersion}`) ||
     !runtime.includes(`/chat-resilience.js?v=${creditConfirmationVersion}`) ||
@@ -1352,7 +1353,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/crump-5.2.js?v=${planStatusLineVersion}`) ||
     !runtime.includes(`/crump-5.2.2.css?v=${newResponseCueVersion}`) ||
     !runtime.includes(`/crump-5.2.2.js?v=${museReleaseRepairVersion}`) ||
-    !runtime.includes(`/crump-4.3.js?v=${composerActionabilityVersion}`) ||
+    !runtime.includes(`/crump-4.3.js?v=${mascotFaceVersion}`) ||
     !runtime.includes(`/crump-4.4.js?v=${navigationDiscoveryVersion}`) ||
     !runtime.includes(`/crump-v1-stability.js?v=${intelligenceArchitectureVersion}`) ||
     !runtime.includes(`/crump-product-loader.js?v=${referenceFidelityVersion}`) ||
@@ -1444,7 +1445,7 @@ if (runtimeDocument.documentElement.dataset.crumpBodyRuntime !== 'ready' ||
     !loadedRuntimeScripts.every(asset => preloadedRuntimeScripts.includes(asset)) ||
     loadedRuntimeStyles.at(-1) !== expectedFinalStyle ||
     loadedRuntimeScripts.indexOf(`/credit-confirmation.js?v=${creditConfirmationVersion}`) > loadedRuntimeScripts.indexOf(`/app.js?v=${referenceFidelityVersion}`) ||
-    loadedRuntimeScripts.indexOf(`/app.js?v=${referenceFidelityVersion}`) > loadedRuntimeScripts.indexOf(`/crump-4.3.js?v=${composerActionabilityVersion}`) ||
+    loadedRuntimeScripts.indexOf(`/app.js?v=${referenceFidelityVersion}`) > loadedRuntimeScripts.indexOf(`/crump-4.3.js?v=${mascotFaceVersion}`) ||
     loadedRuntimeScripts.at(-1) !== `/lifecycle-manager.js?v=${lifecycleIdleSendVersion}`) {
   console.error('Authenticated workspace runtime load order or completion contract failed.');
   process.exit(1);
@@ -1536,7 +1537,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r254') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
     !serviceWorker.includes(`/runtime-body-v1.js?v=${museReleaseRepairVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${museReleaseRepairVersion}`) ||
-    !serviceWorker.includes(`/crump-design-pass.css?v=${museFeelPassVersion}`) ||
+    !serviceWorker.includes(`/crump-design-pass.css?v=${mascotFaceVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.css?v=${creditConfirmationVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.js?v=${creditConfirmationVersion}`) ||
     !serviceWorker.includes(`/chat-resilience.js?v=${creditConfirmationVersion}`) ||
@@ -1569,7 +1570,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r254') ||
     !serviceWorker.includes(`/product-analytics.js?v=${navigationDiscoveryVersion}`) ||
     !serviceWorker.includes(`/auth-controller.js?v=${authControllerVersion}`) ||
     !serviceWorker.includes(`/crump-v1-body.css?v=${brandDeliveryVersion}`) ||
-    !serviceWorker.includes(`/crump-4.3.js?v=${composerActionabilityVersion}`) ||
+    !serviceWorker.includes(`/crump-4.3.js?v=${mascotFaceVersion}`) ||
     !serviceWorker.includes(`/crump-4.4.js?v=${navigationDiscoveryVersion}`) ||
     !serviceWorker.includes(`/crump-v1-stability.js?v=${intelligenceArchitectureVersion}`) ||
     !serviceWorker.includes(`/crump-product-loader.js?v=${referenceFidelityVersion}`) ||
