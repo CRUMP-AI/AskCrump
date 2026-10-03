@@ -431,3 +431,18 @@ body.crump-v1-body .crump5930-create-sheet footer {
   body.crump-v1-body .crump5930-destination,
   body.crump-v1-body .crump5930-create-card { transition: none; }
 }
+
+/* ------------------------------------------------------------------
+   Keyboard focus - every navigation control carries a visible, restrained
+   gold ring. :focus-visible only, so pointer users see no change. */
+body.crump-v1-body .crump5930-destination:focus-visible,
+body.crump-v1-body .crump5930-chats-toggle:focus-visible,
+body.crump-v1-body #crump5930CreateClose:focus-visible,
+body.crump-v1-body .crump5930-create-card:focus-visible,
+body.crump-v1-body .v1-plan-entry:focus-visible {
+  outline: 2px solid #d9bf84;
+  outline-offset: 3px;
+}
+body.crump-v1-body .crump5930-mobile-nav .crump5930-destination:focus-visible {
+  outline-offset: 2px;
+}

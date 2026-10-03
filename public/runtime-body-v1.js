@@ -38,7 +38,7 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/crump-product-5.3.1.css', 'crumpproduct531'],
     ['/crump-polish-5.6.css', 'crumppolish56'],
     ['/crump-v1-stability.css', 'crumpv1stability'],
-    ['/crump-navigation-5.9.30.css?v=5.9.76-mobile-drawer-destinations-1', 'crumpnav5930'],
+    ['/crump-navigation-5.9.30.css?v=5.9.76-nav-focus-visibility-1', 'crumpnav5930'],
   ]);
 
   const finalStyles = Object.freeze([
