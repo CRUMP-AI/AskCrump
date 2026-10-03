@@ -2225,8 +2225,8 @@
       list.innerHTML = `
         <div class="crump53-empty-projects">
           <div class="crump53-kicker">PROJECTS</div>
-          <h4>Work keeps its context.</h4>
-          <p>Start a Project to give a thread its own instructions, files, and durable memory — so nothing starts over.</p>
+          <h4>Keep it all together.</h4>
+          <p>Start a Project and Crump will remember the details, the files, and where you left off — so you never start from scratch.</p>
           <button type="button" class="crump53-button is-primary" data-crump53-empty-new>Start your first project</button>
         </div>`;
       list.querySelector('[data-crump53-empty-new]')?.addEventListener('click', () => byId('crump53CreateProject')?.click());
