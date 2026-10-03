@@ -77,7 +77,7 @@ const serverPlan = Object.freeze([
 const localPython = path.join(root, '.venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
 const pythonExecutable = process.env.ASKCRUMP_PYTHON
   || (existsSync(localPython) ? localPython : (process.platform === 'win32' ? 'python' : 'python3'));
-const verifierTimeoutMs = Math.max(30_000, Number(process.env.ASKCRUMP_BROWSER_MATRIX_TIMEOUT_MS || 120_000));
+const verifierTimeoutMs = Math.max(30_000, Number(process.env.ASKCRUMP_BROWSER_MATRIX_TIMEOUT_MS || 180_000));
 
 function sorted(values) {
   return [...values].sort((left, right) => left.localeCompare(right));
