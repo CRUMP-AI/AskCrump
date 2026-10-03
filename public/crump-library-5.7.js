@@ -725,14 +725,30 @@
     updateLayoutControls();
     const books = sortBooks(state.books.filter(bookMatches));
     grid.className = `crump57-bookshelf is-layout-${state.layout}`;
+    grid.removeAttribute('aria-busy');
     if (!books.length) {
       const hasAny = state.books.length > 0;
+      if (!hasAny) {
+        // First-run: the empty shelf teaches the two ways in and offers
+        // both, wired to the existing header actions.
+        grid.innerHTML = `
+          <div class="crump57-first-run">
+            <div class="crump53-kicker">LIBRARY</div>
+            <strong>Your shelf is ready.</strong>
+            <p>Write something new with Crump, or bring a book you started somewhere else.</p>
+            <div class="crump57-first-run-actions">
+              <button type="button" class="crump53-button is-primary" data-crump57-first-run-new>New in Crump</button>
+              <button type="button" class="crump53-button" data-crump57-first-run-import>Import a manuscript</button>
+            </div>
+          </div>`;
+        grid.querySelector('[data-crump57-first-run-new]')?.addEventListener('click', () => byId('crump57New')?.click());
+        grid.querySelector('[data-crump57-first-run-import]')?.addEventListener('click', () => byId('crump57Import')?.click());
+        return;
+      }
       grid.innerHTML = `
         <div class="crump57-empty">
-          <strong>${hasAny ? 'No books match that view.' : 'Your shelf is ready.'}</strong>
-          ${hasAny
-            ? 'Try another search, status, or cover filter.'
-            : 'Create a manuscript with Crump or import a book you already started somewhere else.'}
+          <strong>No books match that view.</strong>
+          Try another search, status, or cover filter.
         </div>`;
       return;
     }
@@ -758,14 +774,24 @@
 
   async function refreshBooks() {
     const grid = byId('crump57Bookshelf');
-    if (grid) grid.innerHTML = '<div class="crump57-empty"><strong>Loading Library…</strong>Crump is collecting your books.</div>';
+    if (grid) {
+      // Skeleton covers keep the bookshelf's shape while it loads, in the
+      // same calm gold language as the rest of the surface.
+      grid.className = 'crump57-bookshelf is-loading';
+      grid.setAttribute('aria-busy', 'true');
+      grid.innerHTML = '<div class="crump57-skeleton" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>';
+    }
     try {
       const data = await api('/api/library/books');
       state.books = Array.isArray(data.books) ? data.books : [];
       await refreshDeletedBooks();
       renderBooks();
     } catch (error) {
-      if (grid) grid.innerHTML = `<div class="crump57-empty"><strong>Library could not load.</strong>${escapeHtml(error.message || 'Try again in a moment.')}</div>`;
+      if (grid) {
+        grid.className = 'crump57-bookshelf';
+        grid.removeAttribute('aria-busy');
+        grid.innerHTML = `<div class="crump57-empty"><strong>Library could not load.</strong>${escapeHtml(error.message || 'Try again in a moment.')}</div>`;
+      }
     }
   }
 

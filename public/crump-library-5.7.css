@@ -1199,3 +1199,63 @@ body.crump-v1-body .crump53-sheet.crump57-library-shell .crump53-sheet-body {
   .crump57-book,
   .crump57-layout-button { transition: none !important; }
 }
+
+/* ------------------------------------------------------------------
+   First-run bookshelf - the empty shelf teaches the two ways in and
+   offers both directly. */
+.crump57-first-run {
+  grid-column: 1 / -1;
+  padding: 44px 24px;
+  border: 1px dashed rgba(217,191,132,.22);
+  border-radius: 19px;
+  background: linear-gradient(180deg, rgba(217,191,132,.05), rgba(217,191,132,.015));
+  text-align: center;
+  line-height: 1.55;
+}
+.crump57-first-run .crump53-kicker { margin-bottom: 10px; }
+.crump57-first-run > strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #f1eee8;
+  font-family: Georgia, 'Times New Roman', serif;
+  font-size: 22px;
+  font-weight: 400;
+  letter-spacing: -.02em;
+}
+.crump57-first-run > p {
+  margin: 0 auto 20px;
+  max-width: 420px;
+  color: #8c9498;
+  font-size: 12px;
+}
+.crump57-first-run-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+/* Loading bookshelf - calm skeleton covers keep the shelf's shape while
+   it loads. Shimmer stays subtle; static under reduced motion. */
+.crump57-bookshelf.is-loading { min-height: 340px; }
+.crump57-skeleton {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: 16px;
+}
+.crump57-skeleton i {
+  display: block;
+  aspect-ratio: 2 / 3;
+  border-radius: 10px;
+  background: linear-gradient(100deg, rgba(255,255,255,.03) 40%, rgba(217,191,132,.07) 50%, rgba(255,255,255,.03) 60%);
+  background-size: 200% 100%;
+  animation: crump57-skeleton-shimmer 1.9s ease-in-out infinite;
+}
+@keyframes crump57-skeleton-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .crump57-skeleton i { animation: none; }
+}
