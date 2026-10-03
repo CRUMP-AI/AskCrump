@@ -23,7 +23,9 @@ const executablePath = process.env.ASKCRUMP_BROWSER_EXECUTABLE
       page.on('pageerror', error => browserErrors.push(error.message));
       const query = destination === 'new' ? '?target=new&file=slow' : '?file=slow';
       await page.goto(`${baseUrl}/tests/fixtures/project-target-disclosure.html${query}`, {
-        waitUntil: 'networkidle',
+        // networkidle hangs under CI load (36+ prior browser tests); the
+        // waitForFunction calls below already synchronize on actual readiness.
+        waitUntil: 'domcontentloaded',
       });
       await page.waitForFunction(expected => {
         const button = document.querySelector('[data-artifact-project]');
