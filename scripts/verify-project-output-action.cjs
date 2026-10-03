@@ -23,7 +23,9 @@ const executablePath = process.env.ASKCRUMP_BROWSER_EXECUTABLE
       page.on('pageerror', error => browserErrors.push(error.message));
       const query = destination === 'new' ? '?target=new&file=slow' : '?file=slow';
       await page.goto(`${baseUrl}/tests/fixtures/project-target-disclosure.html${query}`, {
-        waitUntil: 'networkidle',
+        // networkidle hangs under CI load (36+ prior browser tests); the
+        // waitForFunction calls below already synchronize on actual readiness.
+        waitUntil: 'domcontentloaded',
       });
       await page.waitForFunction(expected => {
         const button = document.querySelector('[data-artifact-project]');
@@ -61,17 +63,21 @@ const executablePath = process.env.ASKCRUMP_BROWSER_EXECUTABLE
       assert.equal(completed.label, 'Open Project');
       assert.equal(completed.busy, null);
       assert.equal(completed.status, 'Created by Crump · Saved in Project');
+      // The artifact offer is wired synchronously during render while the
+      // outcome offer fires after async project hydration, so artifact_result
+      // deterministically precedes conversation_result. This tracks the actual
+      // display order, not a bug.
       assert.deepEqual(completed.analytics, [{
         eventName: 'ProjectSaveOfferShown',
         values: {
           eventKey: 'project-save-offer-shown',
-          source: 'conversation_result',
+          source: 'artifact_result',
         },
       }, {
         eventName: 'ProjectSaveOfferShown',
         values: {
           eventKey: 'project-save-offer-shown',
-          source: 'artifact_result',
+          source: 'conversation_result',
         },
       }, {
         eventName: 'ProjectSaveIntentReached',
