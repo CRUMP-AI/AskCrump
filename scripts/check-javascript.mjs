@@ -1025,6 +1025,7 @@ const projectSaveOfferVersion = `${releaseVersion}-project-save-offer-1`;
 const navigationDiscoveryVersion = `${releaseVersion}-navigation-discovery-1`;
 const imageStudioEntryVersion = `${releaseVersion}-image-studio-entry-1`;
 const museReleaseRepairVersion = `${releaseVersion}-muse-release-repair-1`;
+const museFeelPassVersion = `${releaseVersion}-muse-feel-pass-1`;
 const documentDeliveryFocusedVersion = `${releaseVersion}-reference-fidelity-hard-contract-1`;
 const outcomeRefinementRecoveryVersion = `${releaseVersion}-outcome-refinement-recovery-1`;
 const authUpdateGuardVersion = `${releaseVersion}-update-work-guard-1`;
@@ -1310,7 +1311,7 @@ const finalStyleUrls = source => {
   if (start < 0 || end < 0) return [];
   return [...source.slice(start, end).matchAll(/\['([^']+)'/g)].map(match => match[1]);
 };
-const expectedFinalStyle = `/crump-design-pass.css?v=${museReleaseRepairVersion}`;
+const expectedFinalStyle = `/crump-design-pass.css?v=${museFeelPassVersion}`;
 for (const source of [runtime, nativeBuildSource]) {
   const finalStyles = finalStyleUrls(source);
   if (finalStyles.length !== 1 || finalStyles[0] !== expectedFinalStyle ||
@@ -1324,13 +1325,13 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/onboarding.css?v=${videoDestinationVersion}`) ||
     !runtime.includes(`/onboarding.js?v=${brandDeliveryVersion}`) ||
     !runtime.includes(`/conversation.css?v=${museReleaseRepairVersion}`) ||
-    !runtime.includes(`/crump-design-pass.css?v=${museReleaseRepairVersion}`) ||
+    !runtime.includes(`/crump-design-pass.css?v=${museFeelPassVersion}`) ||
     !runtime.includes(`/credit-confirmation.css?v=${creditConfirmationVersion}`) ||
     !runtime.includes(`/credit-confirmation.js?v=${creditConfirmationVersion}`) ||
     !runtime.includes(`/chat-resilience.js?v=${creditConfirmationVersion}`) ||
     !runtime.includes(`/account-manager.js?v=${accountDeletionStorageVersion}`) ||
     !runtime.includes(`/scroll-manager.js?v=${museReleaseRepairVersion}`) ||
-    !runtime.includes(`/ui-functions.js?v=${museReleaseRepairVersion}`) ||
+    !runtime.includes(`/ui-functions.js?v=${museFeelPassVersion}`) ||
     !runtime.includes(`/presence-manager.js?v=${museReleaseRepairVersion}`) ||
     !runtime.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-1`) ||
     !runtime.includes(`/lifecycle-share.js?v=${settingsInviteVersion}`) ||
@@ -1533,7 +1534,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r254') ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
     !serviceWorker.includes(`/runtime-body-v1.js?v=${museReleaseRepairVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${museReleaseRepairVersion}`) ||
-    !serviceWorker.includes(`/crump-design-pass.css?v=${museReleaseRepairVersion}`) ||
+    !serviceWorker.includes(`/crump-design-pass.css?v=${museFeelPassVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.css?v=${creditConfirmationVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.js?v=${creditConfirmationVersion}`) ||
     !serviceWorker.includes(`/chat-resilience.js?v=${creditConfirmationVersion}`) ||
@@ -1544,7 +1545,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r254') ||
     !serviceWorker.includes(`/crump-precision-image-edit-loader.js?v=${referenceFidelityVersion}`) ||
     serviceWorker.includes(`/crump-precision-image-edit.css?v=${precisionEditStudioVersion}`) ||
     serviceWorker.includes(`/crump-precision-image-edit.js?v=${liveImagePreviewVersion}`) ||
-    !serviceWorker.includes(`/ui-functions.js?v=${museReleaseRepairVersion}`) ||
+    !serviceWorker.includes(`/ui-functions.js?v=${museFeelPassVersion}`) ||
     !serviceWorker.includes(`/presence-manager.js?v=${museReleaseRepairVersion}`) ||
     !serviceWorker.includes(`/app.js?v=${referenceFidelityVersion}`) ||
     !serviceWorker.includes(`/crump-5.2.2.css?v=${newResponseCueVersion}`) ||
