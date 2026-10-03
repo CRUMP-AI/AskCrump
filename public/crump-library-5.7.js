@@ -735,7 +735,7 @@
           <div class="crump57-first-run">
             <div class="crump53-kicker">LIBRARY</div>
             <strong>Your shelf is ready.</strong>
-            <p>Write something new with Crump, or bring a manuscript you already started somewhere else.</p>
+            <p>Write something new with Crump, or bring a book you started somewhere else.</p>
             <div class="crump57-first-run-actions">
               <button type="button" class="crump53-button is-primary" data-crump57-first-run-new>New in Crump</button>
               <button type="button" class="crump53-button" data-crump57-first-run-import>Import a manuscript</button>
