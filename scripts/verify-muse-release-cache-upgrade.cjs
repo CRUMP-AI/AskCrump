@@ -19,18 +19,33 @@ const oldUrls = Object.freeze([
   '/crump-v1-body.js?v=5.9.76-navigation-discovery-1',
   '/crump-5.2.2.js?v=5.9.76-stripe-destination-integrity-1',
 ]);
-const releaseToken = '5.9.76-muse-release-repair-1';
-const newUrls = Object.freeze({
-  runtime: `/runtime-body-v1.js?v=${releaseToken}`,
-  conversation: `/conversation.css?v=${releaseToken}`,
-  design: `/crump-design-pass.css?v=${releaseToken}`,
-  scroll: `/scroll-manager.js?v=${releaseToken}`,
-  ui: `/ui-functions.js?v=${releaseToken}`,
-  presence: `/presence-manager.js?v=${releaseToken}`,
-  starter: `/crump-v1-body.js?v=${releaseToken}`,
-  enhancedScroll: `/crump-5.2.2.js?v=${releaseToken}`,
-  mascot: '/assets/brand/crump-mascot.png',
-});
+// The runtime loader and the service worker are the source of truth for the
+// current versioned asset URLs. Deriving them here (instead of hardcoding a
+// release token) keeps this verifier green across per-asset version passes
+// such as muse-feel-pass-N or mascot-face-N: the test then checks that the
+// upgraded cache holds exactly what the current code references, never a
+// stale bundle.
+async function loadNewUrls() {
+  const runtimeSource = await readFile(path.join(publicDirectory, 'runtime-body-v1.js'), 'utf8');
+  const workerSource = await readFile(path.join(publicDirectory, 'sw.js'), 'utf8');
+  const pick = (source, filePattern, label) => {
+    const match = source.match(new RegExp(`/${filePattern}\\?v=[^'"\\s)]+`));
+    assert.ok(match, `${label} should reference a versioned asset URL`);
+    return match[0];
+  };
+  return Object.freeze({
+    runtime: pick(workerSource, 'runtime-body-v1\\.js', 'sw.js'),
+    conversation: pick(runtimeSource, 'conversation\\.css', 'runtime-body-v1.js'),
+    design: pick(runtimeSource, 'crump-design-pass\\.css', 'runtime-body-v1.js'),
+    scroll: pick(runtimeSource, 'scroll-manager\\.js', 'runtime-body-v1.js'),
+    ui: pick(runtimeSource, 'ui-functions\\.js', 'runtime-body-v1.js'),
+    presence: pick(runtimeSource, 'presence-manager\\.js', 'runtime-body-v1.js'),
+    starter: pick(runtimeSource, 'crump-v1-body\\.js', 'runtime-body-v1.js'),
+    enhancedScroll: pick(runtimeSource, 'crump-5\\.2\\.2\\.js', 'runtime-body-v1.js'),
+    mascot: '/assets/brand/crump-mascot.png',
+  });
+}
+let newUrls = null;
 const fixturePath = '/__muse-release-cache-upgrade.html';
 const oldWorkerPath = '/__muse-release-r253-sw.js';
 const contentTypes = Object.freeze({
@@ -110,6 +125,7 @@ async function startServer() {
 }
 
 (async () => {
+  newUrls = await loadNewUrls();
   const {server, port} = await startServer();
   const executablePath = process.env.ASKCRUMP_BROWSER_EXECUTABLE || undefined;
   const browser = await chromium.launch({
