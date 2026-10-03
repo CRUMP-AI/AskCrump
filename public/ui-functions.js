@@ -1046,7 +1046,10 @@
     row.className = 'message assistant-message presence-message';
     row.setAttribute('aria-hidden', 'true');
     const wrapper = document.createElement('div');
-    wrapper.className = 'message-wrapper';
+    wrapper.className = 'message-wrapper presence-wrapper';
+    const avatar = document.createElement('span');
+    avatar.className = 'crump-message-avatar';
+    avatar.setAttribute('aria-hidden', 'true');
     const bubble = document.createElement('div');
     bubble.className = 'message-content presence-bubble';
     const dots = document.createElement('span');
@@ -1059,6 +1062,7 @@
       label.textContent = state.label;
       bubble.appendChild(label);
     }
+    wrapper.appendChild(avatar);
     wrapper.appendChild(bubble);
     row.appendChild(wrapper);
     return row;
@@ -1118,6 +1122,21 @@
 
       const wrapper = document.createElement('div');
       wrapper.className = 'message-wrapper';
+      if (!isUser) {
+        // Every Crump response carries its nameplate: mascot mark plus a
+        // tiny tracked-out gold eyebrow, so the thread reads as a
+        // conversation between two parties.
+        const meta = document.createElement('div');
+        meta.className = 'crump-message-meta';
+        const avatar = document.createElement('span');
+        avatar.className = 'crump-message-avatar';
+        avatar.setAttribute('aria-hidden', 'true');
+        const name = document.createElement('span');
+        name.className = 'crump-message-name';
+        name.textContent = 'Crump';
+        meta.append(avatar, name);
+        wrapper.appendChild(meta);
+      }
       const content = document.createElement('div');
       content.className = 'message-content';
       if (isUser) content.textContent = String(message?.content || '');
