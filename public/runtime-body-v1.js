@@ -42,7 +42,7 @@ window.CRUMP_CONFIG = Object.freeze({
   ]);
 
   const finalStyles = Object.freeze([
-    ['/crump-design-pass.css?v=5.9.76-muse-feel-pass-1', 'crumpdesignpass'],
+    ['/crump-design-pass.css?v=5.9.76-mascot-face-1', 'crumpdesignpass'],
   ]);
 
   const workspaceScripts = Object.freeze([
@@ -63,7 +63,7 @@ window.CRUMP_CONFIG = Object.freeze({
   ]);
 
   const enhancementScripts = Object.freeze([
-    ['/crump-4.3.js?v=5.9.76-composer-actionability-1', 'crump43'],
+    ['/crump-4.3.js?v=5.9.76-mascot-face-1', 'crump43'],
     ['/crump-4.4.js?v=5.9.76-navigation-discovery-1', 'crump44'],
     ['/crump-5.0.js?v=5.9.76-reference-fidelity-hard-contract-1', 'crump50'],
     ['/crump-precision-image-edit-loader.js?v=5.9.76-reference-fidelity-hard-contract-1', 'crumpprecisionloader'],

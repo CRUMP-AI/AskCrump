@@ -135,13 +135,11 @@
     const mark = document.createElement('div');
     mark.className = 'crump-empty-mark';
     const icon = document.createElement('img');
-    icon.src = '/assets/logo-c.png';
-    icon.alt = '';
+    icon.src = '/assets/brand/crump-mascot.png';
+    icon.alt = 'Crump';
+    icon.className = 'crump-empty-mascot';
     mark.appendChild(icon);
 
-    const eyebrow = document.createElement('div');
-    eyebrow.className = 'crump-empty-eyebrow';
-    eyebrow.textContent = 'ASK CRUMP';
 
     const title = document.createElement('h1');
     title.textContent = 'What can I help with?';
@@ -166,7 +164,7 @@
       prompts.appendChild(button);
     }
 
-    section.append(mark, eyebrow, title, description, prompts);
+    section.append(mark, title, description, prompts);
     return section;
   }
 

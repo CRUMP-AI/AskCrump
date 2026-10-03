@@ -153,3 +153,48 @@ body.crump-v1-body :is(.chat-container,.v1-library-list,.settings-sheet-body,.bi
     animation: none !important;
   }
 }
+
+/* ------------------------------------------------------------------
+   7. Mascot as the face - official Crump artwork leads the home hero
+   and the chat empty state. Circular crop, hairline gold ring, calm
+   shadow. No glow, no bounce. */
+body.crump-v1-body .v1-launchpad-mark.v1-launchpad-mascot {
+  width: 108px !important;
+  height: 108px !important;
+  margin-bottom: 18px !important;
+}
+body.crump-v1-body .v1-launchpad-mark.v1-launchpad-mascot img {
+  width: 104px !important;
+  height: 104px !important;
+  object-fit: cover !important;
+  border-radius: 50% !important;
+  filter: none !important;
+  box-shadow:
+    0 0 0 1px rgba(217,191,132,.32),
+    0 18px 36px rgba(0,0,0,.45) !important;
+}
+body.crump-43 .crump-empty-mark {
+  width: 76px !important;
+  height: 76px !important;
+  border-radius: 50% !important;
+  border: 1px solid rgba(217,191,132,.30) !important;
+  background: rgba(0,0,0,.20) !important;
+  overflow: hidden !important;
+  margin-bottom: 22px !important;
+}
+body.crump-43 .crump-empty-mark img.crump-empty-mascot {
+  width: 74px !important;
+  height: 74px !important;
+  object-fit: cover !important;
+  border-radius: 50% !important;
+}
+@media (max-width: 640px) {
+  body.crump-v1-body .v1-launchpad-mark.v1-launchpad-mascot {
+    width: 92px !important;
+    height: 92px !important;
+  }
+  body.crump-v1-body .v1-launchpad-mark.v1-launchpad-mascot img {
+    width: 88px !important;
+    height: 88px !important;
+  }
+}
