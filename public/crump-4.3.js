@@ -183,7 +183,7 @@
       }
     }
 
-    $$('.assistant-message', container).forEach(row => {
+    $$('.assistant-message:not(.presence-message)', container).forEach(row => {
       const wrapper = $('.message-wrapper', row);
       if (!wrapper || wrapper.querySelector('.crump-message-meta')) return;
       const meta = document.createElement('div');
