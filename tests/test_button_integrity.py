@@ -463,7 +463,7 @@ def test_primary_destination_and_creation_buttons_have_complete_handlers() -> No
     navigation = (PUBLIC / "crump-navigation-5.9.30.js").read_text(encoding="utf-8")
     body = (PUBLIC / "crump-v1-body.js").read_text(encoding="utf-8")
 
-    for destination in ("ask", "projects", "code", "create", "video", "library", "you"):
+    for destination in ("home", "chats", "projects", "library", "studios", "you"):
         assert f"id: '{destination}'" in navigation
     for action in ("document", "presentation", "image", "manuscript", "video"):
         assert f"action === '{action}'" in navigation

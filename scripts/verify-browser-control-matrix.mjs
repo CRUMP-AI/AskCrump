@@ -14,7 +14,7 @@ const publicDirectory = path.join(root, 'public');
 const expectedVerifiers = Object.freeze([
   'verify-attach-creation-routing.cjs',
   'verify-button-state-integrity.cjs',
-  // 'verify-project-output-action.cjs', // TODO: Flaky under CI load (hangs >300s); needs investigation. Runs locally.
+  'verify-project-output-action.cjs',
   'verify-chat-action-accessibility.cjs',
   'verify-create-destination-handoff.cjs',
   'verify-creation-sheet-containment.cjs',
