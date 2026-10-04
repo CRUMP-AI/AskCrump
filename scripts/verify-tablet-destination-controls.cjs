@@ -85,19 +85,20 @@ const expectedDestinations = ['ask', 'projects', 'create', 'video', 'library', '
     await page.waitForFunction(() => document.getElementById('crump53Sheet')?.dataset.crump53Section === 'library');
     assert.equal(await page.locator('#crump53WorkspaceTitle').textContent(), 'Library');
 
-    await clickDestination('video');
+    await clickDestination('studios');
+    await page.locator('[data-crump5930-studio="video"]').click();
     await page.waitForFunction(() => document.getElementById('crump53Sheet')?.dataset.crump53Section === 'video');
     assert.equal(await page.locator('#crump53WorkspaceTitle').textContent(), 'Video Studio');
 
-    await clickDestination('create');
+    await clickDestination('studios');
     await page.waitForFunction(() => (
-      !document.getElementById('crump5930CreateHub')?.hidden
+      !document.getElementById('crump5930StudiosHub')?.hidden
       && document.getElementById('crump53Studio')?.hidden
     ));
-    const create = await surfaceGeometry('#crump5930CreateHub');
+    const create = await surfaceGeometry('#crump5930StudiosHub');
     assert(Math.abs(create.bottom - create.navTop) <= 1, JSON.stringify(create));
-    await page.waitForFunction(() => document.activeElement?.id === 'crump5930CreateClose');
-    assert.equal(await page.evaluate(() => document.activeElement?.id), 'crump5930CreateClose');
+    await page.waitForFunction(() => document.activeElement?.id === 'crump5930StudiosClose');
+    assert.equal(await page.evaluate(() => document.activeElement?.id), 'crump5930StudiosClose');
 
     await clickDestination('you');
     await page.waitForFunction(() => {
@@ -108,10 +109,10 @@ const expectedDestinations = ['ask', 'projects', 'create', 'video', 'library', '
     assert(Math.abs(you.bottom - you.navTop) <= 1, JSON.stringify(you));
     await page.waitForFunction(() => document.activeElement?.id === 'settingsTitle');
 
-    await clickDestination('ask');
+    await clickDestination('chats');
     await page.waitForFunction(() => (
       document.getElementById('crump53Studio')?.hidden
-      && document.getElementById('crump5930CreateHub')?.hidden
+      && document.getElementById('crump5930StudiosHub')?.hidden
       && document.getElementById('settingsModal')?.style.display === 'none'
     ));
     await page.waitForFunction(() => document.activeElement?.id === 'userInput');

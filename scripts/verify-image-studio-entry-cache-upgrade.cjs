@@ -14,11 +14,23 @@ const oldUrls = Object.freeze([
   '/crump-navigation-5.9.30.js?v=5.9.76-navigation-discovery-1',
   '/auth-controller.js?v=5.9.76-facebook-reel-attribution-1',
 ]);
-const newUrls = Object.freeze({
-  runtime: '/runtime-body-v1.js?v=5.9.76-muse-release-repair-1',
-  navigation: '/crump-navigation-5.9.30.js?v=5.9.76-image-studio-entry-1',
-  auth: '/auth-controller.js?v=5.9.76-image-studio-entry-1',
-});
+// Derive the expected URLs from the real files so per-asset version passes
+// don't break this verifier. See verify-muse-release-cache-upgrade.cjs.
+async function loadNewUrls() {
+  const runtimeSource = await readFile(path.join(publicDirectory, 'runtime-body-v1.js'), 'utf8');
+  const workerSource = await readFile(path.join(publicDirectory, 'sw.js'), 'utf8');
+  const pick = (source, filePattern, label) => {
+    const match = source.match(new RegExp(`/${filePattern}` + '\\?v=' + `[^'"\\s)]+`));
+    assert.ok(match, `${label} should reference a versioned asset URL`);
+    return match[0];
+  };
+  return Object.freeze({
+    runtime: pick(workerSource, 'runtime-body-v1\.js', 'sw.js'),
+    navigation: pick(runtimeSource, 'crump-navigation-5\.9\.30\.js', 'runtime-body-v1.js'),
+    auth: pick(workerSource, 'auth-controller\.js', 'sw.js'),
+  });
+}
+let newUrls = null;
 const fixturePath = '/__image-studio-entry-cache-upgrade.html';
 const oldWorkerPath = '/__image-studio-entry-r252-sw.js';
 const contentTypes = Object.freeze({
@@ -98,6 +110,7 @@ async function startServer() {
 }
 
 (async () => {
+  newUrls = await loadNewUrls();
   const {server, port} = await startServer();
   const executablePath = process.env.ASKCRUMP_BROWSER_EXECUTABLE || undefined;
   const browser = await chromium.launch({

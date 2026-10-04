@@ -121,11 +121,11 @@
   }
 
   function currentSurface() {
-    if (document.body.classList.contains('crump5930-create-open')) return 'create';
+    if (document.body.classList.contains('crump5930-studios-open')) return 'studios';
     const sheet = document.getElementById('crump53Sheet');
     if (isVisible(sheet)) {
       if (sheet.dataset.crump53Section === 'projects') return 'projects';
-      if (['manuscripts', 'video'].includes(sheet.dataset.crump53Section)) return 'create';
+      if (['manuscripts', 'video'].includes(sheet.dataset.crump53Section)) return 'studios';
     }
     return 'ask';
   }

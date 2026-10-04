@@ -3,14 +3,24 @@
 
   const STEPS = Object.freeze([
     {
-      destination: 'Ask',
-      action: 'ask',
-      actionLabel: 'Open Ask',
-      eyebrow: 'ASK · CHATS',
-      title: 'Start with the conversation.',
-      content: 'Ask is where you think, research, and work with Crump. Chats opens your synchronized conversation history without turning it into a second application menu.',
+      destination: 'Home',
+      action: 'home',
+      actionLabel: 'Open Home',
+      eyebrow: 'HOME',
+      title: 'Welcome home.',
+      content: 'Home is where your day with Crump starts. Pick up recent work, try a suggestion, or just say hello — everything is one tap away.',
       icon: '✦',
-      features: ['Ask naturally', 'Research what changed', 'Return through Chats'],
+      features: ['Continue recent work', 'Try a suggestion', 'Meet Crump'],
+    },
+    {
+      destination: 'Chats',
+      action: 'chats',
+      actionLabel: 'Open Chats',
+      eyebrow: 'CHATS',
+      title: 'Every conversation, kept.',
+      content: 'Chats is where you think, research, and work things through with Crump. Your history syncs across devices, so you never lose the thread.',
+      icon: '✦',
+      features: ['Ask naturally', 'Research what changed', 'Pick up anywhere'],
     },
     {
       destination: 'Projects',
@@ -23,24 +33,14 @@
       features: ['Open a named Project', 'Continue its conversations', 'Manage files & canon'],
     },
     {
-      destination: 'Create',
-      action: 'create',
-      actionLabel: 'Open Create',
-      eyebrow: 'CREATE',
-      title: 'Choose the outcome you need.',
-      content: 'Create opens the right workspace for documents, presentations, images, and manuscripts. For images, add a reference or choose Edit area after a result. Precision Edit lets you zoom, brush or lasso exactly what may change, invert a selection, preview local warmth, exposure, and saturation, or place exact logos and readable text without an AI redraw. Choose Apply changes to return to the conversation with the edited image, without using AI credits, or continue into a reviewed generative edit.',
+      destination: 'Studios',
+      action: 'studios',
+      actionLabel: 'Open Studios',
+      eyebrow: 'STUDIOS',
+      title: 'A studio for everything you make.',
+      content: 'Studios brings your creative workspaces together — documents, presentations, images, video, manuscripts, and Code Studio. Pick one and Crump sets everything up.',
       icon: '+',
-      features: ['Editable files', 'Local image adjustments', 'Long-form manuscripts'],
-    },
-    {
-      destination: 'Video',
-      action: 'video',
-      actionLabel: 'Open Video',
-      eyebrow: 'VIDEO',
-      title: 'Give motion its own studio.',
-      content: 'Video opens a dedicated studio for Quick, Extendable, and Cinematic generation. Add optional visual references, leave while a job runs, then return here to check its saved status and result.',
-      icon: '▶',
-      features: ['Three generation modes', 'Optional image references', 'Return to active jobs'],
+      features: ['Documents & presentations', 'Images & video', 'Code Studio'],
     },
     {
       destination: 'Library',
@@ -64,7 +64,7 @@
     },
   ]);
 
-  const DESTINATIONS = Object.freeze(['Ask', 'Projects', 'Create', 'Video', 'Library', 'You']);
+  const DESTINATIONS = Object.freeze(['Home', 'Chats', 'Projects', 'Library', 'Studios', 'You']);
 
   class Tutorial {
     constructor() {

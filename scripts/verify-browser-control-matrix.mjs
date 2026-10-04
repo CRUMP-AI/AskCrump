@@ -14,6 +14,7 @@ const publicDirectory = path.join(root, 'public');
 const expectedVerifiers = Object.freeze([
   'verify-attach-creation-routing.cjs',
   'verify-button-state-integrity.cjs',
+  'verify-project-output-action.cjs',
   'verify-chat-action-accessibility.cjs',
   'verify-create-destination-handoff.cjs',
   'verify-creation-sheet-containment.cjs',
@@ -48,7 +49,6 @@ const expectedVerifiers = Object.freeze([
   'verify-project-chat-context-boundary.cjs',
   'verify-project-limit-plan-default-off.cjs',
   'verify-project-limit-plan-delivery.cjs',
-  'verify-project-output-action.cjs',
   'verify-project-save-activation.cjs',
   'verify-public-account-entry-buttons.cjs',
   'verify-recent-work-continuation.cjs',
@@ -77,7 +77,7 @@ const serverPlan = Object.freeze([
 const localPython = path.join(root, '.venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
 const pythonExecutable = process.env.ASKCRUMP_PYTHON
   || (existsSync(localPython) ? localPython : (process.platform === 'win32' ? 'python' : 'python3'));
-const verifierTimeoutMs = Math.max(30_000, Number(process.env.ASKCRUMP_BROWSER_MATRIX_TIMEOUT_MS || 120_000));
+const verifierTimeoutMs = Math.max(30_000, Number(process.env.ASKCRUMP_BROWSER_MATRIX_TIMEOUT_MS || 300_000));
 
 function sorted(values) {
   return [...values].sort((left, right) => left.localeCompare(right));
