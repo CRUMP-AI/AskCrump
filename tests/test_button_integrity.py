@@ -289,7 +289,7 @@ def test_rendered_button_inventory_requires_explicit_review() -> None:
             inventory[page.relative_to(ROOT).as_posix()] = len(parser.buttons)
 
     assert inventory == EXPECTED_BUTTON_INVENTORY
-    assert sum(inventory.values()) == 190
+    assert sum(inventory.values()) == 193
 
 
 def test_programmatically_created_button_inventory_requires_explicit_review() -> None:
@@ -301,7 +301,7 @@ def test_programmatically_created_button_inventory_requires_explicit_review() ->
 
     assert inventory == DYNAMIC_BUTTON_INVENTORY
     assert sum(inventory.values()) == 99
-    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 289
+    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 292
 
 
 def test_programmatically_created_buttons_declare_type_and_runtime_owner() -> None:
