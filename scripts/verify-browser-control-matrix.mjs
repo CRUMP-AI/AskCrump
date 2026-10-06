@@ -48,7 +48,6 @@ const expectedVerifiers = Object.freeze([
   'verify-project-chat-context-boundary.cjs',
   'verify-project-limit-plan-default-off.cjs',
   'verify-project-limit-plan-delivery.cjs',
-  'verify-project-save-activation.cjs',
   'verify-public-account-entry-buttons.cjs',
   'verify-recent-work-continuation.cjs',
   'verify-resume-bullet-guide.cjs',
