@@ -22,10 +22,10 @@ EXPECTED_BUTTON_INVENTORY = {
     "public/crump-5.2.js": 5,
     "public/crump-billing-5.1.js": 3,
     "public/crump-code-5.9.35.js": 4,
-    "public/crump-library-5.7.js": 41,
+    "public/crump-library-5.7.js": 43,
     "public/crump-navigation-5.9.30.js": 4,
     "public/crump-product-5.3.1.js": 10,
-    "public/crump-product-5.3.js": 57,
+    "public/crump-product-5.3.js": 58,
     "public/install-prompt.js": 2,
     "public/lifecycle-manager.js": 2,
     "public/subscription-ui.js": 3,
@@ -289,7 +289,7 @@ def test_rendered_button_inventory_requires_explicit_review() -> None:
             inventory[page.relative_to(ROOT).as_posix()] = len(parser.buttons)
 
     assert inventory == EXPECTED_BUTTON_INVENTORY
-    assert sum(inventory.values()) == 190
+    assert sum(inventory.values()) == 193
 
 
 def test_programmatically_created_button_inventory_requires_explicit_review() -> None:
@@ -301,7 +301,7 @@ def test_programmatically_created_button_inventory_requires_explicit_review() ->
 
     assert inventory == DYNAMIC_BUTTON_INVENTORY
     assert sum(inventory.values()) == 99
-    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 289
+    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 292
 
 
 def test_programmatically_created_buttons_declare_type_and_runtime_owner() -> None:
@@ -580,7 +580,7 @@ def test_send_button_is_really_disabled_until_the_composer_has_content() -> None
 
 
 def test_send_button_actionability_release_is_cache_addressable_everywhere() -> None:
-    asset = "/crump-4.3.js?v=5.9.76-composer-actionability-1"
+    asset = "/crump-4.3.js?v=5.9.76-mascot-face-1"
 
     for relative in ("public/runtime-body-v1.js", "public/sw.js", "scripts/build-native.mjs"):
         assert asset in (ROOT / relative).read_text(encoding="utf-8")
@@ -701,7 +701,7 @@ def test_library_layout_buttons_expose_their_selected_state() -> None:
 
 
 def test_library_new_button_release_is_loaded_only_on_library_entry() -> None:
-    asset = "/crump-library-5.7.js?v=5.9.76-library-new-routing-1"
+    asset = "/crump-library-5.7.js?v=5.9.76-library-first-run-1"
     loader = (PUBLIC / "crump-library-loader.js").read_text(encoding="utf-8")
 
     assert asset in loader

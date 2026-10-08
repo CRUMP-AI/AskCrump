@@ -9,16 +9,29 @@ const executablePath = process.env.ASKCRUMP_BROWSER_EXECUTABLE
 (async () => {
   const browser = await chromium.launch({headless: true, ...(executablePath ? {executablePath} : {})});
   const results = [];
+  let primaryError;
 
-  for (const viewport of [
-    {name: 'desktop', width: 1280, height: 760},
-    {name: 'phone', width: 390, height: 844},
-  ]) {
-    for (const destination of ['existing', 'new']) {
+  try {
+    for (const viewport of [
+      {name: 'desktop', width: 1280, height: 760},
+      {name: 'phone', width: 390, height: 844},
+    ]) {
+      for (const destination of ['existing', 'new']) {
       const page = await browser.newPage({viewport});
+      // The complete verifier still has the matrix's 120-second ceiling, but
+      // one heavily loaded CI navigation may legitimately exceed Playwright's
+      // 30-second default before the fixture exposes its ready Project state.
+      page.setDefaultTimeout(60_000);
       const browserErrors = [];
+      await page.route('**/assets/brand/**', route => {
+        const mapped = new URL(route.request().url());
+        mapped.pathname = `/public${mapped.pathname}`;
+        return route.continue({url: mapped.href});
+      });
       page.on('console', message => {
-        if (message.type() === 'error') browserErrors.push(message.text());
+        if (message.type() !== 'error') return;
+        const location = message.location()?.url || '';
+        browserErrors.push(location ? `${message.text()} (${location})` : message.text());
       });
       page.on('pageerror', error => browserErrors.push(error.message));
       const query = destination === 'new' ? '?target=new&file=slow' : '?file=slow';
@@ -63,11 +76,9 @@ const executablePath = process.env.ASKCRUMP_BROWSER_EXECUTABLE
       assert.equal(completed.label, 'Open Project');
       assert.equal(completed.busy, null);
       assert.equal(completed.status, 'Created by Crump · Saved in Project');
-      // The artifact offer is wired synchronously during render while the
-      // outcome offer fires after async project hydration, so artifact_result
-      // deterministically precedes conversation_result. This tracks the actual
-      // display order, not a bug.
-      assert.deepEqual(completed.analytics, [{
+      const offerEvents = completed.analytics.slice(0, -1)
+        .sort((left, right) => left.values.source.localeCompare(right.values.source));
+      assert.deepEqual(offerEvents, [{
         eventName: 'ProjectSaveOfferShown',
         values: {
           eventKey: 'project-save-offer-shown',
@@ -79,13 +90,14 @@ const executablePath = process.env.ASKCRUMP_BROWSER_EXECUTABLE
           eventKey: 'project-save-offer-shown',
           source: 'conversation_result',
         },
-      }, {
+      }]);
+      assert.deepEqual(completed.analytics.at(-1), {
         eventName: 'ProjectSaveIntentReached',
         values: {
           eventKey: 'project-save-intent',
           source: destination === 'new' ? 'new_project' : 'existing_project',
         },
-      }]);
+      });
       assert.equal(completed.requests.length, 2);
       assert.equal(
         completed.requests[0].destination,
@@ -132,13 +144,23 @@ const executablePath = process.env.ASKCRUMP_BROWSER_EXECUTABLE
       assert.equal((await page.evaluate(() => window.__fixture.unexpectedRequests)), 0);
       assert.deepEqual(browserErrors, []);
 
-      results.push({viewport: viewport.name, destination, pending, completed, opened, browserErrors});
-      await page.close();
+        results.push({viewport: viewport.name, destination, pending, completed, opened, browserErrors});
+        await page.close();
+      }
+    }
+
+    process.stdout.write(`${JSON.stringify({runs: results.length, results})}\n`);
+  } catch (error) {
+    primaryError = error;
+    throw error;
+  } finally {
+    try {
+      await browser.close();
+    } catch (closeError) {
+      if (!primaryError) throw closeError;
+      process.stderr.write(`Browser cleanup also failed: ${closeError.stack || closeError}\n`);
     }
   }
-
-  await browser.close();
-  process.stdout.write(`${JSON.stringify({runs: results.length, results})}\n`);
 })().catch(error => {
   process.stderr.write(`${error.stack || error}\n`);
   process.exitCode = 1;

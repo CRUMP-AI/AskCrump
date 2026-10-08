@@ -6,7 +6,7 @@
 
   const BRAND = Object.freeze({
     mark: '/assets/brand/crump-mark-320.webp',
-    horizontalLight: '/assets/brand/crump-shell-lockup-light.webp',
+    horizontalLight: '/assets/brand/crump-shell-lockup-light.webp?v=5.9.76-shell-no-tagline-1',
   });
 
   const $ = (selector, root = document) => root.querySelector(selector);
@@ -32,7 +32,7 @@
     const existing = host.querySelector(':scope > img');
     if (existing) {
       if (existing.getAttribute('src') !== BRAND.horizontalLight) existing.src = BRAND.horizontalLight;
-      existing.alt = 'Ask Crump — An AI workspace for work that continues';
+      existing.alt = 'Ask Crump';
       existing.classList.add('v1-header-logo', 'v1-body-header-logo');
       existing.width = 1200;
       existing.height = 300;
@@ -44,7 +44,7 @@
     host.replaceChildren(makeImage(
       BRAND.horizontalLight,
       'v1-header-logo v1-body-header-logo',
-      'Ask Crump — An AI workspace for work that continues',
+      'Ask Crump',
       true,
     ));
   }
@@ -55,7 +55,7 @@
     const existing = host.querySelector(':scope > .v1-library-logo');
     if (existing && host.children.length === 1) {
       if (existing.getAttribute('src') !== BRAND.horizontalLight) existing.src = BRAND.horizontalLight;
-      existing.alt = 'Ask Crump — An AI workspace for work that continues';
+      existing.alt = 'Ask Crump';
       existing.width = 1200;
       existing.height = 300;
       existing.loading = 'eager';
@@ -66,7 +66,7 @@
     host.replaceChildren(makeImage(
       BRAND.horizontalLight,
       'v1-library-logo',
-      'Ask Crump — An AI workspace for work that continues',
+      'Ask Crump',
       true,
     ));
   }

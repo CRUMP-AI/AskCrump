@@ -6,17 +6,28 @@ const { chromium } = require(playwrightModule);
   const executablePath = process.env.ASKCRUMP_BROWSER_EXECUTABLE || undefined;
   const browser = await chromium.launch({headless: true, ...(executablePath ? {executablePath} : {})});
   const consoleErrors = [];
+  let primaryError;
+  try {
   const openFixture = async (query, viewport = {width: 390, height: 844}) => {
     const page = await browser.newPage({
       viewport,
       hasTouch: viewport.width <= 640,
     });
+    await page.route('**/assets/brand/**', route => {
+      const mapped = new URL(route.request().url());
+      mapped.pathname = `/public${mapped.pathname}`;
+      return route.continue({url: mapped.href});
+    });
     page.on('console', message => {
-      if (message.type() === 'error') consoleErrors.push(message.text());
+      if (message.type() !== 'error') return;
+      const location = message.location()?.url || '';
+      consoleErrors.push(location ? `${message.text()} (${location})` : message.text());
     });
     page.on('pageerror', error => consoleErrors.push(error.message));
     await page.goto(`http://127.0.0.1:8765/tests/fixtures/project-save-stall.html${query}`, {
-      waitUntil: 'networkidle',
+      // The assertions below synchronize on the visible Project control; a
+      // global network-idle wait is unrelated and can hang under CI load.
+      waitUntil: 'domcontentloaded',
     });
     await page.waitForFunction(() => {
       const button = document.querySelector('.outcome-project-btn');
@@ -126,8 +137,18 @@ const { chromium } = require(playwrightModule);
   assert.equal(saved.errors, 0);
   assert.deepEqual(consoleErrors, []);
 
-  await browser.close();
   process.stdout.write(`${JSON.stringify({mobileHierarchy, desktopHierarchy, pending, recovered, saved, consoleErrors})}\n`);
+  } catch (error) {
+    primaryError = error;
+    throw error;
+  } finally {
+    try {
+      await browser.close();
+    } catch (closeError) {
+      if (!primaryError) throw closeError;
+      process.stderr.write(`Browser cleanup also failed: ${closeError.stack || closeError}\n`);
+    }
+  }
 })().catch(error => {
   process.stderr.write(`${error.stack || error}\n`);
   process.exitCode = 1;

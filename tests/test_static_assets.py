@@ -102,7 +102,7 @@ def test_signed_out_entry_eagerly_loads_only_visible_brand_images():
     brand_images = [
         image for image in parser.images
         if image.get('src') in {
-            '/assets/brand/crump-shell-lockup-light.webp',
+            '/assets/brand/crump-shell-lockup-light.webp?v=5.9.76-shell-no-tagline-1',
             '/assets/brand/crump-mark-320.webp',
         }
     ]
@@ -110,7 +110,8 @@ def test_signed_out_entry_eagerly_loads_only_visible_brand_images():
     deferred_images = [image for image in brand_images if image.get('loading') == 'lazy']
 
     assert len(eager_images) == 5
-    assert sum(image['src'] == '/assets/brand/crump-shell-lockup-light.webp' for image in eager_images) == 4
+    shell_brand = '/assets/brand/crump-shell-lockup-light.webp?v=5.9.76-shell-no-tagline-1'
+    assert sum(image['src'] == shell_brand for image in eager_images) == 4
     startup_mark = next(image for image in eager_images if image['src'] == '/assets/brand/crump-mark-320.webp')
     assert startup_mark.get('loading') == 'eager'
     assert startup_mark.get('decoding') == 'sync'
@@ -120,13 +121,13 @@ def test_signed_out_entry_eagerly_loads_only_visible_brand_images():
     assert header_logo.get('fetchpriority') == 'high'
     assert header_logo.get('width') == '1200'
     assert header_logo.get('height') == '300'
-    assert 'An AI workspace for work that continues' in header_logo.get('alt', '')
+    assert header_logo.get('alt') == 'Ask Crump'
     library_logo = next(image for image in eager_images if 'v1-library-logo' in image.get('class', '').split())
     assert library_logo.get('decoding') == 'sync'
     assert library_logo.get('fetchpriority') == 'high'
     assert library_logo.get('width') == '1200'
     assert library_logo.get('height') == '300'
-    assert 'An AI workspace for work that continues' in library_logo.get('alt', '')
+    assert library_logo.get('alt') == 'Ask Crump'
     assert len(deferred_images) == len(brand_images) - 5
     assert all(image.get('decoding') == 'async' for image in deferred_images)
     assert all(image.get('width') and image.get('height') for image in brand_images)

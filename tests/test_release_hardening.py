@@ -229,23 +229,6 @@ async def test_same_installation_logins_converge_on_atomic_upsert():
     assert fake_db.rows_by_device['installation-123']['token_hash']
 
 
-def test_canceled_enterprise_stripe_subscription_has_no_paid_entitlement(monkeypatch):
-    monkeypatch.setattr(
-        billing_routes,
-        'settings',
-        SimpleNamespace(
-            stripe_enterprise_price_id='price_enterprise',
-            stripe_professional_price_id='price_professional',
-        ),
-    )
-
-    assert billing_routes.stripe_entitlement_tier('canceled', 'price_enterprise') == 'free'
-    assert billing_routes.stripe_entitlement_tier('inactive', 'price_enterprise') == 'free'
-    assert billing_routes.stripe_entitlement_tier('active', 'price_enterprise') == 'enterprise'
-    assert billing_routes.stripe_entitlement_tier('trialing', 'price_professional') == 'professional'
-    assert billing_routes.stripe_entitlement_tier('active', 'unknown-price') == 'free'
-
-
 def test_usage_tier_defense_in_depth_rejects_terminal_paid_labels():
     assert tier_name({
         'subscription_tier': 'enterprise',

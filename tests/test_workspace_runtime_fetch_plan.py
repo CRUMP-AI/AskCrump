@@ -53,7 +53,7 @@ def test_parallel_runtime_asset_is_versioned_for_web_pwa_and_native():
     worker = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
 
-    asset = "/runtime-body-v1.js?v=5.9.76-muse-release-repair-1"
+    asset = "/runtime-body-v1.js?v=5.9.76-cache-integrity-1"
     assert asset in shell
     assert asset in worker
     assert "ask-crump-new-body-v1-r254" in worker
@@ -87,7 +87,7 @@ def test_runtime_fetch_fixture_is_credential_free_and_measures_the_full_plan():
     assert "askcrump.com" not in fixture.lower()
     assert "verify-workspace-runtime-fetch-plan.cjs" in matrix
     assert "evidence.maxStyles, 17" in verifier
-    assert "evidence.lastStyle, '/crump-design-pass.css?v=5.9.76-muse-release-repair-1'" in verifier
+    assert "evidence.lastStyle, '/crump-design-pass.css?v=5.9.76-mascot-face-1'" in verifier
     assert "evidence.preloadCount, 34" in verifier
     assert "mode === 'style-retry' ? 19 : 18" in verifier
     assert "mode === 'script-retry' ? 35 : 34" in verifier
@@ -134,7 +134,7 @@ def test_image_studio_entry_replaces_the_frozen_r252_runtime_cache():
     ):
         assert old_url in verifier
     for new_url in (
-        "/runtime-body-v1.js?v=5.9.76-muse-release-repair-1",
+        "/runtime-body-v1.js?v=5.9.76-cache-integrity-1",
         "/crump-navigation-5.9.30.js?v=5.9.76-image-studio-entry-1",
         "/auth-controller.js?v=5.9.76-image-studio-entry-1",
     ):
@@ -152,7 +152,9 @@ def test_muse_release_repair_replaces_the_immediate_r253_runtime_cache():
 
     assert "oldCacheName = 'ask-crump-new-body-v1-r253'" in verifier
     assert "newCacheName = 'ask-crump-new-body-v1-r254'" in verifier
-    assert "5.9.76-muse-release-repair-1" in verifier
+    assert "async function loadNewUrls()" in verifier
+    assert "current versioned asset URLs" in verifier
+    assert "muse-feel-pass-N or mascot-face-N" in verifier
     assert "userControlledViewport: true" in verifier
     assert "cachedRepairAssets: true" in verifier
     assert "verify-muse-release-cache-upgrade.cjs" in matrix

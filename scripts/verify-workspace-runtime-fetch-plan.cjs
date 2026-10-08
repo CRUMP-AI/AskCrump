@@ -47,7 +47,7 @@ const assert = require('node:assert/strict');
       assert.equal(evidence.runtimeState, 'ready');
       assert.equal(evidence.styleCount, mode === 'style-retry' ? 19 : 18);
       assert.equal(evidence.maxStyles, 17);
-      assert.equal(evidence.lastStyle, '/crump-design-pass.css?v=5.9.76-muse-release-repair-1');
+      assert.equal(evidence.lastStyle, '/crump-design-pass.css?v=5.9.76-mascot-face-1');
       assert.equal(evidence.preloadCount, 34);
       assert.equal(evidence.scriptCount, mode === 'script-retry' ? 35 : 34);
       assert.equal(evidence.firstScript, '/onboarding.js?v=5.9.76-brand-retina-1');
@@ -120,7 +120,7 @@ const assert = require('node:assert/strict');
       styleAttempts: 3,
       readyEvents: 1,
       failureMessage: 'none',
-      lastStyle: '/crump-design-pass.css?v=5.9.76-muse-release-repair-1',
+      lastStyle: '/crump-design-pass.css?v=5.9.76-mascot-face-1',
     });
     results['style-fail-recovery'] = {failed, recovered};
     await failPage.close();
