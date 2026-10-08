@@ -90,10 +90,15 @@ def _sha256(namespace: str, value: str) -> str:
     return hashlib.sha256(f'{namespace}:{value}'.encode('utf-8')).hexdigest()
 
 
-def _settings(secret: str | None = _WEBHOOK_SECRET) -> SimpleNamespace:
+def _settings(
+    secret: str | None = _WEBHOOK_SECRET,
+    *,
+    recovery_enabled: bool = False,
+) -> SimpleNamespace:
     return SimpleNamespace(
         resend_webhook_secret=secret,
         environment='test',
+        verification_email_recovery_enabled=recovery_enabled,
     )
 
 
@@ -153,9 +158,40 @@ def _signed_headers(
     }
 
 
-def _configure(monkeypatch, fake_db, *, secret: str | None = _WEBHOOK_SECRET) -> None:
-    monkeypatch.setattr(email_webhooks, 'settings', _settings(secret))
+def _configure(
+    monkeypatch,
+    fake_db,
+    *,
+    secret: str | None = _WEBHOOK_SECRET,
+    recovery_enabled: bool = False,
+) -> None:
+    monkeypatch.setattr(
+        email_webhooks,
+        'settings',
+        _settings(secret, recovery_enabled=recovery_enabled),
+    )
     monkeypatch.setattr(email_webhooks, 'db', fake_db)
+
+
+@pytest.mark.asyncio
+async def test_enabled_recovery_uses_the_atomic_signed_event_rpc(monkeypatch):
+    fake_db = RecordingDB()
+    _configure(monkeypatch, fake_db, recovery_enabled=True)
+    raw_body = _body(
+        _event('email.delivery_delayed', provider_email_id='transient-provider-id')
+    )
+
+    response = await email_webhooks.resend_delivery_webhook(
+        RawRequest(raw_body, _signed_headers(raw_body))
+    )
+
+    assert response.status_code == 204
+    assert fake_db.calls[0][0] == 'record_resend_delivery_event_and_recovery'
+    record = fake_db.calls[0][1]
+    assert record['p_outcome_class'] == 'transient'
+    assert record['p_provider_email_hash'] == _sha256(
+        'resend-email', 'transient-provider-id'
+    )
 
 
 @pytest.mark.asyncio

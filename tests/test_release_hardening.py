@@ -104,6 +104,40 @@ async def test_email_503_retries_with_the_same_idempotency_key():
 
 
 @pytest.mark.asyncio
+async def test_recovery_receipt_without_provider_identity_fails_closed():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        service = EmailService(email_settings(), client=client)
+        with pytest.raises(EmailDeliveryError) as captured:
+            await service.send_verification_receipt(
+                'user@example.com',
+                'User',
+                'verification-token',
+            )
+
+    assert captured.value.status_code == 200
+    assert captured.value.retryable is False
+
+
+@pytest.mark.asyncio
+async def test_default_email_send_preserves_accepted_2xx_without_receipt_identity():
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        service = EmailService(email_settings(), client=client)
+        sent = await service.send_verification(
+            'user@example.com',
+            'User',
+            'verification-token',
+        )
+
+    assert sent is True
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize(
     ('send_method', 'arguments', 'expected_kind'),
     (

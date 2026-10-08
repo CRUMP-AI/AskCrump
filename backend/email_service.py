@@ -4,6 +4,8 @@ import asyncio
 import hashlib
 import html
 from collections.abc import Awaitable, Callable
+from dataclasses import dataclass
+from typing import Any
 
 import httpx
 
@@ -12,6 +14,12 @@ from .verification_handoff import verification_email_url
 
 
 _MESSAGE_KINDS = frozenset({'verification', 'password_reset'})
+
+
+@dataclass(frozen=True, slots=True)
+class EmailSendReceipt:
+    accepted: bool
+    provider_message_id: str | None = None
 
 
 class EmailDeliveryError(RuntimeError):
@@ -61,7 +69,7 @@ class EmailService:
                     pass
         return min(1.0 * (2 ** attempt), 4.0)
 
-    async def _send(
+    async def _send_receipt(
         self,
         to: str,
         subject: str,
@@ -69,12 +77,13 @@ class EmailService:
         *,
         idempotency_key: str,
         message_kind: str,
-    ) -> bool:
+        require_provider_message_id: bool = True,
+    ) -> EmailSendReceipt:
         if message_kind not in _MESSAGE_KINDS:
             raise ValueError('Unsupported transactional email kind.')
         if not self.settings.resend_api_key:
             # Account creation still succeeds in local/test environments.
-            return False
+            return EmailSendReceipt(accepted=False)
 
         owns_client = self._client is None
         client = self._client or httpx.AsyncClient(timeout=20)
@@ -109,7 +118,31 @@ class EmailService:
                     ) from exc
 
                 if response.is_success:
-                    return True
+                    if not require_provider_message_id:
+                        return EmailSendReceipt(accepted=True)
+                    try:
+                        payload: Any = response.json()
+                    except ValueError as exc:
+                        raise EmailDeliveryError(
+                            status_code=response.status_code,
+                            retryable=False,
+                        ) from exc
+                    provider_message_id = (
+                        payload.get('id') if isinstance(payload, dict) else None
+                    )
+                    if (
+                        not isinstance(provider_message_id, str)
+                        or not provider_message_id
+                        or len(provider_message_id) > 256
+                    ):
+                        raise EmailDeliveryError(
+                            status_code=response.status_code,
+                            retryable=False,
+                        )
+                    return EmailSendReceipt(
+                        accepted=True,
+                        provider_message_id=provider_message_id,
+                    )
 
                 retryable = self._retryable_status(response.status_code)
                 if retryable and attempt < 2:
@@ -123,6 +156,25 @@ class EmailService:
         finally:
             if owns_client:
                 await client.aclose()
+
+    async def _send(
+        self,
+        to: str,
+        subject: str,
+        body_html: str,
+        *,
+        idempotency_key: str,
+        message_kind: str,
+    ) -> bool:
+        receipt = await self._send_receipt(
+            to,
+            subject,
+            body_html,
+            idempotency_key=idempotency_key,
+            message_kind=message_kind,
+            require_provider_message_id=False,
+        )
+        return receipt.accepted
 
     def _layout(self, heading: str, content: str) -> str:
         app = html.escape(self.settings.app_name)
@@ -144,6 +196,26 @@ class EmailService:
         intent: str | None = None,
         plan: str | None = None,
     ) -> bool:
+        receipt = await self.send_verification_receipt(
+            email,
+            name,
+            token,
+            intent=intent,
+            plan=plan,
+            require_provider_message_id=False,
+        )
+        return receipt.accepted
+
+    async def send_verification_receipt(
+        self,
+        email: str,
+        name: str | None,
+        token: str,
+        *,
+        intent: str | None = None,
+        plan: str | None = None,
+        require_provider_message_id: bool = True,
+    ) -> EmailSendReceipt:
         url = verification_email_url(
             self.settings.app_url,
             token,
@@ -154,12 +226,13 @@ class EmailService:
         content = f"""<p>Hi {safe_name},</p><p>Confirm your email and open your Ask Crump workspace.</p>
 <p><a href="{html.escape(url)}" style="display:inline-block;background:#c9b892;color:#101419;text-decoration:none;padding:13px 20px;border-radius:10px;font-weight:700">Verify &amp; open Ask Crump</a></p>
 <p style="color:#9aa4ad">This secure link expires in 24 hours. After verification, the same link can open your workspace for 15 minutes. If you did not create this account, ignore this message.</p>"""
-        return await self._send(
+        return await self._send_receipt(
             email,
             f'Verify your {self.settings.app_name} account',
             self._layout('Verify your email', content),
             idempotency_key=self._idempotency_key('verify', email, token),
             message_kind='verification',
+            require_provider_message_id=require_provider_message_id,
         )
 
     async def send_password_reset(self, email: str, name: str | None, token: str) -> bool:

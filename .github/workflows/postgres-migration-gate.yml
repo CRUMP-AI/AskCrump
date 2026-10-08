@@ -190,3 +190,45 @@ jobs:
         run: >-
           psql -X --set=ON_ERROR_STOP=1
           --file=tests/postgres/test_resend_delivery_event_migration.sql
+
+  verification-email-recovery:
+    name: Verification email transient recovery
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: askcrump_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d askcrump_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGDATABASE: askcrump_test
+      PGUSER: postgres
+      PGPASSWORD: postgres-ci-only
+
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+      - name: Apply prerequisite schema and ordered migrations
+        run: |
+          psql -X --set=ON_ERROR_STOP=1 --file=tests/postgres/verification_email_recovery_baseline.sql
+          psql -X --set=ON_ERROR_STOP=1 --file=migrations/20261007221534_resend_delivery_event_observability.sql
+          psql -X --set=ON_ERROR_STOP=1 --file=migrations/20261007233345_verification_email_transient_recovery.sql
+      - name: Exercise recovery migration against PostgreSQL
+        run: >-
+          psql -X --set=ON_ERROR_STOP=1
+          --file=tests/postgres/test_verification_email_recovery_migration.sql

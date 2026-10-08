@@ -159,7 +159,12 @@ async def resend_delivery_webhook(request: Request) -> Response:
         # Resend owns delivery retries. Bound this idempotent write to one short
         # attempt so an unhealthy database produces a prompt retryable 503.
         async with asyncio.timeout(_PERSISTENCE_DEADLINE_SECONDS):
-            await db.rpc('record_resend_delivery_event', record, timeout=3.0)
+            rpc_name = (
+                'record_resend_delivery_event_and_recovery'
+                if getattr(settings, 'verification_email_recovery_enabled', False)
+                else 'record_resend_delivery_event'
+            )
+            await db.rpc(rpc_name, record, timeout=3.0)
     except Exception:
         logger.exception(
             'Resend delivery event persistence failed event_type=%s message_kind=%s',

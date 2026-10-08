@@ -19,6 +19,7 @@ from .project_service import ProjectService
 from .video_service import VideoService
 from .voice_service import ElevenLabsVoiceService
 from .push_service import PushService
+from .verification_email_recovery import VerificationEmailRecoveryWorker
 
 settings = get_settings()
 db = SupabaseDB(settings)
@@ -37,4 +38,9 @@ manuscripts = ManuscriptService(db, ai, projects, features, files)
 artifacts = ArtifactService(files)
 intelligence = IntelligenceService(db=db, ai=ai, settings=settings)
 email_service = EmailService(settings)
+verification_email_recovery = VerificationEmailRecoveryWorker(
+    settings,
+    db,
+    email_service,
+)
 push_service = PushService(settings)

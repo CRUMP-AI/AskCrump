@@ -34,6 +34,7 @@ from ..schemas import (
     RevokeDeviceRequest,
 )
 from ..verification_handoff import verified_workspace_url
+from ..verification_email_recovery import provider_email_hash
 from ..security import (
     expiry_iso,
     hash_password,
@@ -103,6 +104,53 @@ def verification_delivery_failure(
             'error': error,
         },
     )
+
+
+async def _send_verification_email(
+    *,
+    user_id: str,
+    email: str,
+    name: str | None,
+    token: str,
+    token_expires_at: str,
+    intent: str | None = None,
+    plan: str | None = None,
+) -> bool:
+    if not getattr(settings, 'verification_email_recovery_enabled', False):
+        return await email_service.send_verification(
+            email,
+            name,
+            token,
+            intent=intent,
+            plan=plan,
+        )
+
+    receipt = await email_service.send_verification_receipt(
+        email,
+        name,
+        token,
+        intent=intent,
+        plan=plan,
+    )
+    if not receipt.accepted or not receipt.provider_message_id:
+        return False
+    try:
+        await db.rpc(
+            'register_verification_email_recovery_attempt',
+            {
+                'p_provider_email_hash': provider_email_hash(
+                    receipt.provider_message_id
+                ),
+                'p_user_id': user_id,
+                'p_environment': settings.environment,
+                'p_token_expires_at': token_expires_at,
+            },
+            retry_transient=True,
+            timeout=3.0,
+        )
+    except Exception as exc:
+        raise EmailDeliveryError(retryable=True) from exc
+    return True
 
 
 @router.post('/register')
@@ -194,10 +242,12 @@ async def register(payload: RegisterRequest, request: Request):
             )
 
     try:
-        sent = await email_service.send_verification(
-            email,
-            user.get('full_name'),
-            verification_token,
+        sent = await _send_verification_email(
+            user_id=str(user['id']),
+            email=email,
+            name=user.get('full_name'),
+            token=verification_token,
+            token_expires_at=verification_values['verification_token_expires'],
             intent=payload.intent,
             plan=payload.plan,
         )
@@ -544,20 +594,23 @@ async def resend_verification(payload: ResendVerificationRequest, request: Reque
             'message': 'If verification is needed, a new email has been sent.',
         }
     raw_token = random_token(40)
+    verification_expires_at = expiry_iso(hours=24)
     await db.update(
         'users',
         {
             'verification_token_hash': token_hash(raw_token),
-            'verification_token_expires': expiry_iso(hours=24),
+            'verification_token_expires': verification_expires_at,
             'updated_at': iso_now(),
         },
         filters={'id': eq(user['id'])},
     )
     try:
-        sent = await email_service.send_verification(
-            email,
-            user.get('full_name'),
-            raw_token,
+        sent = await _send_verification_email(
+            user_id=str(user['id']),
+            email=email,
+            name=user.get('full_name'),
+            token=raw_token,
+            token_expires_at=verification_expires_at,
             intent=payload.intent,
             plan=payload.plan,
         )

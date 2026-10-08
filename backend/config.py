@@ -15,6 +15,11 @@ from svix.webhooks import Webhook
 # refund, monitoring, rollback, quality, and cost gates have a reviewed release.
 CODE_WORKSPACE_PUBLIC_RELEASED = False
 
+# Automatic verification-email recovery is deliberately double-gated. The
+# environment switch cannot activate it until a reviewed release changes this
+# source lock after the migration, webhook, worker, and provider gates pass.
+VERIFICATION_EMAIL_RECOVERY_RELEASED = False
+
 # Vercel's static CSP cannot read SUPABASE_URL at request time. Keep the exact
 # public project origin as a source-controlled production contract: runtime
 # validation prevents a deployment from switching projects until the static
@@ -154,6 +159,7 @@ class Settings:
     runway_monthly_provider_budget_cents: int
     resend_api_key: str | None
     resend_webhook_secret: str | None
+    verification_email_recovery_enabled: bool
     from_email: str
     support_email: str
     stripe_secret_key: str | None
@@ -354,6 +360,10 @@ def get_settings() -> Settings:
         runway_monthly_provider_budget_cents=int(os.getenv('RUNWAY_MONTHLY_PROVIDER_BUDGET_CENTS', '50000')),
         resend_api_key=os.getenv('RESEND_API_KEY'),
         resend_webhook_secret=(os.getenv('RESEND_WEBHOOK_SECRET') or '').strip() or None,
+        verification_email_recovery_enabled=(
+            VERIFICATION_EMAIL_RECOVERY_RELEASED
+            and _bool(os.getenv('CRUMP_ENABLE_VERIFICATION_EMAIL_RECOVERY'), False)
+        ),
         from_email=_transactional_from_email(environment, os.getenv('FROM_EMAIL')),
         support_email=_support_email(os.getenv('SUPPORT_EMAIL')),
         stripe_secret_key=os.getenv('STRIPE_SECRET_KEY'),

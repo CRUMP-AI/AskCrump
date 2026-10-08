@@ -12,7 +12,17 @@ from ..feature_service import FeatureAccessError
 from ..file_service import FileServiceError
 from ..manuscript_service import ManuscriptError, chapter_count_from_prompt
 from ..project_service import ProjectNotFoundError
-from ..runtime import account_deletions, code_worker, db, features, files, manuscripts, projects, settings
+from ..runtime import (
+    account_deletions,
+    code_worker,
+    db,
+    features,
+    files,
+    manuscripts,
+    projects,
+    settings,
+    verification_email_recovery,
+)
 
 router = APIRouter(tags=["manuscripts"])
 logger = logging.getLogger(__name__)
@@ -365,6 +375,13 @@ async def manuscript_cron(request: Request):
             "success": True,
             "worker": "account-storage-deletion",
             **deletion_summary,
+        }
+    recovery_summary = await verification_email_recovery.process_next()
+    if recovery_summary.get("handled"):
+        return {
+            "success": True,
+            "worker": "verification-email-recovery",
+            **recovery_summary,
         }
     code_summary = await code_worker.process_next(oidc_token=oidc_token)
     if code_summary.get("handled"):
