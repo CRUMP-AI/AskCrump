@@ -59,6 +59,49 @@ NAVIGATION_DESTINATIONS = (
     "intelligence",
     "code",
 )
+GROWTH_FUNNEL_METRICS = (
+    "accounts_created",
+    "account_event_recorded",
+    "verified_now",
+    "optional_profile_completed",
+    "workspace_opened",
+    "starter_intent_reached",
+    "activation_reached",
+    "outcome_confirmed_useful",
+    "outcome_reported_needs_work",
+    "durable_value_reached",
+    "recent_work_resumed",
+    "response_shared",
+    "plan_intent_reached",
+    "checkout_opened",
+    "checkout_completed",
+    "active_paid_now",
+    "d1_returned",
+    "d7_returned",
+)
+GROWTH_FUNNEL_FIELDS = frozenset({
+    "stage_order",
+    "metric",
+    "accounts",
+    "eligible",
+    "rate_pct",
+})
+GROWTH_FUNNEL_COHORT_ELIGIBLE_METRICS = frozenset({
+    "accounts_created",
+    "account_event_recorded",
+    "verified_now",
+    "optional_profile_completed",
+    "workspace_opened",
+    "starter_intent_reached",
+    "activation_reached",
+    "durable_value_reached",
+    "recent_work_resumed",
+    "response_shared",
+    "plan_intent_reached",
+    "checkout_opened",
+    "checkout_completed",
+    "active_paid_now",
+})
 ARTIFACT_JOURNEY_TYPES = frozenset({
     "document",
     "image",
@@ -140,6 +183,22 @@ PROJECT_CONTINUITY_OFFER_MEASUREMENT_SINCE = "2026-09-14T18:34:14Z"
 RpcFetcher = Callable[[str, dict[str, Any]], list[dict[str, Any]]]
 
 
+class _RejectRedirects(request.HTTPRedirectHandler):
+    """Keep privileged Supabase headers on the validated project origin."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        raise error.HTTPError(
+            req.full_url,
+            code,
+            "Privileged Supabase RPC redirects are forbidden.",
+            headers,
+            fp,
+        )
+
+
+RPC_OPENER = request.build_opener(_RejectRedirects())
+
+
 def rpc_payloads(
     *,
     since: str,
@@ -192,18 +251,20 @@ def fetch_rpc_rows(
     body = json.dumps(payload).encode("utf-8")
     last_error: Exception | None = None
     for attempt in range(1, 4):
+        headers = {
+            "apikey": service_key,
+            "content-type": "application/json",
+        }
+        if not service_key.startswith("sb_secret_"):
+            headers["authorization"] = f"Bearer {service_key}"
         call = request.Request(
             endpoint,
             data=body,
             method="POST",
-            headers={
-                "apikey": service_key,
-                "authorization": f"Bearer {service_key}",
-                "content-type": "application/json",
-            },
+            headers=headers,
         )
         try:
-            with request.urlopen(call, timeout=30) as response:
+            with RPC_OPENER.open(call, timeout=30) as response:
                 result = json.loads(response.read().decode("utf-8"))
         except error.HTTPError as exc:
             last_error = exc
@@ -242,6 +303,170 @@ def collect_rpc_rows(
         ensure_aggregate_rows(rows)
         sections[rpc_name] = rows
     return sections
+
+
+def _growth_funnel_count(
+    row: dict[str, Any],
+    *,
+    row_index: int,
+    field: str,
+) -> int:
+    value = row[field]
+    if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+        raise ValueError(
+            f"Growth funnel row {row_index} has invalid nonnegative integer count {field}."
+        )
+    return value
+
+
+def _growth_funnel_rate(
+    row: dict[str, Any],
+    *,
+    row_index: int,
+    accounts: int,
+    eligible: int,
+) -> None:
+    observed = row["rate_pct"]
+    if eligible == 0:
+        if observed is not None:
+            raise ValueError(
+                f"Growth funnel row {row_index} rate must be unavailable "
+                "with a zero denominator."
+            )
+        return
+    if not isinstance(observed, (int, float)) or isinstance(observed, bool):
+        raise ValueError(
+            f"Growth funnel row {row_index} has an invalid numeric rate."
+        )
+    try:
+        observed_decimal = Decimal(str(observed))
+    except InvalidOperation as exc:
+        raise ValueError(
+            f"Growth funnel row {row_index} has an invalid numeric rate."
+        ) from exc
+    if not observed_decimal.is_finite():
+        raise ValueError(
+            f"Growth funnel row {row_index} has an invalid numeric rate."
+        )
+    expected = (
+        Decimal(100) * Decimal(accounts) / Decimal(eligible)
+    ).quantize(Decimal("0.1"), rounding=ROUND_HALF_UP)
+    if observed_decimal != expected:
+        raise ValueError(
+            f"Growth funnel row {row_index} rate does not match its exact denominator."
+        )
+
+
+def validate_growth_funnel(rows: list[dict[str, Any]]) -> None:
+    """Reject malformed company-funnel evidence before it reaches operators."""
+    ensure_aggregate_rows(rows)
+    if len(rows) != len(GROWTH_FUNNEL_METRICS):
+        raise ValueError("Growth funnel must contain the 18 fixed stages exactly once.")
+
+    observed: dict[str, tuple[int, int]] = {}
+    for index, (row, expected_metric) in enumerate(
+        zip(rows, GROWTH_FUNNEL_METRICS, strict=True),
+        start=1,
+    ):
+        observed_fields = {str(field) for field in row}
+        if observed_fields != GROWTH_FUNNEL_FIELDS:
+            missing = sorted(GROWTH_FUNNEL_FIELDS - observed_fields)
+            unexpected = sorted(observed_fields - GROWTH_FUNNEL_FIELDS)
+            raise ValueError(
+                f"Growth funnel row {index - 1} schema drifted. "
+                f"Missing: {missing}; unexpected: {unexpected}."
+            )
+        if (
+            not isinstance(row["stage_order"], int)
+            or isinstance(row["stage_order"], bool)
+            or row["stage_order"] != index
+        ):
+            raise ValueError("Growth funnel stages are not in canonical order.")
+        if row["metric"] != expected_metric:
+            raise ValueError("Growth funnel metrics are not in canonical order.")
+
+        accounts = _growth_funnel_count(
+            row,
+            row_index=index - 1,
+            field="accounts",
+        )
+        eligible = _growth_funnel_count(
+            row,
+            row_index=index - 1,
+            field="eligible",
+        )
+        if accounts > eligible:
+            raise ValueError(
+                f"Growth funnel row {index - 1} reports accounts above eligible."
+            )
+        _growth_funnel_rate(
+            row,
+            row_index=index - 1,
+            accounts=accounts,
+            eligible=eligible,
+        )
+        observed[expected_metric] = (accounts, eligible)
+
+    cohort_accounts = observed["accounts_created"][0]
+    if observed["accounts_created"][1] != cohort_accounts:
+        raise ValueError("Growth funnel accounts_created must use itself as denominator.")
+    for metric in GROWTH_FUNNEL_COHORT_ELIGIBLE_METRICS - {"accounts_created"}:
+        if observed[metric][1] != cohort_accounts:
+            raise ValueError(
+                f"Growth funnel metric {metric} must use accounts_created as denominator."
+            )
+
+    activation_accounts = observed["activation_reached"][0]
+    for metric in ("outcome_confirmed_useful", "outcome_reported_needs_work"):
+        if observed[metric][1] != activation_accounts:
+            raise ValueError(
+                f"Growth funnel metric {metric} must use activation_reached as denominator."
+            )
+
+    d1_eligible = observed["d1_returned"][1]
+    d7_eligible = observed["d7_returned"][1]
+    if d1_eligible > activation_accounts or d7_eligible > activation_accounts:
+        raise ValueError(
+            "Growth funnel retention eligibility cannot exceed activated accounts."
+        )
+    if d7_eligible > d1_eligible:
+        raise ValueError(
+            "Growth funnel D7 eligibility cannot exceed D1 eligibility."
+        )
+
+
+def validate_growth_attribution_consistency(
+    growth_rows: list[dict[str, Any]],
+    weekly_rows: list[dict[str, Any]],
+) -> None:
+    """Reject aggregate sections that disagree on their shared cohort facts."""
+    growth = {
+        row["metric"]: (row["accounts"], row["eligible"])
+        for row in growth_rows
+    }
+    shared_account_fields = (
+        ("accounts_created", "accounts_created"),
+        ("account_event_recorded", "account_event_recorded"),
+        ("verified_now", "verified_now"),
+        ("workspace_opened", "workspace_opened"),
+        ("plan_intent_reached", "plan_intent_reached"),
+        ("checkout_opened", "subscription_checkout_opened"),
+        ("checkout_completed", "subscription_checkout_completed"),
+    )
+    for growth_metric, weekly_field in shared_account_fields:
+        weekly_total = sum_field(weekly_rows, weekly_field)
+        if growth[growth_metric][0] != weekly_total:
+            raise ValueError(
+                f"Growth funnel {growth_metric} conflicts with weekly attribution totals."
+            )
+
+    for metric in ("d1_returned", "d7_returned"):
+        weekly_accounts = sum_field(weekly_rows, metric)
+        weekly_eligible = sum_field(weekly_rows, metric.replace("returned", "eligible"))
+        if growth[metric] != (weekly_accounts, weekly_eligible):
+            raise ValueError(
+                f"Growth funnel {metric} conflicts with weekly attribution totals."
+            )
 
 
 def _artifact_journey_count(
@@ -663,6 +888,7 @@ def build_operating_snapshot(
     for rows in sections.values():
         ensure_aggregate_rows(rows)
 
+    validate_growth_funnel(sections["product_growth_funnel_snapshot"])
     validate_artifact_journey(sections["product_artifact_journey_snapshot"])
     navigation_discovery = validated_navigation_discovery(
         sections["product_navigation_discovery_snapshot"]
@@ -681,6 +907,10 @@ def build_operating_snapshot(
         variable_cost_cents=variable_cost_cents,
         ad_spend_cents=ad_spend_cents,
         currency=currency,
+    )
+    validate_growth_attribution_consistency(
+        sections["product_growth_funnel_snapshot"],
+        weekly_rows,
     )
     validate_project_continuity(
         sections["product_project_continuity_snapshot"],

@@ -1,11 +1,15 @@
 from __future__ import annotations
 
 import copy
+from decimal import Decimal, ROUND_HALF_UP
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from io import BytesIO
 import json
 from pathlib import Path
+import re
 import subprocess
 import sys
+import threading
 from urllib import error
 
 import pytest
@@ -16,6 +20,8 @@ from scripts.export_operating_snapshot import (
     ARTIFACT_JOURNEY_COUNT_FIELDS,
     ARTIFACT_JOURNEY_TYPES,
     EXPECTED_SUPABASE_HOST,
+    GROWTH_FUNNEL_COHORT_ELIGIBLE_METRICS,
+    GROWTH_FUNNEL_METRICS,
     NAVIGATION_DESTINATIONS,
     PROJECT_CONTINUITY_COUNT_FIELDS,
     build_operating_snapshot,
@@ -74,6 +80,65 @@ def project_continuity_row(**overrides) -> dict:
     return row
 
 
+def growth_funnel_rows(
+    *,
+    cohort_accounts: int = 2,
+    activation_accounts: int = 1,
+    d1_eligible: int = 1,
+    d7_eligible: int = 0,
+    d1_returned: int = 0,
+    d7_returned: int = 0,
+) -> list[dict]:
+    accounts_by_metric = {
+        "accounts_created": cohort_accounts,
+        "account_event_recorded": cohort_accounts,
+        "verified_now": cohort_accounts,
+        "optional_profile_completed": 0,
+        "workspace_opened": cohort_accounts,
+        "starter_intent_reached": cohort_accounts,
+        "activation_reached": activation_accounts,
+        "outcome_confirmed_useful": min(1, activation_accounts),
+        "outcome_reported_needs_work": 0,
+        "durable_value_reached": min(1, cohort_accounts),
+        "recent_work_resumed": 0,
+        "response_shared": 0,
+        "plan_intent_reached": min(1, cohort_accounts),
+        "checkout_opened": min(1, cohort_accounts),
+        "checkout_completed": 0,
+        "active_paid_now": 0,
+        "d1_returned": d1_returned,
+        "d7_returned": d7_returned,
+    }
+    rows = []
+    for stage_order, metric in enumerate(GROWTH_FUNNEL_METRICS, start=1):
+        if metric in {"outcome_confirmed_useful", "outcome_reported_needs_work"}:
+            eligible = activation_accounts
+        elif metric == "d1_returned":
+            eligible = d1_eligible
+        elif metric == "d7_returned":
+            eligible = d7_eligible
+        else:
+            eligible = cohort_accounts
+        accounts = accounts_by_metric[metric]
+        rows.append({
+            "stage_order": stage_order,
+            "metric": metric,
+            "accounts": accounts,
+            "eligible": eligible,
+            "rate_pct": (
+                None
+                if eligible == 0
+                else float(
+                    (Decimal(100) * Decimal(accounts) / Decimal(eligible)).quantize(
+                        Decimal("0.1"),
+                        rounding=ROUND_HALF_UP,
+                    )
+                )
+            ),
+        })
+    return rows
+
+
 def fixture_sections() -> dict[str, list[dict]]:
     sections = {
         name: []
@@ -92,10 +157,10 @@ def fixture_sections() -> dict[str, list[dict]]:
         "campaign": None,
         "creative": None,
         "intent": None,
-        "accounts_created": 1,
-        "account_event_recorded": 1,
-        "verified_now": 1,
-        "workspace_opened": 1,
+        "accounts_created": 2,
+        "account_event_recorded": 2,
+        "verified_now": 2,
+        "workspace_opened": 2,
         "activation_eligible_24h": 1,
         "activation_reached_24h": 1,
         "useful_feedback_reached_24h": 0,
@@ -109,8 +174,8 @@ def fixture_sections() -> dict[str, list[dict]]:
         "d1_returned": 0,
         "d7_eligible": 0,
         "d7_returned": 0,
-        "plan_intent_reached": 0,
-        "subscription_checkout_opened": 0,
+        "plan_intent_reached": 1,
+        "subscription_checkout_opened": 1,
         "subscription_checkout_completed": 0,
         "credit_checkout_opened": 0,
         "credit_checkout_completed": 0,
@@ -121,6 +186,7 @@ def fixture_sections() -> dict[str, list[dict]]:
         "recognized_revenue_cents": None,
         "variable_cost_cents": None,
     }]
+    sections["product_growth_funnel_snapshot"] = growth_funnel_rows()
     sections["demo_recording_proof_snapshot"] = [{
         "configured": False,
         "protected_identity": False,
@@ -269,6 +335,362 @@ def test_snapshot_exposes_exact_retention_denominators_without_content_or_identi
         "proves_destination_selection_only": True,
         "does_not_prove_task_completion": True,
     }
+
+
+def test_growth_funnel_preserves_the_exact_company_stage_contract() -> None:
+    sections = fixture_sections()
+
+    report = build_operating_snapshot(
+        sections,
+        since=SINCE,
+        until=UNTIL,
+        environment="production",
+        include_internal=False,
+    )
+
+    rows = report["sections"]["product_growth_funnel_snapshot"]
+    assert tuple(row["metric"] for row in rows) == GROWTH_FUNNEL_METRICS
+    assert tuple(row["stage_order"] for row in rows) == tuple(range(1, 19))
+    assert rows[3]["metric"] == "optional_profile_completed"
+    assert rows[7]["eligible"] == rows[6]["accounts"]
+    assert rows[16]["eligible"] == 1
+    assert rows[17]["eligible"] == 0
+
+
+def test_growth_funnel_contract_matches_the_authoritative_migrations() -> None:
+    growth_sql = (
+        ROOT / "migrations" / "20260908134343_durable_growth_measurement.sql"
+    ).read_text(encoding="utf-8")
+    rename_sql = (
+        ROOT / "migrations" / "20260913192512_clarify_optional_profile_growth_metric.sql"
+    ).read_text(encoding="utf-8")
+    stage_pattern = re.compile(
+        r"\((\d+)::smallint, '([^']+)'::text, ([a-z0-9_]+), ([a-z0-9_]+)\)"
+    )
+    source_rows = [
+        (int(stage), metric, accounts, eligible)
+        for stage, metric, accounts, eligible in stage_pattern.findall(growth_sql)
+    ]
+
+    assert len(source_rows) == 18
+    assert tuple(stage for stage, _metric, _accounts, _eligible in source_rows) == tuple(
+        range(1, 19)
+    )
+    assert "'''onboarding_completed''::text" in rename_sql
+    assert "'''optional_profile_completed''::text" in rename_sql
+
+    runtime_rows = [
+        (
+            stage,
+            "optional_profile_completed" if metric == "onboarding_completed" else metric,
+            accounts,
+            eligible,
+        )
+        for stage, metric, accounts, eligible in source_rows
+    ]
+    assert tuple(metric for _stage, metric, _accounts, _eligible in runtime_rows) == (
+        GROWTH_FUNNEL_METRICS
+    )
+    assert {
+        metric
+        for _stage, metric, _accounts, eligible in runtime_rows
+        if eligible == "cohort_accounts"
+    } == GROWTH_FUNNEL_COHORT_ELIGIBLE_METRICS
+    assert {
+        metric: eligible
+        for _stage, metric, _accounts, eligible in runtime_rows
+        if metric in {
+            "outcome_confirmed_useful",
+            "outcome_reported_needs_work",
+            "d1_returned",
+            "d7_returned",
+        }
+    } == {
+        "outcome_confirmed_useful": "activation_accounts",
+        "outcome_reported_needs_work": "activation_accounts",
+        "d1_returned": "d1_eligible_accounts",
+        "d7_returned": "d7_eligible_accounts",
+    }
+
+
+def test_growth_funnel_accepts_a_valid_zero_cohort() -> None:
+    sections = fixture_sections()
+    sections["product_growth_funnel_snapshot"] = growth_funnel_rows(
+        cohort_accounts=0,
+        activation_accounts=0,
+        d1_eligible=0,
+        d7_eligible=0,
+    )
+    weekly = sections["product_weekly_attribution_export"][0]
+    for field, value in weekly.items():
+        if isinstance(value, int) and not isinstance(value, bool):
+            weekly[field] = 0
+
+    build_operating_snapshot(
+        sections,
+        since=SINCE,
+        until=UNTIL,
+        environment="production",
+        include_internal=False,
+    )
+
+    assert all(
+        row["rate_pct"] is None
+        for row in sections["product_growth_funnel_snapshot"]
+    )
+
+
+@pytest.mark.parametrize(
+    ("mutate", "message"),
+    [
+        (lambda rows: rows.pop(), "18 fixed stages"),
+        (lambda rows: rows.append(copy.deepcopy(rows[-1])), "18 fixed stages"),
+        (lambda rows: rows[0].update(extra=1), "schema drifted"),
+        (lambda rows: rows[0].pop("rate_pct"), "schema drifted"),
+        (lambda rows: rows[0].update(stage_order=2), "canonical order"),
+        (lambda rows: rows[0].update(stage_order=True), "canonical order"),
+        (lambda rows: rows[0].update(stage_order=1.0), "canonical order"),
+        (lambda rows: rows[0].update(stage_order="1"), "canonical order"),
+        (lambda rows: rows[3].update(metric="onboarding_completed"), "canonical order"),
+        (lambda rows: rows.reverse(), "canonical order"),
+    ],
+)
+def test_growth_funnel_rejects_schema_stage_or_metric_drift(mutate, message: str) -> None:
+    sections = fixture_sections()
+    mutate(sections["product_growth_funnel_snapshot"])
+
+    with pytest.raises(ValueError, match=message):
+        build_operating_snapshot(
+            sections,
+            since=SINCE,
+            until=UNTIL,
+            environment="production",
+            include_internal=False,
+        )
+
+
+@pytest.mark.parametrize("field", ["accounts", "eligible"])
+@pytest.mark.parametrize("value", [True, "1", 1.0, -1])
+def test_growth_funnel_rejects_invalid_count_types_or_values(field: str, value) -> None:
+    sections = fixture_sections()
+    sections["product_growth_funnel_snapshot"][0][field] = value
+
+    with pytest.raises(ValueError, match="invalid nonnegative integer count"):
+        build_operating_snapshot(
+            sections,
+            since=SINCE,
+            until=UNTIL,
+            environment="production",
+            include_internal=False,
+        )
+
+
+def test_growth_funnel_rejects_accounts_above_eligible() -> None:
+    sections = fixture_sections()
+    sections["product_growth_funnel_snapshot"][11].update(
+        accounts=2,
+        eligible=1,
+        rate_pct=200.0,
+    )
+
+    with pytest.raises(ValueError, match="accounts above eligible"):
+        build_operating_snapshot(
+            sections,
+            since=SINCE,
+            until=UNTIL,
+            environment="production",
+            include_internal=False,
+        )
+
+
+@pytest.mark.parametrize(
+    ("row_index", "updates", "message"),
+    [
+        (1, {"accounts": 1, "eligible": 1, "rate_pct": 100.0}, "accounts_created"),
+        (7, {"eligible": 2, "rate_pct": 50.0}, "activation_reached"),
+        (8, {"eligible": 2, "rate_pct": 0.0}, "activation_reached"),
+        (16, {"eligible": 2, "rate_pct": 0.0}, "cannot exceed activated"),
+        (17, {"eligible": 2, "rate_pct": 0.0}, "cannot exceed activated"),
+    ],
+)
+def test_growth_funnel_rejects_non_authoritative_denominators(
+    row_index: int,
+    updates: dict,
+    message: str,
+) -> None:
+    sections = fixture_sections()
+    sections["product_growth_funnel_snapshot"][row_index].update(updates)
+
+    with pytest.raises(ValueError, match=message):
+        build_operating_snapshot(
+            sections,
+            since=SINCE,
+            until=UNTIL,
+            environment="production",
+            include_internal=False,
+        )
+
+
+def test_growth_funnel_rejects_d7_eligibility_above_d1() -> None:
+    sections = fixture_sections()
+    sections["product_growth_funnel_snapshot"] = growth_funnel_rows(
+        activation_accounts=2,
+        d1_eligible=1,
+        d7_eligible=2,
+    )
+
+    with pytest.raises(ValueError, match="D7 eligibility cannot exceed D1"):
+        build_operating_snapshot(
+            sections,
+            since=SINCE,
+            until=UNTIL,
+            environment="production",
+            include_internal=False,
+        )
+
+
+@pytest.mark.parametrize(
+    ("row_index", "value", "message"),
+    [
+        (17, 0.0, "zero denominator"),
+        (0, None, "invalid numeric rate"),
+        (0, True, "invalid numeric rate"),
+        (0, "100.0", "invalid numeric rate"),
+        (0, float("nan"), "invalid numeric rate"),
+        (0, float("inf"), "invalid numeric rate"),
+        (6, 50.1, "exact denominator"),
+    ],
+)
+def test_growth_funnel_rejects_invalid_or_inconsistent_rates(
+    row_index: int,
+    value,
+    message: str,
+) -> None:
+    sections = fixture_sections()
+    sections["product_growth_funnel_snapshot"][row_index]["rate_pct"] = value
+
+    with pytest.raises(ValueError, match=message):
+        build_operating_snapshot(
+            sections,
+            since=SINCE,
+            until=UNTIL,
+            environment="production",
+            include_internal=False,
+        )
+
+
+def test_growth_funnel_matches_postgres_one_decimal_half_up_rounding() -> None:
+    sections = fixture_sections()
+    sections["product_growth_funnel_snapshot"] = growth_funnel_rows(
+        cohort_accounts=16,
+        activation_accounts=1,
+        d1_eligible=1,
+        d7_eligible=0,
+    )
+    weekly = sections["product_weekly_attribution_export"][0]
+    for field in (
+        "accounts_created",
+        "account_event_recorded",
+        "verified_now",
+        "workspace_opened",
+    ):
+        weekly[field] = 16
+
+    build_operating_snapshot(
+        sections,
+        since=SINCE,
+        until=UNTIL,
+        environment="production",
+        include_internal=False,
+    )
+
+    activation = sections["product_growth_funnel_snapshot"][6]
+    assert activation["rate_pct"] == 6.3
+    activation["rate_pct"] = 6.2
+    with pytest.raises(ValueError, match="exact denominator"):
+        build_operating_snapshot(
+            sections,
+            since=SINCE,
+            until=UNTIL,
+            environment="production",
+            include_internal=False,
+        )
+
+
+@pytest.mark.parametrize(
+    "growth_metric",
+    [
+        "accounts_created",
+        "account_event_recorded",
+        "verified_now",
+        "workspace_opened",
+        "plan_intent_reached",
+        "checkout_opened",
+        "checkout_completed",
+        "d1_returned",
+        "d7_returned",
+    ],
+)
+def test_growth_funnel_rejects_conflicting_weekly_totals(
+    growth_metric: str,
+) -> None:
+    sections = fixture_sections()
+    if growth_metric == "accounts_created":
+        sections["product_growth_funnel_snapshot"] = growth_funnel_rows(
+            cohort_accounts=3,
+        )
+    elif growth_metric == "d1_returned":
+        sections["product_growth_funnel_snapshot"] = growth_funnel_rows(
+            d1_returned=1,
+        )
+    elif growth_metric == "d7_returned":
+        sections["product_growth_funnel_snapshot"] = growth_funnel_rows(
+            d7_eligible=1,
+            d7_returned=1,
+        )
+    else:
+        growth_row = next(
+            row
+            for row in sections["product_growth_funnel_snapshot"]
+            if row["metric"] == growth_metric
+        )
+        if growth_row["accounts"]:
+            growth_row.update(accounts=0, rate_pct=0.0)
+        else:
+            growth_row.update(accounts=1, rate_pct=50.0)
+
+    with pytest.raises(ValueError, match="conflicts with weekly attribution totals"):
+        build_operating_snapshot(
+            sections,
+            since=SINCE,
+            until=UNTIL,
+            environment="production",
+            include_internal=False,
+        )
+
+
+@pytest.mark.parametrize("metric", ["d1_returned", "d7_returned"])
+def test_growth_funnel_rejects_conflicting_weekly_retention_denominator(
+    metric: str,
+) -> None:
+    sections = fixture_sections()
+    if metric == "d1_returned":
+        sections["product_growth_funnel_snapshot"] = growth_funnel_rows(
+            d1_eligible=0,
+        )
+    else:
+        sections["product_growth_funnel_snapshot"] = growth_funnel_rows(
+            d7_eligible=1,
+        )
+
+    with pytest.raises(ValueError, match="conflicts with weekly attribution totals"):
+        build_operating_snapshot(
+            sections,
+            since=SINCE,
+            until=UNTIL,
+            environment="production",
+            include_internal=False,
+        )
 
 
 def test_artifact_journey_vocabulary_matches_product_analytics() -> None:
@@ -992,7 +1414,7 @@ def test_rpc_fetch_uses_service_role_headers_and_exact_payload(monkeypatch) -> N
         observed.append((call, timeout))
         return FakeResponse([{"metric": "accounts_created", "accounts": 1}])
 
-    monkeypatch.setattr(operating_snapshot.request, "urlopen", urlopen)
+    monkeypatch.setattr(operating_snapshot.RPC_OPENER, "open", urlopen)
 
     rows = fetch_rpc_rows(
         supabase_url=f"https://{EXPECTED_SUPABASE_HOST}/",
@@ -1013,6 +1435,28 @@ def test_rpc_fetch_uses_service_role_headers_and_exact_payload(monkeypatch) -> N
     assert timeout == 30
 
 
+def test_rpc_fetch_uses_apikey_only_for_new_secret_keys(monkeypatch) -> None:
+    observed = []
+
+    def urlopen(call, timeout):
+        observed.append((call, timeout))
+        return FakeResponse([])
+
+    monkeypatch.setattr(operating_snapshot.RPC_OPENER, "open", urlopen)
+
+    assert fetch_rpc_rows(
+        supabase_url=f"https://{EXPECTED_SUPABASE_HOST}",
+        service_key="sb_secret_server-only",
+        rpc_name="product_weekly_attribution_export",
+        payload={},
+    ) == []
+
+    call, timeout = observed[0]
+    assert call.headers["Apikey"] == "sb_secret_server-only"
+    assert "Authorization" not in call.headers
+    assert timeout == 30
+
+
 def test_rpc_fetch_retries_transient_failures_then_succeeds(monkeypatch) -> None:
     attempts = 0
     sleeps = []
@@ -1025,7 +1469,7 @@ def test_rpc_fetch_retries_transient_failures_then_succeeds(monkeypatch) -> None
             raise error.HTTPError(call.full_url, 503, "Unavailable", {}, None)
         return FakeResponse([])
 
-    monkeypatch.setattr(operating_snapshot.request, "urlopen", urlopen)
+    monkeypatch.setattr(operating_snapshot.RPC_OPENER, "open", urlopen)
     monkeypatch.setattr(operating_snapshot.time, "sleep", sleeps.append)
 
     assert fetch_rpc_rows(
@@ -1047,7 +1491,7 @@ def test_rpc_fetch_does_not_retry_permanent_http_failure(monkeypatch) -> None:
         attempts += 1
         raise error.HTTPError(call.full_url, 400, "Bad request", {}, None)
 
-    monkeypatch.setattr(operating_snapshot.request, "urlopen", urlopen)
+    monkeypatch.setattr(operating_snapshot.RPC_OPENER, "open", urlopen)
 
     with pytest.raises(RuntimeError, match="HTTP 400"):
         fetch_rpc_rows(
@@ -1068,7 +1512,7 @@ def test_rpc_fetch_rejects_non_project_origin_before_transmitting_key(monkeypatc
         calls += 1
         return FakeResponse([])
 
-    monkeypatch.setattr(operating_snapshot.request, "urlopen", urlopen)
+    monkeypatch.setattr(operating_snapshot.RPC_OPENER, "open", urlopen)
 
     with pytest.raises(ValueError, match="exact HTTPS Supabase project origin"):
         fetch_rpc_rows(
@@ -1078,6 +1522,134 @@ def test_rpc_fetch_rejects_non_project_origin_before_transmitting_key(monkeypatc
             payload={},
         )
     assert calls == 0
+
+
+def test_rpc_fetch_rejects_redirects_without_forwarding_credentials(monkeypatch) -> None:
+    calls = 0
+
+    def urlopen(call, timeout):
+        nonlocal calls
+        assert timeout == 30
+        calls += 1
+        raise error.HTTPError(
+            call.full_url,
+            302,
+            "Found",
+            {"location": "https://attacker.example/collect"},
+            None,
+        )
+
+    monkeypatch.setattr(operating_snapshot.RPC_OPENER, "open", urlopen)
+
+    with pytest.raises(RuntimeError, match="HTTP 302"):
+        fetch_rpc_rows(
+            supabase_url=f"https://{EXPECTED_SUPABASE_HOST}",
+            service_key="server-secret",
+            rpc_name="product_weekly_attribution_export",
+            payload={},
+        )
+    assert calls == 1
+
+
+def test_redirect_handler_refuses_to_create_a_cross_origin_request() -> None:
+    original = operating_snapshot.request.Request(
+        f"https://{EXPECTED_SUPABASE_HOST}/rest/v1/rpc/report",
+        headers={
+            "apikey": "server-secret",
+            "authorization": "Bearer server-secret",
+        },
+    )
+
+    with pytest.raises(error.HTTPError) as raised:
+        operating_snapshot._RejectRedirects().redirect_request(
+            original,
+            None,
+            302,
+            "Found",
+            {"location": "https://attacker.example/collect"},
+            "https://attacker.example/collect",
+        )
+
+    assert raised.value.url == original.full_url
+    assert "attacker.example" not in raised.value.url
+
+
+def test_rpc_opener_does_not_follow_a_real_cross_origin_redirect(monkeypatch) -> None:
+    observed = {
+        "source_requests": 0,
+        "target_requests": 0,
+        "target_apikey": None,
+        "target_authorization": None,
+    }
+
+    class TargetHandler(BaseHTTPRequestHandler):
+        def _respond(self) -> None:
+            observed["target_requests"] += 1
+            observed["target_apikey"] = self.headers.get("apikey")
+            observed["target_authorization"] = self.headers.get("authorization")
+            body = b"[]"
+            self.send_response(200)
+            self.send_header("content-type", "application/json")
+            self.send_header("content-length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        do_GET = _respond
+        do_POST = _respond
+
+        def log_message(self, _format, *_args) -> None:
+            return None
+
+    target = ThreadingHTTPServer(("127.0.0.1", 0), TargetHandler)
+    target_origin = f"http://127.0.0.1:{target.server_port}"
+
+    class SourceHandler(BaseHTTPRequestHandler):
+        def do_POST(self) -> None:
+            observed["source_requests"] += 1
+            content_length = int(self.headers.get("content-length", "0"))
+            self.rfile.read(content_length)
+            self.send_response(302)
+            self.send_header("location", f"{target_origin}/collect")
+            self.send_header("content-length", "0")
+            self.end_headers()
+
+        def log_message(self, _format, *_args) -> None:
+            return None
+
+    source = ThreadingHTTPServer(("127.0.0.1", 0), SourceHandler)
+    source_origin = f"http://127.0.0.1:{source.server_port}"
+    target_thread = threading.Thread(target=target.serve_forever, daemon=True)
+    source_thread = threading.Thread(target=source.serve_forever, daemon=True)
+    target_thread.start()
+    source_thread.start()
+    monkeypatch.setattr(
+        operating_snapshot,
+        "validated_supabase_url",
+        lambda _url: source_origin,
+    )
+
+    try:
+        with pytest.raises(RuntimeError, match="HTTP 302"):
+            fetch_rpc_rows(
+                supabase_url=source_origin,
+                service_key="server-secret",
+                rpc_name="product_weekly_attribution_export",
+                payload={},
+            )
+    finally:
+        source.shutdown()
+        target.shutdown()
+        source.server_close()
+        target.server_close()
+        source_thread.join(timeout=5)
+        target_thread.join(timeout=5)
+
+    assert observed == {
+        "source_requests": 1,
+        "target_requests": 0,
+        "target_apikey": None,
+        "target_authorization": None,
+    }
 
 
 def test_operator_command_is_directly_executable() -> None:
