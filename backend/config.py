@@ -1,9 +1,13 @@
 from __future__ import annotations
 
+import base64
+import binascii
 from dataclasses import dataclass
 from functools import lru_cache
 import os
 from urllib.parse import urlparse
+
+from svix.webhooks import Webhook
 
 
 # Crump Code cannot be exposed by an environment-variable mistake. This source
@@ -55,6 +59,29 @@ def _canonical_app_name(configured: str | None) -> str:
     }:
         return 'Ask Crump'
     return value
+
+
+def _valid_resend_webhook_secret(value: str | None) -> bool:
+    if (
+        not value
+        or not value.startswith('whsec_')
+        or len(value) < 20
+        or any(character.isspace() for character in value)
+    ):
+        return False
+    encoded = value.removeprefix('whsec_')
+    try:
+        decoded = base64.b64decode(
+            encoded + ('=' * (-len(encoded) % 4)),
+            validate=True,
+        )
+        if not decoded:
+            return False
+        Webhook(value)
+    except (binascii.Error, ValueError, RuntimeError):
+        # The official verifier is the authority on its signing-secret format.
+        return False
+    return True
 
 
 def _exact_https_origin(value: str | None) -> str | None:
@@ -126,6 +153,7 @@ class Settings:
     video_user_daily_provider_budget_cents: int
     runway_monthly_provider_budget_cents: int
     resend_api_key: str | None
+    resend_webhook_secret: str | None
     from_email: str
     support_email: str
     stripe_secret_key: str | None
@@ -175,6 +203,10 @@ class Settings:
             missing.append('RESEND_API_KEY')
         if missing:
             raise RuntimeError(f"Missing required environment variables: {', '.join(missing)}")
+        if self.resend_webhook_secret and not _valid_resend_webhook_secret(
+            self.resend_webhook_secret
+        ):
+            raise RuntimeError('RESEND_WEBHOOK_SECRET must be a valid whsec_ signing secret.')
         if self.is_production and not self.app_url.startswith('https://'):
             raise RuntimeError('APP_URL must use HTTPS in production.')
         if self.is_production and not self.cookie_secure:
@@ -321,6 +353,7 @@ def get_settings() -> Settings:
         video_user_daily_provider_budget_cents=int(os.getenv('VIDEO_USER_DAILY_PROVIDER_BUDGET_CENTS', '2000')),
         runway_monthly_provider_budget_cents=int(os.getenv('RUNWAY_MONTHLY_PROVIDER_BUDGET_CENTS', '50000')),
         resend_api_key=os.getenv('RESEND_API_KEY'),
+        resend_webhook_secret=(os.getenv('RESEND_WEBHOOK_SECRET') or '').strip() or None,
         from_email=_transactional_from_email(environment, os.getenv('FROM_EMAIL')),
         support_email=_support_email(os.getenv('SUPPORT_EMAIL')),
         stripe_secret_key=os.getenv('STRIPE_SECRET_KEY'),

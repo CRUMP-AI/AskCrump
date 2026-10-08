@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 from datetime import datetime, timedelta, timezone
 import json
 from types import SimpleNamespace
@@ -9,7 +10,11 @@ import httpx
 import pytest
 
 from backend.auth_service import create_session
-from backend.config import _canonical_app_name, _support_email
+from backend.config import (
+    _canonical_app_name,
+    _support_email,
+    _valid_resend_webhook_secret,
+)
 from backend.email_service import EmailDeliveryError, EmailService
 from backend.routes import auth as auth_routes
 from backend.routes import billing as billing_routes
@@ -39,6 +44,16 @@ def test_support_contact_fails_over_from_unprovisioned_domain_mailbox():
     assert _support_email(None) == 'askcrump@gmail.com'
     assert _support_email('  support@askcrump.com  ') == 'askcrump@gmail.com'
     assert _support_email('founder-controlled@example.com') == 'founder-controlled@example.com'
+
+
+def test_resend_webhook_secret_uses_the_pinned_verifier_format():
+    valid = 'whsec_' + base64.b64encode(b'ask-crump-webhook-secret').decode('ascii')
+
+    assert _valid_resend_webhook_secret(valid) is True
+    assert _valid_resend_webhook_secret(None) is False
+    assert _valid_resend_webhook_secret('whsec_not-valid-base64!') is False
+    assert _valid_resend_webhook_secret('whsec_') is False
+    assert _valid_resend_webhook_secret(f'{valid} ') is False
 
 
 @pytest.mark.asyncio
@@ -86,6 +101,62 @@ async def test_email_503_retries_with_the_same_idempotency_key():
     assert len(calls) == 3
     assert len(sleeps) == 2
     assert len({request.headers['idempotency-key'] for request in calls}) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ('send_method', 'arguments', 'expected_kind'),
+    (
+        ('send_verification', ('user@example.com', 'User', 'verification-token'), 'verification'),
+        ('send_password_reset', ('user@example.com', 'User', 'reset-token'), 'password_reset'),
+    ),
+)
+async def test_transactional_email_has_an_allowlisted_message_kind_tag(
+    send_method,
+    arguments,
+    expected_kind,
+):
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(200, json={'id': 'email_123'})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        service = EmailService(email_settings(), client=client)
+        sent = await getattr(service, send_method)(*arguments)
+
+    assert sent is True
+    assert len(calls) == 1
+    payload = json.loads(calls[0].content)
+    assert payload['tags'] == [
+        {'name': 'message_kind', 'value': expected_kind},
+    ]
+    serialized_tags = json.dumps(payload['tags'])
+    assert 'user@example.com' not in serialized_tags
+    assert arguments[2] not in serialized_tags
+
+
+@pytest.mark.asyncio
+async def test_transactional_email_rejects_an_unapproved_message_kind_before_sending():
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(200, json={'id': 'email_123'})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        service = EmailService(email_settings(), client=client)
+        with pytest.raises(ValueError, match='Unsupported transactional email kind'):
+            await service._send(
+                'user@example.com',
+                'Subject',
+                '<p>Body</p>',
+                idempotency_key='test-key',
+                message_kind='marketing',
+            )
+
+    assert calls == []
 
 
 class RegistrationDB:

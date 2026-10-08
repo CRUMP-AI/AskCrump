@@ -300,6 +300,33 @@ async def test_explicitly_idempotent_rpc_retries_after_bad_gateway():
 
 
 @pytest.mark.asyncio
+async def test_rpc_can_use_a_single_bounded_provider_webhook_attempt():
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(200, json=False)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        database = SupabaseDB(db_settings(), client=client)
+        result = await database.rpc(
+            'record_resend_delivery_event',
+            {'p_provider_event_hash': 'a' * 64},
+            timeout=3.0,
+        )
+
+    assert result is False
+    assert len(calls) == 1
+    assert calls[0].extensions['timeout'] == {
+        'connect': 3.0,
+        'read': 3.0,
+        'write': 3.0,
+        'pool': 3.0,
+    }
+    assert calls[0].headers.get('x-retry-count') is None
+
+
+@pytest.mark.asyncio
 async def test_explicitly_idempotent_rpc_does_not_retry_database_internal_error():
     calls: list[httpx.Request] = []
     sleeps: list[float] = []

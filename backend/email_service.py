@@ -11,6 +11,9 @@ from .config import Settings
 from .verification_handoff import verification_email_url
 
 
+_MESSAGE_KINDS = frozenset({'verification', 'password_reset'})
+
+
 class EmailDeliveryError(RuntimeError):
     """Controlled transactional-email failure suitable for API-layer handling."""
 
@@ -65,7 +68,10 @@ class EmailService:
         body_html: str,
         *,
         idempotency_key: str,
+        message_kind: str,
     ) -> bool:
+        if message_kind not in _MESSAGE_KINDS:
+            raise ValueError('Unsupported transactional email kind.')
         if not self.settings.resend_api_key:
             # Account creation still succeeds in local/test environments.
             return False
@@ -88,6 +94,9 @@ class EmailService:
                             'to': [to],
                             'subject': subject,
                             'html': body_html,
+                            'tags': [
+                                {'name': 'message_kind', 'value': message_kind},
+                            ],
                         },
                     )
                 except httpx.HTTPError as exc:
@@ -150,6 +159,7 @@ class EmailService:
             f'Verify your {self.settings.app_name} account',
             self._layout('Verify your email', content),
             idempotency_key=self._idempotency_key('verify', email, token),
+            message_kind='verification',
         )
 
     async def send_password_reset(self, email: str, name: str | None, token: str) -> bool:
@@ -163,4 +173,5 @@ class EmailService:
             f'Reset your {self.settings.app_name} password',
             self._layout('Reset your password', content),
             idempotency_key=self._idempotency_key('password-reset', email, token),
+            message_kind='password_reset',
         )

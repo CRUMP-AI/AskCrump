@@ -21,6 +21,7 @@ dependencies = [
   "pypdf==6.19.0",
   "reportlab==5.0.1",
   "vercel==0.10.0",
+  "svix==2.7.0",
 ]
 
 [tool.pytest.ini_options]

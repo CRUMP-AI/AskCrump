@@ -246,12 +246,14 @@ class SupabaseDB:
         payload: dict[str, Any],
         *,
         retry_transient: bool = False,
+        timeout: float = 20.0,
     ) -> Any:
         return await self.request(
             'POST',
             f'rpc/{function_name}',
             payload=payload,
             retry_transient=retry_transient,
+            timeout=timeout,
         )
 
 

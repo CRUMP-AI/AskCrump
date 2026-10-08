@@ -13,7 +13,8 @@ from .http import register_exception_handlers, request_guards
 from .logging_privacy import enforce_transport_log_privacy
 from .routes import (
     account, analytics, auth, billing, chat, code, credits, features, files, health, intelligence,
-    library, lifecycle, manuscripts, media, presence, projects, safety, sync, voice,
+    email_webhooks, library, lifecycle, manuscripts, media, presence, projects, safety, sync,
+    voice,
 )
 from .runtime import settings
 from .version import __version__
@@ -54,6 +55,7 @@ def create_app() -> FastAPI:
     application.middleware('http')(request_guards)
     register_exception_handlers(application)
     application.include_router(health.router)
+    application.include_router(email_webhooks.router)
     application.include_router(auth.router)
     application.include_router(account.router)
     application.include_router(analytics.router)

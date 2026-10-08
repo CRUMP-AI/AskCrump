@@ -149,3 +149,44 @@ jobs:
         run: >-
           psql -X --set=ON_ERROR_STOP=1
           --file=tests/postgres/test_atomic_video_reservation_billing.sql
+
+  resend-delivery-observability:
+    name: Resend delivery observability
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: askcrump_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d askcrump_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGDATABASE: askcrump_test
+      PGUSER: postgres
+      PGPASSWORD: postgres-ci-only
+
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+      - name: Apply private-schema baseline and migration
+        run: |
+          psql -X --set=ON_ERROR_STOP=1 --file=tests/postgres/resend_delivery_event_baseline.sql
+          psql -X --set=ON_ERROR_STOP=1 --file=migrations/20261007221534_resend_delivery_event_observability.sql
+      - name: Exercise migration against PostgreSQL
+        run: >-
+          psql -X --set=ON_ERROR_STOP=1
+          --file=tests/postgres/test_resend_delivery_event_migration.sql
