@@ -105,6 +105,43 @@ select pg_temp.assert_true(
   'event-first and registration-first orderings did not converge'
 );
 
+-- Simulate the exact historical lost-race final state without using the
+-- reconciling wrapper: the signed event committed, but registration remained
+-- `sent`. The next environment-scoped claim must repair it before claiming.
+set role service_role;
+select public.register_verification_email_recovery_attempt(
+  repeat('2a', 32), '10000000-0000-0000-0000-000000000013', 'test',
+  (select verification_token_expires from public.users
+   where id = '10000000-0000-0000-0000-000000000013')
+);
+select public.record_resend_delivery_event(
+  repeat('3a', 32), repeat('2a', 32), repeat('4a', 32), 'test',
+  'verification', 'email.delivery_delayed', 'transient',
+  pg_catalog.clock_timestamp()
+);
+reset role;
+select pg_temp.assert_true(
+  (select state = 'sent' and outcome_class = 'accepted'
+   from private.verification_email_recovery_attempts
+   where provider_email_hash = repeat('2a', 32)),
+  'lost-race fixture did not preserve the missed sent state'
+);
+set role service_role;
+do $$
+begin
+  perform * from public.claim_verification_email_recovery(
+    '20000000-0000-0000-0000-000000000013', 'test'
+  );
+end;
+$$;
+reset role;
+select pg_temp.assert_true(
+  (select state = 'eligible' and outcome_class = 'transient'
+   from private.verification_email_recovery_attempts
+   where provider_email_hash = repeat('2a', 32)),
+  'claim-time reconciliation did not repair the lost callback race'
+);
+
 -- Same signed payload under another event ID resolves by fingerprint and ACKs;
 -- conflicting semantics under either uniqueness identity still fail closed.
 set role service_role;
@@ -358,9 +395,117 @@ select pg_temp.assert_true(
   'authorized durable recovery digest was not consumable'
 );
 select pg_temp.assert_true(
+  (select is_verified
+      and verification_token_hash = lpad(to_hex(1),64,'0')
+      and verification_token_expires > pg_catalog.clock_timestamp()
+   from public.users
+   where id = '10000000-0000-0000-0000-000000000001'),
+  'recovery-first verification invalidated the usable original link'
+);
+select pg_temp.assert_true(
   public.consume_verification_email_recovery_token(repeat('91',32),'test')
     = '10000000-0000-0000-0000-000000000001'::uuid,
   'ambiguous recovery-token consumption replay was not success-equivalent'
+);
+reset role;
+
+-- Original-first then recovery, followed by both replay paths, is also
+-- success-equivalent. The original digest remains the user's only public hash.
+set role service_role;
+select public.register_verification_email_recovery_attempt(
+  repeat('2b',32), '10000000-0000-0000-0000-000000000014', 'test',
+  (select verification_token_expires from public.users
+   where id='10000000-0000-0000-0000-000000000014')
+);
+select public.record_resend_delivery_event_and_recovery(
+  repeat('3b',32), repeat('2b',32), repeat('4b',32), 'test',
+  'verification', 'email.delivery_delayed', 'transient',
+  pg_catalog.clock_timestamp()
+);
+reset role;
+update private.verification_email_recovery_attempts
+set retry_after = pg_catalog.clock_timestamp() - interval '1 second'
+where provider_email_hash = repeat('2b',32);
+set role service_role;
+do $$
+declare
+  claimed record;
+  recovery_expiry timestamptz := pg_catalog.clock_timestamp() + interval '24 hours';
+begin
+  select * into strict claimed from public.claim_verification_email_recovery(
+    '20000000-0000-0000-0000-000000000014', 'test'
+  );
+  if claimed.provider_email_hash <> repeat('2b',32) then
+    raise exception 'original-first fixture claimed the wrong attempt';
+  end if;
+  if not public.prepare_verification_email_recovery(
+    repeat('2b',32), claimed.claim_token, claimed.previous_token_hash,
+    claimed.previous_token_expires_at, repeat('5b',32), recovery_expiry,
+    'test'
+  ) then
+    raise exception 'original-first fixture did not prepare';
+  end if;
+  if not public.authorize_verification_email_recovery_dispatch(
+    repeat('2b',32), claimed.claim_token, 'test',
+    claimed.previous_token_hash, claimed.previous_token_expires_at,
+    repeat('5b',32)
+  ) then
+    raise exception 'original-first fixture did not authorize';
+  end if;
+  if not public.complete_verification_email_recovery(
+    repeat('2b',32), claimed.claim_token, repeat('6b',32), 'test',
+    repeat('5b',32), recovery_expiry
+  ) then
+    raise exception 'original-first fixture did not complete';
+  end if;
+end;
+$$;
+reset role;
+-- Mirror the ordinary original-link route: mark verified and shorten only its
+-- expiry, while retaining the original digest for scanner-safe replay.
+update public.users
+set is_verified = true,
+    verification_token_expires = pg_catalog.clock_timestamp() + interval '15 minutes'
+where id = '10000000-0000-0000-0000-000000000014'
+  and verification_token_hash = lpad(to_hex(14),64,'0');
+set role service_role;
+select pg_temp.assert_true(
+  public.consume_verification_email_recovery_token(repeat('5b',32),'test')
+    = '10000000-0000-0000-0000-000000000014'::uuid,
+  'original-first recovery link was not success-equivalent'
+);
+select pg_temp.assert_true(
+  public.consume_verification_email_recovery_token(repeat('5b',32),'test')
+    = '10000000-0000-0000-0000-000000000014'::uuid,
+  'original-first recovery replay failed'
+);
+reset role;
+select pg_temp.assert_true(
+  (select is_verified
+      and verification_token_hash = lpad(to_hex(14),64,'0')
+      and verification_token_expires > pg_catalog.clock_timestamp()
+   from public.users
+   where id='10000000-0000-0000-0000-000000000014'),
+  'original-first flow lost its original replay digest'
+);
+select pg_temp.assert_true(
+  (select not is_verified
+      and verification_token_hash = lpad(to_hex(13),64,'0')
+   from public.users
+   where id='10000000-0000-0000-0000-000000000013'),
+  'recovery consumption crossed into a foreign user'
+);
+update public.users
+set verification_token_expires = pg_catalog.clock_timestamp() - interval '1 second'
+where id='10000000-0000-0000-0000-000000000014';
+update private.verification_email_recovery_attempts
+set recovery_token_expires_at = pg_catalog.clock_timestamp() - interval '1 second'
+where provider_email_hash=repeat('2b',32);
+set role service_role;
+select pg_temp.assert_true(
+  public.consume_verification_email_recovery_token(repeat('5b',32),'test') is null
+  and public.consume_verification_email_recovery_token(repeat('5b',32),'preview') is null,
+  'expired or cross-environment recovery token was accepted'
 );
 reset role;
 

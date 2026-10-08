@@ -78,6 +78,33 @@ def test_recovery_is_exactly_one_attempt_and_only_signed_transient_is_eligible()
     assert "verification_recovery_outcome_rank" in RACE_NORMALIZED
 
 
+def test_registration_and_webhook_share_a_lock_and_claim_repairs_a_missed_race():
+    lock_key = (
+        "'verification-email-recovery:' || p_environment || ':' "
+        "|| p_provider_email_hash"
+    )
+    assert RACE_NORMALIZED.count("pg_catalog.pg_advisory_xact_lock(") == 2
+    assert RACE_NORMALIZED.count(lock_key) == 2
+    assert "with authoritative as ( select distinct on" in RACE_NORMALIZED
+    assert (
+        "events.provider_email_hash = attempts.provider_email_hash "
+        "and events.environment = attempts.environment"
+    ) in RACE_NORMALIZED
+    assert "attempts.environment = p_environment" in RACE_NORMALIZED
+    assert "attempts.state = 'sent'" in RACE_NORMALIZED
+
+
+def test_recovery_consumption_preserves_the_original_dual_link_digest():
+    consumer = RACE_NORMALIZED.split(
+        "create function public.consume_verification_email_recovery_token(", 1
+    )[1].split("revoke all on function", 1)[0]
+    assert "verification_token_hash = p_recovery_token_hash" not in consumer
+    assert "verification_token_expires = handoff_expires_at" in consumer
+    assert "attempts.state in ( 'dispatch_authorized', 'retry_sent', 'delivered', " in consumer
+    assert "'terminal', 'exhausted', 'send_failed', 'verified' )" in consumer
+    assert "candidate_user.verification_token_expires <= pg_catalog.clock_timestamp()" in consumer
+
+
 def test_all_recovery_functions_are_service_role_only_and_search_path_pinned():
     signatures = (
         "public.register_verification_email_recovery_attempt( text, uuid, text, timestamptz )",

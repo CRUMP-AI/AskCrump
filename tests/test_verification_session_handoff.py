@@ -49,6 +49,104 @@ class RecoveryVerificationDB:
         return [{'consume_verification_email_recovery_token': 'user-recovered'}]
 
 
+class DualLinkVerificationDB:
+    def __init__(self, *, original_valid=True, recovery_valid=True):
+        self.original_hash = token_hash('original-token')
+        self.recovery_hash = token_hash('recovery-token')
+        self.original_valid = original_valid
+        self.recovery_valid = recovery_valid
+        self.handoff_valid = original_valid or recovery_valid
+        self.user = {
+            'id': 'user-dual-link',
+            'email': 'dual-link@example.com',
+            'is_verified': False,
+            'verification_token_hash': self.original_hash,
+            'verification_token_expires': '2099-01-01T00:00:00+00:00',
+        }
+        self.foreign_user = {
+            'id': 'user-foreign',
+            'email': 'foreign@example.com',
+            'is_verified': False,
+            'verification_token_hash': token_hash('foreign-original-token'),
+        }
+        self.updates = []
+        self.recovery_calls = []
+
+    async def select_one(self, table, **kwargs):
+        assert table == 'users'
+        filters = kwargs['filters']
+        if 'verification_token_hash' in filters:
+            if (
+                self.original_valid
+                and filters['verification_token_hash'] == f'eq.{self.original_hash}'
+            ):
+                return dict(self.user)
+            return None
+        if filters == {'id': f"eq.{self.user['id']}"}:
+            return dict(self.user)
+        if filters == {'id': f"eq.{self.foreign_user['id']}"}:
+            return dict(self.foreign_user)
+        return None
+
+    async def update(self, table, values, *, filters):
+        assert table == 'users'
+        assert filters == {'id': f"eq.{self.user['id']}"}
+        self.updates.append(dict(values))
+        self.user.update(values)
+        self.handoff_valid = True
+        return [dict(self.user)]
+
+    async def rpc(self, name, payload, **kwargs):
+        assert name == 'consume_verification_email_recovery_token'
+        self.recovery_calls.append((dict(payload), dict(kwargs)))
+        result = None
+        if (
+            payload == {
+                'p_recovery_token_hash': self.recovery_hash,
+                'p_environment': 'test',
+            }
+            and self.recovery_valid
+            and self.handoff_valid
+        ):
+            # Models the SQL consumer: verification is idempotent, the original
+            # digest survives, and the recovery digest stays usable only during
+            # the same bounded handoff window.
+            self.user['is_verified'] = True
+            result = self.user['id']
+        return [{'consume_verification_email_recovery_token': result}]
+
+
+def configure_dual_link_route(monkeypatch, database):
+    sessions = []
+
+    async def fake_create_session(db, settings, user, request, **kwargs):
+        assert db is database
+        assert user['is_verified'] is True
+        sessions.append(user['id'])
+        return f"session-{len(sessions)}", {'id': f"session-{len(sessions)}"}
+
+    monkeypatch.setattr(auth_routes, 'db', database)
+    monkeypatch.setattr(
+        auth_routes,
+        'settings',
+        SimpleNamespace(
+            app_url='https://www.askcrump.com',
+            environment='test',
+            verification_email_recovery_enabled=True,
+        ),
+    )
+    monkeypatch.setattr(auth_routes, 'create_session', fake_create_session)
+    monkeypatch.setattr(auth_routes, 'set_session_cookie', lambda *_args: None)
+    monkeypatch.setattr(
+        auth_routes,
+        'expiry_iso',
+        lambda **kwargs: '2099-01-01T00:15:00+00:00'
+        if kwargs == {'minutes': 15}
+        else '',
+    )
+    return SimpleNamespace(headers={}, client=SimpleNamespace(host='127.0.0.1')), sessions
+
+
 @pytest.mark.asyncio
 async def test_verification_issues_a_session_and_keeps_a_short_scanner_safe_replay(monkeypatch):
     database = VerificationDB({
@@ -173,6 +271,66 @@ async def test_authorized_durable_recovery_token_can_issue_session(monkeypatch):
             {'retry_transient': True, 'timeout': 3.0},
         )
     ]
+
+
+@pytest.mark.asyncio
+async def test_recovery_then_original_and_both_replays_share_one_handoff(monkeypatch):
+    database = DualLinkVerificationDB()
+    request, sessions = configure_dual_link_route(monkeypatch, database)
+
+    responses = [
+        await auth_routes.verify_email('recovery-token', request),
+        await auth_routes.verify_email('original-token', request),
+        await auth_routes.verify_email('recovery-token', request),
+        await auth_routes.verify_email('original-token', request),
+    ]
+
+    assert all(response.status_code == 303 for response in responses)
+    assert all(response.headers['location'].endswith('verification=success') for response in responses)
+    assert database.user['verification_token_hash'] == database.original_hash
+    assert database.foreign_user['is_verified'] is False
+    assert database.updates == []
+    assert sessions == ['user-dual-link'] * 4
+
+
+@pytest.mark.asyncio
+async def test_original_then_recovery_and_both_replays_share_one_handoff(monkeypatch):
+    database = DualLinkVerificationDB()
+    request, sessions = configure_dual_link_route(monkeypatch, database)
+
+    responses = [
+        await auth_routes.verify_email('original-token', request),
+        await auth_routes.verify_email('recovery-token', request),
+        await auth_routes.verify_email('original-token', request),
+        await auth_routes.verify_email('recovery-token', request),
+    ]
+
+    assert all(response.status_code == 303 for response in responses)
+    assert all(response.headers['location'].endswith('verification=success') for response in responses)
+    assert len(database.updates) == 1
+    assert 'verification_token_hash' not in database.updates[0]
+    assert database.user['verification_token_hash'] == database.original_hash
+    assert database.foreign_user['is_verified'] is False
+    assert sessions == ['user-dual-link'] * 4
+
+
+@pytest.mark.asyncio
+async def test_expired_or_foreign_dual_link_cannot_verify_or_issue_session(monkeypatch):
+    database = DualLinkVerificationDB(original_valid=False, recovery_valid=False)
+    database.handoff_valid = False
+    request, sessions = configure_dual_link_route(monkeypatch, database)
+
+    expired_original = await auth_routes.verify_email('original-token', request)
+    expired_recovery = await auth_routes.verify_email('recovery-token', request)
+    foreign_recovery = await auth_routes.verify_email('foreign-recovery-token', request)
+
+    assert expired_original.headers['location'].endswith('verification=failed')
+    assert expired_recovery.headers['location'].endswith('verification=failed')
+    assert foreign_recovery.headers['location'].endswith('verification=failed')
+    assert database.user['is_verified'] is False
+    assert database.foreign_user['is_verified'] is False
+    assert database.updates == []
+    assert sessions == []
 
 
 @pytest.mark.asyncio

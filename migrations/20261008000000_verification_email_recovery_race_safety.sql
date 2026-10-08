@@ -162,6 +162,16 @@ begin
       using errcode = '22023';
   end if;
 
+  -- Serialize registration with the signed-event wrapper for this exact
+  -- environment/message pair. Hash collisions only create extra serialization.
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(
+      'verification-email-recovery:' || p_environment || ':'
+        || p_provider_email_hash,
+      0
+    )
+  );
+
   select attempts.* into existing
   from private.verification_email_recovery_attempts as attempts
   where attempts.provider_email_hash = p_provider_email_hash;
@@ -270,6 +280,17 @@ begin
     p_provider_event_hash, p_provider_email_hash, p_payload_fingerprint,
     p_environment, p_message_kind, p_event_type, p_outcome_class,
     p_occurred_at
+  );
+
+  -- Use the same lock as registration. If the event insert preceded a waiting
+  -- registration, this wrapper observes the new attempt after the lock; if
+  -- registration won, it observes the committed event while holding the lock.
+  perform pg_catalog.pg_advisory_xact_lock(
+    pg_catalog.hashtextextended(
+      'verification-email-recovery:' || p_environment || ':'
+        || p_provider_email_hash,
+      0
+    )
   );
 
   -- Provider replays can preserve signed bytes while changing the event ID.
@@ -409,6 +430,52 @@ begin
     raise exception 'A valid recovery claim scope is required.'
       using errcode = '22023';
   end if;
+
+  -- Eventual repair for the historical/lost-race state: a signed transient
+  -- receipt may exist while registration remains `sent`. This makes the next
+  -- environment-scoped claim reconcile it before selecting work.
+  with authoritative as (
+    select distinct on (attempts.provider_email_hash)
+      attempts.provider_email_hash,
+      events.outcome_class,
+      events.occurred_at
+    from private.verification_email_recovery_attempts as attempts
+    join private.resend_delivery_events as events
+      on events.provider_email_hash = attempts.provider_email_hash
+     and events.environment = attempts.environment
+     and events.message_kind = attempts.message_kind
+    where attempts.environment = p_environment
+      and attempts.state = 'sent'
+      and attempts.attempt_count = 0
+    order by attempts.provider_email_hash,
+      private.verification_recovery_outcome_rank(events.outcome_class) desc,
+      events.occurred_at desc,
+      events.received_at desc
+  )
+  update private.verification_email_recovery_attempts as attempts
+  set outcome_class = authoritative.outcome_class,
+      state = case
+        when authoritative.outcome_class = 'transient' then 'eligible'
+        when authoritative.outcome_class = 'delivered' then 'delivered'
+        when authoritative.outcome_class in (
+          'permanent', 'failed', 'suppressed', 'complaint'
+        ) then 'terminal'
+        else attempts.state
+      end,
+      retry_after = case
+        when authoritative.outcome_class = 'transient' then greatest(
+          pg_catalog.clock_timestamp() + interval '10 minutes',
+          authoritative.occurred_at + interval '10 minutes'
+        )
+        else attempts.retry_after
+      end,
+      updated_at = pg_catalog.clock_timestamp()
+  from authoritative
+  where attempts.provider_email_hash = authoritative.provider_email_hash
+    and attempts.environment = p_environment
+    and private.verification_recovery_outcome_rank(
+      authoritative.outcome_class
+    ) > private.verification_recovery_outcome_rank(attempts.outcome_class);
 
   update private.verification_email_recovery_attempts as attempts
   set state = 'cancelled', claim_token = null, lease_expires_at = null,
@@ -805,6 +872,7 @@ as $function$
 declare
   attempt private.verification_email_recovery_attempts%rowtype;
   candidate_user public.users%rowtype;
+  handoff_expires_at timestamptz;
 begin
   if coalesce(p_recovery_token_hash, '') !~ '^[0-9a-f]{64}$'
      or coalesce(p_environment, '') not in (
@@ -838,23 +906,43 @@ begin
     return null;
   end if;
   if candidate_user.is_verified then
-    if attempt.state = 'verified'
-       and candidate_user.verification_token_hash = p_recovery_token_hash
-       and candidate_user.verification_token_expires > pg_catalog.clock_timestamp()
+    if candidate_user.verification_token_expires is null
+       or candidate_user.verification_token_expires <= pg_catalog.clock_timestamp()
     then
-      return attempt.user_id;
+      return null;
     end if;
-    return null;
+    handoff_expires_at := least(
+      attempt.recovery_token_expires_at,
+      candidate_user.verification_token_expires
+    );
+    update private.verification_email_recovery_attempts
+    set state = 'verified',
+        recovery_token_expires_at = handoff_expires_at,
+        claim_token = null,
+        lease_expires_at = null,
+        updated_at = pg_catalog.clock_timestamp()
+    where provider_email_hash = attempt.provider_email_hash
+      and environment = p_environment;
+    return attempt.user_id;
   end if;
+
+  handoff_expires_at := least(
+    attempt.recovery_token_expires_at,
+    pg_catalog.clock_timestamp() + interval '15 minutes'
+  );
 
   update public.users
   set is_verified = true,
-      verification_token_hash = p_recovery_token_hash,
-      verification_token_expires = pg_catalog.clock_timestamp() + interval '15 minutes',
+      -- Preserve the original digest so both delivered links work regardless
+      -- of which one verifies first.
+      verification_token_expires = handoff_expires_at,
       updated_at = pg_catalog.clock_timestamp()
   where id = attempt.user_id;
   update private.verification_email_recovery_attempts
-  set state = 'verified', claim_token = null, lease_expires_at = null,
+  set state = 'verified',
+      recovery_token_expires_at = handoff_expires_at,
+      claim_token = null,
+      lease_expires_at = null,
       updated_at = pg_catalog.clock_timestamp()
   where provider_email_hash = attempt.provider_email_hash
     and environment = p_environment;

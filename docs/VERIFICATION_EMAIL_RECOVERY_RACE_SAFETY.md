@@ -26,6 +26,11 @@ production path.
   response.
 - Provider failure, worker crash, or lease cleanup never rotates the original
   token. The attempt count is permanently bounded to one.
+- Recovery consumption never replaces the original token digest. Whichever
+  delivered link is opened first marks the account verified and bounds both
+  links to the same remaining, at-most-15-minute handoff window. Either link
+  and its scanner-safe replay can then issue a session during that window;
+  expiry, environment mismatch, or a token bound to another user fails closed.
 
 ## Environment and webhook boundary
 
@@ -41,8 +46,12 @@ production path.
   any semantic mismatch fails closed.
 - Outcome precedence is monotonic. Complaint, suppression, permanent failure,
   and failure cannot be downgraded by late delivery or transient callbacks.
-- Registration atomically reconciles a callback that committed before the
-  initial provider receipt was registered.
+- Registration and the signed-event wrapper take the same transaction advisory
+  lock keyed by allowlisted environment plus provider-message digest. This
+  closes the interleaving where each transaction could otherwise miss the
+  other. Registration also reconciles an already-committed callback, and the
+  environment-scoped claim path performs an eventual reconciliation pass for
+  any historical `sent` row left beside a signed event.
 
 ## Activation prerequisites
 
