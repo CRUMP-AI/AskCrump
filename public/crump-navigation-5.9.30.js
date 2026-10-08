@@ -556,13 +556,22 @@
   }
 
   function openDestination(destination) {
-    if (destination === 'home') openHome();
-    else if (destination === 'chats') openChats();
-    else if (destination === 'projects') openProjects();
-    else if (destination === 'library') openLibrary();
-    else if (destination === 'studios') openStudios();
-    else if (destination === 'you') openYou();
-    else openHome();
+    const requested = String(destination || '').trim().toLowerCase();
+    const normalized = requested === 'ask'
+      ? 'chats'
+      : requested === 'create'
+        ? 'studios'
+        : requested;
+    if (normalized === 'home') openHome();
+    else if (normalized === 'chats') openChats();
+    else if (normalized === 'projects') openProjects();
+    else if (normalized === 'library') openLibrary();
+    else if (normalized === 'studios') openStudios();
+    else if (normalized === 'video') openVideo();
+    else if (normalized === 'code') void openCodeStudio();
+    else if (normalized === 'you') openYou();
+    else return false;
+    return true;
   }
 
   function wireDestinations() {

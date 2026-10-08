@@ -7,7 +7,7 @@
   <link rel="icon" href="data:,">
   <link rel="stylesheet" href="/public/crump-v1-body.css?v=5.9.76">
   <link rel="stylesheet" href="/public/crump-product-5.3.css?v=5.9.76-file-library-window-1">
-  <link rel="stylesheet" href="/public/crump-navigation-5.9.30.css?v=5.9.76-nav-reorg-1">
+  <link rel="stylesheet" href="/public/crump-navigation-5.9.30.css?v=5.9.76-nav-reorg-2">
   <style>
     body { margin: 0; background: #080b0f; color: #eee; font-family: system-ui, sans-serif; }
     .v1-shell { display: grid; min-height: 100vh; grid-template-columns: 94px 292px minmax(0,1fr); }
@@ -66,6 +66,12 @@
     </section>
   </div>
 
+  <div id="crumpCodeWorkspace" hidden>
+    <section role="dialog" aria-modal="false" aria-label="Code Studio">
+      <strong id="crumpCodeTitle" tabindex="-1">Code Studio</strong>
+    </section>
+  </div>
+
   <div id="settingsModal" class="modal v1-modal">
     <div class="modal-content settings-sheet v1-settings-sheet" role="dialog" aria-modal="false" aria-label="Settings">
       <div class="settings-sheet-header v1-settings-header">
@@ -102,7 +108,7 @@
   <section id="billingProof" role="dialog" aria-label="Plan and credits">Plan and credits opened</section>
 
   <script>
-    window.fixtureEvents = {billing: 0, analytics: []};
+    window.fixtureEvents = {billing: 0, codeOpen: 0, analytics: []};
     window.fixtureErrors = [];
     document.documentElement.dataset.fixtureErrorCount = '0';
     const recordFixtureError = value => {
@@ -143,10 +149,20 @@
         studio.hidden = false;
       },
     };
+    window.CrumpCodeWorkspace = {
+      async open() {
+        window.fixtureEvents.codeOpen += 1;
+        document.getElementById('crumpCodeWorkspace').hidden = false;
+        return true;
+      },
+      close() {
+        document.getElementById('crumpCodeWorkspace').hidden = true;
+      },
+    };
     document.getElementById('crump53Close').addEventListener('click', () => { document.getElementById('crump53Studio').hidden = true; });
   </script>
   <script src="/public/crump-v1-body.js?v=5.9.76"></script>
-  <script src="/public/crump-navigation-5.9.30.js?v=5.9.76-nav-reorg-1"></script>
+  <script src="/public/crump-navigation-5.9.30.js?v=5.9.76-nav-reorg-2"></script>
   <script>
     const mobileProof = new URLSearchParams(location.search).get('mobile');
     if (mobileProof === 'drawer') {

@@ -64,8 +64,8 @@ def test_runtime_maps_the_new_navigation_to_the_stable_measurement_taxonomy() ->
 
     for destination in ("ask", "chats", "projects", "create", "video", "library", "you", "code"):
         assert f"recordDestinationSelection('{destination}')" in navigation
-    assert "if (destination === 'home') openHome();" in navigation
-    assert "else if (destination === 'studios') openStudios();" in navigation
+    assert "if (normalized === 'home') openHome();" in navigation
+    assert "else if (normalized === 'studios') openStudios();" in navigation
     assert "recordDestinationSelection('studios')" not in navigation
     assert "recordDestinationSelection('studios-video')" not in navigation
     assert "recordDestinationSelection('studios-code')" not in navigation

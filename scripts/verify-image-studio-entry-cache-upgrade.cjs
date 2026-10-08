@@ -15,8 +15,8 @@ const oldUrls = Object.freeze([
   '/auth-controller.js?v=5.9.76-facebook-reel-attribution-1',
 ]);
 const newUrls = Object.freeze({
-  runtime: '/runtime-body-v1.js?v=5.9.76-nav-reorg-1',
-  navigation: '/crump-navigation-5.9.30.js?v=5.9.76-nav-reorg-1',
+  runtime: '/runtime-body-v1.js?v=5.9.76-nav-reorg-2',
+  navigation: '/crump-navigation-5.9.30.js?v=5.9.76-nav-reorg-2',
   auth: '/auth-controller.js?v=5.9.76-image-studio-entry-1',
 });
 const fixturePath = '/__image-studio-entry-cache-upgrade.html';

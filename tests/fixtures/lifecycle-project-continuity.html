@@ -5,7 +5,10 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Ask Crump lifecycle Project continuity fixture</title>
   <link rel="icon" href="data:,">
-  <style>#filePreview[hidden] { display: none; }</style>
+  <style>
+    #filePreview[hidden], #crump53Sheet[hidden] { display: none; }
+    #crump53Sheet { display: block; min-height: 40px; }
+  </style>
 </head>
 <body>
   <main>
@@ -14,8 +17,10 @@
     <button id="sendButton" type="button" disabled aria-disabled="true">Send</button>
     <div id="filePreview" hidden>Reference image ready</div>
     <div id="conversationStatus" aria-live="polite"></div>
+    <section id="crump53Sheet" data-crump53-section="projects" hidden>Studio sheet</section>
   </main>
   <script>
+    const fixtureParams = new URLSearchParams(location.search);
     window.currentUser = {id: '11111111-1111-4111-8111-111111111111'};
     window.currentChatId = '22222222-2222-4222-8222-222222222222';
     window.chats = [{
@@ -31,6 +36,8 @@
       decisionCalls: 0,
       presenceActive: false,
       actions: [],
+      actionPayloads: [],
+      decisionPayloads: [],
       projectArgs: [],
     };
     window.showToast = () => {};
@@ -60,19 +67,23 @@
     window.fetch = async (input, options = {}) => {
       const path = new URL(String(input), location.origin).pathname;
       if (path === '/api/lifecycle/decision') {
+        const body = JSON.parse(options.body || '{}');
         window.__fixture.decisionCalls += 1;
+        window.__fixture.decisionPayloads.push(body);
+        const artifact = fixtureParams.get('message') === 'artifact';
         return new Response(JSON.stringify({
           success: true,
           eligible: true,
-          messageKey: 'continuity-assist',
-          intent: 'projects',
-          surface: 'post-response-inline',
+          messageKey: artifact ? 'artifact-assist' : 'continuity-assist',
+          intent: artifact ? 'presentation' : 'projects',
+          surface: artifact ? 'workspace-inline' : 'post-response-inline',
           decisionId: '44444444-4444-4444-8444-444444444444',
         }), {status: 200, headers: {'Content-Type': 'application/json'}});
       }
       if (path === '/api/lifecycle/actions') {
         const body = JSON.parse(options.body || '{}');
         window.__fixture.actions.push(body.action);
+        window.__fixture.actionPayloads.push(body);
         return new Response(JSON.stringify({success: true, recorded: true}), {
           status: 200,
           headers: {'Content-Type': 'application/json'},

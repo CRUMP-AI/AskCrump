@@ -2480,7 +2480,7 @@
       source: 'project',
     });
     if (typeof window.CrumpNavigation5930?.open === 'function') {
-      window.CrumpNavigation5930.open('ask');
+      window.CrumpNavigation5930.open('chats');
     } else {
       closeStudio();
     }

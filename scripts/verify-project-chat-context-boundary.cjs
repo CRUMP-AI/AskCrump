@@ -100,17 +100,28 @@ async function verify(browser, viewport) {
   await page.evaluate(project => window.CrumpProduct53.openProject(project), projectId);
   await page.locator('[data-project-chat-id]').click();
   await page.waitForFunction(() => document.getElementById('crump53Studio')?.hidden === true);
+  await page.waitForFunction(() => document.getElementById('v1Launchpad')?.hidden === true);
   await page.waitForFunction(() => document.activeElement?.id === 'userInput');
   const resumed = await page.evaluate(() => ({
     activeElementId: document.activeElement?.id || '',
+    activeDestination: document.querySelector('[data-crump5930-destination].is-active')?.dataset.crump5930Destination || '',
     chatId: window.currentChatId,
+    launchpadHidden: document.getElementById('v1Launchpad')?.hidden === true,
     projectActive: document.body.classList.contains('crump53-chat-project-active'),
+    renderedChatId: document.getElementById('chatContainer')?.dataset.renderedChatId || '',
+    renderedText: document.getElementById('chatContainer')?.textContent || '',
+    sheetHidden: document.getElementById('crump53Studio')?.hidden === true,
     destinations: [...window.fixtureDestinations],
   }));
   assert.equal(resumed.activeElementId, 'userInput', JSON.stringify(resumed));
+  assert.equal(resumed.activeDestination, 'chats', JSON.stringify(resumed));
   assert.equal(resumed.chatId, linkedChatId, JSON.stringify(resumed));
+  assert.equal(resumed.launchpadHidden, true, JSON.stringify(resumed));
   assert.equal(resumed.projectActive, false, JSON.stringify(resumed));
-  assert.equal(resumed.destinations.at(-1), 'ask', JSON.stringify(resumed));
+  assert.equal(resumed.renderedChatId, linkedChatId, JSON.stringify(resumed));
+  assert.equal(resumed.renderedText, 'Exact saved Savannah launch conversation.', JSON.stringify(resumed));
+  assert.equal(resumed.sheetHidden, true, JSON.stringify(resumed));
+  assert.equal(resumed.destinations.at(-1), 'chats', JSON.stringify(resumed));
   assert.equal(freshState.browserErrors, 0);
   assert.deepEqual(errors, []);
 

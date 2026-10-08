@@ -13,7 +13,7 @@ const oldUrls = Object.freeze([
   '/crump-5.0.js?v=5.9.76-project-save-offer-1',
 ]);
 const newUrls = Object.freeze({
-  runtime: '/runtime-body-v1.js?v=5.9.76-nav-reorg-1',
+  runtime: '/runtime-body-v1.js?v=5.9.76-nav-reorg-2',
   composer: '/crump-5.0.js?v=5.9.76-reference-fidelity-hard-contract-1',
 });
 const fixturePath = '/__document-delivery-cache-upgrade.html';

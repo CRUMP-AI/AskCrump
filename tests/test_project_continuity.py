@@ -609,11 +609,21 @@ def test_project_workspace_surfaces_saved_conversations_and_a_private_resume_act
     assert "await window.syncChatsFromServer?.()" in product
     assert "window.loadChat(normalized)" in product
     resume = product[product.index("async function resumeProjectConversation"):product.index("async function saveProject")]
-    assert "window.CrumpNavigation5930.open('ask')" in resume
+    assert "window.CrumpNavigation5930.open('chats')" in resume
     assert "byId('userInput')?.focus({preventScroll: true})" in resume
     assert "chatId:" not in resume
     assert "title:" not in resume
     assert "source: 'project'" in resume
+
+    verifier = (ROOT / "scripts" / "verify-project-chat-context-boundary.cjs").read_text(
+        encoding="utf-8"
+    )
+    assert "resumed.activeDestination, 'chats'" in verifier
+    assert "resumed.launchpadHidden, true" in verifier
+    assert "resumed.renderedChatId, linkedChatId" in verifier
+    assert "Exact saved Savannah launch conversation." in verifier
+    assert "resumed.sheetHidden, true" in verifier
+    assert "resumed.activeElementId, 'userInput'" in verifier
 
 
 def test_project_rows_open_a_real_project_workspace_and_scoped_new_chat():
@@ -1012,7 +1022,9 @@ def test_project_chat_context_is_explicit_visible_and_relationship_scoped():
     assert "/api/projects/for-chat/" in fixture
     assert "/api/chat" in fixture
     assert "fixtureChatRequests" in fixture
-    assert "window.loadChat = chatId => window.fixtureOpenConversation(chatId)" in fixture
+    assert "window.loadChat = chatId => {" in fixture
+    assert "window.fixtureOpenConversation(chatId);" in fixture
+    assert "container.dataset.renderedChatId = String(chat?.id || '');" in fixture
     assert "window.fixtureDestinations.push(destination)" in fixture
     verifier = (ROOT / "scripts" / "verify-project-chat-context-boundary.cjs").read_text(
         encoding="utf-8"

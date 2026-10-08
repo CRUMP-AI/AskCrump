@@ -136,6 +136,37 @@ const expectedDestinations = ['home', 'chats', 'projects', 'library', 'studios',
     await page.waitForFunction(() => document.activeElement?.id === 'userInput');
     assert.equal(await page.evaluate(() => document.activeElement?.id), 'userInput');
 
+    assert.equal(await page.evaluate(() => window.CrumpNavigation5930.open('ask')), true);
+    await page.waitForFunction(() => (
+      document.documentElement.dataset.crumpNavigationDestination === 'chats'
+      && document.getElementById('v1Launchpad')?.classList.contains('is-hidden')
+    ));
+    assert.equal(await page.evaluate(() => window.CrumpNavigation5930.open('create')), true);
+    await page.waitForFunction(() => (
+      document.documentElement.dataset.crumpNavigationDestination === 'studios'
+      && !document.getElementById('crump5930StudiosHub')?.hidden
+    ));
+    assert.equal(await page.evaluate(() => window.CrumpNavigation5930.open('video')), true);
+    await page.waitForFunction(() => (
+      document.documentElement.dataset.crumpNavigationDestination === 'studios'
+      && document.getElementById('crump53Sheet')?.dataset.crump53Section === 'video'
+    ));
+    assert.equal(await page.evaluate(() => window.CrumpNavigation5930.open('code')), true);
+    await page.waitForFunction(() => window.fixtureEvents.codeOpen === 1);
+    const beforeUnknown = await page.evaluate(() => ({
+      active: document.documentElement.dataset.crumpNavigationDestination,
+      codeOpen: window.fixtureEvents.codeOpen,
+      homeVisible: !document.getElementById('v1Launchpad')?.classList.contains('is-hidden'),
+    }));
+    assert.equal(await page.evaluate(() => window.CrumpNavigation5930.open('not-a-destination')), false);
+    await page.waitForTimeout(50);
+    const afterUnknown = await page.evaluate(() => ({
+      active: document.documentElement.dataset.crumpNavigationDestination,
+      codeOpen: window.fixtureEvents.codeOpen,
+      homeVisible: !document.getElementById('v1Launchpad')?.classList.contains('is-hidden'),
+    }));
+    assert.deepEqual(afterUnknown, beforeUnknown);
+
     await clickDestination('you');
     await page.locator('[data-v1-settings-tab="plan"]').click();
     await page.locator('#v1OpenPlanBtn').click();
@@ -154,7 +185,7 @@ const expectedDestinations = ['home', 'chats', 'projects', 'library', 'studios',
     });
     assert.deepEqual(errors, []);
 
-    process.stdout.write(JSON.stringify({baseline, home, projects, create, you, plan, errors}));
+    process.stdout.write(JSON.stringify({baseline, home, projects, create, aliases: afterUnknown, you, plan, errors}));
   } finally {
     await browser.close();
   }

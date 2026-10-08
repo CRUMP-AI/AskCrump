@@ -156,6 +156,36 @@ def test_action_endpoint_is_idempotency_rpc_backed(monkeypatch):
     assert len(action[1]["p_session_hash"]) == 64
 
 
+def test_create_surface_survives_decision_and_action_wire_contract(monkeypatch):
+    database = LifecycleDB()
+    monkeypatch.setattr(lifecycle_routes, "db", database)
+    monkeypatch.setattr(lifecycle_routes, "authenticate_request", fake_authenticate)
+    decision = CLIENT.post("/api/lifecycle/decision", json={
+        "sessionId": "12345678-1234-4123-8123-123456789abc",
+        "intent": "presentation",
+        "activeWork": True,
+        "recoverySurface": False,
+        "currentSurface": "create",
+    })
+    assert decision.status_code == 200
+    claim = next(call for call in database.calls if call[0] == "claim_lifecycle_prompt")
+    assert claim[1]["p_current_surface"] == "create"
+
+    action = CLIENT.post("/api/lifecycle/actions", json={
+        "sessionId": "12345678-1234-4123-8123-123456789abc",
+        "decisionId": "00000000-0000-4000-8000-000000000001",
+        "action": "suppressed",
+        "activeWork": True,
+        "recoverySurface": False,
+        "currentSurface": "create",
+        "suppressionReason": "active-work",
+    })
+    assert action.status_code == 200
+    recorded = next(call for call in database.calls if call[0] == "record_lifecycle_prompt_action")
+    assert recorded[1]["p_current_surface"] == "create"
+    assert recorded[1]["p_suppression_reason"] == "active-work"
+
+
 def test_migration_enforces_caps_holdouts_stale_rechecks_and_private_access():
     sql = MIGRATION.read_text(encoding="utf-8")
     assert "holdout_percent smallint not null default 20" in sql
@@ -210,6 +240,8 @@ def test_browser_component_uses_only_reviewed_static_copy_and_is_nonblocking():
     assert "preview && isVisible(preview)" in manager
     assert "action('shown')" in manager
     assert "action('suppressed', 'active-work')" in manager
+    assert "classList.contains('crump5930-studios-open')) return 'create'" in manager
+    assert "['manuscripts', 'video'].includes(sheet.dataset.crump53Section)) return 'create'" in manager
     assert "let volatileSessionId = '';" in manager
     assert "if (!volatileSessionId) volatileSessionId = crypto.randomUUID();" in manager
     assert "window.CrumpOutcomeActions.keepLatestInProject()" in manager
@@ -220,7 +252,7 @@ def test_browser_component_uses_only_reviewed_static_copy_and_is_nonblocking():
     assert "navigation.open('projects')" not in continuity
     assert "prefers-reduced-motion: reduce" in styles
     assert "/lifecycle-share.js?v=5.9.76-settings-invite-1" in runtime
-    assert "/lifecycle-manager.js?v=5.9.76-nav-reorg-1" in runtime
+    assert "/lifecycle-manager.js?v=5.9.76-nav-reorg-2" in runtime
     assert "/lifecycle.css?v=5.9.76-lifecycle-activation-1" in runtime
     assert "ask-crump-new-body-v1-r254" in worker
     assert (ROOT / "tests" / "fixtures" / "lifecycle-project-continuity.html").exists()
@@ -231,6 +263,10 @@ def test_browser_component_uses_only_reviewed_static_copy_and_is_nonblocking():
     assert "A draft the user has not sent" in continuity_verifier
     assert "document.getElementById('filePreview').hidden = false" in continuity_verifier
     assert "window.__fixture.presenceActive = true" in continuity_verifier
+    assert "surfacePayloads[surface].decision.currentSurface, 'create'" in continuity_verifier
+    assert "surfacePayloads[surface].action.currentSurface, 'create'" in continuity_verifier
+    assert "artifactSuppression.currentSurface, 'create'" in continuity_verifier
+    assert "artifactSuppression.suppressionReason, 'active-work'" in continuity_verifier
     assert (ROOT / "scripts" / "verify-lifecycle-project-continuity.cjs").exists()
     assert (ROOT / "tests" / "fixtures" / "lifecycle-referral-recovery.html").exists()
     verifier = (ROOT / "scripts" / "verify-lifecycle-referral-recovery.cjs").read_text(encoding="utf-8")

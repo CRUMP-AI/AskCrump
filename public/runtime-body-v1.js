@@ -38,7 +38,7 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/crump-product-5.3.1.css', 'crumpproduct531'],
     ['/crump-polish-5.6.css', 'crumppolish56'],
     ['/crump-v1-stability.css', 'crumpv1stability'],
-    ['/crump-navigation-5.9.30.css?v=5.9.76-nav-reorg-1', 'crumpnav5930'],
+    ['/crump-navigation-5.9.30.css?v=5.9.76-nav-reorg-2', 'crumpnav5930'],
   ]);
 
   const finalStyles = Object.freeze([
@@ -46,7 +46,7 @@ window.CRUMP_CONFIG = Object.freeze({
   ]);
 
   const workspaceScripts = Object.freeze([
-    ['/onboarding.js?v=5.9.76-nav-reorg-1', 'workspaceonboarding'],
+    ['/onboarding.js?v=5.9.76-nav-reorg-2', 'workspaceonboarding'],
     ['/scroll-manager.js?v=5.9.76-muse-release-repair-1', 'workspacescroll'],
     ['/profile-manager.js', 'workspaceprofile'],
     ['/billing-manager.js?v=5.9.76-stripe-destination-integrity-1', 'workspacebilling'],
@@ -70,22 +70,22 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/crump-billing-5.1.js?v=5.9.76-checkout-destination-label-1', 'billing51'],
     ['/crump-5.2.js?v=5.9.76-plan-status-line-1', 'crump52'],
     ['/crump-5.2.2.js?v=5.9.76-muse-release-repair-1', 'crump522'],
-    ['/crump-v1-body.js?v=5.9.76-nav-reorg-1', 'crumpbodyv1'],
+    ['/crump-v1-body.js?v=5.9.76-nav-reorg-2', 'crumpbodyv1'],
     ['/crump-v1-stability.js?v=5.9.76-intelligence-architecture-1', 'crumpv1stability'],
   ]);
 
   const finalScripts = Object.freeze([
     ['/crump-navigation-5.2.5.js?v=5.9.76-chats-language-1', 'crumpnav525'],
-    ['/crump-product-loader.js?v=5.9.76-projects-empty-state-1', 'crumpproductloader'],
+    ['/crump-product-loader.js?v=5.9.76-project-resume-chats-1', 'crumpproductloader'],
     ['/crump-product-5.3.1.js?v=5.9.76-conversation-action-labels-2', 'crumpproduct531'],
     ['/crump-subscriptions-5.3.2.js?v=5.9.76-checkout-destination-label-1', 'crumpsubscriptions532'],
-    ['/crump-polish-5.6.js?v=5.9.76-nav-reorg-1', 'crumppolish56'],
+    ['/crump-polish-5.6.js?v=5.9.76-nav-reorg-2', 'crumppolish56'],
     ['/crump-media-save.js?v=5.9.76-library-lazy-load-1', 'crumpmediasave'],
     ['/crump-library-loader.js?v=5.9.76-library-first-run-1', 'crumplibraryloader'],
-    ['/crump-navigation-5.9.30.js?v=5.9.76-nav-reorg-1', 'crumpnav5930'],
+    ['/crump-navigation-5.9.30.js?v=5.9.76-nav-reorg-2', 'crumpnav5930'],
     ['/crump-code-loader.js?v=5.9.76-code-lazy-load-1', 'crumpcodeloader'],
     ['/lifecycle-share.js?v=5.9.76-settings-invite-1', 'lifecycleshare'],
-    ['/lifecycle-manager.js?v=5.9.76-nav-reorg-1', 'lifecyclemanager'],
+    ['/lifecycle-manager.js?v=5.9.76-nav-reorg-2', 'lifecyclemanager'],
   ]);
 
   const scriptPlan = Object.freeze([

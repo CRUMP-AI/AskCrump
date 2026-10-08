@@ -12,6 +12,7 @@
   <main class="v1-workspace">
     <header class="v1-workspace-context"><span>WORKSPACE</span><strong>Conversation</strong></header>
     <section class="v1-workspace-body">
+      <section id="v1Launchpad" class="v1-launchpad" aria-label="Home">Home launchpad</section>
       <div id="chatContainer" class="chat-container" aria-label="Conversation"></div>
     </section>
     <section class="v1-command-dock" aria-label="Ask Crump composer">
@@ -20,6 +21,10 @@
       </div></div>
     </section>
   </main>
+  <nav aria-label="Workspace destinations">
+    <button type="button" class="is-active" data-crump5930-destination="home" aria-current="page">Home</button>
+    <button type="button" data-crump5930-destination="chats">Chats</button>
+  </nav>
   <button id="newChatBtn" type="button" hidden>New conversation</button>
   <button id="scrollToEndBtn" type="button" hidden>Newest</button>
   <output id="fixtureErrors" aria-label="Browser errors">0</output>
@@ -85,7 +90,7 @@
     window.chats = [{
       id: linkedChatId,
       title: 'Savannah launch plan',
-      messages: [],
+      messages: [{role: 'assistant', content: 'Exact saved Savannah launch conversation.'}],
     }];
     window.fixtureChatRequests = [];
     window.fixtureVideoRequests = [];
@@ -96,7 +101,19 @@
     window.CrumpNavigation5930 = {
       open: destination => {
         window.fixtureDestinations.push(destination);
+        if (destination === 'chats') {
+          const launchpad = document.getElementById('v1Launchpad');
+          launchpad.hidden = true;
+          launchpad.classList.add('is-hidden');
+          document.querySelectorAll('[data-crump5930-destination]').forEach(button => {
+            const active = button.dataset.crump5930Destination === 'chats';
+            button.classList.toggle('is-active', active);
+            if (active) button.setAttribute('aria-current', 'page');
+            else button.removeAttribute('aria-current');
+          });
+        }
         document.getElementById('crump53Close')?.click();
+        return destination === 'chats';
       },
     };
     const recordBrowserError = () => {
@@ -205,7 +222,13 @@
         detail: {chatId, fresh},
       }));
     };
-    window.loadChat = chatId => window.fixtureOpenConversation(chatId);
+    window.loadChat = chatId => {
+      window.fixtureOpenConversation(chatId);
+      const chat = window.chats.find(item => item.id === chatId);
+      const container = document.getElementById('chatContainer');
+      container.dataset.renderedChatId = String(chat?.id || '');
+      container.textContent = (chat?.messages || []).map(message => message.content).join('\n');
+    };
     window.fixtureSend = async chatId => {
       await window.fetch('/api/chat', {
         method: 'POST',

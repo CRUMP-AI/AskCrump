@@ -1037,7 +1037,7 @@ const userControlledScrollVersion = `${releaseVersion}-user-controlled-scroll-1`
 const newResponseCueVersion = `${releaseVersion}-new-response-cue-1`;
 const videoDestinationVersion = `${releaseVersion}-video-destination-1`;
 const navFocusVisibilityVersion = `${releaseVersion}-nav-focus-visibility-1`;
-const navReorgVersion = `${releaseVersion}-nav-reorg-1`;
+const navReorgVersion = `${releaseVersion}-nav-reorg-2`;
 const destinationBackgroundGuardVersion = `${releaseVersion}-destination-background-guard-1`;
 const codeLazyLoadVersion = `${releaseVersion}-code-lazy-load-1`;
 const precisionLazyLoadVersion = `${releaseVersion}-precision-lazy-load-1`;
@@ -1050,7 +1050,7 @@ const precisionEditEntryVersion = `${releaseVersion}-precision-edit-entry-1`;
 const precisionEditStudioVersion = `${releaseVersion}-precision-studio-1`;
 const creationSheetContainmentVersion = `${releaseVersion}-creation-sheet-containment-1`;
 const referenceFidelityVersion = `${releaseVersion}-reference-fidelity-hard-contract-1`;
-const projectsEmptyStateVersion = `${releaseVersion}-projects-empty-state-1`;
+const projectsEmptyStateVersion = `${releaseVersion}-project-resume-chats-1`;
 const requiredBodyFiles = [
   'public/crump-v1-body.css',
   'public/crump-v1-body.js',
