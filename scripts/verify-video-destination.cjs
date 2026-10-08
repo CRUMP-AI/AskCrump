@@ -3,7 +3,7 @@ const { readFileSync } = require('node:fs');
 const { join } = require('node:path');
 const { chromium } = require('playwright');
 
-const expected = ['ask', 'projects', 'create', 'video', 'library', 'you'];
+const expected = ['home', 'chats', 'projects', 'library', 'studios', 'you'];
 
 async function inspect(page, selector) {
   const errors = [];
@@ -21,23 +21,24 @@ async function inspect(page, selector) {
     .map(button => button.dataset.crump5930Destination));
   assert.deepEqual(visible, expected);
 
-  await page.locator(`${selector} [data-crump5930-destination="video"]`).click();
+  await page.locator(`${selector} [data-crump5930-destination="studios"]`).click();
+  await page.locator('[data-crump5930-studio="video"]').click();
   const direct = await page.evaluate(() => ({
     studioOpen: !document.getElementById('crump53Studio').hidden,
     section: document.getElementById('crump53Sheet').dataset.crump53Section,
     title: document.getElementById('crump53WorkspaceTitle').textContent,
-    active: document.querySelector('[data-crump5930-destination="video"].is-active')?.dataset.crump5930Destination || '',
+    active: document.querySelector('[data-crump5930-destination="studios"].is-active')?.dataset.crump5930Destination || '',
   }));
-  assert.deepEqual(direct, {studioOpen: true, section: 'video', title: 'Video Studio', active: 'video'});
+  assert.deepEqual(direct, {studioOpen: true, section: 'video', title: 'Video Studio', active: 'studios'});
 
   await page.evaluate(() => document.getElementById('crump53Close').click());
-  await page.locator(`${selector} [data-crump5930-destination="create"]`).click();
-  await page.locator('[data-crump5930-create="video"]').click();
+  await page.locator(`${selector} [data-crump5930-destination="studios"]`).click();
+  await page.locator('[data-crump5930-studio="video"]').click();
   const createHandoff = await page.evaluate(() => ({
     section: document.getElementById('crump53Sheet').dataset.crump53Section,
-    active: document.querySelector('[data-crump5930-destination="video"].is-active')?.dataset.crump5930Destination || '',
+    active: document.querySelector('[data-crump5930-destination="studios"].is-active')?.dataset.crump5930Destination || '',
   }));
-  assert.deepEqual(createHandoff, {section: 'video', active: 'video'});
+  assert.deepEqual(createHandoff, {section: 'video', active: 'studios'});
   assert.deepEqual(errors, []);
   return {visible, direct, createHandoff, errors};
 }
@@ -52,11 +53,11 @@ async function inspectTutorial(page) {
     body: readFileSync(join(process.cwd(), 'public', 'assets', 'brand', 'crump-mark.png')),
   }));
   const expectedSteps = [
-    ['Ask', 'Start with the conversation.'],
+    ['Home', 'Welcome home.'],
+    ['Chats', 'Every conversation, kept.'],
     ['Projects', 'Give continuing work a home.'],
-    ['Create', 'Choose the outcome you need.'],
-    ['Video', 'Give motion its own studio.'],
     ['Library', 'Keep the things you create.'],
+    ['Studios', 'A studio for everything you make.'],
     ['You', 'Your account has one clear home.'],
   ];
   const steps = [];
@@ -83,14 +84,14 @@ async function inspectTutorial(page) {
     }, {
       progress: `${index + 1} / 6`,
       title,
-      destinations: ['Ask', 'Projects', 'Create', 'Video', 'Library', 'You'],
+      destinations: ['Home', 'Chats', 'Projects', 'Library', 'Studios', 'You'],
       current: destination,
       action: `Open ${destination} →`,
     });
-    if (destination === 'Create') {
-      assert.match(guide.description, /choose Edit area after a result/i);
-      assert.match(guide.description, /Choose Apply changes to return to the conversation with the edited image/i);
-      assert.deepEqual(guide.features, ['Editable files', 'Local image adjustments', 'Long-form manuscripts']);
+    if (destination === 'Studios') {
+      assert.deepEqual(guide.features, ['Editable files', 'Local image adjustments', 'Video, manuscripts & code']);
+      assert.match(guide.description, /Precision Edit/);
+      assert.match(guide.description, /optional visual references/);
     }
     await page.locator('.tutorial-open-destination').click();
     await page.waitForFunction(expected => document.getElementById('fixtureDestination')?.textContent === expected, destination.toLowerCase());

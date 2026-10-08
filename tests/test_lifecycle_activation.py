@@ -220,7 +220,7 @@ def test_browser_component_uses_only_reviewed_static_copy_and_is_nonblocking():
     assert "navigation.open('projects')" not in continuity
     assert "prefers-reduced-motion: reduce" in styles
     assert "/lifecycle-share.js?v=5.9.76-settings-invite-1" in runtime
-    assert "/lifecycle-manager.js?v=5.9.76-lifecycle-idle-send-1" in runtime
+    assert "/lifecycle-manager.js?v=5.9.76-nav-reorg-1" in runtime
     assert "/lifecycle.css?v=5.9.76-lifecycle-activation-1" in runtime
     assert "ask-crump-new-body-v1-r254" in worker
     assert (ROOT / "tests" / "fixtures" / "lifecycle-project-continuity.html").exists()

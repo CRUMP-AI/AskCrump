@@ -75,8 +75,8 @@ def test_creation_intent_survives_auth_without_storing_user_content():
 def test_creation_intent_opens_the_exact_non_generating_workspace():
     navigation = read("public/crump-navigation-5.9.30.js")
     handler = navigation[
-        navigation.index("function openCreateTool") :
-        navigation.index("function openAsk")
+        navigation.index("function openStudioTool") :
+        navigation.index("function openHome")
     ]
 
     assert "CREATION_HANDOFF_INTENTS = new Set(['document', 'presentation', 'resume', 'image', 'video', 'projects'])" in navigation

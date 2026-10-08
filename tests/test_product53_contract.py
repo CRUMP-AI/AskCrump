@@ -241,7 +241,7 @@ def test_library_is_one_dedicated_destination_instead_of_a_workspace_tab():
     assert ".v1-rail { position: relative;" in fixture
 
 
-def test_projects_manuscripts_and_video_are_isolated_destinations():
+def test_projects_library_and_studios_route_to_isolated_product_surfaces():
     product = read("public/crump-product-5.3.js")
     navigation = read("public/crump-navigation-5.9.30.js")
     polish = read("public/crump-polish-5.6.js")
@@ -253,8 +253,7 @@ def test_projects_manuscripts_and_video_are_isolated_destinations():
     assert "openStudio('projects')" in product
     assert "openStudio('video')" in product
     assert "section === 'projects'" in navigation
-    assert "if (section === 'video') return 'video';" in navigation
-    assert "if (section === 'manuscripts') return 'create';" in navigation
+    assert "if (section === 'video' || section === 'manuscripts') return 'studios';" in navigation
     assert "panel.setAttribute('role', 'region')" in polish
     assert "panel.setAttribute('aria-hidden', panel.hidden ? 'true' : 'false')" in polish
     assert "role', 'tab'" not in polish

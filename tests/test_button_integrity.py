@@ -463,14 +463,14 @@ def test_primary_destination_and_creation_buttons_have_complete_handlers() -> No
     navigation = (PUBLIC / "crump-navigation-5.9.30.js").read_text(encoding="utf-8")
     body = (PUBLIC / "crump-v1-body.js").read_text(encoding="utf-8")
 
-    for destination in ("ask", "projects", "code", "create", "video", "library", "you"):
+    for destination in ("home", "chats", "projects", "library", "studios", "you"):
         assert f"id: '{destination}'" in navigation
-    for action in ("document", "presentation", "image", "manuscript", "video"):
+    for action in ("document", "presentation", "resume", "image", "manuscript", "video", "code"):
         assert f"action === '{action}'" in navigation
     for command in ("new", "library", "settings", "billing", "research", "image", "file", "projects", "video"):
         assert f"case '{command}':" in body
     assert "button.addEventListener('click', () => openDestination" in navigation
-    assert "button.addEventListener('click', () => openCreateTool" in navigation
+    assert "button.addEventListener('click', () => openStudioTool" in navigation
 
 
 def test_dynamic_button_systems_use_direct_or_delegated_click_owners() -> None:

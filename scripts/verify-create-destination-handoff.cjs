@@ -19,9 +19,9 @@ async function verify(browser, viewport) {
     `[data-crump5930-destination="${value}"]:visible`,
   );
 
-  await visibleDestination('create').click();
-  await page.waitForFunction(() => !document.getElementById('crump5930CreateHub')?.hidden);
-  await page.waitForFunction(() => document.activeElement?.id === 'crump5930CreateClose');
+  await visibleDestination('studios').click();
+  await page.waitForFunction(() => !document.getElementById('crump5930StudiosHub')?.hidden);
+  await page.waitForFunction(() => document.activeElement?.id === 'crump5930StudiosClose');
 
   const opened = await page.evaluate(() => {
     const box = element => {
@@ -35,14 +35,14 @@ async function verify(browser, viewport) {
         width: Math.round(rect.width),
       };
     };
-    const hub = document.getElementById('crump5930CreateHub');
+    const hub = document.getElementById('crump5930StudiosHub');
     const app = document.getElementById('appContainer');
     const workspace = document.querySelector('.v1-workspace');
     const sidebar = document.getElementById('sidebar');
     const navigation = window.innerWidth <= 1100
       ? document.getElementById('crump5930MobileNav')
       : document.querySelector('.crump5930-rail');
-    const createButton = [...document.querySelectorAll('[data-crump5930-destination="create"]')]
+    const createButton = [...document.querySelectorAll('[data-crump5930-destination="studios"]')]
       .find(button => button.getClientRects().length);
     return {
       ariaModal: hub.querySelector('[role="dialog"]')?.getAttribute('aria-modal'),
@@ -59,7 +59,7 @@ async function verify(browser, viewport) {
   });
 
   assert.equal(opened.ariaModal, 'false');
-  assert.equal(opened.focus, 'crump5930CreateClose');
+  assert.equal(opened.focus, 'crump5930StudiosClose');
   assert.equal(opened.appInert, false);
   assert.equal(opened.appAriaHidden, null);
   assert.equal(opened.workspaceInert, true);
@@ -74,36 +74,36 @@ async function verify(browser, viewport) {
     assert(opened.navigation.width >= 90);
   }
 
-  await visibleDestination('video').click();
+  await page.click('[data-crump5930-studio="video"]');
   await page.waitForFunction(() => (
-    document.getElementById('crump5930CreateHub')?.hidden
+    document.getElementById('crump5930StudiosHub')?.hidden
     && !document.getElementById('crump53Studio')?.hidden
     && document.getElementById('crump53Sheet')?.dataset.crump53Section === 'video'
   ));
   await page.waitForFunction(() => document.activeElement?.id === 'crump53WorkspaceTitle');
   const switched = await page.evaluate(() => ({
-    createHidden: document.getElementById('crump5930CreateHub').hidden,
+    studiosHidden: document.getElementById('crump5930StudiosHub').hidden,
     studioOpen: !document.getElementById('crump53Studio').hidden,
     section: document.getElementById('crump53Sheet').dataset.crump53Section,
     active: document.querySelector('[data-crump5930-destination].is-active')?.dataset.crump5930Destination,
     focus: document.activeElement?.id,
   }));
   assert.deepEqual(switched, {
-    createHidden: true,
+    studiosHidden: true,
     studioOpen: true,
     section: 'video',
-    active: 'video',
+    active: 'studios',
     focus: 'crump53WorkspaceTitle',
   });
 
-  await visibleDestination('ask').click();
+  await visibleDestination('chats').click();
   await page.waitForFunction(() => document.getElementById('crump53Studio')?.hidden);
   const returned = await page.evaluate(() => ({
     studioHidden: document.getElementById('crump53Studio').hidden,
     workspaceInert: document.querySelector('.v1-workspace').hasAttribute('inert'),
     active: document.querySelector('[data-crump5930-destination].is-active')?.dataset.crump5930Destination,
   }));
-  assert.deepEqual(returned, {studioHidden: true, workspaceInert: false, active: 'ask'});
+  assert.deepEqual(returned, {studioHidden: true, workspaceInert: false, active: 'chats'});
   assert.deepEqual(errors, []);
   await page.close();
   return {viewport, opened, switched, returned, errors};

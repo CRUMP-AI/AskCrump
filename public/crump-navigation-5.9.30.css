@@ -1,4 +1,4 @@
-/* Ask Crump 5.9.30 — product navigation with first-class Video and a release-gated Code destination. */
+/* Ask Crump 5.9.30 — six clear destinations with creative tools grouped under Studios. */
 
 html[data-crump-navigation5930="ready"] {
   --ac-rail: 94px;
@@ -73,6 +73,32 @@ body.crump-v1-body .crump5930-destination {
 
 body.crump-v1-body .crump5930-destination[hidden] { display: none !important; }
 
+/* The conversation-list toggle sits in the rail but is not a destination:
+   a quiet icon button, visually distinct from the destination stack. */
+body.crump-v1-body .crump5930-rail-toggle {
+  display: grid;
+  min-height: 40px;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 12px;
+  background: transparent;
+  color: #5b6165;
+  cursor: pointer;
+  transition: color .16s ease, background .16s ease;
+}
+body.crump-v1-body .crump5930-rail-toggle:hover {
+  color: #d8bf84;
+  background: rgba(217,191,132,.06);
+}
+body.crump-v1-body .crump5930-rail-toggle svg {
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+}
+
 body.crump-v1-body .crump5930-destination.is-locked::after {
   position: absolute;
   top: 5px;
@@ -125,15 +151,15 @@ body.crump-v1-body .crump5930-destination.is-active {
   box-shadow: inset 3px 0 0 rgba(217,191,132,.72);
 }
 
-/* Chats is Ask's conversation drawer, not a competing product destination. */
-body.crump-v1-body .crump5930-chats-toggle {
+/* This quiet rail control toggles the conversation drawer; Chats remains a destination. */
+body.crump-v1-body .crump5930-rail-toggle {
   min-height: 42px;
   margin: -2px 7px 12px;
   border-radius: 12px;
   color: #6f7579;
 }
 
-body.crump-v1-body .crump5930-chats-toggle::after {
+body.crump-v1-body .crump5930-rail-toggle::after {
   position: absolute;
   right: -7px;
   bottom: -10px;
@@ -144,17 +170,17 @@ body.crump-v1-body .crump5930-chats-toggle::after {
   pointer-events: none;
 }
 
-body.crump-v1-body .crump5930-chats-toggle svg {
+body.crump-v1-body .crump5930-rail-toggle svg {
   width: 17px;
   height: 17px;
 }
 
-body.crump-v1-body .crump5930-chats-toggle span {
+body.crump-v1-body .crump5930-rail-toggle span {
   font-size: 7.5px;
   font-weight: 650;
 }
 
-body.crump-v1-body .crump5930-chats-toggle.is-open {
+body.crump-v1-body .crump5930-rail-toggle.is-open {
   border-color: rgba(217,191,132,.08);
   background: rgba(217,191,132,.025);
   color: #a99c7c;
@@ -187,7 +213,7 @@ body.crump-v1-body .v1-plan-footnote {
   line-height: 1.55;
 }
 
-body.crump-v1-body .crump5930-create-overlay {
+body.crump-v1-body .crump5930-studios-overlay {
   position: fixed;
   inset: 0;
   z-index: 10050;
@@ -199,9 +225,9 @@ body.crump-v1-body .crump5930-create-overlay {
   backdrop-filter: blur(14px);
 }
 
-body.crump-v1-body .crump5930-create-overlay[hidden] { display: none !important; }
+body.crump-v1-body .crump5930-studios-overlay[hidden] { display: none !important; }
 
-body.crump-v1-body .crump5930-create-sheet {
+body.crump-v1-body .crump5930-studios-sheet {
   display: grid;
   width: min(920px,100%);
   max-height: min(780px,92dvh);
@@ -213,7 +239,7 @@ body.crump-v1-body .crump5930-create-sheet {
   box-shadow: 0 42px 120px rgba(0,0,0,.68);
 }
 
-body.crump-v1-body .crump5930-create-head {
+body.crump-v1-body .crump5930-studios-head {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -222,14 +248,14 @@ body.crump-v1-body .crump5930-create-head {
   border-bottom: 1px solid rgba(255,255,255,.07);
 }
 
-body.crump-v1-body .crump5930-create-head > div { max-width: 610px; }
-body.crump-v1-body .crump5930-create-head span {
+body.crump-v1-body .crump5930-studios-head > div { max-width: 610px; }
+body.crump-v1-body .crump5930-studios-head span {
   color: #d6bd82;
   font-size: 9px;
   font-weight: 750;
   letter-spacing: .18em;
 }
-body.crump-v1-body .crump5930-create-head h2 {
+body.crump-v1-body .crump5930-studios-head h2 {
   margin: 7px 0 6px;
   color: #f2eee5;
   font-family: Georgia, 'Times New Roman', serif;
@@ -238,13 +264,13 @@ body.crump-v1-body .crump5930-create-head h2 {
   letter-spacing: -.035em;
   line-height: 1.04;
 }
-body.crump-v1-body .crump5930-create-head p {
+body.crump-v1-body .crump5930-studios-head p {
   margin: 0;
   color: #8f9495;
   font-size: 11px;
   line-height: 1.65;
 }
-body.crump-v1-body #crump5930CreateClose {
+body.crump-v1-body #crump5930StudiosClose {
   display: grid;
   width: 42px;
   height: 42px;
@@ -259,7 +285,7 @@ body.crump-v1-body #crump5930CreateClose {
   cursor: pointer;
 }
 
-body.crump-v1-body .crump5930-create-grid {
+body.crump-v1-body .crump5930-studios-grid {
   display: grid;
   grid-template-columns: repeat(2,minmax(0,1fr));
   gap: 12px;
@@ -267,7 +293,8 @@ body.crump-v1-body .crump5930-create-grid {
   padding: 22px 24px;
 }
 
-body.crump-v1-body .crump5930-create-card {
+body.crump-v1-body .crump5930-studios-card {
+  position: relative;
   display: grid;
   min-width: 0;
   min-height: 112px;
@@ -283,12 +310,26 @@ body.crump-v1-body .crump5930-create-card {
   cursor: pointer;
   transition: transform .16s ease, border-color .16s ease, background .16s ease;
 }
-body.crump-v1-body .crump5930-create-card:hover {
+body.crump-v1-body .crump5930-studios-card.is-locked::after {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  padding: 2px 5px;
+  border: 1px solid rgba(217,191,132,.2);
+  border-radius: 999px;
+  background: rgba(217,191,132,.08);
+  color: #d9bf84;
+  content: 'PRO';
+  font-size: 7px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+body.crump-v1-body .crump5930-studios-card:hover {
   border-color: rgba(217,191,132,.25);
   background: linear-gradient(145deg, rgba(217,191,132,.07), rgba(255,255,255,.012));
   transform: translateY(-2px);
 }
-body.crump-v1-body .crump5930-create-icon {
+body.crump-v1-body .crump5930-studios-icon {
   display: grid;
   width: 48px;
   height: 48px;
@@ -298,7 +339,7 @@ body.crump-v1-body .crump5930-create-icon {
   background: rgba(217,191,132,.055);
   color: #d8c18c;
 }
-body.crump-v1-body .crump5930-create-icon svg {
+body.crump-v1-body .crump5930-studios-icon svg {
   width: 23px;
   height: 23px;
   fill: none;
@@ -307,12 +348,12 @@ body.crump-v1-body .crump5930-create-icon svg {
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-body.crump-v1-body .crump5930-create-card > span:nth-child(2) { display: grid; min-width: 0; gap: 3px; }
-body.crump-v1-body .crump5930-create-card small { color: #a48e5f; font-size: 7.5px; font-weight: 750; letter-spacing: .14em; }
-body.crump-v1-body .crump5930-create-card strong { color: #eae7df; font-size: 14px; font-weight: 650; }
-body.crump-v1-body .crump5930-create-card b { color: #7f8586; font-size: 9.5px; font-weight: 450; line-height: 1.5; }
-body.crump-v1-body .crump5930-create-card i { color: #8e8061; font-size: 13px; font-style: normal; }
-body.crump-v1-body .crump5930-create-sheet footer {
+body.crump-v1-body .crump5930-studios-card > span:nth-child(2) { display: grid; min-width: 0; gap: 3px; }
+body.crump-v1-body .crump5930-studios-card small { color: #a48e5f; font-size: 7.5px; font-weight: 750; letter-spacing: .14em; }
+body.crump-v1-body .crump5930-studios-card strong { color: #eae7df; font-size: 14px; font-weight: 650; }
+body.crump-v1-body .crump5930-studios-card b { color: #7f8586; font-size: 9.5px; font-weight: 450; line-height: 1.5; }
+body.crump-v1-body .crump5930-studios-card i { color: #8e8061; font-size: 13px; font-style: normal; }
+body.crump-v1-body .crump5930-studios-sheet footer {
   padding: 14px 26px max(16px,env(safe-area-inset-bottom));
   border-top: 1px solid rgba(255,255,255,.06);
   color: #686f72;
@@ -332,7 +373,7 @@ body.crump-v1-body .crump5930-create-sheet footer {
 
   html[data-crump-navigation5930="ready"] body.crump-v1-body :is(
     .crump53-overlay,
-    .crump5930-create-overlay,
+    .crump5930-studios-overlay,
     #settingsModal
   ) {
     bottom: calc(var(--crump5930-mobile-nav) + env(safe-area-inset-bottom));
@@ -340,7 +381,7 @@ body.crump-v1-body .crump5930-create-sheet footer {
 
   html[data-crump-navigation5930="ready"] body.crump-v1-body :is(
     .crump53-sheet,
-    .crump5930-create-sheet
+    .crump5930-studios-sheet
   ) {
     max-height: calc(100dvh - var(--crump5930-mobile-nav) - env(safe-area-inset-bottom) - max(38px, env(safe-area-inset-top))) !important;
   }
@@ -372,10 +413,6 @@ body.crump-v1-body .crump5930-create-sheet footer {
     box-shadow: 0 -16px 42px rgba(0,0,0,.24);
   }
 
-  html[data-crump-navigation5930="ready"] body.crump-v1-body.crump-code-configured .crump5930-mobile-nav {
-    grid-template-columns: repeat(7,minmax(0,1fr));
-  }
-
   body.crump-v1-body .crump5930-mobile-nav .crump5930-destination {
     min-height: 58px;
     border: 0;
@@ -402,7 +439,7 @@ body.crump-v1-body .crump5930-create-sheet footer {
 @media (min-width: 1101px) {
   html[data-crump-navigation5930="ready"] body.crump-v1-body :is(
     .crump53-overlay,
-    .crump5930-create-overlay,
+    .crump5930-studios-overlay,
     #settingsModal
   ) {
     left: var(--ac-rail);
@@ -410,8 +447,8 @@ body.crump-v1-body .crump5930-create-sheet footer {
 }
 
 @media (max-width: 620px) {
-  body.crump-v1-body .crump5930-create-overlay { align-items: end; padding: 0; }
-  body.crump-v1-body .crump5930-create-sheet {
+  body.crump-v1-body .crump5930-studios-overlay { align-items: end; padding: 0; }
+  body.crump-v1-body .crump5930-studios-sheet {
     width: 100%;
     max-height: calc(100dvh - max(38px,env(safe-area-inset-top)));
     border-right: 0;
@@ -419,26 +456,26 @@ body.crump-v1-body .crump5930-create-sheet footer {
     border-left: 0;
     border-radius: 28px 28px 0 0;
   }
-  body.crump-v1-body .crump5930-create-head { gap: 14px; padding: 22px 18px 18px; }
-  body.crump-v1-body .crump5930-create-head h2 { font-size: 31px; }
-  body.crump-v1-body .crump5930-create-head p { font-size: 10px; }
-  body.crump-v1-body .crump5930-create-grid { grid-template-columns: 1fr; gap: 9px; padding: 14px; }
-  body.crump-v1-body .crump5930-create-card { min-height: 92px; grid-template-columns: 44px minmax(0,1fr) auto; padding: 13px; }
-  body.crump-v1-body .crump5930-create-icon { width: 44px; height: 44px; }
+  body.crump-v1-body .crump5930-studios-head { gap: 14px; padding: 22px 18px 18px; }
+  body.crump-v1-body .crump5930-studios-head h2 { font-size: 31px; }
+  body.crump-v1-body .crump5930-studios-head p { font-size: 10px; }
+  body.crump-v1-body .crump5930-studios-grid { grid-template-columns: 1fr; gap: 9px; padding: 14px; }
+  body.crump-v1-body .crump5930-studios-card { min-height: 92px; grid-template-columns: 44px minmax(0,1fr) auto; padding: 13px; }
+  body.crump-v1-body .crump5930-studios-icon { width: 44px; height: 44px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   body.crump-v1-body .crump5930-destination,
-  body.crump-v1-body .crump5930-create-card { transition: none; }
+  body.crump-v1-body .crump5930-studios-card { transition: none; }
 }
 
 /* ------------------------------------------------------------------
    Keyboard focus - every navigation control carries a visible, restrained
    gold ring. :focus-visible only, so pointer users see no change. */
 body.crump-v1-body .crump5930-destination:focus-visible,
-body.crump-v1-body .crump5930-chats-toggle:focus-visible,
-body.crump-v1-body #crump5930CreateClose:focus-visible,
-body.crump-v1-body .crump5930-create-card:focus-visible,
+body.crump-v1-body .crump5930-rail-toggle:focus-visible,
+body.crump-v1-body #crump5930StudiosClose:focus-visible,
+body.crump-v1-body .crump5930-studios-card:focus-visible,
 body.crump-v1-body .v1-plan-entry:focus-visible {
   outline: 2px solid #d9bf84;
   outline-offset: 3px;

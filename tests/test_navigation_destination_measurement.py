@@ -57,13 +57,18 @@ def test_navigation_snapshot_has_fixed_rows_and_private_execution() -> None:
         assert f"'{destination}'::text" in sql
 
 
-def test_runtime_wires_every_measured_destination_after_visible_open() -> None:
+def test_runtime_maps_the_new_navigation_to_the_stable_measurement_taxonomy() -> None:
     navigation = (ROOT / "public" / "crump-navigation-5.9.30.js").read_text(encoding="utf-8")
     body = (ROOT / "public" / "crump-v1-body.js").read_text(encoding="utf-8")
     intelligence = (ROOT / "public" / "crump-4.4.js").read_text(encoding="utf-8")
 
-    for destination in ("ask", "projects", "create", "video", "library", "you", "code"):
+    for destination in ("ask", "chats", "projects", "create", "video", "library", "you", "code"):
         assert f"recordDestinationSelection('{destination}')" in navigation
+    assert "if (destination === 'home') openHome();" in navigation
+    assert "else if (destination === 'studios') openStudios();" in navigation
+    assert "recordDestinationSelection('studios')" not in navigation
+    assert "recordDestinationSelection('studios-video')" not in navigation
+    assert "recordDestinationSelection('studios-code')" not in navigation
     assert "source: 'chats'" in body
     assert "if (!wasOpen) recordConversationLibrarySelection()" in body
     assert "if (wasCollapsed) recordConversationLibrarySelection()" in body

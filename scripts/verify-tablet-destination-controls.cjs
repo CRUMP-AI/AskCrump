@@ -3,7 +3,7 @@ const {readFileSync} = require('node:fs');
 const {join} = require('node:path');
 const {chromium} = require('playwright');
 
-const expectedDestinations = ['ask', 'projects', 'create', 'video', 'library', 'you'];
+const expectedDestinations = ['home', 'chats', 'projects', 'library', 'studios', 'you'];
 
 (async () => {
   const executablePath = process.env.ASKCRUMP_BROWSER_EXECUTABLE || undefined;
@@ -73,6 +73,24 @@ const expectedDestinations = ['ask', 'projects', 'create', 'video', 'library', '
     assert.equal(baseline.documentOverflow, 0);
     assert.equal(baseline.navBottom, baseline.viewportHeight);
 
+    await clickDestination('chats');
+    await page.waitForFunction(() => document.getElementById('v1Launchpad')?.classList.contains('is-hidden'));
+    await clickDestination('home');
+    await page.waitForFunction(() => !document.getElementById('v1Launchpad')?.classList.contains('is-hidden'));
+    await page.evaluate(() => {
+      const probe = document.createElement('div');
+      probe.className = 'message assistant-message';
+      probe.dataset.fixtureStreamingMutation = 'true';
+      probe.textContent = 'streaming token';
+      document.getElementById('chatContainer')?.appendChild(probe);
+    });
+    await page.waitForTimeout(50);
+    const home = await page.evaluate(() => ({
+      launchpadVisible: !document.getElementById('v1Launchpad')?.classList.contains('is-hidden'),
+      active: document.documentElement.dataset.crumpNavigationDestination,
+    }));
+    assert.deepEqual(home, {launchpadVisible: true, active: 'home'});
+
     await clickDestination('projects');
     await page.waitForFunction(() => (
       !document.getElementById('crump53Studio')?.hidden
@@ -85,19 +103,20 @@ const expectedDestinations = ['ask', 'projects', 'create', 'video', 'library', '
     await page.waitForFunction(() => document.getElementById('crump53Sheet')?.dataset.crump53Section === 'library');
     assert.equal(await page.locator('#crump53WorkspaceTitle').textContent(), 'Library');
 
-    await clickDestination('video');
+    await clickDestination('studios');
+    await page.locator('[data-crump5930-studio="video"]').click();
     await page.waitForFunction(() => document.getElementById('crump53Sheet')?.dataset.crump53Section === 'video');
     assert.equal(await page.locator('#crump53WorkspaceTitle').textContent(), 'Video Studio');
 
-    await clickDestination('create');
+    await clickDestination('studios');
     await page.waitForFunction(() => (
-      !document.getElementById('crump5930CreateHub')?.hidden
+      !document.getElementById('crump5930StudiosHub')?.hidden
       && document.getElementById('crump53Studio')?.hidden
     ));
-    const create = await surfaceGeometry('#crump5930CreateHub');
+    const create = await surfaceGeometry('#crump5930StudiosHub');
     assert(Math.abs(create.bottom - create.navTop) <= 1, JSON.stringify(create));
-    await page.waitForFunction(() => document.activeElement?.id === 'crump5930CreateClose');
-    assert.equal(await page.evaluate(() => document.activeElement?.id), 'crump5930CreateClose');
+    await page.waitForFunction(() => document.activeElement?.id === 'crump5930StudiosClose');
+    assert.equal(await page.evaluate(() => document.activeElement?.id), 'crump5930StudiosClose');
 
     await clickDestination('you');
     await page.waitForFunction(() => {
@@ -108,10 +127,10 @@ const expectedDestinations = ['ask', 'projects', 'create', 'video', 'library', '
     assert(Math.abs(you.bottom - you.navTop) <= 1, JSON.stringify(you));
     await page.waitForFunction(() => document.activeElement?.id === 'settingsTitle');
 
-    await clickDestination('ask');
+    await clickDestination('chats');
     await page.waitForFunction(() => (
       document.getElementById('crump53Studio')?.hidden
-      && document.getElementById('crump5930CreateHub')?.hidden
+      && document.getElementById('crump5930StudiosHub')?.hidden
       && document.getElementById('settingsModal')?.style.display === 'none'
     ));
     await page.waitForFunction(() => document.activeElement?.id === 'userInput');
@@ -135,7 +154,7 @@ const expectedDestinations = ['ask', 'projects', 'create', 'video', 'library', '
     });
     assert.deepEqual(errors, []);
 
-    process.stdout.write(JSON.stringify({baseline, projects, create, you, plan, errors}));
+    process.stdout.write(JSON.stringify({baseline, home, projects, create, you, plan, errors}));
   } finally {
     await browser.close();
   }

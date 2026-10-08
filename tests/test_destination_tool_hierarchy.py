@@ -30,9 +30,9 @@ def test_redundant_tools_dropdown_is_retired_without_removing_real_capabilities(
 
     # Every capability still has one intentional, live destination.
     for action in ("document", "presentation", "image", "manuscript", "video"):
-        assert f"createCard('{action}'" in navigation
+        assert f"studioCard('{action}'" in navigation
     assert "data-crump-code-destination hidden" in navigation
-    assert "createCard('code'" not in navigation
+    assert "studioCard('code'" in navigation
     assert "title.textContent = 'Intelligence';" in intelligence
     assert "forwardClick('attachBtn')" in body
     assert "window.triggerWebSearch?.()" in body
@@ -40,7 +40,7 @@ def test_redundant_tools_dropdown_is_retired_without_removing_real_capabilities(
 
 
 def test_retired_tool_assets_are_cache_versioned_atomically():
-    loader_version = "5.9.76-cache-integrity-1"
+    loader_version = "5.9.76-nav-reorg-1"
     product_loader_version = "5.9.76-projects-empty-state-1"
     shell = read("public/app.html")
     runtime = read("public/runtime-body-v1.js")

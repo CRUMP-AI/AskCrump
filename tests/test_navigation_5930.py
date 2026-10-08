@@ -23,24 +23,24 @@ def test_six_destination_navigation_is_final_runtime_layer_and_boot_critical():
     assert runtime.index("/crump-library-loader.js") < runtime.index("/crump-navigation-5.9.30.js")
     assert "/crump-library-5.7.js" not in runtime
     assert "ask-crump-new-body-v1-r254" in worker
-    navigation_css = "/crump-navigation-5.9.30.css?v=5.9.76-nav-focus-visibility-1"
+    navigation_css = "/crump-navigation-5.9.30.css?v=5.9.76-nav-reorg-1"
     for source in (runtime, worker, native):
         assert navigation_css in source
-    assert "/crump-navigation-5.9.30.js?v=5.9.76-image-studio-entry-1" in runtime
+    assert "/crump-navigation-5.9.30.js?v=5.9.76-nav-reorg-1" in runtime
 
 
 def test_navigation_exposes_exact_product_destinations_on_desktop_and_mobile():
     script = read("public/crump-navigation-5.9.30.js")
     styles = read("public/crump-navigation-5.9.30.css")
 
-    for destination in ("ask", "projects", "create", "video", "library", "you"):
+    for destination in ("home", "chats", "projects", "library", "studios", "you"):
         assert f"id: '{destination}'" in script
 
     assert "crump5930-rail-destinations" in script
     assert 'id = \'crump5930MobileNav\'' in script
     assert "grid-template-columns: repeat(6,minmax(0,1fr))" in styles
     assert "window.CrumpProduct53?.open?.('video')" in script
-    assert "if (section === 'video') return 'video';" in script
+    assert "if (section === 'video' || section === 'manuscripts') return 'studios';" in script
     assert "aria-current" in script
 
 
@@ -48,7 +48,7 @@ def test_destination_surfaces_leave_persistent_navigation_clickable():
     styles = read("public/crump-navigation-5.9.30.css")
 
     assert ".crump53-overlay," in styles
-    assert ".crump5930-create-overlay," in styles
+    assert ".crump5930-studios-overlay," in styles
     assert "#settingsModal" in styles
     assert "left: var(--ac-rail);" in styles
     assert "bottom: calc(var(--crump5930-mobile-nav) + env(safe-area-inset-bottom));" in styles
@@ -79,7 +79,7 @@ def test_persistent_destinations_hide_only_the_covered_workspace_from_assistive_
     assert "delete element.dataset.crump5930DestinationInert" in script
     assert "element.removeAttribute('inert')" in script
     assert "element.removeAttribute('aria-hidden')" in script
-    assert "studioIsOpen() || settingsIsOpen() || codeWorkspaceIsOpen() || createHubIsOpen()" in script
+    assert "studioIsOpen() || settingsIsOpen() || codeWorkspaceIsOpen() || studiosHubIsOpen()" in script
     assert "syncDestinationBackground();" in script
 
 
@@ -119,26 +119,26 @@ def test_navigation_reuses_existing_product_surfaces_without_data_migration():
     assert "select: (format = 'docx'" in documents
 
 
-def test_create_hub_is_non_generating_and_accessible_until_user_sends():
+def test_studios_hub_is_non_generating_and_accessible_until_user_sends():
     script = read("public/crump-navigation-5.9.30.js")
 
     assert 'role="dialog" aria-modal="false"' in script
     assert "Nothing generates until you review the setup and send your request." in script
-    assert "crump5930CreateClose" in script
+    assert "crump5930StudiosClose" in script
     assert "event.key === 'Escape'" in script
     assert "fetch(" not in script
 
 
-def test_create_hub_keeps_persistent_destinations_operable_while_isolating_work():
+def test_studios_hub_keeps_persistent_destinations_operable_while_isolating_work():
     script = read("public/crump-navigation-5.9.30.js")
     body = read("public/crump-v1-body.js")
 
-    assert "studioIsOpen() || settingsIsOpen() || codeWorkspaceIsOpen() || createHubIsOpen()" in script
+    assert "studioIsOpen() || settingsIsOpen() || codeWorkspaceIsOpen() || studiosHubIsOpen()" in script
     assert "setDestinationBackgroundInert(true)" in script
     assert "setDestinationBackgroundInert(false)" in script
-    assert "function setCreateBackgroundInert" not in script
+    assert "function setStudiosBackgroundInert" not in script
     assert "app.setAttribute('inert', '')" not in script
-    assert "function containCreateFocus" not in script
+    assert "function containStudiosFocus" not in script
     assert "sidebar.dataset.crump5930DestinationInert === 'true'" in body
     assert "sidebar.setAttribute('inert', '')" in body
 
@@ -181,8 +181,7 @@ def test_navigation_consolidation_fixture_uses_the_production_layers():
     assert '/public/crump-v1-body.js' in fixture
     assert '/public/crump-product-5.3.css?v=5.9.76-file-library-window-1' in fixture
     assert '/public/crump-navigation-5.9.30.js' in fixture
-    assert '5.9.76-mobile-drawer-destinations-1' in fixture
-    assert '5.9.76-image-studio-entry-1' in fixture
+    assert fixture.count('5.9.76-nav-reorg-1') >= 2
     assert 'window.fixtureErrors = []' in fixture
     assert "dataset.fixtureErrorCount = '0'" in fixture
     assert 'id="v1OpenPlanBtn"' in fixture
@@ -201,9 +200,10 @@ def test_create_destination_handoff_has_desktop_and_mobile_browser_proof():
     assert "opened.destinationInsideInert, false" in verifier
     assert "opened.overlay.bottom - opened.navigation.top" in verifier
     assert "opened.overlay.left - opened.navigation.right" in verifier
-    assert "await visibleDestination('video').click()" in verifier
+    assert "await visibleDestination('studios').click()" in verifier
+    assert "page.click('[data-crump5930-studio=\"video\"]')" in verifier
     assert "section: 'video'" in verifier
-    assert "await visibleDestination('ask').click()" in verifier
+    assert "await visibleDestination('chats').click()" in verifier
 
 
 def test_tablet_navigation_has_a_complete_destination_and_account_action_journey():
@@ -211,11 +211,24 @@ def test_tablet_navigation_has_a_complete_destination_and_account_action_journey
     matrix = read("scripts/verify-browser-control-matrix.mjs")
 
     assert "{width: 1024, height: 1366}" in verifier
-    assert "['ask', 'projects', 'create', 'video', 'library', 'you']" in verifier
-    for destination in ("ask", "projects", "create", "video", "library", "you"):
+    assert "['home', 'chats', 'projects', 'library', 'studios', 'you']" in verifier
+    for destination in ("home", "chats", "projects", "library", "studios", "you"):
         assert f"clickDestination('{destination}')" in verifier
     assert "minimumTouchWidth >= 44" in verifier
     assert "minimumTouchHeight >= 44" in verifier
     assert "documentOverflow, 0" in verifier
     assert "fixtureEvents.billing" in verifier
     assert "verify-tablet-destination-controls.cjs" in matrix
+
+
+def test_home_and_chats_remain_explicit_during_conversation_mutations():
+    navigation = read("public/crump-navigation-5.9.30.js")
+    body = read("public/crump-v1-body.js")
+
+    assert "let launchpadMode = 'auto';" in body
+    assert "launchpadMode === 'home'" in body
+    assert "launchpadMode === 'auto' && meaningful.length === 0" in body
+    assert "launchpadMode = 'home';" in body
+    assert "launchpadMode = 'chats';" in body
+    assert "window.CrumpBodyV1?.showLaunchpad?.();" in navigation
+    assert "window.CrumpBodyV1?.hideLaunchpad?.();" in navigation

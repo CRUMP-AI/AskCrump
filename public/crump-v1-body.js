@@ -12,6 +12,7 @@
   const $ = (selector, root = document) => root.querySelector(selector);
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
   const byId = id => document.getElementById(id);
+  let launchpadMode = 'auto';
 
   function makeImage(src, className, alt = 'Ask Crump', critical = false) {
     const img = document.createElement('img');
@@ -454,11 +455,36 @@
     const meaningful = $$('.message:not(.presence-message)', container)
       .filter(row => row.dataset.v1LegacyWelcome !== 'true');
 
-    const home = meaningful.length === 0;
+    const home = launchpadMode === 'home'
+      || (launchpadMode === 'auto' && meaningful.length === 0);
     launchpad.classList.toggle('is-hidden', !home);
     launchpad.setAttribute('aria-hidden', home ? 'false' : 'true');
     document.body.classList.toggle('v1-home', home);
     syncRecentWork();
+  }
+
+  function showLaunchpad() {
+    const launchpad = byId('v1Launchpad');
+    if (!launchpad) return;
+    launchpadMode = 'home';
+    launchpad.classList.remove('is-hidden');
+    launchpad.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('v1-home');
+    syncRecentWork();
+  }
+
+  function hideLaunchpad() {
+    const launchpad = byId('v1Launchpad');
+    if (!launchpad) return;
+    launchpadMode = 'chats';
+    launchpad.classList.add('is-hidden');
+    launchpad.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('v1-home');
+  }
+
+  function isLaunchpadVisible() {
+    const launchpad = byId('v1Launchpad');
+    return Boolean(launchpad && !launchpad.classList.contains('is-hidden'));
   }
 
   function syncWorkspaceTitle() {
@@ -681,6 +707,9 @@
     command,
     syncConversationLibrary: syncLibraryControl,
     toggleConversationLibrary: openLibrary,
+    showLaunchpad,
+    hideLaunchpad,
+    isLaunchpadVisible,
   });
 
   if (document.readyState === 'loading') {

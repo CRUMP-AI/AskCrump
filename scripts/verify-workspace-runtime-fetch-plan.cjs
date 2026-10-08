@@ -1,6 +1,21 @@
 const playwrightModule = process.env.ASKCRUMP_PLAYWRIGHT_MODULE || 'playwright';
 const {chromium} = require(playwrightModule);
 const assert = require('node:assert/strict');
+const {readFileSync} = require('node:fs');
+const {join} = require('node:path');
+
+// Derive expected script URLs from the real runtime loader so version
+// passes don't break this verifier.
+function expectedScriptUrls() {
+  const source = readFileSync(join(__dirname, '..', 'public', 'runtime-body-v1.js'), 'utf8');
+  const urls = [...source.matchAll(/'\/[^']+\.js\?v=[^']+'/g)].map(m => m[0].slice(1, -1));
+  const first = urls.find(u => u.includes('/onboarding.js'));
+  const last = [...urls].reverse().find(u => u.includes('/lifecycle-manager.js'));
+  assert.ok(first, 'runtime should load onboarding.js');
+  assert.ok(last, 'runtime should load lifecycle-manager.js last');
+  return {first, last};
+}
+const {first: expectedFirstScript, last: expectedLastScript} = expectedScriptUrls();
 
 (async () => {
   const executablePath = process.env.ASKCRUMP_BROWSER_EXECUTABLE || undefined;
@@ -50,8 +65,8 @@ const assert = require('node:assert/strict');
       assert.equal(evidence.lastStyle, '/crump-design-pass.css?v=5.9.76-mascot-face-1');
       assert.equal(evidence.preloadCount, 34);
       assert.equal(evidence.scriptCount, mode === 'script-retry' ? 35 : 34);
-      assert.equal(evidence.firstScript, '/onboarding.js?v=5.9.76-brand-retina-1');
-      assert.equal(evidence.lastScript, '/lifecycle-manager.js?v=5.9.76-lifecycle-idle-send-1');
+      assert.equal(evidence.firstScript, expectedFirstScript);
+      assert.equal(evidence.lastScript, expectedLastScript);
       assert.equal(evidence.styleAttempts, mode === 'style-retry' ? 2 : 1);
       assert.equal(evidence.scriptAttempts, mode === 'script-retry' ? 2 : 1);
       assert.equal(evidence.readyEvents, 1);

@@ -16,7 +16,7 @@ def test_code_workspace_is_lazy_loaded_only_after_server_configuration_and_entit
     native = read("scripts/build-native.mjs")
     worker = read("public/sw.js")
 
-    assert "id: 'code'" in navigation
+    assert "studioCard('code'" in navigation
     assert "data-crump-code-destination hidden" in navigation
     assert "state.configured = Boolean(feature?.configured && provider?.configured)" in script
     assert "state.available = state.configured && state.entitled" in script
@@ -106,14 +106,15 @@ def test_code_workspace_has_accessible_modal_and_mobile_controls():
     assert "@media (prefers-reduced-motion: reduce)" in styles
 
 
-def test_code_workspace_has_its_own_gated_navigation_destination():
+def test_code_workspace_has_a_gated_studios_entry():
     navigation = read("public/crump-navigation-5.9.30.js")
     styles = read("public/crump-navigation-5.9.30.css")
 
-    assert "else if (destination === 'code') void openCode();" in navigation
+    assert "if (action === 'code')" in navigation
+    assert "void openCodeStudio();" in navigation
     assert "if (codeWorkspaceIsOpen()) return 'code';" in navigation
-    assert "createCard('code'" not in navigation
-    assert ".crump5930-destination.is-locked::after" in styles
+    assert "studioCard('code'" in navigation
+    assert ".crump5930-studios-card.is-locked::after" in styles
     assert "repeat(6,minmax(0,1fr))" in styles
 
 

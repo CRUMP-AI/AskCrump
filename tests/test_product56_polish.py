@@ -27,7 +27,7 @@ def test_tutorial_is_current_and_no_longer_bootstraps_legacy_runtime():
     styles = read("public/onboarding.css")
     polish = read("public/crump-polish-5.6.js")
     assert "crump_tutorial_completed_v8" in tutorial
-    for destination in ("Ask", "Projects", "Create", "Video", "Library", "You"):
+    for destination in ("Home", "Chats", "Projects", "Library", "Studios", "You"):
         assert f"destination: '{destination}'" in tutorial
     assert "Conversation history remains in Chats." in tutorial
     assert "continue into a reviewed generative edit" in tutorial
@@ -43,7 +43,7 @@ def test_tutorial_is_current_and_no_longer_bootstraps_legacy_runtime():
     assert "tutorial-destination-map" in tutorial and ".tutorial-destination-map" in styles
     assert "aria-current', 'step'" in tutorial
     assert "Replay workspace guide" in polish
-    assert "Review Ask, Projects, Create, Video, Library, and You." in polish
+    assert "Review Home, Chats, Projects, Library, Studios, and You." in polish
     assert "loadRevampAssets" not in tutorial
     assert "crump-4.3.js" not in tutorial
     assert "event.key === 'Tab'" in tutorial
@@ -96,8 +96,8 @@ def test_six_destination_tutorial_fixture_uses_production_assets():
 def test_navigation_tutorial_and_store_sources_share_one_exact_destination_contract():
     checker = read("scripts/check-javascript.mjs")
 
-    assert "const destinationLabels = Object.freeze(['Ask', 'Projects', 'Create', 'Video', 'Library', 'You']);" in checker
-    assert "const internalNavigationLabels = Object.freeze(['Ask', 'Projects', 'Code', 'Create', 'Video', 'Library', 'You']);" in checker
+    assert "const destinationLabels = Object.freeze(['Home', 'Chats', 'Projects', 'Library', 'Studios', 'You']);" in checker
+    assert "const internalNavigationLabels = Object.freeze(['Home', 'Chats', 'Projects', 'Library', 'Studios', 'You']);" in checker
     assert "store/listing.en-US.json" in checker
     assert "store/screenshots/README.md" in checker
     assert "docs/STORE_LISTING_COPY.md" in checker
@@ -119,10 +119,10 @@ def test_home_surface_exposes_projects_and_video_without_hiding_core_chat():
     assert 'aria-label="Ask Crump destinations"' in destination_map
     assert [
         destination_map.index(f"<span>{destination}</span>")
-        for destination in ("Ask", "Projects", "Create", "Video", "Library", "You")
+        for destination in ("Home", "Chats", "Projects", "Library", "Studios", "You")
     ] == sorted([
         destination_map.index(f"<span>{destination}</span>")
-        for destination in ("Ask", "Projects", "Create", "Video", "Library", "You")
+        for destination in ("Home", "Chats", "Projects", "Library", "Studios", "You")
     ])
     assert "<span>Saved</span>" not in destination_map
     saved_branch = body[body.index("case 'saved':"):body.index("case 'code':")]
@@ -205,10 +205,11 @@ def test_store_and_pwa_copy_match_current_creation_surface():
     listing = read("docs/STORE_LISTING_COPY.md")
     manifest = read("public/manifest.json")
     assert "scene continuation" in listing
-    assert "Ask, Projects, Create, Video, Library, and You" in listing
-    assert "guided research inside Ask" in listing
+    assert "Home, Chats, Projects, Library, Studios, and You" in listing
+    assert "guided research inside Chats" in listing
     assert "Open Projects and resume" in listing
-    assert "Open Create and test" in listing
+    assert "Open Studios and test" in listing
+    assert "In Studios → Video" in listing
     assert "Open Library and verify" in listing
     assert "Projects → Files" in listing
     assert "Open You → Settings" in listing

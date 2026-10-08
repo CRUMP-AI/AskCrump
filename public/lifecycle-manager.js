@@ -59,7 +59,7 @@
       default: Object.freeze({
         title: 'Turn the useful part into something you can keep',
         body: 'Choose the output you need, review the setup, and keep the finished file with the work.',
-        primary: 'Open Create',
+        primary: 'Open Studios',
       }),
       presentation: Object.freeze({
         title: 'Turn the structure into an editable deck',
@@ -121,11 +121,11 @@
   }
 
   function currentSurface() {
-    if (document.body.classList.contains('crump5930-create-open')) return 'create';
+    if (document.body.classList.contains('crump5930-studios-open')) return 'studios';
     const sheet = document.getElementById('crump53Sheet');
     if (isVisible(sheet)) {
       if (sheet.dataset.crump53Section === 'projects') return 'projects';
-      if (['manuscripts', 'video'].includes(sheet.dataset.crump53Section)) return 'create';
+      if (['manuscripts', 'video'].includes(sheet.dataset.crump53Section)) return 'studios';
     }
     return 'ask';
   }
@@ -255,10 +255,10 @@
         window.showToast?.(FALLBACKS.create, 'error');
         return;
       }
-      navigation.open('create');
+      navigation.open('studios');
       return;
     }
-    navigation?.open?.('ask');
+    navigation?.open?.('chats');
     requestAnimationFrame(() => document.getElementById('userInput')?.focus({preventScroll: true}));
   }
 
@@ -365,7 +365,7 @@
   document.addEventListener('click', event => {
     if (!currentCard) return;
     const manualDestination = event.target.closest(
-      '[data-crump5930-destination="projects"], [data-crump5930-destination="create"], '
+      '[data-crump5930-destination="projects"], [data-crump5930-destination="studios"], '
       + '[data-v1-command="projects"], [data-v1-command="video"]',
     );
     if (manualDestination) suppressActiveWork();

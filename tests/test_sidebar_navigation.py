@@ -96,7 +96,7 @@ def test_final_desktop_navigation_keeps_a_permanent_chats_toggle():
 
     assert "function conversationLibraryMarkup()" in navigation
     assert "data-crump5930-library-toggle" in navigation
-    assert 'aria-label="Hide Chats"' in navigation
+    assert 'aria-label="Show or hide conversation list"' in navigation
     assert ": (expanded ? 'Hide' : 'Show')" in body
     assert "? (expanded ? 'Close' : 'Open')" in body
     assert "window.CrumpBodyV1?.toggleConversationLibrary?.()" in navigation
@@ -142,5 +142,5 @@ def test_runtime_and_native_shell_load_the_chats_language_revision():
     native = (ROOT / "scripts" / "build-native.mjs").read_text(encoding="utf-8")
 
     for source in (runtime, native):
-        assert "/crump-v1-body.js?v=5.9.76-shell-brand-alt-1" in source
+        assert "/crump-v1-body.js?v=5.9.76-nav-reorg-1" in source
         assert "/crump-navigation-5.2.5.js?v=5.9.76-chats-language-1" in source
