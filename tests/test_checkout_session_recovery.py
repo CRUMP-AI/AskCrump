@@ -78,7 +78,7 @@ def test_checkout_recovery_assets_are_cache_addressable_on_web_pwa_and_native():
     integrity_version = "5.9.76-stripe-destination-integrity-1"
     label_version = "5.9.76-checkout-destination-label-1"
     runtime_version = "5.9.76-cache-integrity-1"
-    auth_version = "5.9.76-image-studio-entry-1"
+    auth_version = "5.9.76-verification-email-correction-1"
     shell = read_public("app.html")
     runtime = read_public("runtime-body-v1.js")
     worker = read_public("sw.js")

@@ -41,6 +41,25 @@ function pageErrors(page) {
       contentType: 'application/json',
       body: JSON.stringify({ authenticated: false }),
     }));
+    const authMutations = [];
+    const registrationPayloads = [];
+    await context.route('**/api/auth/register', route => {
+      authMutations.push('register');
+      registrationPayloads.push(route.request().postDataJSON());
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({success: true, message: 'Verification email sent.', pendingAccount: false}),
+      });
+    });
+    await context.route('**/api/auth/resend-verification', route => {
+      authMutations.push('resend-verification');
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({success: true, message: 'Verification email sent.'}),
+      });
+    });
     const page = await context.newPage();
     const errors = pageErrors(page);
 
@@ -87,6 +106,59 @@ function pageErrors(page) {
     assert(await page.locator('#forgotPasswordForm').isVisible(), 'Forgot password link does not open recovery');
     await page.locator('#showLoginFromForgot').click();
     assert(await page.locator('#loginForm').isVisible(), 'recovery Sign in link does not return to login');
+
+    await page.locator('#showRegisterLink').click();
+    await page.locator('#registerEmail').fill('correct-this@example.test');
+    await page.locator('#registerPassword').fill('CorrectionProof12345');
+    await page.locator('#registerTerms').check();
+    await page.locator('#registerFormElement').evaluate(form => form.requestSubmit());
+    await page.locator('#registrationPending').waitFor({state: 'visible'});
+    assert(authMutations.join(',') === 'register', 'registration proof did not make exactly one account request');
+    await page.locator('#registrationPendingDifferentEmailBtn').click();
+    await page.waitForFunction(() => document.activeElement?.id === 'registerEmail');
+    const correctionState = await page.evaluate(() => {
+      const email = document.getElementById('registerEmail');
+      const password = document.getElementById('registerPassword');
+      return {
+        pendingVisible: document.getElementById('registrationPending').style.display !== 'none',
+        entryVisible: document.getElementById('registerEntry').style.display !== 'none',
+        email: email.value,
+        password: password.value,
+        passwordType: password.type,
+        focused: document.activeElement === email,
+        toggleText: document.getElementById('registerPasswordToggle').textContent,
+        togglePressed: document.getElementById('registerPasswordToggle').getAttribute('aria-pressed'),
+        passwordInvalid: password.getAttribute('aria-invalid'),
+        passwordStatus: document.getElementById('registerPasswordStatus').textContent,
+        metRules: document.querySelectorAll('#registerPasswordHint [data-password-rule].is-met').length,
+        notice: document.getElementById('registerSuccess').textContent,
+      };
+    });
+    assert(!correctionState.pendingVisible, 'Use a different email leaves the pending screen visible');
+    assert(correctionState.entryVisible, 'Use a different email does not restore registration');
+    assert(correctionState.email === 'correct-this@example.test', 'Use a different email loses the address to correct');
+    assert(correctionState.password === '', 'Use a different email retains the prior password');
+    assert(correctionState.passwordType === 'password', 'Use a different email leaves the password visible');
+    assert(correctionState.toggleText === 'Show' && correctionState.togglePressed === 'false', 'Use a different email leaves stale password-toggle state');
+    assert(correctionState.passwordInvalid === null, 'Use a different email leaves stale password validation state');
+    assert(correctionState.metRules === 0, 'Use a different email leaves stale password rule checks');
+    assert(correctionState.passwordStatus.includes('Password requires'), 'Use a different email leaves stale password guidance');
+    assert(correctionState.focused, 'Use a different email does not focus the address');
+    assert(correctionState.notice.includes('enter your password again'), 'Use a different email does not explain the safe retry');
+    assert(authMutations.join(',') === 'register', 'Use a different email performs an unexpected network mutation');
+    await page.locator('#registerPassword').fill('UnchangedProof12345');
+    await page.locator('#registerFormElement').evaluate(form => form.requestSubmit());
+    assert(authMutations.join(',') === 'register', 'unchanged correction email performed an unexpected account request');
+    assert((await page.locator('#registerError').textContent()).includes('Enter a different email address'), 'unchanged correction email is not rejected clearly');
+    await page.keyboard.type('replacement@example.test');
+    assert(await page.locator('#registerEmail').inputValue() === 'replacement@example.test', 'Use a different email does not select the prior address for replacement');
+    await page.locator('#registerPassword').fill('ReplacementProof12345');
+    await page.locator('#registerFormElement').evaluate(form => form.requestSubmit());
+    await page.waitForFunction(() => document.getElementById('registrationPending')?.style.display !== 'none');
+    assert(authMutations.join(',') === 'register,register', 'corrected registration did not make exactly one deliberate follow-up request');
+    assert(registrationPayloads.length === 2, 'corrected registration payload was not captured exactly twice');
+    assert(registrationPayloads[1].email === 'replacement@example.test', 'corrected registration sent the stale email');
+    assert(registrationPayloads[1].password === 'ReplacementProof12345', 'corrected registration did not send the re-entered password');
 
     await page.goto(`${baseUrl}/app.html?token=button-proof`, { waitUntil: 'networkidle' });
     assert(await page.locator('#resetPasswordForm').isVisible(), 'reset token does not open the reset form');
@@ -158,7 +230,7 @@ function pageErrors(page) {
     assert(socialErrors.length === 0, `Facebook mobile browser errors: ${socialErrors.join(' | ')}`);
     await socialContext.close();
 
-    console.log('Public account-entry button proof passed: five creation surfaces preserve their destination, the homepage Video action opens the exact Video + Professional handoff, all five auth navigation actions work on phone width, and a Facebook embedded-mobile handoff reaches Projects registration with one privacy-safe signup milestone sequence.');
+    console.log('Public account-entry button proof passed: five creation surfaces preserve their destination, the homepage Video action opens the exact Video + Professional handoff, auth navigation and local email correction work safely on phone width, and a Facebook embedded-mobile handoff reaches Projects registration with one privacy-safe signup milestone sequence.');
   } finally {
     await browser.close();
   }

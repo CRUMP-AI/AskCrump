@@ -110,8 +110,8 @@
           <p class="v1-registration-explore"><a id="registrationExploreLink" href="/">Explore Ask Crump first</a></p>
           <p class="auth-footer-text">Already have an account? <a href="#" id="showLoginLink" class="auth-link">Sign in</a></p>
         </form>
-        <div id="registerError" class="auth-error" style="display:none;"></div>
-        <div id="registerSuccess" class="auth-success" style="display:none;"></div>
+        <div id="registerError" class="auth-error" role="alert" aria-live="assertive" style="display:none;"></div>
+        <div id="registerSuccess" class="auth-success" role="status" aria-live="polite" style="display:none;"></div>
       </div>
 
       <section id="registrationPending" class="v1-registration-pending" style="display:none;" tabindex="-1" aria-labelledby="registrationPendingTitle">
@@ -124,6 +124,7 @@
         <div class="v1-registration-actions">
           <button id="registrationPendingSigninBtn" class="btn btn-secondary btn-block" type="button">Already verified? Sign in</button>
           <button id="registrationPendingResendBtn" class="btn btn-secondary btn-block" type="button">Resend verification email</button>
+          <button id="registrationPendingDifferentEmailBtn" class="btn btn-secondary btn-block" type="button">Use a different email</button>
         </div>
         <p class="v1-registration-help">The link may take a minute. Check spam or promotions if it does not appear.</p>
       </section>
@@ -644,7 +645,7 @@
 <script defer src="/install-prompt.js?v=5.9.76-update-work-guard-1"></script>
 <script defer src="/auth-resilience.js?v=5.9.76"></script>
 <script defer src="/device-auth.js?v=5.9.76-native-billing-identity-1"></script>
-<script defer src="/auth-controller.js?v=5.9.76-image-studio-entry-1"></script>
+<script defer src="/auth-controller.js?v=5.9.76-verification-email-correction-1"></script>
 <script defer src="/_vercel/insights/script.js"></script>
 <script defer src="/_vercel/speed-insights/script.js" data-route="/app"></script>
 </body>

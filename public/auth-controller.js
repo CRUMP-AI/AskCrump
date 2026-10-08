@@ -811,6 +811,8 @@
     show('authContainer', 'flex');
     Object.values(AUTH_VIEWS).forEach(({containerId}) => hide(containerId));
     if (normalizedView === 'register') {
+      const registrationForm = byId('registerFormElement');
+      if (registrationForm) delete registrationForm.dataset.previousPendingEmail;
       resetRegistrationView();
       configureRegistrationHandoff();
     }
@@ -838,6 +840,39 @@
     setText('registrationPendingError', '', false);
   }
 
+  function resetRegistrationPassword() {
+    const password = byId('registerPassword');
+    if (!password) return;
+    password.value = '';
+    password.type = 'password';
+    password.removeAttribute('aria-invalid');
+    delete password.dataset.passwordTouched;
+    delete password.dataset.passwordRuleState;
+    const toggle = document.querySelector('[data-password-target="registerPassword"]');
+    if (toggle) {
+      toggle.textContent = 'Show';
+      toggle.setAttribute('aria-pressed', 'false');
+      toggle.setAttribute('aria-label', 'Show new password');
+    }
+    updateRegistrationPasswordGuidance();
+  }
+
+  function prepareRegistrationEmailCorrection() {
+    const email = byId('registrationPendingEmail')?.textContent.trim() || '';
+    const emailInput = byId('registerEmail');
+    resetRegistrationPassword();
+    resetRegistrationView();
+    setText('registerError', '', false);
+    setText('registerSuccess', 'Correct the email address, then enter your password again.');
+    if (emailInput) emailInput.value = email;
+    const registrationForm = byId('registerFormElement');
+    if (registrationForm) registrationForm.dataset.previousPendingEmail = email.toLowerCase();
+    requestAnimationFrame(() => {
+      emailInput?.focus({preventScroll: true});
+      emailInput?.select();
+    });
+  }
+
   function showRegistrationPending(email, message, {deliveryFailed = false} = {}) {
     const loginEmail = byId('loginEmail');
     if (loginEmail) loginEmail.value = email;
@@ -847,6 +882,7 @@
     if (pendingEmail) pendingEmail.textContent = email;
     setText('registerError', '', false);
     setText('registerSuccess', '', false);
+    resetRegistrationPassword();
     setText('registrationPendingSuccess', deliveryFailed ? '' : message, !deliveryFailed);
     setText('registrationPendingError', deliveryFailed ? message : '', deliveryFailed);
     hide('registerEntry');
@@ -1234,6 +1270,15 @@
       authFlowRevision += 1;
       setText('registerError', '', false);
       setText('registerSuccess', '', false);
+      const email = byId('registerEmail').value.trim();
+      const previousPendingEmail = String(form.dataset.previousPendingEmail || '').trim();
+      if (previousPendingEmail && email.toLowerCase() === previousPendingEmail) {
+        trackFunnel('SignupValidationFailed', {reason: 'email_unchanged'});
+        setText('registerError', 'Enter a different email address, or use Resend verification email on the previous screen.');
+        byId('registerEmail')?.focus({preventScroll: true});
+        byId('registerEmail')?.select();
+        return;
+      }
       const password = byId('registerPassword').value;
       const passwordError = validatePasswordInput(password);
       if (passwordError) {
@@ -1246,7 +1291,6 @@
       trackFunnel('SignupSubmitted');
       const restore = setBusy(event.currentTarget, true, 'Creating account…');
       try {
-        const email = byId('registerEmail').value.trim();
         const attribution = firstTouchAttribution();
         const creationIntent = pendingCreationIntent();
         const planIntent = pendingPlanIntent();
@@ -1279,6 +1323,7 @@
           throw new Error(data.error || 'Registration failed.');
         }
         trackFunnel('AccountCreated', {verification_delivery: 'sent'});
+        delete form.dataset.previousPendingEmail;
         showRegistrationPending(email, data.message || 'Verification email sent.');
       } catch (error) {
         setText('registerError', error.message);
@@ -1341,6 +1386,8 @@
       setText('loginError', '', false);
       setText('loginSuccess', 'Sign in here if you completed verification on another device.');
     });
+
+    byId('registrationPendingDifferentEmailBtn')?.addEventListener('click', prepareRegistrationEmailCorrection);
   }
 
   window.completeOnboarding = async function completeOnboarding() {

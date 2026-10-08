@@ -1,6 +1,6 @@
 # Ask Crump operating backlog
 
-Last updated: 2026-09-30
+Last updated: 2026-10-08
 
 ## Operating standard
 
@@ -10,6 +10,26 @@ retention, and referral behavior. No acquisition spend should scale on impressio
 
 Every item below needs four things before it is called shipped: an accountable product
 outcome, privacy and safety constraints, automated coverage, and production evidence.
+
+The 2026-10-08 protected operating refresh supersedes the earlier zero-Project baseline. Both the
+closed-week `[2026-10-01T00:00:00Z, 2026-10-08T00:00:00Z)` and comparable cumulative
+`[2026-08-23T09:10:55.602863Z, 2026-10-08T00:00:00Z)` external-production views passed the
+shipped ten-section snapshot validator. The current week contains one direct account with a matching
+account event but no verification, workspace open, or activation. A content-free follow-up found
+that the verification message was provider-accepted and then transiently bounced less than one
+second after account creation; no auth-route runtime error or resend attempt was observed. This is a
+downstream delivery failure plus a recovery/observability gap, not an Ask Crump registration or PWA
+regression. The cumulative cohort contains three accounts,
+two verifications/workspace opens/activations, one durable-value milestone, one Project creation,
+one Project-save completion, D1 return **1/2**, and D7 return **0/2**. It still contains no later
+Project resume, artifact journey, payer, active-paid account, or authoritative recognized-revenue
+input. Preserve the current Project-save experience, add a local **Use a different email** recovery
+that clears the password and performs no automatic request, then stage signed/content-free provider
+delivery observability before considering bounded transient-bounce automation. Obtain a legitimate
+later Project reopen before claiming continuing-work adoption. Production remained healthy on
+`c1a3ab7b`: CI passed, deployment
+`dpl_Gy4XifhUh1YC4tTXT4WGM6NdGkb3` was Ready, `/app` returned 200, and the trailing seven-day
+runtime-error view was empty. Evidence: `docs/PROTECTED_OPERATING_REFRESH_2026-10-08.md`.
 
 The shipped 2026-09-29 Muse release-integrity repair keeps the new visual tone while restoring the
 previously released user-controlled viewport and stable-image contracts. It removes simulated
@@ -983,16 +1003,16 @@ verification. Rollback is to restore the prior apex URLs, although Stripe would 
 
 ### P0 — Convert useful answers into continuing Project work
 
-**Evidence:** three external accounts have now completed 17 successful AI jobs with no recorded
-failure, but the four-account external aggregate still contains zero Projects and zero files. The
-first comparable September account reached account creation, verification, workspace entry,
-starter intent, and activation, then completed three chat jobs. Commit `aaff2ad` addresses the
-repeated result-to-durable-work signal without changing the proven backend: it separates the
-continuation action from response feedback, explains the private Project destination, and makes
-**Keep in a new Project** a full-width 44-pixel phone action. A selected Project remains the exact
-target, and a completed save still becomes **Open Project** for that named workspace. Delivery and
-recovery are verified; a legitimate external durable-value transition and later return remain
-pending.
+**Evidence:** the protected 2026-10-08 cumulative view now contains the first observed external
+durable-value milestone, Project creation, and Project-save completion. One organic cohort row
+records a Project-save offer, later intent, and paired completion; no later Project resume is
+observed. This supersedes the prior zero-Project baseline and clears the first-use portion of the
+continuity gate without proving adoption or retention lift. Commit `aaff2ad` addresses the earlier
+result-to-durable-work signal without changing the proven backend: it separates the continuation
+action from response feedback, explains the private Project destination, and makes **Keep in a new
+Project** a full-width 44-pixel phone action. A selected Project remains the exact target, and a
+completed save still becomes **Open Project** for that named workspace. Delivery, recovery, and one
+legitimate save are verified; a legitimate later named-Project reopen remains pending.
 
 **Outcome:** expose private Project continuity directly on the latest result as a one-click next
 action. Synchronize and ownership-check the conversation, attach it to the selected Project or
@@ -1002,9 +1022,10 @@ referral sharing secondary.
 **Release gate:** automated ownership, mapping, direct-action ordering, content-free analytics,
 desktop/mobile hierarchy, named resume, bounded persistence, timeout recovery, production parity,
 and signed-in rendering pass through 5.9.76. The complete suite passed 1,004/1,004, JavaScript
-54/54, and the browser matrix 45/45 for commit `aaff2ad`. The remaining outcome gate is at least one
-legitimate external conversation-to-Project transition and a later return. Do not infer adoption
-or retention lift from the control proof or from a single user.
+54/54, and the browser matrix 45/45 for commit `aaff2ad`. The remaining outcome gate is a legitimate
+later reopen/resume after the observed Project-save completion, reconciled through the protected
+aggregate, plus the existing three-consented-observation gate. Do not infer adoption or retention
+lift from one save.
 
 ### P0 — Review the first complete artifact journey cohort
 
@@ -1047,16 +1068,20 @@ quality and safety.
 
 ### P0 — Prove the first comparable continuing-work journey
 
-**Evidence:** Ask Crump now has one legitimate comparable September production account. It is
-verified, opened the workspace, selected a starter intent, reached activation, and completed three
-chat jobs without failure. It has no Project-save intent, Project, file, artifact, explicit outcome
-rating, checkout, or paid state. At the 2026-09-13 18:51 UTC refresh its full 24-hour value window
-had not elapsed, so activation-within-24-hours, durable-value-within-24-hours, D1, and D7 eligible
-denominators all remained zero. Across all four external accounts, three have completed 17
-successful AI jobs and none has a Project or retained file. Migration `20260913192512` corrects the
-misleading stage-four growth label from required-sounding `onboarding_completed` to
-`optional_profile_completed`: the first comparable account's missing display name is optional
-personalization, not failed onboarding, because verified workspace entry and activation succeeded.
+**Evidence:** the protected 2026-10-08 comparable cohort contains three production accounts: two
+verified, opened the workspace, and reached activation; one reached durable value, created a
+Project, and completed a Project save. D1 records one return among two eligible activated accounts,
+while D7 records no return among two eligible activated accounts. No later Project resume,
+artifact journey, payer, or active-paid account is observed. The current closed week adds one direct
+account with a matching account event but no verification or workspace open. The content-free
+delivery audit diagnosed an immediate transient verification-email bounce, no auth-route runtime
+error, and no resend attempt. The narrow recovery is a third pending-screen action that returns to
+registration with the address selected, clears the password and stale password state, and performs
+no automatic request. It rejects an unchanged address locally, while a different already-pending
+address keeps its original password and receives an explicit sign-in/Forgot-password handoff rather
+than silently discarding a newly entered password. Migration `20260913192512` retains the truthful stage-four label
+`optional_profile_completed`, so missing optional personalization is not misclassified as failed
+onboarding.
 
 **Outcome:** observe a new, legitimate post-instrumentation cohort complete verification, start
 useful work, keep it in a private Project or file, and return. Use moderated sessions to identify
@@ -1310,6 +1335,17 @@ stage, with branding added in post to prevent generated-logo distortion.
 aspect ratios, one measurable CTA, and controlled tests against activation—not view count alone.
 
 ## Next operating decision
+
+The 2026-10-08 protected refresh passed the complete ten-section validator for both the current
+closed week and the comparable cohort. It records the first durable-value, Project-creation, and
+Project-save milestones, so another Project-save redesign is not justified. No later Project resume
+exists, however, and the new weekly account stopped before verification and workspace entry. Keep
+paid acquisition, D7, payer, artifact, recognized-revenue, and demo-proof gates closed. The follow-up
+diagnosed an immediate transient verification-email bounce, not an auth/PWA regression. Verify and
+ship the local **Use a different email** recovery first; then design signed, idempotent, content-free
+provider-event observability before any bounded automated retry. Complete three consented
+current-release observations through named Project reopen and schedule the existing D1/D7 reads.
+Evidence: `docs/PROTECTED_OPERATING_REFRESH_2026-10-08.md`.
 
 Commit `9225374` makes the upcoming D1 decision fail closed at the operator boundary. The weekly
 and combined operating exporters now require all 25 cohort counts as nonnegative integers, one

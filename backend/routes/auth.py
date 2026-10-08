@@ -206,13 +206,18 @@ async def register(payload: RegisterRequest, request: Request):
 
     if sent:
         message = (
-            'Verification email resent. Check your inbox.'
+            'Verification email resent. After verifying, sign in with the password already set for this account. If you do not know it, use Forgot password.'
             if pending_account
             else 'Account created. Check your email to verify it.'
         )
     else:
         message = 'Email delivery is not configured; an administrator must enable RESEND_API_KEY.'
-    return {'success': True, 'message': message, 'emailSent': sent}
+    return {
+        'success': True,
+        'message': message,
+        'emailSent': sent,
+        'pendingAccount': pending_account,
+    }
 
 
 @router.post('/login')

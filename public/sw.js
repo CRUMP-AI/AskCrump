@@ -58,7 +58,7 @@ const CORE = [
   '/product-analytics.js?v=5.9.76-navigation-discovery-1',
   '/lifecycle-share.js?v=5.9.76-settings-invite-1',
   '/lifecycle-manager.js?v=5.9.76-lifecycle-idle-send-1',
-  '/auth-controller.js?v=5.9.76-image-studio-entry-1',
+  '/auth-controller.js?v=5.9.76-verification-email-correction-1',
   '/crump-4.3.css',
   '/crump-4.3.js?v=5.9.76-mascot-face-1',
   '/crump-4.4.css',

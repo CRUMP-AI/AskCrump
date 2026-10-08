@@ -17,7 +17,7 @@ const oldUrls = Object.freeze([
 const newUrls = Object.freeze({
   runtime: '/runtime-body-v1.js?v=5.9.76-cache-integrity-1',
   navigation: '/crump-navigation-5.9.30.js?v=5.9.76-image-studio-entry-1',
-  auth: '/auth-controller.js?v=5.9.76-image-studio-entry-1',
+  auth: '/auth-controller.js?v=5.9.76-verification-email-correction-1',
 });
 const fixturePath = '/__image-studio-entry-cache-upgrade.html';
 const oldWorkerPath = '/__image-studio-entry-r252-sw.js';

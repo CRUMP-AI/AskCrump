@@ -287,7 +287,18 @@ def test_signup_success_has_durable_verification_handoff_and_recovery_ui():
     assert 'enter your workspace automatically' in app
     assert 'Already verified? Sign in' in app
     assert 'id="registrationPendingResendBtn"' in app
+    assert 'id="registrationPendingDifferentEmailBtn"' in app
+    assert 'Use a different email' in app
+    assert 'id="registerSuccess" class="auth-success" role="status" aria-live="polite"' in app
     assert 'function showRegistrationPending(email, message' in controller
+    assert 'function prepareRegistrationEmailCorrection()' in controller
+    assert "byId('registrationPendingDifferentEmailBtn')?.addEventListener('click', prepareRegistrationEmailCorrection)" in controller
+    assert "setText('registerSuccess', 'Correct the email address, then enter your password again.')" in controller
+    assert 'registrationForm.dataset.previousPendingEmail = email.toLowerCase()' in controller
+    assert "trackFunnel('SignupValidationFailed', {reason: 'email_unchanged'})" in controller
+    assert 'Enter a different email address, or use Resend verification email' in controller
+    assert "password.value = ''" in controller
+    assert 'emailInput?.select()' in controller
     assert "showRegistrationPending(email, data.message || 'Verification email sent.')" in controller
     assert "if (loginEmail) loginEmail.value = email" in controller
     assert "byId('registrationPending')?.focus()" in controller

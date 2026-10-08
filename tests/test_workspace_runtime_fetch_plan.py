@@ -136,7 +136,7 @@ def test_image_studio_entry_replaces_the_frozen_r252_runtime_cache():
     for new_url in (
         "/runtime-body-v1.js?v=5.9.76-cache-integrity-1",
         "/crump-navigation-5.9.30.js?v=5.9.76-image-studio-entry-1",
-        "/auth-controller.js?v=5.9.76-image-studio-entry-1",
+        "/auth-controller.js?v=5.9.76-verification-email-correction-1",
     ):
         assert new_url in verifier
     assert "detail: {kind, capturedAt}" in verifier

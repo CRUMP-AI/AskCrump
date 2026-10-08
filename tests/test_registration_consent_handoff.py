@@ -39,6 +39,29 @@ class SentVerificationEmail:
         return True
 
 
+class PendingRegistrationDB:
+    def __init__(self) -> None:
+        self.user = {
+            'id': 'pending-user',
+            'email': 'pending@example.com',
+            'password_hash': 'old-hash',
+            'full_name': None,
+            'is_verified': False,
+        }
+        self.updated: dict | None = None
+
+    async def select_one(self, table, **kwargs):
+        assert table == 'users'
+        return dict(self.user)
+
+    async def update(self, table, payload, *, filters):
+        assert table == 'users'
+        assert filters == {'id': 'eq.pending-user'}
+        self.updated = dict(payload)
+        self.user.update(payload)
+        return [dict(self.user)]
+
+
 @pytest.mark.asyncio
 async def test_current_registration_consent_is_saved_before_verification(monkeypatch):
     fake_db = RegistrationDB()
@@ -71,6 +94,37 @@ async def test_current_registration_consent_is_saved_before_verification(monkeyp
     assert fake_db.inserted_user is not None
     assert fake_db.inserted_user['terms_version'] == CURRENT_TERMS_VERSION
     assert fake_db.inserted_user['terms_accepted_at']
+
+
+@pytest.mark.asyncio
+async def test_pending_registration_keeps_its_password_and_explains_the_handoff(monkeypatch):
+    fake_db = PendingRegistrationDB()
+
+    async def allow_rate_limit(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr(auth_routes, 'db', fake_db)
+    monkeypatch.setattr(auth_routes, 'email_service', SentVerificationEmail())
+    monkeypatch.setattr(auth_routes, 'enforce_auth_rate_limit', allow_rate_limit)
+    monkeypatch.setattr(auth_routes, 'hash_password', lambda password: f'hashed:{password}')
+
+    response = await auth_routes.register(
+        RegisterRequest(
+            email='pending@example.com',
+            password='ReplacementPass1',
+            termsAccepted=True,
+            termsVersion=CURRENT_TERMS_VERSION,
+        ),
+        SimpleNamespace(),
+    )
+
+    assert response['success'] is True
+    assert response['pendingAccount'] is True
+    assert 'password already set for this account' in response['message']
+    assert fake_db.updated is not None
+    assert 'password_hash' not in fake_db.updated
+    assert fake_db.updated['verification_token_hash']
+    assert fake_db.updated['verification_token_expires']
 
 
 def test_legacy_registration_omission_keeps_the_authenticated_terms_fallback():
