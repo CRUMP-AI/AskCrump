@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Project continuation end-to-end fixture</title>
+  <link rel="icon" href="data:,">
+</head>
+<body>
+  <main id="appContainer">
+    <div id="chatContainer" aria-live="polite"></div>
+    <div id="chatsList" aria-label="Conversations"></div>
+    <label for="userInput">Message Crump</label>
+    <textarea id="userInput"></textarea>
+    <button id="sendButton" type="button">Send</button>
+    <button id="newChatBtn" type="button">New conversation</button>
+    <input id="fileInput" type="file">
+    <div id="filePreview"></div>
+    <div id="toastContainer"></div>
+    <output id="fixtureErrors" aria-label="Browser errors">0</output>
+  </main>
+  <script>
+    const fixtureParams = new URLSearchParams(location.search);
+    const fixtureUserId = fixtureParams.get('fixtureUser') || 'fixture-owner-a';
+    window.__fixture = {
+      initialStorageKeys: Object.keys(localStorage),
+      renderedMessages: [],
+      toasts: [],
+      destinations: [],
+    };
+    window.SafeStorage = {
+      getItem: key => localStorage.getItem(key),
+      setItem: (key, value) => localStorage.setItem(key, value),
+      removeItem: key => localStorage.removeItem(key),
+    };
+    window.renderMessages = messages => {
+      window.__fixture.renderedMessages = Array.isArray(messages)
+        ? messages.map(message => ({...message}))
+        : [];
+      document.getElementById('chatContainer').textContent = window.__fixture.renderedMessages
+        .map(message => `${message.role}: ${message.content}`)
+        .join('\n');
+    };
+    window.showToast = (message, tone) => {
+      window.__fixture.toasts.push({message: String(message || ''), tone: String(tone || '')});
+    };
+    window.CrumpPresence = {
+      loadPreferences() {}, registerToken() {}, stop() {}, haptic() {},
+    };
+    window.CrumpNavigation5930 = {
+      open(destination) { window.__fixture.destinations.push(String(destination || '')); },
+    };
+    window.confirmAction = async () => true;
+    const recordBrowserError = event => {
+      const output = document.getElementById('fixtureErrors');
+      output.textContent = String(Number(output.textContent || 0) + 1);
+      window.__fixture.lastError = String(event?.reason?.message || event?.error?.message || event?.message || 'unknown');
+    };
+    window.addEventListener('error', recordBrowserError);
+    window.addEventListener('unhandledrejection', recordBrowserError);
+  </script>
+  <script src="/public/app.js?v=project-continuation-e2e-1"></script>
+  <script src="/public/sync-manager.js?v=project-continuation-e2e-1"></script>
+  <script src="/public/chat-sync.js?v=project-continuation-e2e-1"></script>
+  <script src="/public/product-analytics.js?v=project-continuation-e2e-1"></script>
+  <script src="/public/crump-product-5.3.js?v=project-continuation-e2e-1"></script>
+  <script>
+    window.addEventListener('load', () => {
+      window.initializeApp();
+      window.initializeAuthenticatedApp({id: fixtureUserId, preferences: {}});
+      window.dispatchEvent(new Event('crump:authenticated-ready'));
+      document.documentElement.dataset.fixtureReady = 'true';
+    });
+  </script>
+</body>
+</html>

@@ -6,8 +6,13 @@
   const deletedKey = () => `${DELETED_KEY}:${window.currentUser?.id || 'anonymous'}`;
   let intervalId = null;
   let syncing = false;
+  let activeSyncPromise = null;
+  let activeSyncFull = false;
+  let activeSyncReconcileLocal = false;
   let syncRequested = false;
   let fullSyncRequested = false;
+  let reconcileLocalRequested = false;
+  let prefetchedRefreshRequested = false;
   let visibilityBound = false;
   let initialReconciliationPending = true;
 
@@ -285,47 +290,79 @@
   async function synchronize(prefetched = null, { full = true, reconcileLocal = false } = {}) {
     if (!window.currentUser || !navigator.onLine) return { success: false, offline: true };
     if (syncing) {
-      syncRequested = true;
-      fullSyncRequested = fullSyncRequested || full;
-      return { success: true, deferred: true };
+      const activeSyncCoversRequest = !prefetched
+        && (!full || activeSyncFull)
+        && (!reconcileLocal || activeSyncReconcileLocal);
+      if (!activeSyncCoversRequest) {
+        syncRequested = true;
+        fullSyncRequested = fullSyncRequested || full || Boolean(prefetched);
+        reconcileLocalRequested = reconcileLocalRequested || reconcileLocal;
+        prefetchedRefreshRequested = prefetchedRefreshRequested || Boolean(prefetched);
+      }
+      return activeSyncPromise;
     }
 
     syncing = true;
-    let firstPrefetch = prefetched;
-    let nextFull = full;
-    let lastResult = { success: true };
+    activeSyncFull = Boolean(full || prefetched);
+    activeSyncReconcileLocal = Boolean(reconcileLocal);
+    // Publish one drain promise before sync work begins so every concurrent
+    // caller observes the same completion, including synchronous re-entry.
+    const activePromise = Promise.resolve().then(async () => {
+      let firstPrefetch = prefetched;
+      let nextFull = full;
+      let nextReconcileLocal = reconcileLocal;
+      let lastResult = { success: true };
 
-    try {
-      do {
-        syncRequested = false;
-        fullSyncRequested = false;
-        const snapshot = firstPrefetch;
-        if (snapshot) await pullAndMerge(snapshot, { full: true });
-        firstPrefetch = null;
-        const flushResult = await window.SyncManager.flush?.() || { success: true, flushed: false };
-        if (flushResult.success === false) return flushResult;
-        if (!snapshot || flushResult.flushed) {
-          lastResult = await pullAndMerge(null, { full: nextFull || flushResult.flushed }) || flushResult;
-        } else {
-          lastResult = flushResult;
-        }
-        if (reconcileLocal) {
-          const reconciliation = await pushLocal();
-          if (reconciliation?.success === false) return reconciliation;
-          lastResult = reconciliation || lastResult;
-          if (Array.isArray(reconciliation?.ignored) && reconciliation.ignored.length) {
-            lastResult = await pullAndMerge(null, { full: true }) || lastResult;
+      try {
+        do {
+          const snapshot = firstPrefetch;
+          firstPrefetch = null;
+          const refreshAfterPrefetch = prefetchedRefreshRequested;
+          nextFull = Boolean(nextFull || fullSyncRequested || snapshot || refreshAfterPrefetch);
+          nextReconcileLocal = Boolean(nextReconcileLocal || reconcileLocalRequested);
+          syncRequested = false;
+          fullSyncRequested = false;
+          reconcileLocalRequested = false;
+          prefetchedRefreshRequested = false;
+          activeSyncFull = Boolean(nextFull || snapshot);
+          activeSyncReconcileLocal = nextReconcileLocal;
+          if (snapshot) await pullAndMerge(snapshot, { full: true });
+          const flushResult = await window.SyncManager.flush?.() || { success: true, flushed: false };
+          if (flushResult.success === false) return flushResult;
+          if (!snapshot || flushResult.flushed || refreshAfterPrefetch) {
+            lastResult = await pullAndMerge(null, {
+              full: nextFull || flushResult.flushed || refreshAfterPrefetch,
+            }) || flushResult;
+          } else {
+            lastResult = flushResult;
           }
-          reconcileLocal = false;
-        }
-        nextFull = fullSyncRequested;
-      } while (syncRequested);
-      return lastResult;
-    } catch (error) {
-      console.warn('[Sync] Synchronization failed:', error);
-      return { success: false, error: error?.message || 'Synchronization failed.' };
+          if (nextReconcileLocal) {
+            const reconciliation = await pushLocal();
+            if (reconciliation?.success === false) return reconciliation;
+            lastResult = reconciliation || lastResult;
+            if (Array.isArray(reconciliation?.ignored) && reconciliation.ignored.length) {
+              lastResult = await pullAndMerge(null, { full: true }) || lastResult;
+            }
+          }
+          nextFull = fullSyncRequested;
+          nextReconcileLocal = reconcileLocalRequested;
+        } while (syncRequested);
+        return lastResult;
+      } catch (error) {
+        console.warn('[Sync] Synchronization failed:', error);
+        return { success: false, error: error?.message || 'Synchronization failed.' };
+      }
+    });
+    activeSyncPromise = activePromise;
+    try {
+      return await activePromise;
     } finally {
-      syncing = false;
+      if (activeSyncPromise === activePromise) {
+        activeSyncPromise = null;
+        activeSyncFull = false;
+        activeSyncReconcileLocal = false;
+        syncing = false;
+      }
     }
   }
 

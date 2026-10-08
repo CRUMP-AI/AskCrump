@@ -61,7 +61,7 @@ def test_idle_sync_is_incremental_visible_only_and_never_blindly_pushes_state():
     assert "AUTO_SYNC_INTERVAL_MS = 60_000" in sync
     assert "window.SyncManager.flush?.()" in synchronize
     assert synchronize.count("pushLocal()") == 1
-    assert "if (reconcileLocal)" in synchronize
+    assert "if (nextReconcileLocal)" in synchronize
     assert "document.hidden" in scheduler
     assert "synchronize(null, { full: false })" in scheduler
     assert "window.__crumpSyncData = null" in sync
@@ -218,6 +218,52 @@ def test_idle_sync_fixture_uses_real_clients_and_stays_local():
     assert "password" not in fixture.lower()
     assert "askcrump.com" not in fixture
     assert "https://" not in fixture
+
+
+def test_project_continuation_gate_joins_the_active_sync_and_stays_local():
+    sync = (PUBLIC / "chat-sync.js").read_text(encoding="utf-8")
+    fixture = (ROOT / "tests" / "fixtures" / "project-continuation-e2e.html").read_text(
+        encoding="utf-8"
+    )
+    verifier = (ROOT / "scripts" / "verify-project-continuation-e2e.cjs").read_text(
+        encoding="utf-8"
+    )
+    matrix = (ROOT / "scripts" / "verify-browser-control-matrix.mjs").read_text(
+        encoding="utf-8"
+    )
+
+    synchronize = sync[
+        sync.index("async function synchronize") : sync.index("window.syncChatsFromServer")
+    ]
+    assert "let activeSyncPromise = null" in sync
+    assert "return activeSyncPromise;" in synchronize
+    assert "return { success: true, deferred: true };" not in synchronize
+    assert "activeSyncPromise = activePromise" in synchronize
+    assert "reconcileLocalRequested = reconcileLocalRequested || reconcileLocal" in synchronize
+    assert "prefetchedRefreshRequested = prefetchedRefreshRequested || Boolean(prefetched)" in synchronize
+
+    assert "/public/app.js?v=project-continuation-e2e-1" in fixture
+    assert "/public/sync-manager.js?v=project-continuation-e2e-1" in fixture
+    assert "/public/chat-sync.js?v=project-continuation-e2e-1" in fixture
+    assert "/public/product-analytics.js?v=project-continuation-e2e-1" in fixture
+    assert "/public/crump-product-5.3.js?v=project-continuation-e2e-1" in fixture
+    assert "window.initializeAuthenticatedApp" in fixture
+    assert "window.CrumpProduct53" not in fixture
+    assert "window.fetch =" not in fixture
+    assert "password" not in fixture.lower()
+    assert "askcrump.com" not in fixture.lower()
+    assert "https://" not in fixture
+
+    assert "http.createServer" in verifier
+    assert "browser.newContext" in verifier
+    assert "holdFirstPull" in verifier
+    assert "window.CrumpProduct53.keepConversation" in verifier
+    assert "data-project-chat-id" in verifier
+    assert "RecentWorkResumed" in verifier
+    assert "FOREIGN-OWNER-PRIVATE-SENTINEL" in verifier
+    assert "localBlankDuplicates" in verifier
+    assert "serverBlankDuplicates" in verifier
+    assert "verify-project-continuation-e2e.cjs" in matrix
 
 
 def test_transient_push_recovery_replays_the_preserved_batch_in_a_real_browser():
