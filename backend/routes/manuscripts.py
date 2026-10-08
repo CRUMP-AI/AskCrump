@@ -376,18 +376,20 @@ async def manuscript_cron(request: Request):
             "worker": "account-storage-deletion",
             **deletion_summary,
         }
-    recovery_summary = await verification_email_recovery.process_next()
-    if recovery_summary.get("handled"):
-        return {
-            "success": True,
-            "worker": "verification-email-recovery",
-            **recovery_summary,
-        }
     code_summary = await code_worker.process_next(oidc_token=oidc_token)
     if code_summary.get("handled"):
         return {"success": True, "worker": "code", **code_summary}
     summary = await manuscripts.process_next_run()
-    return {"success": True, "worker": "manuscripts", **summary}
+    if summary.get("handled"):
+        return {"success": True, "worker": "manuscripts", **summary}
+    # Recovery deliberately uses only otherwise-idle cron capacity. A provider
+    # incident can therefore never starve paid Code or manuscript work.
+    recovery_summary = await verification_email_recovery.process_next()
+    return {
+        "success": True,
+        "worker": "verification-email-recovery",
+        **recovery_summary,
+    }
 
 
 @router.post("/api/manuscripts/{manuscript_id}/blueprint")

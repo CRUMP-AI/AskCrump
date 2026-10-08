@@ -228,7 +228,8 @@ jobs:
           psql -X --set=ON_ERROR_STOP=1 --file=tests/postgres/verification_email_recovery_baseline.sql
           psql -X --set=ON_ERROR_STOP=1 --file=migrations/20261007221534_resend_delivery_event_observability.sql
           psql -X --set=ON_ERROR_STOP=1 --file=migrations/20261007233345_verification_email_transient_recovery.sql
+          psql -X --set=ON_ERROR_STOP=1 --file=migrations/20261008000000_verification_email_recovery_race_safety.sql
       - name: Exercise recovery migration against PostgreSQL
         run: >-
           psql -X --set=ON_ERROR_STOP=1
-          --file=tests/postgres/test_verification_email_recovery_migration.sql
+          --file=tests/postgres/test_verification_email_recovery_race_safety.sql

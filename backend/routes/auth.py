@@ -53,6 +53,14 @@ router = APIRouter(prefix="/api/auth", tags=["authentication"])
 logger = logging.getLogger("askcrump.auth")
 
 
+def _rpc_scalar(value):
+    if isinstance(value, list) and value:
+        return _rpc_scalar(value[0])
+    if isinstance(value, dict) and len(value) == 1:
+        return _rpc_scalar(next(iter(value.values())))
+    return value
+
+
 def _registration_terms_values(
     payload: RegisterRequest,
     *,
@@ -637,6 +645,29 @@ async def verify_email(
             'verification_token_expires': gt(iso_now()),
         },
     )
+    if not user and getattr(
+        settings, 'verification_email_recovery_enabled', False
+    ):
+        # A recovery token is durably authorized before the external send. The
+        # private RPC consumes that one-way digest atomically, which keeps both
+        # the original delivered token and an ambiguously completed retry safe.
+        recovered_user_id = _rpc_scalar(
+            await db.rpc(
+                'consume_verification_email_recovery_token',
+                {
+                    'p_recovery_token_hash': token_hash(token),
+                    'p_environment': settings.environment,
+                },
+                retry_transient=True,
+                timeout=3.0,
+            )
+        )
+        if recovered_user_id:
+            user = await db.select_one(
+                'users',
+                columns='*',
+                filters={'id': eq(str(recovered_user_id))},
+            )
     if not user:
         return RedirectResponse(
             f'{settings.app_url}/app?verification=failed',

@@ -27,6 +27,28 @@ class VerificationDB:
         return [dict(self.user)]
 
 
+class RecoveryVerificationDB:
+    def __init__(self):
+        self.calls = []
+        self.user = {
+            'id': 'user-recovered',
+            'email': 'recovered@example.com',
+            'is_verified': True,
+        }
+
+    async def select_one(self, table, **kwargs):
+        assert table == 'users'
+        filters = kwargs['filters']
+        if 'verification_token_hash' in filters:
+            return None
+        assert filters == {'id': 'eq.user-recovered'}
+        return dict(self.user)
+
+    async def rpc(self, name, payload, **kwargs):
+        self.calls.append((name, dict(payload), dict(kwargs)))
+        return [{'consume_verification_email_recovery_token': 'user-recovered'}]
+
+
 @pytest.mark.asyncio
 async def test_verification_issues_a_session_and_keeps_a_short_scanner_safe_replay(monkeypatch):
     database = VerificationDB({
@@ -112,6 +134,45 @@ async def test_invalid_verification_link_never_issues_a_session(monkeypatch):
 
     assert response.status_code == 303
     assert response.headers['location'] == 'https://www.askcrump.com/app?verification=failed'
+
+
+@pytest.mark.asyncio
+async def test_authorized_durable_recovery_token_can_issue_session(monkeypatch):
+    database = RecoveryVerificationDB()
+
+    async def fake_create_session(db, settings, user, request, **kwargs):
+        assert db is database
+        assert user['is_verified'] is True
+        return 'recovered-session', {'id': 'session-recovered'}
+
+    monkeypatch.setattr(auth_routes, 'db', database)
+    monkeypatch.setattr(
+        auth_routes,
+        'settings',
+        SimpleNamespace(
+            app_url='https://www.askcrump.com',
+            environment='test',
+            verification_email_recovery_enabled=True,
+        ),
+    )
+    monkeypatch.setattr(auth_routes, 'create_session', fake_create_session)
+    monkeypatch.setattr(auth_routes, 'set_session_cookie', lambda *_args: None)
+    request = SimpleNamespace(headers={}, client=SimpleNamespace(host='127.0.0.1'))
+
+    response = await auth_routes.verify_email('recovery-token', request)
+
+    assert response.status_code == 303
+    assert response.headers['location'].endswith('/app?verification=success')
+    assert database.calls == [
+        (
+            'consume_verification_email_recovery_token',
+            {
+                'p_recovery_token_hash': token_hash('recovery-token'),
+                'p_environment': 'test',
+            },
+            {'retry_transient': True, 'timeout': 3.0},
+        )
+    ]
 
 
 @pytest.mark.asyncio

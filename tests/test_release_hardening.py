@@ -29,6 +29,7 @@ def email_settings() -> SimpleNamespace:
         support_email='askcrump@gmail.com',
         app_name='Ask Crump',
         app_url='https://www.askcrump.com',
+        environment='test',
     )
 
 
@@ -165,6 +166,7 @@ async def test_transactional_email_has_an_allowlisted_message_kind_tag(
     payload = json.loads(calls[0].content)
     assert payload['tags'] == [
         {'name': 'message_kind', 'value': expected_kind},
+        {'name': 'delivery_environment', 'value': 'test'},
     ]
     serialized_tags = json.dumps(payload['tags'])
     assert 'user@example.com' not in serialized_tags

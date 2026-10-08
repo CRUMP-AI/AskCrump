@@ -394,6 +394,78 @@ def test_idle_account_storage_queue_preserves_existing_code_worker(monkeypatch):
     manuscript_worker.process_next_run.assert_not_awaited()
 
 
+def test_recovery_backlog_cannot_starve_code_work(monkeypatch):
+    deletion_worker = SimpleNamespace(
+        process_next=AsyncMock(return_value={'handled': False, 'status': 'idle'})
+    )
+    code_worker = SimpleNamespace(
+        process_next=AsyncMock(return_value={'handled': True, 'status': 'completed'})
+    )
+    manuscript_worker = SimpleNamespace(
+        process_next_run=AsyncMock(return_value={'handled': False})
+    )
+    recovery_worker = SimpleNamespace(
+        process_next=AsyncMock(return_value={'handled': True, 'status': 'retry_sent'})
+    )
+    monkeypatch.setattr(manuscript_routes, 'account_deletions', deletion_worker)
+    monkeypatch.setattr(manuscript_routes, 'code_worker', code_worker)
+    monkeypatch.setattr(manuscript_routes, 'manuscripts', manuscript_worker)
+    monkeypatch.setattr(
+        manuscript_routes, 'verification_email_recovery', recovery_worker
+    )
+    monkeypatch.setattr(
+        manuscript_routes,
+        'settings',
+        SimpleNamespace(cron_secret='cron-secret', vercel_oidc_token='oidc-token'),
+    )
+
+    response = client.get(
+        '/api/cron/manuscripts',
+        headers={'Authorization': 'Bearer cron-secret'},
+    )
+
+    assert response.status_code == 200
+    assert response.json()['worker'] == 'code'
+    code_worker.process_next.assert_awaited_once_with(oidc_token='oidc-token')
+    recovery_worker.process_next.assert_not_awaited()
+
+
+def test_recovery_backlog_cannot_starve_manuscript_work(monkeypatch):
+    deletion_worker = SimpleNamespace(
+        process_next=AsyncMock(return_value={'handled': False, 'status': 'idle'})
+    )
+    code_worker = SimpleNamespace(
+        process_next=AsyncMock(return_value={'handled': False, 'status': 'idle'})
+    )
+    manuscript_worker = SimpleNamespace(
+        process_next_run=AsyncMock(return_value={'handled': True, 'status': 'completed'})
+    )
+    recovery_worker = SimpleNamespace(
+        process_next=AsyncMock(return_value={'handled': True, 'status': 'retry_sent'})
+    )
+    monkeypatch.setattr(manuscript_routes, 'account_deletions', deletion_worker)
+    monkeypatch.setattr(manuscript_routes, 'code_worker', code_worker)
+    monkeypatch.setattr(manuscript_routes, 'manuscripts', manuscript_worker)
+    monkeypatch.setattr(
+        manuscript_routes, 'verification_email_recovery', recovery_worker
+    )
+    monkeypatch.setattr(
+        manuscript_routes,
+        'settings',
+        SimpleNamespace(cron_secret='cron-secret', vercel_oidc_token=None),
+    )
+
+    response = client.get(
+        '/api/cron/manuscripts',
+        headers={'Authorization': 'Bearer cron-secret'},
+    )
+
+    assert response.status_code == 200
+    assert response.json()['worker'] == 'manuscripts'
+    manuscript_worker.process_next_run.assert_awaited_once()
+    recovery_worker.process_next.assert_not_awaited()
+
+
 def test_migration_contract_enqueues_before_delete_and_fences_all_worker_transitions():
     sql = MIGRATION.read_text(encoding='utf-8').lower()
     compact = ' '.join(sql.split())

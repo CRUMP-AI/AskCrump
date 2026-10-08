@@ -20,6 +20,7 @@ logger = logging.getLogger('askcrump.email_webhooks')
 router = APIRouter(prefix='/api/webhooks', tags=['webhooks'])
 
 _MESSAGE_KINDS = frozenset({'verification', 'password_reset'})
+_DELIVERY_ENVIRONMENTS = frozenset({'production', 'preview', 'development', 'test'})
 _OUTCOMES = {
     'email.sent': 'accepted',
     'email.delivered': 'delivered',
@@ -65,6 +66,16 @@ def _message_kind(data: dict[str, Any]) -> str | None:
     return value if value in _MESSAGE_KINDS else None
 
 
+def _delivery_environment(data: dict[str, Any]) -> str:
+    tags = data.get('tags')
+    if not isinstance(tags, dict):
+        raise InvalidResendEvent('Invalid delivery environment.')
+    value = tags.get('delivery_environment')
+    if value not in _DELIVERY_ENVIRONMENTS:
+        raise InvalidResendEvent('Invalid delivery environment.')
+    return value
+
+
 def _normalize_event(payload: Any, delivery_id: str, raw_body: bytes) -> dict[str, Any] | None:
     if not isinstance(payload, dict):
         raise InvalidResendEvent('Invalid webhook payload.')
@@ -83,6 +94,7 @@ def _normalize_event(payload: Any, delivery_id: str, raw_body: bytes) -> dict[st
         # A signed event without Ask Crump's allowlisted tag may belong to a
         # different sender workflow. Acknowledge it without retaining it.
         return None
+    delivery_environment = _delivery_environment(data)
 
     provider_email_id = data.get('email_id')
     if (
@@ -105,7 +117,9 @@ def _normalize_event(payload: Any, delivery_id: str, raw_body: bytes) -> dict[st
         'p_provider_event_hash': _sha256_text('resend-event', delivery_id),
         'p_provider_email_hash': _sha256_text('resend-email', provider_email_id),
         'p_payload_fingerprint': hashlib.sha256(raw_body).hexdigest(),
-        'p_environment': settings.environment,
+        # Environment is provider-signed send metadata. The receiver's own
+        # environment is not authoritative when deployments share a provider.
+        'p_environment': delivery_environment,
         'p_message_kind': message_kind,
         'p_event_type': event_type,
         'p_outcome_class': outcome_class,

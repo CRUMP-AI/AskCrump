@@ -14,6 +14,7 @@ from .verification_handoff import verification_email_url
 
 
 _MESSAGE_KINDS = frozenset({'verification', 'password_reset'})
+_DELIVERY_ENVIRONMENTS = frozenset({'production', 'preview', 'development', 'test'})
 
 
 @dataclass(frozen=True, slots=True)
@@ -81,6 +82,9 @@ class EmailService:
     ) -> EmailSendReceipt:
         if message_kind not in _MESSAGE_KINDS:
             raise ValueError('Unsupported transactional email kind.')
+        delivery_environment = str(self.settings.environment).strip().lower()
+        if delivery_environment not in _DELIVERY_ENVIRONMENTS:
+            raise ValueError('Unsupported transactional email environment.')
         if not self.settings.resend_api_key:
             # Account creation still succeeds in local/test environments.
             return EmailSendReceipt(accepted=False)
@@ -105,6 +109,10 @@ class EmailService:
                             'html': body_html,
                             'tags': [
                                 {'name': 'message_kind', 'value': message_kind},
+                                {
+                                    'name': 'delivery_environment',
+                                    'value': delivery_environment,
+                                },
                             ],
                         },
                     )

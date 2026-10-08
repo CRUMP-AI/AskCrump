@@ -58,13 +58,17 @@ class VerificationEmailRecoveryWorker:
             self.settings.verification_email_recovery_enabled
             and self.settings.resend_api_key
             and self.settings.resend_webhook_secret
+            and self.settings.cron_secret
+            and self.settings.environment in {
+                'production', 'preview', 'development', 'test',
+            }
         )
 
-    async def _fail_and_restore(
+    async def _fail_dispatch(
         self,
         claim: dict[str, Any],
         *,
-        expected_token_hash: str,
+        recovery_token_hash: str,
     ) -> bool:
         return _scalar_bool(
             await self.db.rpc(
@@ -72,11 +76,8 @@ class VerificationEmailRecoveryWorker:
                 {
                     'p_provider_email_hash': claim['provider_email_hash'],
                     'p_claim_token': claim['claim_token'],
-                    'p_expected_token_hash': expected_token_hash,
-                    'p_previous_token_hash': claim.get('previous_token_hash'),
-                    'p_previous_token_expires_at': claim.get(
-                        'previous_token_expires_at'
-                    ),
+                    'p_environment': self.settings.environment,
+                    'p_recovery_token_hash': recovery_token_hash,
                 },
                 retry_transient=True,
                 timeout=3.0,
@@ -91,7 +92,10 @@ class VerificationEmailRecoveryWorker:
         claim = _one_row(
             await self.db.rpc(
                 'claim_verification_email_recovery',
-                {'p_claim_token': claim_token},
+                {
+                    'p_claim_token': claim_token,
+                    'p_environment': self.settings.environment,
+                },
                 retry_transient=True,
                 timeout=3.0,
             )
@@ -127,12 +131,37 @@ class VerificationEmailRecoveryWorker:
                     ),
                     'p_new_token_hash': fresh_token_hash,
                     'p_new_token_expires_at': fresh_expiry,
+                    'p_environment': self.settings.environment,
                 },
                 retry_transient=True,
                 timeout=3.0,
             )
         )
         if not prepared:
+            return {'handled': True, 'status': 'superseded'}
+
+        # This database commit is the deterministic linearization point. Any
+        # delivered, terminal, or verified event committed before it wins and
+        # prevents external I/O. Once it succeeds, the provider request wins;
+        # the short HTTP boundary itself cannot be made atomic with Postgres.
+        authorized = _scalar_bool(
+            await self.db.rpc(
+                'authorize_verification_email_recovery_dispatch',
+                {
+                    'p_provider_email_hash': claim['provider_email_hash'],
+                    'p_claim_token': claim['claim_token'],
+                    'p_environment': self.settings.environment,
+                    'p_previous_token_hash': claim.get('previous_token_hash'),
+                    'p_previous_token_expires_at': claim.get(
+                        'previous_token_expires_at'
+                    ),
+                    'p_recovery_token_hash': fresh_token_hash,
+                },
+                retry_transient=True,
+                timeout=3.0,
+            )
+        )
+        if not authorized:
             return {'handled': True, 'status': 'superseded'}
 
         try:
@@ -142,21 +171,22 @@ class VerificationEmailRecoveryWorker:
                 raw_token,
             )
             if not receipt.accepted or not receipt.provider_message_id:
-                await self._fail_and_restore(
+                await self._fail_dispatch(
                     claim,
-                    expected_token_hash=fresh_token_hash,
+                    recovery_token_hash=fresh_token_hash,
                 )
                 return {'handled': True, 'status': 'send_failed'}
         except EmailDeliveryError as exc:
             try:
-                await self._fail_and_restore(
+                await self._fail_dispatch(
                     claim,
-                    expected_token_hash=fresh_token_hash,
+                    recovery_token_hash=fresh_token_hash,
                 )
                 status = 'send_failed'
             except Exception:
                 # The fenced lease expires and the attempt_count=1 row can never
-                # be claimed again, so a rollback outage cannot duplicate mail.
+                # be claimed again, so an outage cannot duplicate mail. The
+                # original delivered token remains authoritative throughout.
                 logger.exception(
                     'Verification email recovery rollback was not confirmed '
                     'error_type=%s',
@@ -166,9 +196,9 @@ class VerificationEmailRecoveryWorker:
             return {'handled': True, 'status': status}
         except Exception as exc:
             try:
-                await self._fail_and_restore(
+                await self._fail_dispatch(
                     claim,
-                    expected_token_hash=fresh_token_hash,
+                    recovery_token_hash=fresh_token_hash,
                 )
                 status = 'send_failed'
             except Exception:
@@ -189,7 +219,9 @@ class VerificationEmailRecoveryWorker:
                     'p_retry_provider_email_hash': provider_email_hash(
                         receipt.provider_message_id
                     ),
-                    'p_new_token_expires_at': fresh_expiry,
+                    'p_environment': self.settings.environment,
+                    'p_recovery_token_hash': fresh_token_hash,
+                    'p_recovery_token_expires_at': fresh_expiry,
                 },
                 retry_transient=True,
                 timeout=3.0,

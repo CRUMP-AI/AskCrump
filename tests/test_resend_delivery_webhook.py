@@ -109,8 +109,11 @@ def _event(
     provider_email_id: str = 'email_provider_123',
     top_level_id: str = 'payload_event_id_must_not_be_trusted',
     bounce_type: str | None = None,
+    delivery_environment: str | None = 'test',
 ) -> dict[str, object]:
     tags = {} if message_kind is None else {'message_kind': message_kind}
+    if delivery_environment is not None:
+        tags['delivery_environment'] = delivery_environment
     data: dict[str, object] = {
         'email_id': provider_email_id,
         'created_at': '2026-10-07T12:00:00Z',
@@ -192,6 +195,29 @@ async def test_enabled_recovery_uses_the_atomic_signed_event_rpc(monkeypatch):
     assert record['p_provider_email_hash'] == _sha256(
         'resend-email', 'transient-provider-id'
     )
+
+
+@pytest.mark.asyncio
+async def test_signed_send_environment_not_receiver_environment_is_authoritative(monkeypatch):
+    fake_db = RecordingDB()
+    _configure(monkeypatch, fake_db)
+    monkeypatch.setattr(
+        email_webhooks,
+        'settings',
+        SimpleNamespace(
+            resend_webhook_secret=_WEBHOOK_SECRET,
+            environment='production',
+            verification_email_recovery_enabled=False,
+        ),
+    )
+    raw_body = _body(_event(delivery_environment='preview'))
+
+    response = await email_webhooks.resend_delivery_webhook(
+        RawRequest(raw_body, _signed_headers(raw_body))
+    )
+
+    assert response.status_code == 204
+    assert fake_db.calls[0][1]['p_environment'] == 'preview'
 
 
 @pytest.mark.asyncio
@@ -404,7 +430,11 @@ async def test_only_allowlisted_metadata_crosses_the_database_boundary(monkeypat
     data['to'] = [private]
     data['subject'] = private
     data['headers'] = {'x-private': private}
-    data['tags'] = {'message_kind': 'password_reset', 'private': private}
+    data['tags'] = {
+        'message_kind': 'password_reset',
+        'delivery_environment': 'test',
+        'private': private,
+    }
     bounce = data['bounce']
     assert isinstance(bounce, dict)
     bounce['message'] = private
@@ -510,7 +540,10 @@ async def test_malformed_signature_inputs_fail_as_a_controlled_400(
             'created_at': 'not-a-timestamp',
             'data': {
                 'email_id': 'email_provider_123',
-                'tags': {'message_kind': 'verification'},
+                'tags': {
+                    'message_kind': 'verification',
+                    'delivery_environment': 'test',
+                },
             },
         },
         _event('email.bounced', bounce_type='Unknown'),
@@ -530,6 +563,24 @@ async def test_signed_malformed_supported_payloads_are_rejected(monkeypatch, pay
         'success': False,
         'error': 'Invalid webhook payload.',
     }
+    assert fake_db.calls == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('delivery_environment', (None, 'staging', 'production '))
+async def test_signed_owned_event_without_allowlisted_send_environment_fails_closed(
+    monkeypatch,
+    delivery_environment,
+):
+    fake_db = RecordingDB()
+    _configure(monkeypatch, fake_db)
+    raw_body = _body(_event(delivery_environment=delivery_environment))
+
+    response = await email_webhooks.resend_delivery_webhook(
+        RawRequest(raw_body, _signed_headers(raw_body))
+    )
+
+    assert response.status_code == 400
     assert fake_db.calls == []
 
 

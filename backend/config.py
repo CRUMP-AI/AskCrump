@@ -207,12 +207,33 @@ class Settings:
             missing.append('AI_GATEWAY_API_KEY or VERCEL_OIDC_TOKEN')
         if self.is_production and not self.resend_api_key:
             missing.append('RESEND_API_KEY')
+        if self.verification_email_recovery_enabled:
+            if not self.resend_api_key:
+                missing.append('RESEND_API_KEY (verification recovery)')
+            if not self.resend_webhook_secret:
+                missing.append('RESEND_WEBHOOK_SECRET (verification recovery)')
+            if not str(self.cron_secret or '').strip():
+                missing.append('CRON_SECRET (verification recovery)')
         if missing:
             raise RuntimeError(f"Missing required environment variables: {', '.join(missing)}")
         if self.resend_webhook_secret and not _valid_resend_webhook_secret(
             self.resend_webhook_secret
         ):
             raise RuntimeError('RESEND_WEBHOOK_SECRET must be a valid whsec_ signing secret.')
+        if (
+            self.verification_email_recovery_enabled
+            and not _valid_resend_webhook_secret(self.resend_webhook_secret)
+        ):
+            raise RuntimeError(
+                'Verification email recovery requires a valid '
+                'RESEND_WEBHOOK_SECRET.'
+            )
+        if self.verification_email_recovery_enabled and self.environment not in {
+            'production', 'preview', 'development', 'test',
+        }:
+            raise RuntimeError(
+                'Verification email recovery requires an allowlisted APP_ENV.'
+            )
         if self.is_production and not self.app_url.startswith('https://'):
             raise RuntimeError('APP_URL must use HTTPS in production.')
         if self.is_production and not self.cookie_secure:

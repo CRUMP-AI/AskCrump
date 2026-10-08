@@ -24,12 +24,15 @@ def recovery_settings(*, enabled: bool = True) -> SimpleNamespace:
         verification_email_recovery_enabled=enabled,
         resend_api_key='re_test',
         resend_webhook_secret='whsec_test',
+        cron_secret='cron-test',
+        environment='test',
     )
 
 
 class WorkerDB:
-    def __init__(self, *, prepared: bool = True) -> None:
+    def __init__(self, *, prepared: bool = True, authorized: bool = True) -> None:
         self.prepared = prepared
+        self.authorized = authorized
         self.calls: list[tuple[str, dict, dict]] = []
         self.events: list[str] = []
         self.claim = {
@@ -47,6 +50,8 @@ class WorkerDB:
             return [dict(self.claim)]
         if name == 'prepare_verification_email_recovery':
             return self.prepared
+        if name == 'authorize_verification_email_recovery_dispatch':
+            return self.authorized
         if name == 'complete_verification_email_recovery':
             return True
         if name == 'fail_verification_email_recovery':
@@ -137,6 +142,7 @@ async def test_claim_precedes_fresh_token_and_one_provider_send(monkeypatch):
         'claim_verification_email_recovery',
         'mint_token',
         'prepare_verification_email_recovery',
+        'authorize_verification_email_recovery_dispatch',
         'provider_send',
         'complete_verification_email_recovery',
     ]
@@ -177,6 +183,63 @@ async def test_prepare_race_loss_never_calls_provider(monkeypatch):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    'winning_state',
+    ('delivered', 'permanent', 'suppressed', 'complaint', 'already_verified'),
+)
+async def test_pre_dispatch_authorization_terminal_races_prevent_provider_io(
+    monkeypatch,
+    winning_state,
+):
+    db = WorkerDB(authorized=False)
+    email = SuccessfulRecoveryEmail(db.events)
+    worker = VerificationEmailRecoveryWorker(recovery_settings(), db, email)
+    monkeypatch.setattr(
+        'backend.verification_email_recovery.uuid4',
+        lambda: CLAIM_TOKEN,
+    )
+
+    result = await worker.process_next()
+
+    assert result == {'handled': True, 'status': 'superseded'}
+    assert email.calls == []
+    assert db.events[-1] == 'authorize_verification_email_recovery_dispatch'
+    assert winning_state in {
+        'delivered', 'permanent', 'suppressed', 'complaint', 'already_verified'
+    }
+
+
+class AmbiguousPrepareDB(WorkerDB):
+    async def rpc(self, name, payload, **kwargs):
+        if name != 'prepare_verification_email_recovery':
+            return await super().rpc(name, payload, **kwargs)
+        # SupabaseDB retries an ambiguous POST internally. Model the first
+        # commit plus lost response and the exact replay returned as success.
+        self.calls.append((name, dict(payload), dict(kwargs)))
+        self.calls.append((name, dict(payload), dict(kwargs)))
+        self.events.extend((name, name))
+        return True
+
+
+@pytest.mark.asyncio
+async def test_ambiguous_prepare_response_replay_sends_once(monkeypatch):
+    db = AmbiguousPrepareDB()
+    email = SuccessfulRecoveryEmail(db.events)
+    worker = VerificationEmailRecoveryWorker(recovery_settings(), db, email)
+    monkeypatch.setattr(
+        'backend.verification_email_recovery.uuid4',
+        lambda: CLAIM_TOKEN,
+    )
+
+    result = await worker.process_next()
+
+    assert result == {'handled': True, 'status': 'retry_sent'}
+    assert db.events.count('prepare_verification_email_recovery') == 2
+    assert db.events.count('provider_send') == 1
+    assert len(email.calls) == 1
+
+
+@pytest.mark.asyncio
 async def test_provider_failure_invokes_fenced_token_rollback_once(monkeypatch):
     db = WorkerDB()
     email = FailedRecoveryEmail(db.events)
@@ -200,6 +263,7 @@ async def test_provider_failure_invokes_fenced_token_rollback_once(monkeypatch):
     assert db.events == [
         'claim_verification_email_recovery',
         'prepare_verification_email_recovery',
+        'authorize_verification_email_recovery_dispatch',
         'provider_send',
         'fail_verification_email_recovery',
     ]
@@ -207,9 +271,8 @@ async def test_provider_failure_invokes_fenced_token_rollback_once(monkeypatch):
     assert rollback == {
         'p_provider_email_hash': ORIGINAL_HASH,
         'p_claim_token': CLAIM_TOKEN,
-        'p_expected_token_hash': 'c' * 64,
-        'p_previous_token_hash': 'a' * 64,
-        'p_previous_token_expires_at': '2099-01-01T00:00:00+00:00',
+        'p_environment': 'test',
+        'p_recovery_token_hash': 'c' * 64,
     }
     assert all(name != 'complete_verification_email_recovery' for name, *_ in db.calls)
 
