@@ -11,7 +11,7 @@ const origin = (process.env.ASKCRUMP_PRODUCTION_ORIGIN || 'https://www.askcrump.
 const executablePath = process.env.ASKCRUMP_BROWSER_EXECUTABLE || undefined;
 const assets = Object.freeze([
   {url: '/assets/brand/crump-mark-320.webp', file: 'public/assets/brand/crump-mark-320.webp'},
-  {url: '/assets/brand/crump-shell-lockup-light.webp', file: 'public/assets/brand/crump-shell-lockup-light.webp'},
+  {url: '/assets/brand/crump-shell-lockup-light.webp?v=5.9.76-shell-no-tagline-1', file: 'public/assets/brand/crump-shell-lockup-light.webp'},
 ]);
 
 function sha256(buffer) {
@@ -96,7 +96,8 @@ try {
       fcp: performance.getEntriesByName('first-contentful-paint')[0]?.startTime || 0,
       load: performance.getEntriesByType('navigation')[0]?.loadEventEnd || 0,
       ...window.__askCrumpBrandPerf,
-      decodedBrandImages: [...document.querySelectorAll('img[src$=".webp"]')]
+      decodedBrandImages: [...document.querySelectorAll('img')]
+        .filter(image => new URL(image.currentSrc || image.src, location.href).pathname.endsWith('.webp'))
         .filter(image => image.complete && image.naturalWidth > 0).length,
     }));
 
@@ -104,7 +105,7 @@ try {
     const pngRequests = uniqueRequests.filter(url => /crump-(?:mark|shell-lockup-light)\.png(?:\?|$)/.test(url));
     const legacyMarkRequests = uniqueRequests.filter(url => /\/assets\/brand\/crump-mark\.webp(?:\?|$)/.test(url));
     const failedWebp = brandResponses.filter(response =>
-      response.url.endsWith('.webp') &&
+      new URL(response.url).pathname.endsWith('.webp') &&
       (response.status !== 200 || !response.type.toLowerCase().startsWith('image/webp')),
     );
     if (errors.length || pngRequests.length || legacyMarkRequests.length || failedWebp.length || metrics.decodedBrandImages < 2 || metrics.cls > 0.01) {

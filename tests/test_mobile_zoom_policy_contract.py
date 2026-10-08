@@ -40,7 +40,7 @@ def test_every_mobile_editor_meets_the_ios_no_focus_zoom_threshold():
     library_loader = read("public/crump-library-loader.js")
     stability_style = "['/crump-v1-stability.css', 'crumpv1stability']"
     assert "/crump-library-5.7.css" not in runtime
-    assert "/crump-library-5.7.css?v=5.9.76-library-new-routing-1" in library_loader
+    assert "/crump-library-5.7.css?v=5.9.76-library-first-run-1" in library_loader
     assert stability_style in runtime
     assert runtime.index("/crump-v1-stability.css") < runtime.index("/crump-navigation-5.9.30.css")
     assert 'id="crump53VideoPrompt" class="crump53-textarea"' in product

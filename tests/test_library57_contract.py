@@ -31,9 +31,9 @@ def test_library57_frontend_and_runtime_contract():
     assert "/crump-library-5.7.css" not in worker
     for shell in (runtime, build_native, worker):
         assert "/crump-media-save.js?v=5.9.76-library-lazy-load-1" in shell
-        assert "/crump-library-loader.js?v=5.9.76-library-lazy-load-1" in shell
-    assert "/crump-library-5.7.js?v=5.9.76-library-new-routing-1" in loader
-    assert "/crump-library-5.7.css?v=5.9.76-library-new-routing-1" in loader
+        assert "/crump-library-loader.js?v=5.9.76-library-first-run-1" in shell
+    assert "/crump-library-5.7.js?v=5.9.76-library-first-run-1" in loader
+    assert "/crump-library-5.7.css?v=5.9.76-library-first-run-1" in loader
     assert "data-crump5930-destination=\"library\"" in loader
     assert "Opening Library…" in loader
     assert "button.click()" in loader

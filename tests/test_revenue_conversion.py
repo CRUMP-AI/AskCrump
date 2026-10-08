@@ -534,7 +534,7 @@ def test_changed_activation_assets_are_release_versioned():
 
     for asset in (
         "/conversation.css?v=5.9.76-muse-release-repair-1",
-        "/ui-functions.js?v=5.9.76-muse-release-repair-1",
+            "/ui-functions.js?v=5.9.76-muse-feel-pass-1",
         "/product-analytics.js?v=5.9.76-navigation-discovery-1",
         "/app.js?v=5.9.76-reference-fidelity-hard-contract-1",
     ):
