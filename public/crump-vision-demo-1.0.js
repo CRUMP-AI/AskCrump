@@ -455,6 +455,7 @@
     style.id = 'cvDemoStyles';
     style.textContent =
       'html[data-cv-demo="demo"] #authContainer { display: none !important; }' +
+      'html[data-cv-demo="demo"] #v1RuntimeGate { display: none !important; }' +
       'html[data-cv-demo="demo"] .app-container { top: 36px !important; height: calc(100vh - 36px) !important; height: calc(100dvh - 36px) !important; }' +
       '#cvDemoBanner { position: fixed; top: 0; left: 0; right: 0; z-index: 9999; height: 36px; display: none;' +
       ' align-items: center; justify-content: center; gap: 10px; padding: 0 12px;' +
@@ -566,6 +567,10 @@
     var auth = document.getElementById('authContainer');
     var app = document.getElementById('appContainer');
     if (auth) auth.style.display = 'none';
+    // The runtime gate is released by the auth flow; in demo mode it would
+    // sit over the viewport forever, so keep it down (CSS guard above too).
+    var gate = document.getElementById('v1RuntimeGate');
+    if (gate) gate.hidden = true;
     if (app) {
       app.style.display = 'flex';
       app.removeAttribute('hidden');
