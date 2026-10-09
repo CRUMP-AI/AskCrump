@@ -80,7 +80,12 @@
 }
 .cvl-search input::placeholder { color: var(--cvl-muted); }
 .cvl-search input:focus { outline: none; }
-.cvl-search:focus-within { border-color: rgba(213, 185, 113, 0.45); }
+/* Visible focus indicator on the wrapper (brand-law gold outline). */
+.cvl-search:focus-within {
+  outline: 2px solid #d5b971;
+  outline-offset: 2px;
+  border-color: rgba(213, 185, 113, 0.45);
+}
 
 .cvl-count {
   font-size: 12.5px;
@@ -113,9 +118,8 @@
 .cvl-cover {
   position: relative;
   height: 190px;
-  background:
-    radial-gradient(120% 90% at 50% 0%, rgba(213, 185, 113, 0.14) 0%, rgba(213, 185, 113, 0) 55%),
-    linear-gradient(160deg, #10151c 0%, #070a0e 100%);
+  /* Brand law: flat ink, no glows. The serif initial and spine carry it. */
+  background: #0e1319;
   border-bottom: 1px solid var(--cvl-hairline);
   display: flex;
   align-items: center;
@@ -250,7 +254,8 @@
 .cvl-overlay {
   position: fixed;
   inset: 0;
-  z-index: 9999;
+  /* Below the demo banner (9999) so the banner stays on top in demo mode. */
+  z-index: 9000;
   background: rgba(4, 6, 8, 0.82);
   display: flex;
   align-items: center;
