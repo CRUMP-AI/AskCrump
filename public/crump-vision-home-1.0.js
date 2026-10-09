@@ -119,7 +119,6 @@
 
       var plate = V.card({
         eyebrow: 'On your plate',
-        title: 'On your plate',
         body: '<div class="cv-plate"><p class="cv-empty" role="status">Loading your projects\u2026</p></div>',
       });
       var plateBody = plate.querySelector('.cv-card-copy');
@@ -128,7 +127,6 @@
 
       var nudges = V.card({
         eyebrow: 'Waiting on you',
-        title: 'Waiting on you',
         body: '<div class="cv-nudges"><p class="cv-empty" role="status">Checking your library\u2026</p></div>',
       });
       var nudgeBody = nudges.querySelector('.cv-card-copy');
