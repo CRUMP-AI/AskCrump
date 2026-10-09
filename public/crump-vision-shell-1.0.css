@@ -46,7 +46,10 @@
 }
 
 .cv-wrap {
-  max-width: 880px;
+  /* Centered content column: wide enough to fill a desktop viewport without
+     collapsing into a narrow strip. The stage centers this with balanced
+     left/right margins. */
+  max-width: 1150px;
   margin: 0 auto;
 }
 
@@ -165,6 +168,15 @@
 @media (min-width: 1101px) {
   html[data-cv-shell="ready"] body.crump-v1-body {
     --ac-rail: 240px;
+  }
+
+  /* While a vision view owns the stage the legacy conversation library is
+     hidden (see .cv-legacy-hidden), so its grid track must collapse too —
+     otherwise the stage renders in a shrunken column with a dead 292px
+     gutter of black between the rail and the content. This mirrors the
+     .v1-library-collapsed pattern the base layout already uses. */
+  html[data-cv-shell="ready"] body.crump-v1-body .v1-shell.cv-vision-mounted {
+    grid-template-columns: var(--ac-rail) 0 minmax(0, 1fr);
   }
 
   html[data-cv-shell="ready"] body.crump-v1-body .v1-rail.cv-rail {

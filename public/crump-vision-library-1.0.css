@@ -254,6 +254,17 @@
 .cvl-overlay {
   position: fixed;
   inset: 0;
+  /* The overlay is appended to document.body, outside .cvl-root, so the
+     --cvl-* custom properties are declared here as well. Without them the
+     sheet below computes to a transparent background and the reader text
+     floats over the dimmed bookshelf. */
+  --cvl-bg: #070a0e;
+  --cvl-panel: #0b0f14;
+  --cvl-hairline: rgba(213, 185, 113, 0.16);
+  --cvl-gold: #d5b971;
+  --cvl-gold-deep: #b69855;
+  --cvl-text: #f1efe9;
+  --cvl-muted: #8a9196;
   /* Below the demo banner (9999) so the banner stays on top in demo mode. */
   z-index: 9000;
   background: rgba(4, 6, 8, 0.82);
@@ -264,7 +275,9 @@
 }
 
 .cvl-sheet {
-  background: var(--cvl-bg);
+  /* Solid ink panel — never translucent, so reader text can never overlap
+     the bookshelf cards behind the overlay. */
+  background: #070a0e;
   border: 1px solid var(--cvl-hairline);
   border-radius: 8px;
   width: min(960px, 100%);
