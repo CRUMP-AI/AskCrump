@@ -386,6 +386,25 @@
     return Boolean(rail && rail.querySelector(':scope > .cv-rail-inner'));
   }
 
+  /* Plan and credits: the You view owns the live credits wallet. Navigate
+     there, then bring the wallet into view inside the vision stage. */
+  function openCreditsWallet() {
+    navigate('you');
+    if (!isMounted() || current() !== 'you') return;
+    window.setTimeout(function () {
+      try {
+        var scroller = document.querySelector('.cv-stage-scroll');
+        var target = stageBody && stageBody.querySelector('[aria-labelledby="cvCreditsTitle"]');
+        if (!scroller || !target) return;
+        var top =
+          target.getBoundingClientRect().top -
+          scroller.getBoundingClientRect().top +
+          scroller.scrollTop;
+        scroller.scrollTo({ top: Math.max(0, top - 24), behavior: 'smooth' });
+      } catch (_) {}
+    }, 60);
+  }
+
   function takeOverRail() {
     var rail = document.querySelector('.v1-rail');
     if (!rail || railHasVision()) return;
@@ -396,18 +415,13 @@
     var conversations = rail.querySelector('[data-cv-conversations]');
     if (conversations) {
       conversations.addEventListener('click', function () {
-        try {
-          if (window.CrumpBodyV1 && typeof window.CrumpBodyV1.toggleConversationLibrary === 'function') {
-            window.CrumpBodyV1.toggleConversationLibrary();
-          }
-        } catch (_) {}
+        navigate('chats');
       });
     }
     var credits = rail.querySelector('[data-cv-credits-open]');
     if (credits) {
       credits.addEventListener('click', function () {
-        var btn = document.getElementById('upgradeBtnSidebar');
-        if (btn && typeof btn.click === 'function') btn.click();
+        openCreditsWallet();
       });
     }
   }

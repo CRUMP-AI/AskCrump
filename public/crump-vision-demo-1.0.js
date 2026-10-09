@@ -10,7 +10,7 @@
  *  - Does NOT touch authentication. No sessions are created, no user data is
  *    read, no auth code paths are altered. Production auth is unchanged.
  *  - All demo "data" is static fixtures bundled below. The real API is never
- *    called for the five fixture routes while demo mode is on; everything
+ *    called for the six fixture routes while demo mode is on; everything
  *    else passes through untouched.
  *  - Writes nothing except a few clearly-labeled localStorage keys on the
  *    visitor's own browser (demo memory samples), only if absent.
@@ -267,8 +267,27 @@
     { id: 'demo-m3', text: 'Brand law: ink black and quiet gold \u2014 no glows, no noise.', createdAt: daysAgo(4), updatedAt: daysAgo(4) },
   ];
 
+  /* Sample video jobs so the Studios gallery has something honest to render
+     (and to re-render when "Refresh gallery" is pressed) in demo mode. */
+  var VIDEO_JOBS = [
+    {
+      id: 'demo-video-1',
+      status: 'processing',
+      engine: 'cinematic',
+      createdAt: daysAgo(0),
+      file: null,
+    },
+    {
+      id: 'demo-video-2',
+      status: 'failed',
+      engine: 'quick',
+      createdAt: daysAgo(3),
+      file: null,
+    },
+  ];
+
   /* ------------------------------------------------------------------ */
-  /* Fixture router — only the five vision data routes, same-origin only */
+  /* Fixture router — only the six vision data routes, same-origin only  */
   /* ------------------------------------------------------------------ */
 
   function findProject(id) {
@@ -294,6 +313,7 @@
     if ((m = /^\/api\/manuscripts\/([^/]+)$/.exec(pathname))) {
       return { sections: SECTIONS[decodeURIComponent(m[1])] || [] };
     }
+    if (pathname === '/api/media/video') return { jobs: VIDEO_JOBS };
     return null;
   }
 
@@ -427,7 +447,22 @@
       }
     });
     keepsake.querySelector('[data-cv-demo-download]').addEventListener('click', function () {
-      alert('Demo \u2014 sign in to download keepsakes.');
+      var lines = ['# Investor One-Pager', '', 'Sample keepsake from the Ask Crump demo.', ''];
+      (SECTIONS['demo-onepager'] || []).forEach(function (section) {
+        lines.push('## ' + (section.title || 'Section'), '');
+        lines.push(String(section.content || ''), '');
+      });
+      var blob = new Blob([lines.join('\n')], { type: 'text/markdown;charset=utf-8' });
+      var url = URL.createObjectURL(blob);
+      var anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = 'investor-one-pager-demo.md';
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      window.setTimeout(function () {
+        try { URL.revokeObjectURL(url); } catch (_) {}
+      }, 5000);
     });
     thread.appendChild(keepsake);
 
@@ -550,8 +585,22 @@
   /* Enter demo mode                                                      */
   /* ------------------------------------------------------------------ */
 
+  /* If the URL already asks for the demo, arm it at module execution time —
+     before the vision shell boots on DOMContentLoaded — so the very first
+     render of every view already reads fixtures. Without this the shell
+     mounts Home against the real API first and enterDemo has to flip away
+     and back, which is what flashed a garbled greeting before the re-render. */
+  var demoEntered = false;
+  var demoArmedAtLoad = false;
+  if (demoRequested()) {
+    window.__crumpVisionDemo = true;
+    installInterceptor();
+    demoArmedAtLoad = true;
+  }
+
   function enterDemo() {
-    if (window.__crumpVisionDemo === true) return;
+    if (demoEntered) return;
+    demoEntered = true;
     window.__crumpVisionDemo = true;
     installInterceptor();
     injectStyles();
@@ -585,16 +634,21 @@
       shell.removeAttribute('aria-hidden');
     }
     showBanner();
-    // Force a fresh render so every view loads fixtures: the shell may have
-    // mounted home against the real API before demo mode started.
-    try {
-      var V = window.CrumpVision;
-      if (V && typeof V.navigate === 'function') {
-        V.navigate('chats');
-        V.navigate('home');
+    // Mid-session entry (the preview entry button) still needs a refresh so
+    // views mounted against the real API reload from fixtures. On the
+    // ?demo=1 / #demo path the shell booted after the early arm above, so
+    // the first mount already used fixtures — navigating away and back
+    // would only flash the screen, so skip it.
+    if (!demoArmedAtLoad) {
+      try {
+        var V = window.CrumpVision;
+        if (V && typeof V.navigate === 'function') {
+          V.navigate('chats');
+          V.navigate('home');
+        }
+      } catch (_) {
+        /* the shell will render on first navigation regardless */
       }
-    } catch (_) {
-      /* the shell will render on first navigation regardless */
     }
   }
 
@@ -606,8 +660,8 @@
   injectStyles();
 
   function boot() {
-    if (window.__crumpVisionDemo === true) return;
-    if (demoRequested()) {
+    if (demoEntered) return;
+    if (demoArmedAtLoad) {
       enterDemo();
       return;
     }

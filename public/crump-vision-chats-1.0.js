@@ -426,6 +426,48 @@
     card.classList.add('cv-keepsake-real');
   }
 
+  function slug(value) {
+    return (
+      String(value == null || value === '' ? 'keepsake' : value)
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '') || 'keepsake'
+    );
+  }
+
+  // Real client-side download: the keepsake content becomes a markdown file
+  // and is handed to the browser's download flow with a sensible name.
+  function downloadKeepsakeFile(info) {
+    var title = info && info.title ? String(info.title) : 'Untitled keepsake';
+    var kind = String((info && info.kind) || 'PDF').toUpperCase();
+    var version = info && info.version ? 'v' + info.version : '';
+    var lines = ['# ' + title, ''];
+    if (version) {
+      lines.push('Version: ' + version, '');
+    }
+    lines.push('Kind: ' + kind);
+    lines.push('Saved from Ask Crump', '');
+    var content = info && info.content != null ? String(info.content).trim() : '';
+    if (content) {
+      lines.push(content);
+    } else {
+      lines.push('The full keepsake content lives in your Library — open it there to read and share the finished piece.');
+    }
+    var blob = new Blob([lines.join('\n')], { type: 'text/markdown;charset=utf-8' });
+    var url = URL.createObjectURL(blob);
+    var anchor = document.createElement('a');
+    anchor.href = url;
+    anchor.download = slug(title) + (version ? '-' + version.toLowerCase() : '') + '.md';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+    window.setTimeout(function () {
+      try {
+        URL.revokeObjectURL(url);
+      } catch (_) {}
+    }, 5000);
+  }
+
   function addKeepsakeCard(options) {
     var opts = options || {};
     var container = chatContainer();
@@ -498,9 +540,12 @@
         anchor.remove();
         return;
       }
-      document.dispatchEvent(
-        new CustomEvent('crump:vision-keepsake-download', { detail: { title: title, version: version, kind: kind } })
-      );
+      downloadKeepsakeFile({
+        title: title,
+        version: version,
+        kind: kind,
+        content: opts.content,
+      });
     });
 
     actions.appendChild(openButton);
