@@ -158,6 +158,24 @@
     fallbackToLegacy(id);
   }
 
+  // The legacy conversation library renders as a second sidebar next to the
+  // vision rail. While a vision view owns the stage there is exactly one
+  // sidebar: hide the legacy one (it is restored when falling back to legacy).
+  function setLegacySidebarHidden(hidden) {
+    var sidebar = document.getElementById('sidebar');
+    if (!sidebar) return;
+    var shell = document.querySelector('.v1-shell');
+    if (hidden) {
+      sidebar.classList.add('cv-legacy-hidden');
+      sidebar.setAttribute('aria-hidden', 'true');
+      if (shell) shell.classList.add('cv-vision-mounted');
+      return;
+    }
+    sidebar.classList.remove('cv-legacy-hidden');
+    sidebar.removeAttribute('aria-hidden');
+    if (shell) shell.classList.remove('cv-vision-mounted');
+  }
+
   function mountView(id, def) {
     if (id === currentId && isMounted()) {
       setActive(id);
@@ -179,6 +197,7 @@
     currentId = id;
     stage.hidden = false;
     setWorkspaceInert(true);
+    setLegacySidebarHidden(true);
     setActive(id);
     try {
       if (typeof def.onShow === 'function') def.onShow();
@@ -198,6 +217,7 @@
     } catch (_) {}
     stage.hidden = true;
     setWorkspaceInert(false);
+    setLegacySidebarHidden(false);
   }
 
   function fallbackToLegacy(id) {

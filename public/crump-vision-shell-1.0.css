@@ -369,6 +369,12 @@
   color: var(--cv-gold);
 }
 
+/* Vision experience: exactly one sidebar. While a vision view owns the stage,
+   the legacy conversation library must not render as a second sidebar. */
+html[data-cv-shell="ready"] body.crump-v1-body .v1-shell.cv-vision-mounted #sidebar.cv-legacy-hidden {
+  display: none !important;
+}
+
 /* ------------------------------------------------------------------ */
 /* Vision stage: mounts registered views over the workspace            */
 /* ------------------------------------------------------------------ */
