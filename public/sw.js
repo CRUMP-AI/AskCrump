@@ -26,6 +26,8 @@ const CORE = [
   '/crump-navigation-5.2.5.js?v=5.9.76-chats-language-1',
   '/crump-navigation-5.9.30.css?v=5.9.76-nav-focus-visibility-1',
   '/crump-navigation-5.9.30.js?v=5.9.76-image-studio-entry-1',
+  '/crump-vision-chats-1.0.css?v=1.0.0-vision-chats-1',
+  '/crump-vision-chats-1.0.js?v=1.0.0-vision-chats-1',
   '/crump-code-loader.js?v=5.9.76-code-lazy-load-1',
   '/crump-product-loader.js?v=5.9.76-projects-empty-state-1',
   '/crump-product-5.3.1.css',
