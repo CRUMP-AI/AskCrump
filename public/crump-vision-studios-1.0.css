@@ -159,7 +159,8 @@
 }
 
 .cv-textarea:focus {
-  outline: none;
+  outline: 2px solid #d5b971;
+  outline-offset: 2px;
   border-color: #b69855;
 }
 

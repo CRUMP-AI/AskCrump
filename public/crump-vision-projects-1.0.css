@@ -292,7 +292,11 @@
   min-width: 0;
 }
 .cvp-step-add input::placeholder { color: var(--cvp-muted); }
-.cvp-step-add input:focus { outline: none; border-color: rgba(213, 185, 113, 0.45); }
+.cvp-step-add input:focus {
+  outline: 2px solid #d5b971;
+  outline-offset: 2px;
+  border-color: rgba(213, 185, 113, 0.45);
+}
 
 .cvp-button {
   background: transparent;
