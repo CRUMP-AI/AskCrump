@@ -672,6 +672,22 @@
     workspaceRuntimeGateTimer = window.setTimeout(releaseWorkspaceRuntimeGate, 5000);
   }
 
+  // Vision demo mode (preview builds only): when the demo is requested, the
+  // demo module owns the stage and the real auth flow must not run — it would
+  // otherwise re-hide the app after the demo reveals it (?demo=1 blank page).
+  function isVisionDemoRequested() {
+    try {
+      var host = String(window.location.hostname || '').toLowerCase();
+      if (!/\.vercel\.app$/.test(host)) return false;
+      if (window.__crumpVisionDemo === true) return true;
+      var hash = String(window.location.hash || '').toLowerCase();
+      if (hash === '#demo' || hash.indexOf('#demo&') === 0) return true;
+      return /(^|[?&])demo=1(&|#|$)/.test(String(window.location.search || ''));
+    } catch (_) {
+      return false;
+    }
+  }
+
   function showReturningVisitorGate() {
     hide('authContainer');
     hide('tosModal');
@@ -896,6 +912,7 @@
   }
 
   async function bootstrap() {
+    if (isVisionDemoRequested()) return; // demo module owns the stage
     captureCreationIntent();
     configureRegistrationExploreLink();
     capturePlanIntent();
