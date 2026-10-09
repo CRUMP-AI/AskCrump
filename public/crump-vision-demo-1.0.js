@@ -585,8 +585,12 @@
   /* Enter demo mode                                                      */
   /* ------------------------------------------------------------------ */
 
-  /* If the URL already asks for the demo, arm it at module execution time —
-     before the vision shell boots on DOMContentLoaded — so the very first
+  /* If the URL already asks for the demo, arm it at module execution time.
+     This module loads before the vision shell (see the script order in
+     app.html), and deferred scripts execute in document order while
+     readyState is 'interactive' — so the shell boots and mounts Home during
+     its own script evaluation, NOT on DOMContentLoaded. Arming here installs
+     the fetch interceptor before any of that happens, so the very first
      render of every view already reads fixtures. Without this the shell
      mounts Home against the real API first and enterDemo has to flip away
      and back, which is what flashed a garbled greeting before the re-render. */
@@ -659,10 +663,40 @@
   installInterceptor(); // installed early; active only once demo mode is on
   injectStyles();
 
+  function shellReady() {
+    try {
+      return Boolean(
+        window.CrumpVision && typeof window.CrumpVision.registerView === 'function'
+      );
+    } catch (_) {
+      return false;
+    }
+  }
+
   function boot() {
     if (demoEntered) return;
     if (demoArmedAtLoad) {
-      enterDemo();
+      if (shellReady()) {
+        enterDemo();
+      } else {
+        // This module executes before the vision shell: the interceptor
+        // above is already armed (so the shell's first mount reads
+        // fixtures), but enterDemo needs the shell registry — wait for its
+        // ready signal instead of running half-armed.
+        document.addEventListener('crumpvision:ready', enterDemo, { once: true });
+        // Safety net: if the shell never signals (failed to load), still
+        // enter demo mode once parsing finishes rather than hanging blank.
+        document.addEventListener('DOMContentLoaded', function () {
+          if (!demoEntered) enterDemo();
+        }, { once: true });
+      }
+      // The real chats view registers after this module now; re-assert the
+      // demo renderer once every deferred script has run (DOMContentLoaded
+      // always fires after deferred scripts) so the demo keeps its scripted
+      // chats view.
+      document.addEventListener('DOMContentLoaded', function () {
+        try { registerChatsView(); } catch (_) {}
+      }, { once: true });
       return;
     }
     injectEntry();
