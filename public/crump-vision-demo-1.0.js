@@ -575,6 +575,15 @@
       app.style.display = 'flex';
       app.removeAttribute('hidden');
     }
+    // The real auth flow releases the inert lock on the shell when the
+    // workspace is ready; in demo mode that flow never runs, so release it
+    // here. Covers both the ?demo=1 path and the post-login entry button
+    // path (where the no-session check had already locked the shell).
+    var shell = document.querySelector('.v1-shell');
+    if (shell) {
+      shell.removeAttribute('inert');
+      shell.removeAttribute('aria-hidden');
+    }
     showBanner();
     // Force a fresh render so every view loads fixtures: the shell may have
     // mounted home against the real API before demo mode started.
