@@ -1,0 +1,308 @@
+/* Crump Vision — Studios view. Ink-black and gold luxury skin. No glows, no noise. */
+
+.cv-view {
+  background: #070a0e;
+  color: #f1efe9;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  min-height: 100%;
+  padding: 48px 32px 96px;
+  box-sizing: border-box;
+}
+
+.cv-wrap {
+  max-width: 880px;
+  margin: 0 auto;
+}
+
+.cv-eyebrow {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: #d5b971;
+  margin: 0 0 16px;
+  font-weight: 600;
+}
+
+.cv-headline {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 400;
+  font-size: clamp(34px, 5vw, 52px);
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  margin: 0 0 14px;
+  color: #f1efe9;
+}
+
+.cv-sub {
+  font-size: 16px;
+  line-height: 1.65;
+  color: #8a9196;
+  margin: 0 0 44px;
+  max-width: 60ch;
+}
+
+.cv-card {
+  background: #0b0f14;
+  border: 1px solid rgba(213, 185, 113, 0.16);
+  border-radius: 8px;
+  padding: 32px;
+  margin-bottom: 24px;
+}
+
+.cv-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.cv-card-title {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 24px;
+  font-weight: 400;
+  margin: 0;
+  color: #f1efe9;
+}
+
+.cv-card-kicker {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: #b69855;
+  white-space: nowrap;
+}
+
+.cv-card-copy {
+  font-size: 14px;
+  line-height: 1.65;
+  color: #8a9196;
+  margin: 0 0 24px;
+  max-width: 62ch;
+}
+
+/* Mode pills */
+.cv-pills {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.cv-pill {
+  appearance: none;
+  background: transparent;
+  border: 1px solid rgba(213, 185, 113, 0.16);
+  border-radius: 999px;
+  color: #8a9196;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 9px 20px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.cv-pill:hover {
+  color: #f1efe9;
+  border-color: rgba(213, 185, 113, 0.45);
+}
+
+.cv-pill[aria-pressed="true"] {
+  background: rgba(213, 185, 113, 0.12);
+  border-color: #b69855;
+  color: #d5b971;
+}
+
+.cv-pill:focus-visible {
+  outline: 2px solid #d5b971;
+  outline-offset: 2px;
+}
+
+.cv-mode-desc {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #8a9196;
+  margin: 0 0 20px;
+  min-height: 21px;
+}
+
+/* Prompt */
+.cv-field-label {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: #b69855;
+  margin: 0 0 10px;
+  font-weight: 600;
+}
+
+.cv-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: #070a0e;
+  border: 1px solid rgba(213, 185, 113, 0.16);
+  border-radius: 8px;
+  color: #f1efe9;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  padding: 14px 16px;
+  min-height: 92px;
+  resize: vertical;
+  margin-bottom: 20px;
+}
+
+.cv-textarea::placeholder {
+  color: #5a6168;
+}
+
+.cv-textarea:focus {
+  outline: none;
+  border-color: #b69855;
+}
+
+/* Buttons */
+.cv-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.cv-btn {
+  appearance: none;
+  border-radius: 8px;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 13px 28px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.cv-btn-primary {
+  background: #d5b971;
+  color: #070a0e;
+  border-color: #d5b971;
+}
+
+.cv-btn-primary:hover {
+  background: #e2c47f;
+  border-color: #e2c47f;
+}
+
+.cv-btn-ghost {
+  background: transparent;
+  color: #d5b971;
+  border-color: rgba(213, 185, 113, 0.4);
+}
+
+.cv-btn-ghost:hover {
+  border-color: #d5b971;
+  color: #e2c47f;
+}
+
+.cv-btn:focus-visible {
+  outline: 2px solid #d5b971;
+  outline-offset: 2px;
+}
+
+.cv-btn[disabled] {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.cv-status {
+  font-size: 13px;
+  color: #8a9196;
+  margin: 14px 0 0;
+  min-height: 20px;
+}
+
+.cv-status.is-error {
+  color: #d5b971;
+}
+
+/* Gallery */
+.cv-gallery-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  margin: 8px 0 18px;
+}
+
+.cv-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 12px;
+}
+
+.cv-gallery-item {
+  background: #070a0e;
+  border: 1px solid rgba(213, 185, 113, 0.16);
+  border-radius: 8px;
+  padding: 18px;
+  text-decoration: none;
+  color: #f1efe9;
+  display: block;
+  transition: border-color 0.15s ease;
+}
+
+a.cv-gallery-item:hover {
+  border-color: rgba(213, 185, 113, 0.45);
+}
+
+.cv-gallery-item strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #d5b971;
+  margin-bottom: 6px;
+  text-transform: capitalize;
+}
+
+.cv-gallery-item span {
+  display: block;
+  font-size: 12px;
+  color: #8a9196;
+  line-height: 1.5;
+}
+
+.cv-gallery-empty {
+  border: 1px dashed rgba(213, 185, 113, 0.28);
+  border-radius: 8px;
+  padding: 36px 24px;
+  text-align: center;
+  color: #8a9196;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.cv-gallery-empty strong {
+  display: block;
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 400;
+  font-size: 18px;
+  color: #f1efe9;
+  margin-bottom: 8px;
+}
+
+.cv-loading {
+  color: #8a9196;
+  font-size: 14px;
+  padding: 28px 0;
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .cv-view {
+    padding: 32px 18px 80px;
+  }
+
+  .cv-card {
+    padding: 24px 20px;
+  }
+}

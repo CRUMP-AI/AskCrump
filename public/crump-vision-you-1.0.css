@@ -1,0 +1,460 @@
+/* Crump Vision — You view (Memory Console, Privacy, Credits). Ink-black and gold. No glows. */
+
+.cv-you {
+  background: #070a0e;
+  color: #f1efe9;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  min-height: 100%;
+  padding: 48px 32px 96px;
+  box-sizing: border-box;
+}
+
+.cv-you-wrap {
+  max-width: 880px;
+  margin: 0 auto;
+}
+
+.cv-you .cv-eyebrow {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: #d5b971;
+  margin: 0 0 16px;
+  font-weight: 600;
+}
+
+.cv-you .cv-headline {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 400;
+  font-size: clamp(34px, 5vw, 52px);
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  margin: 0 0 14px;
+  color: #f1efe9;
+}
+
+.cv-you .cv-sub {
+  font-size: 16px;
+  line-height: 1.65;
+  color: #8a9196;
+  margin: 0 0 44px;
+  max-width: 60ch;
+}
+
+.cv-you-section {
+  margin-bottom: 56px;
+}
+
+.cv-you-section:last-child {
+  margin-bottom: 0;
+}
+
+.cv-you-card {
+  background: #0b0f14;
+  border: 1px solid rgba(213, 185, 113, 0.16);
+  border-radius: 8px;
+  padding: 32px;
+}
+
+/* Memory list */
+.cv-memory-list {
+  list-style: none;
+  margin: 0 0 24px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cv-memory-item {
+  background: #070a0e;
+  border: 1px solid rgba(213, 185, 113, 0.16);
+  border-radius: 8px;
+  padding: 16px 18px;
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  opacity: 1;
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.cv-memory-item.is-removing {
+  opacity: 0;
+  transform: translateY(-4px);
+}
+
+.cv-memory-text {
+  flex: 1;
+  font-size: 14px;
+  line-height: 1.65;
+  color: #f1efe9;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.cv-memory-date {
+  display: block;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  color: #5a6168;
+  margin-top: 8px;
+  text-transform: uppercase;
+}
+
+.cv-memory-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.cv-mini-btn {
+  appearance: none;
+  background: transparent;
+  border: 1px solid rgba(213, 185, 113, 0.28);
+  border-radius: 6px;
+  color: #b69855;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 14px;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.cv-mini-btn:hover {
+  color: #d5b971;
+  border-color: #d5b971;
+}
+
+.cv-mini-btn.is-danger {
+  color: #8a9196;
+}
+
+.cv-mini-btn.is-danger:hover {
+  color: #e08a7a;
+  border-color: rgba(224, 138, 122, 0.5);
+}
+
+.cv-mini-btn:focus-visible {
+  outline: 2px solid #d5b971;
+  outline-offset: 2px;
+}
+
+.cv-memory-empty {
+  border: 1px dashed rgba(213, 185, 113, 0.28);
+  border-radius: 8px;
+  padding: 36px 24px;
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.cv-memory-empty strong {
+  display: block;
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 400;
+  font-size: 18px;
+  color: #f1efe9;
+  margin-bottom: 8px;
+}
+
+.cv-memory-empty p {
+  font-size: 14px;
+  line-height: 1.7;
+  color: #8a9196;
+  margin: 0;
+  max-width: 52ch;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Device rows */
+.cv-device-note {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: #b69855;
+  margin: 28px 0 12px;
+  font-weight: 600;
+}
+
+.cv-device-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.cv-device-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 16px;
+  background: #070a0e;
+  border: 1px solid rgba(213, 185, 113, 0.1);
+  border-radius: 8px;
+  font-size: 13px;
+  color: #8a9196;
+}
+
+.cv-device-row b {
+  color: #f1efe9;
+  font-weight: 600;
+}
+
+/* Memory editor */
+.cv-memory-editor {
+  border-top: 1px solid rgba(213, 185, 113, 0.16);
+  padding-top: 24px;
+}
+
+.cv-you .cv-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  background: #070a0e;
+  border: 1px solid rgba(213, 185, 113, 0.16);
+  border-radius: 8px;
+  color: #f1efe9;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+  padding: 14px 16px;
+  min-height: 84px;
+  resize: vertical;
+}
+
+.cv-you .cv-textarea::placeholder {
+  color: #5a6168;
+}
+
+.cv-you .cv-textarea:focus {
+  outline: none;
+  border-color: #b69855;
+}
+
+.cv-editor-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.cv-btn {
+  appearance: none;
+  border-radius: 8px;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 13px 28px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.cv-btn-primary {
+  background: #d5b971;
+  color: #070a0e;
+  border-color: #d5b971;
+}
+
+.cv-btn-primary:hover {
+  background: #e2c47f;
+  border-color: #e2c47f;
+}
+
+.cv-btn-ghost {
+  background: transparent;
+  color: #d5b971;
+  border-color: rgba(213, 185, 113, 0.4);
+}
+
+.cv-btn-ghost:hover {
+  border-color: #d5b971;
+}
+
+.cv-btn:focus-visible {
+  outline: 2px solid #d5b971;
+  outline-offset: 2px;
+}
+
+.cv-inline-error {
+  font-size: 13px;
+  color: #e08a7a;
+  margin: 10px 0 0;
+  min-height: 18px;
+}
+
+/* Privacy toggles */
+.cv-toggle-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 20px 0;
+  border-bottom: 1px solid rgba(213, 185, 113, 0.1);
+}
+
+.cv-toggle-row:last-of-type {
+  border-bottom: none;
+}
+
+.cv-toggle-text strong {
+  display: block;
+  font-size: 15px;
+  font-weight: 600;
+  color: #f1efe9;
+  margin-bottom: 6px;
+}
+
+.cv-toggle-text p {
+  font-size: 13px;
+  line-height: 1.6;
+  color: #8a9196;
+  margin: 0;
+  max-width: 52ch;
+}
+
+.cv-switch {
+  appearance: none;
+  position: relative;
+  flex-shrink: 0;
+  width: 52px;
+  height: 30px;
+  border-radius: 999px;
+  background: #1a2129;
+  border: 1px solid rgba(213, 185, 113, 0.28);
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease;
+  padding: 0;
+}
+
+.cv-switch::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #8a9196;
+  transition: transform 0.18s ease, background 0.18s ease;
+}
+
+.cv-switch[aria-checked="true"] {
+  background: rgba(213, 185, 113, 0.25);
+  border-color: #b69855;
+}
+
+.cv-switch[aria-checked="true"]::after {
+  transform: translateX(22px);
+  background: #d5b971;
+}
+
+.cv-switch:focus-visible {
+  outline: 2px solid #d5b971;
+  outline-offset: 2px;
+}
+
+.cv-privacy-footnote {
+  font-size: 12px;
+  line-height: 1.7;
+  color: #5a6168;
+  margin: 20px 0 0;
+}
+
+/* Credits */
+.cv-wallet {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.cv-balance {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 44px;
+  font-weight: 400;
+  color: #d5b971;
+  line-height: 1;
+}
+
+.cv-balance-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: #8a9196;
+}
+
+.cv-plan-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 0;
+  border-top: 1px solid rgba(213, 185, 113, 0.1);
+  margin-top: 20px;
+  font-size: 14px;
+}
+
+.cv-plan-row b {
+  color: #f1efe9;
+  font-weight: 600;
+}
+
+.cv-plan-row span {
+  color: #8a9196;
+}
+
+.cv-pack-list {
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cv-pack-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(213, 185, 113, 0.1);
+  font-size: 14px;
+}
+
+.cv-pack-row:last-child {
+  border-bottom: none;
+}
+
+.cv-pack-row b {
+  color: #f1efe9;
+  font-weight: 600;
+}
+
+.cv-pack-row span {
+  color: #d5b971;
+  font-weight: 600;
+}
+
+.cv-section-divider-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: #b69855;
+  margin: 28px 0 6px;
+  font-weight: 600;
+}
+
+@media (max-width: 640px) {
+  .cv-you {
+    padding: 32px 18px 80px;
+  }
+
+  .cv-you-card {
+    padding: 24px 20px;
+  }
+
+  .cv-toggle-row {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

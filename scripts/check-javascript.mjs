@@ -15,6 +15,8 @@ const expectedFiles = new Set([
   'crump-product-5.3.1.js', 'crump-subscriptions-5.3.2.js', 'crump-polish-5.6.js',
   'crump-library-5.7.js', 'crump-library-loader.js', 'crump-media-save.js',
   'crump-vision-chats-1.0.js',
+  'crump-vision-library-1.0.js', 'crump-vision-projects-1.0.js',
+  'crump-vision-studios-1.0.js', 'crump-vision-you-1.0.js',
   'device-auth.js', 'install-prompt.js', 'landing.js', 'mobile-bridge.js', 'native-entry.js',
   'native-runtime.js', 'onboarding.js', 'presence-manager.js', 'profile-manager.js',
   'runtime-config.js', 'runtime-config-v1.js', 'runtime-body-v1.js', 'safe-storage.js',
