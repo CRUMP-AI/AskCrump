@@ -171,12 +171,20 @@
   }
 
   /* While a vision view owns the stage the legacy conversation library is
-     hidden (see .cv-legacy-hidden), so its grid track must collapse too —
-     otherwise the stage renders in a shrunken column with a dead 292px
-     gutter of black between the rail and the content. This mirrors the
-     .v1-library-collapsed pattern the base layout already uses. */
+     display:none (see .cv-legacy-hidden), so it leaves the grid entirely and
+     the shell has exactly two tracks. A leftover third track would capture
+     .v1-workspace once the sidebar is gone — collapsing the stage (and the
+     #cvStage inside it) to zero width, which is what painted the black void.
+     Explicit placement keeps the rail and the workspace in their tracks. */
   html[data-cv-shell="ready"] body.crump-v1-body .v1-shell.cv-vision-mounted {
-    grid-template-columns: var(--ac-rail) 0 minmax(0, 1fr);
+    grid-template-columns: var(--ac-rail) minmax(0, 1fr);
+  }
+  html[data-cv-shell="ready"] body.crump-v1-body .v1-shell.cv-vision-mounted > .v1-rail {
+    grid-column: 1;
+  }
+  html[data-cv-shell="ready"] body.crump-v1-body .v1-shell.cv-vision-mounted > .v1-workspace {
+    grid-column: 2;
+    min-width: 0;
   }
 
   html[data-cv-shell="ready"] body.crump-v1-body .v1-rail.cv-rail {
