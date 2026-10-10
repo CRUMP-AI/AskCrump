@@ -403,12 +403,12 @@
 
     mount.innerHTML =
       '<ul class="cvp-step-list" data-cvp-step-list></ul>' +
-      '<form class="cvp-step-add" data-cvp-step-form>' +
+      '<form class="cvp-step-add" id="cvp-step-form" data-cvp-step-form>' +
         '<input type="text" data-cvp-step-input placeholder="Add a next step…" maxlength="200" aria-label="Add a next step">' +
         '<button type="submit" class="cvp-button">Add</button>' +
       '</form>';
 
-    var form = mount.querySelector('[data-cvp-step-form]');
+    var form = mount.querySelector('#cvp-step-form');
     var input = mount.querySelector('[data-cvp-step-input]');
     form.addEventListener('submit', function (event) {
       event.preventDefault();
