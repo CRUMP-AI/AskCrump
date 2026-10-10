@@ -20,10 +20,27 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
         '/install-prompt.css?v=5.9.76',
         '/auth-styles.css',
         '/crump-v1-body.css?v=5.9.76-brand-retina-1',
+        # Vision shell: the signed-out demo entry (?demo=1) mounts the six
+        # destinations without authentication, so these ship pre-auth.
+        '/crump-vision-shell-1.0.css?v=1.0.0-vision-shell-1',
+        '/crump-vision-home-1.0.css?v=1.0.0-vision-home-1',
+        '/crump-vision-chats-1.0.css?v=1.0.0-vision-chats-1',
+        '/crump-vision-projects-1.0.css?v=1.0.0-vision-projects-1',
+        '/crump-vision-library-1.0.css?v=1.0.0-vision-library-1',
+        '/crump-vision-studios-1.0.css?v=1.0.0-vision-studios-1',
+        '/crump-vision-you-1.0.css?v=1.0.0-vision-you-1',
     ]
     assert scripts == [
         '/telemetry-config.js?v=5.9.76',
+        '/crump-vision-demo-1.0.js?v=1.0.0-vision-demo-1',
         '/runtime-body-v1.js?v=5.9.76-cache-integrity-1',
+        '/crump-vision-shell-1.0.js?v=1.0.0-vision-shell-1',
+        '/crump-vision-home-1.0.js?v=1.0.0-vision-home-1',
+        '/crump-vision-chats-1.0.js?v=1.0.0-vision-chats-1',
+        '/crump-vision-projects-1.0.js?v=1.0.0-vision-projects-1',
+        '/crump-vision-library-1.0.js?v=1.0.0-vision-library-1',
+        '/crump-vision-studios-1.0.js?v=1.0.0-vision-studios-1',
+        '/crump-vision-you-1.0.js?v=1.0.0-vision-you-1',
         '/native-runtime.js',
         '/mobile-bridge.js',
         '/safe-storage.js',

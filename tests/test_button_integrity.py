@@ -26,6 +26,12 @@ EXPECTED_BUTTON_INVENTORY = {
     "public/crump-navigation-5.9.30.js": 4,
     "public/crump-product-5.3.1.js": 10,
     "public/crump-product-5.3.js": 58,
+    "public/crump-vision-home-1.0.js": 1,
+    "public/crump-vision-library-1.0.js": 6,
+    "public/crump-vision-projects-1.0.js": 6,
+    "public/crump-vision-shell-1.0.js": 3,
+    "public/crump-vision-studios-1.0.js": 5,
+    "public/crump-vision-you-1.0.js": 6,
     "public/install-prompt.js": 2,
     "public/lifecycle-manager.js": 2,
     "public/subscription-ui.js": 3,
@@ -45,6 +51,8 @@ DYNAMIC_BUTTON_INVENTORY = {
     "public/crump-product-5.3.js": 4,
     "public/crump-product-loader.js": 1,
     "public/crump-subscriptions-5.3.2.js": 2,
+    "public/crump-vision-chats-1.0.js": 2,
+    "public/crump-vision-shell-1.0.js": 1,
     "public/install-prompt.js": 1,
     "public/onboarding.js": 1,
     "public/ui-functions.js": 16,
@@ -289,7 +297,7 @@ def test_rendered_button_inventory_requires_explicit_review() -> None:
             inventory[page.relative_to(ROOT).as_posix()] = len(parser.buttons)
 
     assert inventory == EXPECTED_BUTTON_INVENTORY
-    assert sum(inventory.values()) == 193
+    assert sum(inventory.values()) == 220
 
 
 def test_programmatically_created_button_inventory_requires_explicit_review() -> None:
@@ -300,8 +308,8 @@ def test_programmatically_created_button_inventory_requires_explicit_review() ->
             inventory[path.relative_to(ROOT).as_posix()] = count
 
     assert inventory == DYNAMIC_BUTTON_INVENTORY
-    assert sum(inventory.values()) == 99
-    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 292
+    assert sum(inventory.values()) == 102
+    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 322
 
 
 def test_programmatically_created_buttons_declare_type_and_runtime_owner() -> None:
