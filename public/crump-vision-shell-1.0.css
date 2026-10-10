@@ -1,0 +1,442 @@
+/* Crump Vision — application shell (1.0)
+ *
+ * Six-destination rail + mobile nav + vision stage. Ink-black and gold,
+ * hairline borders, generous whitespace. No glows, no sparkles.
+ */
+
+:root {
+  --cv-bg: #070a0e;
+  --cv-panel: #0b0f14;
+  --cv-hairline: rgba(213, 185, 113, 0.16);
+  --cv-gold: #d5b971;
+  --cv-deep-gold: #b69855;
+  --cv-text: #f1efe9;
+  --cv-muted: #8a9196;
+  --cv-mobile-nav: 68px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Shared vision primitives (match the screen builders' skin)          */
+/* ------------------------------------------------------------------ */
+
+.cv-eyebrow {
+  font-family: Inter, -apple-system, "Segoe UI", sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--cv-gold);
+  margin: 0;
+}
+
+.cv-mascot {
+  display: block;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid rgba(213, 185, 113, 0.28);
+}
+
+.cv-view {
+  background: #070a0e;
+  color: #f1efe9;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  min-height: 100%;
+  padding: 48px 32px 96px;
+  box-sizing: border-box;
+}
+
+.cv-wrap {
+  /* Centered content column: wide enough to fill a desktop viewport without
+     collapsing into a narrow strip. The stage centers this with balanced
+     left/right margins. */
+  max-width: 1150px;
+  margin: 0 auto;
+}
+
+.cv-headline {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 400;
+  font-size: clamp(34px, 5vw, 52px);
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  margin: 0 0 14px;
+  color: #f1efe9;
+}
+
+.cv-sub {
+  font-size: 16px;
+  line-height: 1.65;
+  color: #8a9196;
+  margin: 0 0 44px;
+  max-width: 60ch;
+}
+
+.cv-card {
+  background: #0b0f14;
+  border: 1px solid rgba(213, 185, 113, 0.16);
+  border-radius: 8px;
+  padding: 32px;
+  margin-bottom: 24px;
+}
+
+.cv-card-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 8px;
+}
+
+.cv-card-head .cv-eyebrow {
+  margin-bottom: 10px;
+}
+
+.cv-card-title {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 24px;
+  font-weight: 400;
+  margin: 0;
+  color: #f1efe9;
+}
+
+.cv-card-copy {
+  font-size: 14px;
+  line-height: 1.65;
+  color: #8a9196;
+  margin: 14px 0 24px;
+}
+
+.cv-card-copy:last-child {
+  margin-bottom: 0;
+}
+
+.cv-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.cv-btn {
+  appearance: none;
+  border-radius: 8px;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 13px 28px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.cv-btn-primary {
+  background: #d5b971;
+  color: #070a0e;
+  border-color: #d5b971;
+}
+
+.cv-btn-primary:hover {
+  background: #e2c47f;
+  border-color: #e2c47f;
+}
+
+.cv-btn-ghost {
+  background: transparent;
+  color: #d5b971;
+  border-color: rgba(213, 185, 113, 0.4);
+}
+
+.cv-btn-ghost:hover {
+  border-color: #d5b971;
+  color: #e2c47f;
+}
+
+.cv-btn:focus-visible {
+  outline: 2px solid #d5b971;
+  outline-offset: 2px;
+}
+
+.cv-btn[disabled] {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* ------------------------------------------------------------------ */
+/* Desktop rail takeover (240px sidebar)                               */
+/* ------------------------------------------------------------------ */
+
+@media (min-width: 1101px) {
+  html[data-cv-shell="ready"] body.crump-v1-body {
+    --ac-rail: 240px;
+  }
+
+  /* While a vision view owns the stage the legacy conversation library is
+     display:none (see .cv-legacy-hidden), so it leaves the grid entirely and
+     the shell has exactly two tracks. A leftover third track would capture
+     .v1-workspace once the sidebar is gone — collapsing the stage (and the
+     #cvStage inside it) to zero width, which is what painted the black void.
+     Explicit placement keeps the rail and the workspace in their tracks. */
+  html[data-cv-shell="ready"] body.crump-v1-body .v1-shell.cv-vision-mounted {
+    grid-template-columns: var(--ac-rail) minmax(0, 1fr);
+  }
+  html[data-cv-shell="ready"] body.crump-v1-body .v1-shell.cv-vision-mounted > .v1-rail {
+    grid-column: 1;
+  }
+  html[data-cv-shell="ready"] body.crump-v1-body .v1-shell.cv-vision-mounted > .v1-workspace {
+    grid-column: 2;
+    min-width: 0;
+  }
+
+  html[data-cv-shell="ready"] body.crump-v1-body .v1-rail.cv-rail {
+    align-items: stretch;
+    justify-content: flex-start;
+    padding: 34px 22px 24px;
+    background: var(--cv-bg);
+    border-right: 1px solid var(--cv-hairline);
+  }
+}
+
+.cv-rail-inner {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+.cv-rail-brand {
+  padding: 0 4px;
+  margin-bottom: 36px;
+}
+
+.cv-rail-brand img {
+  display: block;
+  width: 100%;
+  max-width: 174px;
+  height: auto;
+}
+
+.cv-rail-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cv-destination {
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  width: 100%;
+  padding: 11px 13px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--cv-muted);
+  font-family: Inter, -apple-system, "Segoe UI", sans-serif;
+  font-size: 14.5px;
+  font-weight: 500;
+  line-height: 1.2;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+}
+
+.cv-destination svg {
+  width: 20px;
+  height: 20px;
+  flex: 0 0 auto;
+}
+
+.cv-destination:hover {
+  color: var(--cv-text);
+  background: rgba(213, 185, 113, 0.06);
+}
+
+.cv-destination.is-active {
+  color: var(--cv-gold);
+  background: rgba(213, 185, 113, 0.09);
+  border-color: rgba(213, 185, 113, 0.22);
+}
+
+.cv-rail-foot {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 14px;
+  padding-top: 24px;
+  border-top: 1px solid var(--cv-hairline);
+}
+
+.cv-rail-utility {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  background: transparent;
+  border: 0;
+  color: var(--cv-muted);
+  font-family: Inter, -apple-system, "Segoe UI", sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  text-align: left;
+}
+
+.cv-rail-utility svg {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+}
+
+.cv-rail-utility:hover {
+  color: var(--cv-text);
+}
+
+.cv-credits {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 18px;
+  border-radius: 999px;
+  border: 1px solid rgba(213, 185, 113, 0.35);
+  background: transparent;
+  color: var(--cv-gold);
+  font-family: Inter, -apple-system, "Segoe UI", sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease;
+}
+
+.cv-credits:hover {
+  border-color: var(--cv-gold);
+  color: #e2c47f;
+}
+
+.cv-rail-microcopy {
+  margin: 0;
+  font-family: Inter, -apple-system, "Segoe UI", sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+  color: var(--cv-muted);
+  text-align: center;
+}
+
+.cv-destination:focus-visible,
+.cv-rail-utility:focus-visible,
+.cv-credits:focus-visible,
+.cv-mnav-item:focus-visible {
+  outline: 2px solid #d5b971;
+  outline-offset: 2px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Mobile nav: fixed bottom bar, content never slides underneath       */
+/* ------------------------------------------------------------------ */
+
+.cv-mobile-nav {
+  display: none;
+}
+
+@media (max-width: 1100px) {
+  html[data-cv-shell="ready"] body.crump-v1-body #crump5930MobileNav {
+    display: none !important;
+  }
+
+  html[data-cv-shell="ready"] body.crump-v1-body .cv-mobile-nav {
+    display: grid;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 490;
+    min-height: calc(var(--cv-mobile-nav) + env(safe-area-inset-bottom));
+    padding: 6px 4px env(safe-area-inset-bottom);
+    background: rgba(7, 10, 14, 0.96);
+    border-top: 1px solid var(--cv-hairline);
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+  }
+}
+
+.cv-mnav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 5px;
+  padding: 8px 2px 4px;
+  background: none;
+  border: 0;
+  color: var(--cv-muted);
+  font-family: Inter, -apple-system, "Segoe UI", sans-serif;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+}
+
+.cv-mnav-item svg {
+  width: 22px;
+  height: 22px;
+}
+
+.cv-mnav-item.is-active {
+  color: var(--cv-gold);
+}
+
+/* Vision experience: exactly one sidebar. While a vision view owns the stage,
+   the legacy conversation library must not render as a second sidebar. */
+html[data-cv-shell="ready"] body.crump-v1-body .v1-shell.cv-vision-mounted #sidebar.cv-legacy-hidden {
+  display: none !important;
+}
+
+/* ------------------------------------------------------------------ */
+/* Vision stage: mounts registered views over the workspace            */
+/* ------------------------------------------------------------------ */
+
+html[data-cv-shell="ready"] body.crump-v1-body .v1-workspace {
+  position: relative;
+}
+
+.cv-stage {
+  position: absolute;
+  inset: 0;
+  z-index: 400;
+  display: flex;
+  flex-direction: column;
+  background: var(--cv-bg);
+}
+
+.cv-stage[hidden] {
+  display: none !important;
+}
+
+.cv-stage-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Fixed mobile nav must never cover card content. */
+@media (max-width: 1100px) {
+  html[data-cv-shell="ready"] body.crump-v1-body .cv-stage-scroll {
+    padding-bottom: calc(var(--cv-mobile-nav) + env(safe-area-inset-bottom) + 28px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cv-destination,
+  .cv-mnav-item,
+  .cv-rail-utility,
+  .cv-credits,
+  .cv-btn {
+    transition: none;
+  }
+}

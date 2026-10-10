@@ -1,0 +1,487 @@
+/* Ask Crump — Director's Cut · Library view styles (1.0) */
+
+.cvl-root {
+  --cvl-bg: #070a0e;
+  --cvl-panel: #0b0f14;
+  --cvl-hairline: rgba(213, 185, 113, 0.16);
+  --cvl-gold: #d5b971;
+  --cvl-gold-deep: #b69855;
+  --cvl-text: #f1efe9;
+  --cvl-muted: #8a9196;
+  background: var(--cvl-bg);
+  color: var(--cvl-text);
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  padding: 48px 40px 80px;
+  max-width: 1180px;
+  margin: 0 auto;
+  min-height: 60vh;
+}
+
+.cv-eyebrow {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.22em;
+  color: var(--cvl-gold);
+  margin: 0 0 14px;
+  font-weight: 600;
+}
+
+.cvl-header { margin-bottom: 36px; max-width: 720px; }
+
+.cvl-title {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 400;
+  font-size: clamp(34px, 4.5vw, 52px);
+  line-height: 1.08;
+  margin: 0 0 16px;
+  color: var(--cvl-text);
+  letter-spacing: -0.01em;
+}
+
+.cvl-lede {
+  font-size: 16px;
+  line-height: 1.65;
+  color: var(--cvl-muted);
+  margin: 0;
+}
+
+/* ---- toolbar ---- */
+
+.cvl-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  margin-bottom: 28px;
+}
+
+.cvl-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--cvl-panel);
+  border: 1px solid var(--cvl-hairline);
+  border-radius: 8px;
+  padding: 0 14px;
+  width: min(360px, 100%);
+}
+
+.cvl-search-icon { color: var(--cvl-muted); display: flex; flex: 0 0 auto; }
+
+.cvl-search input {
+  flex: 1;
+  background: none;
+  border: none;
+  color: var(--cvl-text);
+  font: inherit;
+  font-size: 14px;
+  padding: 12px 0;
+  min-width: 0;
+}
+.cvl-search input::placeholder { color: var(--cvl-muted); }
+.cvl-search input:focus { outline: none; }
+/* Visible focus indicator on the wrapper (brand-law gold outline). */
+.cvl-search:focus-within {
+  outline: 2px solid #d5b971;
+  outline-offset: 2px;
+  border-color: rgba(213, 185, 113, 0.45);
+}
+
+.cvl-count {
+  font-size: 12.5px;
+  color: var(--cvl-muted);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin: 0;
+  white-space: nowrap;
+}
+
+/* ---- bookshelf ---- */
+
+.cvl-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 24px;
+}
+
+.cvl-book {
+  background: var(--cvl-panel);
+  border: 1px solid var(--cvl-hairline);
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.18s ease;
+}
+.cvl-book:hover { border-color: rgba(213, 185, 113, 0.4); }
+
+.cvl-cover {
+  position: relative;
+  height: 190px;
+  /* Brand law: flat ink, no glows. The serif initial and spine carry it. */
+  background: #0e1319;
+  border-bottom: 1px solid var(--cvl-hairline);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cvl-cover-initial {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 72px;
+  color: var(--cvl-gold);
+  opacity: 0.9;
+  line-height: 1;
+}
+
+.cvl-cover-spine {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 10px;
+  background: linear-gradient(90deg, rgba(213, 185, 113, 0.28), rgba(213, 185, 113, 0.05));
+}
+
+.cvl-book-body { padding: 20px 20px 22px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+
+.cvl-book-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.cvl-type-chip {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--cvl-muted);
+}
+
+.cvl-version-pill {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cvl-gold);
+  border: 1px solid rgba(213, 185, 113, 0.4);
+  border-radius: 999px;
+  padding: 4px 12px;
+  white-space: nowrap;
+}
+
+.cvl-book-title {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 400;
+  font-size: 21px;
+  line-height: 1.25;
+  margin: 2px 0 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.cvl-book-author { font-size: 13px; color: var(--cvl-muted); margin: 0; }
+
+.cvl-book-meta { font-size: 12.5px; color: var(--cvl-muted); margin: 0 0 4px; }
+
+.cvl-history { margin: 2px 0 4px; border-top: 1px solid var(--cvl-hairline); padding-top: 10px; }
+
+.cvl-history summary {
+  font-size: 12.5px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--cvl-gold);
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.cvl-history summary::-webkit-details-marker { display: none; }
+.cvl-history summary::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-right: 1px solid var(--cvl-gold);
+  border-bottom: 1px solid var(--cvl-gold);
+  transform: rotate(-45deg);
+  transition: transform 0.18s ease;
+}
+.cvl-history[open] summary::before { transform: rotate(45deg); }
+
+.cvl-history-body { padding: 12px 0 2px; }
+
+.cvl-history-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+  padding: 6px 0;
+  border-bottom: 1px dotted rgba(213, 185, 113, 0.18);
+}
+.cvl-history-row span { color: var(--cvl-text); }
+.cvl-history-row time { color: var(--cvl-muted); }
+
+.cvl-history-note {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--cvl-muted);
+  margin: 10px 0 0;
+}
+
+.cvl-open {
+  margin-top: auto;
+  align-self: flex-start;
+  background: transparent;
+  border: 1px solid rgba(213, 185, 113, 0.4);
+  border-radius: 8px;
+  color: var(--cvl-gold);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 9px 22px;
+  cursor: pointer;
+  transition: background 0.18s ease;
+}
+.cvl-open:hover { background: rgba(213, 185, 113, 0.08); }
+
+/* ---- reader overlay ---- */
+
+.cvl-overlay {
+  position: fixed;
+  inset: 0;
+  /* The overlay is appended to document.body, outside .cvl-root, so the
+     --cvl-* custom properties are declared here as well. Without them the
+     sheet below computes to a transparent background and the reader text
+     floats over the dimmed bookshelf. */
+  --cvl-bg: #070a0e;
+  --cvl-panel: #0b0f14;
+  --cvl-hairline: rgba(213, 185, 113, 0.16);
+  --cvl-gold: #d5b971;
+  --cvl-gold-deep: #b69855;
+  --cvl-text: #f1efe9;
+  --cvl-muted: #8a9196;
+  /* Below the demo banner (9999) so the banner stays on top in demo mode. */
+  z-index: 9000;
+  background: rgba(4, 6, 8, 0.82);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 20px;
+}
+
+.cvl-sheet {
+  /* Solid ink panel — never translucent, so reader text can never overlap
+     the bookshelf cards behind the overlay. */
+  background: #070a0e;
+  border: 1px solid var(--cvl-hairline);
+  border-radius: 8px;
+  width: min(960px, 100%);
+  max-height: calc(100vh - 64px);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.cvl-sheet-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 28px 32px 22px;
+  border-bottom: 1px solid var(--cvl-hairline);
+}
+.cvl-sheet-head h3 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 400;
+  font-size: 26px;
+  margin: 0 0 6px;
+}
+.cvl-sheet-head p { font-size: 13.5px; color: var(--cvl-muted); margin: 0; }
+
+.cvl-close {
+  background: none;
+  border: 1px solid var(--cvl-hairline);
+  border-radius: 8px;
+  color: var(--cvl-text);
+  font-size: 20px;
+  line-height: 1;
+  width: 38px;
+  height: 38px;
+  cursor: pointer;
+  flex: 0 0 auto;
+}
+.cvl-close:hover { border-color: rgba(213, 185, 113, 0.45); color: var(--cvl-gold); }
+
+.cvl-reader-loading {
+  padding: 64px 32px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: center;
+}
+.cvl-reader-loading strong {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 400;
+  font-size: 20px;
+}
+.cvl-reader-loading span { font-size: 14px; color: var(--cvl-muted); }
+
+.cvl-reader {
+  display: grid;
+  grid-template-columns: 250px minmax(0, 1fr);
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.cvl-reader-nav {
+  border-right: 1px solid var(--cvl-hairline);
+  padding: 22px 0;
+  overflow-y: auto;
+}
+
+.cvl-reader-nav-head {
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--cvl-muted);
+  margin: 0 0 12px;
+  padding: 0 22px;
+}
+
+.cvl-reader-nav-list button {
+  display: flex;
+  gap: 12px;
+  align-items: baseline;
+  width: 100%;
+  background: none;
+  border: none;
+  border-left: 2px solid transparent;
+  color: var(--cvl-text);
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  padding: 10px 22px;
+  cursor: pointer;
+}
+.cvl-reader-nav-list button small { color: var(--cvl-muted); font-size: 11.5px; }
+.cvl-reader-nav-list button:hover { background: rgba(213, 185, 113, 0.05); }
+.cvl-reader-nav-list button.is-active {
+  border-left-color: var(--cvl-gold);
+  background: rgba(213, 185, 113, 0.07);
+}
+
+.cvl-reader-main {
+  padding: 34px 44px 60px;
+  overflow-y: auto;
+  max-width: 720px;
+}
+.cvl-reader-main h4 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 400;
+  font-size: 24px;
+  margin: 0 0 20px;
+}
+.cvl-reader-main p {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 16.5px;
+  line-height: 1.85;
+  color: var(--cvl-text);
+  margin: 0 0 1.2em;
+}
+.cvl-reader-empty { color: var(--cvl-muted); font-style: italic; }
+
+.cvl-button {
+  background: transparent;
+  border: 1px solid rgba(213, 185, 113, 0.4);
+  border-radius: 8px;
+  color: var(--cvl-gold);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 10px 22px;
+  cursor: pointer;
+  margin-top: 12px;
+}
+.cvl-button:hover { background: rgba(213, 185, 113, 0.08); }
+
+/* ---- states ---- */
+
+.cvl-skeleton { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 24px; margin-bottom: 12px; }
+.cvl-skeleton i {
+  display: block;
+  height: 340px;
+  border-radius: 8px;
+  background: rgba(213, 185, 113, 0.06);
+  animation: cvl-pulse 1.6s ease-in-out infinite;
+}
+@keyframes cvl-pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
+
+.cvl-status { font-size: 13px; color: var(--cvl-muted); margin: 0; }
+
+.cvl-panel {
+  background: var(--cvl-panel);
+  border: 1px solid var(--cvl-hairline);
+  border-radius: 8px;
+  padding: 32px;
+  max-width: 560px;
+}
+
+.cvl-error h2 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 400;
+  font-size: 24px;
+  margin: 0 0 10px;
+}
+.cvl-error p { font-size: 14px; color: var(--cvl-muted); margin: 0 0 6px; line-height: 1.6; }
+
+.cvl-empty {
+  text-align: center;
+  padding: 72px 24px;
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.cvl-empty-mascot {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 1px solid var(--cvl-hairline);
+  margin-bottom: 28px;
+}
+
+.cvl-empty h2 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 400;
+  font-size: clamp(26px, 3.4vw, 36px);
+  margin: 0 0 14px;
+}
+
+.cvl-empty p { font-size: 15px; color: var(--cvl-muted); line-height: 1.65; margin: 0 0 24px; }
+
+.cvl-nomatch { text-align: center; padding: 64px 24px; }
+.cvl-nomatch h2 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 400;
+  font-size: 24px;
+  margin: 0 0 10px;
+}
+.cvl-nomatch p { font-size: 14px; color: var(--cvl-muted); margin: 0; }
+
+@media (max-width: 900px) {
+  .cvl-root { padding: 32px 20px 64px; }
+  .cvl-toolbar { flex-direction: column; align-items: stretch; }
+  .cvl-search { width: 100%; }
+  .cvl-reader { grid-template-columns: 1fr; }
+  .cvl-reader-nav { border-right: none; border-bottom: 1px solid var(--cvl-hairline); max-height: 180px; }
+  .cvl-reader-main { padding: 24px 22px 48px; }
+  .cvl-overlay { padding: 16px 12px; }
+}
