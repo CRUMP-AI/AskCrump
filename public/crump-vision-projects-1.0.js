@@ -190,6 +190,21 @@
       '<div class="cvp-skeleton" aria-hidden="true"><i></i><i></i><i></i></div>' +
       '<p class="cvp-status" role="status">Loading your projects…</p>';
 
+    // Authenticated data only: never fire workspace API calls for signed-out
+    // visitors (they 404 and pollute the console). Demo mode serves fixture
+    // data through its own interceptor.
+    var authed = Boolean(window.currentUser && window.currentUser.id);
+    var demo = window.__crumpVisionDemo === true;
+    if (!authed && !demo) {
+      switcher.innerHTML = '';
+      detail.innerHTML =
+        '<div class="cvp-panel" role="status">' +
+          '<h2>Sign in to see your projects.</h2>' +
+          '<p>Durable work you save as a Project lives here — with its instructions, decisions, and keepsakes intact.</p>' +
+        '</div>';
+      return;
+    }
+
     api('/api/projects').then(function (data) {
       var projects = Array.isArray(data.projects) ? data.projects : [];
       if (!projects.length) {

@@ -299,6 +299,20 @@
       '<div class="cvl-skeleton" aria-hidden="true"><i></i><i></i><i></i><i></i></div>' +
       '<p class="cvl-status" role="status">Opening your library…</p>';
 
+    // Authenticated data only: never fire workspace API calls for signed-out
+    // visitors (they 404 and pollute the console). Demo mode serves fixture
+    // data through its own interceptor.
+    var authed = Boolean(window.currentUser && window.currentUser.id);
+    var demo = window.__crumpVisionDemo === true;
+    if (!authed && !demo) {
+      shelf.innerHTML =
+        '<div class="cvl-panel" role="status">' +
+          '<h2>Sign in to open your library.</h2>' +
+          '<p>Every keepsake you finish with Crump — documents, decks, and manuscripts — lives here, ready to reopen, read, and share.</p>' +
+        '</div>';
+      return;
+    }
+
     api('/api/library/books').then(function (data) {
       var books = Array.isArray(data.books) ? data.books : [];
       books.sort(function (a, b) {

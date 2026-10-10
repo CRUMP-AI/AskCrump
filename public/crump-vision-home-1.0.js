@@ -148,6 +148,18 @@
       root.appendChild(wrap);
       container.appendChild(root);
 
+      // Authenticated data only: signed-out visitors get the auth screen, so
+      // never fire workspace API calls for them (they 404 and pollute the
+      // console). Demo mode serves fixture data through its own interceptor.
+      var authed = Boolean(window.currentUser && window.currentUser.id);
+      var demo = window.__crumpVisionDemo === true;
+      if (!authed && !demo) {
+        sub.textContent = 'Sign in to see your briefing.';
+        plateBody.innerHTML = '<div class="cv-plate"><p class="cv-empty">Your projects will appear here once you sign in.</p></div>';
+        nudgeBody.innerHTML = '<div class="cv-nudges"><p class="cv-empty">Your library will appear here once you sign in.</p></div>';
+        return;
+      }
+
       Promise.all([
         api('/api/projects').catch(function () { return {}; }),
         api('/api/library/books').catch(function () { return {}; }),
