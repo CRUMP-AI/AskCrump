@@ -1,0 +1,157 @@
+/* Appearance chooser only. The app-wide palettes live in crump-design-pass.css. */
+body.crump-v1-body .settings-list.appearance-list {
+  padding: 10px !important;
+  overflow: visible !important;
+}
+
+body.crump-v1-body .appearance-choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+body.crump-v1-body .appearance-choices legend {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+body.crump-v1-body .appearance-choice {
+  position: relative;
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 58px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 12px;
+  min-height: 92px;
+  padding: 12px;
+  border: 1px solid var(--atelier-line, #e4ded2);
+  border-radius: 16px;
+  background: var(--atelier-white, #fffdf9);
+  color: var(--atelier-panel-text, #22252a) !important;
+  cursor: pointer;
+  transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
+}
+
+body.crump-v1-body .appearance-choice:hover {
+  border-color: color-mix(in srgb, var(--atelier-brass, #b2914e) 48%, var(--atelier-line, #e4ded2));
+  transform: translateY(-1px);
+}
+
+body.crump-v1-body .appearance-choice.is-selected {
+  border-color: var(--atelier-brass, #b2914e);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--atelier-brass, #b2914e) 15%, transparent);
+}
+
+body.crump-v1-body .appearance-choice input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+body.crump-v1-body .appearance-choice:has(input:focus-visible) {
+  outline: 2px solid var(--atelier-brass, #b2914e) !important;
+  outline-offset: 3px !important;
+}
+
+body.crump-v1-body .appearance-preview {
+  display: grid;
+  width: 58px;
+  height: 52px;
+  grid-template-columns: 17px 1fr;
+  overflow: hidden;
+  border: 1px solid rgba(20, 22, 25, .14);
+  border-radius: 10px;
+  box-shadow: 0 5px 14px rgba(22, 20, 16, .08);
+}
+
+body.crump-v1-body .appearance-preview::before {
+  content: '';
+  grid-row: 1;
+  background: #111419;
+}
+
+body.crump-v1-body .appearance-preview::after {
+  content: '';
+  grid-row: 1;
+  background:
+    linear-gradient(90deg, transparent 8px, rgba(178, 145, 78, .7) 8px 21px, transparent 21px) 0 11px / 100% 2px no-repeat,
+    linear-gradient(90deg, transparent 8px, currentColor 8px 31px, transparent 31px) 0 23px / 100% 2px no-repeat,
+    linear-gradient(90deg, transparent 8px, currentColor 8px 25px, transparent 25px) 0 34px / 100% 2px no-repeat,
+    var(--appearance-preview-surface);
+  color: var(--appearance-preview-line);
+}
+
+body.crump-v1-body .appearance-preview-light {
+  --appearance-preview-surface: #f8f5ee;
+  --appearance-preview-line: #9da0a4;
+}
+
+body.crump-v1-body .appearance-preview-dark {
+  --appearance-preview-surface: #1b1e23;
+  --appearance-preview-line: #777d84;
+  border-color: rgba(255, 255, 255, .13);
+}
+
+body.crump-v1-body .appearance-choice-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+body.crump-v1-body .appearance-choice-copy strong {
+  color: var(--atelier-panel-text, #22252a) !important;
+  font-size: 12px;
+  font-weight: 680;
+}
+
+body.crump-v1-body .appearance-choice-copy small {
+  color: var(--atelier-panel-muted, #6e747a) !important;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+body.crump-v1-body .appearance-check {
+  display: grid;
+  width: 18px;
+  height: 18px;
+  place-items: center;
+  border: 1px solid var(--atelier-line, #e4ded2);
+  border-radius: 50%;
+  color: transparent;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+body.crump-v1-body .appearance-choice.is-selected .appearance-check {
+  border-color: var(--atelier-brass, #b2914e);
+  background: var(--atelier-brass, #b2914e);
+  color: #111317;
+}
+
+body.crump-v1-body .appearance-device-note {
+  margin: 12px 2px 0;
+  color: var(--atelier-panel-muted, #6e747a) !important;
+  font-size: 9px;
+  line-height: 1.55;
+}
+
+@media (max-width: 640px) {
+  body.crump-v1-body .appearance-choices { grid-template-columns: 1fr; }
+  body.crump-v1-body .appearance-choice { min-height: 82px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body.crump-v1-body .appearance-choice { transition: none; }
+}

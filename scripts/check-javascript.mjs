@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { createContext, runInContext } from 'node:vm';
 
 const expectedFiles = new Set([
-  'account-manager.js', 'app.js', 'auth-controller.js', 'auth-resilience.js', 'billing-manager.js', 'chat-resilience.js', 'chat-sync.js',
+  'account-manager.js', 'app.js', 'appearance-theme.js', 'auth-controller.js', 'auth-resilience.js', 'billing-manager.js', 'chat-resilience.js', 'chat-sync.js',
   'crump-4.3.js', 'crump-4.4.js', 'crump-5.0.js', 'crump-billing-5.1.js',
   'crump-precision-image-edit.js', 'crump-precision-image-edit-loader.js',
   'crump-5.2.js', 'crump-5.2.2.js', 'crump-5.2.4.js', 'crump-navigation-5.2.5.js',
@@ -1034,6 +1034,7 @@ const museReleaseRepairVersion = `${releaseVersion}-muse-release-repair-1`;
 const cacheIntegrityVersion = `${releaseVersion}-friendly-workspace-1`;
 const shellNoTaglineVersion = `${releaseVersion}-shell-no-tagline-1`;
 const atelierWorkspaceVersion = `${releaseVersion}-atelier-workspace-1`;
+const appearanceChoiceVersion = `${releaseVersion}-appearance-choice-1`;
 const documentDeliveryFocusedVersion = `${releaseVersion}-reference-fidelity-hard-contract-1`;
 const outcomeRefinementRecoveryVersion = `${releaseVersion}-outcome-refinement-recovery-1`;
 const authUpdateGuardVersion = `${releaseVersion}-update-work-guard-1`;
@@ -1055,6 +1056,8 @@ const creationSheetContainmentVersion = `${releaseVersion}-creation-sheet-contai
 const referenceFidelityVersion = `${releaseVersion}-reference-fidelity-hard-contract-1`;
 const projectsEmptyStateVersion = `${releaseVersion}-projects-empty-state-1`;
 const requiredBodyFiles = [
+  'public/appearance-controls.css',
+  'public/appearance-theme.js',
   'public/crump-v1-body.css',
   'public/crump-v1-body.js',
   'public/crump-design-pass.css',
@@ -1187,6 +1190,16 @@ if (JSON.stringify(shellDesktopDestinations) !== JSON.stringify(desktopDestinati
 }
 if (!releaseVersion || !landingHtml.includes(`/landing.js?v=${landingVersion}`)) {
   console.error('Ask Crump marketing page is missing its release-versioned script.');
+  process.exit(1);
+}
+
+const appearanceThemeUrl = `/appearance-theme.js?v=${appearanceChoiceVersion}`;
+const appearanceControlsUrl = `/appearance-controls.css?v=${appearanceChoiceVersion}`;
+if (!appHtml.includes(`src="${appearanceThemeUrl}"`) ||
+    !appHtml.includes(`href="${appearanceControlsUrl}"`) ||
+    appHtml.indexOf(appearanceThemeUrl) > appHtml.indexOf('/crump-v1-body.css') ||
+    !appHtml.includes('<html lang="en" data-theme="light">')) {
+  console.error('Ask Crump appearance assets must load before the workspace cascade with Light as the stable default.');
   process.exit(1);
 }
 
@@ -1363,7 +1376,7 @@ const finalStyleUrls = source => {
   if (start < 0 || end < 0) return [];
   return [...source.slice(start, end).matchAll(/\['([^']+)'/g)].map(match => match[1]);
 };
-const expectedFinalStyle = `/crump-design-pass.css?v=${atelierWorkspaceVersion}`;
+const expectedFinalStyle = `/crump-design-pass.css?v=${appearanceChoiceVersion}`;
 for (const source of [runtime, nativeBuildSource]) {
   const finalStyles = finalStyleUrls(source);
   if (finalStyles.length !== 1 || finalStyles[0] !== expectedFinalStyle ||
@@ -1377,7 +1390,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/onboarding.css?v=${cacheIntegrityVersion}`) ||
     !runtime.includes(`/onboarding.js?v=${cacheIntegrityVersion}`) ||
     !runtime.includes(`/conversation.css?v=${museReleaseRepairVersion}`) ||
-    !runtime.includes(`/crump-design-pass.css?v=${atelierWorkspaceVersion}`) ||
+    !runtime.includes(`/crump-design-pass.css?v=${appearanceChoiceVersion}`) ||
     !runtime.includes(`/credit-confirmation.css?v=${creditConfirmationVersion}`) ||
     !runtime.includes(`/credit-confirmation.js?v=${creditConfirmationVersion}`) ||
     !runtime.includes(`/chat-resilience.js?v=${creditConfirmationVersion}`) ||
@@ -1675,15 +1688,17 @@ for (const [label, source] of [
     process.exit(1);
   }
 }
-if (!serviceWorker.includes('ask-crump-new-body-v1-r256-atelier-workspace-1') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r257-appearance-choice-1') ||
     !serviceWorker.includes(`'${shellBrandUrl}'`) ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-shell-lockup-light.png'") ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
+    !serviceWorker.includes(appearanceThemeUrl) ||
+    !serviceWorker.includes(appearanceControlsUrl) ||
     !serviceWorker.includes(`/runtime-body-v1.js?v=${atelierWorkspaceVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${museReleaseRepairVersion}`) ||
-    !serviceWorker.includes(`/crump-design-pass.css?v=${atelierWorkspaceVersion}`) ||
+    !serviceWorker.includes(`/crump-design-pass.css?v=${appearanceChoiceVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.css?v=${creditConfirmationVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.js?v=${creditConfirmationVersion}`) ||
     !serviceWorker.includes(`/chat-resilience.js?v=${creditConfirmationVersion}`) ||
@@ -1730,6 +1745,8 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r256-atelier-workspace-1') ||
     serviceWorker.includes(`/crump-code-5.9.35.js?v=${creditConfirmationVersion}`) ||
     serviceWorker.includes(`/crump-code-5.9.35.css?v=${intelligenceArchitectureVersion}`) ||
     !serviceWorker.includes("url.pathname === '/conversation.css'") ||
+    !serviceWorker.includes("url.pathname === '/appearance-theme.js'") ||
+    !serviceWorker.includes("url.pathname === '/appearance-controls.css'") ||
     !serviceWorker.includes("url.pathname === '/credit-confirmation.css'") ||
     !serviceWorker.includes("url.pathname === '/credit-confirmation.js'") ||
     !serviceWorker.includes("url.pathname === '/chat-resilience.js'") ||

@@ -1,0 +1,155 @@
+<!doctype html>
+<html lang="en" data-cv-shell="ready">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="theme-color" content="#f6f4ee">
+  <link rel="icon" href="data:,">
+  <title>Appearance theme fixture</title>
+  <script src="/public/appearance-theme.js?v=5.9.76-appearance-choice-1"></script>
+  <link rel="stylesheet" href="/public/crump-v1-body.css?v=appearance-theme-fixture-1">
+  <link rel="stylesheet" href="/public/crump-vision-shell-1.0.css?v=appearance-theme-fixture-1">
+  <link rel="stylesheet" href="/public/crump-4.4.css?v=appearance-theme-fixture-1">
+  <link rel="stylesheet" href="/public/crump-5.0.css?v=appearance-theme-fixture-1">
+  <link rel="stylesheet" href="/public/crump-billing-5.1.css?v=appearance-theme-fixture-1">
+  <link rel="stylesheet" href="/public/crump-5.2.css?v=appearance-theme-fixture-1">
+  <link rel="stylesheet" href="/public/crump-product-5.3.css?v=appearance-theme-fixture-1">
+  <link rel="stylesheet" href="/public/crump-product-5.3.1.css?v=appearance-theme-fixture-1">
+  <link rel="stylesheet" href="/public/crump-design-pass.css?v=appearance-theme-fixture-1">
+  <style>
+    .fixture-workspace { min-height: 100vh; padding: 96px 56px; }
+    .fixture-card { max-width: 680px; }
+    .fixture-settings { position: fixed; right: 28px; bottom: 28px; width: min(420px, calc(100vw - 56px)); padding: 22px; }
+    .fixture-settings fieldset { display: flex; gap: 14px; margin: 16px 0 0; padding: 0; border: 0; }
+    .fixture-settings label { display: inline-flex; min-height: 44px; align-items: center; gap: 8px; }
+    .fixture-probe-gallery { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 18px; max-width: 980px; margin-top: 56px; }
+    .fixture-probe-gallery > .fixture-probe-card {
+      position: relative !important;
+      inset: auto !important;
+      left: auto !important;
+      right: auto !important;
+      bottom: auto !important;
+      width: 100% !important;
+      max-height: none !important;
+      opacity: 1 !important;
+      transform: none !important;
+    }
+    .fixture-probe-gallery .crump44-panel-content { overflow: visible; }
+    .fixture-probe-gallery .billing51-balance-card { grid-template-columns: 1fr; }
+    body.crump-v1-body .fixture-probe-gallery .billing51-mark { background: none !important; }
+    .fixture-probe-gallery .crump53-card { min-height: 220px; }
+    @media (max-width: 720px) {
+      .fixture-workspace { padding: 72px 18px 220px; }
+      .fixture-settings { right: 14px; bottom: 82px; width: calc(100vw - 28px); }
+      .fixture-probe-gallery { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body class="crump-v1-body crump-50 cv-conversations-open">
+  <div class="v1-shell cv-vision-mounted">
+    <nav class="v1-rail cv-rail" aria-label="Fixture navigation">
+      <div class="cv-rail-inner">
+        <strong class="cv-rail-brand-copy">Ask Crump</strong>
+      </div>
+    </nav>
+
+    <aside id="sidebar" class="sidebar v1-library active" aria-label="Conversations">
+      <div class="sidebar-header v1-library-header">
+        <div class="sidebar-branding"></div>
+        <button class="btn-icon v1-library-close" type="button" aria-label="Close conversations">×</button>
+      </div>
+      <div class="sidebar-actions v1-library-actions">
+        <button id="newChatBtn" class="v1-new-conversation" type="button">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          <span>New conversation</span>
+          <kbd>⇧⌘N</kbd>
+        </button>
+        <button id="clearChatsBtn" class="v1-clear-conversations" type="button">Clear all</button>
+      </div>
+      <div class="sidebar-section v1-library-list">
+        <div class="v1-library-section-head">
+          <span class="section-title">Conversations</span>
+          <span class="v1-library-hint">Synced</span>
+        </div>
+        <div class="chats-list">
+          <article class="chat-item active">
+            <div class="chat-item-content">
+              <div class="chat-title">Launch plan</div>
+              <div class="chat-preview">Continue the next milestone.</div>
+            </div>
+            <button class="delete-chat-btn" type="button" aria-label="Conversation options">•••</button>
+          </article>
+        </div>
+      </div>
+      <div class="sidebar-footer v1-library-footer">
+        <button class="sidebar-footer-btn" type="button">Settings</button>
+        <div class="v1-library-status"><span class="v1-status-dot"></span><span>Account sync</span></div>
+      </div>
+    </aside>
+
+    <main class="v1-workspace fixture-workspace">
+      <section class="cv-view fixture-card" aria-labelledby="fixtureHeadline">
+        <p class="cv-eyebrow">ASK CRUMP</p>
+        <h1 id="fixtureHeadline" class="cv-headline">A calmer place to get meaningful work done.</h1>
+        <p class="cv-sub">Choose a thought, a file, or a project and keep moving without losing the context.</p>
+        <article class="cv-card">
+          <h2 class="cv-card-title">Continue your work</h2>
+          <p class="cv-card-copy">Your recent conversations and durable projects stay ready when you return.</p>
+        </article>
+      </section>
+
+      <section class="v1-settings-sheet fixture-settings" aria-labelledby="appearanceHeading">
+        <h2 id="appearanceHeading">Appearance</h2>
+        <p>Choose the workspace that feels best to you. Your choice stays on this device.</p>
+        <fieldset role="radiogroup" aria-label="Appearance theme">
+          <label for="appearanceLight"><input id="appearanceLight" name="appearanceTheme" type="radio" value="light" checked> Light</label>
+          <label for="appearanceDark"><input id="appearanceDark" name="appearanceTheme" type="radio" value="dark"> Dark</label>
+        </fieldset>
+      </section>
+
+      <section id="fixtureSurfaceGallery" class="fixture-probe-gallery" aria-label="Appearance surface probes">
+        <article class="crump44-panel fixture-probe-card">
+          <header class="crump44-panel-header">
+            <div><span class="crump44-eyebrow">INTELLIGENCE</span><strong>How Crump should think</strong><small>Choose a thoughtful response style for this conversation.</small></div>
+            <button class="crump44-close" type="button" aria-label="Close Intelligence">×</button>
+          </header>
+          <div class="crump44-panel-content">
+            <section class="crump44-section">
+              <div class="crump44-section-heading"><span>Response depth</span><small>Balanced is a strong everyday default.</small></div>
+              <div class="crump44-segmented"><button class="crump44-segment active" type="button">Balanced</button><button class="crump44-segment" type="button">Focused</button></div>
+            </section>
+          </div>
+        </article>
+
+        <article class="crump50-sheet crump50-options-sheet is-visible fixture-probe-card">
+          <header class="crump50-sheet-head"><div><span>IMAGE STUDIO</span><strong>Build the frame before you describe it.</strong></div><button class="crump50-sheet-close" type="button" aria-label="Close Image Studio">×</button></header>
+          <div class="crump50-options-body">
+            <button class="crump50-reference-action" type="button"><span aria-hidden="true">✦</span><span><strong>Add a reference</strong><small>Keep the important visual details anchored.</small></span><b>Choose</b></button>
+            <button class="crump50-precision-entry" type="button"><span aria-hidden="true">✦</span><span><strong>Edit one exact area</strong><small>Brush only over the pixels Crump may change.</small></span><b>Open</b></button>
+            <button class="crump50-primary-action" type="button">Confirm reference plan</button>
+          </div>
+        </article>
+
+        <article class="crump52-attach-sheet fixture-probe-card">
+          <div class="crump52-attach-handle"></div>
+          <header><div><span>ADD TO CRUMP</span><h2>Choose what to bring in</h2></div><button type="button" aria-label="Close Add to Crump">×</button></header>
+          <div class="crump52-attach-list"><button class="crump52-attach-choice" type="button"><span class="crump52-choice-icon" aria-hidden="true">＋</span><span><strong>Photo or image</strong><small>Analyze it, edit it, or use it as a reference.</small></span><b>›</b></button></div>
+        </article>
+
+        <article class="billing51-sheet fixture-probe-card">
+          <header class="billing51-header"><div class="billing51-brand"><span class="billing51-mark" aria-hidden="true">C</span><div><span>PLANS &amp; CREDITS</span><h2>Choose what fits your work</h2></div></div><button class="billing51-close" type="button" aria-label="Close plans">×</button></header>
+          <section class="billing51-balance-card"><div><span>AVAILABLE</span><strong><b>120</b><small>credits</small></strong><p>Credits support high-compute creative work when you need it.</p></div></section>
+          <section class="billing51-section"><article class="billing51-pack"><strong class="billing51-pack-amount">150 credits</strong><p class="billing51-pack-label">For a focused creative sprint.</p></article></section>
+        </article>
+
+        <article class="crump53-card fixture-probe-card"><span class="crump53-kicker">VIDEO</span><h3>Keep every generation within reach</h3><p>Jobs continue in the background, with status and finished work ready when you return.</p><button class="crump53-button" type="button">Open a recent video</button></article>
+
+        <article class="cv-more-sheet fixture-probe-card">
+          <header class="cv-more-head"><div><p>MORE FROM ASK CRUMP</p><h2>Your workspace</h2></div><button class="cv-more-close" type="button" aria-label="Close more menu">×</button></header>
+          <div class="cv-more-list"><button class="cv-more-item" type="button"><span>Plans &amp; credits <small>Account</small></span></button></div>
+        </article>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

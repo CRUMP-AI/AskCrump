@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
@@ -8,6 +8,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#f6f4ee">
+  <script src="/appearance-theme.js?v=5.9.76-appearance-choice-1"></script>
   <title>Ask Crump</title>
   <link rel="icon" type="image/png" href="/assets/ask-crump-app-icon-v2-192.png">
   <link rel="manifest" href="/manifest.json">
@@ -19,6 +20,7 @@
   <link rel="stylesheet" href="/install-prompt.css?v=5.9.76">
   <link rel="stylesheet" href="/auth-styles.css">
   <link rel="stylesheet" href="/crump-v1-body.css?v=5.9.76-friendly-workspace-1" data-crump-body-v1="true">
+  <link rel="stylesheet" href="/appearance-controls.css?v=5.9.76-appearance-choice-1">
 </head>
 <body class="crump-v1-body">
 
@@ -460,6 +462,7 @@
     <div class="v1-settings-layout">
       <nav class="v1-settings-nav" aria-label="Settings sections">
         <button type="button" class="is-active" data-v1-settings-tab="profile">Profile</button>
+        <button type="button" data-v1-settings-tab="appearance">Appearance</button>
         <button type="button" data-v1-settings-tab="behavior">Behavior</button>
         <button type="button" data-v1-settings-tab="plan">Plan &amp; credits</button>
         <button type="button" data-v1-settings-tab="account">Account</button>
@@ -486,6 +489,31 @@
               <input type="text" id="assistantName" class="settings-field" placeholder="Crump" aria-label="Assistant name">
             </div>
           </div>
+        </section>
+
+        <section class="settings-group v1-settings-panel" data-v1-settings-panel="appearance">
+          <div class="v1-settings-panel-head">
+            <div><div class="settings-group-title">Appearance</div><h3>Choose your atmosphere</h3></div>
+            <p>Keep the bright editorial workspace, or move into a calm dark studio. Your choice applies instantly.</p>
+          </div>
+          <div class="settings-list appearance-list">
+            <fieldset class="appearance-choices" role="radiogroup" aria-labelledby="appearanceLegend">
+              <legend id="appearanceLegend">Workspace appearance</legend>
+              <label class="appearance-choice" for="appearanceLight">
+                <input id="appearanceLight" type="radio" name="appearanceTheme" value="light" checked>
+                <span class="appearance-preview appearance-preview-light" aria-hidden="true"></span>
+                <span class="appearance-choice-copy"><strong>Light</strong><small>Warm paper and graphite</small></span>
+                <span class="appearance-check" aria-hidden="true">✓</span>
+              </label>
+              <label class="appearance-choice" for="appearanceDark">
+                <input id="appearanceDark" type="radio" name="appearanceTheme" value="dark">
+                <span class="appearance-preview appearance-preview-dark" aria-hidden="true"></span>
+                <span class="appearance-choice-copy"><strong>Dark</strong><small>Quiet charcoal and brass</small></span>
+                <span class="appearance-check" aria-hidden="true">✓</span>
+              </label>
+            </fieldset>
+          </div>
+          <p class="appearance-device-note">Appearance is remembered on this device, including the installed app.</p>
         </section>
 
         <section class="settings-group v1-settings-panel" data-v1-settings-panel="behavior">

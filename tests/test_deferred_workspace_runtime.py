@@ -20,6 +20,7 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
         '/install-prompt.css?v=5.9.76',
         '/auth-styles.css',
         '/crump-v1-body.css?v=5.9.76-friendly-workspace-1',
+        '/appearance-controls.css?v=5.9.76-appearance-choice-1',
         # The preview entry and authenticated shell share these presentation
         # assets. Retired Home/Studios/You view scripts no longer ship.
         '/crump-vision-shell-1.0.css?v=5.9.76-atelier-workspace-1',
@@ -66,7 +67,7 @@ def test_workspace_runtime_is_complete_idempotent_and_authentication_gated():
         '/chat-resilience.js?v=5.9.76-credit-confirmation-1',
         '/ui-functions.js?v=5.9.76-atelier-workspace-1',
         '/presence-manager.js?v=5.9.76-muse-release-repair-1',
-        '/crump-design-pass.css?v=5.9.76-atelier-workspace-1',
+        '/crump-design-pass.css?v=5.9.76-appearance-choice-1',
         '/sync-manager.js?v=5.9.76-sync-cursor-1',
         '/chat-sync.js?v=5.9.76-settings-sync-1',
         '/account-manager.js?v=5.9.76-account-storage-deletion-1',
