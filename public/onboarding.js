@@ -6,11 +6,11 @@
       destination: 'Ask',
       action: 'ask',
       actionLabel: 'Open Ask',
-      eyebrow: 'ASK · CHATS',
-      title: 'Start with the conversation.',
-      content: 'Ask is where you think, research, and work with Crump. Chats opens your synchronized conversation history without turning it into a second application menu.',
+      eyebrow: 'ASK',
+      title: 'Start with what you need.',
+      content: 'Ask is the calm center of the workspace. Talk through an idea, research what changed, work from a file, or create an image, document, or presentation without choosing a tool first. Choose Apply changes to return to the conversation with the edited image.',
       icon: '✦',
-      features: ['Ask naturally', 'Research what changed', 'Return through Chats'],
+      features: ['Ask naturally', 'Create in conversation', 'Return to recent chats'],
     },
     {
       destination: 'Projects',
@@ -18,19 +18,29 @@
       actionLabel: 'Open Projects',
       eyebrow: 'PROJECTS',
       title: 'Give continuing work a home.',
-      content: 'Open Projects, then select a named Project to enter its dedicated workspace. Its conversations, instructions, notes, and reference files stay together so you can return without rebuilding the context.',
+      content: 'Projects keep continuing work together. Each Project holds its conversations, instructions, notes, and reference material so you can return without rebuilding the context.',
       icon: '▣',
       features: ['Open a named Project', 'Continue its conversations', 'Manage files & canon'],
     },
     {
-      destination: 'Create',
-      action: 'create',
-      actionLabel: 'Open Create',
-      eyebrow: 'CREATE',
-      title: 'Choose the outcome you need.',
-      content: 'Create opens the right workspace for documents, presentations, images, and manuscripts. For images, add a reference or choose Edit area after a result. Precision Edit lets you zoom, brush or lasso exactly what may change, invert a selection, preview local warmth, exposure, and saturation, or place exact logos and readable text without an AI redraw. Choose Apply changes to return to the conversation with the edited image, without using AI credits, or continue into a reviewed generative edit.',
-      icon: '+',
-      features: ['Editable files', 'Local image adjustments', 'Long-form manuscripts'],
+      destination: 'Files',
+      action: 'files',
+      actionLabel: 'Open Files',
+      eyebrow: 'FILES',
+      title: 'Find every useful result.',
+      content: 'Files is the home for documents, presentations, images, video exports, and uploads. Open, preview, or download your work without searching through old conversations. On mobile, Files lives inside More.',
+      icon: '◇',
+      features: ['Preview in the app', 'Download originals', 'Organized by Project'],
+    },
+    {
+      destination: 'Library',
+      action: 'library',
+      actionLabel: 'Open Library',
+      eyebrow: 'LIBRARY',
+      title: 'Keep long-form work on its own shelf.',
+      content: 'Library is reserved for books and manuscripts created with Crump or imported into your account. Documents, images, videos, exports, and uploads stay in Files.',
+      icon: '▱',
+      features: ['Books & manuscripts', 'Private to your account', 'Continue across devices'],
     },
     {
       destination: 'Video',
@@ -43,28 +53,30 @@
       features: ['Three generation modes', 'Optional image references', 'Return to active jobs'],
     },
     {
-      destination: 'Library',
-      action: 'library',
-      actionLabel: 'Open Library',
-      eyebrow: 'LIBRARY',
-      title: 'Keep the things you create.',
-      content: 'Library is your private bookshelf for manuscripts and books created with Crump or imported from your files. Documents, images, videos, exports, and uploads stay under Projects → Files. Conversation history remains in Chats.',
-      icon: '▱',
-      features: ['Private to your account', 'Across your devices', 'Open and reuse'],
+      destination: 'Autonomous',
+      action: 'autonomous',
+      actionLabel: 'Open Autonomous Crump',
+      eyebrow: 'AUTONOMOUS CRUMP · BETA',
+      title: 'Hand off a bounded coding task.',
+      content: 'Autonomous Crump prepares and verifies coding work in an isolated environment while keeping you in control of the final run. It is a Professional feature in beta. On mobile, find it inside More.',
+      icon: '⌘',
+      features: ['Review before running', 'Isolated workspace', 'Downloadable patch'],
     },
     {
-      destination: 'You',
-      action: 'you',
-      actionLabel: 'Open You',
-      eyebrow: 'YOU',
+      destination: 'Profile',
+      action: 'profile',
+      actionLabel: 'Open Profile',
+      eyebrow: 'PROFILE',
       title: 'Your account has one clear home.',
-      content: 'You contains your profile, behavior preferences, plan and credits, account controls, product guidance, and legal information.',
+      content: 'Profile opens your identity, preferences, plan and credits, account controls, product guidance, and legal information. On mobile, Profile lives inside More.',
       icon: '○',
       features: ['Profile & behavior', 'Plan & credits', 'Account & about'],
     },
   ]);
 
-  const DESTINATIONS = Object.freeze(['Ask', 'Projects', 'Create', 'Video', 'Library', 'You']);
+  const DESKTOP_DESTINATIONS = Object.freeze(['Ask', 'Projects', 'Files', 'Library', 'Video', 'Autonomous', 'Profile']);
+  const MOBILE_DESTINATIONS = Object.freeze(['Ask', 'Projects', 'Library', 'Video', 'More']);
+  const MOBILE_MORE_DESTINATIONS = Object.freeze(['Files', 'Autonomous', 'Profile']);
 
   class Tutorial {
     constructor() {
@@ -76,7 +88,7 @@
 
     storageKey() {
       const userId = String(window.currentUser?.id || 'guest').replace(/[^a-zA-Z0-9_-]/g, '');
-      return `crump_tutorial_completed_v8:${userId || 'guest'}`;
+      return `crump_tutorial_completed_v9:${userId || 'guest'}`;
     }
 
     isComplete() {
@@ -196,18 +208,12 @@
       description.className = 'tutorial-description';
       description.textContent = step.content;
 
-      const destinationMap = document.createElement('div');
-      destinationMap.className = 'tutorial-destination-map';
-      destinationMap.setAttribute('aria-label', 'Ask Crump destinations');
-      for (const destination of DESTINATIONS) {
-        const item = document.createElement('span');
-        item.textContent = destination;
-        if (destination === step.destination) {
-          item.classList.add('is-current');
-          item.setAttribute('aria-current', 'step');
-        }
-        destinationMap.appendChild(item);
-      }
+      const destinationMaps = document.createElement('div');
+      destinationMaps.className = 'tutorial-destination-maps';
+      const destinationMap = this.destinationMap('Desktop', DESKTOP_DESTINATIONS, step.destination);
+      const mobileDestination = MOBILE_MORE_DESTINATIONS.includes(step.destination) ? 'More' : step.destination;
+      const mobileDestinationMap = this.destinationMap('Mobile', MOBILE_DESTINATIONS, mobileDestination);
+      destinationMaps.append(destinationMap, mobileDestinationMap);
 
       const featureGrid = document.createElement('div');
       featureGrid.className = 'tutorial-feature-grid';
@@ -230,7 +236,7 @@
       );
       openDestination.setAttribute('aria-label', `${step.actionLabel} and close the guide`);
 
-      body.append(visual, progressLabel, eyebrow, title, description, destinationMap, featureGrid, openDestination);
+      body.append(visual, progressLabel, eyebrow, title, description, destinationMaps, featureGrid, openDestination);
 
       const footer = document.createElement('div');
       footer.className = 'tutorial-footer';
@@ -275,6 +281,27 @@
       return button;
     }
 
+    destinationMap(label, destinations, current) {
+      const group = document.createElement('div');
+      group.className = 'tutorial-destination-group';
+      const groupLabel = document.createElement('strong');
+      groupLabel.textContent = label;
+      const map = document.createElement('div');
+      map.className = 'tutorial-destination-map';
+      map.setAttribute('aria-label', `${label} Ask Crump destinations`);
+      for (const destination of destinations) {
+        const item = document.createElement('span');
+        item.textContent = destination;
+        if (destination === current) {
+          item.classList.add('is-current');
+          item.setAttribute('aria-current', 'step');
+        }
+        map.appendChild(item);
+      }
+      group.append(groupLabel, map);
+      return group;
+    }
+
     next() {
       if (this.currentStep < STEPS.length - 1) {
         this.currentStep += 1;
@@ -303,12 +330,23 @@
 
     openDestination(destination) {
       const normalized = String(destination || '').trim().toLowerCase();
-      if (!['ask', 'projects', 'create', 'video', 'library', 'you'].includes(normalized)) return;
+      if (!['ask', 'projects', 'files', 'library', 'video', 'autonomous', 'profile'].includes(normalized)) return;
       localStorage.setItem(this.storageKey(), 'true');
       this.stop();
       requestAnimationFrame(() => {
+        if (typeof window.CrumpVision?.navigate === 'function') {
+          window.CrumpVision.navigate(normalized);
+          return;
+        }
         if (typeof window.CrumpNavigation5930?.open === 'function') {
-          window.CrumpNavigation5930.open(normalized);
+          const legacyDestination = normalized === 'autonomous'
+            ? 'code'
+            : normalized === 'profile' ? 'you' : normalized;
+          if (normalized === 'files' && typeof window.CrumpProduct53?.openFiles === 'function') {
+            window.CrumpProduct53.openFiles();
+            return;
+          }
+          window.CrumpNavigation5930.open(legacyDestination);
           return;
         }
         if (normalized === 'ask') {

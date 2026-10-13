@@ -73,7 +73,7 @@ function pageErrors(page) {
 
     await page.goto(normalizedAppUrl(videoHref), { waitUntil: 'networkidle' });
     assert(await page.locator('#registrationTitle').textContent() === 'Open your Video Studio.', 'Video signup title is generic');
-    assert((await page.locator('#registrationDescription').textContent()).includes('find completed clips in Projects → Files'), 'Video delivery promise is missing');
+    assert((await page.locator('#registrationDescription').textContent()).includes('find completed clips in Files'), 'Video delivery promise is missing');
     assert(await page.locator('#registrationExploreLink').textContent() === 'Explore Video Studio first', 'Video explore action is generic');
     assert(await page.locator('#registrationSubmitBtn').textContent() === 'Create account & review Professional', 'paid plan remains unclear before account creation');
     assert(await page.locator('#registerEmail').evaluate(node => node === document.activeElement), 'Video registration does not focus the email field');

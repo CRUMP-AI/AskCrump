@@ -4,10 +4,10 @@
  * Registers the 'projects' view on window.CrumpVision. Everything shown here
  * is real: projects come from GET /api/projects, the durable-memory timeline
  * from GET /api/projects/:id (project_context rows + manuscript updates),
- * linked chats from GET /api/projects/:id/chats, and keepsakes from the real
- * Library (GET /api/library/books filtered by projectId). The only thing this
- * view stores itself is the "Next steps" checklist, in localStorage under
- * the 'cv-projects' key — plain user data, never mixed with app state.
+ * linked chats from GET /api/projects/:id/chats, and books from the real
+ * Library (GET /api/library/books filtered by projectId). This view is
+ * intentionally read-only: it does not invent or persist a second project
+ * task system alongside the server-authoritative workspace.
  *
  * Defensive by design: if CrumpVision is not ready yet, registration retries
  * until it is. All markup is escaped; all events are bound with
@@ -18,8 +18,6 @@
 
   if (window.__cvProjectsRegistered) return;
   window.__cvProjectsRegistered = true;
-
-  var STORE_KEY = 'cv-projects';
 
   function cv() {
     return window.CrumpVision || null;
@@ -51,6 +49,11 @@
     return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
   }
 
+  function routedProjectId() {
+    try { return new URL(window.location.href).searchParams.get('project') || ''; }
+    catch (_) { return ''; }
+  }
+
   function fmtCount(value) {
     var n = Number(value || 0);
     if (n >= 1000000) return (n / 1000000).toFixed(1) + 'm';
@@ -71,39 +74,6 @@
       throw error;
     }
     return data;
-  }
-
-  /* ------------------------------------------------------------------ */
-  /* Next-steps store (localStorage, namespaced 'cv-projects').          */
-  /* ------------------------------------------------------------------ */
-
-  function readStore() {
-    try {
-      var raw = JSON.parse(localStorage.getItem(STORE_KEY) || '{}');
-      if (raw && typeof raw === 'object' && !Array.isArray(raw)) return raw;
-    } catch (_) { /* corrupted or unavailable — start clean */ }
-    return {};
-  }
-
-  function writeStore(store) {
-    try { localStorage.setItem(STORE_KEY, JSON.stringify(store)); } catch (_) { /* private mode etc. */ }
-  }
-
-  function readSteps(projectId) {
-    var store = readStore();
-    var entry = store[projectId];
-    if (entry && Array.isArray(entry.steps)) return entry.steps;
-    return [];
-  }
-
-  function persistSteps(projectId, steps) {
-    var store = readStore();
-    store[projectId] = { steps: steps };
-    writeStore(store);
-  }
-
-  function newStepId() {
-    return 'step-' + Date.now().toString(36) + '-' + Math.floor(Math.random() * 1e6).toString(36);
   }
 
   /* ------------------------------------------------------------------ */
@@ -150,7 +120,7 @@
     manuscripts.forEach(function (m) {
       entries.push({
         at: m.updated_at,
-        kind: 'Keepsake updated',
+        kind: 'Manuscript updated',
         title: m.title || 'Untitled manuscript',
         body: (m.status ? String(m.status) : ''),
       });
@@ -172,9 +142,9 @@
     var header = document.createElement('div');
     header.className = 'cvp-header';
     header.innerHTML =
-      eyebrowHTML('WORK THAT OUTLIVES ONE CHAT') +
+      eyebrowHTML('Your ongoing work') +
       '<h1 class="cvp-title">Projects</h1>' +
-      '<p class="cvp-lede">Every durable body of work keeps its instructions, decisions, conversations, and keepsakes together. Pick one up where you left it.</p>';
+      '<p class="cvp-lede">Pick up a project with its context, conversations, and manuscripts together — right where you left it.</p>';
     root.appendChild(header);
 
     var switcher = document.createElement('div');
@@ -184,6 +154,10 @@
 
     var detail = document.createElement('div');
     detail.className = 'cvp-detail';
+    detail.id = 'cvpProjectDetail';
+    detail.setAttribute('role', 'region');
+    detail.setAttribute('aria-label', 'Project details');
+    detail.setAttribute('tabindex', '0');
     root.appendChild(detail);
 
     switcher.innerHTML =
@@ -200,7 +174,7 @@
       detail.innerHTML =
         '<div class="cvp-panel" role="status">' +
           '<h2>Sign in to see your projects.</h2>' +
-          '<p>Durable work you save as a Project lives here — with its instructions, decisions, and keepsakes intact.</p>' +
+          '<p>Work you save as a Project lives here with its context, conversations, and books intact.</p>' +
         '</div>';
       return;
     }
@@ -213,8 +187,12 @@
         bindEmpty(detail);
         return;
       }
-      renderSwitcher(switcher, projects);
-      selectProject(detail, projects[0].id, projects);
+      var routed = routedProjectId();
+      var selected = projects.filter(function (project) {
+        return String(project.id) === String(routed);
+      })[0] || projects[0];
+      renderSwitcher(switcher, projects, selected.id);
+      selectProject(detail, selected.id, projects);
     }).catch(function (error) {
       switcher.innerHTML = '';
       detail.innerHTML =
@@ -231,23 +209,33 @@
   function emptyProjectsHTML() {
     return (
       '<div class="cvp-empty">' +
-        '<img class="cvp-empty-mascot" src="/assets/crump-mascot-official.jpg" alt="Crump, the Ask Crump mascot" width="120" height="120">' +
-        '<h2>Give serious work somewhere to continue.</h2>' +
-        '<p>No projects yet. When a conversation becomes durable work, save it as a Project and it will live here — with its instructions, decisions, and keepsakes intact.</p>' +
-        '<p class="cvp-empty-hint">Projects are created from a chat, so the memory stays attached to the work that made it.</p>' +
+        '<img class="cvp-empty-mascot" src="/assets/brand/crump-mascot.png" alt="Crump, the Ask Crump mascot" width="120" height="120">' +
+        '<h2>Give your work a place to continue.</h2>' +
+        '<p>When a conversation becomes ongoing work, save it as a Project. Its context, conversations, and manuscripts will stay together here.</p>' +
+        '<p class="cvp-empty-hint">Start in Ask, then save the conversation when you are ready to keep building.</p>' +
+        '<button type="button" class="cvp-button cvp-empty-action" data-cvp-start-ask>Start in Ask</button>' +
       '</div>'
     );
   }
 
-  function bindEmpty() { /* no actions in the projects empty state by design */ }
+  function bindEmpty(root) {
+    var start = root && root.querySelector ? root.querySelector('[data-cvp-start-ask]') : null;
+    if (start) start.addEventListener('click', function () {
+      if (window.CrumpVision && typeof window.CrumpVision.navigate === 'function') {
+        window.CrumpVision.navigate('ask');
+      }
+    });
+  }
 
-  function renderSwitcher(switcher, projects) {
+  function renderSwitcher(switcher, projects, selectedProjectId) {
     switcher.innerHTML =
       '<div class="cvp-switcher-row" role="tablist" aria-label="Your projects">' +
       projects.map(function (project, index) {
+        var active = String(project.id) === String(selectedProjectId);
         return (
-          '<button type="button" class="cvp-switch' + (index === 0 ? ' is-active' : '') + '" role="tab" ' +
-            'aria-selected="' + (index === 0 ? 'true' : 'false') + '" ' +
+          '<button type="button" class="cvp-switch' + (active ? ' is-active' : '') + '" role="tab" ' +
+            'id="cvpProjectTab-' + index + '" aria-controls="cvpProjectDetail" tabindex="' + (active ? '0' : '-1') + '" ' +
+            'aria-selected="' + (active ? 'true' : 'false') + '" ' +
             'data-cvp-project="' + esc(project.id) + '">' +
             '<span class="cvp-switch-name">' + esc(project.name || 'Untitled project') + '</span>' +
             '<span class="cvp-switch-date">' + esc(fmtDate(project.updated_at) || '') + '</span>' +
@@ -262,16 +250,37 @@
           var active = other === button;
           other.classList.toggle('is-active', active);
           other.setAttribute('aria-selected', active ? 'true' : 'false');
+          other.setAttribute('tabindex', active ? '0' : '-1');
         });
-        selectProject(document.querySelector('.cvp-detail'), button.getAttribute('data-cvp-project'), projects);
+        var detail = document.getElementById('cvpProjectDetail');
+        if (detail) detail.setAttribute('aria-labelledby', button.id);
+        selectProject(detail, button.getAttribute('data-cvp-project'), projects);
+      });
+      button.addEventListener('keydown', function (event) {
+        if (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight') return;
+        event.preventDefault();
+        var index = buttons.indexOf(button);
+        var offset = event.key === 'ArrowRight' ? 1 : -1;
+        var next = buttons[(index + offset + buttons.length) % buttons.length];
+        next.focus();
+        next.click();
       });
     });
+    var selectedButton = switcher.querySelector('[aria-selected="true"]');
+    var detail = document.getElementById('cvpProjectDetail');
+    if (detail && selectedButton) {
+      detail.setAttribute('role', 'tabpanel');
+      detail.removeAttribute('aria-label');
+      detail.setAttribute('aria-labelledby', selectedButton.id);
+    }
   }
 
   function selectProject(detail, projectId, projects) {
     if (!detail) return;
     var project = projects.filter(function (p) { return String(p.id) === String(projectId); })[0] || null;
     if (!project) return;
+    var selectionId = String(project.id);
+    detail.dataset.cvpActiveProject = selectionId;
 
     detail.innerHTML =
       '<div class="cvp-skeleton is-wide" aria-hidden="true"><i></i><i></i><i></i><i></i></div>' +
@@ -282,6 +291,7 @@
       api('/api/projects/' + encodeURIComponent(project.id) + '/chats').catch(function () { return null; }),
       api('/api/library/books').catch(function () { return null; }),
     ]).then(function (results) {
+      if (!detail.isConnected || detail.dataset.cvpActiveProject !== selectionId) return;
       var detailData = results[0];
       var chatsData = results[1];
       var booksData = results[2];
@@ -292,6 +302,7 @@
       var keepsakes = books.filter(function (b) { return String(b.projectId || '') === String(project.id); });
       renderDetail(detail, fullProject, context, conversations, keepsakes);
     }).catch(function () {
+      if (!detail.isConnected || detail.dataset.cvpActiveProject !== selectionId) return;
       detail.innerHTML =
         '<div class="cvp-panel cvp-error" role="alert">' +
           '<h2>This project could not open.</h2>' +
@@ -305,14 +316,12 @@
 
   function renderDetail(detail, project, context, conversations, keepsakes) {
     var timeline = buildTimeline(project, context);
-    var steps = readSteps(String(project.id));
-
     var timelineHTML;
     if (!timeline.length) {
       timelineHTML =
         '<div class="cvp-timeline-empty">' +
-          '<p>No durable memory recorded yet.</p>' +
-          '<span>When this project holds instructions, canon, or decisions, they will appear here as a dated record.</span>' +
+          '<p>No project history yet.</p>' +
+          '<span>Instructions, notes, and decisions will appear here as the project takes shape.</span>' +
         '</div>';
     } else {
       timelineHTML =
@@ -337,7 +346,7 @@
 
     detail.innerHTML =
       '<section class="cvp-project-head">' +
-        eyebrowHTML('PROJECT') +
+        eyebrowHTML('Project overview') +
         '<h2>' + esc(project.name || 'Untitled project') + '</h2>' +
         (project.description ? '<p class="cvp-project-desc">' + esc(project.description) + '</p>' : '') +
         '<p class="cvp-project-meta">' +
@@ -346,96 +355,24 @@
         '</p>' +
       '</section>' +
       '<div class="cvp-grid">' +
-        '<section class="cvp-panel" aria-label="Durable memory">' +
-          '<div class="cvp-panel-head">' + eyebrowHTML('DURABLE MEMORY') + '</div>' +
+        '<section class="cvp-panel" aria-label="Project history">' +
+          '<div class="cvp-panel-head">' + eyebrowHTML('Project history') + '</div>' +
           timelineHTML +
         '</section>' +
         '<aside class="cvp-side">' +
-          '<section class="cvp-panel" aria-label="Next steps">' +
-            '<div class="cvp-panel-head">' + eyebrowHTML('NEXT STEPS') + '</div>' +
-            '<div data-cvp-steps></div>' +
-          '</section>' +
           '<section class="cvp-panel" aria-label="Linked chats">' +
-            '<div class="cvp-panel-head">' + eyebrowHTML('LINKED CHATS') + '</div>' +
+            '<div class="cvp-panel-head">' + eyebrowHTML('Conversations') + '</div>' +
             '<div data-cvp-chats></div>' +
           '</section>' +
-          '<section class="cvp-panel" aria-label="Keepsakes">' +
-            '<div class="cvp-panel-head">' + eyebrowHTML('KEEPSAKES') + '</div>' +
+          '<section class="cvp-panel" aria-label="Books and manuscripts">' +
+            '<div class="cvp-panel-head">' + eyebrowHTML('Books & manuscripts') + '</div>' +
             '<div data-cvp-keepsakes></div>' +
           '</section>' +
         '</aside>' +
       '</div>';
 
-    renderSteps(detail.querySelector('[data-cvp-steps]'), project);
     renderChats(detail.querySelector('[data-cvp-chats]'), conversations);
-    renderKeepsakes(detail.querySelector('[data-cvp-keepsakes]'), keepsakes, project);
-  }
-
-  /* ---- Next steps (localStorage, namespaced 'cv-projects') ---- */
-
-  function renderSteps(mount, project) {
-    if (!mount) return;
-    var projectId = String(project.id);
-    var steps = readSteps(projectId);
-
-    function persist() { persistSteps(projectId, steps); }
-
-    function paint() {
-      var list = mount.querySelector('[data-cvp-step-list]');
-      if (!list) return;
-      if (!steps.length) {
-        list.innerHTML = '<p class="cvp-quiet">Nothing queued. Add the next move for this project.</p>';
-        return;
-      }
-      list.innerHTML = steps.map(function (step) {
-        return (
-          '<li class="cvp-step' + (step.done ? ' is-done' : '') + '" data-cvp-step="' + esc(step.id) + '">' +
-            '<label class="cvp-step-label">' +
-              '<input type="checkbox" data-cvp-step-check' + (step.done ? ' checked' : '') + '>' +
-              '<span>' + esc(step.text) + '</span>' +
-            '</label>' +
-            '<button type="button" class="cvp-step-remove" data-cvp-step-remove aria-label="Remove step">×</button>' +
-          '</li>'
-        );
-      }).join('');
-      list.querySelectorAll('[data-cvp-step-check]').forEach(function (box) {
-        box.addEventListener('change', function () {
-          var item = box.closest('[data-cvp-step]');
-          var step = steps.filter(function (s) { return s.id === item.getAttribute('data-cvp-step'); })[0];
-          if (step) { step.done = box.checked; persist(); }
-          item.classList.toggle('is-done', box.checked);
-        });
-      });
-      list.querySelectorAll('[data-cvp-step-remove]').forEach(function (button) {
-        button.addEventListener('click', function () {
-          var item = button.closest('[data-cvp-step]');
-          steps = steps.filter(function (s) { return s.id !== item.getAttribute('data-cvp-step'); });
-          persist();
-          paint();
-        });
-      });
-    }
-
-    mount.innerHTML =
-      '<ul class="cvp-step-list" data-cvp-step-list></ul>' +
-      '<form class="cvp-step-add" id="cvp-step-form" data-cvp-step-form>' +
-        '<input type="text" data-cvp-step-input placeholder="Add a next step…" maxlength="200" aria-label="Add a next step">' +
-        '<button type="submit" class="cvp-button">Add</button>' +
-      '</form>';
-
-    var form = mount.querySelector('#cvp-step-form');
-    var input = mount.querySelector('[data-cvp-step-input]');
-    form.addEventListener('submit', function (event) {
-      event.preventDefault();
-      var text = input.value.trim();
-      if (!text) return;
-      steps.push({ id: newStepId(), text: text, done: false, createdAt: new Date().toISOString() });
-      persist();
-      input.value = '';
-      paint();
-    });
-
-    paint();
+    renderKeepsakes(detail.querySelector('[data-cvp-keepsakes]'), keepsakes);
   }
 
   /* ---- Linked chats (real, content-free metadata) ---- */
@@ -443,7 +380,7 @@
   function renderChats(mount, conversations) {
     if (!mount) return;
     if (!conversations.length) {
-      mount.innerHTML = '<p class="cvp-quiet">No conversations linked to this project yet.</p>';
+      mount.innerHTML = '<p class="cvp-quiet">No conversations are linked to this project yet.</p>';
       return;
     }
     mount.innerHTML =
@@ -459,12 +396,12 @@
       '</ul>';
   }
 
-  /* ---- Keepsakes produced by this project (real Library data) ---- */
+  /* ---- Books and manuscripts produced by this project (real Library data) ---- */
 
-  function renderKeepsakes(mount, keepsakes, project) {
+  function renderKeepsakes(mount, keepsakes) {
     if (!mount) return;
     if (!keepsakes.length) {
-      mount.innerHTML = '<p class="cvp-quiet">No keepsakes from this project yet. Finished documents and decks will appear here.</p>';
+      mount.innerHTML = '<p class="cvp-quiet">No books or manuscripts from this project yet. Long-form writing you create here will appear in your Library.</p>';
       return;
     }
     mount.innerHTML =

@@ -17,7 +17,7 @@ def test_56_polish_layer_is_last_on_web_and_native():
         assert source.index("/crump-4.3.js") < source.index("/crump-4.4.js")
         assert source.index("/crump-product-5.3.1.js") < source.index("/crump-polish-5.6.js")
         assert "/crump-polish-5.6.css" in source
-    assert "ask-crump-new-body-v1-r254" in worker
+    assert "ask-crump-new-body-v1-r255" in worker
     assert "/crump-polish-5.6.css" in worker and "/crump-polish-5.6.js" in worker
     assert "crump-polish-5.6.js" in checker
 
@@ -26,24 +26,24 @@ def test_tutorial_is_current_and_no_longer_bootstraps_legacy_runtime():
     tutorial = read("public/onboarding.js")
     styles = read("public/onboarding.css")
     polish = read("public/crump-polish-5.6.js")
-    assert "crump_tutorial_completed_v8" in tutorial
-    for destination in ("Ask", "Projects", "Create", "Video", "Library", "You"):
+    assert "crump_tutorial_completed_v9" in tutorial
+    for destination in ("Ask", "Projects", "Files", "Library", "Video", "Autonomous", "Profile"):
         assert f"destination: '{destination}'" in tutorial
-    assert "Conversation history remains in Chats." in tutorial
-    assert "continue into a reviewed generative edit" in tutorial
-    assert "Precision Edit lets you zoom, brush or lasso exactly what may change" in tutorial
-    assert "invert a selection" in tutorial
-    assert "place exact logos and readable text without an AI redraw" in tutorial
-    assert "Choose Apply changes to return to the conversation with the edited image" in tutorial
-    assert "Local image adjustments" in tutorial
-    assert "select a named Project to enter its dedicated workspace" in tutorial
+    assert "destination: 'Create'" not in tutorial
+    assert "destination: 'You'" not in tutorial
+    assert "MOBILE_DESTINATIONS = Object.freeze(['Ask', 'Projects', 'Library', 'Video', 'More'])" in tutorial
+    assert "MOBILE_MORE_DESTINATIONS = Object.freeze(['Files', 'Autonomous', 'Profile'])" in tutorial
+    assert "Files is the home for documents, presentations, images, video exports, and uploads" in tutorial
+    assert "Library is reserved for books and manuscripts" in tutorial
+    assert "AUTONOMOUS CRUMP · BETA" in tutorial
     assert "Open a named Project" in tutorial
     assert "tutorial-open-destination" in tutorial and ".tutorial-open-destination" in styles
-    assert "window.CrumpNavigation5930.open(normalized)" in tutorial
+    assert "window.CrumpVision.navigate(normalized)" in tutorial
     assert "tutorial-destination-map" in tutorial and ".tutorial-destination-map" in styles
     assert "aria-current', 'step'" in tutorial
     assert "Replay workspace guide" in polish
-    assert "Review Ask, Projects, Create, Video, Library, and You." in polish
+    assert "Autonomous Crump (Beta)" in polish
+    assert "Mobile keeps Files, Autonomous, and Profile in More." in polish
     assert "loadRevampAssets" not in tutorial
     assert "crump-4.3.js" not in tutorial
     assert "event.key === 'Tab'" in tutorial
@@ -79,52 +79,47 @@ def test_authenticated_workspace_stays_behind_a_bounded_runtime_gate():
     assert "window.addEventListener('load'" not in runtime
 
 
-def test_six_destination_tutorial_fixture_uses_production_assets():
+def test_friendly_workspace_tutorial_fixture_uses_production_assets():
     fixture = read("tests/fixtures/five-destination-tutorial.html")
     verifier = read("scripts/verify-video-destination.cjs")
 
     assert "/public/onboarding.css?v=actionable-tour-fixture-1" in fixture
-    assert "/public/onboarding.js?fixture=actionable-six-destinations" in fixture
+    assert "/public/onboarding.js?fixture=friendly-seven-destinations" in fixture
     assert "window.tutorial.start({force: true})" in fixture
     assert 'id="fixtureDestination"' in fixture
-    assert "window.CrumpNavigation5930" in fixture
+    assert "window.CrumpVision" in fixture
     assert "for (const [index, [destination, title]] of expectedSteps.entries())" in verifier
-    assert "action: `Open ${destination} →`" in verifier
+    assert "destination === 'Autonomous' ? 'Open Autonomous Crump →' : `Open ${destination} →`" in verifier
     assert "opened: destination.toLowerCase()" in verifier
 
 
 def test_navigation_tutorial_and_store_sources_share_one_exact_destination_contract():
     checker = read("scripts/check-javascript.mjs")
 
-    assert "const destinationLabels = Object.freeze(['Ask', 'Projects', 'Create', 'Video', 'Library', 'You']);" in checker
-    assert "const internalNavigationLabels = Object.freeze(['Ask', 'Projects', 'Code', 'Create', 'Video', 'Library', 'You']);" in checker
+    assert "const desktopDestinationIds = Object.freeze(['ask', 'projects', 'files', 'library', 'video', 'autonomous']);" in checker
+    assert "const desktopDestinationLabels = Object.freeze(['Ask', 'Projects', 'Files', 'Library', 'Video', 'Autonomous', 'Profile']);" in checker
+    assert "const mobileDestinationIds = Object.freeze(['ask', 'projects', 'library', 'video', 'more']);" in checker
+    assert "const moreDestinationIds = Object.freeze(['files', 'autonomous', 'profile']);" in checker
+    assert "autonomous: 'code', profile: 'you'" in checker
+    assert "files: 'projects'" in checker
     assert "store/listing.en-US.json" in checker
     assert "store/screenshots/README.md" in checker
     assert "docs/STORE_LISTING_COPY.md" in checker
-    assert "Navigation, workspace guide, and store-release sources disagree" in checker
+    assert "Navigation, workspace guide, and store-release sources disagree on the friendly workspace contract." in checker
 
 
 def test_home_surface_exposes_projects_and_video_without_hiding_core_chat():
     app = read("public/app.html")
     body = read("public/crump-v1-body.js")
-    assert 'data-v1-command="focus"' in app
-    assert 'data-v1-command="projects"' in app
-    assert 'data-v1-command="video"' in app
+    assert "What can I help you get done?" in app
+    assert "Or jump straight in" in app
+    assert 'class="v1-launchpad-foot"' not in app
+    assert 'data-v1-command="focus"' not in app
+    for command in ("projects", "file", "image", "video"):
+        assert app.count(f'data-v1-command="{command}"') == 1
+    assert app.count('class="v1-launch-card') == 4
     assert "case 'projects':" in body and "openProduct('projects')" in body
     assert "case 'video':" in body and "openProduct('video')" in body
-    destination_map = app[
-        app.index('<div class="v1-launchpad-foot"'):
-        app.index('</div>', app.index('<div class="v1-launchpad-foot"'))
-    ]
-    assert 'aria-label="Ask Crump destinations"' in destination_map
-    assert [
-        destination_map.index(f"<span>{destination}</span>")
-        for destination in ("Ask", "Projects", "Create", "Video", "Library", "You")
-    ] == sorted([
-        destination_map.index(f"<span>{destination}</span>")
-        for destination in ("Ask", "Projects", "Create", "Video", "Library", "You")
-    ])
-    assert "<span>Saved</span>" not in destination_map
     saved_branch = body[body.index("case 'saved':"):body.index("case 'code':")]
     assert "CrumpProduct53?.openFiles" in saved_branch
     assert "openProduct('library')" not in saved_branch
@@ -205,13 +200,15 @@ def test_store_and_pwa_copy_match_current_creation_surface():
     listing = read("docs/STORE_LISTING_COPY.md")
     manifest = read("public/manifest.json")
     assert "scene continuation" in listing
-    assert "Ask, Projects, Create, Video, Library, and You" in listing
+    assert "Ask, Projects, Files, Library, Video, and Autonomous" in listing
+    assert "On mobile, Files, Autonomous, and Profile live inside More." in listing
     assert "guided research inside Ask" in listing
     assert "Open Projects and resume" in listing
-    assert "Open Create and test" in listing
+    assert "In Ask, test only the file and image creation modes" in listing
     assert "Open Library and verify" in listing
-    assert "Projects → Files" in listing
-    assert "Open You → Settings" in listing
+    assert "then open Files to verify" in listing
+    assert "Open Profile to view session controls" in listing
+    assert "open Autonomous" in listing
     assert "Saved Library" not in listing
     assert "Quick, Extendable, and Cinematic" in listing
     assert "manuscripts" in manifest and "video" in manifest and "Projects" in manifest

@@ -1,18 +1,19 @@
 /* Crump Vision — application shell (1.0)
  *
- * Six-destination rail + mobile nav + vision stage. Ink-black and gold,
- * hairline borders, generous whitespace. No glows, no sparkles.
+ * Product-first rail, five-item mobile nav, and vision stage. Warm graphite,
+ * clear system typography, comfortable spacing, and restrained gold.
  */
 
 :root {
-  --cv-bg: #070a0e;
-  --cv-panel: #0b0f14;
-  --cv-hairline: rgba(213, 185, 113, 0.16);
-  --cv-gold: #d5b971;
-  --cv-deep-gold: #b69855;
-  --cv-text: #f1efe9;
-  --cv-muted: #8a9196;
-  --cv-mobile-nav: 68px;
+  --cv-bg: #0d1015;
+  --cv-panel: #15191f;
+  --cv-panel-raised: #1a1f26;
+  --cv-hairline: rgba(255, 255, 255, 0.09);
+  --cv-gold: #dec57e;
+  --cv-deep-gold: #b99a55;
+  --cv-text: #f7f4ec;
+  --cv-muted: #a9afb5;
+  --cv-mobile-nav: 72px;
 }
 
 /* ------------------------------------------------------------------ */
@@ -21,10 +22,9 @@
 
 .cv-eyebrow {
   font-family: Inter, -apple-system, "Segoe UI", sans-serif;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.025em;
   color: var(--cv-gold);
   margin: 0;
 }
@@ -37,11 +37,11 @@
 }
 
 .cv-view {
-  background: #070a0e;
-  color: #f1efe9;
+  background: var(--cv-bg);
+  color: var(--cv-text);
   font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   min-height: 100%;
-  padding: 48px 32px 96px;
+  padding: 46px 34px 100px;
   box-sizing: border-box;
 }
 
@@ -54,28 +54,28 @@
 }
 
 .cv-headline {
-  font-family: Georgia, "Times New Roman", serif;
-  font-weight: 400;
-  font-size: clamp(34px, 5vw, 52px);
-  line-height: 1.08;
-  letter-spacing: -0.01em;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-weight: 720;
+  font-size: clamp(32px, 4.4vw, 48px);
+  line-height: 1.04;
+  letter-spacing: -0.045em;
   margin: 0 0 14px;
-  color: #f1efe9;
+  color: var(--cv-text);
 }
 
 .cv-sub {
   font-size: 16px;
   line-height: 1.65;
-  color: #8a9196;
+  color: var(--cv-muted);
   margin: 0 0 44px;
   max-width: 60ch;
 }
 
 .cv-card {
-  background: #0b0f14;
-  border: 1px solid rgba(213, 185, 113, 0.16);
-  border-radius: 8px;
-  padding: 32px;
+  background: var(--cv-panel);
+  border: 1px solid var(--cv-hairline);
+  border-radius: 18px;
+  padding: 28px;
   margin-bottom: 24px;
 }
 
@@ -92,17 +92,17 @@
 }
 
 .cv-card-title {
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 24px;
-  font-weight: 400;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 22px;
+  font-weight: 700;
   margin: 0;
-  color: #f1efe9;
+  color: var(--cv-text);
 }
 
 .cv-card-copy {
   font-size: 14px;
   line-height: 1.65;
-  color: #8a9196;
+  color: var(--cv-muted);
   margin: 14px 0 24px;
 }
 
@@ -119,7 +119,8 @@
 
 .cv-btn {
   appearance: none;
-  border-radius: 8px;
+  min-height: 44px;
+  border-radius: 12px;
   font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 14px;
   font-weight: 600;
@@ -130,25 +131,25 @@
 }
 
 .cv-btn-primary {
-  background: #d5b971;
-  color: #070a0e;
-  border-color: #d5b971;
+  background: var(--cv-text);
+  color: var(--cv-bg);
+  border-color: var(--cv-text);
 }
 
 .cv-btn-primary:hover {
-  background: #e2c47f;
-  border-color: #e2c47f;
+  background: #ffffff;
+  border-color: #ffffff;
 }
 
 .cv-btn-ghost {
   background: transparent;
-  color: #d5b971;
-  border-color: rgba(213, 185, 113, 0.4);
+  color: var(--cv-text);
+  border-color: rgba(255, 255, 255, 0.16);
 }
 
 .cv-btn-ghost:hover {
-  border-color: #d5b971;
-  color: #e2c47f;
+  border-color: rgba(222, 197, 126, 0.5);
+  color: var(--cv-gold);
 }
 
 .cv-btn:focus-visible {
@@ -162,12 +163,12 @@
 }
 
 /* ------------------------------------------------------------------ */
-/* Desktop rail takeover (240px sidebar)                               */
+/* Desktop rail takeover                                               */
 /* ------------------------------------------------------------------ */
 
 @media (min-width: 1101px) {
   html[data-cv-shell="ready"] body.crump-v1-body {
-    --ac-rail: 240px;
+    --ac-rail: 224px;
   }
 
   /* While a vision view owns the stage the legacy conversation library is
@@ -190,8 +191,8 @@
   html[data-cv-shell="ready"] body.crump-v1-body .v1-rail.cv-rail {
     align-items: stretch;
     justify-content: flex-start;
-    padding: 34px 22px 24px;
-    background: var(--cv-bg);
+    padding: 26px 16px 18px;
+    background: #10141a;
     border-right: 1px solid var(--cv-hairline);
   }
 }
@@ -204,36 +205,46 @@
 }
 
 .cv-rail-brand {
-  padding: 0 4px;
-  margin-bottom: 36px;
+  width: 100%;
+  min-height: 58px;
+  padding: 8px 10px;
+  margin: 0 0 24px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
 }
+
+.cv-rail-brand:hover { background: rgba(255, 255, 255, 0.035); }
 
 .cv-rail-brand img {
   display: block;
   width: 100%;
-  max-width: 174px;
+  max-width: 160px;
   height: auto;
 }
 
 .cv-rail-nav {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 5px;
 }
 
 .cv-destination {
   display: flex;
   align-items: center;
-  gap: 13px;
+  gap: 12px;
   width: 100%;
-  padding: 11px 13px;
-  border-radius: 8px;
+  min-height: 46px;
+  padding: 11px 12px;
+  border-radius: 12px;
   border: 1px solid transparent;
   background: transparent;
-  color: var(--cv-muted);
+  color: #b5bac0;
   font-family: Inter, -apple-system, "Segoe UI", sans-serif;
-  font-size: 14.5px;
-  font-weight: 500;
+  font-size: 14px;
+  font-weight: 630;
   line-height: 1.2;
   cursor: pointer;
   text-align: left;
@@ -246,31 +257,53 @@
   flex: 0 0 auto;
 }
 
+.cv-destination > span {
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.cv-destination small {
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: rgba(222, 197, 126, 0.1);
+  color: var(--cv-gold);
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: .02em;
+}
+
 .cv-destination:hover {
   color: var(--cv-text);
-  background: rgba(213, 185, 113, 0.06);
+  background: rgba(255, 255, 255, 0.045);
 }
 
 .cv-destination.is-active {
-  color: var(--cv-gold);
-  background: rgba(213, 185, 113, 0.09);
-  border-color: rgba(213, 185, 113, 0.22);
+  color: var(--cv-text);
+  background: #1b2027;
+  border-color: rgba(255, 255, 255, 0.09);
 }
+
+.cv-destination.is-active svg { color: var(--cv-gold); }
 
 .cv-rail-foot {
   margin-top: auto;
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 14px;
-  padding-top: 24px;
+  gap: 10px;
+  padding-top: 16px;
   border-top: 1px solid var(--cv-hairline);
 }
 
 .cv-rail-utility {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 11px;
+  min-height: 48px;
   padding: 8px 10px;
   background: transparent;
   border: 0;
@@ -281,6 +314,11 @@
   cursor: pointer;
   text-align: left;
 }
+
+.cv-rail-utility > span { display: grid; gap: 1px; }
+.cv-rail-utility b { color: var(--cv-text); font-size: 13px; font-weight: 650; }
+.cv-rail-utility small { color: var(--cv-muted); font-size: 11px; font-weight: 500; }
+.cv-rail-utility.is-active { border-radius: 12px; background: rgba(255,255,255,.045); }
 
 .cv-rail-utility svg {
   width: 17px;
@@ -348,15 +386,15 @@
 
   html[data-cv-shell="ready"] body.crump-v1-body .cv-mobile-nav {
     display: grid;
-    grid-template-columns: repeat(6, minmax(0, 1fr));
+    grid-template-columns: repeat(5, minmax(0, 1fr));
     position: fixed;
     right: 0;
     bottom: 0;
     left: 0;
     z-index: 490;
     min-height: calc(var(--cv-mobile-nav) + env(safe-area-inset-bottom));
-    padding: 6px 4px env(safe-area-inset-bottom);
-    background: rgba(7, 10, 14, 0.96);
+    padding: 7px 5px env(safe-area-inset-bottom);
+    background: rgba(14, 17, 22, 0.96);
     border-top: 1px solid var(--cv-hairline);
     -webkit-backdrop-filter: blur(20px);
     backdrop-filter: blur(20px);
@@ -368,15 +406,17 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  gap: 5px;
-  padding: 8px 2px 4px;
+  gap: 4px;
+  min-width: 44px;
+  min-height: 54px;
+  padding: 7px 3px 4px;
   background: none;
   border: 0;
-  color: var(--cv-muted);
+  color: #aeb3b8;
   font-family: Inter, -apple-system, "Segoe UI", sans-serif;
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: 0.04em;
+  font-size: 10.5px;
+  font-weight: 650;
+  letter-spacing: 0;
   cursor: pointer;
 }
 
@@ -386,7 +426,87 @@
 }
 
 .cv-mnav-item.is-active {
-  color: var(--cv-gold);
+  color: var(--cv-text);
+}
+
+.cv-mnav-item.is-active svg { color: var(--cv-gold); }
+.cv-mnav-item small { display: none; }
+
+/* Mobile More sheet keeps secondary surfaces discoverable without cramming
+   six or seven labels into a phone-width tab bar. */
+.cv-more-menu {
+  position: fixed;
+  inset: 0;
+  z-index: 620;
+}
+
+.cv-more-menu[hidden] { display: none !important; }
+
+.cv-more-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  border: 0;
+  background: rgba(0, 0, 0, .56);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+
+.cv-more-sheet {
+  position: absolute;
+  right: 12px;
+  bottom: calc(var(--cv-mobile-nav) + env(safe-area-inset-bottom) + 10px);
+  left: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, .1);
+  border-radius: 22px;
+  background: #181c22;
+  box-shadow: 0 28px 90px rgba(0, 0, 0, .5);
+}
+
+.cv-more-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 18px 18px 13px;
+  border-bottom: 1px solid rgba(255, 255, 255, .07);
+}
+.cv-more-head p { margin: 0 0 2px; color: var(--cv-muted); font-size: 11px; }
+.cv-more-head h2 { margin: 0; color: var(--cv-text); font-size: 19px; letter-spacing: -.02em; }
+.cv-more-close {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 0;
+  border-radius: 50%;
+  background: rgba(255,255,255,.055);
+  color: var(--cv-text);
+  font-size: 25px;
+}
+.cv-more-list { display: grid; padding: 8px; }
+.cv-more-item {
+  display: flex;
+  min-height: 58px;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  color: var(--cv-text);
+  font: 650 15px/1.2 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  text-align: left;
+}
+.cv-more-item:hover { background: rgba(255,255,255,.05); }
+.cv-more-item svg { width: 22px; height: 22px; color: var(--cv-gold); }
+.cv-more-item > span { display: flex; flex: 1; align-items: center; justify-content: space-between; }
+.cv-more-item small { padding: 3px 7px; border-radius: 999px; background: rgba(222,197,126,.1); color: var(--cv-gold); font-size: 10px; }
+
+@media (min-width: 1101px) {
+  .cv-more-menu { display: none !important; }
 }
 
 /* Vision experience: exactly one sidebar. While a vision view owns the stage,
@@ -409,7 +529,9 @@ html[data-cv-shell="ready"] body.crump-v1-body .v1-workspace {
   z-index: 400;
   display: flex;
   flex-direction: column;
-  background: var(--cv-bg);
+  background:
+    radial-gradient(circle at 86% 4%, rgba(222, 197, 126, .045), transparent 28%),
+    var(--cv-bg);
 }
 
 .cv-stage[hidden] {
@@ -429,6 +551,12 @@ html[data-cv-shell="ready"] body.crump-v1-body .v1-workspace {
   html[data-cv-shell="ready"] body.crump-v1-body .cv-stage-scroll {
     padding-bottom: calc(var(--cv-mobile-nav) + env(safe-area-inset-bottom) + 28px);
   }
+}
+
+@media (max-width: 680px) {
+  .cv-view { padding: 28px 18px 88px; }
+  .cv-card { padding: 21px; border-radius: 16px; }
+  .cv-sub { margin-bottom: 30px; font-size: 15px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -44,7 +44,7 @@
     const response = await fetch(path, request);
     const data = await response.json().catch(() => ({}));
     if (!response.ok || data.success === false) {
-      const error = new Error(data.error || 'Crump Code could not complete that request.');
+      const error = new Error(data.error || 'Autonomous Crump could not complete that request.');
       error.code = data.code || 'CODE_REQUEST_FAILED';
       error.details = data;
       error.data = data;
@@ -118,13 +118,13 @@
       <section class="crump-code-shell" role="dialog" aria-modal="true" aria-labelledby="crumpCodeTitle">
         <header class="crump-code-header">
           <div>
-            <span class="crump-code-kicker">CRUMP CODE · PRIVATE PREVIEW</span>
-            <h2 id="crumpCodeTitle">Review the work before it runs.</h2>
-            <p>Crump Code works on a temporary copy of a public GitHub repository. It cannot see secrets, publish, or push changes.</p>
+            <span class="crump-code-kicker">CODING AGENT · BETA</span>
+            <h2 id="crumpCodeTitle">Autonomous Crump</h2>
+            <p>Prepare and verify coding work in a temporary copy of a public GitHub repository. Autonomous Crump cannot see secrets, publish, or push changes.</p>
           </div>
-          <button type="button" id="crumpCodeClose" class="crump-code-icon-button" aria-label="Close Crump Code">×</button>
+          <button type="button" id="crumpCodeClose" class="crump-code-icon-button" aria-label="Close Autonomous Crump">×</button>
         </header>
-        <div class="crump-code-safety" aria-label="Crump Code safety boundaries">
+        <div class="crump-code-safety" aria-label="Autonomous Crump safety boundaries">
           <span><b>Isolated</b> temporary microVM</span>
           <span><b>Offline</b> after repository checkout</span>
           <span><b>Reviewable</b> patch and checks</span>
@@ -132,7 +132,7 @@
         </div>
         <div id="crumpCodeNotice" class="crump-code-notice" role="status" aria-live="polite" hidden></div>
         <div class="crump-code-layout">
-          <aside class="crump-code-sidebar" aria-label="Crump Code tasks">
+          <aside class="crump-code-sidebar" aria-label="Autonomous Crump tasks">
             <div class="crump-code-sidebar-head">
               <label for="crumpCodeProject">Project</label>
               <button type="button" id="crumpCodeRefresh" class="crump-code-text-button">Refresh</button>
@@ -250,7 +250,7 @@
       destination.classList.toggle('is-locked', state.configured && !state.entitled);
       destination.setAttribute(
         'aria-label',
-        state.configured && !state.entitled ? 'Code — Professional plan' : 'Code',
+        state.configured && !state.entitled ? 'Autonomous Crump — Professional plan' : 'Autonomous Crump',
       );
     });
     document.body.classList.toggle('crump-code-configured', state.configured);
@@ -307,7 +307,7 @@
     if (!state.tasks.length) {
       const empty = document.createElement('p');
       empty.className = 'crump-code-sidebar-empty';
-      empty.textContent = 'No code tasks in this Project yet.';
+      empty.textContent = 'No Autonomous Crump tasks in this Project yet.';
       list.appendChild(empty);
       return;
     }
@@ -318,7 +318,7 @@
       if (state.task?.id === task.id) button.classList.add('is-active');
       button.dataset.crumpCodeTask = String(task.id || '');
       const title = document.createElement('strong');
-      title.textContent = String(task.objective || 'Untitled code task').replace(/\s+/g, ' ').trim().slice(0, 90);
+      title.textContent = String(task.objective || 'Untitled Autonomous Crump task').replace(/\s+/g, ' ').trim().slice(0, 90);
       const meta = document.createElement('span');
       meta.textContent = `${statusLabel(task.status, task.failure_code)} · ${formatDate(task.updated_at || task.created_at)}`;
       button.append(title, meta);
@@ -429,7 +429,7 @@
     const label = document.createElement('span');
     label.textContent = String(task.mode || 'plan').toUpperCase();
     const title = document.createElement('h3');
-    title.textContent = String(task.objective || 'Crump Code task');
+    title.textContent = String(task.objective || 'Autonomous Crump task');
     titleWrap.append(label, title);
     const badge = document.createElement('span');
     badge.className = 'crump-code-status';
@@ -517,7 +517,7 @@
       const progress = document.createElement('p');
       progress.textContent = task.status === 'awaiting_approval'
         ? 'Review the requested boundary above.'
-        : 'You can request cancellation. Crump Code checks that request before each next model or tool step.';
+        : 'You can request cancellation. Autonomous Crump checks that request before each next model or tool step.';
       const cancel = document.createElement('button');
       cancel.type = 'button';
       cancel.className = 'crump-code-danger';
@@ -555,7 +555,7 @@
     renderTasks();
     renderDetail();
     if (!state.projectId) return;
-    setNotice('Loading code tasks…');
+    setNotice('Loading Autonomous Crump tasks…');
     try {
       const data = await api(`/api/projects/${encodeURIComponent(state.projectId)}/code/tasks`);
       state.tasks = Array.isArray(data.tasks) ? data.tasks : [];
@@ -626,7 +626,7 @@
       state.task = data.task;
       renderDetail();
       renderTasks();
-      setNotice('Task accepted. You can close this window; Crump Code will continue safely.', 'success');
+      setNotice('Task accepted. You can close this window; Autonomous Crump will continue safely.', 'success');
       startPolling(taskId);
     } catch (error) {
       stopPolling();
@@ -683,7 +683,7 @@
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `crump-code-${String(state.task.id || 'change').slice(0, 8)}.patch`;
+    link.download = `autonomous-crump-${String(state.task.id || 'change').slice(0, 8)}.patch`;
     document.body.appendChild(link);
     link.click();
     link.remove();
@@ -716,9 +716,9 @@
         renderTasks();
         if (!ACTIVE.has(String(state.task?.status || '')) || state.task?.status === 'queued') {
           if (state.task?.status === 'completed') {
-            setNotice('Crump Code finished. Review the result, checks, and patch before using it.', 'success');
+            setNotice('Autonomous Crump finished. Review the result, checks, and patch before using it.', 'success');
           } else if (state.task?.status === 'failed') {
-            setNotice('Crump Code stopped safely. Review the task history before retrying.', 'danger');
+            setNotice('Autonomous Crump stopped safely. Review the task history before retrying.', 'danger');
           } else if (state.task?.status === 'cancelled') {
             setNotice('Cancellation recorded. No source changes were published.');
           }
@@ -733,7 +733,7 @@
   }
 
   async function refresh() {
-    if (!(await refreshAvailability())) return setNotice('Crump Code is not available for this account.', 'danger');
+    if (!(await refreshAvailability())) return setNotice('Autonomous Crump is not available for this account.', 'danger');
     await loadProjects();
   }
 
@@ -744,7 +744,7 @@
         const modal = window.showBillingCenter?.({plan: 'professional'});
         if (!modal) window.showUpgradePrompt?.({plan: 'professional'});
       } else {
-        window.showToast?.('Crump Code is still in private preview.', 'info');
+        window.showToast?.('Autonomous Crump is still in beta.', 'info');
       }
       return false;
     }

@@ -139,4 +139,4 @@ def test_public_reference_inventory_is_reviewed() -> None:
     ]
 
     assert len(PUBLIC_HTML) == 15
-    assert len(references) == 463
+    assert len(references) == 458

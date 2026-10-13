@@ -46,16 +46,16 @@ const loader = String.raw`
 
   const workspaceStyles = Object.freeze([
     ['/billing.css', 'workspacebilling'],
-    ['/onboarding.css?v=5.9.76-video-destination-1', 'workspaceonboarding'],
+    ['/onboarding.css?v=5.9.76-friendly-workspace-1', 'workspaceonboarding'],
     ['/conversation.css?v=5.9.76-muse-release-repair-1', 'workspaceconversation'],
     ['/crump-4.3.css', 'crump43'],
-    ['/crump-4.4.css', 'crump44'],
+    ['/crump-4.4.css?v=5.9.76-friendly-workspace-1', 'crump44'],
     ['/crump-5.0.css?v=5.9.76-reference-fidelity-hard-contract-1', 'crump50'],
     ['/crump-billing-5.1.css?v=5.9.76-credit-truth-1', 'billing51'],
     ['/crump-5.2.css', 'crump52'],
     ['/crump-5.2.2.css?v=5.9.76-new-response-cue-1', 'crump522'],
     ['/credit-confirmation.css?v=5.9.76-credit-confirmation-1', 'creditconfirmation'],
-    ['/crump-v1-body.css?v=5.9.76-brand-retina-1', 'crumpbodyv1'],
+    ['/crump-v1-body.css?v=5.9.76-friendly-workspace-1', 'crumpbodyv1'],
     ['/lifecycle.css?v=5.9.76-lifecycle-activation-1', 'lifecycleactivation'],
   ]);
 
@@ -72,7 +72,7 @@ const loader = String.raw`
   ]);
 
   const workspaceScripts = Object.freeze([
-    ['/onboarding.js?v=5.9.76-brand-retina-1', 'workspaceonboarding'],
+    ['/onboarding.js?v=5.9.76-friendly-workspace-1', 'workspaceonboarding'],
     ['/scroll-manager.js?v=5.9.76-muse-release-repair-1', 'workspacescroll'],
     ['/profile-manager.js', 'workspaceprofile'],
     ['/billing-manager.js?v=5.9.76-stripe-destination-integrity-1', 'workspacebilling'],
@@ -90,7 +90,7 @@ const loader = String.raw`
 
   const enhancementScripts = Object.freeze([
     ['/crump-4.3.js?v=5.9.76-mascot-face-1', 'crump43'],
-    ['/crump-4.4.js?v=5.9.76-navigation-discovery-1', 'crump44'],
+    ['/crump-4.4.js?v=5.9.76-friendly-workspace-1', 'crump44'],
     ['/crump-5.0.js?v=5.9.76-reference-fidelity-hard-contract-1', 'crump50'],
     ['/crump-precision-image-edit-loader.js?v=5.9.76-reference-fidelity-hard-contract-1', 'crumpprecisionloader'],
     ['/crump-billing-5.1.js?v=5.9.76-checkout-destination-label-1', 'billing51'],
@@ -105,11 +105,11 @@ const loader = String.raw`
     ['/crump-product-loader.js?v=5.9.76-projects-empty-state-1', 'crumpproductloader'],
     ['/crump-product-5.3.1.js?v=5.9.76-conversation-action-labels-2', 'crumpproduct531'],
     ['/crump-subscriptions-5.3.2.js?v=5.9.76-checkout-destination-label-1', 'crumpsubscriptions532'],
-    ['/crump-polish-5.6.js?v=5.9.76-video-destination-1', 'crumppolish56'],
+    ['/crump-polish-5.6.js?v=5.9.76-friendly-workspace-1', 'crumppolish56'],
     ['/crump-media-save.js?v=5.9.76-library-lazy-load-1', 'crumpmediasave'],
     ['/crump-library-loader.js?v=5.9.76-library-first-run-1', 'crumplibraryloader'],
     ['/crump-navigation-5.9.30.js?v=5.9.76-image-studio-entry-1', 'crumpnav5930'],
-    ['/crump-code-loader.js?v=5.9.76-code-lazy-load-1', 'crumpcodeloader'],
+    ['/crump-code-loader.js?v=5.9.76-friendly-workspace-1', 'crumpcodeloader'],
     ['/lifecycle-share.js?v=5.9.76-settings-invite-1', 'lifecycleshare'],
     ['/lifecycle-manager.js?v=5.9.76-lifecycle-idle-send-1', 'lifecyclemanager'],
   ]);

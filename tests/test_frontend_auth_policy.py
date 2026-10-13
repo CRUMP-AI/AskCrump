@@ -148,12 +148,14 @@ def test_registration_offer_matches_enforced_free_limits_and_canonical_product_m
         'We’ll email a secure verification link; no card required.'
     )
 
-    assert 'Home, Chats, Projects, Library, Studios, and You' in brand
-    for destination in ('Home', 'Chats', 'Projects', 'Library', 'Studios', 'You'):
+    assert 'Ask, Projects, Files, Library, Video, Autonomous Crump, and Profile' in brand
+    for destination in ('Ask', 'Projects', 'Files', 'Library', 'Video', 'Autonomous · Beta', 'Profile'):
         assert f'<span>{destination}</span>' in brand
-    assert '<span>Ask</span>' not in brand
+    assert '<span>Home</span>' not in brand
+    assert '<span>Chats</span>' not in brand
     assert '<span>Create</span>' not in brand
-    assert '<span>Video</span>' not in brand
+    assert '<span>Studios</span>' not in brand
+    assert '<span>You</span>' not in brand
     assert '<span>Research</span>' not in brand
     assert '<span>Memory</span>' not in brand
     assert 'id="registrationAssurance"' in app
@@ -179,7 +181,7 @@ def test_registration_preserves_allowlisted_creation_and_paid_plan_promises():
     assert 'without invented credentials' in controller
     assert "title: 'Open your Video Studio.'" in controller
     assert 'see its Crump Credit cost' in controller
-    assert 'find completed clips in Projects → Files' in controller
+    assert 'find completed clips in Files' in controller
     assert 'keep completed clips in your private Library' not in controller
     assert 'const REGISTRATION_PLAN_HANDOFFS = Object.freeze({' in controller
     assert 'Professional includes Advanced Intelligence at $20/month and remains unpurchased until you review and confirm checkout' in controller

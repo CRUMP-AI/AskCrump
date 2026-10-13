@@ -13,7 +13,7 @@
 (() => {
   'use strict';
 
-  var MASCOT_SRC = '/assets/crump-mascot-official.jpg';
+  var MASCOT_SRC = '/assets/brand/crump-mascot.png';
   var DEFAULT_VERBS = [
     'Reading your notes…',
     'Finding the story…',

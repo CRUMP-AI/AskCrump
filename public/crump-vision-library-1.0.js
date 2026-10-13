@@ -6,7 +6,7 @@
  * GET /api/manuscripts/:id for the reading overlay. Nothing here is seeded or
  * invented — an empty Library shows the designed empty state, and the
  * "version history" expander shows the honest record (Crump keeps the current
- * version of each keepsake; earlier revisions are not stored).
+ * version of each manuscript; earlier revisions are not stored).
  *
  * Defensive by design: if CrumpVision is not ready yet, registration retries
  * until it is. All markup is escaped; all events are bound with
@@ -99,7 +99,7 @@
     var id = esc(book.id);
     var title = esc(book.title || 'Untitled manuscript');
     var author = esc(book.authorName || 'Ask Crump Library');
-    var origin = book.origin === 'imported' ? 'Imported' : 'Created in Crump';
+    var origin = book.origin === 'imported' ? 'Imported' : 'Created with Crump';
     var status = capitalize(book.status || 'draft');
     var ext = fileExtension(book.sourceFile && book.sourceFile.name);
     var updated = fmtDate(book.updatedAt);
@@ -127,7 +127,7 @@
             '<div class="cvl-history-body">' +
               '<div class="cvl-history-row"><span>Current version</span><time>' + esc(updated || '—') + '</time></div>' +
               (created ? '<div class="cvl-history-row"><span>Added to Library</span><time>' + esc(created) + '</time></div>' : '') +
-              '<p class="cvl-history-note">Crump keeps the current version of each keepsake. Earlier revisions are not stored.</p>' +
+              '<p class="cvl-history-note">Crump keeps the current version of each manuscript. Earlier revisions are not stored.</p>' +
             '</div>' +
           '</details>' +
           '<button type="button" class="cvl-open" data-cvl-open="' + id + '">Open</button>' +
@@ -201,7 +201,7 @@
       if (!sections.length) {
         loading.innerHTML =
           '<strong>No readable sections yet.</strong>' +
-          '<span>This keepsake exists in your Library, but it does not have any sections to read yet.</span>';
+          '<span>This manuscript is in your Library, but it does not have any readable sections yet.</span>';
         return;
       }
 
@@ -274,9 +274,9 @@
     var header = document.createElement('div');
     header.className = 'cvl-header';
     header.innerHTML =
-      eyebrowHTML('YOUR WORK HAS A HOME') +
+      eyebrowHTML('Books & manuscripts') +
       '<h1 class="cvl-title">Library</h1>' +
-      '<p class="cvl-lede">Every keepsake finished with Crump — documents, decks, and manuscripts — lives here, ready to reopen, read, and share.</p>';
+      '<p class="cvl-lede">Your long-form writing lives here — ready to reopen, read, and keep building.</p>';
     root.appendChild(header);
 
     var toolbar = document.createElement('div');
@@ -286,7 +286,7 @@
         '<span class="cvl-search-icon" aria-hidden="true">' +
           '<svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true"><circle cx="7" cy="7" r="5" stroke="currentColor" stroke-width="1.5"/><path d="M11 11l3.2 3.2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>' +
         '</span>' +
-        '<input type="search" data-cvl-search placeholder="Search your library…" aria-label="Search your library">' +
+        '<input type="search" data-cvl-search placeholder="Search books and manuscripts…" aria-label="Search books and manuscripts">' +
       '</label>' +
       '<p class="cvl-count" data-cvl-count role="status"></p>';
     root.appendChild(toolbar);
@@ -308,7 +308,7 @@
       shelf.innerHTML =
         '<div class="cvl-panel" role="status">' +
           '<h2>Sign in to open your library.</h2>' +
-          '<p>Every keepsake you finish with Crump — documents, decks, and manuscripts — lives here, ready to reopen, read, and share.</p>' +
+          '<p>Your books and manuscripts will be waiting here when you return.</p>' +
         '</div>';
       return;
     }
@@ -340,10 +340,10 @@
       root.querySelector('.cvl-toolbar').style.display = 'none';
       shelf.innerHTML =
         '<div class="cvl-empty">' +
-          '<img class="cvl-empty-mascot" src="/assets/crump-mascot-official.jpg" alt="Crump, the Ask Crump mascot" width="120" height="120">' +
-          '<h2>Make something you can keep.</h2>' +
-          '<p>Your shelf is empty. When Crump finishes a document, deck, or manuscript with you, it will live here — yours to reopen, read, and share.</p>' +
-          '<button type="button" class="cvl-button" data-cvl-chats>Go to Chats</button>' +
+          '<img class="cvl-empty-mascot" src="/assets/brand/crump-mascot.png" alt="Crump, the Ask Crump mascot" width="120" height="120">' +
+          '<h2>Your shelf is ready.</h2>' +
+          '<p>Books and manuscripts you create or import with Crump will appear here.</p>' +
+          '<button type="button" class="cvl-button" data-cvl-chats>Start writing with Crump</button>' +
         '</div>';
       shelf.querySelector('[data-cvl-chats]').addEventListener('click', goToChats);
       return;
@@ -351,12 +351,12 @@
 
     function paint(needle) {
       var visible = books.filter(function (book) { return bookMatches(book, needle); });
-      count.textContent = visible.length + (visible.length === 1 ? ' keepsake' : ' keepsakes');
+      count.textContent = visible.length + (visible.length === 1 ? ' title' : ' titles');
 
       if (!visible.length) {
         shelf.innerHTML =
           '<div class="cvl-nomatch">' +
-            '<h2>No books match that search.</h2>' +
+            '<h2>No titles match that search.</h2>' +
             '<p>Try a different title, author, or project.</p>' +
           '</div>';
         return;
@@ -389,7 +389,7 @@
   function goToChats() {
     var c = cv();
     try {
-      if (c && typeof c.navigate === 'function') { c.navigate('chats'); return; }
+      if (c && typeof c.navigate === 'function') { c.navigate('ask'); return; }
     } catch (_) { /* fall through */ }
     window.location.href = '/app';
   }

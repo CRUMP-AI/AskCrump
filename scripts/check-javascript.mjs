@@ -1031,7 +1031,7 @@ const projectSaveOfferVersion = `${releaseVersion}-project-save-offer-1`;
 const navigationDiscoveryVersion = `${releaseVersion}-navigation-discovery-1`;
 const imageStudioEntryVersion = `${releaseVersion}-image-studio-entry-1`;
 const museReleaseRepairVersion = `${releaseVersion}-muse-release-repair-1`;
-const cacheIntegrityVersion = `${releaseVersion}-cache-integrity-1`;
+const cacheIntegrityVersion = `${releaseVersion}-friendly-workspace-1`;
 const shellBrandAltVersion = `${releaseVersion}-shell-brand-alt-1`;
 const shellNoTaglineVersion = `${releaseVersion}-shell-no-tagline-1`;
 const museFeelPassVersion = `${releaseVersion}-muse-feel-pass-1`;
@@ -1113,43 +1113,79 @@ for (const relative of requiredBodyFiles) {
 const appHtml = await readFile(new URL('public/app.html', repoRoot), 'utf8');
 const landingHtml = await readFile(new URL('public/ask-crump.html', repoRoot), 'utf8');
 const authController = await readFile(new URL('public/auth-controller.js', repoRoot), 'utf8');
-const destinationLabels = Object.freeze(['Ask', 'Projects', 'Create', 'Video', 'Library', 'You']);
-const destinationIds = Object.freeze(destinationLabels.map(label => label.toLowerCase()));
-const internalNavigationLabels = Object.freeze(['Ask', 'Projects', 'Code', 'Create', 'Video', 'Library', 'You']);
+const desktopDestinationIds = Object.freeze(['ask', 'projects', 'files', 'library', 'video', 'autonomous']);
+const desktopDestinationLabels = Object.freeze(['Ask', 'Projects', 'Files', 'Library', 'Video', 'Autonomous', 'Profile']);
+const mobileDestinationIds = Object.freeze(['ask', 'projects', 'library', 'video', 'more']);
+const mobileDestinationLabels = Object.freeze(['Ask', 'Projects', 'Library', 'Video', 'More']);
+const moreDestinationIds = Object.freeze(['files', 'autonomous', 'profile']);
+const moreDestinationLabels = Object.freeze(['Files', 'Autonomous', 'Profile']);
+const legacyOwnerMap = Object.freeze({
+  ask: 'ask', projects: 'projects', library: 'library', video: 'video', autonomous: 'code', profile: 'you',
+});
+const analyticsDestinationMap = Object.freeze({
+  ask: 'ask', projects: 'projects', files: 'projects', library: 'library', video: 'video', autonomous: 'code', profile: 'you',
+});
 const onboardingSource = await readFile(new URL('public/onboarding.js', repoRoot), 'utf8');
 const navigationSource = await readFile(new URL('public/crump-navigation-5.9.30.js', repoRoot), 'utf8');
+const visionShellSource = await readFile(new URL('public/crump-vision-shell-1.0.js', repoRoot), 'utf8');
 const listingSource = JSON.parse(await readFile(new URL('store/listing.en-US.json', repoRoot), 'utf8'));
 const screenshotPlanSource = await readFile(new URL('store/screenshots/README.md', repoRoot), 'utf8');
 const listingCopySource = await readFile(new URL('docs/STORE_LISTING_COPY.md', repoRoot), 'utf8');
 const expectedScreenshotLabels = Object.freeze([
-  'Ask', 'Projects', 'Create', 'Video', 'Research in Ask', 'Editable work', 'Library', 'You',
+  'Ask', 'Projects', 'Files', 'Video', 'Research in Ask', 'Editable work', 'Library', 'Profile',
 ]);
-const navigationBlockStart = navigationSource.indexOf('const destinations = Object.freeze([');
-const navigationBlockEnd = navigationSource.indexOf(']);', navigationBlockStart);
-const navigationLabels = navigationBlockStart >= 0 && navigationBlockEnd > navigationBlockStart
-  ? [...navigationSource.slice(navigationBlockStart, navigationBlockEnd).matchAll(/label: '([^']+)'/g)].map(match => match[1])
-  : [];
-const tutorialDestinationMatch = onboardingSource.match(/const DESTINATIONS = Object\.freeze\(\[([^\]]+)\]\);/);
-const tutorialDestinations = tutorialDestinationMatch
-  ? [...tutorialDestinationMatch[1].matchAll(/'([^']+)'/g)].map(match => match[1])
-  : [];
+const stringArray = (source, pattern) => {
+  const match = source.match(pattern);
+  return match ? [...match[1].matchAll(/'([^']+)'/g)].map(item => item[1]) : [];
+};
+const stringObject = (source, name) => {
+  const match = source.match(new RegExp(`var ${name} = \\{([\\s\\S]*?)\\n\\s*\\};`));
+  return match
+    ? Object.fromEntries([...match[1].matchAll(/([a-z]+):\s*'([^']+)'/g)].map(item => [item[1], item[2]]))
+    : {};
+};
+const shellDesktopDestinations = stringArray(visionShellSource, /var ORDER = \[([^\]]+)\];/);
+const shellMobileDestinations = stringArray(visionShellSource, /var MOBILE_ORDER = \[([^\]]+)\];/);
+const shellMoreDestinations = stringArray(visionShellSource, /var MORE_DESTINATIONS = \[([^\]]+)\];/);
+const shellLegacyOwnerMap = stringObject(visionShellSource, 'NEW_TO_OLD');
+const shellAnalyticsMap = stringObject(visionShellSource, 'ANALYTICS_SOURCE');
+const tutorialDesktopDestinations = stringArray(
+  onboardingSource,
+  /const DESKTOP_DESTINATIONS = Object\.freeze\(\[([^\]]+)\]\);/,
+);
+const tutorialMobileDestinations = stringArray(
+  onboardingSource,
+  /const MOBILE_DESTINATIONS = Object\.freeze\(\[([^\]]+)\]\);/,
+);
+const tutorialMoreDestinations = stringArray(
+  onboardingSource,
+  /const MOBILE_MORE_DESTINATIONS = Object\.freeze\(\[([^\]]+)\]\);/,
+);
 const screenshotLabels = plan => Array.isArray(plan)
   ? plan.map(item => String(item || '').split(' —')[0].trim())
   : [];
 const readmeScreenshotLabels = [...screenshotPlanSource.matchAll(/^\d+\.\s+([^\n—]+?)\s+—/gm)]
   .map(match => match[1].trim());
-const destinationCsv = `${destinationLabels.slice(0, -1).join(', ')}, and ${destinationLabels.at(-1)}`;
-if (JSON.stringify(navigationLabels) !== JSON.stringify(internalNavigationLabels) ||
-    !navigationSource.includes("destination.id === 'code' ? ' data-crump-code-destination hidden' : ''") ||
-    JSON.stringify(tutorialDestinations) !== JSON.stringify(destinationLabels) ||
+const desktopListingCopy = 'Ask, Projects, Files, Library, Video, and Autonomous';
+if (JSON.stringify(shellDesktopDestinations) !== JSON.stringify(desktopDestinationIds) ||
+    JSON.stringify(shellMobileDestinations) !== JSON.stringify(mobileDestinationIds) ||
+    JSON.stringify(shellMoreDestinations) !== JSON.stringify(moreDestinationIds) ||
+    JSON.stringify(shellLegacyOwnerMap) !== JSON.stringify(legacyOwnerMap) ||
+    JSON.stringify(shellAnalyticsMap) !== JSON.stringify(analyticsDestinationMap) ||
+    JSON.stringify(tutorialDesktopDestinations) !== JSON.stringify(desktopDestinationLabels) ||
+    JSON.stringify(tutorialMobileDestinations) !== JSON.stringify(mobileDestinationLabels) ||
+    JSON.stringify(tutorialMoreDestinations) !== JSON.stringify(moreDestinationLabels) ||
     JSON.stringify(screenshotLabels(listingSource.apple?.screenshotPlan)) !== JSON.stringify(expectedScreenshotLabels) ||
     JSON.stringify(screenshotLabels(listingSource.google?.screenshotPlan)) !== JSON.stringify(expectedScreenshotLabels) ||
     JSON.stringify(readmeScreenshotLabels) !== JSON.stringify(expectedScreenshotLabels) ||
-    !listingSource.apple?.description?.includes(`six destinations: ${destinationCsv}`) ||
-    !listingSource.google?.fullDescription?.includes(`six clear destinations: ${destinationCsv}`) ||
-    !listingCopySource.includes(`Ask, Projects, Create, Video, Library, and You`) ||
-    !destinationIds.every(id => onboardingSource.includes(`action: '${id}'`))) {
-  console.error('Navigation, workspace guide, and store-release sources disagree on the current six-destination product.');
+    !listingSource.apple?.description?.includes(desktopListingCopy) ||
+    !listingSource.google?.fullDescription?.includes(desktopListingCopy) ||
+    !listingCopySource.includes(desktopListingCopy) ||
+    !desktopDestinationLabels.every(label => onboardingSource.includes(`destination: '${label}'`)) ||
+    !visionShellSource.includes("sourceKey === 'home' || sourceKey === 'studios' || sourceKey === 'you'") ||
+    !visionShellSource.includes('data-cv-destination="profile"') ||
+    !visionShellSource.includes('aria-haspopup="dialog" aria-controls="cvMoreMenu" aria-expanded="false"')) {
+  console.error('Navigation, workspace guide, and store-release sources disagree on the friendly workspace contract.');
   process.exit(1);
 }
 if (!releaseVersion || !landingHtml.includes(`/landing.js?v=${landingVersion}`)) {
@@ -1276,8 +1312,12 @@ const requiredHtmlSignals = [
   'id="fileInput"',
   'id="deleteAccountBtn"',
   'href="/delete-account.html"',
-  '<div class="v1-launchpad-foot" aria-label="Ask Crump destinations">',
-  '<span>Ask</span><i></i><span>Projects</span><i></i><span>Create</span><i></i><span>Video</span><i></i><span>Library</span><i></i><span>You</span>',
+  '<h1>What can I help you get done?</h1>',
+  '<p class="v1-launchpad-actions-label">Or jump straight in</p>',
+  'data-v1-command="projects"',
+  'data-v1-command="file"',
+  'data-v1-command="image"',
+  'data-v1-command="video"',
 ];
 
 for (const signal of requiredHtmlSignals) {
@@ -1314,6 +1354,12 @@ if (appHtml.includes('<span>Saved</span>')) {
   console.error('The retired Saved destination must not return to the authenticated launchpad.');
   process.exit(1);
 }
+if (appHtml.includes('class="v1-launchpad-foot"') ||
+    appHtml.includes('data-v1-command="focus"') ||
+    (appHtml.match(/class="v1-launch-card(?:\s|\")/g) || []).length !== 4) {
+  console.error('The first screen must keep exactly four focused jump cards and no duplicate destination footer.');
+  process.exit(1);
+}
 
 const runtime = await readFile(new URL('public/runtime-body-v1.js', repoRoot), 'utf8');
 const nativeBuildSource = await readFile(new URL('scripts/build-native.mjs', repoRoot), 'utf8');
@@ -1334,8 +1380,8 @@ for (const source of [runtime, nativeBuildSource]) {
 }
 if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/billing-manager.js?v=${stripeDestinationIntegrityVersion}`) ||
-    !runtime.includes(`/onboarding.css?v=${videoDestinationVersion}`) ||
-    !runtime.includes(`/onboarding.js?v=${brandDeliveryVersion}`) ||
+    !runtime.includes(`/onboarding.css?v=${cacheIntegrityVersion}`) ||
+    !runtime.includes(`/onboarding.js?v=${cacheIntegrityVersion}`) ||
     !runtime.includes(`/conversation.css?v=${museReleaseRepairVersion}`) ||
     !runtime.includes(`/crump-design-pass.css?v=${mascotFaceVersion}`) ||
     !runtime.includes(`/credit-confirmation.css?v=${creditConfirmationVersion}`) ||
@@ -1352,7 +1398,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/product-analytics.js?v=${navigationDiscoveryVersion}`) ||
     !runtime.includes(`/app.js?v=${referenceFidelityVersion}`) ||
     !runtime.includes(`/crump-v1-body.js?v=${shellBrandAltVersion}`) ||
-    !runtime.includes(`/crump-v1-body.css?v=${brandDeliveryVersion}`) ||
+    !runtime.includes(`/crump-v1-body.css?v=${cacheIntegrityVersion}`) ||
     !runtime.includes(`/crump-5.0.css?v=${referenceFidelityVersion}`) ||
     !runtime.includes(`/crump-5.0.js?v=${referenceFidelityVersion}`) ||
     !runtime.includes(`/crump-precision-image-edit-loader.js?v=${referenceFidelityVersion}`) ||
@@ -1363,20 +1409,21 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/crump-5.2.2.css?v=${newResponseCueVersion}`) ||
     !runtime.includes(`/crump-5.2.2.js?v=${museReleaseRepairVersion}`) ||
     !runtime.includes(`/crump-4.3.js?v=${mascotFaceVersion}`) ||
-    !runtime.includes(`/crump-4.4.js?v=${navigationDiscoveryVersion}`) ||
+    !runtime.includes(`/crump-4.4.css?v=${cacheIntegrityVersion}`) ||
+    !runtime.includes(`/crump-4.4.js?v=${cacheIntegrityVersion}`) ||
     !runtime.includes(`/crump-v1-stability.js?v=${intelligenceArchitectureVersion}`) ||
     !runtime.includes(`/crump-product-loader.js?v=${projectsEmptyStateVersion}`) ||
     runtime.includes(`/crump-product-5.3.js?v=${studioActionLabelsVersion}`) ||
     runtime.includes(`/crump-product-5.3.css?v=${fileLibraryWindowVersion}`) ||
     !runtime.includes(`/crump-product-5.3.1.js?v=${conversationActionLabelsVersion}`) || !runtime.includes('/crump-product-5.3.1.css') ||
     !runtime.includes(`/crump-subscriptions-5.3.2.js?v=${checkoutDestinationLabelVersion}`) ||
-    !runtime.includes(`/crump-polish-5.6.js?v=${videoDestinationVersion}`) || !runtime.includes('/crump-polish-5.6.css') ||
+    !runtime.includes(`/crump-polish-5.6.js?v=${cacheIntegrityVersion}`) || !runtime.includes('/crump-polish-5.6.css') ||
     !runtime.includes(`/crump-media-save.js?v=${libraryLazyLoadVersion}`) ||
     !runtime.includes(`/crump-library-loader.js?v=${libraryFirstRunVersion}`) ||
     runtime.includes('/crump-library-5.7.js') || runtime.includes('/crump-library-5.7.css') ||
     !runtime.includes(`/crump-navigation-5.9.30.js?v=${imageStudioEntryVersion}`) ||
     !runtime.includes(`/crump-navigation-5.9.30.css?v=${navFocusVisibilityVersion}`) ||
-    !runtime.includes(`/crump-code-loader.js?v=${codeLazyLoadVersion}`) ||
+    !runtime.includes(`/crump-code-loader.js?v=${cacheIntegrityVersion}`) ||
     runtime.includes(`/crump-code-5.9.35.js?v=${creditConfirmationVersion}`) ||
     runtime.includes(`/crump-code-5.9.35.css?v=${intelligenceArchitectureVersion}`)) {
   console.error('New-body runtime is missing the canonical shell.');
@@ -1586,7 +1633,7 @@ for (const [label, source] of [
     process.exit(1);
   }
 }
-if (!serviceWorker.includes('ask-crump-new-body-v1-r254') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r255') ||
     !serviceWorker.includes(`'${shellBrandUrl}'`) ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||
@@ -1610,9 +1657,9 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r254') ||
     !serviceWorker.includes(`/app.js?v=${referenceFidelityVersion}`) ||
     !serviceWorker.includes(`/crump-5.2.2.css?v=${newResponseCueVersion}`) ||
     !serviceWorker.includes(`/crump-5.2.2.js?v=${museReleaseRepairVersion}`) ||
-    !serviceWorker.includes(`/onboarding.css?v=${videoDestinationVersion}`) ||
-    !serviceWorker.includes(`/onboarding.js?v=${brandDeliveryVersion}`) ||
-    !serviceWorker.includes(`/crump-polish-5.6.js?v=${videoDestinationVersion}`) ||
+    !serviceWorker.includes(`/onboarding.css?v=${cacheIntegrityVersion}`) ||
+    !serviceWorker.includes(`/onboarding.js?v=${cacheIntegrityVersion}`) ||
+    !serviceWorker.includes(`/crump-polish-5.6.js?v=${cacheIntegrityVersion}`) ||
     !serviceWorker.includes(`/crump-navigation-5.9.30.css?v=${navFocusVisibilityVersion}`) ||
     !serviceWorker.includes(`/crump-navigation-5.9.30.js?v=${imageStudioEntryVersion}`) ||
     !serviceWorker.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-1`) ||
@@ -1626,9 +1673,10 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r254') ||
     !serviceWorker.includes(`/chat-sync.js?v=${settingsSyncVersion}`) ||
     !serviceWorker.includes(`/product-analytics.js?v=${navigationDiscoveryVersion}`) ||
     !serviceWorker.includes(`/auth-controller.js?v=${authControllerVersion}`) ||
-    !serviceWorker.includes(`/crump-v1-body.css?v=${brandDeliveryVersion}`) ||
+    !serviceWorker.includes(`/crump-v1-body.css?v=${cacheIntegrityVersion}`) ||
     !serviceWorker.includes(`/crump-4.3.js?v=${mascotFaceVersion}`) ||
-    !serviceWorker.includes(`/crump-4.4.js?v=${navigationDiscoveryVersion}`) ||
+    !serviceWorker.includes(`/crump-4.4.css?v=${cacheIntegrityVersion}`) ||
+    !serviceWorker.includes(`/crump-4.4.js?v=${cacheIntegrityVersion}`) ||
     !serviceWorker.includes(`/crump-v1-stability.js?v=${intelligenceArchitectureVersion}`) ||
     !serviceWorker.includes(`/crump-product-loader.js?v=${projectsEmptyStateVersion}`) ||
     !serviceWorker.includes(`/crump-product-5.3.1.js?v=${conversationActionLabelsVersion}`) ||
@@ -1636,7 +1684,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r254') ||
     serviceWorker.includes(`/crump-product-5.3.css?v=${fileLibraryWindowVersion}`) ||
     !serviceWorker.includes(`/crump-navigation-5.9.30.js?v=${imageStudioEntryVersion}`) ||
     !serviceWorker.includes(`/crump-navigation-5.9.30.css?v=${navFocusVisibilityVersion}`) ||
-    !serviceWorker.includes(`/crump-code-loader.js?v=${codeLazyLoadVersion}`) ||
+    !serviceWorker.includes(`/crump-code-loader.js?v=${cacheIntegrityVersion}`) ||
     serviceWorker.includes(`/crump-code-5.9.35.js?v=${creditConfirmationVersion}`) ||
     serviceWorker.includes(`/crump-code-5.9.35.css?v=${intelligenceArchitectureVersion}`) ||
     !serviceWorker.includes("url.pathname === '/conversation.css'") ||

@@ -52,13 +52,17 @@ async function inspectTutorial(page) {
     body: readFileSync(join(process.cwd(), 'public', 'assets', 'brand', 'crump-mark.png')),
   }));
   const expectedSteps = [
-    ['Ask', 'Start with the conversation.'],
+    ['Ask', 'Start with what you need.'],
     ['Projects', 'Give continuing work a home.'],
-    ['Create', 'Choose the outcome you need.'],
+    ['Files', 'Find every useful result.'],
+    ['Library', 'Keep long-form work on its own shelf.'],
     ['Video', 'Give motion its own studio.'],
-    ['Library', 'Keep the things you create.'],
-    ['You', 'Your account has one clear home.'],
+    ['Autonomous', 'Hand off a bounded coding task.'],
+    ['Profile', 'Your account has one clear home.'],
   ];
+  const desktopDestinations = ['Ask', 'Projects', 'Files', 'Library', 'Video', 'Autonomous', 'Profile'];
+  const mobileDestinations = ['Ask', 'Projects', 'Library', 'Video', 'More'];
+  const mobileMore = new Set(['Files', 'Autonomous', 'Profile']);
   const steps = [];
   for (const [index, [destination, title]] of expectedSteps.entries()) {
     await page.goto('http://127.0.0.1:8765/tests/fixtures/five-destination-tutorial.html', {waitUntil: 'load'});
@@ -68,8 +72,10 @@ async function inspectTutorial(page) {
     const guide = await page.evaluate(() => ({
       progress: document.querySelector('.tutorial-progress-label')?.textContent || '',
       title: document.getElementById('tutorialTitle')?.textContent || '',
-      destinations: [...document.querySelectorAll('.tutorial-destination-map span')].map(item => item.textContent),
-      current: document.querySelector('.tutorial-destination-map .is-current')?.textContent || '',
+      desktopDestinations: [...document.querySelectorAll('.tutorial-destination-group:first-child .tutorial-destination-map span')].map(item => item.textContent),
+      mobileDestinations: [...document.querySelectorAll('.tutorial-destination-group:last-child .tutorial-destination-map span')].map(item => item.textContent),
+      desktopCurrent: document.querySelector('.tutorial-destination-group:first-child .is-current')?.textContent || '',
+      mobileCurrent: document.querySelector('.tutorial-destination-group:last-child .is-current')?.textContent || '',
       action: document.querySelector('.tutorial-open-destination')?.textContent || '',
       description: document.getElementById('tutorialDescription')?.textContent || '',
       features: [...document.querySelectorAll('.tutorial-feature')].map(item => item.textContent || ''),
@@ -77,20 +83,23 @@ async function inspectTutorial(page) {
     assert.deepEqual({
       progress: guide.progress,
       title: guide.title,
-      destinations: guide.destinations,
-      current: guide.current,
+      desktopDestinations: guide.desktopDestinations,
+      mobileDestinations: guide.mobileDestinations,
+      desktopCurrent: guide.desktopCurrent,
+      mobileCurrent: guide.mobileCurrent,
       action: guide.action,
     }, {
-      progress: `${index + 1} / 6`,
+      progress: `${index + 1} / 7`,
       title,
-      destinations: ['Ask', 'Projects', 'Create', 'Video', 'Library', 'You'],
-      current: destination,
-      action: `Open ${destination} →`,
+      desktopDestinations,
+      mobileDestinations,
+      desktopCurrent: destination,
+      mobileCurrent: mobileMore.has(destination) ? 'More' : destination,
+      action: destination === 'Autonomous' ? 'Open Autonomous Crump →' : `Open ${destination} →`,
     });
-    if (destination === 'Create') {
-      assert.match(guide.description, /choose Edit area after a result/i);
-      assert.match(guide.description, /Choose Apply changes to return to the conversation with the edited image/i);
-      assert.deepEqual(guide.features, ['Editable files', 'Local image adjustments', 'Long-form manuscripts']);
+    if (destination === 'Files') {
+      assert.match(guide.description, /home for documents, presentations, images, video exports, and uploads/i);
+      assert.deepEqual(guide.features, ['Preview in the app', 'Download originals', 'Organized by Project']);
     }
     await page.locator('.tutorial-open-destination').click();
     await page.waitForFunction(expected => document.getElementById('fixtureDestination')?.textContent === expected, destination.toLowerCase());

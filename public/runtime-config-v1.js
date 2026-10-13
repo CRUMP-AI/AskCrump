@@ -21,8 +21,8 @@ window.CRUMP_CONFIG = Object.freeze({
   const assets = Object.freeze([
     ['style', '/crump-4.3.css', 'crump43'],
     ['script', '/crump-4.3.js', 'crump43'],
-    ['style', '/crump-4.4.css', 'crump44'],
-    ['script', '/crump-4.4.js', 'crump44'],
+    ['style', '/crump-4.4.css?v=5.9.76-friendly-workspace-1', 'crump44'],
+    ['script', '/crump-4.4.js?v=5.9.76-friendly-workspace-1', 'crump44'],
     ['style', '/crump-5.0.css?v=5.9.76-reference-fidelity-hard-contract-1', 'crump50'],
     ['script', '/crump-5.0.js?v=5.9.76-reference-fidelity-hard-contract-1', 'crump50'],
     ['script', '/crump-precision-image-edit-loader.js?v=5.9.76-reference-fidelity-hard-contract-1', 'crumpprecisionloader'],

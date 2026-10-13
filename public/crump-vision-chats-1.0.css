@@ -1,25 +1,24 @@
 /* Crump Vision — Chats screen (1.0)
- * Vision styling laid over the real chat engine. Brand law: ink-black and
- * gold, Georgia headlines, Inter body, tracked-out gold eyebrows, hairline
- * borders, generous whitespace. No glows, no sparkles.
+ * Calm, warm workspace styling laid over the real chat engine. The treatment
+ * favors legibility, clear hierarchy, and restrained brand accents.
  */
 
 :root {
-  --cv-bg: #070a0e;
-  --cv-panel: #0b0f14;
-  --cv-hairline: rgba(213, 185, 113, 0.16);
-  --cv-gold: #d5b971;
-  --cv-deep-gold: #b69855;
-  --cv-text: #f1efe9;
-  --cv-muted: #8a9196;
+  --cv-bg: #0d1015;
+  --cv-panel: #15191f;
+  --cv-hairline: rgba(255, 255, 255, 0.09);
+  --cv-gold: #dec57e;
+  --cv-deep-gold: #c6a95f;
+  --cv-text: #f7f4ec;
+  --cv-muted: #adb3bb;
 }
 
 /* Shared eyebrow + mascot used by the chats components and the shell helpers */
 .cv-eyebrow {
   font-family: Inter, -apple-system, "Segoe UI", sans-serif;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.22em;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--cv-gold);
   margin: 0;
@@ -53,19 +52,17 @@ body.crump-v1-body .cv-identity .crump-message-avatar {
   flex: 0 0 auto;
   overflow: hidden;
   border-radius: 50% !important;
-  border: 1px solid rgba(213, 185, 113, 0.28) !important;
+  border: 1px solid rgba(222, 197, 126, 0.32) !important;
   box-shadow: none !important;
   background:
-    url("/assets/crump-mascot-official.jpg") center / cover no-repeat,
     url("/assets/brand/crump-mascot.png") center / cover no-repeat !important;
 }
 
 .cv-identity .crump-message-name {
   font-family: Inter, -apple-system, "Segoe UI", sans-serif;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.22em;
-  text-transform: uppercase;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.02em;
   color: var(--cv-gold);
 }
 
@@ -79,10 +76,9 @@ body.crump-v1-body .cv-thinking .crump-message-avatar {
   flex: 0 0 auto;
   overflow: hidden;
   border-radius: 50% !important;
-  border: 1px solid rgba(213, 185, 113, 0.28) !important;
+  border: 1px solid rgba(222, 197, 126, 0.32) !important;
   box-shadow: none !important;
   background:
-    url("/assets/crump-mascot-official.jpg") center / cover no-repeat,
     url("/assets/brand/crump-mascot.png") center / cover no-repeat !important;
 }
 
@@ -185,7 +181,7 @@ body.crump-v1-body .cv-thinking .crump-message-avatar {
   display: grid;
   place-items: center;
   border-radius: 50%;
-  border: 1px solid rgba(213, 185, 113, 0.35);
+  border: 1px solid rgba(222, 197, 126, 0.4);
   font-size: 11px;
   line-height: 1;
   color: var(--cv-gold);
@@ -212,12 +208,12 @@ body.crump-v1-body .cv-thinking .crump-message-avatar {
 .cv-plan-step.cv-plan-done .cv-plan-dot {
   background: var(--cv-gold);
   border-color: var(--cv-gold);
-  color: #070a0e;
+  color: #15120a;
   animation: none;
 }
 
 .cv-plan.cv-plan-complete {
-  border-color: rgba(213, 185, 113, 0.32);
+  border-color: rgba(222, 197, 126, 0.36);
   transition: border-color 250ms ease, opacity 600ms ease;
 }
 
@@ -239,10 +235,10 @@ body.crump-v1-body .cv-thinking .crump-message-avatar {
 }
 
 .cv-keepsake-title {
-  font-family: Georgia, "Times New Roman", serif;
-  font-weight: 400;
-  font-size: 20px;
+  font-weight: 680;
+  font-size: 19px;
   line-height: 1.35;
+  letter-spacing: -0.015em;
   color: var(--cv-text);
   margin: 12px 0 6px;
 }
@@ -251,7 +247,7 @@ body.crump-v1-body .cv-thinking .crump-message-avatar {
   font-family: Inter, -apple-system, "Segoe UI", sans-serif;
   font-size: 13px;
   color: var(--cv-muted);
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
 }
 
 .cv-keepsake-actions {
@@ -267,7 +263,7 @@ body.crump-v1-body .cv-thinking .crump-message-avatar {
   font-weight: 600;
   padding: 10px 18px;
   border-radius: 999px;
-  border: 1px solid rgba(213, 185, 113, 0.4);
+  border: 1px solid rgba(222, 197, 126, 0.44);
   background: transparent;
   color: var(--cv-gold);
   cursor: pointer;
@@ -276,23 +272,23 @@ body.crump-v1-body .cv-thinking .crump-message-avatar {
 
 .cv-keepsake-btn:hover {
   border-color: var(--cv-gold);
-  background: rgba(213, 185, 113, 0.1);
+  background: rgba(222, 197, 126, 0.1);
 }
 
 .cv-keepsake-btn-primary {
   background: var(--cv-gold);
   border-color: var(--cv-gold);
-  color: #070a0e;
+  color: #15120a;
 }
 
 .cv-keepsake-btn-primary:hover {
   background: var(--cv-deep-gold);
   border-color: var(--cv-deep-gold);
-  color: #070a0e;
+  color: #15120a;
 }
 
 .cv-keepsake-btn:focus-visible {
-  outline: 3px solid rgba(213, 185, 113, 0.45);
+  outline: 2px solid var(--cv-gold);
   outline-offset: 2px;
 }
 
@@ -309,16 +305,16 @@ body.crump-v1-body .cv-thinking .crump-message-avatar {
   content: "Keepsake";
   display: block;
   font-family: Inter, -apple-system, "Segoe UI", sans-serif;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.22em;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--cv-gold);
   margin-bottom: 10px;
 }
 
 .crump50-artifact.cv-keepsake-real .crump50-artifact-actions button {
-  border: 1px solid rgba(213, 185, 113, 0.4);
+  border: 1px solid rgba(222, 197, 126, 0.44);
   border-radius: 999px;
   background: transparent;
   color: var(--cv-gold);
@@ -331,7 +327,7 @@ body.crump-v1-body .cv-thinking .crump-message-avatar {
 
 .crump50-artifact.cv-keepsake-real .crump50-artifact-actions button:hover {
   border-color: var(--cv-gold);
-  background: rgba(213, 185, 113, 0.1);
+  background: rgba(222, 197, 126, 0.1);
 }
 
 /* ---------------------------------------------------------------------------

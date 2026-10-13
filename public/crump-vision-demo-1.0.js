@@ -216,7 +216,7 @@
       },
       {
         title: 'The build',
-        content: 'Home briefing. Chats with plans and keepsakes. Projects with durable memory. Library bookshelf. Studios. Memory Console.\n\nEach screen ships only after a pixel-level QA pass against the demo.',
+        content: 'Ask for conversation and creation. Projects for continuing work. Files for useful results. Library for books and manuscripts. Video for motion. Autonomous Crump for bounded coding work.\n\nEach screen ships only after a pixel-level QA pass against the demo.',
       },
       {
         title: 'Before the store',
@@ -367,7 +367,7 @@
     root.className = 'cv-view';
     var wrap = el(
       '<div class="cv-wrap cv-demo-chat">' +
-        '<p class="cv-eyebrow">Chats</p>' +
+        '<p class="cv-eyebrow">Ask</p>' +
         '<h1 class="cv-headline">One conversation, finished.</h1>' +
         '<p class="cv-sub">A scripted look at the chats design language \u2014 mascot identity, calm thinking state, visible plan, and a keepsake at the end. Sign in to chat for real.</p>' +
         '<div class="cv-demo-thread" role="log" aria-label="Demo conversation"></div>' +
@@ -473,7 +473,7 @@
     try {
       var V = window.CrumpVision;
       if (V && typeof V.registerView === 'function') {
-        V.registerView('chats', { title: 'Chats', render: renderChatsDemo });
+        V.registerView('chats', { title: 'Ask', render: renderChatsDemo });
       }
     } catch (_) {
       /* demo-only nicety; never break the app */

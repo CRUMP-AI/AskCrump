@@ -50,7 +50,7 @@ const assert = require('node:assert/strict');
       assert.equal(evidence.lastStyle, '/crump-design-pass.css?v=5.9.76-mascot-face-1');
       assert.equal(evidence.preloadCount, 34);
       assert.equal(evidence.scriptCount, mode === 'script-retry' ? 35 : 34);
-      assert.equal(evidence.firstScript, '/onboarding.js?v=5.9.76-brand-retina-1');
+      assert.equal(evidence.firstScript, '/onboarding.js?v=5.9.76-friendly-workspace-1');
       assert.equal(evidence.lastScript, '/lifecycle-manager.js?v=5.9.76-lifecycle-idle-send-1');
       assert.equal(evidence.styleAttempts, mode === 'style-retry' ? 2 : 1);
       assert.equal(evidence.scriptAttempts, mode === 'script-retry' ? 2 : 1);

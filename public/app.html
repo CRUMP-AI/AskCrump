@@ -18,7 +18,7 @@
   <link rel="stylesheet" href="/styles.css">
   <link rel="stylesheet" href="/install-prompt.css?v=5.9.76">
   <link rel="stylesheet" href="/auth-styles.css">
-  <link rel="stylesheet" href="/crump-v1-body.css?v=5.9.76-brand-retina-1" data-crump-body-v1="true">
+  <link rel="stylesheet" href="/crump-v1-body.css?v=5.9.76-friendly-workspace-1" data-crump-body-v1="true">
 </head>
 <body class="crump-v1-body">
 
@@ -31,10 +31,10 @@
     <div class="v1-auth-manifesto">
       <div class="v1-kicker">YOUR AI WORKSPACE</div>
       <h2>Think it through.<br>Build it properly.</h2>
-      <p>Home, Chats, Projects, Library, Studios, and You — one workspace for conversations, files, manuscripts, media, and work you can return to.</p>
+      <p>Ask, Projects, Files, Library, Video, Autonomous Crump, and Profile — one calm workspace for conversations and work you can return to.</p>
     </div>
     <div class="v1-auth-capabilities">
-      <span>Home</span><span>Chats</span><span>Projects</span><span>Library</span><span>Studios</span><span>You</span>
+      <span>Ask</span><span>Projects</span><span>Files</span><span>Library</span><span>Video</span><span>Autonomous · Beta</span><span>Profile</span>
     </div>
   </aside>
 
@@ -243,7 +243,7 @@
       <img src="/assets/brand/crump-mark-320.webp" width="320" height="357" loading="eager" decoding="sync" fetchpriority="high" alt="" aria-hidden="true">
       <span>ASK CRUMP</span>
       <strong>Opening your workspace</strong>
-      <p>Bringing your conversations, Projects, and Library into place.</p>
+      <p>Bringing your recent conversations and work into place.</p>
       <div class="v1-runtime-gate-progress" aria-hidden="true"><i></i></div>
     </div>
   </div>
@@ -349,14 +349,14 @@
         <section id="v1Launchpad" class="v1-launchpad" aria-label="Start something">
           <div class="v1-launchpad-mark v1-launchpad-mascot"><img src="/assets/brand/crump-mascot.png" width="512" height="512" loading="eager" decoding="async" alt="Crump"></div>
           <div id="v1Greeting" class="v1-launchpad-greeting">Good evening.</div>
-          <h1>What are we moving forward?</h1>
-          <p>Ask something, start a Project, research what changed, work from a file, or create something you can keep.</p>
+          <h1>What can I help you get done?</h1>
+          <p>Start with a question, pick up a Project, or make something useful. You do not need to choose the right tool first.</p>
 
           <div id="v1StarterChips" class="v1-starter-chips" role="group" aria-label="Conversation starters">
             <button type="button" class="v1-starter-chip" data-starter-prompt="Pick up where we left off.">Pick up where we left off</button>
-            <button type="button" class="v1-starter-chip" data-starter-prompt="Help me plan my week.">Plan my week</button>
-            <button type="button" class="v1-starter-chip" data-starter-prompt="Research a topic for me.">Research a topic</button>
-            <button type="button" class="v1-starter-chip" data-starter-prompt="Help me think through an idea.">Think through an idea</button>
+            <button type="button" class="v1-starter-chip" data-starter-prompt="Help me think through a decision.">Think through a decision</button>
+            <button type="button" class="v1-starter-chip" data-starter-prompt="Research what changed and show me the sources.">Research what changed</button>
+            <button type="button" class="v1-starter-chip" data-starter-prompt="Turn my rough notes into a clear plan.">Turn notes into a plan</button>
           </div>
 
           <div id="v1ProfileNudge" class="v1-profile-nudge" role="region" aria-label="Optional profile setup" hidden>
@@ -380,24 +380,20 @@
             </button>
           </div>
 
+          <p class="v1-launchpad-actions-label">Or jump straight in</p>
           <div class="v1-launchpad-grid">
-            <button type="button" class="v1-launch-card v1-launch-card-primary" data-v1-command="focus" aria-labelledby="v1LaunchFocusTitle" aria-describedby="v1LaunchFocusDescription">
-              <span class="v1-launch-icon" aria-hidden="true">✦</span>
-              <span><strong id="v1LaunchFocusTitle">Think with Crump</strong><small id="v1LaunchFocusDescription">Talk through an idea, decision, or problem.</small></span>
-              <b aria-hidden="true">↗</b>
-            </button>
-            <button type="button" class="v1-launch-card" data-v1-command="research" aria-labelledby="v1LaunchResearchTitle" aria-describedby="v1LaunchResearchDescription">
+            <button type="button" class="v1-launch-card v1-launch-card-primary" data-v1-command="projects" aria-labelledby="v1LaunchProjectsTitle" aria-describedby="v1LaunchProjectsDescription">
               <span class="v1-launch-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="m16 16 4 4"/></svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h6l2 2h8v10H4z"/><path d="M4 7V5h7l2 2"/></svg>
               </span>
-              <span><strong id="v1LaunchResearchTitle">Research something</strong><small id="v1LaunchResearchDescription">Work with current information and sources.</small></span>
+              <span><strong id="v1LaunchProjectsTitle">Open a Project</strong><small id="v1LaunchProjectsDescription">Continue with its context, conversations, and files intact.</small></span>
               <b aria-hidden="true">↗</b>
             </button>
             <button type="button" class="v1-launch-card" data-v1-command="file" aria-labelledby="v1LaunchFileTitle" aria-describedby="v1LaunchFileDescription">
               <span class="v1-launch-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v5h5"/></svg>
               </span>
-              <span><strong id="v1LaunchFileTitle">Analyze a file</strong><small id="v1LaunchFileDescription">PDFs, documents, images, spreadsheets, and more.</small></span>
+              <span><strong id="v1LaunchFileTitle">Work with a file</strong><small id="v1LaunchFileDescription">Analyze a PDF, document, image, spreadsheet, or presentation.</small></span>
               <b aria-hidden="true">↗</b>
             </button>
             <button type="button" class="v1-launch-card" data-v1-command="image" aria-labelledby="v1LaunchImageTitle" aria-describedby="v1LaunchImageDescription">
@@ -405,13 +401,6 @@
                 <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="m7 16 4-4 3 3 2-2 2 3"/><circle cx="9" cy="9" r="1.5"/></svg>
               </span>
               <span><strong id="v1LaunchImageTitle">Create an image</strong><small id="v1LaunchImageDescription">Generate, edit, or build a visual concept.</small></span>
-              <b aria-hidden="true">↗</b>
-            </button>
-            <button type="button" class="v1-launch-card" data-v1-command="projects" aria-labelledby="v1LaunchProjectsTitle" aria-describedby="v1LaunchProjectsDescription">
-              <span class="v1-launch-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h6l2 2h8v10H4z"/><path d="M4 7V5h7l2 2"/></svg>
-              </span>
-              <span><strong id="v1LaunchProjectsTitle">Start or open a Project</strong><small id="v1LaunchProjectsDescription">Keep instructions, canon, files, and ongoing work together.</small></span>
               <b aria-hidden="true">↗</b>
             </button>
             <button type="button" class="v1-launch-card" data-v1-command="video" aria-labelledby="v1LaunchVideoTitle" aria-describedby="v1LaunchVideoDescription">
@@ -423,9 +412,6 @@
             </button>
           </div>
 
-          <div class="v1-launchpad-foot" aria-label="Ask Crump destinations">
-            <span>Ask</span><i></i><span>Projects</span><i></i><span>Create</span><i></i><span>Video</span><i></i><span>Library</span><i></i><span>You</span>
-          </div>
         </section>
 
         <div id="chatContainer" class="chat-container" aria-label="Conversation"></div>
@@ -444,7 +430,7 @@
             <button id="attachBtn" type="button" aria-label="Add to conversation" class="btn-icon" title="Add">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
             </button>
-            <textarea id="userInput" class="message-input" placeholder="Message Crump" rows="1" maxlength="20000" aria-label="Message Crump"></textarea>
+            <textarea id="userInput" class="message-input" placeholder="Ask Crump anything…" rows="1" maxlength="20000" aria-label="Message Crump"></textarea>
             <button id="sendButton" type="button" aria-label="Send message" aria-disabled="true" disabled class="btn-icon btn-send" title="Send">
               <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6.5 10.5 12 5l5.5 5.5"/></svg>
             </button>
@@ -638,21 +624,16 @@
 
 <script defer src="/telemetry-config.js?v=5.9.76"></script>
 <script defer src="/crump-vision-demo-1.0.js?v=1.0.0-vision-demo-1"></script>
-<script defer src="/runtime-body-v1.js?v=5.9.76-cache-integrity-1"></script>
-<link rel="stylesheet" href="/crump-vision-shell-1.0.css?v=1.0.0-vision-shell-1" />
-<script defer src="/crump-vision-shell-1.0.js?v=1.0.0-vision-shell-1"></script>
-<link rel="stylesheet" href="/crump-vision-home-1.0.css?v=1.0.0-vision-home-1" />
-<script defer src="/crump-vision-home-1.0.js?v=1.0.0-vision-home-1"></script>
-<link rel="stylesheet" href="/crump-vision-chats-1.0.css?v=1.0.0-vision-chats-1" />
-<script defer src="/crump-vision-chats-1.0.js?v=1.0.0-vision-chats-1"></script>
-<link rel="stylesheet" href="/crump-vision-projects-1.0.css?v=1.0.0-vision-projects-1" />
-<script defer src="/crump-vision-projects-1.0.js?v=1.0.0-vision-projects-1"></script>
-<link rel="stylesheet" href="/crump-vision-library-1.0.css?v=1.0.0-vision-library-1" />
-<script defer src="/crump-vision-library-1.0.js?v=1.0.0-vision-library-1"></script>
-<link rel="stylesheet" href="/crump-vision-studios-1.0.css?v=1.0.0-vision-studios-1" />
-<script defer src="/crump-vision-studios-1.0.js?v=1.0.0-vision-studios-1"></script>
-<link rel="stylesheet" href="/crump-vision-you-1.0.css?v=1.0.0-vision-you-1" />
-<script defer src="/crump-vision-you-1.0.js?v=1.0.0-vision-you-1"></script>
+<script defer src="/runtime-body-v1.js?v=5.9.76-friendly-workspace-1"></script>
+<link rel="stylesheet" href="/crump-vision-shell-1.0.css?v=5.9.76-friendly-workspace-1" />
+<script defer src="/crump-vision-shell-1.0.js?v=5.9.76-friendly-workspace-1"></script>
+<link rel="stylesheet" href="/crump-vision-chats-1.0.css?v=5.9.76-friendly-workspace-1" />
+<script defer src="/crump-vision-chats-1.0.js?v=5.9.76-friendly-workspace-1"></script>
+<link rel="stylesheet" href="/crump-vision-projects-1.0.css?v=5.9.76-friendly-workspace-1" />
+<script defer src="/crump-vision-projects-1.0.js?v=5.9.76-friendly-workspace-1"></script>
+<link rel="stylesheet" href="/crump-vision-library-1.0.css?v=5.9.76-friendly-workspace-1" />
+<script defer src="/crump-vision-library-1.0.js?v=5.9.76-friendly-workspace-1"></script>
+<link rel="stylesheet" href="/crump-vision-studios-1.0.css?v=5.9.76-friendly-workspace-1" />
 <script defer src="/native-runtime.js"></script>
 <script defer src="/mobile-bridge.js"></script>
 <script defer src="/safe-storage.js"></script>

@@ -15,18 +15,18 @@
 </head>
 <body>
   <main class="fixture-shell">
-    <nav aria-label="Fixture destinations"><span>Ask</span><span>Projects</span><span>Create</span><span>Video</span><span>Library</span><span>You</span></nav>
+    <nav aria-label="Fixture destinations"><span>Ask</span><span>Projects</span><span>Files</span><span>Library</span><span>Video</span><span>Autonomous</span><span>Profile</span></nav>
     <input id="userInput" aria-label="Message Crump">
     <output id="fixtureDestination" aria-label="Opened destination">none</output>
   </main>
   <script>
     window.currentUser = {id: 'tutorial-fixture-user'};
     window.showToast = () => {};
-    window.CrumpNavigation5930 = {
-      open: destination => { document.getElementById('fixtureDestination').textContent = destination; },
+    window.CrumpVision = {
+      navigate: destination => { document.getElementById('fixtureDestination').textContent = destination; },
     };
   </script>
-  <script src="/public/onboarding.js?fixture=actionable-six-destinations"></script>
+  <script src="/public/onboarding.js?fixture=friendly-seven-destinations"></script>
   <script>
     window.addEventListener('load', () => window.tutorial.start({force: true}), {once: true});
   </script>

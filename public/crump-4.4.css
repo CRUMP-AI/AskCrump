@@ -40,16 +40,16 @@
   position: fixed;
   top: calc(env(safe-area-inset-top) + 78px);
   right: max(14px, env(safe-area-inset-right));
-  width: min(390px, calc(100vw - 28px));
+  width: min(420px, calc(100vw - 28px));
   max-height: min(720px, calc(100dvh - 110px));
   display: flex;
   flex-direction: column;
   overflow: hidden;
   border: 1px solid rgba(255, 255, 255, 0.09);
-  border-radius: 22px;
+  border-radius: 20px;
   background:
-    linear-gradient(180deg, rgba(23, 28, 34, 0.985), rgba(14, 18, 23, 0.99)),
-    #11161c;
+    linear-gradient(180deg, rgba(24, 28, 34, 0.99), rgba(16, 19, 24, 0.995)),
+    #14181d;
   box-shadow:
     0 26px 70px rgba(0, 0, 0, 0.46),
     0 1px 0 rgba(255, 255, 255, 0.035) inset;
@@ -67,7 +67,7 @@
 }
 
 .crump44-panel-header {
-  min-height: 82px;
+  min-height: 88px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -83,22 +83,24 @@
 }
 
 .crump44-eyebrow {
-  color: #cbae59;
+  color: #d8bf7a;
   font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.12em;
 }
 
 .crump44-panel-header strong {
-  font-size: 20px;
+  font-size: 21px;
+  font-weight: 680;
   line-height: 1.15;
   letter-spacing: -0.025em;
 }
 
 .crump44-panel-header small {
-  color: rgba(229, 234, 241, 0.5);
-  font-size: 12px;
-  line-height: 1.35;
+  max-width: 310px;
+  color: rgba(235, 237, 240, 0.62);
+  font-size: 12.5px;
+  line-height: 1.45;
 }
 
 .crump44-close,
@@ -128,15 +130,15 @@
 .crump44-panel-content {
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 14px;
+  padding: 16px;
   scrollbar-width: thin;
 }
 
 .crump44-section {
-  padding: 15px 13px;
+  padding: 16px 14px;
   border: 1px solid rgba(255, 255, 255, 0.065);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.022);
+  background: rgba(255, 255, 255, 0.025);
 }
 
 .crump44-section + .crump44-section {
@@ -152,19 +154,19 @@
 
 .crump44-section-heading > span {
   color: rgba(245, 247, 250, 0.92);
-  font-size: 13px;
-  font-weight: 650;
+  font-size: 13.5px;
+  font-weight: 680;
 }
 
 .crump44-section-heading > small {
-  color: rgba(224, 229, 236, 0.43);
-  font-size: 11px;
-  line-height: 1.4;
+  color: rgba(228, 232, 237, 0.57);
+  font-size: 11.5px;
+  line-height: 1.5;
 }
 
 .crump44-segmented {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.35fr);
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 4px;
   padding: 4px;
   border: 1px solid rgba(255, 255, 255, 0.055);
@@ -173,13 +175,13 @@
 }
 
 .crump44-segment {
-  min-height: 34px;
+  min-height: 42px;
   border: 0;
   border-radius: 9px;
   background: transparent;
   color: rgba(230, 234, 240, 0.56);
   font: inherit;
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 600;
   cursor: pointer;
   transition: background 150ms ease, color 150ms ease, box-shadow 150ms ease;
@@ -217,14 +219,91 @@
 }
 
 .crump44-mode-copy {
-  margin: 9px 2px 0;
-  color: rgba(222, 227, 233, 0.46);
-  font-size: 11px;
-  line-height: 1.45;
+  margin: 11px 2px 0;
+  color: rgba(228, 232, 237, 0.62);
+  font-size: 11.5px;
+  line-height: 1.5;
+}
+
+.crump44-section-primary {
+  border-color: rgba(216, 191, 122, 0.16);
+  background: linear-gradient(145deg, rgba(216, 191, 122, 0.06), rgba(255, 255, 255, 0.025));
+}
+
+.crump44-advanced {
+  margin-top: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.018);
+  overflow: hidden;
+}
+
+.crump44-advanced > summary {
+  min-height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 11px 14px;
+  color: rgba(244, 246, 249, 0.9);
+  cursor: pointer;
+  list-style: none;
+}
+
+.crump44-advanced > summary::-webkit-details-marker {
+  display: none;
+}
+
+.crump44-advanced > summary:hover,
+.crump44-advanced > summary:focus-visible {
+  background: rgba(255, 255, 255, 0.035);
+}
+
+.crump44-advanced[open] > summary {
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+.crump44-advanced-copy {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.crump44-advanced-copy strong {
+  font-size: 13px;
+  font-weight: 650;
+}
+
+.crump44-advanced-copy small {
+  color: rgba(228, 232, 237, 0.54);
+  font-size: 10.5px;
+  line-height: 1.4;
+}
+
+.crump44-advanced-chevron {
+  flex: 0 0 auto;
+  color: rgba(232, 217, 176, 0.75);
+  font-size: 20px;
+  line-height: 1;
+  transform: rotate(0deg);
+  transition: transform 160ms ease;
+}
+
+.crump44-advanced[open] .crump44-advanced-chevron {
+  transform: rotate(180deg);
+}
+
+.crump44-advanced-body {
+  padding: 10px;
+}
+
+.crump44-advanced-body > .crump44-section + .crump44-section {
+  margin-top: 8px;
 }
 
 .crump44-toggle-row {
-  min-height: 54px;
+  min-height: 60px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -249,15 +328,15 @@
 
 .crump44-row-copy strong {
   color: rgba(244, 246, 249, 0.86);
-  font-size: 12px;
+  font-size: 12.5px;
   font-weight: 600;
 }
 
 .crump44-row-copy span {
   max-width: 270px;
-  color: rgba(220, 225, 231, 0.42);
-  font-size: 10.5px;
-  line-height: 1.4;
+  color: rgba(225, 229, 234, 0.56);
+  font-size: 11px;
+  line-height: 1.45;
 }
 
 .crump44-toggle {
@@ -341,9 +420,9 @@
 
 .crump44-review-copy {
   margin: 9px 2px 0;
-  color: rgba(222, 227, 233, 0.46);
-  font-size: 10.5px;
-  line-height: 1.45;
+  color: rgba(226, 230, 235, 0.58);
+  font-size: 11px;
+  line-height: 1.5;
 }
 
 .crump44-premium {
@@ -500,7 +579,7 @@
 }
 
 .crump44-panel :focus-visible {
-  outline: 2px solid rgba(218, 188, 99, 0.52);
+  outline: 2px solid #e0c778;
   outline-offset: 2px;
 }
 
@@ -518,7 +597,7 @@
     bottom: max(8px, env(safe-area-inset-bottom));
     left: 8px;
     width: auto;
-    max-height: min(78dvh, 690px);
+    max-height: min(82dvh, 720px);
     border-radius: 24px;
     transform-origin: bottom center;
   }
@@ -562,7 +641,8 @@
   .crump44-control-button,
   .crump44-toggle,
   .crump44-toggle span,
-  .crump44-segment {
+  .crump44-segment,
+  .crump44-advanced-chevron {
     transition: none !important;
   }
 }

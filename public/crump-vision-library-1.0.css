@@ -1,13 +1,14 @@
 /* Ask Crump — Director's Cut · Library view styles (1.0) */
 
 .cvl-root {
-  --cvl-bg: #070a0e;
-  --cvl-panel: #0b0f14;
-  --cvl-hairline: rgba(213, 185, 113, 0.16);
-  --cvl-gold: #d5b971;
-  --cvl-gold-deep: #b69855;
-  --cvl-text: #f1efe9;
-  --cvl-muted: #8a9196;
+  --cvl-bg: #0d1015;
+  --cvl-panel: #15191f;
+  --cvl-panel-raised: #1a1f26;
+  --cvl-hairline: rgba(255, 255, 255, 0.09);
+  --cvl-gold: #dec57e;
+  --cvl-gold-deep: #c6a95f;
+  --cvl-text: #f7f4ec;
+  --cvl-muted: #adb3bb;
   background: var(--cvl-bg);
   color: var(--cvl-text);
   font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
@@ -17,30 +18,30 @@
   min-height: 60vh;
 }
 
-.cv-eyebrow {
-  font-size: 11px;
+.cvl-root .cv-eyebrow,
+.cvl-overlay .cv-eyebrow {
+  font-size: 12px;
   text-transform: uppercase;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.1em;
   color: var(--cvl-gold);
-  margin: 0 0 14px;
-  font-weight: 600;
+  margin: 0 0 12px;
+  font-weight: 700;
 }
 
-.cvl-header { margin-bottom: 36px; max-width: 720px; }
+.cvl-header { margin-bottom: 32px; max-width: 720px; }
 
 .cvl-title {
-  font-family: Georgia, "Times New Roman", serif;
-  font-weight: 400;
-  font-size: clamp(34px, 4.5vw, 52px);
-  line-height: 1.08;
-  margin: 0 0 16px;
+  font-weight: 690;
+  font-size: clamp(34px, 4.5vw, 50px);
+  line-height: 1.06;
+  margin: 0 0 14px;
   color: var(--cvl-text);
-  letter-spacing: -0.01em;
+  letter-spacing: -0.035em;
 }
 
 .cvl-lede {
   font-size: 16px;
-  line-height: 1.65;
+  line-height: 1.6;
   color: var(--cvl-muted);
   margin: 0;
 }
@@ -61,7 +62,7 @@
   gap: 10px;
   background: var(--cvl-panel);
   border: 1px solid var(--cvl-hairline);
-  border-radius: 8px;
+  border-radius: 14px;
   padding: 0 14px;
   width: min(360px, 100%);
 }
@@ -82,16 +83,15 @@
 .cvl-search input:focus { outline: none; }
 /* Visible focus indicator on the wrapper (brand-law gold outline). */
 .cvl-search:focus-within {
-  outline: 2px solid #d5b971;
-  outline-offset: 2px;
-  border-color: rgba(213, 185, 113, 0.45);
+  outline: 2px solid var(--cvl-gold);
+  outline-offset: 3px;
+  border-color: rgba(222, 197, 126, 0.48);
 }
 
 .cvl-count {
   font-size: 12.5px;
   color: var(--cvl-muted);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
+  letter-spacing: 0;
   margin: 0;
   white-space: nowrap;
 }
@@ -107,19 +107,24 @@
 .cvl-book {
   background: var(--cvl-panel);
   border: 1px solid var(--cvl-hairline);
-  border-radius: 8px;
+  border-radius: 18px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  transition: border-color 0.18s ease;
+  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.12);
 }
-.cvl-book:hover { border-color: rgba(213, 185, 113, 0.4); }
+.cvl-book:hover {
+  border-color: rgba(222, 197, 126, 0.46);
+  background: var(--cvl-panel-raised);
+  transform: translateY(-2px);
+}
 
 .cvl-cover {
   position: relative;
   height: 190px;
-  /* Brand law: flat ink, no glows. The serif initial and spine carry it. */
-  background: #0e1319;
+  /* Flat ink, no glows. The large initial and restrained spine carry it. */
+  background: #10141a;
   border-bottom: 1px solid var(--cvl-hairline);
   display: flex;
   align-items: center;
@@ -127,8 +132,8 @@
 }
 
 .cvl-cover-initial {
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 72px;
+  font-size: 68px;
+  font-weight: 720;
   color: var(--cvl-gold);
   opacity: 0.9;
   line-height: 1;
@@ -140,7 +145,7 @@
   top: 0;
   bottom: 0;
   width: 10px;
-  background: linear-gradient(90deg, rgba(213, 185, 113, 0.28), rgba(213, 185, 113, 0.05));
+  background: linear-gradient(90deg, rgba(222, 197, 126, 0.3), rgba(222, 197, 126, 0.05));
 }
 
 .cvl-book-body { padding: 20px 20px 22px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
@@ -154,27 +159,26 @@
 
 .cvl-type-chip {
   font-size: 11px;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--cvl-muted);
 }
 
 .cvl-version-pill {
   font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
+  font-weight: 700;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--cvl-gold);
-  border: 1px solid rgba(213, 185, 113, 0.4);
+  border: 1px solid rgba(222, 197, 126, 0.44);
   border-radius: 999px;
   padding: 4px 12px;
   white-space: nowrap;
 }
 
 .cvl-book-title {
-  font-family: Georgia, "Times New Roman", serif;
-  font-weight: 400;
-  font-size: 21px;
+  font-weight: 680;
+  font-size: 19px;
   line-height: 1.25;
   margin: 2px 0 0;
   display: -webkit-box;
@@ -191,8 +195,7 @@
 
 .cvl-history summary {
   font-size: 12.5px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: 0;
   color: var(--cvl-gold);
   cursor: pointer;
   list-style: none;
@@ -220,7 +223,7 @@
   gap: 12px;
   font-size: 13px;
   padding: 6px 0;
-  border-bottom: 1px dotted rgba(213, 185, 113, 0.18);
+  border-bottom: 1px dotted rgba(255, 255, 255, 0.12);
 }
 .cvl-history-row span { color: var(--cvl-text); }
 .cvl-history-row time { color: var(--cvl-muted); }
@@ -236,18 +239,26 @@
   margin-top: auto;
   align-self: flex-start;
   background: transparent;
-  border: 1px solid rgba(213, 185, 113, 0.4);
-  border-radius: 8px;
+  border: 1px solid rgba(222, 197, 126, 0.44);
+  border-radius: 12px;
   color: var(--cvl-gold);
   font: inherit;
   font-size: 13.5px;
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
   padding: 9px 22px;
   cursor: pointer;
   transition: background 0.18s ease;
 }
-.cvl-open:hover { background: rgba(213, 185, 113, 0.08); }
+.cvl-open:hover { background: rgba(222, 197, 126, 0.1); }
+.cvl-open:focus-visible,
+.cvl-close:focus-visible,
+.cvl-button:focus-visible,
+.cvl-reader-nav-list button:focus-visible,
+.cvl-history summary:focus-visible {
+  outline: 2px solid var(--cvl-gold);
+  outline-offset: 3px;
+}
 
 /* ---- reader overlay ---- */
 
@@ -258,16 +269,16 @@
      --cvl-* custom properties are declared here as well. Without them the
      sheet below computes to a transparent background and the reader text
      floats over the dimmed bookshelf. */
-  --cvl-bg: #070a0e;
-  --cvl-panel: #0b0f14;
-  --cvl-hairline: rgba(213, 185, 113, 0.16);
-  --cvl-gold: #d5b971;
-  --cvl-gold-deep: #b69855;
-  --cvl-text: #f1efe9;
-  --cvl-muted: #8a9196;
+  --cvl-bg: #0d1015;
+  --cvl-panel: #15191f;
+  --cvl-hairline: rgba(255, 255, 255, 0.09);
+  --cvl-gold: #dec57e;
+  --cvl-gold-deep: #c6a95f;
+  --cvl-text: #f7f4ec;
+  --cvl-muted: #adb3bb;
   /* Below the demo banner (9999) so the banner stays on top in demo mode. */
   z-index: 9000;
-  background: rgba(4, 6, 8, 0.82);
+  background: rgba(5, 7, 10, 0.86);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -277,9 +288,9 @@
 .cvl-sheet {
   /* Solid ink panel — never translucent, so reader text can never overlap
      the bookshelf cards behind the overlay. */
-  background: #070a0e;
+  background: var(--cvl-bg);
   border: 1px solid var(--cvl-hairline);
-  border-radius: 8px;
+  border-radius: 18px;
   width: min(960px, 100%);
   max-height: calc(100vh - 64px);
   display: flex;
@@ -296,9 +307,8 @@
   border-bottom: 1px solid var(--cvl-hairline);
 }
 .cvl-sheet-head h3 {
-  font-family: Georgia, "Times New Roman", serif;
-  font-weight: 400;
-  font-size: 26px;
+  font-weight: 680;
+  font-size: 24px;
   margin: 0 0 6px;
 }
 .cvl-sheet-head p { font-size: 13.5px; color: var(--cvl-muted); margin: 0; }
@@ -306,7 +316,7 @@
 .cvl-close {
   background: none;
   border: 1px solid var(--cvl-hairline);
-  border-radius: 8px;
+  border-radius: 12px;
   color: var(--cvl-text);
   font-size: 20px;
   line-height: 1;
@@ -315,7 +325,7 @@
   cursor: pointer;
   flex: 0 0 auto;
 }
-.cvl-close:hover { border-color: rgba(213, 185, 113, 0.45); color: var(--cvl-gold); }
+.cvl-close:hover { border-color: rgba(222, 197, 126, 0.48); color: var(--cvl-gold); }
 
 .cvl-reader-loading {
   padding: 64px 32px;
@@ -326,8 +336,7 @@
   align-items: center;
 }
 .cvl-reader-loading strong {
-  font-family: Georgia, "Times New Roman", serif;
-  font-weight: 400;
+  font-weight: 650;
   font-size: 20px;
 }
 .cvl-reader-loading span { font-size: 14px; color: var(--cvl-muted); }
@@ -348,7 +357,7 @@
 
 .cvl-reader-nav-head {
   font-size: 11px;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--cvl-muted);
   margin: 0 0 12px;
@@ -371,10 +380,10 @@
   cursor: pointer;
 }
 .cvl-reader-nav-list button small { color: var(--cvl-muted); font-size: 11.5px; }
-.cvl-reader-nav-list button:hover { background: rgba(213, 185, 113, 0.05); }
+.cvl-reader-nav-list button:hover { background: rgba(222, 197, 126, 0.06); }
 .cvl-reader-nav-list button.is-active {
   border-left-color: var(--cvl-gold);
-  background: rgba(213, 185, 113, 0.07);
+  background: rgba(222, 197, 126, 0.08);
 }
 
 .cvl-reader-main {
@@ -383,8 +392,7 @@
   max-width: 720px;
 }
 .cvl-reader-main h4 {
-  font-family: Georgia, "Times New Roman", serif;
-  font-weight: 400;
+  font-weight: 680;
   font-size: 24px;
   margin: 0 0 20px;
 }
@@ -399,18 +407,18 @@
 
 .cvl-button {
   background: transparent;
-  border: 1px solid rgba(213, 185, 113, 0.4);
-  border-radius: 8px;
+  border: 1px solid rgba(222, 197, 126, 0.44);
+  border-radius: 12px;
   color: var(--cvl-gold);
   font: inherit;
   font-size: 13.5px;
   font-weight: 600;
-  letter-spacing: 0.04em;
+  letter-spacing: 0;
   padding: 10px 22px;
   cursor: pointer;
   margin-top: 12px;
 }
-.cvl-button:hover { background: rgba(213, 185, 113, 0.08); }
+.cvl-button:hover { background: rgba(222, 197, 126, 0.1); }
 
 /* ---- states ---- */
 
@@ -418,8 +426,8 @@
 .cvl-skeleton i {
   display: block;
   height: 340px;
-  border-radius: 8px;
-  background: rgba(213, 185, 113, 0.06);
+  border-radius: 18px;
+  background: rgba(222, 197, 126, 0.06);
   animation: cvl-pulse 1.6s ease-in-out infinite;
 }
 @keyframes cvl-pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
@@ -429,14 +437,13 @@
 .cvl-panel {
   background: var(--cvl-panel);
   border: 1px solid var(--cvl-hairline);
-  border-radius: 8px;
+  border-radius: 18px;
   padding: 32px;
   max-width: 560px;
 }
 
 .cvl-error h2 {
-  font-family: Georgia, "Times New Roman", serif;
-  font-weight: 400;
+  font-weight: 650;
   font-size: 24px;
   margin: 0 0 10px;
 }
@@ -459,8 +466,7 @@
 }
 
 .cvl-empty h2 {
-  font-family: Georgia, "Times New Roman", serif;
-  font-weight: 400;
+  font-weight: 680;
   font-size: clamp(26px, 3.4vw, 36px);
   margin: 0 0 14px;
 }
@@ -469,8 +475,7 @@
 
 .cvl-nomatch { text-align: center; padding: 64px 24px; }
 .cvl-nomatch h2 {
-  font-family: Georgia, "Times New Roman", serif;
-  font-weight: 400;
+  font-weight: 650;
   font-size: 24px;
   margin: 0 0 10px;
 }
@@ -484,4 +489,12 @@
   .cvl-reader-nav { border-right: none; border-bottom: 1px solid var(--cvl-hairline); max-height: 180px; }
   .cvl-reader-main { padding: 24px 22px 48px; }
   .cvl-overlay { padding: 16px 12px; }
+  .cvl-skeleton { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cvl-book { transition: none; }
+  .cvl-book:hover { transform: none; }
+  .cvl-skeleton i { animation: none; }
+  .cvl-history summary::before { transition: none; }
 }

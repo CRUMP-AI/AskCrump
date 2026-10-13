@@ -31,7 +31,7 @@ def test_public_creation_pages_send_non_book_outputs_to_projects_files():
     expected = {
         "public/ai-document-generator.html": "Choose Keep in a Project",
         "public/ai-resume-builder.html": "Choose Keep in a Project",
-        "public/ai-video-generator.html": "Projects → Files",
+        "public/ai-video-generator.html": "completed work in Files",
     }
     for relative, delivery_copy in expected.items():
         page = read(relative)
@@ -40,18 +40,22 @@ def test_public_creation_pages_send_non_book_outputs_to_projects_files():
         assert "private library" not in page
 
     registration = read("public/auth-controller.js")
-    assert "find completed clips in Projects → Files" in registration
+    assert "find completed clips in Files" in registration
     assert "keep completed clips in your private Library" not in registration
 
 
-def test_homepage_preview_names_all_six_real_destinations_and_their_boundaries():
+def test_homepage_preview_names_the_friendly_workspace_destinations_and_boundaries():
     page = read("public/ask-crump.html")
     styles = read("public/landing-5.6.css")
 
-    for destination in ("Ask", "Projects", "Create", "Video", "Library", "You"):
+    for destination in ("Ask", "Projects", "Files", "Library", "Video", "Autonomous"):
         assert f"<small>{destination}</small>" in page
         assert f"<strong>{destination}</strong>" in page
-    assert "Projects → Files" in page
+    assert "<small>Profile</small>" in page
+    assert "<strong>Create</strong>" not in page
+    assert "<strong>You</strong>" not in page
+    assert "What can I help you get done?" in page
+    assert "Generated work and uploads live in Files" in page
     assert "Library remains the private bookshelf for manuscripts and books." in page
     assert "Keep completed clips in your private library" not in page
     assert ".stage-destinations" in styles
@@ -101,7 +105,7 @@ def test_homepage_video_button_opens_video_studio_after_account_entry():
 
     controller = read("public/auth-controller.js")
     assert "title: 'Open your Video Studio.'" in controller
-    assert "find completed clips in Projects → Files" in controller
+    assert "find completed clips in Files" in controller
     assert "button.textContent = creationKind === 'image'" in controller
     assert ": (plan?.button || (creation ? 'Create account & continue' : 'Create free account'));" in controller
 
@@ -119,7 +123,7 @@ def test_truthful_destination_assets_and_sitemaps_share_one_release_boundary():
         assert f'/landing-5.6.css?v={version}' in read(relative)
 
     worker = read("public/sw.js")
-    assert "ask-crump-new-body-v1-r254" in worker
+    assert "ask-crump-new-body-v1-r255" in worker
     assert f"/landing-5.6.css?v={version}" in worker
     sitemap = read("public/sitemap.xml")
     assert sitemap.count("<lastmod>2026-08-30</lastmod>") == 6

@@ -4,21 +4,21 @@
 
 :root {
   color-scheme: dark;
-  --ac-bg: #080a0d;
-  --ac-bg-2: #0b0e12;
-  --ac-surface: #10141a;
-  --ac-surface-2: #141920;
-  --ac-surface-3: #191f27;
-  --ac-glass: rgba(14,18,24,.88);
-  --ac-glass-strong: rgba(10,13,17,.96);
-  --ac-line: rgba(255,255,255,.075);
-  --ac-line-2: rgba(255,255,255,.12);
+  --ac-bg: #0d1015;
+  --ac-bg-2: #11151a;
+  --ac-surface: #171b21;
+  --ac-surface-2: #1c2128;
+  --ac-surface-3: #222831;
+  --ac-glass: rgba(20,24,30,.9);
+  --ac-glass-strong: rgba(14,17,22,.97);
+  --ac-line: rgba(255,255,255,.085);
+  --ac-line-2: rgba(255,255,255,.14);
   --ac-line-gold: rgba(215,187,122,.23);
-  --ac-text: #f4f1eb;
-  --ac-text-2: #b7b5b0;
-  --ac-text-3: #7f8385;
-  --ac-text-4: #565c61;
-  --ac-gold: #d9bf84;
+  --ac-text: #f7f4ec;
+  --ac-text-2: #c4c5c1;
+  --ac-text-3: #9ba1a6;
+  --ac-text-4: #71787e;
+  --ac-gold: #dec57e;
   --ac-gold-2: #b99756;
   --ac-gold-3: #806438;
   --ac-gold-soft: rgba(217,191,132,.10);
@@ -28,7 +28,7 @@
   --ac-warning: #dcad67;
   --ac-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
              "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --ac-display: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Palatino, Georgia, serif;
+  --ac-display: var(--ac-font);
   --ac-mono: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
   /* Match the final five-destination navigation layer before it loads so the
      conversation-library wordmark never shifts during the runtime handoff. */
@@ -1230,16 +1230,16 @@ body.crump-v1-body .v1-launchpad.is-hidden {
 }
 body.crump-v1-body .v1-launchpad-mark {
   display: grid;
-  width: 88px;
-  height: 88px;
+  width: 76px;
+  height: 76px;
   place-items: center;
-  margin-bottom: 16px;
+  margin-bottom: 18px;
 }
 body.crump-v1-body .v1-launchpad-mark img {
-  width: 86px;
-  height: 86px;
+  width: 74px;
+  height: 74px;
   object-fit: contain;
-  filter: drop-shadow(0 18px 28px rgba(217,191,132,.075));
+  filter: drop-shadow(0 16px 28px rgba(217,191,132,.09));
 }
 body.crump-v1-body .v1-launchpad-greeting {
   margin-bottom: 9px;
@@ -1249,21 +1249,21 @@ body.crump-v1-body .v1-launchpad-greeting {
   letter-spacing: .08em;
 }
 body.crump-v1-body .v1-launchpad h1 {
-  max-width: 760px;
+  max-width: 700px;
   margin: 0;
   color: #f4f0e8;
   font-family: var(--ac-display);
-  font-size: clamp(46px, 5.5vw, 68px);
-  font-weight: 400;
-  line-height: .98;
-  letter-spacing: -.055em;
+  font-size: clamp(40px, 4.7vw, 58px);
+  font-weight: 690;
+  line-height: 1.02;
+  letter-spacing: -.045em;
 }
 body.crump-v1-body .v1-launchpad > p {
-  max-width: 590px;
-  margin: 18px 0 0;
-  color: #7e8386;
-  font-size: 12px;
-  line-height: 1.7;
+  max-width: 600px;
+  margin: 16px 0 0;
+  color: #a6aaa9;
+  font-size: 15px;
+  line-height: 1.55;
 }
 /* Tappable conversation-starter chips under the launchpad headline. */
 body.crump-v1-body .v1-starter-chips {
@@ -1272,14 +1272,15 @@ body.crump-v1-body .v1-starter-chips {
   gap: 8px;
   justify-content: center;
   max-width: 640px;
-  margin: 20px 0 2px;
+  margin: 22px 0 2px;
 }
 body.crump-v1-body .v1-starter-chip {
-  padding: 9px 15px;
+  min-height: 42px;
+  padding: 10px 16px;
   border: 1px solid rgba(217, 191, 132, 0.32);
   border-radius: 999px;
   background: rgba(217, 191, 132, 0.07);
-  color: #e8e2d4;
+  color: #eee8dc;
   font-size: 13px;
   line-height: 1.2;
   cursor: pointer;
@@ -1427,18 +1428,29 @@ body.crump-v1-body .v1-launchpad-grid {
   display: grid;
   width: min(760px, 100%);
   grid-template-columns: repeat(2,minmax(0,1fr));
-  gap: 9px;
-  margin-top: 30px;
+  gap: 10px;
+  margin-top: 10px;
+}
+body.crump-v1-body .v1-launchpad-actions-label {
+  width: min(760px, 100%);
+  margin: 26px 0 0 !important;
+  color: #8d9291 !important;
+  font-size: 11px !important;
+  font-weight: 720;
+  line-height: 1.2 !important;
+  letter-spacing: .11em;
+  text-align: left;
+  text-transform: uppercase;
 }
 body.crump-v1-body .v1-launch-card {
   display: grid;
-  min-height: 82px;
-  grid-template-columns: 42px minmax(0,1fr) 16px;
+  min-height: 84px;
+  grid-template-columns: 44px minmax(0,1fr) 16px;
   align-items: center;
   gap: 11px;
   padding: 12px 14px;
   border: 1px solid var(--ac-line);
-  border-radius: 18px;
+  border-radius: 17px;
   background:
     linear-gradient(180deg, rgba(255,255,255,.022), rgba(255,255,255,.01));
   color: #d2d1cc;
@@ -1457,8 +1469,8 @@ body.crump-v1-body .v1-launch-card-primary {
 }
 body.crump-v1-body .v1-launch-icon {
   display: grid;
-  width: 42px;
-  height: 42px;
+  width: 44px;
+  height: 44px;
   place-items: center;
   border: 1px solid rgba(217,191,132,.13);
   border-radius: 13px;
@@ -1468,8 +1480,8 @@ body.crump-v1-body .v1-launch-icon {
 }
 body.crump-v1-body .v1-launch-icon svg { width: 19px; height: 19px; }
 body.crump-v1-body .v1-launch-card > span:nth-child(2) { display: grid; gap: 4px; min-width: 0; }
-body.crump-v1-body .v1-launch-card strong { color: #e3e0da; font-size: 11px; font-weight: 640; }
-body.crump-v1-body .v1-launch-card small { color: #6f7477; font-size: 9px; line-height: 1.35; }
+body.crump-v1-body .v1-launch-card strong { color: #eee9df; font-size: 14px; font-weight: 650; }
+body.crump-v1-body .v1-launch-card small { color: #8f9494; font-size: 11.5px; line-height: 1.4; }
 body.crump-v1-body .v1-launch-card b { color: #555b5f; font-size: 15px; font-weight: 400; }
 body.crump-v1-body .v1-launchpad-foot {
   display: flex;
@@ -2358,12 +2370,13 @@ body.crump-v1-body :is(.confirm-dialog__card,.account-modal-card) {
     padding-right: max(16px,env(safe-area-inset-right));
     padding-left: max(16px,env(safe-area-inset-left));
   }
-  body.crump-v1-body .v1-launchpad-mark { width: 78px; height: 78px; margin-bottom: 12px; }
-  body.crump-v1-body .v1-launchpad-mark img { width: 76px; height: 76px; }
-  body.crump-v1-body .v1-launchpad h1 { max-width: 570px; font-size: clamp(40px,10vw,54px); }
-  body.crump-v1-body .v1-launchpad > p { max-width: 440px; font-size: 11px; }
-  body.crump-v1-body .v1-launchpad-grid { grid-template-columns: 1fr; width: min(560px,100%); margin-top: 25px; }
-  body.crump-v1-body .v1-launch-card { min-height: 70px; }
+  body.crump-v1-body .v1-launchpad-mark { width: 70px; height: 70px; margin-bottom: 14px; }
+  body.crump-v1-body .v1-launchpad-mark img { width: 68px; height: 68px; }
+  body.crump-v1-body .v1-launchpad h1 { max-width: 570px; font-size: clamp(36px,8vw,48px); }
+  body.crump-v1-body .v1-launchpad > p { max-width: 460px; font-size: 14px; }
+  body.crump-v1-body .v1-launchpad-actions-label { width: min(560px,100%); }
+  body.crump-v1-body .v1-launchpad-grid { grid-template-columns: 1fr; width: min(560px,100%); }
+  body.crump-v1-body .v1-launch-card { min-height: 76px; }
 
   body.crump-v1-body .chat-container {
     padding:
@@ -2485,12 +2498,12 @@ body.crump-v1-body :is(.confirm-dialog__card,.account-modal-card) {
     min-height: 44px !important;
   }
 
-  body.crump-v1-body .v1-launchpad { padding-top: 34px; }
-  body.crump-v1-body .v1-launchpad-mark { width: 70px; height: 70px; }
-  body.crump-v1-body .v1-launchpad-mark img { width: 68px; height: 68px; }
+  body.crump-v1-body .v1-launchpad { padding-top: 30px; }
+  body.crump-v1-body .v1-launchpad-mark { width: 62px; height: 62px; }
+  body.crump-v1-body .v1-launchpad-mark img { width: 60px; height: 60px; }
   body.crump-v1-body .v1-launchpad-greeting { font-size: 8.5px; }
-  body.crump-v1-body .v1-launchpad h1 { font-size: clamp(37px,11vw,48px); }
-  body.crump-v1-body .v1-launchpad > p { max-width: 340px; margin-top: 14px; font-size: 10.5px; line-height: 1.6; }
+  body.crump-v1-body .v1-launchpad h1 { font-size: clamp(32px,9.6vw,42px); }
+  body.crump-v1-body .v1-launchpad > p { max-width: 350px; margin-top: 13px; font-size: 13px; line-height: 1.52; }
   body.crump-v1-body .v1-profile-nudge {
     width: min(560px,100%);
     grid-template-columns: 1fr;
@@ -2499,11 +2512,14 @@ body.crump-v1-body :is(.confirm-dialog__card,.account-modal-card) {
     padding: 12px;
   }
   body.crump-v1-body .v1-profile-nudge-actions { justify-content: flex-start; }
-  body.crump-v1-body .v1-launchpad-grid { gap: 7px; margin-top: 21px; }
-  body.crump-v1-body .v1-launch-card { min-height: 66px; grid-template-columns: 39px minmax(0,1fr) 14px; gap: 9px; padding: 10px 11px; border-radius: 16px; }
-  body.crump-v1-body .v1-launch-icon { width: 39px; height: 39px; border-radius: 12px; }
-  body.crump-v1-body .v1-launch-card strong { font-size: 10.5px; }
-  body.crump-v1-body .v1-launch-card small { font-size: 8.5px; }
+  body.crump-v1-body .v1-starter-chips { gap: 7px; margin-top: 18px; }
+  body.crump-v1-body .v1-starter-chip { min-height: 40px; padding: 9px 13px; font-size: 12px; }
+  body.crump-v1-body .v1-launchpad-actions-label { margin-top: 22px !important; font-size: 10px !important; }
+  body.crump-v1-body .v1-launchpad-grid { gap: 8px; }
+  body.crump-v1-body .v1-launch-card { min-height: 72px; grid-template-columns: 40px minmax(0,1fr) 14px; gap: 10px; padding: 11px 12px; border-radius: 16px; }
+  body.crump-v1-body .v1-launch-icon { width: 40px; height: 40px; border-radius: 12px; }
+  body.crump-v1-body .v1-launch-card strong { font-size: 13px; }
+  body.crump-v1-body .v1-launch-card small { font-size: 10.5px; }
   body.crump-v1-body .v1-launchpad-foot { display: none; }
 
   body.crump-v1-body .assistant-message .message-content { font-size: 15.8px !important; line-height: 1.68 !important; }
@@ -2593,6 +2609,42 @@ body.crump-v1-body :is(.confirm-dialog__card,.account-modal-card) {
 /* Desktop workspace header: the library already carries the full wordmark, so
    the main header becomes contextual rather than repeating the brand twice. */
 @media (min-width: 1101px) {
+  html[data-cv-shell="ready"] body.crump-v1-body .v1-library-header {
+    min-height: 64px !important;
+    padding: 0 18px !important;
+  }
+  html[data-cv-shell="ready"] body.crump-v1-body .v1-library-header::before {
+    content: "Conversations";
+    color: #f0ece3;
+    font-size: 15px;
+    font-weight: 690;
+    letter-spacing: -.015em;
+  }
+  html[data-cv-shell="ready"] body.crump-v1-body .sidebar-branding {
+    display: none;
+  }
+  html[data-cv-shell="ready"] body.crump-v1-body .v1-library-actions {
+    padding: 12px !important;
+  }
+  html[data-cv-shell="ready"] body.crump-v1-body .v1-new-conversation span {
+    font-size: 13px;
+  }
+  html[data-cv-shell="ready"] body.crump-v1-body .v1-clear-conversations {
+    font-size: 11px;
+  }
+  html[data-cv-shell="ready"] body.crump-v1-body .section-title,
+  html[data-cv-shell="ready"] body.crump-v1-body .v1-library-hint {
+    font-size: 10px !important;
+  }
+  html[data-cv-shell="ready"] body.crump-v1-body .chat-title {
+    font-size: 13px !important;
+  }
+  html[data-cv-shell="ready"] body.crump-v1-body .chat-preview {
+    font-size: 11px !important;
+  }
+  html[data-cv-shell="ready"] body.crump-v1-body .v1-library-footer {
+    display: none;
+  }
   body.crump-v1-body .v1-workspace-header {
     grid-template-columns: minmax(0,1fr) 52px;
   }

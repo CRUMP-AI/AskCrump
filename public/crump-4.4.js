@@ -18,6 +18,7 @@
   let hydratedUserId = null;
   let panel = null;
   let memoryViewOpen = false;
+  let advancedOpen = false;
   let statusData = null;
   let entitlements = { thinkLonger: false, minimumTier: 'professional' };
   let planOpenPending = false;
@@ -419,11 +420,11 @@
   }
 
   function modeLabel(mode) {
-    return { auto: 'Adaptive', fast: 'Fast', deep: 'Think longer' }[mode] || 'Adaptive';
+    return { auto: 'Balanced', fast: 'Fast', deep: 'Deep' }[mode] || 'Balanced';
   }
 
   function verificationLabel(level) {
-    return { off: 'Off', auto: 'Automatic', strict: 'Always review' }[level] || 'Automatic';
+    return { off: 'Standard', auto: 'Smart', strict: 'Always' }[level] || 'Smart';
   }
 
   function openProfessionalPlans(source) {
@@ -459,7 +460,7 @@
   function makeModeSelector() {
     const wrap = document.createElement('div');
     wrap.className = 'crump44-segmented';
-    for (const mode of ['auto', 'fast', 'deep']) {
+    for (const mode of ['fast', 'auto', 'deep']) {
       const locked = mode === 'deep' && !entitlements.thinkLonger;
       const option = button(modeLabel(mode), `crump44-segment${state.intelligenceMode === mode ? ' active' : ''}`, () => {
         if (locked) {
@@ -473,8 +474,8 @@
       option.setAttribute('aria-pressed', String(state.intelligenceMode === mode));
       if (locked) {
         option.classList.add('is-locked');
-        option.setAttribute('aria-label', 'Think longer — Professional or Enterprise');
-        option.title = 'Included with Professional and Enterprise';
+        option.setAttribute('aria-label', 'Deep response style — Professional or Enterprise');
+        option.title = 'Deep is included with Professional and Enterprise';
         const badge = document.createElement('small');
         badge.textContent = 'PRO';
         option.appendChild(badge);
@@ -506,7 +507,7 @@
       if (locked) {
         option.classList.add('is-locked');
         option.setAttribute('aria-label', 'Always review — Professional or Enterprise');
-        option.title = 'Included with Professional and Enterprise';
+        option.title = 'Always review is included with Professional and Enterprise';
         const badge = document.createElement('small');
         badge.textContent = 'PRO';
         option.appendChild(badge);
@@ -521,7 +522,7 @@
     shell.id = 'crumpIntelligencePanel';
     shell.className = 'crump44-panel';
     shell.setAttribute('role', 'dialog');
-    shell.setAttribute('aria-label', `${assistantName()} controls`);
+    shell.setAttribute('aria-label', `${assistantName()} response settings`);
     shell.hidden = true;
 
     const grabber = document.createElement('div');
@@ -537,7 +538,7 @@
     const title = document.createElement('strong');
     title.textContent = 'Intelligence';
     const subtitle = document.createElement('small');
-    subtitle.textContent = `How ${assistantName()} thinks, remembers, and verifies.`;
+    subtitle.textContent = `Choose how ${assistantName()} responds. More controls stay out of the way until you need them.`;
     titleWrap.append(eyebrow, title, subtitle);
     const close = button('×', 'crump44-close', closePanel);
     close.setAttribute('aria-label', `Close ${assistantName()} controls`);
@@ -563,31 +564,36 @@
       return;
     }
 
+    // This progressively disclosed layout replaces the former “Response effort”,
+    // “Memory & privacy”, “Live knowledge”, “Quality review”, and
+    // “Advanced Intelligence · Professional” hierarchy. The existing
+    // “Think longer” and “Always review” backend capabilities remain unchanged.
+
     const modeSection = document.createElement('div');
-    modeSection.className = 'crump44-section';
+    modeSection.className = 'crump44-section crump44-section-primary';
     modeSection.append(
-      makeSectionTitle('Response effort', 'Adaptive balances speed and depth for everyday work.'),
+      makeSectionTitle('Response style', 'Balanced is recommended for most work.'),
       makeModeSelector(),
     );
 
     const modeCopy = document.createElement('p');
     modeCopy.className = 'crump44-mode-copy';
     if (state.intelligenceMode === 'fast') {
-      modeCopy.textContent = 'Prioritizes speed and skips extra planning unless a tool is required.';
+      modeCopy.textContent = 'A quicker response for simple questions, rewrites, and first drafts.';
     } else if (state.intelligenceMode === 'deep') {
-      modeCopy.textContent = 'Think longer adds a planning pass and a separate final-answer review for difficult work.';
+      modeCopy.textContent = 'Plans first and checks the final response. Best for difficult or high-stakes work.';
     } else {
-      modeCopy.textContent = `${assistantName()} chooses the right amount of work for each request.`;
+      modeCopy.textContent = `${assistantName()} adapts the effort to each request without slowing down routine work.`;
     }
     modeSection.appendChild(modeCopy);
 
     const memorySection = document.createElement('div');
     memorySection.className = 'crump44-section';
     memorySection.append(
-      makeSectionTitle('Memory & privacy', 'Durable context stays separate from ordinary chat history.'),
+      makeSectionTitle('Memory', 'Keep useful continuity under your control.'),
       makeToggle({
         label: 'Use saved memory',
-        description: `Let ${assistantName()} retrieve useful preferences, projects, goals, and explicit memories.`,
+        description: `Use preferences, projects, goals, and details you asked ${assistantName()} to keep.`,
         checked: state.memoryEnabled,
         onChange: enabled => {
           state.memoryEnabled = enabled;
@@ -596,8 +602,8 @@
         },
       }),
       makeToggle({
-        label: 'Learn explicit details',
-        description: 'Save durable facts when you clearly say things like “remember that” or “I prefer”.',
+        label: 'Learn when I ask',
+        description: 'Save a detail only when you clearly say “remember that” or “I prefer”.',
         checked: state.autoLearn && state.memoryEnabled,
         onChange: enabled => {
           state.autoLearn = enabled;
@@ -607,9 +613,9 @@
         },
       }),
       makeToggle({
-        label: 'Private this conversation',
+        label: 'Keep this chat out of memory',
         description: window.currentChatId
-          ? `Applies to your account on every signed-in device. ${assistantName()} will not retrieve or learn long-term memories here.`
+          ? `${assistantName()} will not retrieve or add long-term memories in this conversation.`
           : 'Available after the first message creates this conversation.',
         checked: isCurrentChatPrivate(),
         disabled: !window.currentChatId,
@@ -630,10 +636,10 @@
     const currentInformationSection = document.createElement('div');
     currentInformationSection.className = 'crump44-section';
     currentInformationSection.append(
-      makeSectionTitle('Live knowledge', `Choose whether ${assistantName()} may quietly consult supported current sources.`),
+      makeSectionTitle('Current information', `Let ${assistantName()} check supported live sources when recency matters.`),
       makeToggle({
-        label: 'Use live information when needed',
-        description: `Let ${assistantName()} recognize when an answer depends on current facts, weather, or other supported live data.`,
+        label: 'Check current sources when needed',
+        description: `Useful for current facts, weather, and other supported live information.`,
         checked: state.autoTools,
         onChange: enabled => {
           state.autoTools = enabled;
@@ -646,17 +652,17 @@
     const verifySection = document.createElement('div');
     verifySection.className = 'crump44-section';
     verifySection.append(
-      makeSectionTitle('Quality review', 'Choose when a separate answer-checking pass should run.'),
+      makeSectionTitle('Answer review', 'Choose when Crump adds a second checking pass.'),
       makeVerificationSelector(),
     );
     const reviewCopy = document.createElement('p');
     reviewCopy.className = 'crump44-review-copy';
     if (state.verificationLevel === 'off') {
-      reviewCopy.textContent = 'One response pass, without a separate final review.';
+      reviewCopy.textContent = 'One response pass for the fastest result.';
     } else if (state.verificationLevel === 'strict') {
-      reviewCopy.textContent = 'Runs a separate review on every eligible response for logic, requirements, and unsupported claims.';
+      reviewCopy.textContent = 'Checks every eligible response for logic, requirements, and unsupported claims.';
     } else {
-      reviewCopy.textContent = 'Adds a separate review for higher-risk, complex, coding, or downloadable work.';
+      reviewCopy.textContent = 'Adds a review when work is complex, higher-risk, code-based, or downloadable.';
     }
     verifySection.appendChild(reviewCopy);
 
@@ -666,12 +672,12 @@
     premiumCopy.className = 'crump44-premium-copy';
     const premiumTitle = document.createElement('strong');
     premiumTitle.textContent = entitlements.thinkLonger
-      ? 'Advanced Intelligence · Active'
-      : 'Advanced Intelligence · Professional';
+      ? 'Professional controls are active'
+      : 'Go deeper with Professional';
     const premiumDescription = document.createElement('span');
     premiumDescription.textContent = entitlements.thinkLonger
-      ? 'Think longer and Always review are unlocked on this plan.'
-      : 'Professional unlocks Think longer and Always review. Enterprise includes them too.';
+      ? 'Deep responses and Always review are unlocked on this plan.'
+      : 'Professional unlocks Deep responses and Always review. Enterprise includes them too.';
     premiumCopy.append(premiumTitle, premiumDescription);
     premium.appendChild(premiumCopy);
     if (!entitlements.thinkLonger) {
@@ -681,7 +687,37 @@
       premium.appendChild(comparePlans);
     }
 
-    content.append(modeSection, memorySection, currentInformationSection, verifySection, premium);
+    const advanced = document.createElement('details');
+    advanced.className = 'crump44-advanced';
+    advanced.open = advancedOpen;
+    advanced.addEventListener('toggle', () => {
+      advancedOpen = advanced.open;
+    });
+
+    const advancedSummary = document.createElement('summary');
+    const advancedCopy = document.createElement('span');
+    advancedCopy.className = 'crump44-advanced-copy';
+    const advancedTitle = document.createElement('strong');
+    advancedTitle.textContent = 'Memory, sources & review';
+    const advancedStatus = document.createElement('small');
+    advancedStatus.textContent = [
+      `Memory ${state.memoryEnabled ? 'on' : 'off'}`,
+      `Current info ${state.autoTools ? 'on' : 'off'}`,
+      `${verificationLabel(state.verificationLevel)} review`,
+    ].join(' · ');
+    advancedCopy.append(advancedTitle, advancedStatus);
+    const advancedChevron = document.createElement('span');
+    advancedChevron.className = 'crump44-advanced-chevron';
+    advancedChevron.setAttribute('aria-hidden', 'true');
+    advancedChevron.textContent = '⌄';
+    advancedSummary.append(advancedCopy, advancedChevron);
+
+    const advancedBody = document.createElement('div');
+    advancedBody.className = 'crump44-advanced-body';
+    advancedBody.append(memorySection, currentInformationSection, verifySection, premium);
+    advanced.append(advancedSummary, advancedBody);
+
+    content.append(modeSection, advanced);
   }
 
   async function renderMemoryView(content) {
@@ -691,7 +727,7 @@
       memoryViewOpen = false;
       refreshPanel();
     });
-    back.setAttribute('aria-label', 'Back to intelligence controls');
+    back.setAttribute('aria-label', 'Back to response settings');
     const copy = document.createElement('div');
     const title = document.createElement('strong');
     title.textContent = `What ${assistantName()} remembers`;
@@ -897,7 +933,7 @@
   }
 
   function syncAssistantName() {
-    panel?.setAttribute('aria-label', `${assistantName()} controls`);
+    panel?.setAttribute('aria-label', `${assistantName()} response settings`);
     const eyebrow = panel && $('.crump44-eyebrow', panel);
     if (eyebrow) eyebrow.textContent = assistantName().toUpperCase();
     const close = panel && $('.crump44-close', panel);

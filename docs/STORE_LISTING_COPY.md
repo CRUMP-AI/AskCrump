@@ -19,14 +19,14 @@ textually aligned with it. Reviewer credentials belong only in the ignored
 ## Apple App Store
 
 - **Subtitle:** Create, research, and build
-- **Promotional text:** Move from question to continuing work across Ask, Projects, Create, Video, Library, and You—with research, files, documents, presentations, images, and motion.
+- **Promotional text:** Move from question to continuing work across Ask, Projects, Files, Library, Video, and Autonomous—with Profile controls always within reach.
 - **Keywords:** `AI,assistant,research,writer,documents,images,video,manuscript,productivity,files`
 
 ### Description
 
 Ask Crump is a multimodal AI workspace built to help you move from an idea to something useful.
 
-The workspace stays clear across six destinations: Ask, Projects, Create, Video, Library, and You. Ask handles conversations and guided research. Projects keep instructions, reference files, conversations, creations, and a separate Files view together. Create opens documents, presentations, images, and long-form manuscript work. Video has a dedicated studio for Quick, Extendable, and Cinematic generation, optional visual references, and returning to a saved active job. Library is a private bookshelf for manuscripts and books. You contains settings, sessions, purchase restoration, and account controls.
+The desktop workspace keeps Ask, Projects, Files, Library, Video, and Autonomous in one clear rail, with Profile available as a utility. Ask handles conversations, guided research, document and presentation creation, and image work. Projects keep instructions, reference context, conversations, and creations together. Files is the home for documents, presentations, images, videos, exports, and uploads. Video has a dedicated studio for Quick, Extendable, and Cinematic generation, optional visual references, and returning to a saved active job. Library is reserved for manuscripts and books. Autonomous is a professional beta for preparing and verifying coding work with user-controlled execution. Profile contains settings, sessions, purchase restoration, and account controls. On mobile, Files, Autonomous, and Profile live inside More.
 
 Create and organize:
 
@@ -35,7 +35,7 @@ Create and organize:
 - images and multi-engine short-form video, including compatible scene continuation
 - editable documents, presentations, and exportable files
 - structured long-form manuscript projects
-- a private manuscript and book Library, with files kept separately under Projects
+- a private manuscript and book Library, with other files kept in Files
 
 Stay in control:
 
@@ -57,7 +57,7 @@ Some features require a paid plan, credits, provider availability, or an interne
 
 Ask Crump is a multimodal AI workspace for turning questions and ideas into useful work.
 
-The workspace is organized around six clear destinations: Ask, Projects, Create, Video, Library, and You. Ask handles conversations and guided research. Projects keep ongoing work, reference context, and a separate Files view together. Create opens documents, presentations, images, and long-form manuscript work. Video has a dedicated studio for Quick, Extendable, and Cinematic generation, optional visual references, and returning to a saved active job. Library is a private bookshelf for manuscripts and books. You contains settings, sessions, purchase restoration, and account controls.
+The desktop workspace keeps Ask, Projects, Files, Library, Video, and Autonomous in one clear rail, with Profile available as a utility. Ask handles conversations, guided research, document and presentation creation, and image work. Projects keep ongoing work and reference context together. Files is the home for documents, presentations, images, videos, exports, and uploads. Video has a dedicated studio for Quick, Extendable, and Cinematic generation, optional visual references, and returning to a saved active job. Library is reserved for manuscripts and books. Autonomous is a professional beta for preparing and verifying coding work with user-controlled execution. Profile contains settings, sessions, purchase restoration, and account controls. On mobile, Files, Autonomous, and Profile live inside More.
 
 WHAT YOU CAN DO
 
@@ -66,7 +66,8 @@ WHAT YOU CAN DO
 • Generate images and short-form video with Quick, Extendable, and Cinematic modes
 • Create editable documents, presentations, and exportable files
 • Develop long-form manuscript projects
-• Keep manuscripts and books in Library, with other files under Projects
+• Keep manuscripts and books in Library, with other work in Files
+• Prepare and verify coding work in Autonomous on supported plans
 • Reopen saved work across supported devices
 
 CONTROL AND SAFETY
@@ -87,12 +88,12 @@ Use real output and hide personal data. Keep the same visual language across bot
 
 1. **Ask** — polished conversation with a useful, clearly structured answer and `Keep in a Project`.
 2. **Projects** — resume continuing work with its instructions, conversations, and references together.
-3. **Create** — the unified chooser for documents, presentations, images, and long-form work.
+3. **Files** — prepared documents, presentations, images, videos, and uploads in the dedicated workspace.
 4. **Video** — the dedicated studio with a reference-ready setup or a safely staged active job.
 5. **Research in Ask** — sourced research result and next-step controls inside the Ask destination.
 6. **Editable work** — Document Studio with real document and presentation download controls.
 7. **Library** — manuscripts and books in a dedicated private bookshelf.
-8. **You** — settings, sessions, privacy, and account controls without personal data.
+8. **Profile** — settings, sessions, privacy, and account controls without personal data.
 
 Capture at least one modern large iPhone size and current Android phone size. Apple accepts 1–10 screenshots; Google requires at least two and benefits from four or more high-quality phone screenshots.
 
@@ -100,17 +101,18 @@ Capture at least one modern large iPhone size and current Android phone size. Ap
 
 Ask Crump is a locally bundled Capacitor application with native secure-session storage, haptics, network/keyboard handling, push-notification hooks, native in-app billing, account/session management, and synchronized user content. It is not a website-only wrapper.
 
-Provide the reviewer with a dedicated demo account that has enough credits to test Ask, guided research, Projects, the available Create modes, Library, reporting, purchase restoration, session controls, export, and deletion. Include exact sign-in credentials in the private review fields, never in public listing copy.
+Provide the reviewer with a dedicated demo account that has enough credits to test Ask, guided research, Projects, the available creation modes, Files, Library, Video, reporting, purchase restoration, session controls, export, and deletion. Include exact sign-in credentials in the private review fields, never in public listing copy.
 
 Suggested review path:
 
 1. Sign in with the review account.
 2. Use Ask for a normal answer, then start guided research inside Ask.
 3. Open Projects and resume the prepared continuing-work example.
-4. Open Create and test only the file and image modes enabled in the signed build.
+4. In Ask, test only the file and image creation modes enabled in the signed build, then open Files to confirm the result.
 5. Open Video and verify the available engines, optional reference control, and saved-job return state.
-6. Open Library and verify the prepared books and manuscripts are available, then open Projects → Files to verify prepared documents and media.
-7. Open You → Settings to view session controls, export, legal links, and permanent account deletion.
-8. Open the subscription screen to verify native store billing and Restore Purchases.
+6. Open Library and verify the prepared books and manuscripts are available, then open Files to verify prepared documents and media.
+7. Open Profile to view session controls, export, legal links, and permanent account deletion.
+8. If the review account includes the supported Professional feature set, open Autonomous and verify that coding work remains user-controlled before execution.
+9. Open the subscription screen to verify native store billing and Restore Purchases.
 
 If a provider-backed mode is temporarily unavailable, do not submit until reviewer access is stable.

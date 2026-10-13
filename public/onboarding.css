@@ -1,4 +1,4 @@
-/* Ask Crump 5.6 — current product tour. */
+/* Ask Crump — friendly workspace guide. */
 body.tutorial-open { overflow: hidden !important; }
 
 .tutorial-overlay {
@@ -20,18 +20,19 @@ body.tutorial-open { overflow: hidden !important; }
   z-index: 14001;
   top: 50%;
   left: 50%;
-  width: min(590px, calc(100vw - 32px));
+  width: min(700px, calc(100vw - 32px));
   max-height: min(780px, calc(100dvh - 32px));
   display: grid;
   grid-template-rows: auto minmax(0,1fr) auto;
   overflow: hidden;
   border: 1px solid rgba(255,255,255,.10);
-  border-radius: 30px;
+  border-radius: 24px;
   background:
-    radial-gradient(520px 260px at 100% 0, rgba(217,191,126,.075), transparent 66%),
-    linear-gradient(180deg, #131a22, #0e141a);
+    radial-gradient(560px 280px at 100% 0, rgba(222,197,126,.075), transparent 66%),
+    linear-gradient(180deg, #181c22, #12161b);
   box-shadow: 0 40px 120px rgba(0,0,0,.58);
-  color: #f4f2ed;
+  color: #f7f4ec;
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   opacity: 0;
   transform: translate(-50%, calc(-50% + 14px)) scale(.99);
   transition: opacity .18s ease, transform .22s cubic-bezier(.2,.75,.2,1);
@@ -68,7 +69,7 @@ body.tutorial-open { overflow: hidden !important; }
   border: 1px solid rgba(255,255,255,.07);
   border-radius: 12px;
   background: rgba(255,255,255,.02);
-  color: #8f9699;
+  color: #a9afb5;
   font: inherit;
   font-size: 11px;
   cursor: pointer;
@@ -97,14 +98,14 @@ body.tutorial-open { overflow: hidden !important; }
 .tutorial-progress-label {
   float: right;
   margin-top: -61px;
-  color: #646d72;
+  color: #969da4;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: .12em;
 }
 .tutorial-eyebrow {
   margin-bottom: 9px;
-  color: #c3a766;
+  color: #dec57e;
   font-size: 9px;
   font-weight: 800;
   letter-spacing: .20em;
@@ -112,29 +113,47 @@ body.tutorial-open { overflow: hidden !important; }
 .tutorial-title {
   max-width: 500px;
   margin: 0;
-  color: #f1efe9;
-  font-family: Georgia, 'Times New Roman', serif;
-  font-size: clamp(30px, 5vw, 44px);
-  font-weight: 400;
-  line-height: 1.05;
-  letter-spacing: -.035em;
+  color: #f7f4ec;
+  font-size: clamp(29px, 5vw, 42px);
+  font-weight: 720;
+  line-height: 1.08;
+  letter-spacing: -.04em;
 }
 .tutorial-description {
   max-width: 510px;
   margin: 16px 0 0;
-  color: #92999d;
+  color: #aeb4ba;
   font-size: 14px;
   line-height: 1.65;
 }
+.tutorial-destination-maps {
+  display: grid;
+  gap: 10px;
+  margin-top: 24px;
+}
+.tutorial-destination-group {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr);
+  align-items: center;
+  gap: 9px;
+}
+.tutorial-destination-group > strong {
+  color: #8f969d;
+  font-size: 9px;
+  font-weight: 720;
+  letter-spacing: .06em;
+}
 .tutorial-destination-map {
   display: grid;
-  grid-template-columns: repeat(6,minmax(0,1fr));
+  grid-template-columns: repeat(7,minmax(0,1fr));
   gap: 5px;
-  margin-top: 22px;
   padding: 5px;
   border: 1px solid rgba(255,255,255,.06);
   border-radius: 14px;
   background: rgba(0,0,0,.16);
+}
+.tutorial-destination-group:last-child .tutorial-destination-map {
+  grid-template-columns: repeat(5,minmax(0,1fr));
 }
 .tutorial-destination-map span {
   display: grid;
@@ -142,7 +161,7 @@ body.tutorial-open { overflow: hidden !important; }
   place-items: center;
   border: 1px solid transparent;
   border-radius: 10px;
-  color: #626b6f;
+  color: #858d94;
   font-size: 8px;
   font-weight: 740;
   letter-spacing: .025em;
@@ -167,7 +186,7 @@ body.tutorial-open { overflow: hidden !important; }
   border: 1px solid rgba(255,255,255,.065);
   border-radius: 13px;
   background: rgba(255,255,255,.015);
-  color: #a7adaf;
+  color: #b3b8bd;
   font-size: 10px;
   line-height: 1.35;
 }
@@ -262,7 +281,7 @@ body.tutorial-open { overflow: hidden !important; }
     left: 9px;
     width: auto;
     max-height: calc(100dvh - max(18px, env(safe-area-inset-top)) - max(18px, env(safe-area-inset-bottom)));
-    border-radius: 26px;
+    border-radius: 22px;
     transform: translateY(14px) scale(.995);
   }
   .tutorial-card.tutorial-visible { transform: translateY(0) scale(1); }
@@ -272,6 +291,10 @@ body.tutorial-open { overflow: hidden !important; }
   .tutorial-progress-label { margin-top: -54px; }
   .tutorial-title { font-size: clamp(29px, 8.5vw, 38px); }
   .tutorial-description { font-size: 13px; }
+  .tutorial-destination-group { grid-template-columns: 1fr; gap: 5px; }
+  .tutorial-destination-map { grid-template-columns: repeat(4,minmax(0,1fr)); }
+  .tutorial-destination-group:last-child .tutorial-destination-map { grid-template-columns: repeat(5,minmax(0,1fr)); }
+  .tutorial-destination-map span { min-height: 34px; font-size: 9px; }
   .tutorial-feature-grid { grid-template-columns: 1fr; gap: 6px; margin-top: 20px; }
   .tutorial-feature { min-height: 42px; }
   .tutorial-open-destination { width: 100%; justify-content: center; }

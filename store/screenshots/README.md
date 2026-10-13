@@ -9,12 +9,12 @@ Required sequence:
 
 1. Ask — useful structured answer and the direct `Keep in a Project` action.
 2. Projects — resume prepared continuing work with its instructions, conversations, and references.
-3. Create — the unified chooser showing only file, image, and long-form modes enabled in the signed build.
+3. Files — prepared documents, presentations, images, videos, and uploads in the dedicated workspace.
 4. Video — the dedicated studio with a reference-ready setup or safely staged active job.
 5. Research in Ask — sourced current research and next-step controls inside Ask.
 6. Editable work — Document Studio with real document and presentation download controls.
 7. Library — prepared manuscripts and books in the dedicated private bookshelf.
-8. You — settings, sessions, privacy, and account controls with all personal data removed.
+8. Profile — settings, sessions, privacy, and account controls with all personal data removed.
 
 Use the exact destination labels shown in the signed build. The screenshot sequence must agree with
 the in-app tutorial and reviewer path before either store packet is approved.

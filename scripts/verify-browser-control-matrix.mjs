@@ -201,13 +201,16 @@ const requestedBrowserExecutable = process.env.ASKCRUMP_BROWSER_EXECUTABLE
   || process.env.CODEX_BROWSER_EXECUTABLE
   || '';
 const bundledBrowserExecutable = chromium.executablePath();
-if (!existsSync(bundledBrowserExecutable)) {
+const requestedBrowserAvailable = Boolean(
+  requestedBrowserExecutable && existsSync(requestedBrowserExecutable)
+);
+if (!requestedBrowserAvailable && !existsSync(bundledBrowserExecutable)) {
   throw new Error(`Playwright Chromium is missing: ${bundledBrowserExecutable}`);
 }
 // Some legacy verifiers fall back to installed Edge when the override is empty. Keep that working
 // on Windows, where re-injecting Playwright's own path can fail with spawn UNKNOWN, while exporting
 // bundled Chromium on Linux CI so those verifiers never select a Windows-only fallback.
-const browserExecutable = requestedBrowserExecutable && existsSync(requestedBrowserExecutable)
+const browserExecutable = requestedBrowserAvailable
   ? requestedBrowserExecutable
   : (process.platform === 'win32' ? '' : bundledBrowserExecutable);
 const environment = {
