@@ -13,7 +13,6 @@
 (() => {
   'use strict';
 
-  var MASCOT_SRC = '/assets/brand/crump-mascot.png';
   var DEFAULT_VERBS = [
     'Reading your notes…',
     'Finding the story…',
@@ -66,18 +65,6 @@
     if (typeof vision.eyebrow !== 'function') {
       vision.eyebrow = function (text) {
         return vision.el('div', 'cv-eyebrow', text);
-      };
-    }
-    if (typeof vision.mascot !== 'function') {
-      vision.mascot = function (size) {
-        var img = document.createElement('img');
-        img.src = MASCOT_SRC;
-        img.alt = 'Crump';
-        img.className = 'cv-mascot';
-        var px = Number(size) || 32;
-        img.width = px;
-        img.height = px;
-        return img;
       };
     }
     if (typeof vision.card !== 'function') {
@@ -140,7 +127,8 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Message identity: mascot avatar + "Crump" nameplate on every assistant row.
+  // Message identity: restrained status pip + "Crump" nameplate on every
+  // assistant row.
   // The base renderer already inserts .crump-message-meta on most rows; this is
   // the backstop for any render path that skips it. Never double-decorates.
   // ---------------------------------------------------------------------------
@@ -158,6 +146,18 @@
     );
   }
 
+  function ensureStatusPip(container, beforeNode) {
+    if (!container) return null;
+    var pip = container.querySelector('.crump-message-status-pip');
+    if (!pip) {
+      pip = document.createElement('span');
+      pip.className = 'crump-message-status-pip';
+      pip.setAttribute('aria-hidden', 'true');
+      container.insertBefore(pip, beforeNode || container.firstChild);
+    }
+    return pip;
+  }
+
   function decorateAssistantRow(row) {
     if (!isAssistantRow(row)) return;
     if (row.classList.contains('presence-message')) return; // handled as thinking
@@ -169,17 +169,15 @@
     if (!meta) {
       meta = document.createElement('div');
       meta.className = 'crump-message-meta cv-identity';
-      var avatar = document.createElement('span');
-      avatar.className = 'crump-message-avatar';
-      avatar.setAttribute('aria-hidden', 'true');
       var nameplate = document.createElement('span');
       nameplate.className = 'crump-message-name';
       nameplate.textContent = 'Crump';
-      meta.appendChild(avatar);
+      ensureStatusPip(meta);
       meta.appendChild(nameplate);
       wrapper.insertBefore(meta, wrapper.firstChild);
     } else {
       meta.classList.add('cv-identity');
+      ensureStatusPip(meta, meta.firstChild);
       if (!meta.querySelector('.crump-message-name')) {
         var name = document.createElement('span');
         name.className = 'crump-message-name';
@@ -260,6 +258,9 @@
   function applyThinkingRow(row, forceVerbs) {
     if (!row || row.nodeType !== 1) return;
     var decorated = row.dataset.cvThinking === '1';
+    var wrapper = row.querySelector('.presence-wrapper, .message-wrapper') || row;
+    var bubble = wrapper.querySelector('.presence-bubble');
+    ensureStatusPip(wrapper, bubble || wrapper.firstChild);
     row.classList.add('cv-thinking');
     row.dataset.cvThinking = '1';
     if (!decorated || forceVerbs) startVerbCycle(row);

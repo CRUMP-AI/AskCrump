@@ -68,7 +68,7 @@ const loader = String.raw`
   ]);
 
   const finalStyles = Object.freeze([
-    ['/crump-design-pass.css?v=5.9.76-mascot-face-1', 'crumpdesignpass'],
+    ['/crump-design-pass.css?v=5.9.76-atelier-workspace-1', 'crumpdesignpass'],
   ]);
 
   const workspaceScripts = Object.freeze([
@@ -79,7 +79,7 @@ const loader = String.raw`
     ['/subscription-ui.js?v=5.9.76-commerce-recovery-1', 'workspacesubscription'],
     ['/credit-confirmation.js?v=5.9.76-credit-confirmation-1', 'workspacecreditconfirmation'],
     ['/chat-resilience.js?v=5.9.76-credit-confirmation-1', 'workspacechatresilience'],
-    ['/ui-functions.js?v=5.9.76-muse-feel-pass-1', 'workspaceui'],
+    ['/ui-functions.js?v=5.9.76-atelier-workspace-1', 'workspaceui'],
     ['/presence-manager.js?v=5.9.76-muse-release-repair-1', 'workspacepresence'],
     ['/sync-manager.js?v=5.9.76', 'workspacesync'],
     ['/chat-sync.js?v=5.9.76-image-stability-1', 'workspacechatsync'],
@@ -89,14 +89,14 @@ const loader = String.raw`
   ]);
 
   const enhancementScripts = Object.freeze([
-    ['/crump-4.3.js?v=5.9.76-mascot-face-1', 'crump43'],
+    ['/crump-4.3.js?v=5.9.76-atelier-workspace-1', 'crump43'],
     ['/crump-4.4.js?v=5.9.76-friendly-workspace-1', 'crump44'],
     ['/crump-5.0.js?v=5.9.76-reference-fidelity-hard-contract-1', 'crump50'],
     ['/crump-precision-image-edit-loader.js?v=5.9.76-reference-fidelity-hard-contract-1', 'crumpprecisionloader'],
     ['/crump-billing-5.1.js?v=5.9.76-checkout-destination-label-1', 'billing51'],
     ['/crump-5.2.js?v=5.9.76-plan-status-line-1', 'crump52'],
     ['/crump-5.2.2.js?v=5.9.76-muse-release-repair-1', 'crump522'],
-    ['/crump-v1-body.js?v=5.9.76-shell-brand-alt-1', 'crumpbodyv1'],
+    ['/crump-v1-body.js?v=5.9.76-atelier-workspace-1', 'crumpbodyv1'],
     ['/crump-v1-stability.js?v=5.9.76-intelligence-architecture-1', 'crumpv1stability'],
   ]);
 
@@ -108,7 +108,7 @@ const loader = String.raw`
     ['/crump-polish-5.6.js?v=5.9.76-friendly-workspace-1', 'crumppolish56'],
     ['/crump-media-save.js?v=5.9.76-library-lazy-load-1', 'crumpmediasave'],
     ['/crump-library-loader.js?v=5.9.76-library-first-run-1', 'crumplibraryloader'],
-    ['/crump-navigation-5.9.30.js?v=5.9.76-image-studio-entry-1', 'crumpnav5930'],
+    ['/crump-navigation-5.9.30.js?v=5.9.76-atelier-workspace-1', 'crumpnav5930'],
     ['/crump-code-loader.js?v=5.9.76-friendly-workspace-1', 'crumpcodeloader'],
     ['/lifecycle-share.js?v=5.9.76-settings-invite-1', 'lifecycleshare'],
     ['/lifecycle-manager.js?v=5.9.76-lifecycle-idle-send-1', 'lifecyclemanager'],

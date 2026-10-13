@@ -22,22 +22,27 @@ def test_six_destination_navigation_is_final_runtime_layer_and_boot_critical():
 
     assert runtime.index("/crump-library-loader.js") < runtime.index("/crump-navigation-5.9.30.js")
     assert "/crump-library-5.7.js" not in runtime
-    assert "ask-crump-new-body-v1-r255" in worker
+    assert "ask-crump-new-body-v1-r256-atelier-workspace-1" in worker
     navigation_css = "/crump-navigation-5.9.30.css?v=5.9.76-nav-focus-visibility-1"
     for source in (runtime, worker, native):
         assert navigation_css in source
-    assert "/crump-navigation-5.9.30.js?v=5.9.76-image-studio-entry-1" in runtime
+    assert "/crump-navigation-5.9.30.js?v=5.9.76-atelier-workspace-1" in runtime
 
 
-def test_navigation_exposes_exact_product_destinations_on_desktop_and_mobile():
+def test_vision_shell_owns_navigation_while_adapter_preserves_destinations():
     script = read("public/crump-navigation-5.9.30.js")
+    shell = read("public/crump-vision-shell-1.0.js")
     styles = read("public/crump-navigation-5.9.30.css")
 
-    for destination in ("ask", "projects", "create", "video", "library", "you"):
+    for destination in ("ask", "projects", "code", "create", "video", "library", "you"):
         assert f"id: '{destination}'" in script
 
-    assert "crump5930-rail-destinations" in script
-    assert 'id = \'crump5930MobileNav\'' in script
+    assert "sole owner of desktop and" in script
+    assert "injectDesktopNavigation" not in script
+    assert "injectMobileNavigation" not in script
+    assert "data-cv-destination" in shell
+    assert "data-cv-new-conversation" in shell
+    assert "data-cv-drawer-toggle" in shell
     assert "grid-template-columns: repeat(6,minmax(0,1fr))" in styles
     assert "window.CrumpProduct53?.open?.('video')" in script
     assert "if (section === 'video') return 'video';" in script
@@ -182,7 +187,7 @@ def test_navigation_consolidation_fixture_uses_the_production_layers():
     assert '/public/crump-product-5.3.css?v=5.9.76-file-library-window-1' in fixture
     assert '/public/crump-navigation-5.9.30.js' in fixture
     assert '5.9.76-mobile-drawer-destinations-1' in fixture
-    assert '5.9.76-image-studio-entry-1' in fixture
+    assert '5.9.76-atelier-workspace-1' in fixture
     assert 'window.fixtureErrors = []' in fixture
     assert "dataset.fixtureErrorCount = '0'" in fixture
     assert 'id="v1OpenPlanBtn"' in fixture
@@ -204,6 +209,11 @@ def test_create_destination_handoff_has_desktop_and_mobile_browser_proof():
     assert "await visibleDestination('video').click()" in verifier
     assert "section: 'video'" in verifier
     assert "await visibleDestination('ask').click()" in verifier
+    assert "[data-cv-drawer-toggle]" in verifier
+    assert "document.body.classList.contains('cv-conversations-open')" in verifier
+    assert "await page.keyboard.press('Escape')" in verifier
+    assert "[data-cv-new-conversation]" in verifier
+    assert "window.fixtureEvents.newConversation === 1" in verifier
 
 
 def test_tablet_navigation_has_a_complete_destination_and_account_action_journey():
@@ -211,9 +221,11 @@ def test_tablet_navigation_has_a_complete_destination_and_account_action_journey
     matrix = read("scripts/verify-browser-control-matrix.mjs")
 
     assert "{width: 1024, height: 1366}" in verifier
-    assert "['ask', 'projects', 'create', 'video', 'library', 'you']" in verifier
-    for destination in ("ask", "projects", "create", "video", "library", "you"):
+    assert "const expectedDestinations = ['ask', 'projects', 'library', 'video', 'more'];" in verifier
+    for destination in ("ask", "projects", "library", "video", "more"):
         assert f"clickDestination('{destination}')" in verifier
+    assert "window.CrumpNavigation5930.open('create')" in verifier
+    assert '#cvMoreMenu [data-cv-destination="profile"]' in verifier
     assert "minimumTouchWidth >= 44" in verifier
     assert "minimumTouchHeight >= 44" in verifier
     assert "documentOverflow, 0" in verifier

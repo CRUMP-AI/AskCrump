@@ -3,9 +3,7 @@ const { readFileSync } = require('node:fs');
 const { join } = require('node:path');
 const { chromium } = require('playwright');
 
-const expected = ['ask', 'projects', 'create', 'video', 'library', 'you'];
-
-async function inspect(page, selector) {
+async function inspect(page, selector, expected) {
   const errors = [];
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   page.on('pageerror', error => errors.push(error.message));
@@ -16,26 +14,26 @@ async function inspect(page, selector) {
   }));
   await page.goto('http://127.0.0.1:8765/tests/fixtures/navigation-consolidation.html', {waitUntil: 'load'});
 
-  const visible = await page.locator(`${selector} [data-crump5930-destination]`).evaluateAll(buttons => buttons
+  const visible = await page.locator(`${selector} [data-cv-destination]`).evaluateAll(buttons => buttons
     .filter(button => !button.hidden && getComputedStyle(button).display !== 'none')
-    .map(button => button.dataset.crump5930Destination));
+    .map(button => button.dataset.cvDestination));
   assert.deepEqual(visible, expected);
 
-  await page.locator(`${selector} [data-crump5930-destination="video"]`).click();
+  await page.locator(`${selector} [data-cv-destination="video"]`).click();
   const direct = await page.evaluate(() => ({
     studioOpen: !document.getElementById('crump53Studio').hidden,
     section: document.getElementById('crump53Sheet').dataset.crump53Section,
     title: document.getElementById('crump53WorkspaceTitle').textContent,
-    active: document.querySelector('[data-crump5930-destination="video"].is-active')?.dataset.crump5930Destination || '',
+    active: document.querySelector('[data-cv-destination="video"].is-active')?.dataset.cvDestination || '',
   }));
   assert.deepEqual(direct, {studioOpen: true, section: 'video', title: 'Video Studio', active: 'video'});
 
   await page.evaluate(() => document.getElementById('crump53Close').click());
-  await page.locator(`${selector} [data-crump5930-destination="create"]`).click();
+  await page.evaluate(() => window.CrumpNavigation5930.open('create'));
   await page.locator('[data-crump5930-create="video"]').click();
   const createHandoff = await page.evaluate(() => ({
     section: document.getElementById('crump53Sheet').dataset.crump53Section,
-    active: document.querySelector('[data-crump5930-destination="video"].is-active')?.dataset.crump5930Destination || '',
+    active: document.querySelector('[data-cv-destination="video"].is-active')?.dataset.cvDestination || '',
   }));
   assert.deepEqual(createHandoff, {section: 'video', active: 'video'});
   assert.deepEqual(errors, []);
@@ -113,8 +111,16 @@ async function inspectTutorial(page) {
 (async () => {
   const executablePath = process.env.CODEX_BROWSER_EXECUTABLE || undefined;
   const browser = await chromium.launch({headless: true, ...(executablePath ? {executablePath} : {})});
-  const desktop = await inspect(await browser.newPage({viewport: {width: 1280, height: 800}}), '.crump5930-rail-destinations');
-  const mobile = await inspect(await browser.newPage({viewport: {width: 390, height: 844}}), '#crump5930MobileNav');
+  const desktop = await inspect(
+    await browser.newPage({viewport: {width: 1280, height: 800}}),
+    '.cv-rail-nav',
+    ['ask', 'projects', 'files', 'library', 'video', 'autonomous'],
+  );
+  const mobile = await inspect(
+    await browser.newPage({viewport: {width: 390, height: 844}}),
+    '#cvMobileNav',
+    ['ask', 'projects', 'library', 'video', 'more'],
+  );
   const tutorial = await inspectTutorial(await browser.newPage({viewport: {width: 390, height: 844}}));
   await browser.close();
   process.stdout.write(JSON.stringify({desktop, mobile, tutorial}));

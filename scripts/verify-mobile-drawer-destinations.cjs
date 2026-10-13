@@ -1,4 +1,6 @@
 const assert = require('node:assert/strict');
+const {readFileSync} = require('node:fs');
+const {join} = require('node:path');
 const {chromium} = require('playwright');
 
 (async () => {
@@ -8,6 +10,11 @@ const {chromium} = require('playwright');
   const errors = [];
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
   page.on('pageerror', error => errors.push(error.message));
+  await page.route('**/assets/brand/crump-mark-320.webp', route => route.fulfill({
+    status: 200,
+    contentType: 'image/png',
+    body: readFileSync(join(process.cwd(), 'public', 'assets', 'brand', 'crump-mark.png')),
+  }));
 
   await page.goto(
     'http://127.0.0.1:8765/tests/fixtures/navigation-consolidation.html?mobile=drawer',
@@ -27,14 +34,20 @@ const {chromium} = require('playwright');
     return {
       drawer: box('sidebar'),
       overlay: box('sidebarOverlay'),
-      navigation: box('crump5930MobileNav'),
+      navigation: box('cvMobileNav'),
     };
   });
-  assert(Math.abs(geometry.drawer.bottom - geometry.navigation.top) <= 1);
-  assert(Math.abs(geometry.overlay.bottom - geometry.navigation.top) <= 1);
+  assert.equal(geometry.drawer.bottom, 844);
+  assert.equal(geometry.overlay.bottom, 844);
+  assert.equal(geometry.navigation.bottom, 844);
   assert(geometry.navigation.height >= 58);
 
-  await page.locator('#crump5930MobileNav [data-crump5930-destination="projects"]').click();
+  // The Atelier shell no longer renders a duplicate close control inside the
+  // legacy conversation list.  Compact drawers close through the shell's
+  // universal Escape/backdrop interaction instead.
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => !document.getElementById('sidebar')?.classList.contains('active'));
+  await page.locator('#cvMobileNav [data-cv-destination="projects"]').click();
   const projects = await page.evaluate(() => ({
     drawerOpen: document.getElementById('sidebar').classList.contains('active'),
     overlayOpen: document.getElementById('sidebarOverlay').classList.contains('active'),

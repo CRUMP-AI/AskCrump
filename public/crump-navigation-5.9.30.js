@@ -4,6 +4,10 @@
   if (window.__crumpNavigation5930Loaded) return;
   window.__crumpNavigation5930Loaded = true;
 
+  // Behavior adapter only. Crump Vision is the sole owner of desktop and
+  // mobile navigation markup; this module preserves the proven product-sheet,
+  // focus, analytics, and creation-handoff contracts behind those controls.
+
   const byId = id => document.getElementById(id);
   const all = selector => [...document.querySelectorAll(selector)];
   const MODE_KEY = 'askcrump.navigation.mode';
@@ -17,41 +21,13 @@
   let syncFrame = 0;
 
   const destinations = Object.freeze([
-    {
-      id: 'ask',
-      label: 'Ask',
-      icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 5h14v11H9l-4 3z"/><path d="M8 9h8M8 12h5"/></svg>',
-    },
-    {
-      id: 'projects',
-      label: 'Projects',
-      icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h6l2 2h8v10H4z"/><path d="M4 7V5h7l2 2"/></svg>',
-    },
-    {
-      id: 'code',
-      label: 'Code',
-      icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 7-5 5 5 5M15 7l5 5-5 5M13 4l-2 16"/></svg>',
-    },
-    {
-      id: 'create',
-      label: 'Create',
-      icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v16M4 12h16"/><path d="m17 5 .8 1.7L19.5 7.5l-1.7.8L17 10l-.8-1.7-1.7-.8 1.7-.8z"/></svg>',
-    },
-    {
-      id: 'video',
-      label: 'Video',
-      icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="13" height="14" rx="2"/><path d="m16.5 10 4-2v8l-4-2zM8 9l5 3-5 3z"/></svg>',
-    },
-    {
-      id: 'library',
-      label: 'Library',
-      icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z"/><path d="M7 4v16M10 8h6"/></svg>',
-    },
-    {
-      id: 'you',
-      label: 'You',
-      icon: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="3.5"/><path d="M5.5 20c.7-4 2.9-6 6.5-6s5.8 2 6.5 6"/></svg>',
-    },
+    {id: 'ask', label: 'Ask'},
+    {id: 'projects', label: 'Projects'},
+    {id: 'code', label: 'Autonomous'},
+    {id: 'create', label: 'Create'},
+    {id: 'video', label: 'Video'},
+    {id: 'library', label: 'Library'},
+    {id: 'you', label: 'Profile'},
   ]);
 
   function legacyModeRequested() {
@@ -75,39 +51,6 @@
       if (active) button.setAttribute('aria-current', 'page');
       else button.removeAttribute('aria-current');
     });
-  }
-
-  function buttonMarkup(destination) {
-    const codeBoundary = destination.id === 'code' ? ' data-crump-code-destination hidden' : '';
-    return `<button type="button" class="crump5930-destination" data-crump5930-destination="${destination.id}"${codeBoundary} aria-label="${destination.label}">${destination.icon}<span>${destination.label}</span></button>`;
-  }
-
-  function conversationLibraryMarkup() {
-    return `<button type="button" class="crump5930-destination crump5930-chats-toggle" data-crump5930-library-toggle aria-label="Hide Chats" title="Hide Chats" aria-controls="sidebar" aria-expanded="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 6h14M5 12h14M5 18h9"/></svg><span>Chats</span></button>`;
-  }
-
-  function injectDesktopNavigation() {
-    const rail = document.querySelector('.v1-rail');
-    if (!rail) return;
-    rail.classList.add('crump5930-rail');
-    rail.innerHTML = `
-      <div class="crump5930-rail-brand" aria-hidden="true"><img src="/assets/brand/crump-mark-320.webp" width="320" height="357" loading="lazy" decoding="async" alt=""></div>
-      <div class="crump5930-rail-destinations">
-        ${buttonMarkup(destinations[0])}
-        ${conversationLibraryMarkup()}
-        ${destinations.slice(1).map(buttonMarkup).join('')}
-      </div>`;
-  }
-
-  function injectMobileNavigation() {
-    const app = byId('appContainer');
-    if (!app || byId('crump5930MobileNav')) return;
-    const nav = document.createElement('nav');
-    nav.id = 'crump5930MobileNav';
-    nav.className = 'crump5930-mobile-nav';
-    nav.setAttribute('aria-label', 'Ask Crump destinations');
-    nav.innerHTML = destinations.map(buttonMarkup).join('');
-    app.appendChild(nav);
   }
 
   function syncPlanSummary() {
@@ -219,15 +162,29 @@
   }
 
   function visibleDestinationButton(destination) {
-    return destinationButtons().find(button => {
-      if (button.dataset.crump5930Destination !== destination) return false;
-      return Boolean(button.offsetWidth || button.offsetHeight || button.getClientRects().length);
-    }) || null;
+    const visionDestination = {
+      ask: 'ask', projects: 'projects', code: 'autonomous', create: 'ask',
+      video: 'video', library: 'library', you: 'profile',
+    }[destination] || destination;
+    const candidates = [
+      ...destinationButtons().filter(button => button.dataset.crump5930Destination === destination),
+      ...all(`[data-cv-destination="${visionDestination}"]`),
+    ];
+    return candidates.find(button =>
+      Boolean(button.offsetWidth || button.offsetHeight || button.getClientRects().length)
+    ) || null;
   }
 
   function rememberDestinationOpener(destination) {
     const active = document.activeElement;
-    destinationFocusOpener = active?.dataset?.crump5930Destination === destination
+    const visionDestination = {
+      ask: 'ask', projects: 'projects', code: 'autonomous', create: 'ask',
+      video: 'video', library: 'library', you: 'profile',
+    }[destination] || destination;
+    destinationFocusOpener = (
+      active?.dataset?.crump5930Destination === destination ||
+      active?.dataset?.cvDestination === visionDestination
+    )
       ? active
       : visibleDestinationButton(destination) || null;
   }
@@ -276,7 +233,11 @@
     if (current) {
       if (current !== previous) {
         const active = document.activeElement;
-        if (active?.dataset?.crump5930Destination === current) destinationFocusOpener = active;
+        const visionCurrent = {code: 'autonomous', you: 'profile'}[current] || current;
+        if (
+          active?.dataset?.crump5930Destination === current ||
+          active?.dataset?.cvDestination === visionCurrent
+        ) destinationFocusOpener = active;
         else if (previous || !destinationFocusOpener) {
           destinationFocusOpener = visibleDestinationButton(current) || destinationFocusOpener;
         }
@@ -619,8 +580,6 @@
       document.documentElement.dataset.crumpNavigation5930 = 'legacy';
       return;
     }
-    injectDesktopNavigation();
-    injectMobileNavigation();
     injectCreateHub();
     consolidateAccountNavigation();
     wireDestinations();

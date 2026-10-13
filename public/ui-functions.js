@@ -1041,15 +1041,20 @@
     return element;
   }
 
+  function createCrumpStatusPip() {
+    const pip = document.createElement('span');
+    pip.className = 'crump-message-status-pip';
+    pip.setAttribute('aria-hidden', 'true');
+    return pip;
+  }
+
   function createPresenceRow(state) {
     const row = document.createElement('div');
     row.className = 'message assistant-message presence-message';
     row.setAttribute('aria-hidden', 'true');
     const wrapper = document.createElement('div');
     wrapper.className = 'message-wrapper presence-wrapper';
-    const avatar = document.createElement('span');
-    avatar.className = 'crump-message-avatar';
-    avatar.setAttribute('aria-hidden', 'true');
+    const statusPip = createCrumpStatusPip();
     const bubble = document.createElement('div');
     bubble.className = 'message-content presence-bubble';
     const dots = document.createElement('span');
@@ -1062,7 +1067,7 @@
       label.textContent = state.label;
       bubble.appendChild(label);
     }
-    wrapper.appendChild(avatar);
+    wrapper.appendChild(statusPip);
     wrapper.appendChild(bubble);
     row.appendChild(wrapper);
     return row;
@@ -1123,18 +1128,16 @@
       const wrapper = document.createElement('div');
       wrapper.className = 'message-wrapper';
       if (!isUser) {
-        // Every Crump response carries its nameplate: mascot mark plus a
-        // tiny tracked-out gold eyebrow, so the thread reads as a
-        // conversation between two parties.
+        // Every Crump response carries a restrained status pip and nameplate,
+        // so the thread reads as a conversation between two parties without
+        // depending on an unapproved character treatment.
         const meta = document.createElement('div');
         meta.className = 'crump-message-meta';
-        const avatar = document.createElement('span');
-        avatar.className = 'crump-message-avatar';
-        avatar.setAttribute('aria-hidden', 'true');
+        const statusPip = createCrumpStatusPip();
         const name = document.createElement('span');
         name.className = 'crump-message-name';
         name.textContent = 'Crump';
-        meta.append(avatar, name);
+        meta.append(statusPip, name);
         wrapper.appendChild(meta);
       }
       const content = document.createElement('div');

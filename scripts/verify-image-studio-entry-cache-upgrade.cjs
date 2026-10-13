@@ -8,15 +8,15 @@ const {chromium} = require(playwrightModule);
 const root = path.resolve(__dirname, '..');
 const publicDirectory = path.join(root, 'public');
 const oldCacheName = 'ask-crump-new-body-v1-r252';
-const newCacheName = 'ask-crump-new-body-v1-r255';
+const newCacheName = 'ask-crump-new-body-v1-r256-atelier-workspace-1';
 const oldUrls = Object.freeze([
   '/runtime-body-v1.js?v=5.9.76-reference-fidelity-hard-contract-1',
   '/crump-navigation-5.9.30.js?v=5.9.76-navigation-discovery-1',
   '/auth-controller.js?v=5.9.76-facebook-reel-attribution-1',
 ]);
 const newUrls = Object.freeze({
-  runtime: '/runtime-body-v1.js?v=5.9.76-friendly-workspace-1',
-  navigation: '/crump-navigation-5.9.30.js?v=5.9.76-image-studio-entry-1',
+  runtime: '/runtime-body-v1.js?v=5.9.76-atelier-workspace-1',
+  navigation: '/crump-navigation-5.9.30.js?v=5.9.76-atelier-workspace-1',
   auth: '/auth-controller.js?v=5.9.76-image-studio-entry-1',
 });
 const fixturePath = '/__image-studio-entry-cache-upgrade.html';
@@ -142,7 +142,7 @@ async function startServer() {
       if (upgraded) break;
       await new Promise(resolve => setTimeout(resolve, 50));
     }
-    assert.equal(upgraded, true, 'r254 did not replace the frozen r252 cache');
+    assert.equal(upgraded, true, 'current cache did not replace the frozen r252 cache');
 
     const result = await page.evaluate(async ({cacheName, previousUrls, urls}) => {
       const cache = await caches.open(cacheName);

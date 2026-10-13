@@ -12,7 +12,7 @@
 }
 
 .cv-home-greet .cv-mascot {
-  flex: 0 0 auto;
+  display: none !important;
 }
 
 .cv-home-title {

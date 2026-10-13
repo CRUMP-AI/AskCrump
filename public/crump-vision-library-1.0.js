@@ -340,7 +340,6 @@
       root.querySelector('.cvl-toolbar').style.display = 'none';
       shelf.innerHTML =
         '<div class="cvl-empty">' +
-          '<img class="cvl-empty-mascot" src="/assets/brand/crump-mascot.png" alt="Crump, the Ask Crump mascot" width="120" height="120">' +
           '<h2>Your shelf is ready.</h2>' +
           '<p>Books and manuscripts you create or import with Crump will appear here.</p>' +
           '<button type="button" class="cvl-button" data-cvl-chats>Start writing with Crump</button>' +

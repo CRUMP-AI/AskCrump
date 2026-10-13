@@ -23,13 +23,13 @@ EXPECTED_BUTTON_INVENTORY = {
     "public/crump-billing-5.1.js": 3,
     "public/crump-code-5.9.35.js": 4,
     "public/crump-library-5.7.js": 43,
-    "public/crump-navigation-5.9.30.js": 4,
+    "public/crump-navigation-5.9.30.js": 2,
     "public/crump-product-5.3.1.js": 10,
     "public/crump-product-5.3.js": 58,
     "public/crump-vision-home-1.0.js": 1,
     "public/crump-vision-library-1.0.js": 6,
     "public/crump-vision-projects-1.0.js": 5,
-    "public/crump-vision-shell-1.0.js": 5,
+    "public/crump-vision-shell-1.0.js": 7,
     "public/crump-vision-studios-1.0.js": 5,
     "public/crump-vision-you-1.0.js": 6,
     "public/install-prompt.js": 2,
@@ -588,7 +588,7 @@ def test_send_button_is_really_disabled_until_the_composer_has_content() -> None
 
 
 def test_send_button_actionability_release_is_cache_addressable_everywhere() -> None:
-    asset = "/crump-4.3.js?v=5.9.76-mascot-face-1"
+    asset = "/crump-4.3.js?v=5.9.76-atelier-workspace-1"
 
     for relative in ("public/runtime-body-v1.js", "public/sw.js", "scripts/build-native.mjs"):
         assert asset in (ROOT / relative).read_text(encoding="utf-8")

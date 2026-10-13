@@ -8,7 +8,7 @@ const {chromium} = require(playwrightModule);
 const root = path.resolve(__dirname, '..');
 const publicDirectory = path.join(root, 'public');
 const oldCacheName = 'ask-crump-new-body-v1-r253';
-const newCacheName = 'ask-crump-new-body-v1-r255';
+const newCacheName = 'ask-crump-new-body-v1-r256-atelier-workspace-1';
 const oldUrls = Object.freeze([
   '/runtime-body-v1.js?v=5.9.76-image-studio-entry-1',
   '/conversation.css?v=5.9.76-continuity-handoff-1',
@@ -22,7 +22,7 @@ const oldUrls = Object.freeze([
 // The runtime loader and the service worker are the source of truth for the
 // current versioned asset URLs. Deriving them here (instead of hardcoding a
 // release token) keeps this verifier green across per-asset version passes
-// such as muse-feel-pass-N or mascot-face-N: the test then checks that the
+// such as atelier-workspace-N: the test then checks that the
 // upgraded cache holds exactly what the current code references, never a
 // stale bundle.
 async function loadNewUrls() {
@@ -42,7 +42,6 @@ async function loadNewUrls() {
     presence: pick(runtimeSource, 'presence-manager\\.js', 'runtime-body-v1.js'),
     starter: pick(runtimeSource, 'crump-v1-body\\.js', 'runtime-body-v1.js'),
     enhancedScroll: pick(runtimeSource, 'crump-5\\.2\\.2\\.js', 'runtime-body-v1.js'),
-    mascot: '/assets/brand/crump-mascot.png',
   });
 }
 let newUrls = null;
@@ -170,7 +169,7 @@ async function startServer() {
       if (upgraded) break;
       await new Promise(resolve => setTimeout(resolve, 50));
     }
-    assert.equal(upgraded, true, 'r254 did not replace the frozen r253 cache');
+    assert.equal(upgraded, true, 'current cache did not replace the frozen r253 cache');
 
     const result = await page.evaluate(async ({cacheName, previousUrls, urls}) => {
       const cache = await caches.open(cacheName);
@@ -187,12 +186,11 @@ async function startServer() {
         presence: await read(urls.presence),
         starter: await read(urls.starter),
         enhancedScroll: await read(urls.enhancedScroll),
-        mascotPresent: Boolean(await cache.match(urls.mascot)),
         staleEntries: await Promise.all(previousUrls.map(url => caches.match(url).then(Boolean))),
       };
     }, {cacheName: newCacheName, previousUrls: oldUrls, urls: newUrls});
 
-    for (const url of Object.values(newUrls).filter(url => url !== newUrls.mascot)) {
+    for (const url of Object.values(newUrls)) {
       assert.ok(result.runtime.includes(url) || url === newUrls.runtime);
     }
     assert.ok(result.conversation.length > 0);
@@ -207,7 +205,6 @@ async function startServer() {
     assert.ok(result.starter.includes("input.dispatchEvent(new Event('input', {bubbles: true}));"));
     assert.ok(result.enhancedScroll.includes("behavior: 'auto'"));
     assert.ok(!result.enhancedScroll.includes("behavior: 'smooth'"));
-    assert.equal(result.mascotPresent, true);
     assert.deepEqual(result.staleEntries, oldUrls.map(() => false));
     assert.deepEqual(errors, []);
 

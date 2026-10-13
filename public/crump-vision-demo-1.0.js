@@ -241,8 +241,8 @@
         content: 'No \u201csupercharge\u201d, no \u201cgame-changer\u201d, no \u201cunleash\u201d.\n\nIf a sentence could appear in any AI ad, it does not appear in ours.',
       },
       {
-        title: 'The mascot',
-        content: 'Crump is curious, never cute for cute\u2019s sake.\n\nHe shows his work: plans before answers, sources before claims, keepsakes at the end.',
+        title: 'The product voice',
+        content: 'Crump is curious, calm, and exact.\n\nThe product shows its work: plans before answers, sources before claims, keepsakes at the end.',
       },
       {
         title: 'Restraint',
@@ -346,7 +346,7 @@
 
   /* ------------------------------------------------------------------ */
   /* Demo-only Chats view — scripted showcase of the chats design        */
-  /* language (mascot identity, thinking state, plan, keepsake card).    */
+  /* language (clear identity, thinking state, plan, keepsake card).     */
   /* ------------------------------------------------------------------ */
 
   var THINKING_VERBS = ['Reading your notes\u2026', 'Finding the story\u2026', 'Building your keepsake\u2026'];
@@ -369,7 +369,7 @@
       '<div class="cv-wrap cv-demo-chat">' +
         '<p class="cv-eyebrow">Ask</p>' +
         '<h1 class="cv-headline">One conversation, finished.</h1>' +
-        '<p class="cv-sub">A scripted look at the chats design language \u2014 mascot identity, calm thinking state, visible plan, and a keepsake at the end. Sign in to chat for real.</p>' +
+        '<p class="cv-sub">A scripted look at the chats design language \u2014 clear identity, calm thinking state, visible plan, and a keepsake at the end. Sign in to chat for real.</p>' +
         '<div class="cv-demo-thread" role="log" aria-label="Demo conversation"></div>' +
         '<div class="cv-demo-composer" aria-hidden="true">' +
           '<span>Message Crump\u2026</span><em>Demo \u2014 sign in to chat</em>' +
@@ -387,7 +387,7 @@
     var assistant = el(
       '<div class="assistant-message"><div class="message-wrapper">' +
         '<div class="crump-message-meta cv-identity">' +
-          '<span class="crump-message-avatar" aria-hidden="true"></span>' +
+          '<span class="crump-message-status-pip" aria-hidden="true"></span>' +
           '<span class="crump-message-name">Crump</span>' +
         '</div>' +
         '<div class="cv-demo-assistant"><p>On it \u2014 here\u2019s the plan, and the finished one-pager is waiting at the end.</p></div>' +
@@ -397,7 +397,7 @@
 
     var thinking = el(
       '<div class="presence-message cv-thinking" role="status" aria-label="Crump is thinking">' +
-        '<span class="crump-message-avatar" aria-hidden="true"></span>' +
+        '<span class="crump-message-status-pip" aria-hidden="true"></span>' +
         '<div class="presence-bubble"><span class="typing-dots" aria-hidden="true"><i></i><i></i><i></i></span>' +
         '<span class="cv-thinking-label">' + esc(THINKING_VERBS[0]) + '</span></div>' +
       '</div>'

@@ -102,7 +102,6 @@
       wrap.appendChild(V.eyebrow('Your ' + day + ' briefing'));
 
       var greet = V.el('<div class="cv-home-greet"></div>');
-      greet.appendChild(V.mascot(64));
       var greetText = V.el('<div class="cv-home-greet-text"></div>');
       var title = document.createElement('h1');
       title.className = 'cv-home-title';

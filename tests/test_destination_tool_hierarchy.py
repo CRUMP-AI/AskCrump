@@ -13,6 +13,7 @@ def test_redundant_tools_dropdown_is_retired_without_removing_real_capabilities(
     product = read("public/crump-product-5.3.js")
     product_styles = read("public/crump-product-5.3.css")
     navigation = read("public/crump-navigation-5.9.30.js")
+    vision_shell = read("public/crump-vision-shell-1.0.js")
     intelligence = read("public/crump-4.4.js")
     body = read("public/crump-v1-body.js")
 
@@ -31,7 +32,9 @@ def test_redundant_tools_dropdown_is_retired_without_removing_real_capabilities(
     # Every capability still has one intentional, live destination.
     for action in ("document", "presentation", "image", "manuscript", "video"):
         assert f"createCard('{action}'" in navigation
-    assert "data-crump-code-destination hidden" in navigation
+    assert "data-crump-code-destination hidden" not in navigation
+    assert "id: 'code', label: 'Autonomous'" in navigation
+    assert "var ORDER = ['ask', 'projects', 'files', 'library', 'video', 'autonomous'];" in vision_shell
     assert "createCard('code'" not in navigation
     assert "title.textContent = 'Intelligence';" in intelligence
     assert "forwardClick('attachBtn')" in body
@@ -40,7 +43,7 @@ def test_redundant_tools_dropdown_is_retired_without_removing_real_capabilities(
 
 
 def test_retired_tool_assets_are_cache_versioned_atomically():
-    loader_version = "5.9.76-friendly-workspace-1"
+    loader_version = "5.9.76-atelier-workspace-1"
     product_loader_version = "5.9.76-projects-empty-state-1"
     shell = read("public/app.html")
     runtime = read("public/runtime-body-v1.js")
@@ -56,4 +59,4 @@ def test_retired_tool_assets_are_cache_versioned_atomically():
     for source in (runtime, worker, native):
         assert "/crump-product-5.3.css?v=5.9.76-file-library-window-1" not in source
         assert "/crump-product-5.3.js?v=5.9.76-studio-action-labels-1" not in source
-    assert "ask-crump-new-body-v1-r255" in worker
+    assert "ask-crump-new-body-v1-r256-atelier-workspace-1" in worker

@@ -457,12 +457,7 @@
 }
 
 .cvl-empty-mascot {
-  width: 120px;
-  height: 120px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 1px solid var(--cvl-hairline);
-  margin-bottom: 28px;
+  display: none !important;
 }
 
 .cvl-empty h2 {

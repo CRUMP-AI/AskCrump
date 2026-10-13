@@ -90,22 +90,24 @@ def test_mobile_library_state_sync_survives_the_reorganized_navigation():
     assert "sidebar.setAttribute('inert', '');" in body
 
 
-def test_final_desktop_navigation_keeps_a_permanent_chats_toggle():
+def test_vision_shell_owns_the_accessible_conversation_drawer_toggle():
     navigation = read_public("crump-navigation-5.9.30.js")
+    shell = read_public("crump-vision-shell-1.0.js")
     body = read_public("crump-v1-body.js")
 
-    assert "function conversationLibraryMarkup()" in navigation
-    assert "data-crump5930-library-toggle" in navigation
-    assert 'aria-label="Hide Chats"' in navigation
-    assert ": (expanded ? 'Hide' : 'Show')" in body
-    assert "? (expanded ? 'Close' : 'Open')" in body
-    assert "window.CrumpBodyV1?.toggleConversationLibrary?.()" in navigation
-    assert "window.CrumpBodyV1?.syncConversationLibrary?.()" in navigation
+    assert "injectDesktopNavigation" not in navigation
+    assert "injectMobileNavigation" not in navigation
+    assert "data-cv-drawer-toggle" in shell
+    assert 'aria-controls="sidebar"' in shell
+    assert "function toggleConversationDrawer(opener)" in shell
+    assert "window.CrumpBodyV1?.toggleConversationLibrary?.()" in shell
+    assert "document.getElementById('newChatBtn')" in shell
+    assert "if (event.key === 'Escape')" in shell
     assert "syncConversationLibrary: syncLibraryControl" in body
     assert "toggleConversationLibrary: openLibrary" in body
     assert "localStorage.getItem('crump_v1_library_collapsed')" not in body
     assert "localStorage.setItem(\n        'crump_v1_library_collapsed'" not in body
-    assert "document.body.classList.remove('v1-library-collapsed');" in body
+    assert "document.body.classList.add('v1-library-collapsed');" in body
     assert "localStorage.removeItem('crump_v1_library_collapsed');" in body
 
 
@@ -142,5 +144,5 @@ def test_runtime_and_native_shell_load_the_chats_language_revision():
     native = (ROOT / "scripts" / "build-native.mjs").read_text(encoding="utf-8")
 
     for source in (runtime, native):
-        assert "/crump-v1-body.js?v=5.9.76-shell-brand-alt-1" in source
+        assert "/crump-v1-body.js?v=5.9.76-atelier-workspace-1" in source
         assert "/crump-navigation-5.2.5.js?v=5.9.76-chats-language-1" in source

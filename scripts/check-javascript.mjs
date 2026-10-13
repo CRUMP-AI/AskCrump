@@ -1032,10 +1032,8 @@ const navigationDiscoveryVersion = `${releaseVersion}-navigation-discovery-1`;
 const imageStudioEntryVersion = `${releaseVersion}-image-studio-entry-1`;
 const museReleaseRepairVersion = `${releaseVersion}-muse-release-repair-1`;
 const cacheIntegrityVersion = `${releaseVersion}-friendly-workspace-1`;
-const shellBrandAltVersion = `${releaseVersion}-shell-brand-alt-1`;
 const shellNoTaglineVersion = `${releaseVersion}-shell-no-tagline-1`;
-const museFeelPassVersion = `${releaseVersion}-muse-feel-pass-1`;
-const mascotFaceVersion = `${releaseVersion}-mascot-face-1`;
+const atelierWorkspaceVersion = `${releaseVersion}-atelier-workspace-1`;
 const documentDeliveryFocusedVersion = `${releaseVersion}-reference-fidelity-hard-contract-1`;
 const outcomeRefinementRecoveryVersion = `${releaseVersion}-outcome-refinement-recovery-1`;
 const authUpdateGuardVersion = `${releaseVersion}-update-work-guard-1`;
@@ -1094,7 +1092,6 @@ const requiredBodyFiles = [
   'public/assets/brand/crump-horizontal-light.png',
   'public/assets/brand/crump-shell-lockup-light.png',
   'public/assets/brand/crump-shell-lockup-light.webp',
-  'public/assets/brand/crump-mascot.png',
   'public/assets/brand/crump-horizontal-dark.png',
   'public/assets/brand/crump-mark-master.png',
   'public/assets/brand/crump-horizontal-light-master.png',
@@ -1294,7 +1291,7 @@ if (!referringAcquisitionSource ||
   process.exit(1);
 }
 const requiredHtmlSignals = [
-  `/runtime-body-v1.js?v=${cacheIntegrityVersion}`,
+  `/runtime-body-v1.js?v=${atelierWorkspaceVersion}`,
   `/auth-controller.js?v=${authControllerVersion}`,
   `/telemetry-config.js?v=${releaseVersion}`,
   '/_vercel/speed-insights/script.js',
@@ -1313,7 +1310,7 @@ const requiredHtmlSignals = [
   'id="deleteAccountBtn"',
   'href="/delete-account.html"',
   '<h1>What can I help you get done?</h1>',
-  '<p class="v1-launchpad-actions-label">Or jump straight in</p>',
+  '<p class="v1-launchpad-actions-label">Ways to begin</p>',
   'data-v1-command="projects"',
   'data-v1-command="file"',
   'data-v1-command="image"',
@@ -1338,10 +1335,7 @@ if (!appHtml.includes('type="image/webp" href="/assets/brand/crump-mark-320.webp
     !appHtml.includes(`type="image/webp" href="/assets/brand/crump-shell-lockup-light.webp?v=${shellNoTaglineVersion}"`) ||
     runtimeBrandSources.some(source => source.includes('/assets/brand/crump-mark.png') ||
       source.includes('/assets/brand/crump-mark.webp') ||
-      source.includes('/assets/brand/crump-shell-lockup-light.png')) ||
-    runtimeBrandSources.some(source =>
-      !source.includes('/assets/brand/crump-mark-320.webp') &&
-      !source.includes('/assets/brand/crump-shell-lockup-light.webp'))) {
+      source.includes('/assets/brand/crump-shell-lockup-light.png'))) {
   console.error('The active application shell must use only the lossless WebP brand derivatives.');
   process.exit(1);
 }
@@ -1369,7 +1363,7 @@ const finalStyleUrls = source => {
   if (start < 0 || end < 0) return [];
   return [...source.slice(start, end).matchAll(/\['([^']+)'/g)].map(match => match[1]);
 };
-const expectedFinalStyle = `/crump-design-pass.css?v=${mascotFaceVersion}`;
+const expectedFinalStyle = `/crump-design-pass.css?v=${atelierWorkspaceVersion}`;
 for (const source of [runtime, nativeBuildSource]) {
   const finalStyles = finalStyleUrls(source);
   if (finalStyles.length !== 1 || finalStyles[0] !== expectedFinalStyle ||
@@ -1383,13 +1377,13 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/onboarding.css?v=${cacheIntegrityVersion}`) ||
     !runtime.includes(`/onboarding.js?v=${cacheIntegrityVersion}`) ||
     !runtime.includes(`/conversation.css?v=${museReleaseRepairVersion}`) ||
-    !runtime.includes(`/crump-design-pass.css?v=${mascotFaceVersion}`) ||
+    !runtime.includes(`/crump-design-pass.css?v=${atelierWorkspaceVersion}`) ||
     !runtime.includes(`/credit-confirmation.css?v=${creditConfirmationVersion}`) ||
     !runtime.includes(`/credit-confirmation.js?v=${creditConfirmationVersion}`) ||
     !runtime.includes(`/chat-resilience.js?v=${creditConfirmationVersion}`) ||
     !runtime.includes(`/account-manager.js?v=${accountDeletionStorageVersion}`) ||
     !runtime.includes(`/scroll-manager.js?v=${museReleaseRepairVersion}`) ||
-    !runtime.includes(`/ui-functions.js?v=${museFeelPassVersion}`) ||
+    !runtime.includes(`/ui-functions.js?v=${atelierWorkspaceVersion}`) ||
     !runtime.includes(`/presence-manager.js?v=${museReleaseRepairVersion}`) ||
     !runtime.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-1`) ||
     !runtime.includes(`/lifecycle-share.js?v=${settingsInviteVersion}`) ||
@@ -1397,7 +1391,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/chat-sync.js?v=${settingsSyncVersion}`) ||
     !runtime.includes(`/product-analytics.js?v=${navigationDiscoveryVersion}`) ||
     !runtime.includes(`/app.js?v=${referenceFidelityVersion}`) ||
-    !runtime.includes(`/crump-v1-body.js?v=${shellBrandAltVersion}`) ||
+    !runtime.includes(`/crump-v1-body.js?v=${atelierWorkspaceVersion}`) ||
     !runtime.includes(`/crump-v1-body.css?v=${cacheIntegrityVersion}`) ||
     !runtime.includes(`/crump-5.0.css?v=${referenceFidelityVersion}`) ||
     !runtime.includes(`/crump-5.0.js?v=${referenceFidelityVersion}`) ||
@@ -1408,7 +1402,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/crump-5.2.js?v=${planStatusLineVersion}`) ||
     !runtime.includes(`/crump-5.2.2.css?v=${newResponseCueVersion}`) ||
     !runtime.includes(`/crump-5.2.2.js?v=${museReleaseRepairVersion}`) ||
-    !runtime.includes(`/crump-4.3.js?v=${mascotFaceVersion}`) ||
+    !runtime.includes(`/crump-4.3.js?v=${atelierWorkspaceVersion}`) ||
     !runtime.includes(`/crump-4.4.css?v=${cacheIntegrityVersion}`) ||
     !runtime.includes(`/crump-4.4.js?v=${cacheIntegrityVersion}`) ||
     !runtime.includes(`/crump-v1-stability.js?v=${intelligenceArchitectureVersion}`) ||
@@ -1421,7 +1415,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/crump-media-save.js?v=${libraryLazyLoadVersion}`) ||
     !runtime.includes(`/crump-library-loader.js?v=${libraryFirstRunVersion}`) ||
     runtime.includes('/crump-library-5.7.js') || runtime.includes('/crump-library-5.7.css') ||
-    !runtime.includes(`/crump-navigation-5.9.30.js?v=${imageStudioEntryVersion}`) ||
+    !runtime.includes(`/crump-navigation-5.9.30.js?v=${atelierWorkspaceVersion}`) ||
     !runtime.includes(`/crump-navigation-5.9.30.css?v=${navFocusVisibilityVersion}`) ||
     !runtime.includes(`/crump-code-loader.js?v=${cacheIntegrityVersion}`) ||
     runtime.includes(`/crump-code-5.9.35.js?v=${creditConfirmationVersion}`) ||
@@ -1501,7 +1495,7 @@ if (runtimeDocument.documentElement.dataset.crumpBodyRuntime !== 'ready' ||
     !loadedRuntimeScripts.every(asset => preloadedRuntimeScripts.includes(asset)) ||
     loadedRuntimeStyles.at(-1) !== expectedFinalStyle ||
     loadedRuntimeScripts.indexOf(`/credit-confirmation.js?v=${creditConfirmationVersion}`) > loadedRuntimeScripts.indexOf(`/app.js?v=${referenceFidelityVersion}`) ||
-    loadedRuntimeScripts.indexOf(`/app.js?v=${referenceFidelityVersion}`) > loadedRuntimeScripts.indexOf(`/crump-4.3.js?v=${mascotFaceVersion}`) ||
+    loadedRuntimeScripts.indexOf(`/app.js?v=${referenceFidelityVersion}`) > loadedRuntimeScripts.indexOf(`/crump-4.3.js?v=${atelierWorkspaceVersion}`) ||
     loadedRuntimeScripts.at(-1) !== `/lifecycle-manager.js?v=${lifecycleIdleSendVersion}`) {
   console.error('Authenticated workspace runtime load order or completion contract failed.');
   process.exit(1);
@@ -1585,6 +1579,54 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 }
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
+const characterHoldFiles = Object.freeze([
+  'public/ui-functions.js',
+  'public/crump-4.3.js',
+  'public/crump-vision-chats-1.0.js',
+  'public/crump-vision-projects-1.0.js',
+  'public/crump-vision-library-1.0.js',
+  'public/crump-vision-demo-1.0.js',
+  'public/crump-vision-home-1.0.js',
+  'public/crump-vision-shell-1.0.js',
+  'public/sw.js',
+]);
+const characterHoldSources = new Map();
+for (const relative of characterHoldFiles) {
+  characterHoldSources.set(
+    relative,
+    relative === 'public/sw.js'
+      ? serviceWorker
+      : await readFile(new URL(relative, repoRoot), 'utf8'),
+  );
+}
+const forbiddenCharacterRuntimeTokens = Object.freeze([
+  '/assets/brand/crump-mascot.png',
+  'MASCOT_SRC',
+  'crump-message-avatar',
+  'crump-empty-mascot',
+  'cvp-empty-mascot',
+  'cvl-empty-mascot',
+  '.mascot(',
+  'mascot: mascot',
+]);
+for (const [relative, source] of characterHoldSources) {
+  const forbidden = forbiddenCharacterRuntimeTokens.find(token => source.includes(token));
+  if (forbidden) {
+    console.error(`Zero-runtime-mascot contract failed in ${relative}: ${forbidden}`);
+    process.exit(1);
+  }
+}
+for (const relative of [
+  'public/ui-functions.js',
+  'public/crump-4.3.js',
+  'public/crump-vision-chats-1.0.js',
+  'public/crump-vision-demo-1.0.js',
+]) {
+  if (!characterHoldSources.get(relative).includes('crump-message-status-pip')) {
+    console.error(`Assistant identity must use the restrained status pip in ${relative}.`);
+    process.exit(1);
+  }
+}
 const shellBrandUrl = `/assets/brand/crump-shell-lockup-light.webp?v=${shellNoTaglineVersion}`;
 for (const [label, source, expectedOccurrences] of [
   ['app shell', appHtml, 7],
@@ -1607,7 +1649,7 @@ for (const [pathname, expectedUrl] of [
   ['/crump-product-loader.js', `/crump-product-loader.js?v=${projectsEmptyStateVersion}`],
   ['/crump-library-loader.js', `/crump-library-loader.js?v=${libraryFirstRunVersion}`],
   ['/crump-navigation-5.9.30.css', `/crump-navigation-5.9.30.css?v=${navFocusVisibilityVersion}`],
-  ['/crump-v1-body.js', `/crump-v1-body.js?v=${shellBrandAltVersion}`],
+  ['/crump-v1-body.js', `/crump-v1-body.js?v=${atelierWorkspaceVersion}`],
 ]) {
   for (const [label, source] of cacheAddressabilitySources) {
     const versionedOccurrences = source.split(`${pathname}?v=`).length - 1;
@@ -1624,7 +1666,7 @@ for (const [label, source] of [
   ['service worker', serviceWorker],
 ]) {
   const pathname = '/runtime-body-v1.js';
-  const expectedUrl = `/runtime-body-v1.js?v=${cacheIntegrityVersion}`;
+  const expectedUrl = `/runtime-body-v1.js?v=${atelierWorkspaceVersion}`;
   const versionedOccurrences = source.split(`${pathname}?v=`).length - 1;
   const exactOccurrences = [`'${expectedUrl}'`, `"${expectedUrl}"`, `\`${expectedUrl}\``]
     .reduce((total, literal) => total + source.split(literal).length - 1, 0);
@@ -1633,15 +1675,15 @@ for (const [label, source] of [
     process.exit(1);
   }
 }
-if (!serviceWorker.includes('ask-crump-new-body-v1-r255') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r256-atelier-workspace-1') ||
     !serviceWorker.includes(`'${shellBrandUrl}'`) ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-shell-lockup-light.png'") ||
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
-    !serviceWorker.includes(`/runtime-body-v1.js?v=${cacheIntegrityVersion}`) ||
+    !serviceWorker.includes(`/runtime-body-v1.js?v=${atelierWorkspaceVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${museReleaseRepairVersion}`) ||
-    !serviceWorker.includes(`/crump-design-pass.css?v=${mascotFaceVersion}`) ||
+    !serviceWorker.includes(`/crump-design-pass.css?v=${atelierWorkspaceVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.css?v=${creditConfirmationVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.js?v=${creditConfirmationVersion}`) ||
     !serviceWorker.includes(`/chat-resilience.js?v=${creditConfirmationVersion}`) ||
@@ -1652,7 +1694,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r255') ||
     !serviceWorker.includes(`/crump-precision-image-edit-loader.js?v=${referenceFidelityVersion}`) ||
     serviceWorker.includes(`/crump-precision-image-edit.css?v=${precisionEditStudioVersion}`) ||
     serviceWorker.includes(`/crump-precision-image-edit.js?v=${liveImagePreviewVersion}`) ||
-    !serviceWorker.includes(`/ui-functions.js?v=${museFeelPassVersion}`) ||
+    !serviceWorker.includes(`/ui-functions.js?v=${atelierWorkspaceVersion}`) ||
     !serviceWorker.includes(`/presence-manager.js?v=${museReleaseRepairVersion}`) ||
     !serviceWorker.includes(`/app.js?v=${referenceFidelityVersion}`) ||
     !serviceWorker.includes(`/crump-5.2.2.css?v=${newResponseCueVersion}`) ||
@@ -1661,7 +1703,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r255') ||
     !serviceWorker.includes(`/onboarding.js?v=${cacheIntegrityVersion}`) ||
     !serviceWorker.includes(`/crump-polish-5.6.js?v=${cacheIntegrityVersion}`) ||
     !serviceWorker.includes(`/crump-navigation-5.9.30.css?v=${navFocusVisibilityVersion}`) ||
-    !serviceWorker.includes(`/crump-navigation-5.9.30.js?v=${imageStudioEntryVersion}`) ||
+    !serviceWorker.includes(`/crump-navigation-5.9.30.js?v=${atelierWorkspaceVersion}`) ||
     !serviceWorker.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-1`) ||
     !serviceWorker.includes(`/lifecycle-share.js?v=${settingsInviteVersion}`) ||
     !serviceWorker.includes(`/lifecycle-manager.js?v=${lifecycleIdleSendVersion}`) ||
@@ -1674,7 +1716,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r255') ||
     !serviceWorker.includes(`/product-analytics.js?v=${navigationDiscoveryVersion}`) ||
     !serviceWorker.includes(`/auth-controller.js?v=${authControllerVersion}`) ||
     !serviceWorker.includes(`/crump-v1-body.css?v=${cacheIntegrityVersion}`) ||
-    !serviceWorker.includes(`/crump-4.3.js?v=${mascotFaceVersion}`) ||
+    !serviceWorker.includes(`/crump-4.3.js?v=${atelierWorkspaceVersion}`) ||
     !serviceWorker.includes(`/crump-4.4.css?v=${cacheIntegrityVersion}`) ||
     !serviceWorker.includes(`/crump-4.4.js?v=${cacheIntegrityVersion}`) ||
     !serviceWorker.includes(`/crump-v1-stability.js?v=${intelligenceArchitectureVersion}`) ||
@@ -1682,7 +1724,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r255') ||
     !serviceWorker.includes(`/crump-product-5.3.1.js?v=${conversationActionLabelsVersion}`) ||
     serviceWorker.includes(`/crump-product-5.3.js?v=${studioActionLabelsVersion}`) ||
     serviceWorker.includes(`/crump-product-5.3.css?v=${fileLibraryWindowVersion}`) ||
-    !serviceWorker.includes(`/crump-navigation-5.9.30.js?v=${imageStudioEntryVersion}`) ||
+    !serviceWorker.includes(`/crump-navigation-5.9.30.js?v=${atelierWorkspaceVersion}`) ||
     !serviceWorker.includes(`/crump-navigation-5.9.30.css?v=${navFocusVisibilityVersion}`) ||
     !serviceWorker.includes(`/crump-code-loader.js?v=${cacheIntegrityVersion}`) ||
     serviceWorker.includes(`/crump-code-5.9.35.js?v=${creditConfirmationVersion}`) ||
@@ -1705,7 +1747,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r255') ||
     !serviceWorker.includes("url.pathname === '/install-prompt.css'") ||
     !serviceWorker.includes("url.pathname === '/sync-manager.js'") ||
     !serviceWorker.includes("url.pathname === '/auth-controller.js'") ||
-    !serviceWorker.includes(`/crump-v1-body.js?v=${shellBrandAltVersion}`) ||
+    !serviceWorker.includes(`/crump-v1-body.js?v=${atelierWorkspaceVersion}`) ||
     !serviceWorker.includes('/crump-navigation-5.2.5.js?v=5.9.76-chats-language-1') ||
     !serviceWorker.includes("url.pathname === '/crump-navigation-5.2.5.js'") ||
     !serviceWorker.includes("url.pathname === '/crump-navigation-5.2.5.css'") ||

@@ -43,15 +43,17 @@ def test_conversation_library_control_exposes_and_tracks_its_state():
     assert 'body.crump-v1-body .v1-rail-button[aria-expanded="true"]' in styles
 
 
-def test_chats_is_an_ask_utility_instead_of_a_competing_active_destination():
+def test_conversations_is_a_shell_utility_instead_of_a_competing_destination():
     navigation = read("public/crump-navigation-5.9.30.js")
-    styles = read("public/crump-navigation-5.9.30.css")
+    shell = read("public/crump-vision-shell-1.0.js")
 
-    assert 'data-crump5930-library-toggle aria-label="Hide Chats"' in navigation
-    assert "destinations.slice(1).map(buttonMarkup).join('')" in navigation
-    assert ".crump5930-chats-toggle.is-open" in styles
-    assert "Chats is Ask's conversation drawer, not a competing product destination." in styles
-    assert ".crump5930-chats-toggle.is-active" not in styles
+    assert "injectDesktopNavigation" not in navigation
+    assert "injectMobileNavigation" not in navigation
+    assert "data-cv-drawer-toggle" in shell
+    assert "conversationDrawerIsOpen()" in shell
+    assert "button.setAttribute('aria-expanded', expanded ? 'true' : 'false')" in shell
+    assert "var ORDER = ['ask', 'projects', 'files', 'library', 'video', 'autonomous'];" in shell
+    assert "'chats'" not in shell.split("var ORDER =", 1)[1].split(";", 1)[0]
 
 
 def test_browser_fixture_uses_the_real_rail_assets_without_network_writes():

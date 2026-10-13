@@ -30,10 +30,7 @@
 }
 
 .cv-mascot {
-  display: block;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 1px solid rgba(213, 185, 113, 0.28);
+  display: none !important;
 }
 
 .cv-view {

@@ -8,6 +8,8 @@
   <link rel="stylesheet" href="/public/crump-v1-body.css?v=5.9.76">
   <link rel="stylesheet" href="/public/crump-product-5.3.css?v=5.9.76-file-library-window-1">
   <link rel="stylesheet" href="/public/crump-navigation-5.9.30.css?v=5.9.76-mobile-drawer-destinations-1">
+  <link rel="stylesheet" href="/public/crump-vision-shell-1.0.css?v=5.9.76-atelier-workspace-1">
+  <link rel="stylesheet" href="/public/crump-design-pass.css?v=5.9.76-atelier-workspace-1">
   <style>
     body { margin: 0; background: #080b0f; color: #eee; font-family: system-ui, sans-serif; }
     .v1-shell { display: grid; min-height: 100vh; grid-template-columns: 94px 292px minmax(0,1fr); }
@@ -40,7 +42,7 @@
     <div class="v1-shell">
       <nav class="v1-rail" aria-label="Ask Crump navigation"></nav>
       <aside id="sidebar" class="sidebar v1-library" aria-label="Chats" aria-hidden="false">
-        <div class="v1-library-list"><strong>Conversations</strong><p>Launch plan</p></div>
+        <div class="v1-library-list"><strong>Conversations</strong><button id="newChatBtn" type="button">New conversation</button><p>Launch plan</p></div>
         <div class="sidebar-footer v1-library-footer">
           <button id="crump53ProjectsSidebar" class="sidebar-footer-btn" type="button"><span>Projects</span></button>
           <button id="settingsBtn" class="sidebar-footer-btn" type="button"><span>Settings</span></button>
@@ -100,7 +102,7 @@
   <section id="billingProof" role="dialog" aria-label="Plan and credits">Plan and credits opened</section>
 
   <script>
-    window.fixtureEvents = {billing: 0, analytics: []};
+    window.fixtureEvents = {billing: 0, analytics: [], newConversation: 0};
     window.fixtureErrors = [];
     document.documentElement.dataset.fixtureErrorCount = '0';
     const recordFixtureError = value => {
@@ -122,6 +124,10 @@
       },
     };
     document.getElementById('upgradeBtnSidebar').addEventListener('click', window.showBillingCenter);
+    document.getElementById('newChatBtn').addEventListener('click', () => {
+      window.fixtureEvents.newConversation += 1;
+      document.getElementById('result').textContent = `new=${window.fixtureEvents.newConversation}`;
+    });
     document.getElementById('closeSettingsBtn').addEventListener('click', () => { document.getElementById('settingsModal').style.display = 'none'; });
     document.getElementById('menuBtn').addEventListener('click', () => {
       document.getElementById('sidebar').classList.add('active');
@@ -144,7 +150,8 @@
     document.getElementById('crump53Close').addEventListener('click', () => { document.getElementById('crump53Studio').hidden = true; });
   </script>
   <script src="/public/crump-v1-body.js?v=5.9.76"></script>
-  <script src="/public/crump-navigation-5.9.30.js?v=5.9.76-image-studio-entry-1"></script>
+  <script src="/public/crump-vision-shell-1.0.js?v=5.9.76-atelier-workspace-1"></script>
+  <script src="/public/crump-navigation-5.9.30.js?v=5.9.76-atelier-workspace-1"></script>
   <script>
     const mobileProof = new URLSearchParams(location.search).get('mobile');
     if (mobileProof === 'drawer') {

@@ -1649,11 +1649,9 @@ body.crump-v1-body .crump-message-avatar {
   overflow: hidden;
   border: 0 !important;
   border-radius: 0 !important;
-  /* Official Crump mascot artwork on top; the C-mark shows through only if
-     the mascot file is missing. */
-  background:
-    url('/assets/brand/crump-mascot.png') center / cover no-repeat,
-    url('/assets/brand/crump-mark-320.webp') center / contain no-repeat !important;
+  /* Character artwork is intentionally on hold. Legacy nodes receive the
+     official product mark until their renderer is retired. */
+  background: url('/assets/brand/crump-mark-320.webp') center / contain no-repeat !important;
   color: transparent !important;
   font-size: 0 !important;
   box-shadow: none !important;

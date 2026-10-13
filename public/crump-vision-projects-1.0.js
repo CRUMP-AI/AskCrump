@@ -209,7 +209,6 @@
   function emptyProjectsHTML() {
     return (
       '<div class="cvp-empty">' +
-        '<img class="cvp-empty-mascot" src="/assets/brand/crump-mascot.png" alt="Crump, the Ask Crump mascot" width="120" height="120">' +
         '<h2>Give your work a place to continue.</h2>' +
         '<p>When a conversation becomes ongoing work, save it as a Project. Its context, conversations, and manuscripts will stay together here.</p>' +
         '<p class="cvp-empty-hint">Start in Ask, then save the conversation when you are ready to keep building.</p>' +

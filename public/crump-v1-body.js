@@ -610,11 +610,10 @@
 
   function restoreDesktopPreference() {
     if (!matchMedia('(max-width: 1100px)').matches) {
-      // Chats is a persistent part of the desktop workspace. A legacy saved
-      // collapsed preference caused the history column to render briefly and
-      // then disappear after authentication. Always begin a desktop session
-      // expanded; Hide Chats remains available as an in-session choice.
-      document.body.classList.remove('v1-library-collapsed');
+      // Conversations now live in a deliberate contextual drawer. Beginning
+      // closed keeps the workspace calm and prevents the old second-column
+      // flash while leaving history one clearly labeled action away.
+      document.body.classList.add('v1-library-collapsed');
       try {
         localStorage.removeItem('crump_v1_library_collapsed');
         localStorage.removeItem('crump_v1_library_control_v2');

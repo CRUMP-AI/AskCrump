@@ -7,7 +7,7 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="theme-color" content="#080a0d">
+  <meta name="theme-color" content="#f6f4ee">
   <title>Ask Crump</title>
   <link rel="icon" type="image/png" href="/assets/ask-crump-app-icon-v2-192.png">
   <link rel="manifest" href="/manifest.json">
@@ -347,10 +347,11 @@
 
       <section class="v1-workspace-body">
         <section id="v1Launchpad" class="v1-launchpad" aria-label="Start something">
-          <div class="v1-launchpad-mark v1-launchpad-mascot"><img src="/assets/brand/crump-mascot.png" width="512" height="512" loading="eager" decoding="async" alt="Crump"></div>
-          <div id="v1Greeting" class="v1-launchpad-greeting">Good evening.</div>
-          <h1>What can I help you get done?</h1>
-          <p>Start with a question, pick up a Project, or make something useful. You do not need to choose the right tool first.</p>
+          <div class="v1-launchpad-intro">
+            <div id="v1Greeting" class="v1-launchpad-greeting">Good evening.</div>
+            <h1>What can I help you get done?</h1>
+            <p>Start with a question, continue meaningful work, or make something worth keeping.</p>
+          </div>
 
           <div id="v1StarterChips" class="v1-starter-chips" role="group" aria-label="Conversation starters">
             <button type="button" class="v1-starter-chip" data-starter-prompt="Pick up where we left off.">Pick up where we left off</button>
@@ -380,32 +381,32 @@
             </button>
           </div>
 
-          <p class="v1-launchpad-actions-label">Or jump straight in</p>
+          <p class="v1-launchpad-actions-label">Ways to begin</p>
           <div class="v1-launchpad-grid">
-            <button type="button" class="v1-launch-card v1-launch-card-primary" data-v1-command="projects" aria-labelledby="v1LaunchProjectsTitle" aria-describedby="v1LaunchProjectsDescription">
+            <button type="button" class="v1-launch-card v1-launch-card-primary" data-v1-command="projects" data-v1-index="01" aria-labelledby="v1LaunchProjectsTitle" aria-describedby="v1LaunchProjectsDescription">
               <span class="v1-launch-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h6l2 2h8v10H4z"/><path d="M4 7V5h7l2 2"/></svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5.25 7.25h5.15l1.7 1.9h6.65v8.8H5.25z"/><path d="M7.25 7.25V5.4h5.2l1.55 1.85"/></svg>
               </span>
               <span><strong id="v1LaunchProjectsTitle">Open a Project</strong><small id="v1LaunchProjectsDescription">Continue with its context, conversations, and files intact.</small></span>
               <b aria-hidden="true">↗</b>
             </button>
-            <button type="button" class="v1-launch-card" data-v1-command="file" aria-labelledby="v1LaunchFileTitle" aria-describedby="v1LaunchFileDescription">
+            <button type="button" class="v1-launch-card" data-v1-command="file" data-v1-index="02" aria-labelledby="v1LaunchFileTitle" aria-describedby="v1LaunchFileDescription">
               <span class="v1-launch-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 3h7l4 4v14H7z"/><path d="M14 3v5h5"/></svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.25 3.75h6.35l3.9 3.9v12.6H7.25z"/><path d="M13.6 3.75v4.2h4.15"/><path d="M9.8 12.25h5.5M9.8 15.25h4"/></svg>
               </span>
               <span><strong id="v1LaunchFileTitle">Work with a file</strong><small id="v1LaunchFileDescription">Analyze a PDF, document, image, spreadsheet, or presentation.</small></span>
               <b aria-hidden="true">↗</b>
             </button>
-            <button type="button" class="v1-launch-card" data-v1-command="image" aria-labelledby="v1LaunchImageTitle" aria-describedby="v1LaunchImageDescription">
+            <button type="button" class="v1-launch-card" data-v1-command="image" data-v1-index="03" aria-labelledby="v1LaunchImageTitle" aria-describedby="v1LaunchImageDescription">
               <span class="v1-launch-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="5" width="16" height="14" rx="2"/><path d="m7 16 4-4 3 3 2-2 2 3"/><circle cx="9" cy="9" r="1.5"/></svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.75" y="4.75" width="16.5" height="14.5" rx="3"/><path d="m6.75 16 4.1-4.15 3.15 3.1 2.05-2.05 2.2 2.2"/><circle cx="9" cy="9" r="1.35"/></svg>
               </span>
               <span><strong id="v1LaunchImageTitle">Create an image</strong><small id="v1LaunchImageDescription">Generate, edit, or build a visual concept.</small></span>
               <b aria-hidden="true">↗</b>
             </button>
-            <button type="button" class="v1-launch-card" data-v1-command="video" aria-labelledby="v1LaunchVideoTitle" aria-describedby="v1LaunchVideoDescription">
+            <button type="button" class="v1-launch-card" data-v1-command="video" data-v1-index="04" aria-labelledby="v1LaunchVideoTitle" aria-describedby="v1LaunchVideoDescription">
               <span class="v1-launch-icon" aria-hidden="true">
-                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="13" height="14" rx="2"/><path d="m16.5 10 4-2v8l-4-2zM8 9l5 3-5 3z"/></svg>
+                <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.75" y="5" width="16.5" height="14" rx="3"/><path d="m10 9 5 3-5 3z"/></svg>
               </span>
               <span><strong id="v1LaunchVideoTitle">Create a video</strong><small id="v1LaunchVideoDescription">Generate a scene, use cinematic mode, or continue an extendable clip.</small></span>
               <b aria-hidden="true">↗</b>
@@ -623,17 +624,17 @@
 <input type="file" id="fileInput" accept="image/*,.pdf,.docx,.xlsx,.pptx,.txt,.md,.csv,.tsv,.json,.html,.rtf" aria-label="Choose an attachment" hidden>
 
 <script defer src="/telemetry-config.js?v=5.9.76"></script>
-<script defer src="/crump-vision-demo-1.0.js?v=1.0.0-vision-demo-1"></script>
-<script defer src="/runtime-body-v1.js?v=5.9.76-friendly-workspace-1"></script>
-<link rel="stylesheet" href="/crump-vision-shell-1.0.css?v=5.9.76-friendly-workspace-1" />
-<script defer src="/crump-vision-shell-1.0.js?v=5.9.76-friendly-workspace-1"></script>
-<link rel="stylesheet" href="/crump-vision-chats-1.0.css?v=5.9.76-friendly-workspace-1" />
-<script defer src="/crump-vision-chats-1.0.js?v=5.9.76-friendly-workspace-1"></script>
-<link rel="stylesheet" href="/crump-vision-projects-1.0.css?v=5.9.76-friendly-workspace-1" />
-<script defer src="/crump-vision-projects-1.0.js?v=5.9.76-friendly-workspace-1"></script>
-<link rel="stylesheet" href="/crump-vision-library-1.0.css?v=5.9.76-friendly-workspace-1" />
-<script defer src="/crump-vision-library-1.0.js?v=5.9.76-friendly-workspace-1"></script>
-<link rel="stylesheet" href="/crump-vision-studios-1.0.css?v=5.9.76-friendly-workspace-1" />
+<script defer src="/crump-vision-demo-1.0.js?v=5.9.76-atelier-workspace-1"></script>
+<script defer src="/runtime-body-v1.js?v=5.9.76-atelier-workspace-1"></script>
+<link rel="stylesheet" href="/crump-vision-shell-1.0.css?v=5.9.76-atelier-workspace-1" />
+<script defer src="/crump-vision-shell-1.0.js?v=5.9.76-atelier-workspace-1"></script>
+<link rel="stylesheet" href="/crump-vision-chats-1.0.css?v=5.9.76-atelier-workspace-1" />
+<script defer src="/crump-vision-chats-1.0.js?v=5.9.76-atelier-workspace-1"></script>
+<link rel="stylesheet" href="/crump-vision-projects-1.0.css?v=5.9.76-atelier-workspace-1" />
+<script defer src="/crump-vision-projects-1.0.js?v=5.9.76-atelier-workspace-1"></script>
+<link rel="stylesheet" href="/crump-vision-library-1.0.css?v=5.9.76-atelier-workspace-1" />
+<script defer src="/crump-vision-library-1.0.js?v=5.9.76-atelier-workspace-1"></script>
+<link rel="stylesheet" href="/crump-vision-studios-1.0.css?v=5.9.76-atelier-workspace-1" />
 <script defer src="/native-runtime.js"></script>
 <script defer src="/mobile-bridge.js"></script>
 <script defer src="/safe-storage.js"></script>

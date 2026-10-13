@@ -13,7 +13,7 @@
   --cv-muted: #adb3bb;
 }
 
-/* Shared eyebrow + mascot used by the chats components and the shell helpers */
+/* Shared eyebrow used by the chats components and shell helpers. */
 .cv-eyebrow {
   font-family: Inter, -apple-system, "Segoe UI", sans-serif;
   font-size: 12px;
@@ -25,14 +25,11 @@
 }
 
 .cv-mascot {
-  display: block;
-  border-radius: 50%;
-  object-fit: cover;
+  display: none !important;
 }
 
 /* ---------------------------------------------------------------------------
- * Message identity: official mascot avatar (circular) + gold nameplate.
- * Overrides the square placeholder avatar the engine ships today.
+ * Message identity: a quiet nameplate. Character artwork is on hold.
  * ------------------------------------------------------------------------- */
 
 .cv-identity {
@@ -46,16 +43,7 @@
 .cv-identity .crump-message-avatar,
 body.crump-v1 .cv-identity .crump-message-avatar,
 body.crump-v1-body .cv-identity .crump-message-avatar {
-  display: block !important;
-  width: 32px !important;
-  height: 32px !important;
-  flex: 0 0 auto;
-  overflow: hidden;
-  border-radius: 50% !important;
-  border: 1px solid rgba(222, 197, 126, 0.32) !important;
-  box-shadow: none !important;
-  background:
-    url("/assets/brand/crump-mascot.png") center / cover no-repeat !important;
+  display: none !important;
 }
 
 .cv-identity .crump-message-name {
@@ -66,20 +54,11 @@ body.crump-v1-body .cv-identity .crump-message-avatar {
   color: var(--cv-gold);
 }
 
-/* The thinking row carries the same avatar mark */
+/* Thinking uses status dots rather than character artwork. */
 .cv-thinking .crump-message-avatar,
 body.crump-v1 .cv-thinking .crump-message-avatar,
 body.crump-v1-body .cv-thinking .crump-message-avatar {
-  display: block !important;
-  width: 28px !important;
-  height: 28px !important;
-  flex: 0 0 auto;
-  overflow: hidden;
-  border-radius: 50% !important;
-  border: 1px solid rgba(222, 197, 126, 0.32) !important;
-  box-shadow: none !important;
-  background:
-    url("/assets/brand/crump-mascot.png") center / cover no-repeat !important;
+  display: none !important;
 }
 
 /* ---------------------------------------------------------------------------

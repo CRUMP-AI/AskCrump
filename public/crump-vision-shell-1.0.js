@@ -9,11 +9,11 @@
  * destination with no registered vision view falls back to the existing
  * product behavior, so chat, sync, and billing keep working untouched.
  *
- * The legacy navigation module keeps running underneath (its overlays still
- * drive the product sheets). This shell only replaces the rail markup and
- * mirrors the active destination, so nothing that depends on the old module
- * breaks. Old destination ids continue to resolve to their closest current
- * destination so bookmarked and delegated actions still work.
+ * This is the sole visual owner of navigation. The legacy navigation module
+ * remains a behavior adapter for the proven product sheets, focus management,
+ * analytics, and creation handoffs; it no longer paints a second rail. Old
+ * destination ids continue to resolve to their closest current destination so
+ * bookmarked and delegated actions keep working.
  */
 (() => {
   'use strict';
@@ -43,16 +43,18 @@
     video: 'Video', autonomous: 'Autonomous', profile: 'Profile & settings',
     more: 'More',
   };
-  var SVG_OPEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">';
+  var SVG_OPEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">';
   var ICONS = {
-    ask: SVG_OPEN + '<path d="M5 5h14v11H9l-4 3z"/><path d="M8 9.5h8M8 12.5h5"/></svg>',
-    projects: SVG_OPEN + '<path d="M4 7h6l2 2h8v10H4z"/><path d="M4 7V5h7l2 2"/></svg>',
-    files: SVG_OPEN + '<path d="M5 3.5h8l5 5V20H5z"/><path d="M13 3.5v5h5M8 13h7M8 16h5"/></svg>',
-    library: SVG_OPEN + '<path d="M5 4h12a2 2 0 0 1 2 2v14H7a2 2 0 0 1-2-2z"/><path d="M7 4v16M10 8.5h6"/></svg>',
-    video: SVG_OPEN + '<rect x="3.5" y="5" width="13" height="14" rx="2"/><path d="m16.5 10 4-2v8l-4-2zM8 9l5 3-5 3z"/></svg>',
-    autonomous: SVG_OPEN + '<path d="m9 7-5 5 5 5M15 7l5 5-5 5M13 4l-2 16"/></svg>',
-    profile: SVG_OPEN + '<circle cx="12" cy="8" r="3.5"/><path d="M5.5 20c.7-4 2.9-6 6.5-6s5.8 2 6.5 6"/></svg>',
-    more: SVG_OPEN + '<circle cx="5" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1" fill="currentColor" stroke="none"/></svg>',
+    ask: SVG_OPEN + '<path d="M6.15 5.4h11.7a2.35 2.35 0 0 1 2.35 2.35v6.4a2.35 2.35 0 0 1-2.35 2.35h-6.2l-4.85 3.1.8-3.1H6.15a2.35 2.35 0 0 1-2.35-2.35v-6.4A2.35 2.35 0 0 1 6.15 5.4Z"/><path d="m15.8 7.8.42 1.03 1.03.42-1.03.42-.42 1.03-.42-1.03-1.03-.42 1.03-.42.42-1.03Z"/></svg>',
+    projects: SVG_OPEN + '<path d="M5.25 7.1h5.15l1.7 1.75h6.65a1.9 1.9 0 0 1 1.9 1.9v6.05a2.2 2.2 0 0 1-2.2 2.2H5.55a2.2 2.2 0 0 1-2.2-2.2V9a1.9 1.9 0 0 1 1.9-1.9Z"/><path d="M5.15 7.1V5.3h5.7l1.65 1.8"/></svg>',
+    files: SVG_OPEN + '<path d="M7.15 4.1h6.25l3.45 3.45v9.9a2.05 2.05 0 0 1-2.05 2.05H7.15a2.05 2.05 0 0 1-2.05-2.05V6.15A2.05 2.05 0 0 1 7.15 4.1Z"/><path d="M13.2 4.25v3.7h3.55M8.35 12h5.45M8.35 15.2h4"/></svg>',
+    library: SVG_OPEN + '<path d="M4.25 5.15h5.1A2.65 2.65 0 0 1 12 7.8v11.05a3.45 3.45 0 0 0-3.45-2.65h-4.3V5.15Z"/><path d="M19.75 5.15h-5.1A2.65 2.65 0 0 0 12 7.8v11.05a3.45 3.45 0 0 1 3.45-2.65h4.3V5.15Z"/></svg>',
+    video: SVG_OPEN + '<rect x="3.8" y="5.25" width="16.4" height="13.5" rx="2.4"/><path d="m10.25 9.15 5 2.85-5 2.85v-5.7Z"/></svg>',
+    autonomous: SVG_OPEN + '<path d="M7.1 5.1h9.8l3 5.35-3 5.35H7.1l-3-5.35 3-5.35Z"/><path d="m9.4 8.2-2.25 2.25 2.25 2.25M14.6 8.2l2.25 2.25-2.25 2.25M13.05 7.45l-2.1 6"/></svg>',
+    profile: SVG_OPEN + '<circle cx="12" cy="8.1" r="3.35"/><path d="M5.6 19.2c.75-3.7 2.9-5.55 6.4-5.55s5.65 1.85 6.4 5.55"/></svg>',
+    more: SVG_OPEN + '<circle cx="5.25" cy="12" r="1.05" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.05" fill="currentColor" stroke="none"/><circle cx="18.75" cy="12" r="1.05" fill="currentColor" stroke="none"/></svg>',
+    new: SVG_OPEN + '<path d="M12 4.2v15.6M4.2 12h15.6"/><path d="m18.2 4 .35.85.85.35-.85.35-.35.85-.35-.85-.85-.35.85-.35.35-.85Z"/></svg>',
+    conversations: SVG_OPEN + '<path d="M6.1 5.15h11.8a2.35 2.35 0 0 1 2.35 2.35v6.2a2.35 2.35 0 0 1-2.35 2.35h-6.25l-4.9 3.1.82-3.1H6.1a2.35 2.35 0 0 1-2.35-2.35V7.5A2.35 2.35 0 0 1 6.1 5.15Z"/><path d="M8 9.25h8M8 12.25h5.35"/></svg>',
   };
 
   var ESCAPE_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
@@ -67,6 +69,8 @@
   var inertTargets = [];
   var moreMenu = null;
   var moreMenuOpener = null;
+  var conversationDrawerOpener = null;
+  var drawerObserver = null;
 
   /* ------------------------------------------------------------------ */
   /* Public helpers                                                      */
@@ -89,17 +93,6 @@
     node.className = 'cv-eyebrow';
     node.textContent = text == null ? '' : String(text);
     return node;
-  }
-
-  function mascot(sizePx) {
-    var px = Math.max(16, parseInt(sizePx, 10) || 32);
-    var img = document.createElement('img');
-    img.className = 'cv-mascot';
-    img.src = '/assets/brand/crump-mascot.png';
-    img.alt = 'Crump';
-    img.width = px;
-    img.height = px;
-    return img;
   }
 
   function card(opts) {
@@ -191,11 +184,13 @@
       sidebar.classList.add('cv-legacy-hidden');
       sidebar.setAttribute('aria-hidden', 'true');
       if (shell) shell.classList.add('cv-vision-mounted');
+      syncConversationDrawer();
       return;
     }
     sidebar.classList.remove('cv-legacy-hidden');
     sidebar.removeAttribute('aria-hidden');
     if (shell) shell.classList.remove('cv-vision-mounted');
+    syncConversationDrawer();
   }
 
   function mountView(id, def) {
@@ -247,6 +242,7 @@
     currentId = id;
     setActive(id);
     var oldId = NEW_TO_OLD[id] || 'ask';
+    var trackedByLegacyAdapter = false;
     try {
       if (id === 'files') {
         if (window.CrumpProduct53 && typeof window.CrumpProduct53.openFiles === 'function') {
@@ -261,6 +257,9 @@
       var legacy = window.CrumpNavigation5930;
       if (legacy && typeof legacy.open === 'function') {
         legacy.open(oldId);
+        // The adapter owns analytics for delegated legacy destinations. Keep
+        // one authoritative selection event for each user action.
+        trackedByLegacyAdapter = true;
         if (id === 'profile') {
           // "Profile" should always land on the account identity panel, even
           // when the user last left Settings on Plan or About.
@@ -274,7 +273,7 @@
         if (input && typeof input.focus === 'function') input.focus({ preventScroll: true });
       }
     } catch (_) {}
-    track(id);
+    if (!trackedByLegacyAdapter) track(id);
     dispatchShow(id);
   }
 
@@ -416,8 +415,17 @@
     return (
       '<div class="cv-rail-inner">' +
       '<button type="button" class="cv-rail-brand" data-cv-destination="ask" aria-label="Open Ask Crump">' +
-      '<img src="/assets/brand/crump-shell-lockup-light.webp" alt="Ask Crump" width="903" height="258"></button>' +
-      '<nav class="cv-rail-nav" aria-label="Ask Crump">' + buttons + '</nav>' +
+        '<span class="cv-rail-brand-mark" aria-hidden="true"><img src="/assets/brand/crump-mark-320.webp" alt="" width="320" height="357"></span>' +
+        '<span class="cv-rail-brand-copy"><strong>Ask Crump</strong><small>AI workspace</small></span>' +
+      '</button>' +
+      '<div class="cv-rail-actions" aria-label="Conversation controls">' +
+        '<button type="button" class="cv-rail-new" data-cv-new-conversation>' + ICONS.new + '<span>New conversation</span></button>' +
+        '<button type="button" class="cv-rail-conversations" data-cv-drawer-toggle aria-controls="sidebar" aria-expanded="false">' +
+          ICONS.conversations + '<span>Conversations</span>' +
+        '</button>' +
+      '</div>' +
+      '<div class="cv-rail-section-label" aria-hidden="true">Workspace</div>' +
+      '<nav class="cv-rail-nav" aria-label="Workspace destinations">' + buttons + '</nav>' +
       '<div class="cv-rail-foot">' +
       '<button type="button" class="cv-rail-utility cv-profile-link" data-cv-destination="profile">' +
       ICONS.profile + '<span><b>Profile</b><small>Settings & plan</small></span></button>' +
@@ -429,6 +437,149 @@
   function railHasVision() {
     var rail = document.querySelector('.v1-rail');
     return Boolean(rail && rail.querySelector(':scope > .cv-rail-inner'));
+  }
+
+  function compactNavigation() {
+    return window.matchMedia('(max-width: 1100px)').matches;
+  }
+
+  function conversationDrawerIsOpen() {
+    var sidebar = document.getElementById('sidebar');
+    if (!sidebar || sidebar.classList.contains('cv-legacy-hidden')) return false;
+    return compactNavigation()
+      ? sidebar.classList.contains('active')
+      : !document.body.classList.contains('v1-library-collapsed');
+  }
+
+  function syncConversationDrawer() {
+    var expanded = conversationDrawerIsOpen();
+    document.body.classList.toggle('cv-conversations-open', expanded);
+    Array.prototype.forEach.call(document.querySelectorAll('[data-cv-drawer-toggle]'), function (button) {
+      button.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+      button.classList.toggle('is-open', expanded);
+      button.setAttribute('aria-label', expanded ? 'Hide Conversations' : 'Show Conversations');
+      button.setAttribute('title', expanded ? 'Hide Conversations' : 'Show Conversations');
+    });
+  }
+
+  function focusConversationDrawer() {
+    window.requestAnimationFrame(function () {
+      var target = document.getElementById('newChatBtn') || document.querySelector('#sidebar button, #sidebar [href]');
+      if (target && conversationDrawerIsOpen()) target.focus({ preventScroll: true });
+    });
+  }
+
+  function restoreConversationDrawerFocus() {
+    var opener = conversationDrawerOpener;
+    conversationDrawerOpener = null;
+    if (!opener || !opener.isConnected || opener.disabled) return;
+    window.requestAnimationFrame(function () {
+      opener.focus({ preventScroll: true });
+    });
+  }
+
+  function closeConversationDrawer(restoreFocus) {
+    var sidebar = document.getElementById('sidebar');
+    if (!sidebar || !conversationDrawerIsOpen()) {
+      syncConversationDrawer();
+      if (restoreFocus) restoreConversationDrawerFocus();
+      return;
+    }
+    if (compactNavigation()) {
+      sidebar.classList.remove('active');
+      document.getElementById('sidebarOverlay')?.classList.remove('active');
+      document.getElementById('menuBtn')?.setAttribute('aria-expanded', 'false');
+      window.CrumpBodyV1?.syncConversationLibrary?.();
+    } else {
+      window.CrumpBodyV1?.toggleConversationLibrary?.();
+    }
+    syncConversationDrawer();
+    if (restoreFocus) restoreConversationDrawerFocus();
+  }
+
+  function ensureConversationDrawerOpen() {
+    if (conversationDrawerIsOpen()) {
+      syncConversationDrawer();
+      focusConversationDrawer();
+      return;
+    }
+    window.CrumpBodyV1?.toggleConversationLibrary?.();
+    syncConversationDrawer();
+    focusConversationDrawer();
+  }
+
+  function toggleConversationDrawer(opener) {
+    conversationDrawerOpener = opener || document.activeElement;
+    if (currentId !== 'ask' || isMounted()) {
+      navigate('ask');
+      window.requestAnimationFrame(ensureConversationDrawerOpen);
+      return;
+    }
+    if (conversationDrawerIsOpen()) closeConversationDrawer(true);
+    else ensureConversationDrawerOpen();
+  }
+
+  function startNewConversation() {
+    closeMoreMenu(false);
+    if (currentId !== 'ask' || isMounted()) navigate('ask');
+    window.requestAnimationFrame(function () {
+      document.getElementById('newChatBtn')?.click();
+      document.getElementById('userInput')?.focus({ preventScroll: true });
+    });
+  }
+
+  function wireShellControls(root) {
+    var host = root || document;
+    Array.prototype.forEach.call(host.querySelectorAll('[data-cv-new-conversation]'), function (button) {
+      if (button.dataset.cvShellControlWired === '1') return;
+      button.dataset.cvShellControlWired = '1';
+      button.addEventListener('click', startNewConversation);
+    });
+    Array.prototype.forEach.call(host.querySelectorAll('[data-cv-drawer-toggle]'), function (button) {
+      if (button.dataset.cvShellControlWired === '1') return;
+      button.dataset.cvShellControlWired = '1';
+      button.addEventListener('click', function () { toggleConversationDrawer(button); });
+    });
+    syncConversationDrawer();
+  }
+
+  function wireConversationDrawer() {
+    var sidebar = document.getElementById('sidebar');
+    if (!sidebar) return;
+    var overlay = document.getElementById('sidebarOverlay');
+    var close = document.getElementById('closeSidebarBtn');
+    var mobileMenu = document.getElementById('menuBtn');
+
+    if (overlay && overlay.dataset.cvDrawerWired !== '1') {
+      overlay.dataset.cvDrawerWired = '1';
+      overlay.addEventListener('click', function () {
+        closeConversationDrawer(true);
+      });
+    }
+    if (close && close.dataset.cvDrawerWired !== '1') {
+      close.dataset.cvDrawerWired = '1';
+      close.addEventListener('click', function () {
+        closeConversationDrawer(true);
+      });
+    }
+    if (mobileMenu && mobileMenu.dataset.cvDrawerWired !== '1') {
+      mobileMenu.dataset.cvDrawerWired = '1';
+      mobileMenu.addEventListener('click', function () {
+        conversationDrawerOpener = mobileMenu;
+        window.requestAnimationFrame(function () {
+          syncConversationDrawer();
+          if (conversationDrawerIsOpen()) focusConversationDrawer();
+        });
+      });
+    }
+    document.addEventListener('keydown', function (event) {
+      if (event.key !== 'Escape' || !conversationDrawerIsOpen()) return;
+      event.preventDefault();
+      closeConversationDrawer(true);
+    });
+    drawerObserver = new MutationObserver(syncConversationDrawer);
+    drawerObserver.observe(sidebar, { attributes: true, attributeFilter: ['class', 'aria-hidden'] });
+    drawerObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] });
   }
 
   function ensureMoreMenu(app) {
@@ -509,6 +660,7 @@
     rail.classList.remove('crump5930-rail');
     rail.innerHTML = railMarkup();
     wireNav(rail);
+    wireShellControls(rail);
   }
 
   function takeOverMobileNav() {
@@ -553,20 +705,8 @@
   }
 
   /* ------------------------------------------------------------------ */
-  /* Observers: re-assert takeover, mirror legacy active destination     */
+  /* Observers: mirror the behavior adapter's active destination         */
   /* ------------------------------------------------------------------ */
-
-  function startGuards() {
-    var guard = new MutationObserver(function () {
-      if (!railHasVision()) takeOverRail();
-      if (!document.getElementById('cvMobileNav')) takeOverMobileNav();
-      if (!document.getElementById('cvMoreMenu')) ensureMoreMenu();
-    });
-    guard.observe(document.body, { childList: true, subtree: true });
-    window.addEventListener('resize', function () {
-      if (window.matchMedia('(min-width: 1101px)').matches) closeMoreMenu(false);
-    }, { passive: true });
-  }
 
   function startDatasetSync() {
     var docEl = document.documentElement;
@@ -612,8 +752,12 @@
     booted = true;
     takeOverRail();
     takeOverMobileNav();
-    startGuards();
+    wireConversationDrawer();
     startDatasetSync();
+    window.addEventListener('resize', function () {
+      if (window.matchMedia('(min-width: 1101px)').matches) closeMoreMenu(false);
+      syncConversationDrawer();
+    }, { passive: true });
     currentId = 'ask';
     setActive('ask');
     document.documentElement.dataset.cvShell = 'ready';
@@ -635,7 +779,6 @@
     esc: esc,
     el: el,
     eyebrow: eyebrow,
-    mascot: mascot,
     card: card,
   };
 

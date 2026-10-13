@@ -132,15 +132,6 @@
     section.className = 'crump-empty-state';
     section.setAttribute('aria-label', 'Start a conversation');
 
-    const mark = document.createElement('div');
-    mark.className = 'crump-empty-mark';
-    const icon = document.createElement('img');
-    icon.src = '/assets/brand/crump-mascot.png';
-    icon.alt = 'Crump';
-    icon.className = 'crump-empty-mascot';
-    mark.appendChild(icon);
-
-
     const title = document.createElement('h1');
     title.textContent = 'What can I help with?';
 
@@ -164,7 +155,7 @@
       prompts.appendChild(button);
     }
 
-    section.append(mark, title, description, prompts);
+    section.append(title, description, prompts);
     return section;
   }
 
@@ -188,13 +179,13 @@
       if (!wrapper || wrapper.querySelector('.crump-message-meta')) return;
       const meta = document.createElement('div');
       meta.className = 'crump-message-meta';
-      const dot = document.createElement('span');
-      dot.className = 'crump-message-avatar';
-      dot.textContent = 'C';
-      dot.setAttribute('aria-hidden', 'true');
+      const statusPip = document.createElement('span');
+      statusPip.className = 'crump-message-status-pip';
+      statusPip.setAttribute('aria-hidden', 'true');
       const label = document.createElement('span');
+      label.className = 'crump-message-name';
       label.textContent = 'Crump';
-      meta.append(dot, label);
+      meta.append(statusPip, label);
       wrapper.insertBefore(meta, wrapper.firstChild);
 
       const read = [...wrapper.querySelectorAll('.message-action-btn')].find(button => /read aloud/i.test(button.textContent));
