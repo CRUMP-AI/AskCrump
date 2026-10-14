@@ -104,14 +104,35 @@ def feature_for_request(
     image = image_requested or editing
     visual_analysis = bool(file_rows and media.has_visual_files(file_rows) and not image)
 
-    research_requested = (
-        (
-            bool(payload.get("needsSearch"))
-            and bool(ai.settings.brave_api_key)
-            and ai.settings.web_search_enabled
+    lookup_policy = payload.get("_externalLookupPolicy")
+    if isinstance(lookup_policy, dict):
+        # IntelligenceService owns this policy after reconciling the durable
+        # Automatic tools preference with any deliberate manual tool choice.
+        # Charging must use the same decision as execution; keyword detection
+        # here would otherwise bill for a lookup AIService is required to skip.
+        research_requested = bool(
+            (
+                lookup_policy.get("search") is True
+                and bool(ai.settings.brave_api_key)
+                and ai.settings.web_search_enabled
+            )
+            or (
+                lookup_policy.get("weather") is True
+                and bool(ai.settings.openweather_api_key)
+                and ai.settings.web_search_enabled
+            )
         )
-        or ai.needs_external_lookup(message)
-    )
+    else:
+        # Trusted internal callers predating the orchestration policy retain
+        # their established feature classification.
+        research_requested = (
+            (
+                bool(payload.get("needsSearch"))
+                and bool(ai.settings.brave_api_key)
+                and ai.settings.web_search_enabled
+            )
+            or ai.needs_external_lookup(message)
+        )
 
     code: str | None = None
     if image:

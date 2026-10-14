@@ -164,6 +164,7 @@ async def test_free_chat_trims_old_history_before_it_reaches_the_gateway(monkeyp
 
     await service.chat({
         "message": "Current request",
+        "_externalLookupPolicy": {"search": False, "weather": False},
         "history": [
             {"role": "user", "content": "a" * 30_000},
             {"role": "assistant", "content": "b" * 30_000},

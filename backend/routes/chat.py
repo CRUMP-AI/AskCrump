@@ -1606,7 +1606,7 @@ async def _chat_impl(request: Request):
             for key in (
                 'creativeTool', 'imageAspect', 'imageQuality', 'imageUseReference',
                 'imageReferencePlan', 'imageReferencePlanConfirmed', 'imageReferenceContractVersion',
-                'artifactFormat', 'artifactPurpose', 'needsSearch', 'taskType', 'longForm',
+                'artifactFormat', 'artifactPurpose', 'requestedTool', 'taskType', 'longForm',
             )
             if request_payload.get(key) is not None
         }

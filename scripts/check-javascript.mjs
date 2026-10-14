@@ -1035,7 +1035,7 @@ const museReleaseRepairVersion = `${releaseVersion}-muse-release-repair-1`;
 const cacheIntegrityVersion = `${releaseVersion}-friendly-workspace-1`;
 const shellNoTaglineVersion = `${releaseVersion}-shell-no-tagline-1`;
 const atelierWorkspaceVersion = `${releaseVersion}-atelier-workspace-1`;
-const runtimeBodyVersion = `${releaseVersion}-theme-switch-contrast-1`;
+const runtimeBodyVersion = `${releaseVersion}-grounded-research-1`;
 const appearanceChoiceVersion = `${releaseVersion}-appearance-choice-3`;
 const uiReleaseAuditVersion = `${releaseVersion}-ui-release-audit-2`;
 const activityCenterVersion = `${releaseVersion}-activity-center-1`;
@@ -1060,6 +1060,7 @@ const precisionEditEntryVersion = `${releaseVersion}-precision-edit-entry-1`;
 const precisionEditStudioVersion = `${releaseVersion}-precision-studio-1`;
 const creationSheetContainmentVersion = `${releaseVersion}-creation-sheet-containment-1`;
 const referenceFidelityVersion = `${releaseVersion}-reference-fidelity-hard-contract-1`;
+const groundedResearchVersion = `${releaseVersion}-grounded-research-1`;
 const projectsEmptyStateVersion = `${releaseVersion}-projects-empty-state-1`;
 const requiredBodyFiles = [
   'public/appearance-controls.css',
@@ -1422,11 +1423,11 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/lifecycle-manager.js?v=${lifecycleIdleSendVersion}`) ||
     !runtime.includes(`/chat-sync.js?v=${settingsSyncVersion}`) ||
     !runtime.includes(`/product-analytics.js?v=${navigationDiscoveryVersion}`) ||
-    !runtime.includes(`/app.js?v=${referenceFidelityVersion}`) ||
+    !runtime.includes(`/app.js?v=${groundedResearchVersion}`) ||
     !runtime.includes(`/crump-v1-body.js?v=${atelierWorkspaceVersion}`) ||
     !runtime.includes(`/crump-v1-body.css?v=${cacheIntegrityVersion}`) ||
     !runtime.includes(`/crump-5.0.css?v=${referenceFidelityVersion}`) ||
-    !runtime.includes(`/crump-5.0.js?v=${referenceFidelityVersion}`) ||
+    !runtime.includes(`/crump-5.0.js?v=${groundedResearchVersion}`) ||
     !runtime.includes(`/crump-precision-image-edit-loader.js?v=${referenceFidelityVersion}`) ||
     runtime.includes(`/crump-precision-image-edit.css?v=${precisionEditStudioVersion}`) ||
     runtime.includes(`/crump-precision-image-edit.js?v=${liveImagePreviewVersion}`) ||
@@ -1526,8 +1527,8 @@ if (runtimeDocument.documentElement.dataset.crumpBodyRuntime !== 'ready' ||
     loadedRuntimeScripts.length !== 35 ||
     !loadedRuntimeScripts.every(asset => preloadedRuntimeScripts.includes(asset)) ||
     loadedRuntimeStyles.at(-1) !== expectedFinalStyles.at(-1) ||
-    loadedRuntimeScripts.indexOf(`/credit-confirmation.js?v=${creditConfirmationVersion}`) > loadedRuntimeScripts.indexOf(`/app.js?v=${referenceFidelityVersion}`) ||
-    loadedRuntimeScripts.indexOf(`/app.js?v=${referenceFidelityVersion}`) > loadedRuntimeScripts.indexOf(`/crump-4.3.js?v=${atelierWorkspaceVersion}`) ||
+    loadedRuntimeScripts.indexOf(`/credit-confirmation.js?v=${creditConfirmationVersion}`) > loadedRuntimeScripts.indexOf(`/app.js?v=${groundedResearchVersion}`) ||
+    loadedRuntimeScripts.indexOf(`/app.js?v=${groundedResearchVersion}`) > loadedRuntimeScripts.indexOf(`/crump-4.3.js?v=${atelierWorkspaceVersion}`) ||
     loadedRuntimeScripts.at(-1) !== `/crump-activity-center-1.0.js?v=${activityCenterVersion}`) {
   console.error('Authenticated workspace runtime load order or completion contract failed.');
   process.exit(1);
@@ -1707,7 +1708,7 @@ for (const [label, source] of [
     process.exit(1);
   }
 }
-if (!serviceWorker.includes('ask-crump-new-body-v1-r260-theme-switch-contrast-1') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r261-grounded-research-1') ||
     !serviceWorker.includes(`'${shellBrandUrl}'`) ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||
@@ -1728,13 +1729,13 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r260-theme-switch-contrast-1'
     !serviceWorker.includes(`/account-manager.js?v=${accountDeletionStorageVersion}`) ||
     !serviceWorker.includes(`/crump-5.0.css?v=${referenceFidelityVersion}`) ||
     !serviceWorker.includes(`/scroll-manager.js?v=${museReleaseRepairVersion}`) ||
-    !serviceWorker.includes(`/crump-5.0.js?v=${referenceFidelityVersion}`) ||
+    !serviceWorker.includes(`/crump-5.0.js?v=${groundedResearchVersion}`) ||
     !serviceWorker.includes(`/crump-precision-image-edit-loader.js?v=${referenceFidelityVersion}`) ||
     serviceWorker.includes(`/crump-precision-image-edit.css?v=${precisionEditStudioVersion}`) ||
     serviceWorker.includes(`/crump-precision-image-edit.js?v=${liveImagePreviewVersion}`) ||
     !serviceWorker.includes(`/ui-functions.js?v=${atelierWorkspaceVersion}`) ||
     !serviceWorker.includes(`/presence-manager.js?v=${museReleaseRepairVersion}`) ||
-    !serviceWorker.includes(`/app.js?v=${referenceFidelityVersion}`) ||
+    !serviceWorker.includes(`/app.js?v=${groundedResearchVersion}`) ||
     !serviceWorker.includes(`/crump-5.2.2.css?v=${newResponseCueVersion}`) ||
     !serviceWorker.includes(`/crump-5.2.2.js?v=${museReleaseRepairVersion}`) ||
     !serviceWorker.includes(`/onboarding.css?v=${cacheIntegrityVersion}`) ||

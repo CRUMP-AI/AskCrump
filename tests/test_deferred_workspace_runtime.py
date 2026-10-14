@@ -32,7 +32,7 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
     assert scripts == [
         '/telemetry-config.js?v=5.9.76',
         '/crump-vision-demo-1.0.js?v=5.9.76-atelier-workspace-1',
-        '/runtime-body-v1.js?v=5.9.76-theme-switch-contrast-1',
+        '/runtime-body-v1.js?v=5.9.76-grounded-research-1',
         '/crump-vision-shell-1.0.js?v=5.9.76-atelier-workspace-1',
         '/crump-vision-chats-1.0.js?v=5.9.76-atelier-workspace-1',
         '/crump-vision-projects-1.0.js?v=5.9.76-atelier-workspace-1',
@@ -75,7 +75,7 @@ def test_workspace_runtime_is_complete_idempotent_and_authentication_gated():
         '/sync-manager.js?v=5.9.76-sync-cursor-1',
         '/chat-sync.js?v=5.9.76-settings-sync-1',
         '/account-manager.js?v=5.9.76-account-storage-deletion-1',
-        '/app.js?v=5.9.76-reference-fidelity-hard-contract-1',
+        '/app.js?v=5.9.76-grounded-research-1',
         '/product-analytics.js?v=5.9.76-navigation-discovery-1',
     ]
     for asset in deferred_assets:

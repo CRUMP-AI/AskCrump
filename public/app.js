@@ -1218,6 +1218,9 @@ window.triggerImageGeneration = function() {
 };
 
 window.triggerWebSearch = function() {
+    window.dispatchEvent(new CustomEvent('crump:requested-tool', {
+        detail: { tool: 'web' },
+    }));
     return primeComposer(COMPOSER_SCAFFOLDS.research);
 };
 

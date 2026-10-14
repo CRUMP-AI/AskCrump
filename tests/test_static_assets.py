@@ -133,10 +133,9 @@ def test_signed_out_entry_eagerly_loads_only_visible_brand_images():
     assert all(image.get('width') and image.get('height') for image in brand_images)
 
     navigation = (PUBLIC / 'crump-navigation-5.9.30.js').read_text()
-    assert (
-        '<img src="/assets/brand/crump-mark-320.webp" width="320" height="357" '
-        'loading="lazy" decoding="async" alt="">'
-    ) in navigation
+    assert 'Crump Vision is the sole owner of desktop and' in navigation
+    assert '<img ' not in navigation
+    assert '/assets/brand/crump-mark-320.webp' not in navigation
 
     worker = (PUBLIC / 'sw.js').read_text()
     core = worker[worker.index('const CORE = ['):worker.index('];')]
@@ -235,10 +234,17 @@ def test_html_ids_are_unique():
 
 
 def test_css_custom_properties_are_defined():
-    sources = '\n'.join(path.read_text() for path in PUBLIC.glob('*.css'))
+    sources = '\n'.join(path.read_text(encoding='utf-8') for path in PUBLIC.glob('*.css'))
+    runtime_sources = '\n'.join(path.read_text(encoding='utf-8') for path in PUBLIC.glob('*.js'))
     used = set(re.findall(r'var\((--[a-zA-Z0-9-]+)', sources))
     defined = set(re.findall(r'(--[a-zA-Z0-9-]+)\s*:', sources))
-    assert not (used - defined), f'Undefined CSS variables: {sorted(used - defined)}'
+    runtime_defined = set(re.findall(
+        r"setProperty\(\s*['\"](--[a-zA-Z0-9-]+)['\"]",
+        runtime_sources,
+    ))
+    assert not (used - defined - runtime_defined), (
+        f'Undefined CSS variables: {sorted(used - defined - runtime_defined)}'
+    )
 
 
 

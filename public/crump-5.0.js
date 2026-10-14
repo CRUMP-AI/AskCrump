@@ -1367,7 +1367,7 @@
     };
     const attachedImages = readyFiles.filter(isImageAttachment);
     if (attachedImages.length) body.imageReferenceContractVersion = 2;
-    if (state.tool === 'web') body.needsSearch = true;
+    if (state.tool === 'web') body.requestedTool = 'web';
     if (state.tool === 'code') body.taskType = 'code';
     if (state.tool === 'image') {
       body.creativeTool = 'image'; body.imageAspect = state.imageAspect; body.imageQuality = state.imageQuality;
@@ -1539,7 +1539,7 @@
         files: ready.map(item => item.server),
         requestMeta: {
           ...(ready.some(isImageAttachment) ? {imageReferenceContractVersion:2} : {}),
-          ...(state.tool === 'web' ? {needsSearch:true} : {}),
+          ...(state.tool === 'web' ? {requestedTool:'web'} : {}),
           ...(state.tool === 'code' ? {taskType:'code'} : {}),
           ...(state.tool === 'image' ? {
             creativeTool:'image',
@@ -2502,6 +2502,12 @@
     requestAnimationFrame(sync);
     window.setTimeout(sync, 700);
   }
+  window.addEventListener('crump:requested-tool', event => {
+    if (String(event?.detail?.tool || '').toLowerCase() !== 'web') return;
+    state.tool = 'web';
+    closeMenu();
+    renderToolChip();
+  });
   window.addEventListener('crump:conversation-opened', scheduleComposerPlaceholderSync);
   window.CrumpAuthBoundary?.register?.('main-composer', scrubComposerAuthBoundary);
   function boot() {

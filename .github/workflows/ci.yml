@@ -53,6 +53,8 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
+      - name: Validate offline intelligence evaluator contract
+        run: npm run test:intelligence-contract
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
       - name: Install browser API fixture dependencies

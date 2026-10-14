@@ -20,6 +20,7 @@
     "test:live-public-destinations": "node scripts/verify-live-public-destinations.mjs",
     "test:client-secrets": "node scripts/check-client-secrets.mjs",
     "test:browser-controls": "node scripts/verify-browser-control-matrix.mjs",
+    "test:intelligence-contract": "python scripts/evaluate_intelligence_benchmark.py benchmarks/intelligence/fixtures/passing_results.v1.json",
     "test": "npm run test:js",
     "native:configure": "node scripts/configure-native.mjs",
     "native:assets": "npx --yes @capacitor/assets@3.0.5 generate --iconBackgroundColor \"#0f1419\" --iconBackgroundColorDark \"#0f1419\" --splashBackgroundColor \"#0f1419\" --splashBackgroundColorDark \"#0f1419\"",

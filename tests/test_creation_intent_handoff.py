@@ -224,7 +224,7 @@ def test_resume_purpose_survives_send_retry_and_server_packaging():
     assert "{artifactPurpose:state.documentPurpose}" in studio
     assert "state.documentPurpose = String(purpose || '').toLowerCase() === 'resume' ? 'resume' : null" in studio
     assert "artifacts.normalize_purpose(request_payload.get('artifactPurpose'))" in route
-    assert "artifactPurpose', 'needsSearch'" in route
+    assert "artifactPurpose', 'requestedTool'" in route
     assert "purpose=artifact_purpose" in route
     assert '"artifactFormat", "artifactPurpose"' in sync_patch
     assert 'clean_meta[key] = "resume"' in sync_patch

@@ -87,14 +87,14 @@ const loader = String.raw`
     ['/sync-manager.js?v=5.9.76-sync-cursor-1', 'workspacesync'],
     ['/chat-sync.js?v=5.9.76-settings-sync-1', 'workspacechatsync'],
     ['/account-manager.js?v=5.9.76-account-storage-deletion-1', 'workspaceaccount'],
-    ['/app.js?v=5.9.76-reference-fidelity-hard-contract-1', 'workspaceapp'],
+    ['/app.js?v=5.9.76-grounded-research-1', 'workspaceapp'],
     ['/product-analytics.js?v=5.9.76-navigation-discovery-1', 'workspaceanalytics'],
   ]);
 
   const enhancementScripts = Object.freeze([
     ['/crump-4.3.js?v=5.9.76-atelier-workspace-1', 'crump43'],
     ['/crump-4.4.js?v=5.9.76-friendly-workspace-1', 'crump44'],
-    ['/crump-5.0.js?v=5.9.76-reference-fidelity-hard-contract-1', 'crump50'],
+    ['/crump-5.0.js?v=5.9.76-grounded-research-1', 'crump50'],
     ['/crump-precision-image-edit-loader.js?v=5.9.76-reference-fidelity-hard-contract-1', 'crumpprecisionloader'],
     ['/crump-billing-5.1.js?v=5.9.76-checkout-destination-label-1', 'billing51'],
     ['/crump-5.2.js?v=5.9.76-plan-status-line-1', 'crump52'],

@@ -32,7 +32,7 @@ _FILE_STATUS = {"pending", "ready", "failed"}
 _REQUEST_META_KEYS = {
     "creativeTool", "imageAspect", "imageQuality", "imageUseReference",
     "imageReferencePlanConfirmed", "imageReferenceContractVersion",
-    "artifactFormat", "artifactPurpose", "needsSearch", "taskType", "longForm",
+    "artifactFormat", "artifactPurpose", "requestedTool", "taskType", "longForm",
 }
 _IMAGE_REFERENCE_ROLES = {"base", "subject", "mascot", "logo", "typography", "style"}
 _REFERENCE_REVIEW_MESSAGES = {
@@ -535,6 +535,10 @@ def _sanitize_message_v52(item: Any) -> dict[str, Any] | None:
             if key == "artifactPurpose":
                 if str(value or "").strip().lower() == "resume":
                     clean_meta[key] = "resume"
+                continue
+            if key == "requestedTool":
+                if str(value or "").strip().lower() == "web":
+                    clean_meta[key] = "web"
                 continue
             if isinstance(value, bool):
                 clean_meta[key] = value
