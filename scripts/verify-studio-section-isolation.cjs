@@ -97,7 +97,11 @@ async function inspect(page, viewport) {
 
   await page.locator('#crump53OpenFiles').click();
   await page.waitForFunction(() => document.getElementById('crump53Sheet')?.dataset.projectView === 'files');
+  assert.equal(await page.locator('#crump53WorkspaceKicker').textContent(), 'PRIVATE FILES');
+  assert.equal(await page.locator('#crump53WorkspaceTitle').textContent(), 'Files');
+  assert.equal(await page.locator('#crump53Sheet').getAttribute('aria-label'), 'Ask Crump Files');
   assert.equal(await page.locator('#crump53Close').getAttribute('aria-label'), 'Close Files');
+  assert.equal(await page.locator('#crump53ProjectBack').isHidden(), true);
   assert.equal(await page.locator('#crump53RefreshLibrary').getAttribute('aria-label'), 'Refresh private Files');
 
   await page.evaluate(() => window.CrumpProduct53.open('projects'));

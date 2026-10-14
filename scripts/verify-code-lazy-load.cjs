@@ -36,9 +36,13 @@ function fixtureHtml() {
 <html lang="en">
 <head><meta charset="utf-8"><link rel="icon" href="data:,"><title>Autonomous Crump lazy-load proof</title></head>
 <body>
-  <button type="button" data-crump-code-destination hidden aria-label="Autonomous Crump">Autonomous Crump desktop</button>
-  <button type="button" data-crump-code-destination hidden aria-label="Autonomous Crump">Autonomous Crump mobile</button>
-  <script>window.currentUser = {id: 'fixture-user'};</script>
+  <button type="button" data-cv-destination="autonomous" data-crump-code-destination hidden disabled aria-hidden="true" aria-label="Autonomous Crump">Autonomous Crump desktop</button>
+  <button type="button" data-cv-destination="autonomous" data-crump-code-destination hidden disabled aria-hidden="true" aria-label="Autonomous Crump">Autonomous Crump mobile</button>
+  <script>
+    window.currentUser = {id: 'fixture-user'};
+    window.toasts = [];
+    window.showToast = (message, type) => window.toasts.push({message, type});
+  </script>
   <script src="${assetPaths.loader}?v=5.9.76-friendly-workspace-1"></script>
 </body>
 </html>`;
@@ -94,11 +98,24 @@ async function startServer() {
 async function inspect(page, destination) {
   await page.goto(destination, {waitUntil: 'networkidle'});
   return page.evaluate(() => {
+    const lateDestination = document.createElement('button');
+    lateDestination.type = 'button';
+    lateDestination.dataset.cvDestination = 'autonomous';
+    lateDestination.hidden = true;
+    lateDestination.disabled = true;
+    lateDestination.setAttribute('aria-hidden', 'true');
+    lateDestination.setAttribute('aria-label', 'Autonomous Crump');
+    document.body.appendChild(lateDestination);
+    window.dispatchEvent(new CustomEvent('crumpvision:ready'));
     const destinations = [...document.querySelectorAll('[data-crump-code-destination]')];
+    const visionDestinations = [...document.querySelectorAll('[data-cv-destination="autonomous"]')];
     return {
       hidden: destinations.map(item => item.hidden),
       locked: destinations.map(item => item.classList.contains('is-locked')),
       labels: destinations.map(item => item.getAttribute('aria-label')),
+      visionHidden: visionDestinations.map(item => item.hidden),
+      visionDisabled: visionDestinations.map(item => item.disabled),
+      visionAriaHidden: visionDestinations.map(item => item.getAttribute('aria-hidden')),
       loader: Boolean(window.CrumpCodeLoader),
       workspace: Boolean(window.CrumpCodeWorkspace),
       shell: Boolean(document.getElementById('crumpCodeWorkspace')),
@@ -125,6 +142,7 @@ async function inspect(page, destination) {
 
     assert.deepEqual(results.disabled, {
       hidden: [true, true], locked: [false, false], labels: ['Autonomous Crump', 'Autonomous Crump'],
+      visionHidden: [true, true, true], visionDisabled: [true, true, true], visionAriaHidden: ['true', 'true', 'true'],
       loader: true, workspace: false, shell: false, bootstrapStatusRetained: false,
     });
     assert.equal(counts.get(`disabled:${assetPaths.script}`) || 0, 0);
@@ -134,6 +152,9 @@ async function inspect(page, destination) {
     assert.deepEqual(results.locked.hidden, [false, false]);
     assert.deepEqual(results.locked.locked, [true, true]);
     assert.deepEqual(results.locked.labels, ['Autonomous Crump — Professional plan', 'Autonomous Crump — Professional plan']);
+    assert.deepEqual(results.locked.visionHidden, [false, false, false]);
+    assert.deepEqual(results.locked.visionDisabled, [false, false, false]);
+    assert.deepEqual(results.locked.visionAriaHidden, [null, null, null]);
     assert.equal(results.locked.loader && results.locked.workspace && results.locked.shell, true);
     assert.equal(results.locked.bootstrapStatusRetained, false);
     assert.equal(counts.get(`locked:${assetPaths.script}`), 1);
@@ -143,6 +164,9 @@ async function inspect(page, destination) {
     assert.deepEqual(results.entitled.hidden, [false, false]);
     assert.deepEqual(results.entitled.locked, [false, false]);
     assert.deepEqual(results.entitled.labels, ['Autonomous Crump', 'Autonomous Crump']);
+    assert.deepEqual(results.entitled.visionHidden, [false, false, false]);
+    assert.deepEqual(results.entitled.visionDisabled, [false, false, false]);
+    assert.deepEqual(results.entitled.visionAriaHidden, [null, null, null]);
     assert.equal(results.entitled.loader && results.entitled.workspace && results.entitled.shell, true);
     assert.equal(results.entitled.bootstrapStatusRetained, false);
     assert.equal(counts.get(`entitled:${assetPaths.script}`), 1);

@@ -396,6 +396,10 @@
     -webkit-backdrop-filter: blur(20px);
     backdrop-filter: blur(20px);
   }
+
+  html[data-cv-shell="ready"] body.crump-v1-body.crump-v1-keyboard-visible .cv-mobile-nav {
+    display: none !important;
+  }
 }
 
 .cv-mnav-item {
@@ -547,6 +551,10 @@ html[data-cv-shell="ready"] body.crump-v1-body .v1-workspace {
 @media (max-width: 1100px) {
   html[data-cv-shell="ready"] body.crump-v1-body .cv-stage-scroll {
     padding-bottom: calc(var(--cv-mobile-nav) + env(safe-area-inset-bottom) + 28px);
+  }
+
+  html[data-cv-shell="ready"] body.crump-v1-body.crump-v1-keyboard-visible .cv-stage-scroll {
+    padding-bottom: 28px;
   }
 }
 

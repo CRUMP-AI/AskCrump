@@ -43,7 +43,7 @@ body.crump-precision-open { overflow: hidden !important; }
   overflow: hidden; border: 1px solid rgba(255,255,255,.11); border-radius: 15px; background: #05070a;
   box-shadow: 0 24px 70px rgba(0,0,0,.34); line-height: 0;
 }
-.crump-precision-canvas-frame img { grid-area: 1 / 1; display: block; width: 100%; height: 100%; max-width: 100%; max-height: calc(100dvh - 245px); object-fit: fill; user-select: none; -webkit-user-drag: none; }
+.crump-precision-canvas-frame img { grid-area: 1 / 1; display: block; width: 100%; height: 100%; max-width: 100%; max-height: calc(100dvh - 245px); object-fit: contain; user-select: none; -webkit-user-drag: none; }
 .crump-precision-canvas-frame .crump-precision-preview { position: absolute; inset: 0; z-index: 1; display: block; width: 100%; height: 100%; pointer-events: none; }
 .crump-precision-canvas-frame .crump-precision-preview[hidden] { display: none; }
 .crump-precision-canvas-frame .crump-precision-exact-canvas { position: absolute; inset: 0; z-index: 2; display: block; width: 100%; height: 100%; pointer-events: none; }
@@ -176,19 +176,48 @@ body.crump-precision-open { overflow: hidden !important; }
 
 @media (max-width: 820px) {
   .crump-precision-backdrop { padding: 0; }
-  .crump-precision-editor { width: 100%; height: 100dvh; min-height: 0; border: 0; border-radius: 0; }
+  .crump-precision-editor { width: 100%; height: var(--v1-visual-viewport-height, 100dvh); min-height: 0; border: 0; border-radius: 0; }
   .crump-precision-editor > header { padding: max(14px, env(safe-area-inset-top)) 15px 13px; }
   .crump-precision-editor > header p { font-size: 9.5px; }
   .crump-precision-workspace { grid-template-columns: 1fr; grid-template-rows: minmax(260px, 1fr) auto; overflow: auto; }
   .crump-precision-stage { min-height: 300px; padding: 10px; overflow: auto; }
-  .crump-precision-canvas-frame img { max-height: min(52dvh, 520px); }
+  .crump-precision-canvas-frame img { max-height: min(52dvh, 520px); object-fit: contain; }
   .crump-precision-controls { overflow: visible; border-left: 0; border-top: 1px solid rgba(255,255,255,.075); padding: 14px 15px; gap: 11px; }
   .crump-precision-control-head, .crump-precision-appearance { display: none; }
   .crump-precision-adjustment textarea { min-height: 58px; }
   .crump-precision-boundary { padding: 10px; }
   .crump-precision-status { margin-top: 0; min-height: 22px; }
-  .crump-precision-editor > footer { padding-inline: 12px; }
-  .crump-precision-editor > footer button { flex: 1; }
+  .crump-precision-editor > footer {
+    position: sticky;
+    z-index: 10;
+    bottom: 0;
+    padding-inline: 12px;
+    box-shadow: 0 -14px 32px rgba(0,0,0,.24);
+  }
+  .crump-precision-editor > footer button { flex: 1; min-height: 44px; }
+  .crump-precision-close,
+  .crump-precision-modes button,
+  .crump-precision-zoom button,
+  .crump-precision-history button,
+  .crump-precision-geometry button,
+  .crump-precision-version,
+  .crump-precision-local-actions button,
+  .crump-precision-overlay-actions button,
+  .crump-precision-overlay-text button,
+  .crump-precision-overlay-text input[type="color"],
+  .crump-precision-overlay-tuning button,
+  .crump-precision-presets button {
+    min-height: 44px;
+  }
+  .crump-precision-close { width: 44px; height: 44px; }
+  .crump-precision-zoom { grid-template-columns: 44px minmax(0,1fr) 44px 50px; }
+  .crump-precision-zoom button,
+  .crump-precision-overlay-text input[type="color"],
+  .crump-precision-presets button { min-width: 44px; }
+  .crump-precision-overlay-text { grid-template-columns: minmax(0,1fr) 44px auto; }
+  .crump-precision-overlay-text input[type="color"] { width: 44px; }
+  .crump-precision-overlay-text input[type="text"],
+  .crump-precision-adjustment textarea { font-size: 16px; }
 }
 
 @media (max-width: 430px) {

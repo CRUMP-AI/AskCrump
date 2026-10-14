@@ -170,9 +170,15 @@
       ...destinationButtons().filter(button => button.dataset.crump5930Destination === destination),
       ...all(`[data-cv-destination="${visionDestination}"]`),
     ];
-    return candidates.find(button =>
-      Boolean(button.offsetWidth || button.offsetHeight || button.getClientRects().length)
-    ) || null;
+    return candidates.find(destinationControlIsVisible) || null;
+  }
+
+  function destinationControlIsVisible(button) {
+    return Boolean(
+      button && button.isConnected && !button.disabled && !button.hidden &&
+      !button.closest('[hidden], [inert], [aria-hidden="true"]') &&
+      (button.offsetWidth || button.offsetHeight || button.getClientRects().length)
+    );
   }
 
   function rememberDestinationOpener(destination) {
@@ -213,16 +219,18 @@
     });
   }
 
-  function restoreDestinationFocus() {
+  function restoreDestinationFocus(destination) {
     if (destinationFocusFrame) cancelAnimationFrame(destinationFocusFrame);
     destinationFocusFrame = 0;
     const opener = destinationFocusOpener;
     destinationFocusOpener = null;
     requestAnimationFrame(() => {
       if (persistentDestination()) return;
-      const target = opener?.isConnected && !opener.disabled
+      const target = destinationControlIsVisible(opener)
         ? opener
-        : visibleDestinationButton('ask');
+        : visibleDestinationButton(destination)
+          || visibleDestinationButton('more')
+          || visibleDestinationButton('ask');
       target?.focus?.({preventScroll: true});
     });
   }
@@ -254,7 +262,7 @@
         destinationFocusOpener = null;
         return;
       }
-      restoreDestinationFocus();
+      restoreDestinationFocus(previous);
       return;
     }
     if (suppressDestinationFocusRestore) {

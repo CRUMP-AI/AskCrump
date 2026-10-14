@@ -512,10 +512,13 @@
     $$('[data-v1-settings-tab]').forEach(button => {
       const active = button.dataset.v1SettingsTab === name;
       button.classList.toggle('is-active', active);
-      button.setAttribute('aria-selected', active ? 'true' : 'false');
+      if (active) button.setAttribute('aria-current', 'page');
+      else button.removeAttribute('aria-current');
     });
     $$('[data-v1-settings-panel]').forEach(panel => {
-      panel.classList.toggle('is-active', panel.dataset.v1SettingsPanel === name);
+      const active = panel.dataset.v1SettingsPanel === name;
+      panel.classList.toggle('is-active', active);
+      panel.hidden = !active;
     });
     const saveButton = byId('saveSettingsBtn');
     if (saveButton) saveButton.hidden = !['profile', 'behavior'].includes(name);

@@ -459,7 +459,7 @@
     return title || 'Untitled conversation';
   }
 
-  function renameChat(chatId) {
+  function renameChat(chatId, trigger = state.menuTrigger) {
     closeChatMenu();
     const chat = (window.chats || []).find(item => String(item.id || item.chat_id) === String(chatId));
     if (!chat) return;
@@ -468,9 +468,9 @@
     const overlay = document.createElement('div');
     overlay.className = 'crump531-rename-overlay';
     overlay.innerHTML = `
-      <section class="crump531-rename-sheet" role="dialog" aria-modal="true" aria-label="Rename conversation">
+      <section class="crump531-rename-sheet" role="dialog" aria-modal="true" aria-labelledby="crump531RenameTitle">
         <div class="crump531-rename-kicker">CONVERSATION</div>
-        <h3>Rename chat</h3>
+        <h3 id="crump531RenameTitle">Rename chat</h3>
         <input class="crump531-rename-input" maxlength="120" value="${escapeHtml(chat.title || 'New conversation')}" aria-label="Conversation name">
         <div class="crump531-rename-actions">
           <button type="button" class="crump531-secondary">Cancel</button>
@@ -483,7 +483,24 @@
     const input = overlay.querySelector('input');
     const cancel = overlay.querySelector('.crump531-secondary');
     const save = overlay.querySelector('.crump531-primary');
-    const close = () => { overlay.remove(); if (state.renameSheet === overlay) state.renameSheet = null; };
+    const restoreTriggerFocus = () => {
+      const findLiveTrigger = () => trigger?.isConnected
+        ? trigger
+        : [...document.querySelectorAll('.crump531-chat-menu-button')].find(button =>
+          String(button.closest('.chat-item[data-chat-id]')?.dataset.chatId) === String(chatId)
+        );
+      const liveTrigger = findLiveTrigger();
+      if (liveTrigger) {
+        liveTrigger.focus({preventScroll: true});
+        return;
+      }
+      window.requestAnimationFrame(() => findLiveTrigger()?.focus?.({preventScroll: true}));
+    };
+    const close = () => {
+      overlay.remove();
+      if (state.renameSheet === overlay) state.renameSheet = null;
+      restoreTriggerFocus();
+    };
     cancel.addEventListener('click', close);
     overlay.addEventListener('click', event => { if (event.target === overlay) close(); });
     save.addEventListener('click', () => {
@@ -505,8 +522,25 @@
       if (event.key === 'Enter') {
         event.preventDefault();
         save.click();
-      } else if (event.key === 'Escape') {
+      }
+    });
+    overlay.addEventListener('keydown', event => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
         close();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      const focusable = [input, cancel, save].filter(element => !element.disabled);
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus({preventScroll: true});
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus({preventScroll: true});
       }
     });
     setTimeout(() => { input.focus(); input.select(); }, 20);
@@ -534,7 +568,7 @@
     const remove = menu.querySelector('[data-crump531-action="delete"]');
     rename.setAttribute('aria-label', `Rename ${label}`);
     remove.setAttribute('aria-label', `Delete ${label}`);
-    rename.addEventListener('click', () => renameChat(chatId));
+    rename.addEventListener('click', () => renameChat(chatId, button));
     remove.addEventListener('click', () => {
       closeChatMenu();
       window.deleteChat?.(chatId);

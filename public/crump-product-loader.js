@@ -13,9 +13,10 @@
   const VIDEO_REQUEST_TTL_MS = 30 * 60 * 1000;
   const VIDEO_JOB_ID_PATTERN = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
   const VIDEO_REFERENCE_DRAFT_KEY = 'askcrump.videoReferenceDraft53';
-  const DESTINATIONS = new Set(['projects', 'manuscripts', 'video', 'library']);
+  const DESTINATIONS = new Set(['projects', 'files', 'manuscripts', 'video', 'library']);
   const DESTINATION_LABELS = Object.freeze({
     projects: 'Projects',
+    files: 'Files',
     manuscripts: 'Manuscripts',
     video: 'Video Studio',
     library: 'Library',
@@ -228,7 +229,7 @@
     const normalized = String(destination || '').trim();
     if (!DESTINATIONS.has(normalized)) return [];
     return Array.from(document.querySelectorAll(
-      `[data-v1-command="${normalized}"], [data-crump5930-destination="${normalized}"]`,
+      `[data-v1-command="${normalized}"], [data-crump5930-destination="${normalized}"], [data-cv-destination="${normalized}"]`,
     ));
   }
 
@@ -272,7 +273,7 @@
   facade = Object.freeze({
     open: destination => invoke('open', [destination], {destination, announce: true}),
     openProject: projectId => invoke('openProject', [projectId], {destination: 'projects', announce: true}),
-    openFiles: () => invoke('openFiles', [], {destination: 'projects', announce: true}),
+    openFiles: () => invoke('openFiles', [], {destination: 'files', announce: true}),
     projectTarget: () => realApi()?.projectTarget?.() || cachedProjectTarget(),
     projectForConversation: chatId => invoke('projectForConversation', [chatId]),
     resolveOutcomeProject: chatId => invoke('resolveOutcomeProject', [chatId]),
@@ -285,6 +286,7 @@
   window.CrumpProduct53 = facade;
   window.CrumpProductLoader = Object.freeze({
     load,
+    openFiles: facade.openFiles,
     authenticatedUserId: () => authenticatedUserId,
   });
 

@@ -100,7 +100,10 @@ def test_files_destination_only_stays_active_while_its_surface_is_visible() -> N
 
     assert "productStudio && !productStudio.hidden" in shell
     assert "productSheet && productSheet.dataset.projectView === 'files'" in shell
-    assert "var mapped = filesSurfaceOpen ? 'files'" in shell
+    assert "var filesOwnSurface = filesSurfaceIsOpen()" in shell
+    assert "currentId === 'files' && filesNavigationIsPending()" in shell
+    assert "var mapped = filesOwnSurface ? 'files'" in shell
+    assert "document.addEventListener('crump:product-view-changed'" in shell
 
 
 def test_presentation_only_views_cannot_replace_real_product_owners() -> None:
@@ -137,7 +140,7 @@ def test_first_screen_has_four_clear_jumps_without_a_second_destination_map() ->
     app = read("public/app.html")
 
     assert "<h1>What can I help you get done?</h1>" in app
-    assert '<p class="v1-launchpad-actions-label">Or jump straight in</p>' in app
+    assert '<p class="v1-launchpad-actions-label">Ways to begin</p>' in app
     assert app.count('class="v1-launch-card') == 4
     for command in ("projects", "file", "image", "video"):
         assert app.count(f'data-v1-command="{command}"') == 1

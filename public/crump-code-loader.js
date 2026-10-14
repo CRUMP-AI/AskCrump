@@ -6,17 +6,31 @@
 
   const STYLE_URL = '/crump-code-5.9.35.css?v=5.9.76-friendly-workspace-1';
   const SCRIPT_URL = '/crump-code-5.9.35.js?v=5.9.76-friendly-workspace-1';
+  const DESTINATION_SELECTOR = '[data-crump-code-destination], [data-cv-destination="autonomous"]';
   let featureStatus = null;
   let availabilityPromise = null;
   let workspacePromise = null;
 
-  function hideDestinations() {
-    document.querySelectorAll('[data-crump-code-destination]').forEach(destination => {
-      destination.hidden = true;
-      destination.classList.remove('is-locked');
-      destination.setAttribute('aria-label', 'Autonomous Crump');
+  function syncDestinations(data = null) {
+    const feature = data?.features?.code_workspace;
+    const provider = data?.providers?.code;
+    const isConfigured = Boolean(feature?.configured && provider?.configured);
+    const isLocked = isConfigured && feature?.entitled !== true;
+    document.querySelectorAll(DESTINATION_SELECTOR).forEach(destination => {
+      destination.hidden = !isConfigured;
+      destination.disabled = !isConfigured;
+      destination.classList.toggle('is-locked', isLocked);
+      destination.toggleAttribute('aria-hidden', !isConfigured);
+      destination.setAttribute(
+        'aria-label',
+        isLocked ? 'Autonomous Crump — Professional plan' : 'Autonomous Crump',
+      );
     });
-    document.body.classList.remove('crump-code-configured');
+    document.body?.classList.toggle('crump-code-configured', isConfigured);
+  }
+
+  function hideDestinations() {
+    syncDestinations(null);
   }
 
   function loadStyle() {
@@ -64,6 +78,7 @@
       .then(() => {
         if (!window.CrumpCodeWorkspace) throw new Error('Autonomous Crump is unavailable');
         window.CrumpCodeWorkspace.hydrateAvailability?.(data);
+        syncDestinations(data);
         return window.CrumpCodeWorkspace;
       })
       .catch(error => {
@@ -102,6 +117,7 @@
           hideDestinations();
           return false;
         }
+        syncDestinations(data);
         await loadWorkspace(data);
         return true;
       } catch (_) {
@@ -116,11 +132,19 @@
   }
 
   async function open() {
-    if (!window.CrumpCodeWorkspace && !(await refreshAvailability())) return false;
+    if (!window.CrumpCodeWorkspace && !(await refreshAvailability())) {
+      window.showToast?.('Autonomous Crump is not available for this account.', 'info');
+      return false;
+    }
     return window.CrumpCodeWorkspace?.open?.() || false;
   }
 
   window.CrumpCodeLoader = Object.freeze({load: loadWorkspace, open, refreshAvailability});
+  hideDestinations();
+  window.addEventListener('crumpvision:ready', () => {
+    if (configured(featureStatus)) syncDestinations(featureStatus);
+    else hideDestinations();
+  });
   window.addEventListener('crump:authenticated-ready', () => { void refreshAvailability(); });
   if (window.currentUser) void refreshAvailability();
 })();

@@ -249,7 +249,7 @@ def test_plan_center_containment_assets_are_versioned_everywhere():
         assert versioned_final in source
         assert versioned_billing_css in source
         assert versioned_credit_contract in source
-    assert "ask-crump-new-body-v1-r257-appearance-choice-1" in read_public("sw.js")
+    assert "ask-crump-new-body-v1-r258-ui-contract-repair-1" in read_public("sw.js")
     assert "/runtime-body-v1.js?v=5.9.76-atelier-workspace-1" in read_public("app.html")
 
 

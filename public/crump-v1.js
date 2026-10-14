@@ -128,17 +128,55 @@
 
   function installViewportContract() {
     const viewport = window.visualViewport;
-    if (!viewport || document.documentElement.dataset.crumpV1Viewport === 'true') return;
+    if (document.documentElement.dataset.crumpV1Viewport === 'true') return;
     document.documentElement.dataset.crumpV1Viewport = 'true';
 
+    let frame = 0;
+    let stableHeight = Math.max(window.innerHeight, viewport?.height || 0);
     const update = () => {
-      const keyboard = Math.max(0, window.innerHeight - viewport.height - viewport.offsetTop);
-      document.documentElement.style.setProperty('--v1-keyboard-offset', `${Math.round(keyboard)}px`);
-      document.body.classList.toggle('crump-v1-keyboard-visible', keyboard > 120);
+      frame = 0;
+      const height = Math.max(1, viewport?.height || window.innerHeight);
+      const offsetTop = Math.max(0, viewport?.offsetTop || 0);
+      const active = document.activeElement;
+      const editableFocus = Boolean(active?.matches?.('input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):not([type="file"]), textarea, select, [contenteditable="true"]'));
+      if (!editableFocus) stableHeight = Math.max(height, window.innerHeight);
+      const layoutInset = Math.max(0, window.innerHeight - height - offsetTop);
+      const focusInset = editableFocus ? Math.max(0, stableHeight - height) : 0;
+      const keyboardInset = Math.max(layoutInset, focusInset);
+      // Focus alone is not evidence that a software keyboard is visible: a
+      // user can dismiss the keyboard while the field remains focused. Only
+      // hide navigation after the usable viewport has actually contracted.
+      const keyboardVisible = editableFocus && keyboardInset > 120;
+      const root = document.documentElement;
+      const body = document.body;
+
+      // One canonical visual-viewport contract owns the mobile shell. Keep the
+      // earlier variable names in sync while legacy modules are still loaded.
+      root.style.setProperty('--v1-visual-viewport-height', `${Math.round(height)}px`);
+      root.style.setProperty('--v1-visual-viewport-top', `${Math.round(offsetTop)}px`);
+      root.style.setProperty('--v1-keyboard-inset', `${Math.round(keyboardInset)}px`);
+      root.style.setProperty('--v1-keyboard-offset', `${Math.round(keyboardInset)}px`);
+      root.style.setProperty('--crump-keyboard-height', `${Math.round(keyboardInset)}px`);
+      root.dataset.v1Keyboard = keyboardVisible ? 'visible' : 'hidden';
+      body?.classList.toggle('crump-v1-keyboard-visible', keyboardVisible);
+      body?.classList.toggle('crump-keyboard-visible', keyboardVisible);
     };
 
-    viewport.addEventListener('resize', update, {passive: true});
-    viewport.addEventListener('scroll', update, {passive: true});
+    const scheduleUpdate = () => {
+      if (frame) return;
+      frame = requestAnimationFrame(update);
+    };
+
+    viewport?.addEventListener('resize', scheduleUpdate, {passive: true});
+    viewport?.addEventListener('scroll', scheduleUpdate, {passive: true});
+    window.addEventListener('resize', scheduleUpdate, {passive: true});
+    window.addEventListener('orientationchange', scheduleUpdate, {passive: true});
+    window.addEventListener('pageshow', scheduleUpdate, {passive: true});
+    document.addEventListener('focusin', scheduleUpdate, {passive: true});
+    document.addEventListener('focusout', () => {
+      scheduleUpdate();
+      setTimeout(scheduleUpdate, 180);
+    }, {passive: true});
     update();
   }
 

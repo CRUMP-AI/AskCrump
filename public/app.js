@@ -144,6 +144,8 @@ let isProcessing = false;
 let freshConversationRequested = false;
 let settingsBaselineSignature = '';
 let settingsIdentityRequest = null;
+let settingsReturnFocus = null;
+let settingsBackgroundState = [];
 window.chats = chats;
 window.currentChatId = currentChatId;
 window.STORAGE_KEYS = STORAGE_KEYS;
@@ -330,7 +332,7 @@ function setupEventListeners() {
 
     const actions = [
         ['clearChatsBtn', () => clearAllChats()],
-        ['settingsBtn', () => window.openSettings?.()],
+        ['settingsBtn', event => window.openSettings?.(event.currentTarget)],
         ['upgradeBtnSidebar', () => window.showUpgradePrompt?.()],
         ['closeSettingsBtn', () => window.closeSettings?.()],
         ['saveSettingsBtn', () => window.saveSettings?.()],
@@ -569,6 +571,7 @@ function renderChatsList() {
         item.setAttribute('role', 'button');
         item.addEventListener('click', () => loadChat(chat.id));
         item.addEventListener('keydown', event => {
+            if (event.target !== item) return;
             if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); loadChat(chat.id); }
         });
 
@@ -1219,14 +1222,112 @@ window.triggerWebSearch = function() {
 };
 
 // Settings
-window.openSettings = function() {
-    document.getElementById('settingsModal').style.display = 'flex';
+function settingsDialog(modal = document.getElementById('settingsModal')) {
+    return modal?.querySelector('[role="dialog"]') || null;
+}
+
+function settingsFocusableElements(dialog) {
+    if (!dialog) return [];
+    const selector = [
+        'a[href]',
+        'button:not([disabled])',
+        'input:not([disabled])',
+        'select:not([disabled])',
+        'textarea:not([disabled])',
+        '[tabindex]:not([tabindex="-1"])',
+    ].join(',');
+    return Array.from(dialog.querySelectorAll(selector)).filter(element => {
+        if (element.hidden || element.closest('[hidden]') || element.getAttribute('aria-hidden') === 'true') return false;
+        const style = getComputedStyle(element);
+        return style.display !== 'none' && style.visibility !== 'hidden' && element.getClientRects().length > 0;
+    });
+}
+
+function setSettingsBackgroundInert(modal) {
+    if (settingsBackgroundState.length) return;
+    settingsBackgroundState = Array.from(document.body.children)
+        .filter(element => element !== modal
+            && element.id !== 'toastContainer'
+            && !['SCRIPT', 'STYLE', 'LINK', 'TEMPLATE'].includes(element.tagName))
+        .map(element => ({ element, wasInert: element.hasAttribute('inert') }));
+    settingsBackgroundState.forEach(({element}) => element.setAttribute('inert', ''));
+}
+
+function restoreSettingsBackground() {
+    settingsBackgroundState.forEach(({element, wasInert}) => {
+        if (!wasInert) element.removeAttribute('inert');
+    });
+    settingsBackgroundState = [];
+}
+
+function wireSettingsModalAccessibility(modal) {
+    if (!modal || modal.dataset.accessibilityWired === 'true') return;
+    modal.dataset.accessibilityWired = 'true';
+    modal.addEventListener('click', event => {
+        if (event.target === modal) window.closeSettings?.();
+    });
+    modal.addEventListener('keydown', event => {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            event.stopPropagation();
+            window.closeSettings?.();
+            return;
+        }
+        if (event.key !== 'Tab') return;
+        const dialog = settingsDialog(modal);
+        const focusable = settingsFocusableElements(dialog);
+        if (!focusable.length) {
+            event.preventDefault();
+            document.getElementById('settingsTitle')?.focus({preventScroll: true});
+            return;
+        }
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (event.shiftKey && document.activeElement === first) {
+            event.preventDefault();
+            last.focus({preventScroll: true});
+        } else if (!event.shiftKey && document.activeElement === last) {
+            event.preventDefault();
+            first.focus({preventScroll: true});
+        }
+    });
+}
+
+window.openSettings = function(opener = null) {
+    const modal = document.getElementById('settingsModal');
+    if (!modal) return;
+    const wasOpen = getComputedStyle(modal).display !== 'none';
+    if (!wasOpen && !modal.contains(document.activeElement)) settingsReturnFocus = opener || document.activeElement;
+    wireSettingsModalAccessibility(modal);
+    setSettingsBackgroundInert(modal);
+    modal.style.display = 'flex';
+    modal.setAttribute('aria-hidden', 'false');
     loadSettingsValues();
     scheduleSettingsIdentityPresentation();
+    window.requestAnimationFrame(() => document.getElementById('settingsTitle')?.focus({preventScroll: true}));
 };
 
 window.closeSettings = function() {
-    document.getElementById('settingsModal').style.display = 'none';
+    const modal = document.getElementById('settingsModal');
+    if (!modal) return;
+    modal.style.display = 'none';
+    modal.setAttribute('aria-hidden', 'true');
+    restoreSettingsBackground();
+    const returnFocus = settingsReturnFocus;
+    settingsReturnFocus = null;
+    const isVisibleControl = element => Boolean(
+        element?.isConnected
+        && typeof element.focus === 'function'
+        && !element.disabled
+        && !element.hidden
+        && !element.closest?.('[hidden], [inert], [aria-hidden="true"]')
+        && element.getClientRects?.().length
+    );
+    const fallback = Array.from(document.querySelectorAll(
+        '[data-cv-destination="profile"], [data-cv-destination="more"], #settingsBtn, [data-crump5930-destination="you"]'
+    )).find(isVisibleControl);
+    const focusTarget = isVisibleControl(returnFocus) ? returnFocus : fallback;
+    focusTarget?.focus({preventScroll: true});
 };
 
 function loadSettings() {

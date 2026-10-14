@@ -8,7 +8,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="theme-color" content="#f6f4ee">
-  <script src="/appearance-theme.js?v=5.9.76-appearance-choice-1"></script>
+  <script src="/appearance-theme.js?v=5.9.76-appearance-choice-2"></script>
   <title>Ask Crump</title>
   <link rel="icon" type="image/png" href="/assets/ask-crump-app-icon-v2-192.png">
   <link rel="manifest" href="/manifest.json">
@@ -20,7 +20,7 @@
   <link rel="stylesheet" href="/install-prompt.css?v=5.9.76">
   <link rel="stylesheet" href="/auth-styles.css">
   <link rel="stylesheet" href="/crump-v1-body.css?v=5.9.76-friendly-workspace-1" data-crump-body-v1="true">
-  <link rel="stylesheet" href="/appearance-controls.css?v=5.9.76-appearance-choice-1">
+  <link rel="stylesheet" href="/appearance-controls.css?v=5.9.76-appearance-choice-2">
 </head>
 <body class="crump-v1-body">
 
@@ -445,8 +445,8 @@
 </div>
 
 <!-- SETTINGS: redesigned as a two-pane workspace while preserving every controller ID. -->
-<div id="settingsModal" class="modal v1-modal">
-  <div class="modal-content settings-sheet v1-settings-sheet" role="dialog" aria-modal="false" aria-label="Settings">
+<div id="settingsModal" class="modal v1-modal" style="display:none;" aria-hidden="true">
+  <div class="modal-content settings-sheet v1-settings-sheet" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
     <div class="settings-sheet-header v1-settings-header">
       <button id="closeSettingsBtn" class="settings-icon-btn" type="button" aria-label="Close settings">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M18 6 6 18M6 6l12 12"/></svg>
@@ -461,16 +461,16 @@
 
     <div class="v1-settings-layout">
       <nav class="v1-settings-nav" aria-label="Settings sections">
-        <button type="button" class="is-active" data-v1-settings-tab="profile">Profile</button>
-        <button type="button" data-v1-settings-tab="appearance">Appearance</button>
-        <button type="button" data-v1-settings-tab="behavior">Behavior</button>
-        <button type="button" data-v1-settings-tab="plan">Plan &amp; credits</button>
-        <button type="button" data-v1-settings-tab="account">Account</button>
-        <button type="button" data-v1-settings-tab="about">About</button>
+        <button id="settingsNavProfile" type="button" class="is-active" data-v1-settings-tab="profile" aria-current="page" aria-controls="settingsPanelProfile">Profile</button>
+        <button id="settingsNavAppearance" type="button" data-v1-settings-tab="appearance" aria-controls="settingsPanelAppearance">Appearance</button>
+        <button id="settingsNavBehavior" type="button" data-v1-settings-tab="behavior" aria-controls="settingsPanelBehavior">Behavior</button>
+        <button id="settingsNavPlan" type="button" data-v1-settings-tab="plan" aria-controls="settingsPanelPlan">Plan &amp; credits</button>
+        <button id="settingsNavAccount" type="button" data-v1-settings-tab="account" aria-controls="settingsPanelAccount">Account</button>
+        <button id="settingsNavAbout" type="button" data-v1-settings-tab="about" aria-controls="settingsPanelAbout">About</button>
       </nav>
 
       <div class="settings-sheet-body">
-        <section class="settings-group v1-settings-panel is-active" data-v1-settings-panel="profile">
+        <section id="settingsPanelProfile" class="settings-group v1-settings-panel is-active" data-v1-settings-panel="profile" aria-labelledby="settingsNavProfile">
           <div class="v1-settings-panel-head">
             <div><div class="settings-group-title">Profile</div><h3>How Crump knows you</h3></div>
             <p>These details follow your account across signed-in devices.</p>
@@ -491,7 +491,7 @@
           </div>
         </section>
 
-        <section class="settings-group v1-settings-panel" data-v1-settings-panel="appearance">
+        <section id="settingsPanelAppearance" class="settings-group v1-settings-panel" data-v1-settings-panel="appearance" aria-labelledby="settingsNavAppearance" hidden>
           <div class="v1-settings-panel-head">
             <div><div class="settings-group-title">Appearance</div><h3>Choose your atmosphere</h3></div>
             <p>Keep the bright editorial workspace, or move into a calm dark studio. Your choice applies instantly.</p>
@@ -516,7 +516,7 @@
           <p class="appearance-device-note">Appearance is remembered on this device, including the installed app.</p>
         </section>
 
-        <section class="settings-group v1-settings-panel" data-v1-settings-panel="behavior">
+        <section id="settingsPanelBehavior" class="settings-group v1-settings-panel" data-v1-settings-panel="behavior" aria-labelledby="settingsNavBehavior" hidden>
           <div class="v1-settings-panel-head">
             <div><div class="settings-group-title">Behavior</div><h3>How Crump works with you</h3></div>
             <p>Control focus hours, check-ins, notifications, and follow-up behavior.</p>
@@ -576,7 +576,7 @@
           </div>
         </section>
 
-        <section class="settings-group v1-settings-panel" data-v1-settings-panel="plan">
+        <section id="settingsPanelPlan" class="settings-group v1-settings-panel" data-v1-settings-panel="plan" aria-labelledby="settingsNavPlan" hidden>
           <div class="v1-settings-panel-head">
             <div><div class="settings-group-title">Plan &amp; credits</div><h3>Your access and usage</h3></div>
             <p>Review your current credit balance, subscription options, purchase history, and billing controls in one place.</p>
@@ -593,7 +593,7 @@
           <p class="v1-plan-footnote">Nothing is purchased until you review the provider checkout and confirm it.</p>
         </section>
 
-        <section class="settings-group v1-settings-panel" data-v1-settings-panel="account">
+        <section id="settingsPanelAccount" class="settings-group v1-settings-panel" data-v1-settings-panel="account" aria-labelledby="settingsNavAccount" hidden>
           <div class="v1-settings-panel-head">
             <div><div class="settings-group-title">Account</div><h3>Security & data</h3></div>
             <p>Review sessions, sign out, or permanently delete your account.</p>
@@ -615,7 +615,7 @@
           <a class="v1-delete-web" href="/delete-account.html">Account deletion help on the web ↗</a>
         </section>
 
-        <section class="settings-group v1-settings-panel" data-v1-settings-panel="about">
+        <section id="settingsPanelAbout" class="settings-group v1-settings-panel" data-v1-settings-panel="about" aria-labelledby="settingsNavAbout" hidden>
           <div class="v1-settings-panel-head">
             <div><div class="settings-group-title">About</div><h3>Ask Crump</h3></div>
             <p>Invite someone, get product support, review legal information, or replay the workspace tour.</p>

@@ -53,6 +53,22 @@ def test_shell_lockup_uses_exact_paint_boxes():
     assert "height: 44px;" in body
 
 
+def test_conversation_drawer_preserves_the_official_gold_lockup() -> None:
+    app = read("public/app.html")
+    styles = read("public/crump-design-pass.css")
+
+    assert 'class="v1-library-logo"' in app
+    assert '/assets/brand/crump-shell-lockup-light.webp?v=5.9.76-shell-no-tagline-1' in app
+    logo_rule = styles[styles.index("body.crump-v1-body .v1-library-logo {") :]
+    logo_rule = logo_rule[: logo_rule.index("}")]
+    assert "filter: none !important;" in logo_rule
+    assert "brightness(" not in logo_rule
+    assert "#171a1f !important;" in styles
+    assert "color: #f0ece3 !important;" in styles
+    assert 'html[data-theme="light"] body.crump-v1-body .v1-auth-mobile-brand' in styles
+    assert 'html[data-theme="light"] body.crump-v1-body .v1-about-signature' in styles
+
+
 def test_initial_and_final_desktop_rail_widths_match_before_runtime_handoff():
     initial_shell = read("public/crump-v1-body.css")
     final_navigation = read("public/crump-navigation-5.9.30.css")

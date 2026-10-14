@@ -22,7 +22,7 @@ def test_six_destination_navigation_is_final_runtime_layer_and_boot_critical():
 
     assert runtime.index("/crump-library-loader.js") < runtime.index("/crump-navigation-5.9.30.js")
     assert "/crump-library-5.7.js" not in runtime
-    assert "ask-crump-new-body-v1-r257-appearance-choice-1" in worker
+    assert "ask-crump-new-body-v1-r258-ui-contract-repair-1" in worker
     navigation_css = "/crump-navigation-5.9.30.css?v=5.9.76-nav-focus-visibility-1"
     for source in (runtime, worker, native):
         assert navigation_css in source
@@ -69,12 +69,12 @@ def test_mobile_chats_drawer_stops_above_persistent_destinations():
     assert styles.count("bottom: calc(var(--crump5930-mobile-nav) + env(safe-area-inset-bottom)) !important;") >= 2
 
 
-def test_persistent_destinations_hide_only_the_covered_workspace_from_assistive_technology():
+def test_persistent_destinations_hide_covered_workspace_and_settings_is_truly_modal():
     page = read("public/app.html")
     product = read("public/crump-product-5.3.js")
     script = read("public/crump-navigation-5.9.30.js")
 
-    assert 'role="dialog" aria-modal="false" aria-label="Settings"' in page
+    assert 'role="dialog" aria-modal="true" aria-labelledby="settingsTitle"' in page
     assert 'id="crump53Sheet" role="dialog" aria-modal="false"' in product
     assert "function destinationBackgroundElements()" in script
     assert "[byId('sidebar'), document.querySelector('.v1-workspace')]" in script
@@ -99,8 +99,10 @@ def test_persistent_destinations_announce_entry_and_restore_the_opening_control(
     assert "function scheduleDestinationSurfaceFocus(destination)" in script
     assert "surface.contains(document.activeElement)" in script
     assert "target.focus({preventScroll: true})" in script
-    assert "function restoreDestinationFocus()" in script
-    assert "opener?.isConnected && !opener.disabled" in script
+    assert "function restoreDestinationFocus(destination)" in script
+    assert "destinationControlIsVisible(opener)" in script
+    assert "visibleDestinationButton(destination)" in script
+    assert "visibleDestinationButton('more')" in script
     assert "suppressPersistentDestinationRestore();" in script
     assert "syncDestinationFocus();" in script
 

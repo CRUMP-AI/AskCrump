@@ -12,12 +12,13 @@ def test_code_workspace_is_lazy_loaded_only_after_server_configuration_and_entit
     script = read("public/crump-code-5.9.35.js")
     loader = read("public/crump-code-loader.js")
     navigation = read("public/crump-navigation-5.9.30.js")
+    vision_shell = read("public/crump-vision-shell-1.0.js")
     runtime = read("public/runtime-body-v1.js")
     native = read("scripts/build-native.mjs")
     worker = read("public/sw.js")
 
     assert "id: 'code'" in navigation
-    assert "data-crump-code-destination hidden" in navigation
+    assert "data-crump-code-destination hidden disabled aria-hidden=\"true\"" in vision_shell
     assert "state.configured = Boolean(feature?.configured && provider?.configured)" in script
     assert "state.available = state.configured && state.entitled" in script
     assert "destination.hidden = !state.configured" in script
@@ -36,6 +37,8 @@ def test_code_workspace_is_lazy_loaded_only_after_server_configuration_and_entit
     assert versioned_style in loader
     assert "if (!configured(data))" in loader
     assert "await loadWorkspace(data);" in loader
+    assert "const DESTINATION_SELECTOR = '[data-crump-code-destination], [data-cv-destination=\"autonomous\"]'" in loader
+    assert "syncDestinations(data);" in loader
     assert "window.CrumpCodeLoader = Object.freeze" in loader
     assert "window.CrumpCodeLoader?.open?.()" in navigation
     assert "url.pathname === '/crump-code-loader.js'" in worker

@@ -338,13 +338,16 @@
     left: 16px !important;
     right: 16px !important;
     top: auto !important;
-    bottom: calc(env(safe-area-inset-bottom, 0px) + 16px);
+    bottom: calc(var(--cv-mobile-nav, 68px) + env(safe-area-inset-bottom, 0px) + 12px);
     width: auto;
+    max-height: calc(var(--v1-visual-viewport-height, 100dvh) - var(--cv-mobile-nav, 68px) - env(safe-area-inset-bottom, 0px) - 24px);
+    overflow-y: auto;
     border-radius: 18px;
     padding: 8px;
   }
 
   .crump531-chat-menu-popover button {
+    min-height: 44px;
     padding: 13px 14px;
     font-size: 14px;
   }
@@ -358,6 +361,16 @@
     border-radius: 28px 28px 0 0;
     padding: 24px 20px calc(env(safe-area-inset-bottom, 0px) + 24px);
   }
+
+  .crump531-chat-menu-button,
+  .crump531-icon-button,
+  .crump531-use-file,
+  .crump531-rename-actions button {
+    min-width: 44px;
+    min-height: 44px;
+  }
+
+  .crump531-rename-input { font-size: 16px; }
 
   .crump531-file-row {
     display: grid;

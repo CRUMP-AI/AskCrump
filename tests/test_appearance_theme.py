@@ -41,7 +41,7 @@ def test_appearance_controller_runs_before_paint_and_exposes_a_small_public_cont
     shell = read("public/app.html")
     controller = read("public/appearance-theme.js")
 
-    appearance_asset = "/appearance-theme.js?v=5.9.76-appearance-choice-1"
+    appearance_asset = "/appearance-theme.js?v=5.9.76-appearance-choice-2"
     assert appearance_asset in shell
     assert shell.index(appearance_asset) < shell.index("/crump-v1-body.css")
     assert shell.index(appearance_asset) < shell.index("</head>")
@@ -150,7 +150,7 @@ def test_browser_fixture_exercises_real_theme_assets_and_drawer_markup() -> None
     verifier = read("scripts/verify-appearance-theme.cjs")
     matrix = read("scripts/verify-browser-control-matrix.mjs")
 
-    assert "/public/appearance-theme.js?v=5.9.76-appearance-choice-1" in fixture
+    assert "/public/appearance-theme.js?v=5.9.76-appearance-choice-2" in fixture
     assert "/public/crump-design-pass.css" in fixture
     for asset in (
         "/public/crump-4.4.css",

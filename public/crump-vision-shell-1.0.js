@@ -249,6 +249,11 @@
           window.CrumpProduct53.openFiles();
         } else if (window.CrumpProductLoader && typeof window.CrumpProductLoader.openFiles === 'function') {
           window.CrumpProductLoader.openFiles();
+        } else {
+          window.showToast?.('Files are still loading. Try again in a moment.', 'info');
+          currentId = 'ask';
+          setActive('ask');
+          return;
         }
         track(id);
         dispatchShow(id);
@@ -397,11 +402,17 @@
 
   function destinationButton(id, cls) {
     var beta = id === 'autonomous' ? '<small>Beta</small>' : '';
+    // Autonomous is fail-closed until the authenticated feature probe says
+    // the provider is configured. The loader removes these attributes for
+    // both the rail and the mobile More sheet in one availability update.
+    var availability = id === 'autonomous'
+      ? ' data-crump-code-destination hidden disabled aria-hidden="true"'
+      : '';
     var popup = id === 'more'
       ? ' aria-haspopup="dialog" aria-controls="cvMoreMenu" aria-expanded="false"'
       : '';
     return (
-      '<button type="button" class="' + cls + '" data-cv-destination="' + id + '" aria-label="' + esc(LABELS[id]) + '"' + popup + '>' +
+      '<button type="button" class="' + cls + '" data-cv-destination="' + id + '"' + availability + ' aria-label="' + esc(LABELS[id]) + '"' + popup + '>' +
       ICONS[id] +
       '<span>' + esc(LABELS[id]) + beta + '</span>' +
       '</button>'
@@ -710,33 +721,84 @@
 
   function startDatasetSync() {
     var docEl = document.documentElement;
+    var observedSheet = null;
+    var observedStudio = null;
+    var sheetObserver = null;
+    var studioObserver = null;
+    var insertionObserver = null;
+
+    function filesNavigationIsPending() {
+      return Boolean(document.querySelector('[data-cv-destination="files"][aria-busy="true"]'));
+    }
+
+    function filesSurfaceIsOpen() {
+      var productStudio = document.getElementById('crump53Studio');
+      var productSheet = document.getElementById('crump53Sheet');
+      return Boolean(
+        productStudio && !productStudio.hidden &&
+        productSheet && productSheet.dataset.projectView === 'files'
+      );
+    }
+
     function sync() {
       if (settling) {
         settling = false;
         return;
       }
       if (isMounted()) return;
-      var productStudio = document.getElementById('crump53Studio');
-      var productSheet = document.getElementById('crump53Sheet');
-      var filesSurfaceOpen = Boolean(
-        productStudio && !productStudio.hidden &&
-        productSheet && productSheet.dataset.projectView === 'files'
-      );
-      var mapped = filesSurfaceOpen ? 'files' : OLD_TO_NEW[docEl.dataset.crumpNavigationDestination];
+      // A cold Files navigation inserts the product sheet lazily. Preserve the
+      // requested destination while those assets are busy, then use the sheet's
+      // own view marker as the authoritative state. This prevents the legacy
+      // Projects adapter from briefly or permanently taking the highlight back.
+      var filesOwnSurface = filesSurfaceIsOpen()
+        || (currentId === 'files' && filesNavigationIsPending());
+      var mapped = filesOwnSurface ? 'files' : OLD_TO_NEW[docEl.dataset.crumpNavigationDestination];
       if (mapped && mapped !== currentId) {
         currentId = mapped;
         setActive(mapped);
       }
     }
+
+    function bindProductSurfaceObservers() {
+      var productSheet = document.getElementById('crump53Sheet');
+      if (productSheet && productSheet !== observedSheet) {
+        sheetObserver?.disconnect();
+        observedSheet = productSheet;
+        sheetObserver = new MutationObserver(sync);
+        sheetObserver.observe(productSheet, {
+          attributes: true,
+          attributeFilter: ['data-project-view', 'data-crump53-section'],
+        });
+      }
+      var productStudio = document.getElementById('crump53Studio');
+      if (productStudio && productStudio !== observedStudio) {
+        studioObserver?.disconnect();
+        observedStudio = productStudio;
+        studioObserver = new MutationObserver(sync);
+        studioObserver.observe(productStudio, {
+          attributes: true,
+          attributeFilter: ['hidden'],
+        });
+      }
+      if (observedSheet && observedStudio) insertionObserver?.disconnect();
+    }
+
     var observer = new MutationObserver(sync);
     observer.observe(docEl, { attributes: true, attributeFilter: ['data-crump-navigation-destination'] });
-    var productSheet = document.getElementById('crump53Sheet');
-    if (productSheet) {
-      new MutationObserver(sync).observe(productSheet, {
-        attributes: true,
-        attributeFilter: ['data-project-view', 'hidden'],
+    bindProductSurfaceObservers();
+    if (!observedSheet || !observedStudio) {
+      insertionObserver = new MutationObserver(function () {
+        bindProductSurfaceObservers();
+        sync();
       });
+      insertionObserver.observe(document.body, {childList: true, subtree: true});
     }
+    document.addEventListener('crump:product-view-changed', function (event) {
+      var destination = normalizeId(event?.detail?.destination);
+      if (!destination || isMounted()) return;
+      currentId = destination;
+      setActive(destination);
+    });
   }
 
   /* ------------------------------------------------------------------ */

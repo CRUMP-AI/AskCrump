@@ -82,28 +82,38 @@ async function verify(browser, viewport) {
     && document.getElementById('crump53Sheet')?.dataset.crump53Section === 'video'
   ));
   await page.waitForFunction(() => document.activeElement?.id === 'crump53WorkspaceTitle');
-  const switched = await page.evaluate(() => ({
-    createHidden: document.getElementById('crump5930CreateHub').hidden,
-    studioOpen: !document.getElementById('crump53Studio').hidden,
-    section: document.getElementById('crump53Sheet').dataset.crump53Section,
-    active: document.querySelector('[data-cv-destination].is-active')?.dataset.cvDestination,
-    focus: document.activeElement?.id,
-  }));
-  assert.deepEqual(switched, {
+  const switched = await page.evaluate(() => {
+    const studio = document.getElementById('crump53Studio').getBoundingClientRect();
+    const nav = document.getElementById('cvMobileNav')?.getBoundingClientRect();
+    return {
+      createHidden: document.getElementById('crump5930CreateHub').hidden,
+      studioOpen: !document.getElementById('crump53Studio').hidden,
+      section: document.getElementById('crump53Sheet').dataset.crump53Section,
+      active: document.querySelector('[data-cv-destination].is-active')?.dataset.cvDestination,
+      focus: document.activeElement?.id,
+      studioBottom: Math.round(studio.bottom),
+      navTop: nav ? Math.round(nav.top) : null,
+    };
+  });
+  assert.deepEqual({
+    createHidden: switched.createHidden,
+    studioOpen: switched.studioOpen,
+    section: switched.section,
+    active: switched.active,
+    focus: switched.focus,
+  }, {
     createHidden: true,
     studioOpen: true,
     section: 'video',
     active: 'video',
     focus: 'crump53WorkspaceTitle',
   });
-
-  // Product workspaces intentionally cover the compact mobile navigation so
-  // taps cannot escape a modal sheet through its backdrop. Close the sheet
-  // first on phones, then prove the visible Ask destination remains usable.
   if (viewport.width <= 1100) {
-    await page.locator('#crump53Close').click();
-    await page.waitForFunction(() => document.getElementById('crump53Studio')?.hidden);
+    assert(Math.abs(switched.studioBottom - switched.navTop) <= 1, JSON.stringify(switched));
   }
+
+  // Product workspaces stop above the persistent mobile navigation, so the
+  // visible Ask destination remains a direct, reliable way home.
   await visibleDestination('ask').click();
   await page.waitForFunction(() => document.getElementById('crump53Studio')?.hidden);
   const returned = await page.evaluate(() => ({

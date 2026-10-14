@@ -76,4 +76,4 @@ def test_intelligence_receipt_assets_are_cache_versioned_atomically():
         assert versioned in worker
     for source in (runtime, worker):
         assert "/app.js?v=5.9.76-reference-fidelity-hard-contract-1" in source
-    assert "ask-crump-new-body-v1-r257-appearance-choice-1" in worker
+    assert "ask-crump-new-body-v1-r258-ui-contract-repair-1" in worker

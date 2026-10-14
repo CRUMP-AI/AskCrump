@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r257-appearance-choice-1';
+const CACHE_NAME = 'ask-crump-new-body-v1-r258-ui-contract-repair-1';
 
 const CORE = [
   '/app',
@@ -6,8 +6,8 @@ const CORE = [
   '/legal.html',
   '/delete-account.html',
   '/manifest.json',
-  '/appearance-theme.js?v=5.9.76-appearance-choice-1',
-  '/appearance-controls.css?v=5.9.76-appearance-choice-1',
+  '/appearance-theme.js?v=5.9.76-appearance-choice-2',
+  '/appearance-controls.css?v=5.9.76-appearance-choice-2',
   '/landing-5.6.css?v=5.9.76-accessibility-1',
   '/use-case.css?v=5.9.76',
   '/landing.js?v=5.9.76-facebook-reel-attribution-1',
@@ -20,7 +20,7 @@ const CORE = [
   '/crump-v1-body.css?v=5.9.76-friendly-workspace-1',
   '/credit-confirmation.css?v=5.9.76-credit-confirmation-1',
   '/lifecycle.css?v=5.9.76-lifecycle-activation-1',
-  '/crump-design-pass.css?v=5.9.76-appearance-choice-1',
+  '/crump-design-pass.css?v=5.9.76-appearance-choice-2',
   '/crump-v1-body.js?v=5.9.76-atelier-workspace-1',
   '/crump-v1-stability.css',
   '/crump-v1-stability.js?v=5.9.76-intelligence-architecture-1',

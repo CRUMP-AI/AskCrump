@@ -2299,9 +2299,13 @@
     const isOpen = normalized !== 'index';
     panel?.classList.toggle('is-project-open', isOpen);
     if (sheet) sheet.dataset.projectView = normalized;
-    if (back) back.hidden = !isOpen;
+    // Files is a first-class workspace destination, not a child Project.
+    // Project detail/new retain their contextual back action; Files uses the
+    // sheet's explicit close action and never presents a misleading Projects
+    // breadcrumb.
+    if (back) back.hidden = !isOpen || normalized === 'files';
     if (normalized === 'files') {
-      if (kicker) kicker.textContent = 'PROJECTS';
+      if (kicker) kicker.textContent = 'PRIVATE FILES';
       if (title) title.textContent = 'Files';
       sheet?.setAttribute('aria-label', 'Ask Crump Files');
       close?.setAttribute('aria-label', 'Close Files');
@@ -2322,6 +2326,12 @@
       sheet?.setAttribute('aria-label', STUDIO_SECTION_META.projects.label);
       close?.setAttribute('aria-label', STUDIO_SECTION_META.projects.closeLabel);
     }
+    document.dispatchEvent(new CustomEvent('crump:product-view-changed', {
+      detail: {
+        destination: normalized === 'files' ? 'files' : 'projects',
+        view: normalized,
+      },
+    }));
     const body = sheet?.querySelector('.crump53-sheet-body');
     if (body) body.scrollTop = 0;
     if (!focus) return;

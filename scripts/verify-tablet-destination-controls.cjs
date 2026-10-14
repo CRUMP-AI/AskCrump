@@ -81,7 +81,7 @@ const expectedDestinations = ['ask', 'projects', 'library', 'video', 'more'];
       && document.getElementById('crump53Sheet')?.dataset.crump53Section === 'projects'
     ));
     const projects = await surfaceGeometry('#crump53Studio');
-    assert.equal(projects.bottom, baseline.viewportHeight, JSON.stringify(projects));
+    assert.equal(projects.bottom, projects.navTop, JSON.stringify(projects));
     await page.locator('#crump53Close').click();
 
     await clickDestination('library');
@@ -92,6 +92,8 @@ const expectedDestinations = ['ask', 'projects', 'library', 'video', 'more'];
     await clickDestination('video');
     await page.waitForFunction(() => document.getElementById('crump53Sheet')?.dataset.crump53Section === 'video');
     assert.equal(await page.locator('#crump53WorkspaceTitle').textContent(), 'Video Studio');
+    const video = await surfaceGeometry('#crump53Studio');
+    assert.equal(video.bottom, video.navTop, JSON.stringify(video));
     await page.locator('#crump53Close').click();
 
     await page.evaluate(() => window.CrumpNavigation5930.open('create'));
@@ -144,7 +146,7 @@ const expectedDestinations = ['ask', 'projects', 'library', 'video', 'more'];
     });
     assert.deepEqual(errors, []);
 
-    process.stdout.write(JSON.stringify({baseline, projects, create, you, plan, errors}));
+    process.stdout.write(JSON.stringify({baseline, projects, video, create, you, plan, errors}));
   } finally {
     await browser.close();
   }

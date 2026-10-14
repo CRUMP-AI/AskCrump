@@ -21,6 +21,8 @@ function fixtureHtml(mode) {
 <body>
   <button id="projects" type="button" data-v1-command="projects">Projects</button>
   <button id="video" type="button" data-crump5930-destination="video">Video</button>
+  <button id="filesLegacy" type="button" data-v1-command="files">Files legacy</button>
+  <div id="appContainer"><div class="v1-shell"><aside class="v1-rail"></aside><main class="v1-workspace"><header class="v1-workspace-header"></header><div class="v1-workspace-body"></div><div class="v1-command-dock"></div></main></div></div>
   <output id="status">idle</output>
   <script>
     ${persisted}
@@ -32,6 +34,7 @@ function fixtureHtml(mode) {
       document.getElementById('status').textContent = type === 'error' ? 'retry' : message;
     };
   </script>
+  <script src="/crump-vision-shell-1.0.js?v=navigation-function-repairs-1"></script>
   <script src="${assetPaths.loader}?v=5.9.76-reference-fidelity-hard-contract-1"></script>
   <script>
     document.getElementById('projects').addEventListener('click', () => {
@@ -55,7 +58,23 @@ function productStub() {
         return true;
       },
       openProject(projectId) { window.productOpens.push('project:' + projectId); return true; },
-      openFiles() { window.productOpens.push('files'); return true; },
+      openFiles() {
+        window.productOpens.push('files');
+        const studio = document.createElement('div');
+        studio.id = 'crump53Studio';
+        const sheet = document.createElement('section');
+        sheet.id = 'crump53Sheet';
+        sheet.dataset.crump53Section = 'projects';
+        sheet.dataset.projectView = 'index';
+        studio.appendChild(sheet);
+        document.body.appendChild(studio);
+        document.documentElement.dataset.crumpNavigationDestination = 'projects';
+        return new Promise(resolve => setTimeout(() => {
+          sheet.dataset.projectView = 'files';
+          document.getElementById('status').textContent = 'open:files';
+          resolve(true);
+        }, 40));
+      },
       projectTarget() { return {id: 'fixture-project', name: 'Launch Operations'}; },
       projectForConversation() { return Promise.resolve(null); },
       resolveOutcomeProject() { return Promise.resolve({saved: false, project: null}); },
@@ -129,6 +148,13 @@ async function state(page) {
     projectBusy: document.getElementById('projects')?.getAttribute('aria-busy'),
     projectDisabled: document.getElementById('projects')?.disabled,
     videoBusy: document.getElementById('video')?.getAttribute('aria-busy'),
+    filesBusy: [...document.querySelectorAll('[data-v1-command="files"], [data-cv-destination="files"]')]
+      .map(item => item.getAttribute('aria-busy')),
+    filesDisabled: [...document.querySelectorAll('[data-v1-command="files"], [data-cv-destination="files"]')]
+      .map(item => item.disabled),
+    filesActive: document.querySelector('.cv-destination[data-cv-destination="files"]')?.classList.contains('is-active') || false,
+    projectsActive: document.querySelector('.cv-destination[data-cv-destination="projects"]')?.classList.contains('is-active') || false,
+    visionCurrent: window.CrumpVision?.current?.() || '',
     opens: window.productOpens.slice(),
     toasts: window.toasts.slice(),
     loader: Boolean(window.CrumpProductLoader?.load),
@@ -164,24 +190,42 @@ async function state(page) {
     assert.equal(counts.get(`normal:${assetPaths.script}`) || 0, 0);
     assert.equal(counts.get(`normal:${assetPaths.style}`) || 0, 0);
 
-    await page.click('#projects', {noWaitAfter: true});
-    await page.waitForFunction(() => document.getElementById('projects')?.getAttribute('aria-busy') === 'true');
-    await page.waitForFunction(() => document.getElementById('status')?.textContent === 'open:projects');
+    await page.click('.cv-destination[data-cv-destination="files"]', {noWaitAfter: true});
+    await page.waitForFunction(() => document.querySelector('.cv-destination[data-cv-destination="files"]')?.getAttribute('aria-busy') === 'true');
+    const coldFilesBusy = await state(page);
+    assert.ok(coldFilesBusy.filesBusy.length >= 3);
+    assert.equal(coldFilesBusy.filesBusy.every(value => value === 'true'), true);
+    assert.equal(coldFilesBusy.filesDisabled.every(Boolean), true);
+    assert.equal(coldFilesBusy.projectBusy, null);
+    await page.waitForFunction(() => document.getElementById('status')?.textContent === 'open:files');
     const opened = await state(page);
     assert.equal(opened.projectBusy, null);
     assert.equal(opened.projectDisabled, false);
     assert.equal(opened.videoBusy, null);
-    assert.deepEqual(opened.opens, ['projects']);
-    assert.deepEqual(opened.toasts, [{message: 'Opening Projects…', type: 'info'}]);
+    assert.equal(opened.filesBusy.every(value => value === null), true);
+    assert.equal(opened.filesDisabled.every(value => value === false), true);
+    assert.deepEqual(opened.opens, ['files']);
+    assert.deepEqual(opened.toasts, [{message: 'Opening Files…', type: 'info'}]);
+    assert.equal(opened.filesActive, true);
+    assert.equal(opened.projectsActive, false);
+    assert.equal(opened.visionCurrent, 'files');
+    await page.evaluate(() => {
+      document.documentElement.dataset.crumpNavigationDestination = 'projects';
+    });
+    await page.waitForTimeout(30);
+    const afterLegacyProjectSync = await state(page);
+    assert.equal(afterLegacyProjectSync.filesActive, true);
+    assert.equal(afterLegacyProjectSync.projectsActive, false);
+    assert.equal(afterLegacyProjectSync.visionCurrent, 'files');
     assert.equal(opened.full, true);
     assert.equal(opened.loadedStyleNodes, 1);
     assert.equal(opened.loadedScriptNodes, 1);
     assert.deepEqual(opened.target, {id: 'fixture-project', name: 'Launch Operations'});
-    await page.click('#video');
+    await page.click('#projects');
     await page.waitForFunction(() => window.productOpens.length === 2);
     const reused = await state(page);
-    assert.deepEqual(reused.opens, ['projects', 'video']);
-    assert.deepEqual(reused.toasts, [{message: 'Opening Projects…', type: 'info'}]);
+    assert.deepEqual(reused.opens, ['files', 'projects']);
+    assert.deepEqual(reused.toasts, [{message: 'Opening Files…', type: 'info'}]);
     assert.equal(counts.get(`normal:${assetPaths.script}`), 1);
     assert.equal(counts.get(`normal:${assetPaths.style}`), 1);
     await context.close();
