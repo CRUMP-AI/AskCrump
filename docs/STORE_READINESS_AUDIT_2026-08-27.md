@@ -1,6 +1,6 @@
 # Ask Crump store-readiness audit — 2026-08-27
 
-Last updated: 2026-09-15
+Last updated: 2026-10-14
 
 ## Outcome
 
@@ -34,7 +34,7 @@ during this audit.
 
 | Area | Evidence | State |
 | --- | --- | --- |
-| Production release | Production health returned 5.9.76; the deployed client contains truthful representative document and résumé output, immediate race-safe account entry, the repaired web-session handoff, the six-destination Ask, Projects, Create, Video, Library, and You navigation, the exact native billing catalog contract, and account-scoped single-flight native billing identity. Current-deployment runtime checks passed with no observed error cluster. | Verified |
+| Production release | Production health returned 5.9.76; the deployed client contains truthful representative document and résumé output, immediate race-safe account entry, the repaired web-session handoff, released Ask, Projects, Files, Library, and Video navigation with Profile as a utility destination and Files/Profile grouped inside More on mobile, the exact native billing catalog contract, and account-scoped single-flight native billing identity. Current-deployment runtime checks passed with no observed error cluster. | Verified |
 | Permanent identifier | Capacitor app ID and Android namespace/application ID are `com.clevercrump.askcrump`; native verification now fails if either platform drifts. | Verified |
 | Android platform level | Regenerated source uses min SDK 24 and compile/target SDK 36. Google requires new apps and updates to target API 36 beginning August 31, 2026. | Verified |
 | Android release identity | Regenerated source uses version 5.9.76 and build/version code 50976. | Verified |
@@ -47,7 +47,7 @@ during this audit.
 | Reproducible dependencies | The tracked npm v3 lockfile was generated with Node 22.22.0/npm 11.6.0 in an isolated worktree. Clean `npm ci`, `npm ls --all`, a zero-vulnerability `npm audit`, production build, and deterministic Android preparation passed. | Verified |
 | Privacy inventory | `docs/DATA_SAFETY.md`, the public privacy notice, and the iOS base privacy manifest enumerate account, content, device, usage, purchase, reporting, push, and provider flows. | Source and unsigned outputs reconciled; signed archive and console forms pending |
 | Compiled privacy evidence | The app manifest semantically verifies linked/non-tracking declarations and both functionality/analytics purposes for purchase history and product interaction. GitHub iOS run [34159190241](https://github.com/CRUMP-AI/AskCrump/actions/runs/34159190241) compiled and validated five packaged manifests: app, Capacitor, Cordova, RevenueCat, and SDWebImage. Android run [34159190266](https://github.com/CRUMP-AI/AskCrump/actions/runs/34159190266) inspected the final merged manifest and found only the eight approved network, notification, vibration/wake, billing, app-internal receiver, and FCM permissions. Dependency or disclosure drift now fails closed. | Verified unsigned candidates; repeat on exact signed candidates and reconcile console forms |
-| iOS generation | The deterministic scripts set the bundle ID/version, explicit iPhone+iPad device family, push callbacks, Photos explanations, and bundled privacy manifest. GitHub run [34790149321](https://github.com/CRUMP-AI/AskCrump/actions/runs/34790149321) regenerated 5.9.76/build 50976, passed the exact dual-device verifier, compiled its Release configuration on hosted macOS, and verified the packaged privacy manifests. | Verified unsigned Release compile |
+| iOS generation | The deterministic scripts set the bundle ID/version, explicit iPhone+iPad device family, push callbacks, Camera/Photos picker/Save to Photos explanations, and bundled privacy manifest. The release guard requires exactly one meaningful top-level string per usage key and rejects missing, empty, whitespace-only, encoded-whitespace-only, commented-out-only, nested-only, duplicate, or wrong-type declarations. GitHub run [34790149321](https://github.com/CRUMP-AI/AskCrump/actions/runs/34790149321) verified the preceding 5.9.76 unsigned baseline; the exact current source must complete a fresh hosted Xcode 26 compile before submission. | Current source guarded; exact unsigned rerun pending |
 | iOS cloud boundary | `.github/workflows/ios-store-verify.yml` uses a standard GitHub macOS runner with signing disabled and no upload credentials. The first run exposed a workspace/project assumption; the corrected workflow accepts the generated Xcode project and the second run passed. | Verified no-secret/no-upload boundary |
 | Android cloud boundary | `.github/workflows/android-store-verify.yml` prepares source with Node 22, selects Temurin Java 21, compiles a Release App Bundle, and requires the `.aab` to be non-empty. The refreshed 5.9.76/build 50976 [run 34790149297](https://github.com/CRUMP-AI/AskCrump/actions/runs/34790149297) passed every source, screenshot-packet, exact billing-catalog, persisted native billing identity, sign-out, direct-200 store URL, signing-control, Gradle, and bundle-output step. | Verified unsigned `.aab` compile |
 | Signing controls | Mobile signing verification found no tracked keys, certificates, provisioning profiles, service-account files, or passwords. | Verified |
@@ -103,6 +103,11 @@ during this audit.
   RevenueCat.
 - Validate the final archive's privacy report and required-reason API declarations, then test the
   signed build through TestFlight on physical iPhone and iPad hardware before review.
+- On both iPhone and iPad, exercise Take a photo after allowing Camera access, after denying it,
+  and after restoring it in Settings. Test the Photos picker under the system's available, limited,
+  and no-full-library-access states (including denial/recovery if iOS presents a prompt), then test
+  Save to Photos in allow, deny, and recovery paths. An unavailable or denied path must not crash,
+  blank the workspace, or discard the pending draft.
 
 ### Both stores
 

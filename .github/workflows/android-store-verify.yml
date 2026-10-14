@@ -19,11 +19,14 @@ on:
       - scripts/check-javascript.mjs
       - scripts/configure-android-signing.mjs
       - scripts/configure-native.mjs
+      - scripts/native-push-action-queue.mjs
+      - scripts/native-release-guards.mjs
       - scripts/prepare-store-release.mjs
       - scripts/production-build-preflight.mjs
       - scripts/revenuecat-catalog.mjs
       - scripts/verify-mobile-signing.mjs
       - scripts/verify-native-release.mjs
+      - scripts/verify-native-push-action-handoff.mjs
       - scripts/verify-native-privacy.mjs
       - scripts/verify-store-metadata.mjs
       - scripts/verify-store-submission-packet.mjs

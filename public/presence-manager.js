@@ -23,6 +23,13 @@
   let preferences = { ...DEFAULTS };
   let notificationToken = null;
   let online = navigator.onLine;
+  const handledPushActionIds = new Set();
+  const inFlightPushActionIds = new Set();
+  let pushConsumerReady = document.documentElement?.dataset?.crumpBodyRuntime === 'ready';
+  let pushRetryTimer = null;
+  let pushRetryDelay = 750;
+  let legacyPushInFlight = false;
+  let pushDrainPromise = null;
 
   const currentChat = () => (window.chats || []).find(chat => chat.id === window.currentChatId || chat.chat_id === window.currentChatId);
   const rerender = () => window.renderMessages?.(currentChat()?.messages || []);
@@ -284,30 +291,164 @@
   }
 
   async function openNotification(detail) {
-    const data = detail?.notification?.data || detail?.data || {};
-    const chatId = data.chatId || data.chat_id;
-    if (!chatId) return;
+    const notificationData = detail?.notification?.data || {};
+    const actionData = detail?.data || {};
+    const chatId = String(
+      notificationData.chatId || notificationData.chat_id
+      || actionData.chatId || actionData.chat_id
+      || '',
+    ).trim();
+    if (!chatId) return true;
     try { sessionStorage.setItem('crump_pending_chat', chatId); } catch (_) {}
-    await window.syncChatsFromServer?.();
-    setTimeout(() => window.loadChat?.(chatId), 450);
+    const findChat = () => (window.chats || []).find(chat =>
+      String(chat?.id || chat?.chat_id || '') === chatId
+    );
+    let target = findChat();
+    if (!target) {
+      if (typeof window.syncChatsFromServer !== 'function') return false;
+      const result = await window.syncChatsFromServer();
+      if (result?.success !== true || result?.deferred) return false;
+      target = findChat();
+    }
+    if (!target) {
+      try { sessionStorage.removeItem('crump_pending_chat'); } catch (_) {}
+      window.showToast?.('This conversation is no longer available.', 'info');
+      return true;
+    }
+    if (typeof window.loadChat !== 'function') return false;
+    const targetId = String(target.id || target.chat_id || chatId);
+    await Promise.resolve(window.loadChat(targetId));
+    if (String(window.currentChatId || '') !== targetId) return false;
+    try { sessionStorage.removeItem('crump_pending_chat'); } catch (_) {}
+    return true;
   }
 
-  window.addEventListener('online', () => setOnline(true));
+  function pendingPushActions() {
+    const pending = window.CrumpNative?.peekPendingPushActions?.();
+    return Array.isArray(pending) ? pending : [];
+  }
+
+  function schedulePushActionRetry() {
+    let legacyPendingChat = '';
+    try { legacyPendingChat = sessionStorage.getItem('crump_pending_chat') || ''; } catch (_) {}
+    if (pushRetryTimer || (!pendingPushActions().length && !legacyPendingChat)) return;
+    const delay = pushRetryDelay;
+    pushRetryDelay = Math.min(pushRetryDelay * 2, 30000);
+    pushRetryTimer = setTimeout(() => {
+      pushRetryTimer = null;
+      void consumeAllPushActions();
+    }, delay);
+  }
+
+  async function consumePushAction(detail) {
+    if (!pushConsumerReady) return false;
+    const queueId = String(detail?.queueId || '');
+    const durableIdentity = queueId && !String(detail?.dedupKey || '').startsWith('navigation:');
+    const action = detail?.action || detail;
+    if (durableIdentity && handledPushActionIds.has(queueId)) {
+      window.CrumpNative?.acknowledgePushAction?.(queueId);
+      return true;
+    }
+    if (queueId && inFlightPushActionIds.has(queueId)) return false;
+    if (queueId) inFlightPushActionIds.add(queueId);
+    try {
+      const consumed = await openNotification(action);
+      if (!consumed) {
+        schedulePushActionRetry();
+        return false;
+      }
+      if (queueId) {
+        if (durableIdentity) {
+          handledPushActionIds.add(queueId);
+          if (handledPushActionIds.size > 64) {
+            handledPushActionIds.delete(handledPushActionIds.values().next().value);
+          }
+        }
+        window.CrumpNative?.acknowledgePushAction?.(queueId);
+      }
+      pushRetryDelay = 750;
+      return true;
+    } catch (error) {
+      console.warn('[Push] Notification handoff will retry:', error);
+      schedulePushActionRetry();
+      return false;
+    } finally {
+      if (queueId) inFlightPushActionIds.delete(queueId);
+    }
+  }
+
+  async function consumePendingPushActions() {
+    while (pushConsumerReady) {
+      const [detail] = pendingPushActions();
+      if (!detail) return true;
+      const consumed = await consumePushAction(detail);
+      if (!consumed) return false;
+    }
+    return false;
+  }
+
+  async function consumeLegacyPendingChat() {
+    if (!pushConsumerReady || legacyPushInFlight || pendingPushActions().length) return;
+    let pendingChat = '';
+    try { pendingChat = sessionStorage.getItem('crump_pending_chat') || ''; } catch (_) {}
+    if (!pendingChat) return;
+    legacyPushInFlight = true;
+    try {
+      const consumed = await openNotification({ data: { chatId: pendingChat } });
+      if (!consumed) {
+        schedulePushActionRetry();
+        return;
+      }
+      pushRetryDelay = 750;
+    } catch (error) {
+      console.warn('[Push] Legacy notification handoff will retry:', error);
+      schedulePushActionRetry();
+    } finally {
+      legacyPushInFlight = false;
+    }
+  }
+
+  async function consumeAllPushActions() {
+    if (!pushConsumerReady) return;
+    if (pushDrainPromise) return pushDrainPromise;
+    pushDrainPromise = (async () => {
+      while (true) {
+        const queueDrained = await consumePendingPushActions();
+        if (!queueDrained) break;
+        await consumeLegacyPendingChat();
+        if (!pendingPushActions().length) break;
+      }
+    })().finally(() => {
+      pushDrainPromise = null;
+    });
+    return pushDrainPromise;
+  }
+
+  function startPushConsumer() {
+    pushConsumerReady = true;
+    void consumeAllPushActions();
+  }
+
+  window.addEventListener('online', () => {
+    setOnline(true);
+    void consumeAllPushActions();
+  });
   window.addEventListener('offline', () => setOnline(false));
-  window.addEventListener('crump:network-status', event => setOnline(event.detail?.connected));
+  window.addEventListener('crump:network-status', event => {
+    setOnline(event.detail?.connected);
+    if (event.detail?.connected) void consumeAllPushActions();
+  });
   window.addEventListener('crump:push-registration', event => registerToken(event.detail?.value));
-  window.addEventListener('crump:push-action', event => openNotification(event.detail));
+  window.addEventListener('crump:push-action', () => { void consumeAllPushActions(); });
+  window.addEventListener('crump:body-runtime-ready', startPushConsumer, { once: true });
+  if (pushConsumerReady) queueMicrotask(startPushConsumer);
   document.addEventListener('change', event => {
     if (event.target?.id === 'crumpCheckIns') updateCheckInVisibility();
   });
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) {
       loadPreferences();
-      const pending = sessionStorage.getItem('crump_pending_chat');
-      if (pending) {
-        sessionStorage.removeItem('crump_pending_chat');
-        setTimeout(() => window.loadChat?.(pending), 300);
-      }
+      void consumeAllPushActions();
     }
   });
 

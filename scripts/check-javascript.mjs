@@ -1032,11 +1032,12 @@ const projectSaveOfferVersion = `${releaseVersion}-project-save-offer-1`;
 const navigationDiscoveryVersion = `${releaseVersion}-navigation-discovery-1`;
 const imageStudioEntryVersion = `${releaseVersion}-image-studio-entry-1`;
 const museReleaseRepairVersion = `${releaseVersion}-muse-release-repair-1`;
+const nativePushHandoffVersion = `${releaseVersion}-native-push-handoff-1`;
 const cacheIntegrityVersion = `${releaseVersion}-friendly-workspace-1`;
 const shellNoTaglineVersion = `${releaseVersion}-shell-no-tagline-1`;
 const atelierWorkspaceVersion = `${releaseVersion}-atelier-workspace-1`;
 const autonomousContinuityVersion = `${releaseVersion}-autonomous-continuity-1`;
-const runtimeBodyVersion = autonomousContinuityVersion;
+const runtimeBodyVersion = nativePushHandoffVersion;
 const appearanceChoiceVersion = `${releaseVersion}-appearance-choice-3`;
 const uiReleaseAuditVersion = `${releaseVersion}-ui-release-audit-2`;
 const activityCenterVersion = autonomousContinuityVersion;
@@ -1423,7 +1424,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/account-manager.js?v=${accountDeletionStorageVersion}`) ||
     !runtime.includes(`/scroll-manager.js?v=${museReleaseRepairVersion}`) ||
     !runtime.includes(`/ui-functions.js?v=${atelierWorkspaceVersion}`) ||
-    !runtime.includes(`/presence-manager.js?v=${museReleaseRepairVersion}`) ||
+    !runtime.includes(`/presence-manager.js?v=${nativePushHandoffVersion}`) ||
     !runtime.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-1`) ||
     !runtime.includes(`/lifecycle-share.js?v=${settingsInviteVersion}`) ||
     !runtime.includes(`/lifecycle-manager.js?v=${lifecycleIdleSendVersion}`) ||
@@ -1714,7 +1715,7 @@ for (const [label, source] of [
     process.exit(1);
   }
 }
-if (!serviceWorker.includes('ask-crump-new-body-v1-r262-autonomous-continuity-1') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r263-native-push-handoff-1') ||
     !serviceWorker.includes(`'${shellBrandUrl}'`) ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||
@@ -1740,7 +1741,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r262-autonomous-continuity-1'
     serviceWorker.includes(`/crump-precision-image-edit.css?v=${precisionEditStudioVersion}`) ||
     serviceWorker.includes(`/crump-precision-image-edit.js?v=${liveImagePreviewVersion}`) ||
     !serviceWorker.includes(`/ui-functions.js?v=${atelierWorkspaceVersion}`) ||
-    !serviceWorker.includes(`/presence-manager.js?v=${museReleaseRepairVersion}`) ||
+    !serviceWorker.includes(`/presence-manager.js?v=${nativePushHandoffVersion}`) ||
     !serviceWorker.includes(`/app.js?v=${groundedResearchVersion}`) ||
     !serviceWorker.includes(`/crump-5.2.2.css?v=${newResponseCueVersion}`) ||
     !serviceWorker.includes(`/crump-5.2.2.js?v=${museReleaseRepairVersion}`) ||

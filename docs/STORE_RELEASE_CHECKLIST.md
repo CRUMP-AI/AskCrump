@@ -17,14 +17,16 @@
 - deterministic per-platform native preparation and version/build validation
 - Android compile/target SDK 36 enforcement
 - base iOS privacy manifest copied into the app Resources build phase
+- deterministic iOS Camera, Photos picker, and Save to Photos usage descriptions with a
+  whitespace-rejecting release guard
 - deterministic iOS push-entitlements file bound to every App build configuration
 - machine-validated en-US store metadata and signed-build screenshot capture plan
 - permanent package/bundle identifier verification for both native platforms
 - Android cleartext traffic and local backup disabled for account-linked session data
 
-## 2026-09-13 audit snapshot
+## 2026-10-14 audit snapshot
 
-- [x] Production 5.9.76, truthful representative document and résumé output, immediate race-safe account entry, recoverable failed/reused verification-link return, complete ordered signup milestone delivery, bounded and recoverable authentication entry/recovery, recoverable primary first-message and reply delivery, bounded queue-preserving sync, non-blocking authenticated entry, truthful first-prompt handoff, reliable first workspace choice, optional first-workspace personalization, durable registration-verification handoff, accessible password readiness and web/PWA pinch zoom, WCAG AA public first visit, reliable web-session handoff, six-destination Ask, Projects, Create, Video, Library, and You desktop/mobile workspace, resumable Project conversations, named recent-work continuation, one-click Project continuity, disabled-by-default Crump Code review workspace, 12 canonical crawlable public pages, truthful referral-copy handling, canonical native API host, direct signed Stripe delivery, transient database-read recovery, value-aware cold signup entry, exact native billing identity, and user-controlled chat scrolling verified
+- [x] Production 5.9.76, truthful representative document and résumé output, immediate race-safe account entry, recoverable failed/reused verification-link return, complete ordered signup milestone delivery, bounded and recoverable authentication entry/recovery, recoverable primary first-message and reply delivery, bounded queue-preserving sync, non-blocking authenticated entry, truthful first-prompt handoff, reliable first workspace choice, optional first-workspace personalization, durable registration-verification handoff, accessible password readiness and web/PWA pinch zoom, WCAG AA public first visit, reliable web-session handoff, released Ask, Projects, Files, Library, and Video workspace navigation with Profile as a utility destination and Files/Profile grouped inside More on mobile, resumable Project conversations, named recent-work continuation, one-click Project continuity, disabled-by-default Crump Code review workspace, 12 canonical crawlable public pages, truthful referral-copy handling, canonical native API host, direct signed Stripe delivery, transient database-read recovery, value-aware cold signup entry, exact native billing identity, and user-controlled chat scrolling verified
 - [x] Android source regenerated and verified as 5.9.76/build 50976, API 36
 - [x] Store metadata fits current Apple and Google field limits
 - [x] Current Google API-level, AI-reporting, deletion, Data Safety, and app-access rules reviewed
@@ -42,7 +44,8 @@
       were added for 5.9.76/build 50976, including the screenshot-packet gate
       ([run 34790149297](https://github.com/CRUMP-AI/AskCrump/actions/runs/34790149297), 2026-09-13)
 - [x] Apple/Google listing copy, reviewer path, and screenshot sequence match the released Ask,
-      Projects, Create, Video, Library, and You information architecture; Research remains inside Ask
+      Projects, Files, Library, and Video information architecture, with Profile as a utility destination
+      and Files/Profile grouped inside More on mobile; Research remains inside Ask
 - [ ] Exact signed builds pass the physical-device, billing, privacy, and console gates
 - [x] Final packet has a fail-closed local completeness gate for exact signed artifact hash, fresh
       device/console evidence, current iPhone + iPad and Android screenshot dimensions/format,
@@ -61,6 +64,10 @@ See `docs/STORE_READINESS_AUDIT_2026-08-27.md` for evidence, blockers, and offic
 - [ ] App Privacy answers include conversations, delivery metadata, optional check-in data, push tokens, device/session, usage, diagnostics, and purchases
 - [ ] Privacy manifest/required-reason APIs validated from the final Xcode archive
 - [ ] Dynamic Type, VoiceOver, Reduce Motion, haptics-off, keyboard, and safe areas tested
+- [ ] On physical iPhone and iPad, Take a photo is tested after allowing Camera access, after
+      denying access, and after retrying from Settings; the Photos picker is tested under the
+      system's available, limited, and no-full-library-access states (including denial/recovery if
+      iOS presents a permission prompt); Save to Photos is tested in allow, deny, and recovery paths
 - [ ] Native purchases, restore, cancellation disclosure, sync, persistent login, and deletion tested
 - [ ] Real final 6.9-inch iPhone and 13-inch iPad screenshot sets and reviewer account/steps supplied
 

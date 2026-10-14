@@ -1,6 +1,7 @@
-import plistlib
+import json
 import os
 from pathlib import Path
+import plistlib
 import shutil
 import subprocess
 import xml.etree.ElementTree as ET
@@ -30,20 +31,44 @@ def test_ios_push_entitlement_is_reconstructed_and_release_guarded() -> None:
     assert "The iOS push-entitlements file is missing" in verifier
     assert "Xcode selects the signed environment from the provisioning profile" in verifier
     assert "resources/App.entitlements" in read(".github/workflows/ios-store-verify.yml")
+    for workflow in (
+        ".github/workflows/ios-store-verify.yml",
+        ".github/workflows/android-store-verify.yml",
+    ):
+        assert "scripts/native-release-guards.mjs" in read(workflow)
+        assert "scripts/native-push-action-queue.mjs" in read(workflow)
+        assert "scripts/verify-native-push-action-handoff.mjs" in read(workflow)
 
 
 def test_ios_usage_descriptions_orientations_and_push_are_fail_closed() -> None:
     configure = read("scripts/configure-native.mjs")
     verifier = read("scripts/verify-native-release.mjs")
+    guards = read("scripts/native-release-guards.mjs")
     deployment = read("docs/DEPLOYMENT.md")
     runbook = read("docs/STORE_LAUNCH_RUNBOOK.md")
+    checklist = read("docs/STORE_RELEASE_CHECKLIST.md")
+    audit = read("docs/STORE_READINESS_AUDIT_2026-08-27.md")
 
     for usage_key in (
+        "NSCameraUsageDescription",
         "NSPhotoLibraryUsageDescription",
         "NSPhotoLibraryAddUsageDescription",
     ):
         assert usage_key in configure
-        assert usage_key in verifier
+        assert usage_key in guards
+    assert "missingNonEmptyPlistStrings(source, IOS_MEDIA_USAGE_DESCRIPTION_KEYS)" in verifier
+    assert "Camera/Photos picker/Save to Photos explanations" in audit
+    for required_device_check in (
+        "physical iPhone and iPad",
+        "Take a photo",
+        "Photos picker",
+        "Save to Photos",
+        "denying access",
+        "retrying from Settings",
+    ):
+        assert required_device_check in checklist
+    assert "on both physical iPhone and iPad" in runbook
+    assert "lost draft" in runbook
     for orientation_key in (
         "UISupportedInterfaceOrientations",
         "UISupportedInterfaceOrientations~ipad",
@@ -59,6 +84,29 @@ def test_ios_usage_descriptions_orientations_and_push_are_fail_closed() -> None:
     assert "do not\nenable Background Modes" in deployment
 
 
+def test_ios_usage_description_guard_rejects_blank_text() -> None:
+    node = os.environ.get("ASKCRUMP_NODE_EXECUTABLE") or shutil.which("node")
+    if not node:
+        pytest.skip("Node.js is required to execute native release guard fixtures.")
+
+    package = json.loads(read("package.json"))
+    assert package["scripts"]["test:native-release-guards"] == (
+        "node scripts/test-native-release-guards.mjs"
+    )
+
+    result = subprocess.run(
+        [node, "scripts/test-native-release-guards.mjs"],
+        cwd=ROOT,
+        capture_output=True,
+        text=True,
+        check=False,
+        timeout=30,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert "one meaningful top-level usage string accepted" in result.stdout
+    assert "nested, duplicate, and wrong-type declarations rejected" in result.stdout
+
+
 def test_ios_configuration_reconstructs_push_capability_idempotently(tmp_path: Path) -> None:
     node = os.environ.get("ASKCRUMP_NODE_EXECUTABLE") or shutil.which("node")
     if not node:
@@ -72,6 +120,10 @@ def test_ios_configuration_reconstructs_push_capability_idempotently(tmp_path: P
     ):
         (tmp_path / directory).mkdir(parents=True, exist_ok=True)
     shutil.copy2(ROOT / "scripts/configure-native.mjs", tmp_path / "scripts/configure-native.mjs")
+    shutil.copy2(
+        ROOT / "scripts/native-release-guards.mjs",
+        tmp_path / "scripts/native-release-guards.mjs",
+    )
     shutil.copy2(ROOT / "resources/App.entitlements", tmp_path / "resources/App.entitlements")
     shutil.copy2(ROOT / "resources/PrivacyInfo.xcprivacy", tmp_path / "resources/PrivacyInfo.xcprivacy")
     (tmp_path / "package.json").write_text('{"version":"5.9.76"}', encoding="utf-8")
@@ -125,6 +177,7 @@ def test_ios_configuration_reconstructs_push_capability_idempotently(tmp_path: P
     assert project.count("/* App.entitlements */ =") == 1
     assert project.count("PrivacyInfo.xcprivacy in Resources") == 2
     assert app_delegate.count("capacitorDidRegisterForRemoteNotifications") == 1
+    assert info.count("NSCameraUsageDescription") == 1
     assert info.count("NSPhotoLibraryUsageDescription") == 1
     assert info.count("NSPhotoLibraryAddUsageDescription") == 1
     assert generated_entitlements == {"aps-environment": "development"}

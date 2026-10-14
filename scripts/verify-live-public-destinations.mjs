@@ -2,6 +2,8 @@ import {readFileSync, readdirSync, statSync} from 'node:fs';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
+import {staticAnchorHref} from './public-destination-parser.mjs';
+
 const repoRoot = fileURLToPath(new URL('../', import.meta.url));
 const publicRoot = path.join(repoRoot, 'public');
 const configuredOrigin = process.env.ASKCRUMP_PUBLIC_ORIGIN || 'https://www.askcrump.com';
@@ -12,9 +14,10 @@ const allowedHosts = new Set([
   'clevercrump.com',
   'www.clevercrump.com',
 ]);
-const expectedCompatibilityRedirects = new Map([
+const expectedApprovedRedirects = new Map([
   [new URL('/legal.html', origin).href, new URL('/legal', origin).href],
   [new URL('/delete-account.html', origin).href, new URL('/delete-account', origin).href],
+  ['https://www.clevercrump.com/', 'https://clevercrump.com/'],
 ]);
 
 function fail(message) {
@@ -49,9 +52,10 @@ function anchorDestinations() {
   for (const file of publicMarkupFiles(publicRoot)) {
     const source = readFileSync(file, 'utf8');
     const sourceUrl = new URL(sourceRoute(file), sourceOrigin(file));
+    const sourceType = file.toLowerCase().endsWith('.js') ? 'javascript' : 'html';
     for (const match of source.matchAll(anchorPattern)) {
-      const raw = String(match[2] || '').trim().replaceAll('&amp;', '&');
-      if (!raw || raw.includes('${') || raw.startsWith(('#', 'mailto:', 'tel:', 'javascript:', 'data:', 'blob:'))) continue;
+      const raw = staticAnchorHref(match[2], sourceType);
+      if (!raw) continue;
       let destination;
       try {
         destination = new URL(raw, sourceUrl);
@@ -152,7 +156,7 @@ async function fetchDirect(url) {
     const location = response.headers.get('location');
     if (!location) fail(`${url.href} redirects without a Location header`);
     const redirected = new URL(location, url);
-    const expected = expectedCompatibilityRedirects.get(url.href);
+    const expected = expectedApprovedRedirects.get(url.href);
     if (!expected || redirected.href !== expected) {
       fail(`${url.href} unexpectedly redirects to ${redirected.href}`);
     }
@@ -294,7 +298,7 @@ if (!robots.includes(`Sitemap: ${new URL('/sitemap.xml', origin).href}`)) {
 console.log(
   `Live public destination proof passed: ${anchors.size} unique first-party anchor destinations, `
   + `${sitemapUrls.length} canonical sitemap pages, ${requested.size} HTTP 200 destinations, and `
-  + `${expectedCompatibilityRedirects.size} exact native-compatibility redirects; `
+  + `${expectedApprovedRedirects.size} exact approved redirects; `
   + `${socialImages.size} social-preview images and every sitemap page's title, description, H1, `
   + 'indexability, canonical, structured data, and responsive viewport are valid.',
 );

@@ -18,10 +18,13 @@ on:
       - scripts/build-native.mjs
       - scripts/check-javascript.mjs
       - scripts/configure-native.mjs
+      - scripts/native-push-action-queue.mjs
+      - scripts/native-release-guards.mjs
       - scripts/prepare-store-release.mjs
       - scripts/production-build-preflight.mjs
       - scripts/revenuecat-catalog.mjs
       - scripts/verify-native-release.mjs
+      - scripts/verify-native-push-action-handoff.mjs
       - scripts/verify-native-privacy.mjs
       - scripts/verify-apple-toolchain.mjs
       - scripts/verify-store-metadata.mjs

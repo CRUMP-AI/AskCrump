@@ -8,13 +8,13 @@ const {chromium} = require(playwrightModule);
 const root = path.resolve(__dirname, '..');
 const publicDirectory = path.join(root, 'public');
 const oldCacheName = 'ask-crump-new-body-v1-r259-product-polish-1';
-const newCacheName = 'ask-crump-new-body-v1-r262-autonomous-continuity-1';
+const newCacheName = 'ask-crump-new-body-v1-r263-native-push-handoff-1';
 const oldUrls = Object.freeze([
   '/runtime-body-v1.js?v=5.9.76-product-polish-1',
   '/crump-motion-system.css?v=5.9.76-motion-system-1',
 ]);
 const newUrls = Object.freeze({
-  runtime: '/runtime-body-v1.js?v=5.9.76-autonomous-continuity-1',
+  runtime: '/runtime-body-v1.js?v=5.9.76-native-push-handoff-1',
   motion: '/crump-motion-system.css?v=5.9.76-motion-system-2',
 });
 const fixturePath = '/__theme-switch-cache-upgrade.html';

@@ -1,6 +1,10 @@
 import { access, readFile, readdir } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { loadRevenueCatCatalog } from './revenuecat-catalog.mjs';
+import {
+  IOS_MEDIA_USAGE_DESCRIPTION_KEYS,
+  missingNonEmptyPlistStrings,
+} from './native-release-guards.mjs';
 
 const root = new URL('../', import.meta.url);
 const target = String(process.argv[2] || 'all').toLowerCase();
@@ -165,10 +169,8 @@ if (target === 'all' || target === 'ios') {
       failures.push('The iOS Info.plist file is missing.');
     } else {
       const source = await readFile(infoPath, 'utf8');
-      for (const usageKey of ['NSPhotoLibraryUsageDescription', 'NSPhotoLibraryAddUsageDescription']) {
-        if (!new RegExp(`<key>${usageKey}</key>\\s*<string>[^<]+</string>`).test(source)) {
-          failures.push(`iOS Info.plist is missing a non-empty ${usageKey}. Run \`npm run native:configure\`.`);
-        }
+      for (const usageKey of missingNonEmptyPlistStrings(source, IOS_MEDIA_USAGE_DESCRIPTION_KEYS)) {
+        failures.push(`iOS Info.plist is missing a non-empty ${usageKey}. Run \`npm run native:configure\`.`);
       }
       for (const orientationKey of ['UISupportedInterfaceOrientations', 'UISupportedInterfaceOrientations~ipad']) {
         if (!source.includes(`<key>${orientationKey}</key>`)) {

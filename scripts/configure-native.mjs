@@ -1,4 +1,8 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import {
+  nonEmptyPlistString,
+  topLevelPlistStringValues,
+} from './native-release-guards.mjs';
 
 const root = new URL('../', import.meta.url);
 const variablesPath = new URL('android/variables.gradle', root);
@@ -198,7 +202,7 @@ async function patchIosVersionAndPrivacy() {
   await writeFile(projectPath, project);
 }
 
-async function patchIosPhotoLibraryUsage() {
+async function patchIosMediaUsageDescriptions() {
   const infoPath = new URL('ios/App/App/Info.plist', root);
   let source;
   try {
@@ -207,18 +211,21 @@ async function patchIosPhotoLibraryUsage() {
     throw new Error('iOS Info.plist was not found for Photos save configuration.');
   }
 
+  const descriptions = new Map([
+    ['NSCameraUsageDescription', 'Ask Crump uses the camera only when you choose Take a photo for your workspace.'],
+    ['NSPhotoLibraryUsageDescription', 'Ask Crump can access Photos when you choose media for your workspace.'],
+    ['NSPhotoLibraryAddUsageDescription', 'Ask Crump saves generated images and videos to Photos when you ask it to.'],
+  ]);
   const additions = [];
-  if (!source.includes('<key>NSPhotoLibraryUsageDescription</key>')) {
-    additions.push(
-      '    <key>NSPhotoLibraryUsageDescription</key>\n' +
-      '    <string>Ask Crump can access Photos when you choose media for your workspace.</string>'
-    );
-  }
-  if (!source.includes('<key>NSPhotoLibraryAddUsageDescription</key>')) {
-    additions.push(
-      '    <key>NSPhotoLibraryAddUsageDescription</key>\n' +
-      '    <string>Ask Crump saves generated images and videos to Photos when you ask it to.</string>'
-    );
+  for (const [key, description] of descriptions) {
+    const values = topLevelPlistStringValues(source, key);
+    if (!values.length) {
+      additions.push(`    <key>${key}</key>\n    <string>${description}</string>`);
+      continue;
+    }
+    if (!nonEmptyPlistString(source, key)) {
+      throw new Error(`iOS Info.plist must contain exactly one non-empty top-level ${key} string.`);
+    }
   }
   if (additions.length) {
     const closing = source.lastIndexOf('</dict>');
@@ -236,7 +243,7 @@ if (target === 'all' || target === 'android') {
 }
 if (target === 'all' || target === 'ios') {
   await patchIosPushCallbacks();
-  await patchIosPhotoLibraryUsage();
+  await patchIosMediaUsageDescriptions();
   await patchIosVersionAndPrivacy();
   console.log(`iOS configured for Ask Crump ${versionName} (${buildNumber}) with push entitlements and a bundled privacy manifest.`);
 }

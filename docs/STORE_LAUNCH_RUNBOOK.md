@@ -133,6 +133,11 @@ Run these on current physical iPhone and Android devices:
 - registration, email verification, sign-in, relaunch persistence, sign-out, and revoked sessions
 - Ask, Research, Image, Document, Manuscript, Video, Files, Projects, Create, and Library
 - generated-file preview, playback, download, and reopening after relaunch
+- on both physical iPhone and iPad: Take a photo after allowing Camera access, after denying it,
+  and after restoring access in Settings; exercise the Photos picker under the system's available,
+  limited, and no-full-library-access states (and denial/recovery if iOS presents a permission
+  prompt); save an image and a video to Photos in allow, deny, and recovery paths; verify every
+  unavailable or denied path recovers without a crash, blank surface, or lost draft
 - Quick, Extendable, and Cinematic video engine entitlement/cost behavior; Runway must remain hidden/unavailable when its server key is absent
 - Veo native continuation from a finished Extendable clip, including chained duration, 48-hour provider-reference expiry, storage-size stop, idempotent retry, and credit refund behavior
 - Runway success, throttling, provider failure, billable input-safety rejection, private-storage copy, and Powered by Runway attribution

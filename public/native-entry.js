@@ -8,6 +8,9 @@ import { StatusBar, Style } from '@capacitor/status-bar';
 import { SecureStorage } from '@aparajita/capacitor-secure-storage';
 import { Media } from '@capacitor-community/media';
 import { Purchases, LOG_LEVEL } from '@revenuecat/purchases-capacitor';
+import { createNativePushActionQueue } from '../scripts/native-push-action-queue.mjs';
+
+const pushActionQueue = createNativePushActionQueue();
 
 window.CrumpNative = {
   Capacitor,
@@ -25,6 +28,8 @@ window.CrumpNative = {
   Purchases,
   LOG_LEVEL,
   isNative: Capacitor.isNativePlatform(),
+  peekPendingPushActions: () => pushActionQueue.peek(),
+  acknowledgePushAction: queueId => pushActionQueue.acknowledge(queueId),
 };
 
 async function configureNativeExperience() {
@@ -45,7 +50,10 @@ async function configureNativeExperience() {
     window.dispatchEvent(new CustomEvent('crump:push-received', { detail: notification }));
   });
   await PushNotifications.addListener('pushNotificationActionPerformed', action => {
-    window.dispatchEvent(new CustomEvent('crump:push-action', { detail: action }));
+    const retainedAction = pushActionQueue.retain(action);
+    if (retainedAction) {
+      window.dispatchEvent(new CustomEvent('crump:push-action', { detail: retainedAction }));
+    }
   });
 
   if (Capacitor.getPlatform() === 'android') {
