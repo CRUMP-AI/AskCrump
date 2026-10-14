@@ -1034,6 +1034,7 @@ const museReleaseRepairVersion = `${releaseVersion}-muse-release-repair-1`;
 const cacheIntegrityVersion = `${releaseVersion}-friendly-workspace-1`;
 const shellNoTaglineVersion = `${releaseVersion}-shell-no-tagline-1`;
 const atelierWorkspaceVersion = `${releaseVersion}-atelier-workspace-1`;
+const runtimeBodyVersion = `${releaseVersion}-mobile-studio-layout-1`;
 const appearanceChoiceVersion = `${releaseVersion}-appearance-choice-2`;
 const documentDeliveryFocusedVersion = `${releaseVersion}-reference-fidelity-hard-contract-1`;
 const outcomeRefinementRecoveryVersion = `${releaseVersion}-outcome-refinement-recovery-1`;
@@ -1304,7 +1305,7 @@ if (!referringAcquisitionSource ||
   process.exit(1);
 }
 const requiredHtmlSignals = [
-  `/runtime-body-v1.js?v=${atelierWorkspaceVersion}`,
+  `/runtime-body-v1.js?v=${runtimeBodyVersion}`,
   `/auth-controller.js?v=${authControllerVersion}`,
   `/telemetry-config.js?v=${releaseVersion}`,
   '/_vercel/speed-insights/script.js',
@@ -1679,7 +1680,7 @@ for (const [label, source] of [
   ['service worker', serviceWorker],
 ]) {
   const pathname = '/runtime-body-v1.js';
-  const expectedUrl = `/runtime-body-v1.js?v=${atelierWorkspaceVersion}`;
+  const expectedUrl = `/runtime-body-v1.js?v=${runtimeBodyVersion}`;
   const versionedOccurrences = source.split(`${pathname}?v=`).length - 1;
   const exactOccurrences = [`'${expectedUrl}'`, `"${expectedUrl}"`, `\`${expectedUrl}\``]
     .reduce((total, literal) => total + source.split(literal).length - 1, 0);
@@ -1696,7 +1697,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r258-ui-contract-repair-1') |
     !serviceWorker.includes(`/landing.js?v=${landingVersion}`) ||
     !serviceWorker.includes(appearanceThemeUrl) ||
     !serviceWorker.includes(appearanceControlsUrl) ||
-    !serviceWorker.includes(`/runtime-body-v1.js?v=${atelierWorkspaceVersion}`) ||
+    !serviceWorker.includes(`/runtime-body-v1.js?v=${runtimeBodyVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${museReleaseRepairVersion}`) ||
     !serviceWorker.includes(`/crump-design-pass.css?v=${appearanceChoiceVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.css?v=${creditConfirmationVersion}`) ||

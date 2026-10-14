@@ -46,7 +46,7 @@ const CORE = [
   '/crump-media-save.js?v=5.9.76-library-lazy-load-1',
   '/crump-library-loader.js?v=5.9.76-library-first-run-1',
   '/crump-subscriptions-5.3.2.js?v=5.9.76-checkout-destination-label-1',
-  '/runtime-body-v1.js?v=5.9.76-atelier-workspace-1',
+  '/runtime-body-v1.js?v=5.9.76-mobile-studio-layout-1',
   '/native-runtime.js',
   '/mobile-bridge.js',
   '/safe-storage.js',

@@ -53,7 +53,7 @@ def test_parallel_runtime_asset_is_versioned_for_web_pwa_and_native():
     worker = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
 
-    asset = "/runtime-body-v1.js?v=5.9.76-atelier-workspace-1"
+    asset = "/runtime-body-v1.js?v=5.9.76-mobile-studio-layout-1"
     assert asset in shell
     assert asset in worker
     assert "ask-crump-new-body-v1-r258-ui-contract-repair-1" in worker
@@ -134,7 +134,7 @@ def test_image_studio_entry_replaces_the_frozen_r252_runtime_cache():
     ):
         assert old_url in verifier
     for new_url in (
-        "/runtime-body-v1.js?v=5.9.76-atelier-workspace-1",
+        "/runtime-body-v1.js?v=5.9.76-mobile-studio-layout-1",
         "/crump-navigation-5.9.30.js?v=5.9.76-atelier-workspace-1",
         "/auth-controller.js?v=5.9.76-image-studio-entry-1",
     ):
