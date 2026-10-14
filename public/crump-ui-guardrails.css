@@ -1,0 +1,65 @@
+/* Ask Crump release guardrails
+   --------------------------------------------------------------------------
+   Narrow, late-cascade corrections for theme contrast and touch geometry.
+   This layer intentionally does not reposition the composer, sheets, rail, or
+   safe-area containers. Keep layout ownership in the component styles. */
+
+/* Secondary copy must remain readable in both appearance modes. */
+html[data-theme="light"] body.crump-v1-body .crump53-lock {
+  color: var(--atelier-panel-label) !important;
+}
+
+html[data-theme="dark"] body.crump-v1-body .crump53-library-copy small,
+html[data-theme="dark"] body.crump-v1-body :is(
+  .crump44-premium-copy span,
+  .crump44-memory-header span,
+  .crump44-memory-empty
+) {
+  color: var(--atelier-panel-muted) !important;
+}
+
+body.crump-v1-body .billing51-footer {
+  color: var(--atelier-panel-muted) !important;
+}
+
+body.crump-v1-body .billing51-footer :is(a, button) {
+  color: var(--atelier-panel-label) !important;
+}
+
+/* Phone controls use a consistent physical target without broad padding or
+   density changes elsewhere in the workspace. */
+@media (max-width: 680px) {
+  body.crump-v1-body :is(
+    .outcome-feedback-btn,
+    .outcome-project-btn,
+    .crump50-artifact-actions button,
+    .crump44-segment,
+    .crump44-premium-button,
+    .settings-nested .settings-select,
+    .check-in-categories label
+  ) {
+    min-height: 44px !important;
+  }
+
+  body.crump-v1-body .crump50-upload-card {
+    grid-template-columns: 44px minmax(0, 1fr) 44px !important;
+  }
+
+  body.crump-v1-body .crump50-upload-remove,
+  body.crump-v1-body :is(.crump44-close, .crump44-back),
+  body.crump-v1-body .crump52-attach-sheet header button {
+    width: 44px !important;
+    min-width: 44px !important;
+    height: 44px !important;
+    min-height: 44px !important;
+  }
+}
+
+/* The destination shell owns the persistent mobile navigation only after it
+   mounts. Restore its reserved height at that point so Create, Video, and
+   other overlays end exactly above the navigation instead of beneath it. */
+@media (max-width: 1100px) {
+  html[data-cv-shell="ready"] body.crump-v1-body:not(.crump-v1-keyboard-visible) {
+    --crump5930-mobile-nav: 68px;
+  }
+}

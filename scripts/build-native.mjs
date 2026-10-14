@@ -69,6 +69,9 @@ const loader = String.raw`
 
   const finalStyles = Object.freeze([
     ['/crump-design-pass.css?v=5.9.76-ui-release-audit-2', 'crumpdesignpass'],
+    ['/crump-activity-center-1.0.css?v=5.9.76-activity-center-1', 'crumpactivitycenter10'],
+    ['/crump-ui-guardrails.css?v=5.9.76-ui-guardrails-1', 'crumpuiguardrails'],
+    ['/crump-motion-system.css?v=5.9.76-motion-system-1', 'crumpmotionsystem'],
   ]);
 
   const workspaceScripts = Object.freeze([
@@ -81,8 +84,8 @@ const loader = String.raw`
     ['/chat-resilience.js?v=5.9.76-credit-confirmation-1', 'workspacechatresilience'],
     ['/ui-functions.js?v=5.9.76-atelier-workspace-1', 'workspaceui'],
     ['/presence-manager.js?v=5.9.76-muse-release-repair-1', 'workspacepresence'],
-    ['/sync-manager.js?v=5.9.76', 'workspacesync'],
-    ['/chat-sync.js?v=5.9.76-image-stability-1', 'workspacechatsync'],
+    ['/sync-manager.js?v=5.9.76-sync-cursor-1', 'workspacesync'],
+    ['/chat-sync.js?v=5.9.76-settings-sync-1', 'workspacechatsync'],
     ['/account-manager.js?v=5.9.76-account-storage-deletion-1', 'workspaceaccount'],
     ['/app.js?v=5.9.76-reference-fidelity-hard-contract-1', 'workspaceapp'],
     ['/product-analytics.js?v=5.9.76-navigation-discovery-1', 'workspaceanalytics'],
@@ -112,6 +115,7 @@ const loader = String.raw`
     ['/crump-code-loader.js?v=5.9.76-friendly-workspace-1', 'crumpcodeloader'],
     ['/lifecycle-share.js?v=5.9.76-settings-invite-1', 'lifecycleshare'],
     ['/lifecycle-manager.js?v=5.9.76-lifecycle-idle-send-1', 'lifecyclemanager'],
+    ['/crump-activity-center-1.0.js?v=5.9.76-activity-center-1', 'crumpactivitycenter10'],
   ]);
 
   const scriptPlan = Object.freeze([

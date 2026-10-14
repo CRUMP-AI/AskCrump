@@ -1,0 +1,262 @@
+<!doctype html>
+<html lang="en" data-theme="light" data-cv-shell="ready">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#f6f4ee">
+  <link rel="icon" href="data:,">
+  <title>Ask Crump UI release regression fixture</title>
+
+  <!-- Match the production cascade while keeping the fixture offline and deterministic. -->
+  <link rel="stylesheet" href="../../public/styles.css">
+  <link rel="stylesheet" href="../../public/auth-styles.css">
+  <link rel="stylesheet" href="../../public/crump-v1-body.css">
+  <link rel="stylesheet" href="../../public/appearance-controls.css">
+  <link rel="stylesheet" href="../../public/crump-vision-shell-1.0.css">
+  <link rel="stylesheet" href="../../public/crump-vision-chats-1.0.css">
+  <link rel="stylesheet" href="../../public/crump-vision-projects-1.0.css">
+  <link rel="stylesheet" href="../../public/crump-vision-library-1.0.css">
+  <link rel="stylesheet" href="../../public/crump-vision-studios-1.0.css">
+  <link rel="stylesheet" href="../../public/billing.css">
+  <link rel="stylesheet" href="../../public/onboarding.css">
+  <link rel="stylesheet" href="../../public/conversation.css">
+  <link rel="stylesheet" href="../../public/crump-4.3.css">
+  <link rel="stylesheet" href="../../public/crump-4.4.css">
+  <link rel="stylesheet" href="../../public/crump-5.0.css">
+  <link rel="stylesheet" href="../../public/crump-billing-5.1.css">
+  <link rel="stylesheet" href="../../public/crump-5.2.css">
+  <link rel="stylesheet" href="../../public/crump-5.2.2.css">
+  <link rel="stylesheet" href="../../public/crump-product-5.3.css">
+  <link rel="stylesheet" href="../../public/crump-product-5.3.1.css">
+  <link rel="stylesheet" href="../../public/crump-polish-5.6.css">
+  <link rel="stylesheet" href="../../public/crump-v1-stability.css">
+  <link rel="stylesheet" href="../../public/crump-navigation-5.9.30.css">
+  <link rel="stylesheet" href="../../public/crump-design-pass.css">
+  <link rel="stylesheet" href="../../public/crump-activity-center-1.0.css">
+  <link rel="stylesheet" href="../../public/crump-ui-guardrails.css">
+  <link rel="stylesheet" href="../../public/crump-motion-system.css">
+
+  <style>
+    /* Layout only: colors, typography, controls, cards, and sheets come from production CSS. */
+    html, body { width: 100%; min-width: 0; min-height: 100%; margin: 0; }
+    body { min-height: 100vh; overflow-x: hidden; }
+    .audit-state { display: none; width: 100%; min-height: 100vh; }
+    .audit-state[data-audit-active="true"] { display: block; }
+    .audit-frame {
+      box-sizing: border-box;
+      width: min(1120px, 100%);
+      min-height: 100vh;
+      margin: 0 auto;
+      padding: clamp(28px, 5vw, 72px) clamp(16px, 4vw, 56px) 80px;
+    }
+    .audit-stack { display: grid; gap: 18px; }
+    .audit-sheet-frame { display: grid; place-items: center; min-height: 100vh; padding: 18px; }
+    .audit-sheet-frame > * {
+      position: relative !important;
+      inset: auto !important;
+      width: min(760px, 100%) !important;
+      max-width: 100% !important;
+      max-height: none !important;
+      opacity: 1 !important;
+      transform: none !important;
+    }
+    .audit-sheet-frame :is(.crump44-panel-content,.crump53-sheet-body,.settings-sheet-body) { overflow: visible !important; }
+    .audit-chat-state { height: 100vh; min-height: 620px; overflow: hidden; }
+    .audit-chat-state .v1-workspace { display: block !important; width: 100% !important; height: 100% !important; }
+    .audit-chat-state .v1-workspace-body { position: relative; width: 100%; height: 100%; overflow: hidden; }
+    .audit-chat-state .chat-container { display: block !important; overflow-y: auto !important; }
+    .audit-chat-state .message { margin-inline: auto; }
+    .audit-chat-state .message:first-child { margin-top: 18px; }
+    .audit-chat-state .message-wrapper { width: min(100%, 760px); }
+    .audit-chat-state .v1-command-dock { position: absolute !important; }
+    .audit-chat-state .file-preview { display: flex !important; }
+    .audit-chat-state .message-content p { margin: 0 0 12px; }
+    .audit-home-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 16px; }
+    .audit-home-grid .cv-card { min-width: 0; margin-bottom: 0 !important; }
+    .audit-files-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; }
+    .audit-files-grid .crump53-library-item { min-width: 0; }
+    .audit-modal-surface { isolation: isolate; }
+    @media (max-width: 720px) {
+      .audit-frame { padding: 28px 14px 64px; }
+      .audit-sheet-frame { align-items: start; padding: 10px; }
+      .audit-home-grid, .audit-files-grid { grid-template-columns: 1fr; }
+      .audit-chat-state .message:first-child { margin-top: 8px; }
+    }
+  </style>
+</head>
+<body class="crump-v1-body crump-43 crump-50">
+  <main>
+    <section class="audit-state" data-ui-state="home" data-ui-audit-box>
+      <div class="cv-stage">
+        <div class="audit-frame cv-view cv-home">
+          <div class="cv-wrap">
+            <p class="cv-eyebrow">ASK CRUMP</p>
+            <h1 class="cv-headline">What can I help you get done?</h1>
+            <p class="cv-sub">Ask a question, continue thoughtful work, or make something useful in one calm workspace.</p>
+            <div class="audit-home-grid">
+              <section class="cv-card"><div class="cv-card-head"><div><p class="cv-eyebrow">THINK</p><h2 class="cv-card-title">Work through an idea</h2></div></div><p class="cv-card-copy">Turn a rough thought into a clear next step.</p><div class="cv-actions"><button class="cv-btn cv-btn-primary" type="button">Start a chat</button></div></section>
+              <section class="cv-card"><div class="cv-card-head"><div><p class="cv-eyebrow">CREATE</p><h2 class="cv-card-title">Make something useful</h2></div></div><p class="cv-card-copy">Create a document, image, presentation, or video.</p><div class="cv-actions"><button class="cv-btn cv-btn-ghost" type="button">Open Studios</button></div></section>
+              <section class="cv-card"><div class="cv-card-head"><div><p class="cv-eyebrow">CONTINUE</p><h2 class="cv-card-title">Return to a Project</h2></div></div><p class="cv-card-copy">Keep the conversation and its work together.</p><div class="cv-actions"><button class="cv-btn cv-btn-ghost" type="button">Open Projects</button></div></section>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="audit-state audit-chat-state" data-ui-state="conversation" data-ui-audit-box>
+      <div class="v1-workspace">
+        <div class="v1-workspace-body">
+          <div class="chat-container" data-ui-scroll-region aria-label="Conversation">
+            <article class="message user-message" data-message-id="fixture-user">
+              <div class="message-wrapper"><div class="message-content">Turn these notes into a focused launch brief and an editable document.</div></div>
+            </article>
+            <article class="message assistant-message" data-message-id="fixture-assistant">
+              <div class="message-wrapper">
+                <div class="crump-message-meta"><span class="crump-message-name">Crump</span></div>
+                <div class="message-content">
+                  <p>I organized the request into a concise launch brief with audience, positioning, milestones, risks, and the next decision.</p>
+                  <p>The editable document is ready below, and this work can stay in a private Project for your next return.</p>
+                </div>
+                <div class="message-intelligence-receipt"><span class="message-intelligence-label">Advanced Intelligence</span><span class="message-intelligence-signal">Reviewed</span></div>
+                <div class="message-actions">
+                  <button class="message-action-btn" type="button">Copy</button>
+                  <button class="message-action-btn" type="button">Share</button>
+                  <button class="message-action-btn" type="button">Read aloud</button>
+                  <button class="message-action-btn" type="button">Report</button>
+                </div>
+                <div class="outcome-feedback" data-ui-overlap-sensitive>
+                  <div class="outcome-continuity">
+                    <div class="outcome-continuity-copy"><strong class="outcome-continuity-prompt">Continue this work later</strong><span class="outcome-continuity-detail">Keep this conversation in a private Project.</span></div>
+                    <button class="outcome-project-btn" type="button">Keep in a new Project</button>
+                  </div>
+                  <div class="outcome-feedback-question"><span class="outcome-feedback-prompt">Did this move your work forward?</span><button class="outcome-feedback-btn" type="button">Yes</button><button class="outcome-feedback-btn" type="button">Not yet</button></div>
+                </div>
+                <div class="crump50-artifact cv-keepsake-real" data-ui-overlap-sensitive>
+                  <span>DOCX</span>
+                  <div class="crump50-artifact-copy"><strong>Launch brief</strong><small>Created by Crump · 84 KB</small></div>
+                  <div class="crump50-artifact-actions"><button type="button">Add to Project</button><button type="button">Open</button><button type="button">Download</button></div>
+                </div>
+              </div>
+            </article>
+          </div>
+          <section class="v1-command-dock" aria-label="Ask Crump composer" data-ui-fixed-control>
+            <div id="filePreview" class="file-preview crump50-attachment-tray" role="region" aria-label="Attachments ready to send">
+              <article class="crump50-upload-card is-ready">
+                <div class="crump50-upload-visual" aria-hidden="true">DOC</div>
+                <div class="crump50-upload-copy"><strong title="launch-notes-reference.docx">launch-notes-reference.docx</strong><span>Ready to send</span><i class="crump50-upload-progress" style="--progress:100%"></i></div>
+                <button class="crump50-upload-remove" type="button" aria-label="Remove launch-notes-reference.docx">×</button>
+              </article>
+            </div>
+            <div class="input-area">
+              <div class="input-container">
+                <button id="attachBtn" class="btn-icon crump50-plus" type="button" aria-label="Add to conversation">＋</button>
+                <textarea class="message-input" rows="1" aria-label="Message Crump" placeholder="Message Crump"></textarea>
+                <button id="sendButton" class="btn-icon crump50-send" type="button" aria-label="Send message">↑</button>
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <section class="audit-state" data-ui-state="files" data-ui-audit-box>
+      <div class="audit-sheet-frame">
+        <article class="crump53-sheet audit-modal-surface" role="dialog" aria-label="Ask Crump Files">
+          <header class="crump53-sheet-head"><div><span>PRIVATE FILES</span><h2>Files</h2></div><button class="crump53-close" type="button" aria-label="Close Files">×</button></header>
+          <div class="crump53-sheet-body">
+            <div class="crump53-card"><div class="crump53-kicker">YOUR WORK</div><h3>Created and uploaded files</h3><p>Open, download, or return a private file to the conversation.</p>
+              <div class="audit-files-grid">
+                <article class="crump53-library-item"><div class="crump53-library-preview"><div class="crump53-library-document"><span>DOCX</span></div></div><div class="crump53-library-copy"><strong>Launch brief</strong><p>Editable launch strategy and milestones.</p><small>document · 84 KB · Today</small></div><div class="crump53-actions"><button class="crump53-button" type="button">Open</button><button class="crump53-button" type="button">Download</button></div></article>
+                <article class="crump53-library-item"><div class="crump53-library-preview"><div class="crump53-library-document"><span>PPTX</span></div></div><div class="crump53-library-copy"><strong>Product story</strong><p>Editable presentation with ten slides.</p><small>presentation · 1.2 MB · Yesterday</small></div><div class="crump53-actions"><button class="crump53-button" type="button">Open</button><button class="crump53-button" type="button">Download</button></div></article>
+              </div>
+              <p class="crump53-status" role="status">2 private files · Synced</p>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="audit-state" data-ui-state="video" data-ui-audit-box>
+      <div class="audit-sheet-frame">
+        <article class="crump53-sheet audit-modal-surface" role="dialog" aria-label="Ask Crump Video Studio">
+          <header class="crump53-sheet-head"><div><span>MOTION</span><h2>Video Studio</h2></div><button class="crump53-close" type="button" aria-label="Close Video Studio">×</button></header>
+          <div class="crump53-sheet-body"><div class="crump53-card"><div class="crump53-kicker">VIDEO STUDIO</div><h3>Create a scene. Keep directing.</h3><p>Choose the experience you need. Crump saves finished work privately and keeps compatible scenes ready to continue.</p>
+            <div class="crump53-video-engine-guide" aria-label="Video engine guide"><div class="crump53-video-engine-card is-active"><strong>Quick</strong><span>Fast short clips for a strong first take.</span></div><div class="crump53-video-engine-card"><strong>Extendable</strong><span>Built for scenes that need another shot.</span></div><div class="crump53-video-engine-card"><strong>Cinematic</strong><span>Premium generation for polished scenes.</span></div></div>
+            <form class="crump53-form"><label class="crump53-label">Prompt<textarea class="crump53-textarea" rows="3">A restrained product film with natural camera movement.</textarea></label><div class="crump53-video-reference"><div class="crump53-video-reference-head"><div><strong>Optional starting frame</strong><span>Use a reference to anchor the visual direction.</span></div><button class="crump53-button" type="button">Add image</button></div></div><div class="crump53-actions"><button class="crump53-button is-primary" type="button">Create video</button><span class="crump53-lock">60 credits after confirmation</span></div></form>
+            <section class="crump53-video-recent"><div class="crump53-video-recent-head"><div><strong>Recent videos</strong><span>Jobs keep running securely when you leave this screen.</span></div><button class="crump53-button" type="button">Refresh</button></div><div class="crump53-video-recent-list"><article class="crump53-video-recent-item" data-video-job-status="processing"><strong>Product introduction</strong><span>Generating · You may continue using Ask Crump</span></article></div></section>
+          </div></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="audit-state" data-ui-state="intelligence" data-ui-audit-box>
+      <div class="audit-sheet-frame">
+        <article class="crump44-panel audit-modal-surface" role="dialog" aria-label="Crump Intelligence">
+          <header class="crump44-panel-header"><div><span class="crump44-eyebrow">INTELLIGENCE</span><strong>How Crump should think</strong><small>Choose the response style and context that fit this conversation.</small></div><button class="crump44-close" type="button" aria-label="Close Intelligence">×</button></header>
+          <div class="crump44-panel-content"><section class="crump44-section"><div class="crump44-section-heading"><span>Response depth</span><small>Balanced is a thoughtful everyday default.</small></div><div class="crump44-segmented"><button class="crump44-segment active" type="button">Balanced</button><button class="crump44-segment" type="button">Focused</button><button class="crump44-segment" type="button">Deep</button></div></section><section class="crump44-premium"><div class="crump44-premium-copy"><strong>Advanced Intelligence</strong><span>Deeper reasoning and more deliberate review for paid plans.</span></div><button class="crump44-premium-button" type="button">Review plans</button></section><section class="crump44-memory-card"><div class="crump44-memory-header"><button class="crump44-back" type="button" aria-label="Back to response settings">←</button><div><strong>Conversation memory</strong><span>Private context kept for this workspace.</span></div></div><p class="crump44-memory-empty">No saved memory is needed for this example.</p></section></div>
+        </article>
+      </div>
+    </section>
+
+    <section class="audit-state" data-ui-state="settings" data-ui-audit-box>
+      <div class="audit-sheet-frame">
+        <article class="settings-sheet v1-settings-sheet audit-modal-surface" role="dialog" aria-label="Ask Crump settings">
+          <header class="settings-sheet-header v1-settings-header">
+            <button class="settings-icon-btn" type="button" aria-label="Close Settings">×</button>
+            <div class="settings-titleblock"><div class="v1-kicker">ASK CRUMP</div><div class="settings-title">Settings</div><div class="settings-subtitle">Your workspace, your defaults.</div></div>
+            <button class="settings-primary-btn" type="button" disabled aria-disabled="true" data-ui-contrast-exempt="disabled-control">Save changes</button>
+          </header>
+          <div class="v1-settings-layout">
+            <nav class="v1-settings-nav" aria-label="Settings sections"><button class="is-active" type="button">Profile</button><button type="button">Appearance</button><button type="button">Plans</button></nav>
+            <div class="settings-sheet-body v1-settings-content"><section class="settings-group v1-settings-panel is-active"><div class="v1-settings-panel-head"><div><div class="settings-group-title">Behavior</div><h3>How Crump works with you</h3></div><p>Control focus hours, check-ins, notifications, and follow-up behavior.</p></div><div class="settings-list"><div class="settings-row settings-row-toggle"><div class="settings-row-text"><div class="settings-label">Work Mode</div><div class="settings-help">Focus hours and productivity behavior</div></div><label class="ios-switch"><input type="checkbox" aria-label="Enable Work Mode"><span class="ios-switch-ui" aria-hidden="true"></span></label></div><div class="settings-row settings-row-toggle settings-row-divider"><div class="settings-row-text"><div class="settings-label">Crump Check-ins</div><div class="settings-help">Meaningful follow-ups on unfinished conversations</div></div><label class="ios-switch"><input type="checkbox" checked aria-label="Enable Crump Check-ins"><span class="ios-switch-ui" aria-hidden="true"></span></label></div><div class="settings-nested"><div class="settings-row"><div class="settings-row-text"><div class="settings-label">Frequency</div><div class="settings-help">Crump backs off automatically when messages go unanswered</div></div><select class="settings-select" aria-label="Check-in frequency"><option>Balanced</option></select></div><fieldset class="check-in-categories"><legend>Crump may follow up about</legend><label><input type="checkbox" checked> Unfinished conversations</label><label><input type="checkbox"> Goals and projects</label></fieldset></div></div></section></div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="audit-state" data-ui-state="billing" data-ui-audit-box>
+      <div class="audit-sheet-frame">
+        <article class="billing51-sheet audit-modal-surface" role="dialog" aria-label="Plan and credits"><header class="billing51-header"><div class="billing51-brand"><span class="billing51-mark" data-ui-contrast-exempt="decorative-brand-mark">C</span><div><span>ASK CRUMP</span><h2>Plan &amp; credits</h2></div></div><button class="billing51-close" type="button" aria-label="Close plan and credits">×</button></header><div class="billing51-balance-card"><div><span>YOUR BALANCE</span><strong><b>120</b> <small>credits</small></strong><p>Premium and overflow actions show their exact charge before confirmation.</p></div><div class="billing51-allowance"><div><span>Included today</span><strong>18 of 25 messages remain</strong></div></div></div><section class="billing51-section"><div class="billing51-section-head"><div><span>MONTHLY ACCESS</span><h3>Subscriptions</h3></div><p>Increase the usage included with your account each day.</p></div><article class="billing51-plan"><div><span>PROFESSIONAL</span><strong>For ambitious daily work</strong><p>More messages, advanced intelligence, and greater creative capacity.</p></div><button class="billing51-plan-button" type="button">Choose Professional</button></article></section><section class="billing51-section billing51-history-section"><div class="billing51-section-head"><div><span>LEDGER</span><h3>Recent credit activity</h3></div></div><div id="billing51History"><div class="billing51-history-row"><span>Image generation</span><strong>−6 credits</strong></div></div></section><footer class="billing51-footer"><span>Secure web payments are processed by Stripe.</span></footer></article>
+      </div>
+    </section>
+
+    <section class="audit-state" data-ui-state="create" data-ui-audit-box>
+      <div class="audit-sheet-frame">
+        <article class="crump52-attach-sheet audit-modal-surface" role="dialog" aria-label="Add to Crump"><div class="crump52-attach-handle" aria-hidden="true"></div><header><div><span>ADD TO CRUMP</span><h2>Choose what to bring in</h2></div><button type="button" aria-label="Close Add to Crump">×</button></header><div class="crump52-attach-list"><button class="crump52-attach-choice" type="button"><span class="crump52-choice-icon" aria-hidden="true">＋</span><span><strong>Photo or image</strong><small>Analyze it, edit it, or use it as a reference.</small></span><b aria-hidden="true">›</b></button><button class="crump52-attach-choice" type="button"><span class="crump52-choice-icon" aria-hidden="true">▤</span><span><strong>Document or file</strong><small>Summarize it, transform it, or keep it with the conversation.</small></span><b aria-hidden="true">›</b></button></div></article>
+      </div>
+    </section>
+
+    <section class="audit-state" data-ui-state="activity" data-ui-audit-box>
+      <div class="cv-stage"><div class="audit-frame cv-view"><div class="cv-wrap"><p class="cv-eyebrow">WORKSPACE</p><h1 class="cv-headline">Keep working while Crump creates.</h1><p class="cv-sub">Long-running work remains visible without taking over the workspace.</p></div></div></div>
+      <button class="crump-activity-trigger has-active" type="button" aria-label="Activity" aria-expanded="true"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4.25a7.75 7.75 0 1 0 7.75 7.75"></path><path d="M12 7.2V12l3.2 1.9"></path></svg><span class="crump-activity-trigger-label">Activity</span><span class="crump-activity-badge" aria-hidden="true">2</span></button>
+      <article class="crump-activity-panel" role="dialog" aria-label="Workspace activity">
+        <header class="crump-activity-head"><div><span>WORKSPACE</span><h2>Activity</h2><p role="status">2 active · 1 ready · 1 needs attention</p></div><button class="crump-activity-close" type="button" aria-label="Close activity">×</button></header>
+        <div class="crump-activity-list">
+          <article class="crump-activity-item is-running"><span class="crump-activity-item-icon" aria-hidden="true">▶</span><div class="crump-activity-item-copy"><strong>Video generating</strong><span>Working securely in the background</span><small>Just now</small></div><span class="crump-activity-status is-running">Working</span><button class="crump-activity-action" type="button">Open</button></article>
+          <article class="crump-activity-item is-queued"><span class="crump-activity-item-icon" aria-hidden="true">▤</span><div class="crump-activity-item-copy"><strong>Presentation queued</strong><span>Waiting for its turn</span><small>1m ago</small></div><span class="crump-activity-status is-queued">Queued</span><button class="crump-activity-action" type="button">Open</button></article>
+          <article class="crump-activity-item is-ready"><span class="crump-activity-item-icon" aria-hidden="true">✓</span><div class="crump-activity-item-copy"><strong>Document ready</strong><span>Available in its conversation</span><small>4m ago</small></div><span class="crump-activity-status is-ready">Ready</span><button class="crump-activity-action" type="button">View</button></article>
+          <article class="crump-activity-item is-failed"><span class="crump-activity-item-icon" aria-hidden="true">!</span><div class="crump-activity-item-copy"><strong>Image needs attention</strong><span>Open the conversation to review</span><small>8m ago</small></div><span class="crump-activity-status is-failed">Review</span><button class="crump-activity-action" type="button">Review</button></article>
+        </div>
+        <footer class="crump-activity-foot"><span>Video status syncs from your account. Current chat creations stay with their conversation.</span><button class="crump-activity-refresh" type="button">Refresh status</button></footer>
+      </article>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      const allowedStates = new Set(['home','conversation','files','video','intelligence','settings','billing','create','activity']);
+      const params = new URLSearchParams(location.search);
+      const state = allowedStates.has(params.get('state')) ? params.get('state') : 'home';
+      const theme = params.get('theme') === 'dark' ? 'dark' : 'light';
+      document.documentElement.dataset.theme = theme;
+      document.querySelectorAll('[data-ui-state]').forEach(node => {
+        const active = node.dataset.uiState === state;
+        node.dataset.auditActive = String(active);
+        node.setAttribute('aria-hidden', String(!active));
+      });
+      document.body.dataset.uiAuditState = state;
+      document.body.dataset.uiAuditReady = 'true';
+    })();
+  </script>
+</body>
+</html>

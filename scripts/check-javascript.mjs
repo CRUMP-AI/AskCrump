@@ -20,6 +20,7 @@ const expectedFiles = new Set([
   'crump-vision-library-1.0.js', 'crump-vision-projects-1.0.js',
   'crump-vision-studios-1.0.js', 'crump-vision-you-1.0.js',
   'crump-vision-demo-1.0.js',
+  'crump-activity-center-1.0.js',
   'device-auth.js', 'install-prompt.js', 'landing.js', 'mobile-bridge.js', 'native-entry.js',
   'native-runtime.js', 'onboarding.js', 'presence-manager.js', 'profile-manager.js',
   'runtime-config.js', 'runtime-config-v1.js', 'runtime-body-v1.js', 'safe-storage.js',
@@ -1034,9 +1035,12 @@ const museReleaseRepairVersion = `${releaseVersion}-muse-release-repair-1`;
 const cacheIntegrityVersion = `${releaseVersion}-friendly-workspace-1`;
 const shellNoTaglineVersion = `${releaseVersion}-shell-no-tagline-1`;
 const atelierWorkspaceVersion = `${releaseVersion}-atelier-workspace-1`;
-const runtimeBodyVersion = `${releaseVersion}-ui-release-audit-2`;
+const runtimeBodyVersion = `${releaseVersion}-product-polish-1`;
 const appearanceChoiceVersion = `${releaseVersion}-appearance-choice-2`;
 const uiReleaseAuditVersion = `${releaseVersion}-ui-release-audit-2`;
+const activityCenterVersion = `${releaseVersion}-activity-center-1`;
+const uiGuardrailsVersion = `${releaseVersion}-ui-guardrails-1`;
+const motionSystemVersion = `${releaseVersion}-motion-system-1`;
 const documentDeliveryFocusedVersion = `${releaseVersion}-reference-fidelity-hard-contract-1`;
 const outcomeRefinementRecoveryVersion = `${releaseVersion}-outcome-refinement-recovery-1`;
 const authUpdateGuardVersion = `${releaseVersion}-update-work-guard-1`;
@@ -1063,6 +1067,10 @@ const requiredBodyFiles = [
   'public/crump-v1-body.css',
   'public/crump-v1-body.js',
   'public/crump-design-pass.css',
+  'public/crump-activity-center-1.0.css',
+  'public/crump-activity-center-1.0.js',
+  'public/crump-ui-guardrails.css',
+  'public/crump-motion-system.css',
   'public/crump-product-5.3.css',
   'public/crump-product-5.3.js',
   'public/crump-product-loader.js',
@@ -1378,12 +1386,17 @@ const finalStyleUrls = source => {
   if (start < 0 || end < 0) return [];
   return [...source.slice(start, end).matchAll(/\['([^']+)'/g)].map(match => match[1]);
 };
-const expectedFinalStyle = `/crump-design-pass.css?v=${uiReleaseAuditVersion}`;
+const expectedFinalStyles = [
+  `/crump-design-pass.css?v=${uiReleaseAuditVersion}`,
+  `/crump-activity-center-1.0.css?v=${activityCenterVersion}`,
+  `/crump-ui-guardrails.css?v=${uiGuardrailsVersion}`,
+  `/crump-motion-system.css?v=${motionSystemVersion}`,
+];
 for (const source of [runtime, nativeBuildSource]) {
   const finalStyles = finalStyleUrls(source);
-  if (finalStyles.length !== 1 || finalStyles[0] !== expectedFinalStyle ||
+  if (JSON.stringify(finalStyles) !== JSON.stringify(expectedFinalStyles) ||
       !source.includes('of finalStyles) await loadStyle')) {
-    console.error('Web and native loaders must insert the refinement stylesheet last after base-style retries.');
+    console.error('Web and native loaders must preserve the complete final stylesheet cascade after base-style retries.');
     process.exit(1);
   }
 }
@@ -1393,6 +1406,10 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/onboarding.js?v=${cacheIntegrityVersion}`) ||
     !runtime.includes(`/conversation.css?v=${museReleaseRepairVersion}`) ||
     !runtime.includes(`/crump-design-pass.css?v=${uiReleaseAuditVersion}`) ||
+    !runtime.includes(`/crump-activity-center-1.0.css?v=${activityCenterVersion}`) ||
+    !runtime.includes(`/crump-activity-center-1.0.js?v=${activityCenterVersion}`) ||
+    !runtime.includes(`/crump-ui-guardrails.css?v=${uiGuardrailsVersion}`) ||
+    !runtime.includes(`/crump-motion-system.css?v=${motionSystemVersion}`) ||
     !runtime.includes(`/credit-confirmation.css?v=${creditConfirmationVersion}`) ||
     !runtime.includes(`/credit-confirmation.js?v=${creditConfirmationVersion}`) ||
     !runtime.includes(`/chat-resilience.js?v=${creditConfirmationVersion}`) ||
@@ -1504,14 +1521,14 @@ await runtimeWindow.CrumpWorkspaceRuntime.load();
 if (runtimeDocument.documentElement.dataset.crumpBodyRuntime !== 'ready' ||
     dispatchedRuntimeEvents.filter(type => type === 'crump:body-runtime-ready').length !== 1 ||
     appendedRuntimeAssets.length !== loadedRuntimeAssetCount ||
-    loadedRuntimeStyles.length !== 18 ||
-    preloadedRuntimeScripts.length !== 34 ||
-    loadedRuntimeScripts.length !== 34 ||
+    loadedRuntimeStyles.length !== 21 ||
+    preloadedRuntimeScripts.length !== 35 ||
+    loadedRuntimeScripts.length !== 35 ||
     !loadedRuntimeScripts.every(asset => preloadedRuntimeScripts.includes(asset)) ||
-    loadedRuntimeStyles.at(-1) !== expectedFinalStyle ||
+    loadedRuntimeStyles.at(-1) !== expectedFinalStyles.at(-1) ||
     loadedRuntimeScripts.indexOf(`/credit-confirmation.js?v=${creditConfirmationVersion}`) > loadedRuntimeScripts.indexOf(`/app.js?v=${referenceFidelityVersion}`) ||
     loadedRuntimeScripts.indexOf(`/app.js?v=${referenceFidelityVersion}`) > loadedRuntimeScripts.indexOf(`/crump-4.3.js?v=${atelierWorkspaceVersion}`) ||
-    loadedRuntimeScripts.at(-1) !== `/lifecycle-manager.js?v=${lifecycleIdleSendVersion}`) {
+    loadedRuntimeScripts.at(-1) !== `/crump-activity-center-1.0.js?v=${activityCenterVersion}`) {
   console.error('Authenticated workspace runtime load order or completion contract failed.');
   process.exit(1);
 }
@@ -1690,7 +1707,7 @@ for (const [label, source] of [
     process.exit(1);
   }
 }
-if (!serviceWorker.includes('ask-crump-new-body-v1-r258-ui-contract-repair-1') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r259-product-polish-1') ||
     !serviceWorker.includes(`'${shellBrandUrl}'`) ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||
@@ -1701,6 +1718,10 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r258-ui-contract-repair-1') |
     !serviceWorker.includes(`/runtime-body-v1.js?v=${runtimeBodyVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${museReleaseRepairVersion}`) ||
     !serviceWorker.includes(`/crump-design-pass.css?v=${uiReleaseAuditVersion}`) ||
+    !serviceWorker.includes(`/crump-activity-center-1.0.css?v=${activityCenterVersion}`) ||
+    !serviceWorker.includes(`/crump-activity-center-1.0.js?v=${activityCenterVersion}`) ||
+    !serviceWorker.includes(`/crump-ui-guardrails.css?v=${uiGuardrailsVersion}`) ||
+    !serviceWorker.includes(`/crump-motion-system.css?v=${motionSystemVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.css?v=${creditConfirmationVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.js?v=${creditConfirmationVersion}`) ||
     !serviceWorker.includes(`/chat-resilience.js?v=${creditConfirmationVersion}`) ||
@@ -1749,6 +1770,10 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r258-ui-contract-repair-1') |
     !serviceWorker.includes("url.pathname === '/conversation.css'") ||
     !serviceWorker.includes("url.pathname === '/appearance-theme.js'") ||
     !serviceWorker.includes("url.pathname === '/appearance-controls.css'") ||
+    !serviceWorker.includes("url.pathname === '/crump-activity-center-1.0.css'") ||
+    !serviceWorker.includes("url.pathname === '/crump-activity-center-1.0.js'") ||
+    !serviceWorker.includes("url.pathname === '/crump-ui-guardrails.css'") ||
+    !serviceWorker.includes("url.pathname === '/crump-motion-system.css'") ||
     !serviceWorker.includes("url.pathname === '/credit-confirmation.css'") ||
     !serviceWorker.includes("url.pathname === '/credit-confirmation.js'") ||
     !serviceWorker.includes("url.pathname === '/chat-resilience.js'") ||

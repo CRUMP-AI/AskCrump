@@ -114,7 +114,10 @@ async function inspectTutorial(page) {
   const desktop = await inspect(
     await browser.newPage({viewport: {width: 1280, height: 800}}),
     '.cv-rail-nav',
-    ['ask', 'projects', 'files', 'library', 'video', 'autonomous'],
+    // This fixture intentionally has no authenticated coding-provider probe.
+    // Autonomous therefore remains fail-closed here; its configured and
+    // entitled states are exercised by verify-code-lazy-load.cjs.
+    ['ask', 'projects', 'files', 'library', 'video'],
   );
   const mobile = await inspect(
     await browser.newPage({viewport: {width: 390, height: 844}}),

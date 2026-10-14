@@ -1,0 +1,410 @@
+/* Ask Crump activity center: fixed workspace utility, adaptive by appearance. */
+
+body.crump-v1-body {
+  --activity-bg: #fffdf9;
+  --activity-surface: #f5f1e9;
+  --activity-surface-hover: #eee8dc;
+  --activity-border: #d8d0c3;
+  --activity-line: rgba(91, 78, 52, .15);
+  --activity-text: #202327;
+  --activity-text-soft: #4e555c;
+  --activity-muted: #656c73;
+  --activity-label: #725d2f;
+  --activity-accent: #8a6b2c;
+  --activity-accent-soft: #eee3c9;
+  --activity-ready: #2b6847;
+  --activity-ready-soft: #e5f1e8;
+  --activity-running: #285f84;
+  --activity-running-soft: #e4eef5;
+  --activity-queued: #715d27;
+  --activity-queued-soft: #f2ead4;
+  --activity-failed: #983c34;
+  --activity-failed-soft: #f8e7e4;
+  --activity-shadow: 0 24px 72px rgba(47, 39, 25, .18), 0 4px 16px rgba(47, 39, 25, .08);
+}
+
+html[data-theme="dark"] body.crump-v1-body {
+  --activity-bg: #171b20;
+  --activity-surface: #20252c;
+  --activity-surface-hover: #282e36;
+  --activity-border: #3d444d;
+  --activity-line: rgba(255, 255, 255, .09);
+  --activity-text: #f5f1e8;
+  --activity-text-soft: #d5d8dc;
+  --activity-muted: #b5bbc1;
+  --activity-label: #d8bf84;
+  --activity-accent: #ddc47f;
+  --activity-accent-soft: #3a321f;
+  --activity-ready: #9ed2ae;
+  --activity-ready-soft: #20392b;
+  --activity-running: #9ecae6;
+  --activity-running-soft: #203544;
+  --activity-queued: #e3cb8c;
+  --activity-queued-soft: #3a321f;
+  --activity-failed: #f0aaa3;
+  --activity-failed-soft: #452826;
+  --activity-shadow: 0 28px 88px rgba(0, 0, 0, .52), 0 4px 18px rgba(0, 0, 0, .34);
+}
+
+.crump-activity-trigger {
+  position: fixed;
+  top: max(14px, calc(env(safe-area-inset-top) + 8px));
+  right: max(76px, calc(env(safe-area-inset-right) + 64px));
+  z-index: 485;
+  display: inline-flex;
+  min-width: 44px;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 13px;
+  border: 1px solid var(--activity-border);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--activity-bg) 92%, transparent);
+  color: var(--activity-text);
+  box-shadow: 0 6px 22px rgba(47, 39, 25, .08);
+  -webkit-backdrop-filter: blur(18px) saturate(125%);
+  backdrop-filter: blur(18px) saturate(125%);
+  font: 650 12.5px/1 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  cursor: pointer;
+  transition: transform .16s ease, border-color .16s ease, background-color .16s ease, box-shadow .16s ease;
+}
+
+.crump-activity-trigger[hidden] { display: none !important; }
+body.crump-v1-body.crump-activity-has-connection-status .crump-activity-trigger {
+  right: max(322px, calc(env(safe-area-inset-right) + 310px));
+  width: 44px;
+  padding: 0;
+}
+body.crump-v1-body.crump-activity-has-connection-status .crump-activity-trigger-label { display: none; }
+.crump-activity-trigger:hover {
+  border-color: color-mix(in srgb, var(--activity-accent) 48%, var(--activity-border));
+  background: var(--activity-bg);
+  box-shadow: 0 8px 28px rgba(47, 39, 25, .12);
+  transform: translateY(-1px);
+}
+.crump-activity-trigger:focus-visible,
+.crump-activity-close:focus-visible,
+.crump-activity-action:focus-visible,
+.crump-activity-refresh:focus-visible {
+  outline: 2px solid var(--activity-accent);
+  outline-offset: 3px;
+}
+.crump-activity-trigger > svg {
+  width: 19px;
+  height: 19px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.crump-activity-trigger.has-active > svg { color: var(--activity-running); }
+.crump-activity-trigger.has-ready > svg { color: var(--activity-ready); }
+.crump-activity-badge {
+  display: grid;
+  min-width: 19px;
+  height: 19px;
+  place-items: center;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--activity-running);
+  color: var(--activity-bg);
+  font-size: 10px;
+  font-weight: 780;
+  line-height: 1;
+}
+.crump-activity-badge[hidden] { display: none !important; }
+
+.crump-activity-panel {
+  position: fixed;
+  top: max(68px, calc(env(safe-area-inset-top) + 60px));
+  right: max(20px, env(safe-area-inset-right));
+  z-index: 495;
+  display: flex;
+  width: min(390px, calc(100vw - 32px));
+  max-height: min(680px, calc(100dvh - 92px - env(safe-area-inset-bottom)));
+  flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--activity-border);
+  border-radius: 22px;
+  background: var(--activity-bg);
+  color: var(--activity-text);
+  box-shadow: var(--activity-shadow);
+  transform-origin: top right;
+  animation: crump-activity-enter .17s ease-out both;
+}
+.crump-activity-panel[hidden] { display: none !important; }
+
+.crump-activity-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--activity-line);
+}
+.crump-activity-head > div { min-width: 0; }
+.crump-activity-head span {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--activity-label);
+  font-size: 9px;
+  font-weight: 760;
+  letter-spacing: .15em;
+}
+.crump-activity-head h2 {
+  margin: 0;
+  color: var(--activity-text);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 24px;
+  font-weight: 520;
+  letter-spacing: -.025em;
+  line-height: 1.1;
+}
+.crump-activity-head p {
+  margin: 7px 0 0;
+  color: var(--activity-muted);
+  font-size: 12px;
+  font-weight: 560;
+  line-height: 1.35;
+}
+.crump-activity-close {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid transparent;
+  border-radius: 50%;
+  background: var(--activity-surface);
+  color: var(--activity-text-soft);
+  font: 400 25px/1 Arial, sans-serif;
+  cursor: pointer;
+}
+.crump-activity-close:hover { background: var(--activity-surface-hover); color: var(--activity-text); }
+
+.crump-activity-list {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 10px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--activity-border) transparent;
+}
+
+.crump-activity-item {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr) auto;
+  grid-template-areas:
+    "icon copy status"
+    "icon copy action";
+  align-items: center;
+  gap: 4px 12px;
+  padding: 12px;
+  border: 1px solid transparent;
+  border-radius: 15px;
+  background: transparent;
+}
+.crump-activity-item + .crump-activity-item { margin-top: 4px; }
+.crump-activity-item:hover { border-color: var(--activity-line); background: var(--activity-surface); }
+.crump-activity-item-icon {
+  grid-area: icon;
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 13px;
+  background: var(--activity-surface);
+  color: var(--activity-text-soft);
+}
+.crump-activity-item.is-running .crump-activity-item-icon { background: var(--activity-running-soft); color: var(--activity-running); }
+.crump-activity-item.is-queued .crump-activity-item-icon { background: var(--activity-queued-soft); color: var(--activity-queued); }
+.crump-activity-item.is-ready .crump-activity-item-icon { background: var(--activity-ready-soft); color: var(--activity-ready); }
+.crump-activity-item.is-failed .crump-activity-item-icon { background: var(--activity-failed-soft); color: var(--activity-failed); }
+.crump-activity-item-icon svg {
+  width: 21px;
+  height: 21px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.65;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.crump-activity-item-copy {
+  grid-area: copy;
+  display: grid;
+  min-width: 0;
+  gap: 2px;
+}
+.crump-activity-item-copy strong {
+  overflow: hidden;
+  color: var(--activity-text);
+  font-size: 13px;
+  font-weight: 680;
+  line-height: 1.25;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.crump-activity-item-copy span {
+  color: var(--activity-text-soft);
+  font-size: 11.5px;
+  line-height: 1.35;
+}
+.crump-activity-item-copy small {
+  color: var(--activity-muted);
+  font-size: 10.5px;
+  line-height: 1.3;
+}
+.crump-activity-status {
+  grid-area: status;
+  justify-self: end;
+  padding: 4px 7px;
+  border-radius: 999px;
+  font-size: 9px;
+  font-weight: 750;
+  letter-spacing: .025em;
+  line-height: 1;
+  white-space: nowrap;
+}
+.crump-activity-status.is-running { background: var(--activity-running-soft); color: var(--activity-running); }
+.crump-activity-status.is-queued { background: var(--activity-queued-soft); color: var(--activity-queued); }
+.crump-activity-status.is-ready { background: var(--activity-ready-soft); color: var(--activity-ready); }
+.crump-activity-status.is-failed { background: var(--activity-failed-soft); color: var(--activity-failed); }
+.crump-activity-action {
+  grid-area: action;
+  min-width: 52px;
+  min-height: 44px;
+  justify-self: end;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--activity-label);
+  font: 680 10.5px/1 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  cursor: pointer;
+}
+.crump-activity-action:hover { background: var(--activity-accent-soft); color: var(--activity-text); }
+
+.crump-activity-empty {
+  display: grid;
+  min-height: 210px;
+  place-items: center;
+  align-content: center;
+  gap: 8px;
+  padding: 28px;
+  text-align: center;
+}
+.crump-activity-empty > span {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--activity-ready-soft);
+  color: var(--activity-ready);
+  font-size: 18px;
+}
+.crump-activity-empty strong { color: var(--activity-text); font-size: 14px; }
+.crump-activity-empty p { margin: 0; color: var(--activity-muted); font-size: 12px; }
+
+.crump-activity-foot {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 14px;
+  padding: 13px 16px max(14px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--activity-line);
+  background: var(--activity-surface);
+}
+.crump-activity-foot > span,
+.crump-activity-foot > p {
+  margin: 0;
+  color: var(--activity-muted);
+  font-size: 10px;
+  line-height: 1.45;
+}
+.crump-activity-foot > p {
+  grid-column: 1 / -1;
+  color: var(--activity-failed);
+  font-weight: 620;
+}
+.crump-activity-foot > p[hidden] { display: none !important; }
+.crump-activity-refresh {
+  min-height: 44px;
+  padding: 0 11px;
+  border: 1px solid var(--activity-border);
+  border-radius: 10px;
+  background: var(--activity-bg);
+  color: var(--activity-text);
+  font: 650 10.5px/1 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  cursor: pointer;
+}
+.crump-activity-refresh:hover { background: var(--activity-surface-hover); }
+.crump-activity-refresh[disabled] { cursor: wait; opacity: .62; }
+
+@keyframes crump-activity-enter {
+  from { opacity: .78; transform: translateY(-6px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@media (max-width: 920px) {
+  .crump-activity-trigger {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+  }
+  .crump-activity-trigger-label { display: none; }
+  .crump-activity-badge {
+    position: absolute;
+    top: -3px;
+    right: -3px;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 4px;
+    border: 2px solid var(--activity-bg);
+  }
+  body.crump-v1-body .v1-workspace-context {
+    padding-right: 56px !important;
+  }
+  body.crump-v1-body .v1-workspace-context > strong {
+    max-width: calc(100vw - 184px) !important;
+  }
+  body.crump-v1-body.crump-activity-has-connection-status .crump-activity-trigger {
+    display: none !important;
+  }
+}
+
+@media (max-width: 680px) {
+  .crump-activity-trigger {
+    top: max(12px, calc(env(safe-area-inset-top) + 7px));
+    right: max(68px, calc(env(safe-area-inset-right) + 58px));
+  }
+  .crump-activity-panel {
+    top: max(62px, calc(env(safe-area-inset-top) + 56px));
+    right: max(10px, env(safe-area-inset-right));
+    left: max(10px, env(safe-area-inset-left));
+    width: auto;
+    max-height: calc(100dvh - var(--cv-mobile-nav, 72px) - env(safe-area-inset-bottom) - max(74px, env(safe-area-inset-top)));
+    border-radius: 20px;
+  }
+  .crump-activity-head { padding: 18px 17px 14px; }
+  .crump-activity-head h2 { font-size: 22px; }
+  .crump-activity-list { padding: 8px; }
+  .crump-activity-item { padding: 11px 9px; gap: 4px 9px; }
+  .crump-activity-item-copy span { font-size: 11px; }
+  .crump-activity-foot { padding: 12px 14px max(13px, env(safe-area-inset-bottom)); }
+}
+
+body.crump-v1-body.crump-v1-keyboard-visible .crump-activity-trigger,
+body.crump-v1-body.crump-v1-keyboard-visible .crump-activity-panel {
+  display: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crump-activity-trigger,
+  .crump-activity-panel {
+    animation: none !important;
+    transition: none !important;
+  }
+}

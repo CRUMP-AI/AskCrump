@@ -43,6 +43,9 @@ window.CRUMP_CONFIG = Object.freeze({
 
   const finalStyles = Object.freeze([
     ['/crump-design-pass.css?v=5.9.76-ui-release-audit-2', 'crumpdesignpass'],
+    ['/crump-activity-center-1.0.css?v=5.9.76-activity-center-1', 'crumpactivitycenter10'],
+    ['/crump-ui-guardrails.css?v=5.9.76-ui-guardrails-1', 'crumpuiguardrails'],
+    ['/crump-motion-system.css?v=5.9.76-motion-system-1', 'crumpmotionsystem'],
   ]);
 
   const workspaceScripts = Object.freeze([
@@ -86,6 +89,7 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/crump-code-loader.js?v=5.9.76-friendly-workspace-1', 'crumpcodeloader'],
     ['/lifecycle-share.js?v=5.9.76-settings-invite-1', 'lifecycleshare'],
     ['/lifecycle-manager.js?v=5.9.76-lifecycle-idle-send-1', 'lifecyclemanager'],
+    ['/crump-activity-center-1.0.js?v=5.9.76-activity-center-1', 'crumpactivitycenter10'],
   ]);
 
   const scriptPlan = Object.freeze([

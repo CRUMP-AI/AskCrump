@@ -149,6 +149,7 @@ async function verify(browser, viewport) {
       !document.body.classList.contains('cv-conversations-open')
       && document.querySelector('.cv-rail [data-cv-drawer-toggle]')?.getAttribute('aria-expanded') === 'false'
     ));
+    await page.waitForFunction(() => document.activeElement?.hasAttribute('data-cv-drawer-toggle'));
     const closedDrawer = await page.evaluate(() => ({
       open: document.body.classList.contains('cv-conversations-open'),
       expanded: document.querySelector('.cv-rail [data-cv-drawer-toggle]')?.getAttribute('aria-expanded'),

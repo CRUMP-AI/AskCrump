@@ -1,0 +1,406 @@
+/* Ask Crump motion system
+   --------------------------------------------------------------------------
+   A calm, late-cascade interaction layer. It intentionally owns timing only:
+   no colors, spacing, sizing, or safe-area geometry live here. Every entrance
+   begins partially visible so loading this stylesheet can never conceal an
+   already-rendered surface while JavaScript is still mounting. */
+
+:root {
+  --crump-motion-duration-instant: 80ms;
+  --crump-motion-duration-fast: 140ms;
+  --crump-motion-duration-standard: 190ms;
+  --crump-motion-duration-panel: 240ms;
+  --crump-motion-duration-progress: 320ms;
+  --crump-motion-ease-standard: cubic-bezier(.2, 0, 0, 1);
+  --crump-motion-ease-enter: cubic-bezier(.16, 1, .3, 1);
+  --crump-motion-ease-exit: cubic-bezier(.4, 0, 1, 1);
+  --crump-motion-ease-linear: linear;
+}
+
+/* Navigation changes state in place. Position and hit targets never move. */
+body.crump-v1-body :is(
+  .cv-destination,
+  .cv-mnav-item,
+  .cv-rail-new,
+  .cv-rail-conversations,
+  .cv-rail-utility,
+  .v1-rail-button,
+  .v1-settings-nav button,
+  .crump53-tab,
+  .crump50-segmented button,
+  .crump57-layout-button,
+  .appearance-choice
+) {
+  transition-property: color, background-color, border-color, box-shadow, opacity;
+  transition-duration: var(--crump-motion-duration-fast);
+  transition-timing-function: var(--crump-motion-ease-standard);
+}
+
+body.crump-v1-body :is(
+  .cv-destination::before,
+  .cv-mnav-item::before
+) {
+  transition-property: opacity, transform;
+  transition-duration: var(--crump-motion-duration-standard);
+  transition-timing-function: var(--crump-motion-ease-enter);
+}
+
+/* Buttons acknowledge hover, focus, disabled, and sending states without a
+   spring, bounce, or vertical jump. */
+body.crump-v1-body :is(
+  .v1-starter-chip,
+  .message-action-btn,
+  .outcome-feedback-btn,
+  .outcome-project-btn,
+  .settings-primary-btn,
+  .settings-icon-btn,
+  .crump53-button,
+  .crump50-menu-row,
+  .crump50-primary-action,
+  .crump50-image-actions button,
+  .crump50-artifact-actions button,
+  .crump52-attach-choice,
+  .billing51-plan-button,
+  .billing51-buy,
+  .cv-button,
+  .cv-home-prompt,
+  .cv-more-item
+) {
+  transition-property: color, background-color, border-color, box-shadow, opacity;
+  transition-duration: var(--crump-motion-duration-fast);
+  transition-timing-function: var(--crump-motion-ease-standard);
+}
+
+body.crump-v1-body :is(
+  .cv-rail-new,
+  .cv-destination,
+  .crump5930-destination,
+  .v1-rail-button,
+  #crumpIntelligenceButton,
+  .crump44-control-button,
+  .crump50-plus,
+  #attachBtn,
+  #sendButton,
+  .btn-icon,
+  .settings-icon-btn,
+  .v1-starter-chip,
+  .v1-launch-card,
+  .billing51-pack,
+  .crump57-book,
+  .cv-project-card,
+  .cv-project-row,
+  .cv-library-card,
+  .cv-book-card,
+  .crump50-send
+):is(:hover, :active) {
+  transform: none !important;
+}
+
+/* Cards gain emphasis through paint-only properties. This keeps surrounding
+   text and scroll position perfectly stable during pointer movement. */
+body.crump-v1-body :is(
+  .v1-recent-work-button,
+  .v1-profile-nudge,
+  .v1-launch-card,
+  .cv-project-card,
+  .cv-project-row,
+  .cv-library-card,
+  .cv-book-card,
+  .cvp-project-card,
+  .cvl-book,
+  .crump57-book,
+  .crump50-artifact,
+  .crump53-video-engine-card,
+  .crump53-video-recent-item,
+  .billing51-balance-card,
+  .billing51-pack
+) {
+  transition-property: background-color, border-color, box-shadow, opacity;
+  transition-duration: var(--crump-motion-duration-standard);
+  transition-timing-function: var(--crump-motion-ease-standard);
+}
+
+/* Composer focus and attachment updates are quiet and deterministic. */
+body.crump-v1-body :is(
+  .v1-command-dock,
+  .input-area,
+  .input-container,
+  .message-input,
+  #attachBtn,
+  #sendBtn,
+  .crump50-upload-remove
+) {
+  transition-property: color, background-color, border-color, box-shadow, opacity;
+  transition-duration: var(--crump-motion-duration-fast);
+  transition-timing-function: var(--crump-motion-ease-standard);
+}
+
+body.crump-v1-body #filePreview:not(:empty),
+body.crump-v1-body #filePreview .crump50-upload-card,
+body.crump-v1-body .crump52-file-attachment {
+  animation: crump-motion-content-enter var(--crump-motion-duration-standard)
+    var(--crump-motion-ease-enter) both;
+}
+
+body.crump-v1-body :is(
+  .crump50-upload-progress,
+  .billing51-progress > i,
+  .crump53-progress-track > i
+) {
+  transition-property: width, opacity, background-position;
+  transition-duration: var(--crump-motion-duration-progress), var(--crump-motion-duration-fast), var(--crump-motion-duration-progress);
+  transition-timing-function: var(--crump-motion-ease-linear), var(--crump-motion-ease-standard), var(--crump-motion-ease-linear);
+}
+
+/* Entrances are attached only to explicit visible/open states or to surfaces
+   created on demand. The stylesheet never sets a closed surface to opacity 0. */
+body.crump-v1-body :is(
+  .v1-modal:not([style*="display:none"]):not([style*="display: none"]) .modal-content,
+  .billing51-modal.is-visible .billing51-sheet,
+  .crump52-attach-overlay.is-visible .crump52-attach-sheet,
+  .crump50-sheet.is-visible,
+  .crump44-panel:not([hidden]),
+  .crump53-overlay:not([hidden]) .crump53-sheet,
+  .crump57-overlay .crump57-sheet,
+  .crump57-reader-overlay .crump57-reader-sheet,
+  .cvl-overlay .cvl-sheet,
+  .account-modal-card,
+  .crump-credit-confirmation__sheet,
+  .crump-precision-editor,
+  .crump-code-shell,
+  .cv-more-sheet,
+  dialog[open] > :first-child
+) {
+  animation: crump-motion-surface-enter var(--crump-motion-duration-panel)
+    var(--crump-motion-ease-enter) both;
+}
+
+body.crump-v1-body :is(
+  .install-button,
+  .install-toast,
+  .runtime-update-notice,
+  .crump-lifecycle-card
+) {
+  transition-duration: var(--crump-motion-duration-standard) !important;
+  transition-timing-function: var(--crump-motion-ease-standard) !important;
+}
+
+body.crump-v1-body :is(
+  .v1-settings-panel.is-active,
+  .crump53-panel:not([hidden]),
+  .cvp-panel:not([hidden]),
+  .cvl-panel:not([hidden])
+) {
+  animation: crump-motion-content-enter var(--crump-motion-duration-standard)
+    var(--crump-motion-ease-enter) both;
+}
+
+/* Preserve the position transforms used to dock sheets while standardizing
+   their timing. No content card or message is translated by this layer. */
+body.crump-v1-body :is(
+  .crump50-sheet,
+  .crump52-attach-sheet,
+  .billing51-sheet,
+  #sidebar.v1-library
+) {
+  transition-duration: var(--crump-motion-duration-panel) !important;
+  transition-timing-function: var(--crump-motion-ease-enter) !important;
+}
+
+body.crump-v1-body :is(
+  .sidebar-overlay,
+  .billing51-modal,
+  .crump52-attach-overlay,
+  .tutorial-overlay
+) {
+  transition-duration: var(--crump-motion-duration-standard) !important;
+  transition-timing-function: var(--crump-motion-ease-standard) !important;
+}
+
+/* Loading placeholders breathe briefly, then settle. They never shimmer or
+   pulse forever after a request becomes slow. */
+body.crump-v1-body :is(
+  .billing51-skeleton,
+  .crump57-skeleton i,
+  .cvp-skeleton i,
+  .cvl-skeleton i
+) {
+  animation-name: crump-motion-skeleton-breathe !important;
+  animation-duration: 900ms !important;
+  animation-timing-function: var(--crump-motion-ease-standard) !important;
+  animation-iteration-count: 2 !important;
+  animation-fill-mode: both !important;
+}
+
+/* Thinking is functional motion: six calm cycles make state change apparent,
+   then the dots remain visible instead of moving indefinitely. */
+body.crump-v1-body .typing-dots i,
+body.crump-v1-body .cv-thinking.presence-message .typing-dots i {
+  animation-name: crump-motion-stream-pulse !important;
+  animation-duration: 1200ms !important;
+  animation-timing-function: ease-in-out !important;
+  animation-iteration-count: 6 !important;
+  animation-fill-mode: both !important;
+}
+
+body.crump-v1-body .typing-dots i:nth-child(2) {
+  animation-delay: 120ms !important;
+}
+
+body.crump-v1-body .typing-dots i:nth-child(3) {
+  animation-delay: 240ms !important;
+}
+
+/* Legacy online and playback halos are decorative; state remains visible
+   through the underlying static icon, label, and color. */
+body.crump-v1-body .status-online,
+body.crump-v1-body .crump53-playback-pulse::after {
+  animation: none !important;
+}
+
+@keyframes crump-motion-surface-enter {
+  from { opacity: .78; }
+  to { opacity: 1; }
+}
+
+@keyframes crump-motion-content-enter {
+  from { opacity: .84; }
+  to { opacity: 1; }
+}
+
+@keyframes crump-motion-skeleton-breathe {
+  0%, 100% { opacity: .72; }
+  50% { opacity: .96; }
+}
+
+@keyframes crump-motion-stream-pulse {
+  0%, 100% { opacity: .38; }
+  50% { opacity: .9; }
+}
+
+/* The accessibility contract applies to dynamically injected tools too. Tiny
+   non-zero durations preserve animationend/transitionend cleanup hooks. */
+@media (prefers-reduced-motion: reduce) {
+  html:focus-within { scroll-behavior: auto !important; }
+
+  body.crump-v1-body *,
+  body.crump-v1-body *::before,
+  body.crump-v1-body *::after {
+    scroll-behavior: auto !important;
+    animation-delay: 0ms !important;
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-delay: 0ms !important;
+    transition-duration: .01ms !important;
+  }
+
+  body.crump-v1-body :is(
+    .typing-dots i,
+    .billing51-skeleton,
+    .crump57-skeleton i,
+    .cvp-skeleton i,
+    .cvl-skeleton i
+  ) {
+    animation-name: none !important;
+  }
+
+  /* Match the specificity of every motion selector owned above. A generic
+     descendant reset can lose to component rules carrying !important. */
+  body.crump-v1-body #filePreview:not(:empty),
+  body.crump-v1-body #filePreview .crump50-upload-card,
+  body.crump-v1-body .crump52-file-attachment,
+  body.crump-v1-body :is(
+    .v1-modal:not([style*="display:none"]):not([style*="display: none"]) .modal-content,
+    .billing51-modal.is-visible .billing51-sheet,
+    .crump52-attach-overlay.is-visible .crump52-attach-sheet,
+    .crump50-sheet.is-visible,
+    .crump44-panel:not([hidden]),
+    .crump53-overlay:not([hidden]) .crump53-sheet,
+    .crump57-overlay .crump57-sheet,
+    .crump57-reader-overlay .crump57-reader-sheet,
+    .cvl-overlay .cvl-sheet,
+    .account-modal-card,
+    .crump-credit-confirmation__sheet,
+    .crump-precision-editor,
+    .crump-code-shell,
+    .cv-more-sheet,
+    dialog[open] > :first-child,
+    .v1-settings-panel.is-active,
+    .crump53-panel:not([hidden]),
+    .cvp-panel:not([hidden]),
+    .cvl-panel:not([hidden])
+  ) {
+    animation: none !important;
+  }
+
+  body.crump-v1-body :is(
+    .cv-destination,
+    .cv-mnav-item,
+    .cv-rail-new,
+    .cv-rail-conversations,
+    .cv-rail-utility,
+    .v1-rail-button,
+    .v1-settings-nav button,
+    .crump53-tab,
+    .crump50-segmented button,
+    .crump57-layout-button,
+    .appearance-choice,
+    .v1-starter-chip,
+    .message-action-btn,
+    .outcome-feedback-btn,
+    .outcome-project-btn,
+    .settings-primary-btn,
+    .settings-icon-btn,
+    .crump53-button,
+    .crump50-menu-row,
+    .crump50-primary-action,
+    .crump50-image-actions button,
+    .crump50-artifact-actions button,
+    .crump52-attach-choice,
+    .billing51-plan-button,
+    .billing51-buy,
+    .cv-button,
+    .cv-home-prompt,
+    .cv-more-item,
+    .v1-recent-work-button,
+    .v1-profile-nudge,
+    .v1-launch-card,
+    .cv-project-card,
+    .cv-project-row,
+    .cv-library-card,
+    .cv-book-card,
+    .cvp-project-card,
+    .cvl-book,
+    .crump57-book,
+    .crump50-artifact,
+    .crump53-video-engine-card,
+    .crump53-video-recent-item,
+    .billing51-balance-card,
+    .billing51-pack,
+    .v1-command-dock,
+    .input-area,
+    .input-container,
+    .message-input,
+    #attachBtn,
+    #sendBtn,
+    .crump50-upload-remove,
+    .crump50-upload-progress,
+    .billing51-progress > i,
+    .crump53-progress-track > i,
+    .install-button,
+    .install-toast,
+    .runtime-update-notice,
+    .crump-lifecycle-card,
+    .crump50-sheet,
+    .crump52-attach-sheet,
+    .billing51-sheet,
+    #sidebar.v1-library,
+    .sidebar-overlay,
+    .billing51-modal,
+    .crump52-attach-overlay,
+    .tutorial-overlay
+  ),
+  body.crump-v1-body :is(.cv-destination::before, .cv-mnav-item::before) {
+    transition: none !important;
+  }
+}

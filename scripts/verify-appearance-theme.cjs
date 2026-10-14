@@ -77,7 +77,7 @@ async function snapshot(page) {
     const workspaceBackground = style('.v1-workspace').backgroundColor;
     const settingsBackground = style('.v1-settings-sheet').backgroundColor;
     const pairs = {
-      drawerHeader: [style('.v1-library-header', '::before').color, drawerBackground],
+      drawerHeader: [style('.v1-library-header', '::before').color, style('.v1-library-header').backgroundColor],
       newConversation: [style('#newChatBtn').color, style('#newChatBtn').backgroundColor],
       sectionTitle: [style('.section-title').color, drawerBackground],
       syncHint: [style('.v1-library-hint').color, drawerBackground],

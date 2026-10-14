@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r258-ui-contract-repair-1';
+const CACHE_NAME = 'ask-crump-new-body-v1-r259-product-polish-1';
 
 const CORE = [
   '/app',
@@ -21,6 +21,9 @@ const CORE = [
   '/credit-confirmation.css?v=5.9.76-credit-confirmation-1',
   '/lifecycle.css?v=5.9.76-lifecycle-activation-1',
   '/crump-design-pass.css?v=5.9.76-ui-release-audit-2',
+  '/crump-activity-center-1.0.css?v=5.9.76-activity-center-1',
+  '/crump-ui-guardrails.css?v=5.9.76-ui-guardrails-1',
+  '/crump-motion-system.css?v=5.9.76-motion-system-1',
   '/crump-v1-body.js?v=5.9.76-atelier-workspace-1',
   '/crump-v1-stability.css',
   '/crump-v1-stability.js?v=5.9.76-intelligence-architecture-1',
@@ -46,7 +49,7 @@ const CORE = [
   '/crump-media-save.js?v=5.9.76-library-lazy-load-1',
   '/crump-library-loader.js?v=5.9.76-library-first-run-1',
   '/crump-subscriptions-5.3.2.js?v=5.9.76-checkout-destination-label-1',
-  '/runtime-body-v1.js?v=5.9.76-ui-release-audit-2',
+  '/runtime-body-v1.js?v=5.9.76-product-polish-1',
   '/native-runtime.js',
   '/mobile-bridge.js',
   '/safe-storage.js',
@@ -69,6 +72,7 @@ const CORE = [
   '/product-analytics.js?v=5.9.76-navigation-discovery-1',
   '/lifecycle-share.js?v=5.9.76-settings-invite-1',
   '/lifecycle-manager.js?v=5.9.76-lifecycle-idle-send-1',
+  '/crump-activity-center-1.0.js?v=5.9.76-activity-center-1',
   '/auth-controller.js?v=5.9.76-image-studio-entry-1',
   '/crump-4.3.css',
   '/crump-4.3.js?v=5.9.76-atelier-workspace-1',
@@ -123,6 +127,10 @@ function bootCritical(request, url) {
     url.pathname === '/crump-v1-body.js' ||
     url.pathname === '/crump-v1-body.css' ||
     url.pathname === '/lifecycle.css' ||
+    url.pathname === '/crump-activity-center-1.0.css' ||
+    url.pathname === '/crump-activity-center-1.0.js' ||
+    url.pathname === '/crump-ui-guardrails.css' ||
+    url.pathname === '/crump-motion-system.css' ||
     url.pathname === '/crump-v1-stability.js' ||
     url.pathname === '/crump-v1-stability.css' ||
     url.pathname === '/crump-navigation-5.2.5.js' ||

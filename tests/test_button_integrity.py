@@ -20,6 +20,7 @@ EXPECTED_BUTTON_INVENTORY = {
     "public/credit-confirmation.js": 3,
     "public/crump-5.0.js": 4,
     "public/crump-5.2.js": 5,
+    "public/crump-activity-center-1.0.js": 2,
     "public/crump-billing-5.1.js": 3,
     "public/crump-code-5.9.35.js": 4,
     "public/crump-library-5.7.js": 43,
@@ -43,6 +44,7 @@ DYNAMIC_BUTTON_INVENTORY = {
     "public/crump-4.4.js": 3,
     "public/crump-5.0.js": 26,
     "public/crump-5.2.js": 3,
+    "public/crump-activity-center-1.0.js": 2,
     "public/crump-billing-5.1.js": 2,
     "public/crump-code-5.9.35.js": 5,
     "public/crump-polish-5.6.js": 1,
@@ -58,15 +60,15 @@ DYNAMIC_BUTTON_INVENTORY = {
     "public/ui-functions.js": 16,
 }
 INDIRECT_DYNAMIC_BUTTON_OWNERS = {
-    "public/crump-5.0.js:1940:close": (
+    "public/crump-5.0.js:1950:close": (
         "mountLightbox(box, close);",
         "closeButton.addEventListener('click', dismiss)",
     ),
-    "public/crump-5.0.js:2024:close": (
+    "public/crump-5.0.js:2034:close": (
         "mountLightbox(box, close);",
         "closeButton.addEventListener('click', dismiss)",
     ),
-    "public/crump-5.0.js:2401:project": (
+    "public/crump-5.0.js:2411:project": (
         "wireOutputProjectAction(project, {",
         "button.addEventListener('click', async () => {",
     ),
@@ -297,7 +299,7 @@ def test_rendered_button_inventory_requires_explicit_review() -> None:
             inventory[page.relative_to(ROOT).as_posix()] = len(parser.buttons)
 
     assert inventory == EXPECTED_BUTTON_INVENTORY
-    assert sum(inventory.values()) == 220
+    assert sum(inventory.values()) == 222
 
 
 def test_programmatically_created_button_inventory_requires_explicit_review() -> None:
@@ -308,8 +310,8 @@ def test_programmatically_created_button_inventory_requires_explicit_review() ->
             inventory[path.relative_to(ROOT).as_posix()] = count
 
     assert inventory == DYNAMIC_BUTTON_INVENTORY
-    assert sum(inventory.values()) == 102
-    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 322
+    assert sum(inventory.values()) == 104
+    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 326
 
 
 def test_programmatically_created_buttons_declare_type_and_runtime_owner() -> None:
@@ -644,7 +646,7 @@ def test_browser_control_matrix_is_fail_closed_and_one_command() -> None:
     workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     verifier_names = sorted(path.name for path in (ROOT / "scripts").glob("verify-*.cjs"))
 
-    assert len(verifier_names) == 54
+    assert len(verifier_names) == 55
     for name in verifier_names:
         assert f"'{name}'" in runner
     assert "Browser verifier inventory drifted." in runner
