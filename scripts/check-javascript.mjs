@@ -1034,8 +1034,9 @@ const museReleaseRepairVersion = `${releaseVersion}-muse-release-repair-1`;
 const cacheIntegrityVersion = `${releaseVersion}-friendly-workspace-1`;
 const shellNoTaglineVersion = `${releaseVersion}-shell-no-tagline-1`;
 const atelierWorkspaceVersion = `${releaseVersion}-atelier-workspace-1`;
-const runtimeBodyVersion = `${releaseVersion}-mobile-studio-layout-1`;
+const runtimeBodyVersion = `${releaseVersion}-ui-release-audit-1`;
 const appearanceChoiceVersion = `${releaseVersion}-appearance-choice-2`;
+const uiReleaseAuditVersion = `${releaseVersion}-ui-release-audit-1`;
 const documentDeliveryFocusedVersion = `${releaseVersion}-reference-fidelity-hard-contract-1`;
 const outcomeRefinementRecoveryVersion = `${releaseVersion}-outcome-refinement-recovery-1`;
 const authUpdateGuardVersion = `${releaseVersion}-update-work-guard-1`;
@@ -1377,7 +1378,7 @@ const finalStyleUrls = source => {
   if (start < 0 || end < 0) return [];
   return [...source.slice(start, end).matchAll(/\['([^']+)'/g)].map(match => match[1]);
 };
-const expectedFinalStyle = `/crump-design-pass.css?v=${appearanceChoiceVersion}`;
+const expectedFinalStyle = `/crump-design-pass.css?v=${uiReleaseAuditVersion}`;
 for (const source of [runtime, nativeBuildSource]) {
   const finalStyles = finalStyleUrls(source);
   if (finalStyles.length !== 1 || finalStyles[0] !== expectedFinalStyle ||
@@ -1391,7 +1392,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/onboarding.css?v=${cacheIntegrityVersion}`) ||
     !runtime.includes(`/onboarding.js?v=${cacheIntegrityVersion}`) ||
     !runtime.includes(`/conversation.css?v=${museReleaseRepairVersion}`) ||
-    !runtime.includes(`/crump-design-pass.css?v=${appearanceChoiceVersion}`) ||
+    !runtime.includes(`/crump-design-pass.css?v=${uiReleaseAuditVersion}`) ||
     !runtime.includes(`/credit-confirmation.css?v=${creditConfirmationVersion}`) ||
     !runtime.includes(`/credit-confirmation.js?v=${creditConfirmationVersion}`) ||
     !runtime.includes(`/chat-resilience.js?v=${creditConfirmationVersion}`) ||
@@ -1699,7 +1700,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r258-ui-contract-repair-1') |
     !serviceWorker.includes(appearanceControlsUrl) ||
     !serviceWorker.includes(`/runtime-body-v1.js?v=${runtimeBodyVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${museReleaseRepairVersion}`) ||
-    !serviceWorker.includes(`/crump-design-pass.css?v=${appearanceChoiceVersion}`) ||
+    !serviceWorker.includes(`/crump-design-pass.css?v=${uiReleaseAuditVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.css?v=${creditConfirmationVersion}`) ||
     !serviceWorker.includes(`/credit-confirmation.js?v=${creditConfirmationVersion}`) ||
     !serviceWorker.includes(`/chat-resilience.js?v=${creditConfirmationVersion}`) ||

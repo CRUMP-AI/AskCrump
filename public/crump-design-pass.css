@@ -750,6 +750,123 @@ body.crump-v1-body .presence-bubble { border: 0 !important; background: transpar
 body.crump-v1-body .typing-dots i { background: var(--atelier-brass) !important; }
 body.crump-v1-body .presence-label { color: var(--atelier-muted) !important; font-size: 13px !important; font-style: normal !important; }
 
+/* Response utilities used to inherit the retired dark shell's translucent
+   whites. Give the entire post-answer stack semantic paper-theme colors so
+   every label remains legible without needing hover to reveal it. */
+body.crump-v1-body .message-intelligence-receipt {
+  color: var(--atelier-panel-muted) !important;
+  font-size: 11px !important;
+}
+body.crump-v1-body .message-intelligence-label {
+  color: var(--atelier-panel-label) !important;
+  font-weight: 760 !important;
+}
+body.crump-v1-body .message-intelligence-signal {
+  border-color: rgba(112,93,56,.24) !important;
+  background: #f0eadf !important;
+  color: #5d523d !important;
+}
+body.crump-v1-body .message-actions,
+body.crump-v1-body .assistant-message:hover .message-actions,
+body.crump-v1-body .assistant-message:focus-within .message-actions {
+  opacity: 1 !important;
+}
+body.crump-v1-body .message-action-btn {
+  color: var(--atelier-panel-muted) !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+}
+body.crump-v1-body .message-action-btn:hover,
+body.crump-v1-body .message-action-btn:focus-visible {
+  background: #ece7de !important;
+  color: var(--atelier-panel-text) !important;
+}
+body.crump-v1-body .outcome-feedback {
+  gap: 12px !important;
+  margin-top: 14px !important;
+  color: var(--atelier-panel-muted) !important;
+  font-size: 13px !important;
+}
+body.crump-v1-body .outcome-continuity {
+  gap: 12px !important;
+  padding: 16px 18px !important;
+  border-color: rgba(112,93,56,.18) !important;
+  border-radius: 18px !important;
+  background:
+    radial-gradient(260px 120px at 0 0,rgba(178,145,78,.09),transparent 74%),
+    rgba(255,253,249,.76) !important;
+}
+body.crump-v1-body .outcome-continuity-copy { gap: 4px !important; }
+body.crump-v1-body .outcome-continuity-prompt {
+  color: var(--atelier-panel-text) !important;
+  font-weight: 700 !important;
+}
+body.crump-v1-body .outcome-continuity-detail,
+body.crump-v1-body .outcome-feedback-prompt,
+body.crump-v1-body .outcome-referral-prompt { color: var(--atelier-panel-muted) !important; }
+body.crump-v1-body .outcome-feedback-question,
+body.crump-v1-body .outcome-feedback-actions,
+body.crump-v1-body .outcome-referral-actions { gap: 8px !important; }
+body.crump-v1-body .outcome-feedback-btn {
+  min-height: 36px !important;
+  padding: 7px 12px !important;
+  border-color: #d8d0c2 !important;
+  background: rgba(255,253,249,.80) !important;
+  color: var(--atelier-panel-text-2) !important;
+  font-weight: 650 !important;
+}
+body.crump-v1-body .outcome-feedback-btn:hover,
+body.crump-v1-body .outcome-feedback-btn:focus-visible {
+  border-color: rgba(130,105,54,.42) !important;
+  background: #f0eadf !important;
+  color: var(--atelier-panel-text) !important;
+}
+body.crump-v1-body .outcome-project-btn {
+  min-height: 42px !important;
+  border-color: var(--atelier-ink) !important;
+  background: var(--atelier-ink) !important;
+  color: #fffdf9 !important;
+}
+body.crump-v1-body .outcome-project-btn:hover,
+body.crump-v1-body .outcome-project-btn:focus-visible {
+  border-color: #303238 !important;
+  background: #303238 !important;
+  color: #fffdf9 !important;
+}
+body.crump-v1-body .outcome-feedback-status { color: var(--atelier-panel-label) !important; }
+
+body.crump-v1-body .crump50-artifact,
+body.crump-v1-body .crump50-artifact.cv-keepsake-real {
+  border-color: rgba(112,93,56,.18) !important;
+  background:
+    radial-gradient(320px 160px at 0 0,rgba(178,145,78,.09),transparent 75%),
+    rgba(255,253,249,.78) !important;
+  color: var(--atelier-panel-text) !important;
+}
+body.crump-v1-body .crump50-artifact.cv-keepsake-real::before {
+  grid-column: 1 / -1;
+  margin: 0 0 2px;
+  color: var(--atelier-panel-label) !important;
+}
+body.crump-v1-body .crump50-artifact > span {
+  border-color: rgba(112,93,56,.18) !important;
+  background: #f0eadf !important;
+  color: var(--atelier-panel-label) !important;
+}
+body.crump-v1-body .crump50-artifact :is(strong,.crump50-artifact-copy strong) { color: var(--atelier-panel-text) !important; }
+body.crump-v1-body .crump50-artifact :is(small,.crump50-artifact-copy small) { color: var(--atelier-panel-muted) !important; }
+body.crump-v1-body .crump50-artifact .crump50-artifact-actions button {
+  border-color: #d4cbbb !important;
+  background: rgba(255,253,249,.84) !important;
+  color: var(--atelier-panel-text-2) !important;
+}
+body.crump-v1-body .crump50-artifact .crump50-artifact-actions button:hover,
+body.crump-v1-body .crump50-artifact .crump50-artifact-actions button:focus-visible {
+  border-color: rgba(130,105,54,.42) !important;
+  background: #f0eadf !important;
+  color: var(--atelier-panel-text) !important;
+}
+
 body.crump-v1-body .v1-command-dock {
   background:
     linear-gradient(180deg, rgba(246,244,238,0), rgba(246,244,238,.93) 24%, var(--atelier-paper) 64%) !important;
@@ -758,6 +875,71 @@ body.crump-v1-body .v1-command-dock {
 body.crump-v1-body .input-area,
 body.crump-v1-body.v1-library-collapsed .input-area {
   width: min(calc(100vw - var(--ac-rail) - 54px),var(--ac-composer)) !important;
+}
+
+/* Attachments belong to the composer, not in a floating layer over it. The
+   structural row grows when files are present, keeping the tray directly
+   above the text field while the conversation receives the remaining space. */
+body.crump-v1-body .v1-command-dock {
+  align-content: end;
+  row-gap: 8px;
+}
+body.crump-v1-body #filePreview.crump50-attachment-tray {
+  position: relative !important;
+  inset: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  left: auto !important;
+  z-index: 1 !important;
+  width: min(100%,var(--crump-43-conversation,var(--ac-composer))) !important;
+  max-width: var(--crump-43-conversation,var(--ac-composer)) !important;
+  justify-self: center;
+  margin: 0 !important;
+  padding: 0 2px !important;
+  overflow-x: auto;
+  overflow-y: hidden;
+  transform: none !important;
+  background: transparent !important;
+}
+body.crump-v1-body #filePreview.crump50-attachment-tray:empty { display: none !important; }
+body.crump-v1-body .crump50-upload-card {
+  flex: 0 0 min(268px,calc(100vw - var(--ac-rail) - 76px)) !important;
+  height: 64px !important;
+  grid-template-columns: 44px minmax(0,1fr) 36px !important;
+  gap: 10px !important;
+  padding: 8px 8px 8px 9px !important;
+  border: 1px solid rgba(112,93,56,.20) !important;
+  border-radius: 17px !important;
+  background: rgba(255,253,249,.98) !important;
+  color: var(--atelier-panel-text) !important;
+  box-shadow: 0 12px 30px rgba(45,38,25,.11),0 2px 8px rgba(45,38,25,.05) !important;
+}
+body.crump-v1-body .crump50-upload-visual {
+  width: 44px !important;
+  height: 44px !important;
+  border: 1px solid rgba(112,93,56,.11);
+  border-radius: 12px !important;
+  background: #f1ece2 !important;
+  color: var(--atelier-brass-deep) !important;
+}
+body.crump-v1-body .crump50-upload-copy strong {
+  color: var(--atelier-panel-text) !important;
+  font-size: 12px !important;
+}
+body.crump-v1-body .crump50-upload-copy span { color: var(--atelier-panel-muted) !important; }
+body.crump-v1-body .crump50-upload-progress {
+  background: linear-gradient(90deg,var(--atelier-brass) var(--progress),rgba(112,93,56,.12) var(--progress)) !important;
+}
+body.crump-v1-body .crump50-upload-remove {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 50% !important;
+  color: var(--atelier-panel-muted) !important;
+}
+body.crump-v1-body .crump50-upload-remove:hover,
+body.crump-v1-body .crump50-upload-remove:focus-visible {
+  background: #eee8dd !important;
+  color: var(--atelier-panel-danger) !important;
 }
 body.crump-v1-body .input-container {
   min-height: 68px !important;
@@ -801,6 +983,11 @@ body.crump-v1-body #scrollToEndBtn {
   color: var(--atelier-ink) !important;
   box-shadow: var(--atelier-shadow-soft) !important;
 }
+body.crump-v1-body.crump50-has-attachments #scrollToEndBtn {
+  bottom: calc(var(--ac-dock) + 88px) !important;
+}
+body.crump-v1-body .crump531-chat-menu-button { color: var(--atelier-panel-muted) !important; }
+body.crump-v1-body :is(.v1-recent-work-button,.v1-launch-card) > b { color: var(--atelier-panel-label) !important; }
 
 /* -------------------------------------------------------------------------- */
 /* Vision destinations                                                        */
@@ -1584,6 +1771,18 @@ body.crump-v1-body :is(.chat-container,.v1-library-list,.settings-sheet-body,.bi
     bottom: 0 !important;
     padding: 0 10px 9px !important;
   }
+  body.crump-v1-body #filePreview.crump50-attachment-tray {
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+  body.crump-v1-body .crump50-upload-remove {
+    width: 40px !important;
+    height: 40px !important;
+  }
+  body.crump-v1-body .crump50-upload-card {
+    grid-template-columns: 44px minmax(0,1fr) 40px !important;
+  }
+  body.crump-v1-body .message-action-btn { font-size: 12px !important; }
   body.crump-v1-body .input-area,
   body.crump-v1-body.v1-library-collapsed .input-area { width: 100% !important; }
   body.crump-v1-body .input-container {
@@ -1810,6 +2009,76 @@ html[data-theme="dark"] body.crump-v1-body .assistant-message :is(code,.inline-c
   background: #20242a !important;
   color: #ead59c !important;
 }
+html[data-theme="dark"] body.crump-v1-body .message-intelligence-label { color: #e2ca87 !important; }
+html[data-theme="dark"] body.crump-v1-body .message-intelligence-signal {
+  border-color: rgba(211,185,112,.24) !important;
+  background: rgba(211,185,112,.09) !important;
+  color: #d9dde0 !important;
+}
+html[data-theme="dark"] body.crump-v1-body .message-action-btn { color: #b5bcc3 !important; }
+html[data-theme="dark"] body.crump-v1-body .message-action-btn:hover,
+html[data-theme="dark"] body.crump-v1-body .message-action-btn:focus-visible {
+  background: #252a30 !important;
+  color: #f1eee7 !important;
+}
+html[data-theme="dark"] body.crump-v1-body .outcome-continuity {
+  border-color: #3b424a !important;
+  background:
+    radial-gradient(280px 130px at 0 0,rgba(211,185,112,.10),transparent 74%),
+    rgba(25,28,33,.82) !important;
+}
+html[data-theme="dark"] body.crump-v1-body :is(.outcome-continuity-detail,.outcome-feedback-prompt,.outcome-referral-prompt) {
+  color: var(--atelier-panel-muted) !important;
+}
+html[data-theme="dark"] body.crump-v1-body .outcome-feedback-btn {
+  border-color: #414851 !important;
+  background: #22262c !important;
+  color: var(--atelier-panel-text-2) !important;
+}
+html[data-theme="dark"] body.crump-v1-body .outcome-feedback-btn:hover,
+html[data-theme="dark"] body.crump-v1-body .outcome-feedback-btn:focus-visible {
+  border-color: rgba(211,185,112,.44) !important;
+  background: #2b3037 !important;
+  color: #f4f1e9 !important;
+}
+html[data-theme="dark"] body.crump-v1-body .outcome-project-btn {
+  border-color: #e7deca !important;
+  background: #e7deca !important;
+  color: #15171a !important;
+}
+html[data-theme="dark"] body.crump-v1-body .outcome-project-btn:hover,
+html[data-theme="dark"] body.crump-v1-body .outcome-project-btn:focus-visible {
+  border-color: #f3ebda !important;
+  background: #f3ebda !important;
+  color: #15171a !important;
+}
+html[data-theme="dark"] body.crump-v1-body .crump50-artifact,
+html[data-theme="dark"] body.crump-v1-body .crump50-artifact.cv-keepsake-real {
+  border-color: #3b424a !important;
+  background:
+    radial-gradient(320px 160px at 0 0,rgba(211,185,112,.10),transparent 75%),
+    rgba(25,28,33,.84) !important;
+  color: #f1eee7 !important;
+}
+html[data-theme="dark"] body.crump-v1-body .crump50-artifact.cv-keepsake-real::before { color: #e0c77f !important; }
+html[data-theme="dark"] body.crump-v1-body .crump50-artifact > span {
+  border-color: rgba(211,185,112,.23) !important;
+  background: rgba(211,185,112,.10) !important;
+  color: #e0c77f !important;
+}
+html[data-theme="dark"] body.crump-v1-body .crump50-artifact :is(strong,.crump50-artifact-copy strong) { color: #f1eee7 !important; }
+html[data-theme="dark"] body.crump-v1-body .crump50-artifact :is(small,.crump50-artifact-copy small) { color: #aeb5bc !important; }
+html[data-theme="dark"] body.crump-v1-body .crump50-artifact .crump50-artifact-actions button {
+  border-color: #414851 !important;
+  background: #24282e !important;
+  color: #d7dce0 !important;
+}
+html[data-theme="dark"] body.crump-v1-body .crump50-artifact .crump50-artifact-actions button:hover,
+html[data-theme="dark"] body.crump-v1-body .crump50-artifact .crump50-artifact-actions button:focus-visible {
+  border-color: rgba(211,185,112,.44) !important;
+  background: #2d3239 !important;
+  color: #f4f1e9 !important;
+}
 html[data-theme="dark"] body.crump-v1-body .user-message .message-content {
   background: #e6ddc9 !important;
   color: #17191c !important;
@@ -1818,6 +2087,25 @@ html[data-theme="dark"] body.crump-v1-body .user-message .message-content {
 html[data-theme="dark"] body.crump-v1-body .crump-message-name { color: #ddc681 !important; }
 html[data-theme="dark"] body.crump-v1-body .v1-command-dock {
   background: linear-gradient(180deg,rgba(16,18,22,0),rgba(16,18,22,.94) 24%,var(--atelier-paper) 64%) !important;
+}
+html[data-theme="dark"] body.crump-v1-body .crump50-upload-card {
+  border-color: #3a4149 !important;
+  background: rgba(25,28,33,.98) !important;
+  color: #f1eee7 !important;
+  box-shadow: 0 14px 34px rgba(0,0,0,.30),0 2px 8px rgba(0,0,0,.18) !important;
+}
+html[data-theme="dark"] body.crump-v1-body .crump50-upload-visual {
+  border-color: #383f47;
+  background: #22262c !important;
+  color: #d3b970 !important;
+}
+html[data-theme="dark"] body.crump-v1-body .crump50-upload-copy strong { color: #f1eee7 !important; }
+html[data-theme="dark"] body.crump-v1-body .crump50-upload-copy span,
+html[data-theme="dark"] body.crump-v1-body .crump50-upload-remove { color: #aeb5bc !important; }
+html[data-theme="dark"] body.crump-v1-body .crump50-upload-remove:hover,
+html[data-theme="dark"] body.crump-v1-body .crump50-upload-remove:focus-visible {
+  background: #2a2f35 !important;
+  color: #efd2ce !important;
 }
 html[data-theme="dark"] body.crump-v1-body .input-container {
   border-color: #3a4048 !important;
@@ -2380,4 +2668,253 @@ html[data-theme="light"] body.crump-v1-body :is(
   border-radius: 999px;
   background: #505a65;
   background-clip: padding-box;
+}
+
+/* -------------------------------------------------------------------------- */
+/* Release audit: complete light-surface contrast boundaries                  */
+/* -------------------------------------------------------------------------- */
+
+/* Product and Library styles are loaded on demand after this sheet. Keep the
+   following rules deliberately scoped and important so every warm-paper
+   surface receives readable ink without recoloring intentional dark studios,
+   viewers, covers, or media lightboxes. */
+html[data-theme="light"] { color-scheme: light; }
+
+/* Account access and registration. */
+html[data-theme="light"] body.crump-v1-body :is(
+  .v1-auth-card .auth-header h1,
+  .v1-registration-pending h2,
+  .v1-registration-pending strong
+) { color: var(--atelier-panel-text) !important; }
+html[data-theme="light"] body.crump-v1-body :is(
+  .v1-auth-card .auth-header p,
+  .v1-auth-card label,
+  .v1-optional,
+  .v1-auth-card .form-hint,
+  .v1-password-requirements,
+  .v1-signup-assurance,
+  .v1-registration-consent,
+  .v1-auth-links p,
+  .auth-footer-text,
+  .v1-registration-help,
+  .v1-registration-pending > p
+) { color: var(--atelier-panel-muted) !important; }
+html[data-theme="light"] body.crump-v1-body .v1-auth-card .form-input {
+  border-color: #d8d0c3 !important;
+  background: #fffdf9 !important;
+  color: var(--atelier-panel-text) !important;
+}
+html[data-theme="light"] body.crump-v1-body .v1-auth-card .form-input::placeholder {
+  color: var(--atelier-panel-muted) !important;
+  opacity: 1;
+}
+html[data-theme="light"] body.crump-v1-body :is(
+  .v1-password-toggle,
+  .v1-registration-consent a,
+  .v1-registration-explore a,
+  .auth-link
+) { color: var(--atelier-panel-label) !important; }
+html[data-theme="light"] body.crump-v1-body .auth-error { color: var(--atelier-panel-danger) !important; }
+html[data-theme="light"] body.crump-v1-body .auth-success { color: var(--atelier-success) !important; }
+
+/* Terms and first-run onboarding remain intentional graphite islands. */
+html[data-theme="light"] body.crump-v1-body :is(.v1-terms-card,.v1-onboarding-card),
+html[data-theme="light"] body.crump-v1-body :is(.v1-terms-card,.v1-onboarding-card) :is(h2,label) {
+  color: #f4f1e9 !important;
+}
+html[data-theme="light"] body.crump-v1-body .v1-onboarding-card .form-input {
+  color: #f4f1e9 !important;
+}
+
+/* Image, upload, and file-viewing surfaces. */
+html[data-theme="light"] body.crump-v1-body .crump50-tool-chip {
+  color: var(--atelier-panel-text-2) !important;
+}
+html[data-theme="light"] body.crump-v1-body :is(
+  .generated-image-wrapper.crump50-generated .crump50-image-actions button,
+  .crump50-lightbox-bar > span,
+  .crump50-lightbox-bar button,
+  .crump50-file-viewer-placeholder,
+  .crump50-file-viewer-placeholder p,
+  .crump50-file-viewer-placeholder small,
+  .crump50-drop-overlay strong,
+  .crump50-drop-overlay small
+) { color: #e2e6e9 !important; }
+html[data-theme="light"] body.crump-v1-body :is(
+  .generated-image-wrapper.crump50-generated,
+  .crump50-lightbox,
+  .crump50-drop-overlay
+) { --c50-line: rgba(255,255,255,.15); }
+html[data-theme="light"] body.crump-v1-body .crump52-file-attachment {
+  border-color: var(--atelier-line) !important;
+  background: rgba(255,253,249,.78) !important;
+  color: var(--atelier-panel-text) !important;
+}
+html[data-theme="light"] body.crump-v1-body .crump52-file-copy strong {
+  color: var(--atelier-panel-text) !important;
+}
+html[data-theme="light"] body.crump-v1-body :is(.crump52-file-copy small,.crump52-file-arrow) {
+  color: var(--atelier-panel-muted) !important;
+}
+html[data-theme="light"] body.crump-v1-body .crump50-reference-result {
+  border-color: var(--atelier-line) !important;
+  background: rgba(255,253,249,.82) !important;
+  color: var(--atelier-panel-text) !important;
+}
+html[data-theme="light"] body.crump-v1-body .crump50-reference-signals span {
+  border-color: rgba(112,93,56,.22) !important;
+  background: #eee6d7 !important;
+  color: var(--atelier-panel-label) !important;
+}
+html[data-theme="light"] body.crump-v1-body .crump50-reference-review-actions button {
+  border-color: var(--atelier-line) !important;
+  background: #f3eee5 !important;
+  color: var(--atelier-panel-text-2) !important;
+}
+
+/* Projects, Files, and Video Studio. */
+html[data-theme="light"] body.crump-v1-body :is(
+  .crump53-project-settings,
+  .crump53-video-engine-card,
+  .crump53-video-reference-card,
+  .crump53-video-recent-item,
+  .crump53-video-reference-receipt-list li,
+  .crump53-progress,
+  .crump53-context-item,
+  .crump531-reference-box,
+  .crump531-file-row
+) {
+  border-color: var(--atelier-line) !important;
+  background: rgba(255,253,249,.78) !important;
+}
+html[data-theme="light"] body.crump-v1-body :is(
+  .crump53-project-settings summary,
+  .crump53-video-reference-head span,
+  .crump53-video-reference-card span,
+  .crump53-video-reference-role,
+  .crump53-video-reference-plan ol,
+  .crump53-video-reference-plan small,
+  .crump53-video-recent-head span,
+  .crump53-video-recent-item span,
+  .crump53-video-recent-status,
+  .crump53-video-engine-card span,
+  .crump53-video-engine-guide span,
+  .crump53-video-reference-receipt-list small,
+  .crump53-context-item p,
+  .crump531-reference-head span,
+  .crump531-reference-head p,
+  .crump531-file-copy small,
+  .crump531-file-open small,
+  .crump531-empty,
+  .crump53-status
+) { color: var(--atelier-panel-muted) !important; }
+html[data-theme="light"] body.crump-v1-body .crump53-video-reference-role select {
+  border-color: #d8d0c3 !important;
+  background: #fffdf9 !important;
+  color: var(--atelier-panel-text) !important;
+}
+html[data-theme="light"] body.crump-v1-body .crump53-video-reference-receipt-list span,
+html[data-theme="light"] body.crump-v1-body .crump53-library-document span {
+  color: var(--atelier-panel-text-2) !important;
+}
+html[data-theme="light"] body.crump-v1-body :is(.crump53-status.is-error,.crump53-library-empty.is-error,.crump531-empty.is-error) {
+  color: var(--atelier-panel-danger) !important;
+}
+/* These components are dark media islands nested inside otherwise light cards. */
+html[data-theme="light"] body.crump-v1-body :is(
+  .crump53-video-project-context strong,
+  .crump53-manuscript-handoff strong,
+  .crump53-playback-state strong,
+  .crump57-cover-placeholder strong
+) { color: #f1eee7 !important; }
+html[data-theme="light"] body.crump-v1-body .crump53-video-recent-item[data-video-job-status="ready"] strong {
+  color: var(--atelier-success) !important;
+}
+html[data-theme="light"] body.crump-v1-body .crump53-video-recent-item[data-video-job-status="failed"] strong {
+  color: var(--atelier-panel-danger) !important;
+}
+
+/* Library index controls and book metadata. Covers and overflow menus retain
+   their intentional dark treatment. */
+html[data-theme="light"] body.crump-v1-body :is(.crump57-library-toolbar input,.crump57-library-toolbar select) {
+  border-color: #d8d0c3 !important;
+  background: #fffdf9 !important;
+  color: var(--atelier-panel-text) !important;
+}
+html[data-theme="light"] body.crump-v1-body :is(.crump57-layout-controls,.crump57-layout-button,.crump57-book,.crump57-project-chip) {
+  border-color: var(--atelier-line) !important;
+  background: rgba(255,253,249,.76) !important;
+}
+html[data-theme="light"] body.crump-v1-body :is(.crump57-layout-button,.crump57-book-kicker,.crump57-more > summary) {
+  color: var(--atelier-panel-label) !important;
+}
+html[data-theme="light"] body.crump-v1-body :is(.crump57-book-author,.crump57-book-meta,.crump57-project-chip) {
+  color: var(--atelier-panel-muted) !important;
+}
+
+/* Settings and Intelligence. */
+html[data-theme="light"] body.crump-v1-body .settings-nested {
+  border-color: var(--atelier-line) !important;
+  background: rgba(255,253,249,.64) !important;
+}
+html[data-theme="light"] body.crump-v1-body .check-in-categories { border-top-color: var(--atelier-line) !important; }
+html[data-theme="light"] body.crump-v1-body .check-in-categories legend { color: var(--atelier-panel-muted) !important; }
+html[data-theme="light"] body.crump-v1-body .check-in-categories label { color: var(--atelier-panel-text) !important; }
+html[data-theme="light"] body.crump-v1-body :is(.v1-settings-sheet .v1-kicker,.settings-chevron,.v1-plan-entry-meta) {
+  color: var(--atelier-panel-label) !important;
+}
+html[data-theme="light"] body.crump-v1-body :is(.crump44-premium,.crump44-memory-card) {
+  border-color: var(--atelier-line) !important;
+  background: rgba(255,253,249,.72) !important;
+}
+html[data-theme="light"] body.crump-v1-body :is(
+  .crump44-premium-copy span,
+  .crump44-memory-header span,
+  .crump44-memory-empty
+) { color: var(--atelier-panel-muted) !important; }
+html[data-theme="light"] body.crump-v1-body .crump44-premium-button {
+  border-color: rgba(112,93,56,.28) !important;
+  background: #ebe2d0 !important;
+  color: #4b3e26 !important;
+}
+html[data-theme="light"] body.crump-v1-body :is(.crump44-forget,.crump44-clear-memory) {
+  color: var(--atelier-panel-danger) !important;
+}
+html[data-theme="light"] body.crump-v1-body .crump44-advanced-chevron {
+  color: var(--atelier-panel-label) !important;
+}
+
+/* Billing and credit history. */
+html[data-theme="light"] body.crump-v1-body :is(
+  .billing51-balance-card > div:first-child > strong small,
+  .billing51-allowance > div:first-child span,
+  .billing51-history-row
+) { color: var(--atelier-panel-muted) !important; }
+html[data-theme="light"] body.crump-v1-body .billing51-recovery > span {
+  color: var(--atelier-panel-label) !important;
+}
+html[data-theme="light"] body.crump-v1-body .billing51-plan-button {
+  border-color: var(--atelier-ink) !important;
+  background: var(--atelier-ink) !important;
+  color: #fffdf9 !important;
+}
+html[data-theme="light"] body.crump-v1-body #billing51History {
+  border-color: var(--atelier-line) !important;
+  background: rgba(255,253,249,.68) !important;
+}
+html[data-theme="light"] body.crump-v1-body .billing51-history-row + .billing51-history-row,
+html[data-theme="light"] body.crump-v1-body .billing51-footer {
+  border-color: var(--atelier-line) !important;
+}
+
+/* Message delivery states communicate meaning with both text and color. */
+html[data-theme="light"] body.crump-v1-body .message-status.pending { color: var(--atelier-panel-label) !important; }
+html[data-theme="light"] body.crump-v1-body .message-status.delivered { color: var(--atelier-panel-muted) !important; }
+html[data-theme="light"] body.crump-v1-body .message-status.seen { color: var(--atelier-success) !important; }
+html[data-theme="light"] body.crump-v1-body .message-status.failed { color: var(--atelier-panel-danger) !important; }
+html[data-theme="light"] body.crump-v1-body button.message-status { opacity: 1 !important; }
+
+/* Disabled controls remain visibly inactive without becoming illegible. */
+html[data-theme="light"] body.crump-v1-body :is(.crump53-button,.crump57-layout-button,.settings-primary-btn):disabled {
+  opacity: .62 !important;
 }

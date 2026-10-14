@@ -32,7 +32,7 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
     assert scripts == [
         '/telemetry-config.js?v=5.9.76',
         '/crump-vision-demo-1.0.js?v=5.9.76-atelier-workspace-1',
-        '/runtime-body-v1.js?v=5.9.76-mobile-studio-layout-1',
+        '/runtime-body-v1.js?v=5.9.76-ui-release-audit-1',
         '/crump-vision-shell-1.0.js?v=5.9.76-atelier-workspace-1',
         '/crump-vision-chats-1.0.js?v=5.9.76-atelier-workspace-1',
         '/crump-vision-projects-1.0.js?v=5.9.76-atelier-workspace-1',
@@ -67,7 +67,7 @@ def test_workspace_runtime_is_complete_idempotent_and_authentication_gated():
         '/chat-resilience.js?v=5.9.76-credit-confirmation-1',
         '/ui-functions.js?v=5.9.76-atelier-workspace-1',
         '/presence-manager.js?v=5.9.76-muse-release-repair-1',
-        '/crump-design-pass.css?v=5.9.76-appearance-choice-2',
+        '/crump-design-pass.css?v=5.9.76-ui-release-audit-1',
         '/sync-manager.js?v=5.9.76-sync-cursor-1',
         '/chat-sync.js?v=5.9.76-settings-sync-1',
         '/account-manager.js?v=5.9.76-account-storage-deletion-1',

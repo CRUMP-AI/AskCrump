@@ -487,7 +487,7 @@
     }
   }
 
-  function removeAttachment(localId) {
+  function removeAttachment(localId, {restoreFocus = false} = {}) {
     const index = state.attachments.findIndex(item => item.localId === localId);
     if (index < 0) return;
     const [item] = state.attachments.splice(index, 1);
@@ -498,6 +498,13 @@
     revokeAttachmentPreview(item);
     item.file = null;
     renderAttachmentTray();
+    if (restoreFocus) {
+      window.requestAnimationFrame(() => {
+        const remaining = $$('.crump50-upload-remove', $('#filePreview'));
+        const next = remaining[Math.min(index, Math.max(remaining.length - 1, 0))] || $('#userInput');
+        next?.focus?.();
+      });
+    }
   }
 
   function renderAttachmentTray() {
@@ -506,6 +513,7 @@
     tray.classList.add('crump50-attachment-tray');
     tray.hidden = !state.attachments.length;
     tray.style.display = state.attachments.length ? 'flex' : 'none';
+    document.body.classList.toggle('crump50-has-attachments', Boolean(state.attachments.length));
     const liveIds = new Set(state.attachments.map(item => item.localId));
     $$('[data-crump50-attachment-id]', tray).forEach(card => {
       if (!liveIds.has(card.dataset.crump50AttachmentId)) card.remove();
@@ -540,11 +548,13 @@
         remove.type = 'button';
         remove.className = 'crump50-upload-remove';
         remove.textContent = '×';
-        remove.addEventListener('click', () => removeAttachment(item.localId));
+        remove.addEventListener('click', () => removeAttachment(item.localId, {restoreFocus: true}));
         card.append(visual, copy, remove);
       }
       card.className = `crump50-upload-card is-${item.status}`;
-      $('strong', card).textContent = item.name;
+      const name = $('strong', card);
+      name.textContent = item.name;
+      name.title = item.name;
       $('[data-crump50-upload-meta]', card).textContent = item.status === 'ready'
         ? formatBytes(item.size)
         : item.status === 'failed'
