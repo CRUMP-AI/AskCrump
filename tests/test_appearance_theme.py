@@ -41,7 +41,7 @@ def test_appearance_controller_runs_before_paint_and_exposes_a_small_public_cont
     shell = read("public/app.html")
     controller = read("public/appearance-theme.js")
 
-    appearance_asset = "/appearance-theme.js?v=5.9.76-appearance-choice-2"
+    appearance_asset = "/appearance-theme.js?v=5.9.76-appearance-choice-3"
     assert appearance_asset in shell
     assert shell.index(appearance_asset) < shell.index("/crump-v1-body.css")
     assert shell.index(appearance_asset) < shell.index("</head>")
@@ -52,6 +52,8 @@ def test_appearance_controller_runs_before_paint_and_exposes_a_small_public_cont
     assert "document.querySelector('meta[name=\"theme-color\"]')" in controller
     assert "crump:appearance-changed" in controller
     assert "window.CrumpAppearance" in controller
+    assert "beginAtomicThemeSwitch" in controller
+    assert "crump-theme-switching" in controller
     public_api = controller[controller.index("window.CrumpAppearance"):]
     for method in ("get", "set", "syncControls"):
         assert re.search(rf"\b{method}\s*(?::|,)", public_api), method
@@ -150,8 +152,11 @@ def test_browser_fixture_exercises_real_theme_assets_and_drawer_markup() -> None
     verifier = read("scripts/verify-appearance-theme.cjs")
     matrix = read("scripts/verify-browser-control-matrix.mjs")
 
-    assert "/public/appearance-theme.js?v=5.9.76-appearance-choice-2" in fixture
+    assert "/public/appearance-theme.js?v=5.9.76-appearance-choice-3" in fixture
     assert "/public/crump-design-pass.css" in fixture
+    assert "/public/appearance-controls.css?v=5.9.76-appearance-choice-3" in fixture
+    assert "/public/crump-ui-guardrails.css?v=5.9.76-ui-guardrails-1" in fixture
+    assert "/public/crump-motion-system.css?v=5.9.76-motion-system-2" in fixture
     for asset in (
         "/public/crump-4.4.css",
         "/public/crump-5.0.css",
@@ -163,6 +168,7 @@ def test_browser_fixture_exercises_real_theme_assets_and_drawer_markup() -> None
     assert 'id="sidebar" class="sidebar v1-library active"' in fixture
     assert 'id="appearanceLight"' in fixture
     assert 'id="appearanceDark"' in fixture
+    assert fixture.count('class="appearance-choice') >= 2
     for probe in ("crump44-panel", "crump50-sheet", "crump52-attach-sheet", "billing51-sheet", "crump53-card", "cv-more-sheet"):
         assert probe in fixture
     assert "askcrump.appearance" in verifier
@@ -170,4 +176,5 @@ def test_browser_fixture_exercises_real_theme_assets_and_drawer_markup() -> None
     assert "crump:appearance-changed" in verifier
     assert "assertLightSurfaces" in verifier
     assert "assertDarkSurfaces" in verifier
+    assert "assertAtomicAppearanceChoice" in verifier
     assert "verify-appearance-theme.cjs" in matrix

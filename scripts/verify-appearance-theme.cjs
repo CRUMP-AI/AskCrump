@@ -89,6 +89,8 @@ async function snapshot(page) {
       cardCopy: [style('.cv-card-copy').color, style('.cv-card').backgroundColor],
       settingsHeading: [style('.v1-settings-sheet h2').color, settingsBackground],
       settingsCopy: [style('.v1-settings-sheet p').color, settingsBackground],
+      appearanceChoiceTitle: [style('.appearance-choice-copy strong').color, style('.appearance-choice').backgroundColor],
+      appearanceChoiceCopy: [style('.appearance-choice-copy small').color, style('.appearance-choice').backgroundColor],
       intelligenceTitle: [style('.crump44-panel-header strong').color, style('.crump44-panel').backgroundColor],
       intelligenceCopy: [style('.crump44-panel-header small').color, style('.crump44-panel').backgroundColor],
       intelligenceOption: [style('.crump44-segment.active').color, style('.crump44-segment.active').backgroundColor],
@@ -116,6 +118,7 @@ async function snapshot(page) {
         && typeof window.CrumpAppearance.get === 'function'
         && typeof window.CrumpAppearance.set === 'function'
         && typeof window.CrumpAppearance.syncControls === 'function'),
+      appearanceChoiceTransition: style('.appearance-choice').transitionProperty,
       pageBackground,
       drawerBackground,
       workspaceBackground,
@@ -140,6 +143,13 @@ function assertContrast(state) {
     const ratio = contrastRatio(foreground, actualBackground, state.pageBackground);
     assert.ok(ratio >= 4.5, `${state.theme} ${name} contrast was ${ratio.toFixed(2)} (${foreground} on ${actualBackground})`);
   }
+}
+
+function assertAtomicAppearanceChoice(state) {
+  const properties = state.appearanceChoiceTransition.split(',').map(value => value.trim());
+  assert.ok(!properties.includes('color'), `${state.theme} appearance choice must not transition text color`);
+  assert.ok(!properties.includes('background'), `${state.theme} appearance choice must not transition its surface`);
+  assert.ok(!properties.includes('background-color'), `${state.theme} appearance choice must not transition its surface color`);
 }
 
 function assertLightSurfaces(state, includeMobile = false) {
@@ -177,6 +187,7 @@ function assertDarkSurfaces(state, lightState, includeMobile = false) {
     assert.equal(state.darkChecked, false);
     assert.equal(state.hasApi, true);
     assert.equal(state.horizontalOverflow, false);
+    assertAtomicAppearanceChoice(state);
     assertContrast(state);
     assertLightSurfaces(state);
     const lightState = state;
@@ -187,7 +198,10 @@ function assertDarkSurfaces(state, lightState, includeMobile = false) {
         window.__appearanceEvents.push(event.detail?.theme || '');
       });
     });
-    await page.locator('#appearanceDark').check();
+    await page.locator('label[for="appearanceDark"]').click();
+    state = await snapshot(page);
+    assertAtomicAppearanceChoice(state);
+    assertContrast(state);
     await page.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
     await page.waitForTimeout(200);
     state = await snapshot(page);
@@ -214,7 +228,10 @@ function assertDarkSurfaces(state, lightState, includeMobile = false) {
     assert.equal(state.darkChecked, true);
     assertContrast(state);
 
-    await page.locator('#appearanceLight').check();
+    await page.locator('label[for="appearanceLight"]').click();
+    state = await snapshot(page);
+    assertAtomicAppearanceChoice(state);
+    assertContrast(state);
     await page.waitForFunction(() => document.documentElement.dataset.theme === 'light');
     await page.waitForTimeout(200);
     state = await snapshot(page);
@@ -238,7 +255,10 @@ function assertDarkSurfaces(state, lightState, includeMobile = false) {
       assertLightSurfaces(mobileState, true);
       const mobileLightState = mobileState;
 
-      await mobilePage.locator('#appearanceDark').check();
+      await mobilePage.locator('label[for="appearanceDark"]').click();
+      mobileState = await snapshot(mobilePage);
+      assertAtomicAppearanceChoice(mobileState);
+      assertContrast(mobileState);
       await mobilePage.waitForFunction(() => document.documentElement.dataset.theme === 'dark');
       await mobilePage.waitForTimeout(200);
       mobileState = await snapshot(mobilePage);

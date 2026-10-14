@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#f6f4ee">
   <link rel="icon" href="data:,">
   <title>Appearance theme fixture</title>
-  <script src="/public/appearance-theme.js?v=5.9.76-appearance-choice-2"></script>
+  <script src="/public/appearance-theme.js?v=5.9.76-appearance-choice-3"></script>
   <link rel="stylesheet" href="/public/crump-v1-body.css?v=appearance-theme-fixture-1">
   <link rel="stylesheet" href="/public/crump-vision-shell-1.0.css?v=appearance-theme-fixture-1">
   <link rel="stylesheet" href="/public/crump-4.4.css?v=appearance-theme-fixture-1">
@@ -16,10 +16,13 @@
   <link rel="stylesheet" href="/public/crump-product-5.3.css?v=appearance-theme-fixture-1">
   <link rel="stylesheet" href="/public/crump-product-5.3.1.css?v=appearance-theme-fixture-1">
   <link rel="stylesheet" href="/public/crump-design-pass.css?v=appearance-theme-fixture-1">
+  <link rel="stylesheet" href="/public/appearance-controls.css?v=5.9.76-appearance-choice-3">
+  <link rel="stylesheet" href="/public/crump-ui-guardrails.css?v=5.9.76-ui-guardrails-1">
+  <link rel="stylesheet" href="/public/crump-motion-system.css?v=5.9.76-motion-system-2">
   <style>
     .fixture-workspace { min-height: 100vh; padding: 96px 56px; }
     .fixture-card { max-width: 680px; }
-    .fixture-settings { position: fixed; right: 28px; bottom: 28px; width: min(420px, calc(100vw - 56px)); padding: 22px; }
+    .fixture-settings { position: fixed; z-index: 20; right: 28px; bottom: 28px; width: min(420px, calc(100vw - 56px)); padding: 22px; }
     .fixture-settings fieldset { display: flex; gap: 14px; margin: 16px 0 0; padding: 0; border: 0; }
     .fixture-settings label { display: inline-flex; min-height: 44px; align-items: center; gap: 8px; }
     .fixture-probe-gallery { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 18px; max-width: 980px; margin-top: 56px; }
@@ -101,9 +104,20 @@
       <section class="v1-settings-sheet fixture-settings" aria-labelledby="appearanceHeading">
         <h2 id="appearanceHeading">Appearance</h2>
         <p>Choose the workspace that feels best to you. Your choice stays on this device.</p>
-        <fieldset role="radiogroup" aria-label="Appearance theme">
-          <label for="appearanceLight"><input id="appearanceLight" name="appearanceTheme" type="radio" value="light" checked> Light</label>
-          <label for="appearanceDark"><input id="appearanceDark" name="appearanceTheme" type="radio" value="dark"> Dark</label>
+        <fieldset class="appearance-choices" role="radiogroup" aria-label="Workspace appearance">
+          <legend>Workspace appearance</legend>
+          <label class="appearance-choice is-selected" for="appearanceLight">
+            <input id="appearanceLight" name="appearanceTheme" type="radio" value="light" checked>
+            <span class="appearance-preview appearance-preview-light" aria-hidden="true"></span>
+            <span class="appearance-choice-copy"><strong>Light</strong><small>Warm paper and graphite</small></span>
+            <span class="appearance-check" aria-hidden="true">✓</span>
+          </label>
+          <label class="appearance-choice" for="appearanceDark">
+            <input id="appearanceDark" name="appearanceTheme" type="radio" value="dark">
+            <span class="appearance-preview appearance-preview-dark" aria-hidden="true"></span>
+            <span class="appearance-choice-copy"><strong>Dark</strong><small>Quiet charcoal and brass</small></span>
+            <span class="appearance-check" aria-hidden="true">✓</span>
+          </label>
         </fieldset>
       </section>
 

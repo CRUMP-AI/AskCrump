@@ -17,6 +17,16 @@
   --crump-motion-ease-linear: linear;
 }
 
+/* Theme changes are a palette swap, not an animation. Disabling transitions
+   for the two-frame handoff prevents any component from briefly combining a
+   new text token with its previous surface token. */
+html.crump-theme-switching body.crump-v1-body,
+html.crump-theme-switching body.crump-v1-body *,
+html.crump-theme-switching body.crump-v1-body *::before,
+html.crump-theme-switching body.crump-v1-body *::after {
+  transition: none !important;
+}
+
 /* Navigation changes state in place. Position and hit targets never move. */
 body.crump-v1-body :is(
   .cv-destination,
@@ -34,6 +44,13 @@ body.crump-v1-body :is(
   transition-property: color, background-color, border-color, box-shadow, opacity;
   transition-duration: var(--crump-motion-duration-fast);
   transition-timing-function: var(--crump-motion-ease-standard);
+}
+
+/* Theme tokens change the Appearance card text immediately. Keep its surface
+   change immediate too so a light card can never momentarily carry dark-mode
+   copy (or the reverse) while the user switches themes. */
+body.crump-v1-body .appearance-choices .appearance-choice {
+  transition-property: border-color, box-shadow, opacity;
 }
 
 body.crump-v1-body :is(

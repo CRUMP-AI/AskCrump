@@ -8,6 +8,7 @@
     light: '#f6f4ee',
     dark: '#101216',
   });
+  let themeSwitchToken = 0;
 
   function normalizeTheme(value) {
     return THEMES.includes(value) ? value : DEFAULT_THEME;
@@ -26,6 +27,16 @@
     if (themeColor) themeColor.setAttribute('content', THEME_COLORS[theme]);
   }
 
+  function beginAtomicThemeSwitch() {
+    const root = document.documentElement;
+    const token = ++themeSwitchToken;
+    root.classList.add('crump-theme-switching');
+    window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+      if (token !== themeSwitchToken) return;
+      root.classList.remove('crump-theme-switching');
+    }));
+  }
+
   function syncControls() {
     const theme = normalizeTheme(document.documentElement.dataset.theme);
     document.querySelectorAll('input[name="appearanceTheme"]').forEach(control => {
@@ -39,6 +50,7 @@
     const theme = normalizeTheme(nextTheme);
     const previous = normalizeTheme(document.documentElement.dataset.theme);
 
+    if (previous !== theme) beginAtomicThemeSwitch();
     document.documentElement.dataset.theme = theme;
     document.documentElement.style.colorScheme = theme;
     updateBrowserChrome(theme);

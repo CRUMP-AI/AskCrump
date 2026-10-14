@@ -1035,12 +1035,12 @@ const museReleaseRepairVersion = `${releaseVersion}-muse-release-repair-1`;
 const cacheIntegrityVersion = `${releaseVersion}-friendly-workspace-1`;
 const shellNoTaglineVersion = `${releaseVersion}-shell-no-tagline-1`;
 const atelierWorkspaceVersion = `${releaseVersion}-atelier-workspace-1`;
-const runtimeBodyVersion = `${releaseVersion}-product-polish-1`;
-const appearanceChoiceVersion = `${releaseVersion}-appearance-choice-2`;
+const runtimeBodyVersion = `${releaseVersion}-theme-switch-contrast-1`;
+const appearanceChoiceVersion = `${releaseVersion}-appearance-choice-3`;
 const uiReleaseAuditVersion = `${releaseVersion}-ui-release-audit-2`;
 const activityCenterVersion = `${releaseVersion}-activity-center-1`;
 const uiGuardrailsVersion = `${releaseVersion}-ui-guardrails-1`;
-const motionSystemVersion = `${releaseVersion}-motion-system-1`;
+const motionSystemVersion = `${releaseVersion}-motion-system-2`;
 const documentDeliveryFocusedVersion = `${releaseVersion}-reference-fidelity-hard-contract-1`;
 const outcomeRefinementRecoveryVersion = `${releaseVersion}-outcome-refinement-recovery-1`;
 const authUpdateGuardVersion = `${releaseVersion}-update-work-guard-1`;
@@ -1707,7 +1707,7 @@ for (const [label, source] of [
     process.exit(1);
   }
 }
-if (!serviceWorker.includes('ask-crump-new-body-v1-r259-product-polish-1') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r260-theme-switch-contrast-1') ||
     !serviceWorker.includes(`'${shellBrandUrl}'`) ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||

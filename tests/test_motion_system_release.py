@@ -74,6 +74,18 @@ def test_motion_system_covers_the_complete_interaction_story() -> None:
     assert ".message:not(.presence-message)" not in css
 
 
+def test_appearance_cards_switch_surface_and_text_tokens_atomically() -> None:
+    css = motion_css()
+
+    assert "html.crump-theme-switching body.crump-v1-body" in css
+    assert "transition: none !important" in css
+    assert (
+        "body.crump-v1-body .appearance-choices .appearance-choice {\n"
+        "  transition-property: border-color, box-shadow, opacity;\n"
+        "}" in css
+    )
+
+
 def test_entrances_never_hide_or_move_existing_content() -> None:
     css = motion_css()
 

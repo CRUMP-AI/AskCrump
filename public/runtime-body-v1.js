@@ -45,7 +45,7 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/crump-design-pass.css?v=5.9.76-ui-release-audit-2', 'crumpdesignpass'],
     ['/crump-activity-center-1.0.css?v=5.9.76-activity-center-1', 'crumpactivitycenter10'],
     ['/crump-ui-guardrails.css?v=5.9.76-ui-guardrails-1', 'crumpuiguardrails'],
-    ['/crump-motion-system.css?v=5.9.76-motion-system-1', 'crumpmotionsystem'],
+    ['/crump-motion-system.css?v=5.9.76-motion-system-2', 'crumpmotionsystem'],
   ]);
 
   const workspaceScripts = Object.freeze([

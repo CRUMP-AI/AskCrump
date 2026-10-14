@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r259-product-polish-1';
+const CACHE_NAME = 'ask-crump-new-body-v1-r260-theme-switch-contrast-1';
 
 const CORE = [
   '/app',
@@ -6,8 +6,8 @@ const CORE = [
   '/legal.html',
   '/delete-account.html',
   '/manifest.json',
-  '/appearance-theme.js?v=5.9.76-appearance-choice-2',
-  '/appearance-controls.css?v=5.9.76-appearance-choice-2',
+  '/appearance-theme.js?v=5.9.76-appearance-choice-3',
+  '/appearance-controls.css?v=5.9.76-appearance-choice-3',
   '/landing-5.6.css?v=5.9.76-accessibility-1',
   '/use-case.css?v=5.9.76',
   '/landing.js?v=5.9.76-facebook-reel-attribution-1',
@@ -23,7 +23,7 @@ const CORE = [
   '/crump-design-pass.css?v=5.9.76-ui-release-audit-2',
   '/crump-activity-center-1.0.css?v=5.9.76-activity-center-1',
   '/crump-ui-guardrails.css?v=5.9.76-ui-guardrails-1',
-  '/crump-motion-system.css?v=5.9.76-motion-system-1',
+  '/crump-motion-system.css?v=5.9.76-motion-system-2',
   '/crump-v1-body.js?v=5.9.76-atelier-workspace-1',
   '/crump-v1-stability.css',
   '/crump-v1-stability.js?v=5.9.76-intelligence-architecture-1',
@@ -49,7 +49,7 @@ const CORE = [
   '/crump-media-save.js?v=5.9.76-library-lazy-load-1',
   '/crump-library-loader.js?v=5.9.76-library-first-run-1',
   '/crump-subscriptions-5.3.2.js?v=5.9.76-checkout-destination-label-1',
-  '/runtime-body-v1.js?v=5.9.76-product-polish-1',
+  '/runtime-body-v1.js?v=5.9.76-theme-switch-contrast-1',
   '/native-runtime.js',
   '/mobile-bridge.js',
   '/safe-storage.js',
