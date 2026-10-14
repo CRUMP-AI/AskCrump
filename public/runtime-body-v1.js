@@ -42,7 +42,7 @@ window.CRUMP_CONFIG = Object.freeze({
   ]);
 
   const finalStyles = Object.freeze([
-    ['/crump-design-pass.css?v=5.9.76-ui-release-audit-1', 'crumpdesignpass'],
+    ['/crump-design-pass.css?v=5.9.76-ui-release-audit-2', 'crumpdesignpass'],
   ]);
 
   const workspaceScripts = Object.freeze([

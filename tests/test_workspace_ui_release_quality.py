@@ -301,3 +301,6 @@ def test_light_theme_release_audit_covers_every_lazy_product_surface() -> None:
         assert selector in audit_css
     assert "color: #f1eee7 !important" in audit_css
     assert "color: #f4f1e9 !important" in audit_css
+    assert 'html[data-theme="dark"] body.crump-v1-body .crump53-video-engine-guide span' in audit_css
+    assert 'html[data-theme="dark"] body.crump-v1-body .settings-chevron' in audit_css
+    assert audit_css.count("color: var(--atelier-panel-muted) !important") >= 8

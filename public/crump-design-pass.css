@@ -2918,3 +2918,12 @@ html[data-theme="light"] body.crump-v1-body button.message-status { opacity: 1 !
 html[data-theme="light"] body.crump-v1-body :is(.crump53-button,.crump57-layout-button,.settings-primary-btn):disabled {
   opacity: .62 !important;
 }
+
+/* Dark-mode verification uses the same semantic hierarchy. These two late
+   lazy-loaded selectors otherwise fall back to the older extra-muted palette. */
+html[data-theme="dark"] body.crump-v1-body .crump53-video-engine-guide span {
+  color: var(--atelier-panel-muted) !important;
+}
+html[data-theme="dark"] body.crump-v1-body .settings-chevron {
+  color: var(--atelier-panel-muted) !important;
+}
