@@ -96,7 +96,9 @@ during this audit.
 - The generated iOS project and unsigned Release compile passed on a GitHub-hosted macOS runner,
   preserving a Windows-led release process without outsourcing the submission. Keep the verified
   no-secret workflow separate from any future credentialed archive/upload workflow.
-- Select the Apple team, enable Push Notifications and Background Modes, and supply APNs credentials.
+- Select the Apple team, enable Push Notifications for the App ID/provisioning profile, supply APNs
+  credentials, and confirm the signed archive contains `aps-environment=production`. The current
+  visible-alert payload does not require Background Modes → Remote notifications.
 - Configure `REVENUECAT_IOS_PUBLIC_SDK_KEY`, create the exact App Store products, and map them in
   RevenueCat.
 - Validate the final archive's privacy report and required-reason API declarations, then test the

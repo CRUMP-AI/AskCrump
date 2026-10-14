@@ -50,7 +50,8 @@ Do not test a new API route against production before its matching migration is 
 - Join the Apple Developer Program and finish App Store Connect agreements, tax, and banking.
 - Register bundle ID `com.clevercrump.askcrump`.
 - Create the app record and enable App Store Connect API access if release automation will be used.
-- Enable Push Notifications and Background Modes for the App target.
+- Enable Push Notifications for the App ID and signing profile. Keep Background Modes off for the
+  current visible-alert payload.
 - Create an APNs authentication key and configure the production server/FCM integration.
 - Create subscriptions and consumable credit products, then map their exact identifiers in RevenueCat.
 - Add a Sandbox Apple Account and a reviewer/demo account.
@@ -116,7 +117,9 @@ In Xcode:
 
 1. Select the correct Apple team and automatic signing.
 2. Confirm bundle ID `com.clevercrump.askcrump`.
-3. Enable Push Notifications and Background Modes → Remote notifications.
+3. Enable Push Notifications for the App ID and signing profile. The generated project already
+   binds the reviewed push-entitlements file. Do not enable Background Modes → Remote notifications
+   for the current visible-alert payload; add it only with a separately reviewed silent-push path.
 4. Validate the privacy report and required-reason API declarations from the final archive.
 5. Archive the **App** scheme using **Any iOS Device (arm64)**.
 6. Validate and upload to App Store Connect, then test through TestFlight.

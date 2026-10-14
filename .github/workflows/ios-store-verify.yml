@@ -23,9 +23,11 @@ on:
       - scripts/revenuecat-catalog.mjs
       - scripts/verify-native-release.mjs
       - scripts/verify-native-privacy.mjs
+      - scripts/verify-apple-toolchain.mjs
       - scripts/verify-store-metadata.mjs
       - scripts/verify-store-submission-packet.mjs
       - resources/PrivacyInfo.xcprivacy
+      - resources/App.entitlements
       - resources/icon.png
       - resources/splash.png
       - store/submission-evidence.android.example.json
@@ -41,7 +43,7 @@ permissions:
 jobs:
   verify-ios-source:
     name: Generate and compile unsigned iOS candidate
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
@@ -49,8 +51,8 @@ jobs:
         with:
           node-version: "22"
           cache: npm
-      - name: Record Apple toolchain
-        run: xcodebuild -version
+      - name: Verify current App Store toolchain floor
+        run: npm run store:verify:apple-toolchain
       - name: Install locked dependencies
         run: npm ci --no-audit --no-fund
       - name: Generate and verify iOS release source
@@ -93,6 +95,7 @@ jobs:
             echo '## Ask Crump iOS source verification'
             echo
             echo '- Generated from the reviewed Node 22 lockfile.'
+            echo '- Xcode 26+ and the iPhoneOS 26+ SDK were verified before generation.'
             echo '- Native source verifier passed.'
             echo '- Xcode compiled the Release configuration without signing.'
             echo '- The compiled app and Capacitor bundles contain valid, reconciled privacy manifests.'

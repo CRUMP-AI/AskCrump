@@ -42,6 +42,10 @@ function run(command, args) {
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
 
+if (platform === 'ios') {
+  run(process.execPath, ['scripts/verify-apple-toolchain.mjs']);
+}
+
 run(process.execPath, ['scripts/verify-store-metadata.mjs']);
 run(process.execPath, ['scripts/verify-native-privacy.mjs', 'source']);
 if (!(await exists(new URL('package-lock.json', root)))) {

@@ -152,7 +152,39 @@ if (target === 'all' || target === 'ios') {
       if (!targetedDeviceFamilies.length || targetedDeviceFamilies.some(value => value !== '1,2')) {
         failures.push('iOS TARGETED_DEVICE_FAMILY must explicitly include both iPhone and iPad (1,2).');
       }
+      const entitlementBindings = [...project.matchAll(/CODE_SIGN_ENTITLEMENTS = ([^;]+);/g)]
+        .map(match => match[1].trim());
+      if (entitlementBindings.length !== 2 || entitlementBindings.some(value => value !== 'App/App.entitlements')) {
+        failures.push('Every iOS App build configuration must bind App/App.entitlements. Run `npm run native:configure`.');
+      }
       if (!project.includes('PrivacyInfo.xcprivacy in Resources')) failures.push('PrivacyInfo.xcprivacy is not included in the iOS Resources build phase.');
+    }
+
+    const infoPath = new URL('ios/App/App/Info.plist', root);
+    if (!(await exists(infoPath))) {
+      failures.push('The iOS Info.plist file is missing.');
+    } else {
+      const source = await readFile(infoPath, 'utf8');
+      for (const usageKey of ['NSPhotoLibraryUsageDescription', 'NSPhotoLibraryAddUsageDescription']) {
+        if (!new RegExp(`<key>${usageKey}</key>\\s*<string>[^<]+</string>`).test(source)) {
+          failures.push(`iOS Info.plist is missing a non-empty ${usageKey}. Run \`npm run native:configure\`.`);
+        }
+      }
+      for (const orientationKey of ['UISupportedInterfaceOrientations', 'UISupportedInterfaceOrientations~ipad']) {
+        if (!source.includes(`<key>${orientationKey}</key>`)) {
+          failures.push(`iOS Info.plist is missing ${orientationKey}.`);
+        }
+      }
+    }
+
+    const entitlementsPath = new URL('ios/App/App/App.entitlements', root);
+    if (!(await exists(entitlementsPath))) {
+      failures.push('The iOS push-entitlements file is missing. Run `npm run native:configure`.');
+    } else {
+      const source = await readFile(entitlementsPath, 'utf8');
+      if (!/<key>aps-environment<\/key>\s*<string>development<\/string>/.test(source)) {
+        failures.push('App.entitlements must declare the source aps-environment; Xcode selects the signed environment from the provisioning profile.');
+      }
     }
 
     const privacyManifest = new URL('ios/App/App/PrivacyInfo.xcprivacy', root);
@@ -165,8 +197,6 @@ if (target === 'all' || target === 'ios') {
       }
     }
 
-    const entitlementFiles = await walk(iosRoot, name => name.endsWith('.entitlements'));
-    if (!entitlementFiles.length) warnings.push('No iOS entitlements file was found. Enable Push Notifications and Background Modes in Xcode before archiving.');
   }
 }
 

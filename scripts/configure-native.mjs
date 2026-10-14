@@ -126,6 +126,44 @@ async function patchIosVersionAndPrivacy() {
     .replace(/MARKETING_VERSION = [^;]+;/g, `MARKETING_VERSION = ${versionName};`)
     .replace(/TARGETED_DEVICE_FAMILY = [^;]+;/g, 'TARGETED_DEVICE_FAMILY = "1,2";');
 
+  const entitlementsSource = await readFile(new URL('resources/App.entitlements', root), 'utf8');
+  await writeFile(new URL('ios/App/App/App.entitlements', root), entitlementsSource);
+  if (/CODE_SIGN_ENTITLEMENTS = [^;]+;/.test(project)) {
+    project = project.replace(
+      /CODE_SIGN_ENTITLEMENTS = [^;]+;/g,
+      'CODE_SIGN_ENTITLEMENTS = App/App.entitlements;',
+    );
+  } else {
+    project = project.replace(
+      /(^[\t ]*)CURRENT_PROJECT_VERSION =/gm,
+      '$1CODE_SIGN_ENTITLEMENTS = App/App.entitlements;\n$1CURRENT_PROJECT_VERSION =',
+    );
+  }
+
+  if (!project.includes('App.entitlements')) {
+    throw new Error('Could not bind App.entitlements to the iOS target build settings.');
+  }
+
+  if (!project.includes('/* App.entitlements */')) {
+    const entitlementsFileId = 'C0DEC0DE5A41000000000003';
+    const entitlementsReference = `\t\t${entitlementsFileId} /* App.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = App.entitlements; sourceTree = "<group>"; };\n`;
+    if (!project.includes('/* End PBXFileReference section */')) {
+      throw new Error('Could not locate the iOS project file-reference section for App.entitlements.');
+    }
+    project = project.replace(
+      '/* End PBXFileReference section */',
+      `${entitlementsReference}/* End PBXFileReference section */`,
+    );
+
+    const infoEntry = project.match(/^[\t ]+[A-Fa-f0-9]{24} \/\* Info\.plist \*\/,[\r]?$/m)?.[0];
+    if (!infoEntry) throw new Error('Could not locate the iOS App group for App.entitlements.');
+    const infoIndent = infoEntry.match(/^[\t ]*/)?.[0] || '\t\t\t\t';
+    project = project.replace(
+      infoEntry,
+      `${infoIndent}${entitlementsFileId} /* App.entitlements */,\n${infoEntry}`,
+    );
+  }
+
   const privacySource = await readFile(new URL('resources/PrivacyInfo.xcprivacy', root), 'utf8');
   await writeFile(new URL('ios/App/App/PrivacyInfo.xcprivacy', root), privacySource);
 
@@ -200,6 +238,6 @@ if (target === 'all' || target === 'ios') {
   await patchIosPushCallbacks();
   await patchIosPhotoLibraryUsage();
   await patchIosVersionAndPrivacy();
-  console.log(`iOS configured for Ask Crump ${versionName} (${buildNumber}) with a bundled privacy manifest.`);
+  console.log(`iOS configured for Ask Crump ${versionName} (${buildNumber}) with push entitlements and a bundled privacy manifest.`);
 }
-console.log('Still required in owner accounts: add google-services.json, enable iOS Push Notifications + Background Modes, and configure APNs/FCM credentials.');
+console.log('Still required in owner accounts: add google-services.json, enable Push Notifications for the Apple App ID/provisioning profile, and configure APNs/FCM credentials.');

@@ -17,6 +17,7 @@
 - deterministic per-platform native preparation and version/build validation
 - Android compile/target SDK 36 enforcement
 - base iOS privacy manifest copied into the app Resources build phase
+- deterministic iOS push-entitlements file bound to every App build configuration
 - machine-validated en-US store metadata and signed-build screenshot capture plan
 - permanent package/bundle identifier verification for both native platforms
 - Android cleartext traffic and local backup disabled for account-linked session data
@@ -53,7 +54,8 @@ See `docs/STORE_READINESS_AUDIT_2026-08-27.md` for evidence, blockers, and offic
 ## Apple
 
 - [ ] App record, agreements, tax/banking, bundle ID, signing, and provisioning complete
-- [ ] Push Notifications capability and APNs key configured
+- [ ] Push Notifications enabled for the App ID/provisioning profile and APNs key configured; the
+      signed archive proves `aps-environment=production`
 - [ ] Push permission explanation appears only when the user enables notifications
 - [ ] Foreground/background/terminated push and deep-link behavior tested on physical devices
 - [ ] App Privacy answers include conversations, delivery metadata, optional check-in data, push tokens, device/session, usage, diagnostics, and purchases

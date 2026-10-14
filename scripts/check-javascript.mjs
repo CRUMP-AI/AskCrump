@@ -1178,7 +1178,13 @@ const screenshotLabels = plan => Array.isArray(plan)
   : [];
 const readmeScreenshotLabels = [...screenshotPlanSource.matchAll(/^\d+\.\s+([^\n—]+?)\s+—/gm)]
   .map(match => match[1].trim());
-const desktopListingCopy = 'Ask, Projects, Files, Library, Video, and Autonomous';
+const releasedDesktopListingCopy = 'Ask, Projects, Files, Library, and Video';
+const releasedStoreCopy = Object.freeze([
+  listingSource.apple?.description || '',
+  listingSource.google?.fullDescription || '',
+  listingCopySource,
+]);
+const unreleasedStoreClaim = /\bAutonomous\b|professional beta/i;
 if (JSON.stringify(shellDesktopDestinations) !== JSON.stringify(desktopDestinationIds) ||
     JSON.stringify(shellMobileDestinations) !== JSON.stringify(mobileDestinationIds) ||
     JSON.stringify(shellMoreDestinations) !== JSON.stringify(moreDestinationIds) ||
@@ -1190,9 +1196,8 @@ if (JSON.stringify(shellDesktopDestinations) !== JSON.stringify(desktopDestinati
     JSON.stringify(screenshotLabels(listingSource.apple?.screenshotPlan)) !== JSON.stringify(expectedScreenshotLabels) ||
     JSON.stringify(screenshotLabels(listingSource.google?.screenshotPlan)) !== JSON.stringify(expectedScreenshotLabels) ||
     JSON.stringify(readmeScreenshotLabels) !== JSON.stringify(expectedScreenshotLabels) ||
-    !listingSource.apple?.description?.includes(desktopListingCopy) ||
-    !listingSource.google?.fullDescription?.includes(desktopListingCopy) ||
-    !listingCopySource.includes(desktopListingCopy) ||
+    !releasedStoreCopy.every(source => source.includes(releasedDesktopListingCopy)) ||
+    releasedStoreCopy.some(source => unreleasedStoreClaim.test(source)) ||
     !desktopDestinationLabels.every(label => onboardingSource.includes(`destination: '${label}'`)) ||
     !visionShellSource.includes("sourceKey === 'home' || sourceKey === 'studios' || sourceKey === 'you'") ||
     !visionShellSource.includes('data-cv-destination="profile"') ||

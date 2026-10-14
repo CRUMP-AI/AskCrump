@@ -51,7 +51,8 @@ def test_registration_has_one_verifiable_password_field_and_tracks_safe_validati
     assert 'secure verification link' in app
     assert 'id="registerName"' not in app
     assert 'id="registerTerms" type="checkbox" required' in app
-    assert 'I am at least 17 and agree to the' in app
+    assert 'I am at least 17, agree to the' in app
+    assert 'permit Ask Crump to send the prompts, files, images, or video references I choose to submit' in app
     assert 'href="/legal.html#terms"' in app
     assert 'href="/legal.html#privacy"' in app
     assert 'Full Name' not in app[app.index('id="registerForm"'):app.index('id="forgotPasswordForm"')]
@@ -148,8 +149,10 @@ def test_registration_offer_matches_enforced_free_limits_and_canonical_product_m
         'We’ll email a secure verification link; no card required.'
     )
 
-    assert 'Ask, Projects, Files, Library, Video, Autonomous Crump, and Profile' in brand
-    for destination in ('Ask', 'Projects', 'Files', 'Library', 'Video', 'Autonomous · Beta', 'Profile'):
+    assert 'Ask, Projects, Files, Library, Video, and Profile' in brand
+    assert 'Autonomous' not in brand
+    assert 'Beta' not in brand
+    for destination in ('Ask', 'Projects', 'Files', 'Library', 'Video', 'Profile'):
         assert f'<span>{destination}</span>' in brand
     assert '<span>Home</span>' not in brand
     assert '<span>Chats</span>' not in brand

@@ -19,14 +19,14 @@ textually aligned with it. Reviewer credentials belong only in the ignored
 ## Apple App Store
 
 - **Subtitle:** Create, research, and build
-- **Promotional text:** Move from question to continuing work across Ask, Projects, Files, Library, Video, and Autonomous—with Profile controls always within reach.
+- **Promotional text:** Move from questions to continuing work across Ask, Projects, Files, Library, and Video—with Profile controls always within reach.
 - **Keywords:** `AI,assistant,research,writer,documents,images,video,manuscript,productivity,files`
 
 ### Description
 
 Ask Crump is a multimodal AI workspace built to help you move from an idea to something useful.
 
-The desktop workspace keeps Ask, Projects, Files, Library, Video, and Autonomous in one clear rail, with Profile available as a utility. Ask handles conversations, guided research, document and presentation creation, and image work. Projects keep instructions, reference context, conversations, and creations together. Files is the home for documents, presentations, images, videos, exports, and uploads. Video has a dedicated studio for Quick, Extendable, and Cinematic generation, optional visual references, and returning to a saved active job. Library is reserved for manuscripts and books. Autonomous is a professional beta for preparing and verifying coding work with user-controlled execution. Profile contains settings, sessions, purchase restoration, and account controls. On mobile, Files, Autonomous, and Profile live inside More.
+The desktop workspace keeps Ask, Projects, Files, Library, and Video in one clear rail, with Profile available as a utility. Ask handles conversations, guided research, document and presentation creation, and image work. Projects keep instructions, reference context, conversations, and creations together. Files is the home for documents, presentations, images, videos, exports, and uploads. Video has a dedicated studio for Quick, Extendable, and Cinematic generation, optional visual references, and returning to a saved active job. Library is reserved for manuscripts and books. Profile contains settings, sessions, purchase restoration, and account controls. On mobile, Files and Profile live inside More.
 
 Create and organize:
 
@@ -57,7 +57,7 @@ Some features require a paid plan, credits, provider availability, or an interne
 
 Ask Crump is a multimodal AI workspace for turning questions and ideas into useful work.
 
-The desktop workspace keeps Ask, Projects, Files, Library, Video, and Autonomous in one clear rail, with Profile available as a utility. Ask handles conversations, guided research, document and presentation creation, and image work. Projects keep ongoing work and reference context together. Files is the home for documents, presentations, images, videos, exports, and uploads. Video has a dedicated studio for Quick, Extendable, and Cinematic generation, optional visual references, and returning to a saved active job. Library is reserved for manuscripts and books. Autonomous is a professional beta for preparing and verifying coding work with user-controlled execution. Profile contains settings, sessions, purchase restoration, and account controls. On mobile, Files, Autonomous, and Profile live inside More.
+The desktop workspace keeps Ask, Projects, Files, Library, and Video in one clear rail, with Profile available as a utility. Ask handles conversations, guided research, document and presentation creation, and image work. Projects keep ongoing work and reference context together. Files is the home for documents, presentations, images, videos, exports, and uploads. Video has a dedicated studio for Quick, Extendable, and Cinematic generation, optional visual references, and returning to a saved active job. Library is reserved for manuscripts and books. Profile contains settings, sessions, purchase restoration, and account controls. On mobile, Files and Profile live inside More.
 
 WHAT YOU CAN DO
 
@@ -67,7 +67,6 @@ WHAT YOU CAN DO
 • Create editable documents, presentations, and exportable files
 • Develop long-form manuscript projects
 • Keep manuscripts and books in Library, with other work in Files
-• Prepare and verify coding work in Autonomous on supported plans
 • Reopen saved work across supported devices
 
 CONTROL AND SAFETY
@@ -112,7 +111,6 @@ Suggested review path:
 5. Open Video and verify the available engines, optional reference control, and saved-job return state.
 6. Open Library and verify the prepared books and manuscripts are available, then open Files to verify prepared documents and media.
 7. Open Profile to view session controls, export, legal links, and permanent account deletion.
-8. If the review account includes the supported Professional feature set, open Autonomous and verify that coding work remains user-controlled before execution.
-9. Open the subscription screen to verify native store billing and Restore Purchases.
+8. Open the subscription screen to verify native store billing and Restore Purchases.
 
 If a provider-backed mode is temporarily unavailable, do not submit until reviewer access is stable.

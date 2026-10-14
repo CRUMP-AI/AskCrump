@@ -200,15 +200,16 @@ def test_store_and_pwa_copy_match_current_creation_surface():
     listing = read("docs/STORE_LISTING_COPY.md")
     manifest = read("public/manifest.json")
     assert "scene continuation" in listing
-    assert "Ask, Projects, Files, Library, Video, and Autonomous" in listing
-    assert "On mobile, Files, Autonomous, and Profile live inside More." in listing
+    assert "Ask, Projects, Files, Library, and Video" in listing
+    assert "On mobile, Files and Profile live inside More." in listing
     assert "guided research inside Ask" in listing
     assert "Open Projects and resume" in listing
     assert "In Ask, test only the file and image creation modes" in listing
     assert "Open Library and verify" in listing
     assert "then open Files to verify" in listing
     assert "Open Profile to view session controls" in listing
-    assert "open Autonomous" in listing
+    assert "Autonomous" not in listing
+    assert "professional beta" not in listing.lower()
     assert "Saved Library" not in listing
     assert "Quick, Extendable, and Cinematic" in listing
     assert "manuscripts" in manifest and "video" in manifest and "Projects" in manifest

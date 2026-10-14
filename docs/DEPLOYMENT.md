@@ -113,10 +113,15 @@ These commands create a missing platform, sync Capacitor, generate branded asset
 
 ### iOS
 
-- Enable the Push Notifications capability.
-- Configure the required entitlements and provisioning profile.
+- Enable Push Notifications for the App ID and signing profile. Release preparation reconstructs
+  and binds the app's reviewed `aps-environment` entitlement; Xcode selects development or
+  production from the active provisioning profile.
 - Set APNs key, team, bundle, private-key, and environment variables.
 - Test foreground, background, terminated, stale-token, and notification-tap flows on a physical signed device.
+
+Ask Crump currently sends visible APNs alert pushes, not silent background-update pushes, so do not
+enable Background Modes → Remote notifications unless the payload contract is deliberately changed
+to use `content-available` and the new background behavior is reviewed and tested.
 
 ### Android
 

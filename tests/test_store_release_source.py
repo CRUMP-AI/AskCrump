@@ -28,10 +28,12 @@ def test_store_prepare_commands_are_platform_specific():
     assert "['android', 'ios'].includes(platform)" in prepare
     assert "['scripts/configure-native.mjs', platform]" in prepare
     assert "['scripts/verify-native-release.mjs', platform]" in prepare
+    assert "['scripts/verify-apple-toolchain.mjs']" in prepare
     assert "['scripts/verify-store-metadata.mjs']" in prepare
     assert "['scripts/verify-native-privacy.mjs', 'source']" in prepare
     assert "new URL('package-lock.json', root)" in prepare
     assert 'required for reproducible store preparation' in prepare
+    assert prepare.index("['scripts/verify-apple-toolchain.mjs']") < prepare.index("['scripts/verify-store-metadata.mjs']")
 
     ci = read('.github/workflows/ci.yml')
     assert 'npm run store:verify:metadata && npm run store:verify:privacy' in ci
@@ -68,7 +70,7 @@ def test_dependabot_keeps_capacitor_release_packages_in_one_version_update():
 def test_ios_cloud_verification_cannot_sign_or_upload():
     workflow = read('.github/workflows/ios-store-verify.yml')
 
-    assert 'runs-on: macos-15' in workflow
+    assert 'runs-on: macos-26' in workflow
     for source in (
         'public/**',
         'backend/revenuecat_catalog.json',
@@ -77,10 +79,13 @@ def test_ios_cloud_verification_cannot_sign_or_upload():
         'scripts/check-javascript.mjs',
         'scripts/production-build-preflight.mjs',
         'scripts/revenuecat-catalog.mjs',
+        'scripts/verify-apple-toolchain.mjs',
         'scripts/verify-native-privacy.mjs',
+        'resources/App.entitlements',
     ):
         assert source in workflow
     assert 'npm run store:prepare:ios' in workflow
+    assert 'npm run store:verify:apple-toolchain' in workflow
     assert 'CODE_SIGNING_ALLOWED=NO' in workflow
     assert 'CODE_SIGNING_REQUIRED=NO' in workflow
     assert 'verify-native-privacy.mjs ios-bundle "$app_bundle"' in workflow
@@ -332,9 +337,11 @@ def test_store_metadata_source_is_structured_private_and_within_static_limits():
     assert len(apple['screenshotPlan']) >= 4
     assert len(google['screenshotPlan']) >= 4
     for description in (apple['description'], google['fullDescription']):
-        assert 'Ask, Projects, Files, Library, Video, and Autonomous' in description
+        assert 'Ask, Projects, Files, Library, and Video' in description
         assert 'Profile' in description
-        assert 'On mobile, Files, Autonomous, and Profile live inside More.' in description
+        assert 'On mobile, Files and Profile live inside More.' in description
+        assert 'Autonomous' not in description
+        assert 'beta' not in description.lower()
     expected_frames = ('Ask —', 'Projects —', 'Files —', 'Video —', 'Research in Ask —', 'Library —', 'Profile —')
     for plan in (apple['screenshotPlan'], google['screenshotPlan']):
         assert plan == metadata['apple']['screenshotPlan']
@@ -347,3 +354,31 @@ def test_store_metadata_source_is_structured_private_and_within_static_limits():
     assert 'Google short description' in verifier
     assert 'Store listing draft is out of sync' in verifier
     assert 'verified direct-200 canonical URL' in verifier
+
+
+def test_unreleased_autonomous_is_not_advertised_before_auth_or_in_store_copy():
+    config = read('backend/config.py')
+    app = read('public/app.html')
+    auth_copy = app[app.index('<div id="authContainer"'):app.index('<!-- TERMS -->')]
+    listing_source = read('store/listing.en-US.json')
+    listing_document = read('docs/STORE_LISTING_COPY.md')
+
+    assert 'CODE_WORKSPACE_PUBLIC_RELEASED = False' in config
+    for source in (auth_copy, listing_source, listing_document):
+        assert 'Autonomous' not in source
+        assert 'professional beta' not in source.lower()
+
+
+def test_registration_discloses_and_requires_permission_for_ai_provider_processing():
+    app = read('public/app.html')
+    registration = app[app.index('<div id="registerForm"'):app.index('<div id="forgotPasswordForm"')]
+    terms = app[app.index('<div id="tosModal"'):app.index('<!-- ONBOARDING -->')]
+    disclosure = (
+        'permit Ask Crump to send the prompts, files, images, or video references I choose to submit '
+        'to the configured AI providers needed to complete my requests'
+    )
+
+    assert 'id="registerTerms" type="checkbox" required' in registration
+    assert disclosure in registration
+    assert 'id="tosAccept"' in terms
+    assert disclosure in terms
