@@ -52,7 +52,7 @@ def test_character_hold_is_cache_addressable_and_guarded() -> None:
     worker = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
 
-    assert "ask-crump-new-body-v1-r261-grounded-research-1" in worker
+    assert "ask-crump-new-body-v1-r262-autonomous-continuity-1" in worker
     assert "/ui-functions.js?v=5.9.76-atelier-workspace-1" in worker
     assert "/crump-4.3.js?v=5.9.76-atelier-workspace-1" in worker
     assert "Zero-runtime-mascot contract failed" in checker

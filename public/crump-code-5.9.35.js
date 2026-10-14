@@ -16,10 +16,19 @@
     projectId: '',
     tasks: [],
     task: null,
+    ownerId: '',
+    navigationEpoch: 0,
     restoreFocus: null,
     pollTimer: 0,
+    pollController: null,
+    pollFailureCount: 0,
+    pollGeneration: 0,
   };
   const ACTIVE = new Set(['queued', 'provisioning', 'running', 'awaiting_approval', 'verifying']);
+  const POLL_INITIAL_MS = 1200;
+  const POLL_BASE_MS = 2500;
+  const POLL_MAX_MS = 30000;
+  const POLL_TIMEOUT_MS = 12000;
   const STATUS_LABELS = Object.freeze({
     queued: 'Ready for review',
     provisioning: 'Starting isolated workspace',
@@ -36,7 +45,9 @@
       credentials: 'same-origin',
       method: options.method || 'GET',
       headers: {Accept: 'application/json'},
+      cache: 'no-store',
     };
+    if (options.signal) request.signal = options.signal;
     if (options.body !== undefined) {
       request.headers['Content-Type'] = 'application/json';
       request.body = JSON.stringify(options.body);
@@ -69,6 +80,28 @@
     if (value === 'cancelled' && failureCode === 'CODE_TASK_EXPIRED') return 'Expired safely';
     if (value === 'cancelled' && failureCode === 'CODE_APPROVAL_EXPIRED') return 'Approval expired';
     return STATUS_LABELS[String(value || '')] || 'Status unavailable';
+  }
+
+  function currentOwnerId() {
+    return String(window.currentUser?.id || '').trim();
+  }
+
+  function beginNavigation() {
+    return {ownerId: state.ownerId, epoch: ++state.navigationEpoch};
+  }
+
+  function navigationIsCurrent(context) {
+    return Boolean(
+      context
+      && context.ownerId
+      && context.ownerId === state.ownerId
+      && context.ownerId === currentOwnerId()
+      && context.epoch === state.navigationEpoch,
+    );
+  }
+
+  function currentNavigation() {
+    return {ownerId: state.ownerId, epoch: state.navigationEpoch};
   }
 
   function formatDate(value) {
@@ -120,7 +153,7 @@
           <div>
             <span class="crump-code-kicker">CODING AGENT · BETA</span>
             <h2 id="crumpCodeTitle">Autonomous Crump</h2>
-            <p>Prepare and verify coding work in a temporary copy of a public GitHub repository. Autonomous Crump cannot see secrets, publish, or push changes.</p>
+            <p>Prepare and verify coding work in a temporary copy of a public GitHub repository. Autonomous Crump receives no Ask Crump credentials and cannot publish or push changes.</p>
           </div>
           <button type="button" id="crumpCodeClose" class="crump-code-icon-button" aria-label="Close Autonomous Crump">×</button>
         </header>
@@ -259,9 +292,16 @@
   }
 
   async function refreshAvailability() {
+    const ownerId = currentOwnerId();
+    const epoch = state.navigationEpoch;
     try {
-      return hydrateAvailability(await api('/api/features'));
+      const data = await api('/api/features');
+      if (!ownerId || ownerId !== state.ownerId || ownerId !== currentOwnerId() || epoch !== state.navigationEpoch) {
+        return false;
+      }
+      return hydrateAvailability(data);
     } catch (_) {
+      if (ownerId !== state.ownerId || epoch !== state.navigationEpoch) return false;
       return hydrateAvailability(null);
     }
   }
@@ -530,69 +570,166 @@
     renderHistory(detail, task);
   }
 
+  function resetWorkspaceState(ownerId = '') {
+    state.navigationEpoch += 1;
+    stopPolling();
+    state.ownerId = String(ownerId || '').trim();
+    state.projects = [];
+    state.projectId = '';
+    state.tasks = [];
+    state.task = null;
+    for (const id of ['crumpCodeRepository', 'crumpCodeRevision', 'crumpCodeObjective']) {
+      const control = byId(id);
+      if (control) control.value = '';
+    }
+    renderProjects();
+    renderTasks();
+    renderDetail();
+    setNotice('');
+  }
+
   function updateRunButton() {
     const button = byId('crumpCodeRun');
     const checkbox = byId('crumpCodeRunConfirmed');
     if (button) button.disabled = !checkbox?.checked;
   }
 
-  async function loadProjects() {
+  function activityStatus(task) {
+    const status = String(task?.status || '').trim().toLowerCase();
+    if (status === 'queued') return task?.payment_source ? 'queued' : '';
+    if (status === 'provisioning' || status === 'running' || status === 'verifying') return 'running';
+    if (status === 'completed') return 'ready';
+    if (status === 'awaiting_approval' || status === 'failed' || status === 'cancelled') return 'failed';
+    return '';
+  }
+
+  function reportTaskActivity(task) {
+    const status = activityStatus(task);
+    const taskId = String(task?.id || '').trim();
+    const projectId = String(task?.project_id || state.projectId || '').trim();
+    if (!status || !taskId || !projectId) return false;
+    return window.CrumpActivityCenter?.report?.({
+      id: `code:${taskId}`,
+      taskId,
+      projectId,
+      codeStatus: String(task.status || '').trim().toLowerCase(),
+      source: 'code',
+      kind: 'code',
+      status,
+      createdAt: task.created_at,
+      updatedAt: task.completed_at || task.updated_at || task.created_at,
+    }) || false;
+  }
+
+  function applyTask(task, {render = true} = {}) {
+    if (!task || typeof task !== 'object' || !task.id) return null;
+    const index = state.tasks.findIndex(item => item.id === task.id);
+    const merged = index >= 0 ? {...state.tasks[index], ...task} : {...task};
+    if (index >= 0) state.tasks[index] = merged;
+    else state.tasks.unshift(merged);
+    state.task = merged;
+    reportTaskActivity(merged);
+    if (render) {
+      renderTasks();
+      renderDetail();
+    }
+    return merged;
+  }
+
+  async function loadProjects({projectId = '', taskId = ''} = {}, context = null) {
+    const requestContext = context || beginNavigation();
     setNotice('Loading Projects…');
     try {
       const data = await api('/api/projects');
+      if (!navigationIsCurrent(requestContext)) return false;
       state.projects = Array.isArray(data.projects) ? data.projects : [];
+      const requestedProjectId = String(projectId || '').trim();
+      if (requestedProjectId && state.projects.some(project => String(project.id) === requestedProjectId)) {
+        state.projectId = requestedProjectId;
+      }
       renderProjects();
-      await loadTasks();
+      await loadTasks(String(taskId || '').trim(), requestContext);
+      if (!navigationIsCurrent(requestContext)) return false;
       setNotice('');
+      return true;
     } catch (error) {
-      setNotice(error.message, 'danger');
+      if (navigationIsCurrent(requestContext)) setNotice(error.message, 'danger');
+      return false;
     }
   }
 
-  async function loadTasks() {
+  async function loadTasks(targetTaskId = '', context = null) {
+    const requestContext = context || beginNavigation();
+    const projectId = state.projectId;
+    if (!navigationIsCurrent(requestContext)) return false;
+    stopPolling();
     state.tasks = [];
     state.task = null;
     renderTasks();
     renderDetail();
-    if (!state.projectId) return;
+    if (!projectId) return false;
     setNotice('Loading Autonomous Crump tasks…');
     try {
-      const data = await api(`/api/projects/${encodeURIComponent(state.projectId)}/code/tasks`);
+      const data = await api(`/api/projects/${encodeURIComponent(projectId)}/code/tasks`);
+      if (!navigationIsCurrent(requestContext) || state.projectId !== projectId) return false;
       state.tasks = Array.isArray(data.tasks) ? data.tasks : [];
       renderTasks();
-      if (state.tasks.length) await selectTask(state.tasks[0].id, {quiet: true});
+      const requestedTaskId = String(targetTaskId || '').trim();
+      const selectedTaskId = requestedTaskId || state.tasks[0]?.id || '';
+      if (selectedTaskId) {
+        await selectTask(selectedTaskId, {
+          quiet: true,
+          context: requestContext,
+          projectId,
+        });
+      }
+      if (!navigationIsCurrent(requestContext) || state.projectId !== projectId) return false;
       setNotice('');
+      return true;
     } catch (error) {
-      setNotice(error.message, 'danger');
+      if (navigationIsCurrent(requestContext) && state.projectId === projectId) {
+        setNotice(error.message, 'danger');
+      }
+      return false;
     }
   }
 
-  async function selectTask(taskId, {quiet = false} = {}) {
+  async function selectTask(taskId, {quiet = false, context = null, projectId = state.projectId} = {}) {
     if (!taskId) return;
+    const requestContext = context || beginNavigation();
+    const expectedProjectId = String(projectId || '').trim();
+    stopPolling();
     if (!quiet) setNotice('Loading task…');
     try {
       const data = await api(`/api/code/tasks/${encodeURIComponent(taskId)}`);
-      state.task = data.task || null;
-      const index = state.tasks.findIndex(item => item.id === state.task?.id);
-      if (index >= 0) state.tasks[index] = {...state.tasks[index], ...state.task};
-      renderTasks();
-      renderDetail();
-      if (ACTIVE.has(String(state.task?.status || '')) && state.task?.status !== 'queued') startPolling(state.task.id);
+      if (!navigationIsCurrent(requestContext) || state.projectId !== expectedProjectId) return false;
+      const returnedProjectId = String(data.task?.project_id || expectedProjectId || '').trim();
+      if (expectedProjectId && returnedProjectId !== expectedProjectId) {
+        throw new Error('That task no longer belongs to the selected Project.');
+      }
+      applyTask(data.task || null);
+      if (shouldPollTask()) startPolling(state.task.id);
       else stopPolling();
       if (!quiet) setNotice('');
+      return true;
     } catch (error) {
-      setNotice(error.message, 'danger');
+      if (navigationIsCurrent(requestContext) && state.projectId === expectedProjectId) {
+        setNotice(error.message, 'danger');
+      }
+      return false;
     }
   }
 
   async function prepareTask(event) {
     event.preventDefault();
     if (!state.projectId) return setNotice('Choose a Project first.', 'danger');
+    const requestContext = beginNavigation();
+    const projectId = state.projectId;
     const button = byId('crumpCodePrepare');
     const restore = setButtonBusy(button, true, 'Preparing…');
     setNotice('');
     try {
-      const data = await api(`/api/projects/${encodeURIComponent(state.projectId)}/code/tasks`, {
+      const data = await api(`/api/projects/${encodeURIComponent(projectId)}/code/tasks`, {
         method: 'POST',
         body: {
           repositoryUrl: byId('crumpCodeRepository')?.value.trim(),
@@ -602,13 +739,14 @@
           maxDurationSeconds: Number(state.provider?.maxDurationSeconds || 180),
         },
       });
-      state.task = data.task;
+      if (!navigationIsCurrent(requestContext) || state.projectId !== projectId) return;
+      applyTask(data.task);
       byId('crumpCodeObjective').value = '';
-      await loadTasks();
-      await selectTask(data.task.id, {quiet: true});
+      await loadTasks(data.task.id, requestContext);
+      if (!navigationIsCurrent(requestContext) || state.projectId !== projectId) return;
       setNotice('Task prepared. Review every field before starting the isolated run.', 'success');
     } catch (error) {
-      setNotice(error.message, 'danger');
+      if (navigationIsCurrent(requestContext)) setNotice(error.message, 'danger');
     } finally {
       restore();
     }
@@ -617,20 +755,26 @@
   async function runTask(button) {
     if (!state.task?.id || !byId('crumpCodeRunConfirmed')?.checked) return;
     const taskId = state.task.id;
+    const requestContext = currentNavigation();
     const restore = setButtonBusy(button, true, 'Submitting…');
     setNotice('Submitting the confirmed task to the private worker…');
     try {
       const data = await api(`/api/code/tasks/${encodeURIComponent(taskId)}/run`, {
         method: 'POST', body: {confirmed: true},
       });
-      state.task = data.task;
-      renderDetail();
-      renderTasks();
+      if (!navigationIsCurrent(requestContext) || state.task?.id !== taskId) return;
+      applyTask(data.task);
       setNotice('Task accepted. You can close this window; Autonomous Crump will continue safely.', 'success');
       startPolling(taskId);
     } catch (error) {
+      if (!navigationIsCurrent(requestContext) || state.task?.id !== taskId) return;
       stopPolling();
-      await selectTask(taskId, {quiet: true});
+      await selectTask(taskId, {
+        quiet: true,
+        context: requestContext,
+        projectId: state.projectId,
+      });
+      if (!navigationIsCurrent(requestContext) || state.task?.id !== taskId) return;
       setNotice(error.message, error.code === 'CODE_TASK_CANCELLED' ? '' : 'danger');
     } finally {
       restore();
@@ -639,17 +783,27 @@
 
   async function cancelTask(button) {
     if (!state.task?.id) return;
+    const taskId = state.task.id;
+    const requestContext = currentNavigation();
     const restore = setButtonBusy(button, true, 'Cancelling…');
     try {
-      const data = await api(`/api/code/tasks/${encodeURIComponent(state.task.id)}/cancel`, {
+      const data = await api(`/api/code/tasks/${encodeURIComponent(taskId)}/cancel`, {
         method: 'POST', body: {},
       });
-      state.task = data.task;
-      await selectTask(state.task.id, {quiet: true});
+      if (!navigationIsCurrent(requestContext) || state.task?.id !== taskId) return;
+      applyTask(data.task);
+      await selectTask(data.task.id, {
+        quiet: true,
+        context: requestContext,
+        projectId: state.projectId,
+      });
+      if (!navigationIsCurrent(requestContext) || state.task?.id !== taskId) return;
       stopPolling();
       setNotice('Cancellation recorded. The bounded workspace will shut down without publishing changes.', 'success');
     } catch (error) {
-      setNotice(error.message, 'danger');
+      if (navigationIsCurrent(requestContext) && state.task?.id === taskId) {
+        setNotice(error.message, 'danger');
+      }
     } finally {
       restore();
     }
@@ -659,18 +813,32 @@
     const approvalId = button.dataset.codeApproval;
     const decision = button.dataset.codeDecision;
     if (!state.task?.id || !approvalId || !decision) return;
+    const taskId = state.task.id;
+    const requestContext = currentNavigation();
     const restore = setButtonBusy(button, true, decision === 'approved' ? 'Approving…' : 'Denying…');
     try {
-      const data = await api(`/api/code/tasks/${encodeURIComponent(state.task.id)}/approvals/${encodeURIComponent(approvalId)}`, {
+      const data = await api(`/api/code/tasks/${encodeURIComponent(taskId)}/approvals/${encodeURIComponent(approvalId)}`, {
         method: 'POST', body: {decision},
       });
-      state.task = data.task;
-      await selectTask(state.task.id, {quiet: true});
+      if (!navigationIsCurrent(requestContext) || state.task?.id !== taskId) return;
+      applyTask(data.task);
+      await selectTask(data.task.id, {
+        quiet: true,
+        context: requestContext,
+        projectId: state.projectId,
+      });
+      if (!navigationIsCurrent(requestContext) || state.task?.id !== taskId) return;
       setNotice(decision === 'approved' ? 'Bounded retry approved. Review it again before running.' : 'Request denied and task cancelled.', 'success');
     } catch (error) {
+      if (!navigationIsCurrent(requestContext) || state.task?.id !== taskId) return;
       if (error.code === 'CODE_APPROVAL_EXPIRED') {
-        await selectTask(state.task.id, {quiet: true});
+        await selectTask(taskId, {
+          quiet: true,
+          context: requestContext,
+          projectId: state.projectId,
+        });
       }
+      if (!navigationIsCurrent(requestContext) || state.task?.id !== taskId) return;
       setNotice(error.message, 'danger');
     } finally {
       restore();
@@ -701,20 +869,48 @@
   }
 
   function stopPolling() {
+    state.pollGeneration += 1;
     if (state.pollTimer) window.clearTimeout(state.pollTimer);
     state.pollTimer = 0;
+    state.pollController?.abort?.();
+    state.pollController = null;
+    state.pollFailureCount = 0;
   }
 
-  function startPolling(taskId) {
+  function shouldPollTask(task = state.task) {
+    const status = String(task?.status || '');
+    return ACTIVE.has(status) && (status !== 'queued' || Boolean(task?.payment_source));
+  }
+
+  function startPolling(taskId, {immediate = false} = {}) {
     stopPolling();
+    const generation = state.pollGeneration;
+    const ownerId = state.ownerId;
+    const schedule = delay => {
+      if (generation !== state.pollGeneration) return;
+      state.pollTimer = window.setTimeout(poll, delay);
+    };
     const poll = async () => {
-      if (byId('crumpCodeWorkspace')?.hidden || state.task?.id !== taskId) return;
+      state.pollTimer = 0;
+      if (
+        generation !== state.pollGeneration
+        || ownerId !== state.ownerId
+        || ownerId !== currentOwnerId()
+        || document.hidden
+        || byId('crumpCodeWorkspace')?.hidden
+        || state.task?.id !== taskId
+      ) return;
+      const controller = new AbortController();
+      state.pollController = controller;
+      const timeout = window.setTimeout(() => controller.abort(), POLL_TIMEOUT_MS);
       try {
-        const data = await api(`/api/code/tasks/${encodeURIComponent(taskId)}`);
-        state.task = data.task || state.task;
-        renderDetail();
-        renderTasks();
-        if (!ACTIVE.has(String(state.task?.status || '')) || state.task?.status === 'queued') {
+        const data = await apiOnce(`/api/code/tasks/${encodeURIComponent(taskId)}`, {
+          signal: controller.signal,
+        });
+        if (generation !== state.pollGeneration || ownerId !== state.ownerId || state.task?.id !== taskId) return;
+        applyTask(data.task || state.task);
+        state.pollFailureCount = 0;
+        if (!shouldPollTask()) {
           if (state.task?.status === 'completed') {
             setNotice('Autonomous Crump finished. Review the result, checks, and patch before using it.', 'success');
           } else if (state.task?.status === 'failed') {
@@ -725,21 +921,47 @@
           return;
         }
       } catch (_) {
-        // A later poll can recover from a brief connectivity interruption.
+        if (
+          generation !== state.pollGeneration
+          || ownerId !== state.ownerId
+          || document.hidden
+          || byId('crumpCodeWorkspace')?.hidden
+          || state.task?.id !== taskId
+        ) return;
+        state.pollFailureCount = Math.min(state.pollFailureCount + 1, 4);
+        setNotice('Status refresh is delayed. The durable task continues safely; Ask Crump will retry.', '');
+      } finally {
+        window.clearTimeout(timeout);
+        if (state.pollController === controller) state.pollController = null;
       }
-      state.pollTimer = window.setTimeout(poll, 2500);
+      if (
+        generation !== state.pollGeneration
+        || ownerId !== state.ownerId
+        || document.hidden
+        || byId('crumpCodeWorkspace')?.hidden
+        || state.task?.id !== taskId
+        || !shouldPollTask()
+      ) return;
+      schedule(Math.min(POLL_MAX_MS, POLL_BASE_MS * (2 ** state.pollFailureCount)));
     };
-    state.pollTimer = window.setTimeout(poll, 1200);
+    schedule(immediate ? 0 : POLL_INITIAL_MS);
   }
 
   async function refresh() {
+    const ownerId = currentOwnerId();
+    if (ownerId !== state.ownerId) resetWorkspaceState(ownerId);
     if (!(await refreshAvailability())) return setNotice('Autonomous Crump is not available for this account.', 'danger');
     await loadProjects();
   }
 
-  async function open() {
+  async function open({projectId = '', taskId = ''} = {}) {
     createStaticShell();
+    const ownerId = currentOwnerId();
+    if (!ownerId) return false;
+    if (ownerId !== state.ownerId) resetWorkspaceState(ownerId);
+    const requestContext = beginNavigation();
     if (!(await refreshAvailability())) {
+      if (!navigationIsCurrent(requestContext)) return false;
       if (state.configured && !state.entitled) {
         const modal = window.showBillingCenter?.({plan: 'professional'});
         if (!modal) window.showUpgradePrompt?.({plan: 'professional'});
@@ -748,13 +970,15 @@
       }
       return false;
     }
+    if (!navigationIsCurrent(requestContext)) return false;
     const overlay = byId('crumpCodeWorkspace');
     state.restoreFocus = document.activeElement;
     overlay.hidden = false;
     document.body.classList.add('crump-code-open');
     byId('crumpCodeCost').textContent = costCopy();
     requestAnimationFrame(() => byId('crumpCodeClose')?.focus({preventScroll: true}));
-    await loadProjects();
+    await loadProjects({projectId, taskId}, requestContext);
+    if (!navigationIsCurrent(requestContext)) return false;
     return true;
   }
 
@@ -775,6 +999,9 @@
 
   function initialize() {
     createStaticShell();
+    if (currentOwnerId() && currentOwnerId() !== state.ownerId) {
+      resetWorkspaceState(currentOwnerId());
+    }
     // The lazy loader applies its server-confirmed status only after both the
     // script and stylesheet are ready, so a newly revealed destination cannot
     // open an unstyled workspace.
@@ -785,6 +1012,26 @@
     document.addEventListener('DOMContentLoaded', initialize, {once: true});
   } else initialize();
   window.addEventListener('crump:authenticated-ready', () => {
+    const ownerId = currentOwnerId();
+    if (ownerId !== state.ownerId) resetWorkspaceState(ownerId);
     if (!window.CrumpCodeLoader) void refreshAvailability();
+  });
+  window.addEventListener('crump:authentication-required', () => {
+    close();
+    resetWorkspaceState('');
+  });
+  window.addEventListener('online', () => {
+    if (!byId('crumpCodeWorkspace')?.hidden && shouldPollTask()) {
+      startPolling(state.task.id, {immediate: true});
+    }
+  });
+  document.addEventListener('visibilitychange', () => {
+    if (document.hidden) {
+      stopPolling();
+      return;
+    }
+    if (!byId('crumpCodeWorkspace')?.hidden && shouldPollTask()) {
+      startPolling(state.task.id, {immediate: true});
+    }
   });
 })();

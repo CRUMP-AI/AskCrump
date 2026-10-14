@@ -43,7 +43,7 @@ def test_protected_product_modules_hydrate_only_after_an_intentional_open():
     auth_listener = code_loader.index("window.addEventListener('crump:authenticated-ready'")
     assert "loadProjects()" not in code_loader[auth_listener:]
     assert "if (!configured(data))" in code_loader
-    assert "await loadWorkspace(data);" in code_loader
+    assert "await loadWorkspace(data, context);" in code_loader
     assert 'if (!(await refreshAvailability()))' in code
     assert 'if (window.currentUser) refreshBalance();' in billing
     assert "window.addEventListener('crump:authenticated-ready', () => refreshBalance())" in billing

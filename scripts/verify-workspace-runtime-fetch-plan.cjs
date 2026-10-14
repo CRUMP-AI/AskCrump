@@ -51,7 +51,7 @@ const assert = require('node:assert/strict');
       assert.equal(evidence.preloadCount, 35);
       assert.equal(evidence.scriptCount, mode === 'script-retry' ? 36 : 35);
       assert.equal(evidence.firstScript, '/onboarding.js?v=5.9.76-friendly-workspace-1');
-      assert.equal(evidence.lastScript, '/crump-activity-center-1.0.js?v=5.9.76-activity-center-1');
+      assert.equal(evidence.lastScript, '/crump-activity-center-1.0.js?v=5.9.76-autonomous-continuity-1');
       assert.equal(evidence.styleAttempts, mode === 'style-retry' ? 2 : 1);
       assert.equal(evidence.scriptAttempts, mode === 'script-retry' ? 2 : 1);
       assert.equal(evidence.readyEvents, 1);

@@ -4,12 +4,39 @@
   if (window.__crumpCodeLoaderLoaded) return;
   window.__crumpCodeLoaderLoaded = true;
 
-  const STYLE_URL = '/crump-code-5.9.35.css?v=5.9.76-friendly-workspace-1';
-  const SCRIPT_URL = '/crump-code-5.9.35.js?v=5.9.76-friendly-workspace-1';
+  const STYLE_URL = '/crump-code-5.9.35.css?v=5.9.76-autonomous-continuity-1';
+  const SCRIPT_URL = '/crump-code-5.9.35.js?v=5.9.76-autonomous-continuity-1';
   const DESTINATION_SELECTOR = '[data-crump-code-destination], [data-cv-destination="autonomous"]';
   let featureStatus = null;
   let availabilityPromise = null;
+  let availabilityOwnerId = '';
+  let availabilityGeneration = 0;
   let workspacePromise = null;
+
+  function currentOwnerId() {
+    return String(window.currentUser?.id || '').trim();
+  }
+
+  function invalidateOwner(ownerId = currentOwnerId()) {
+    const nextOwnerId = String(ownerId || '').trim();
+    if (nextOwnerId === availabilityOwnerId) return nextOwnerId;
+    availabilityGeneration += 1;
+    availabilityOwnerId = nextOwnerId;
+    availabilityPromise = null;
+    featureStatus = null;
+    hideDestinations();
+    return nextOwnerId;
+  }
+
+  function availabilityIsCurrent(context) {
+    return Boolean(
+      context
+      && context.ownerId
+      && context.ownerId === availabilityOwnerId
+      && context.ownerId === currentOwnerId()
+      && context.generation === availabilityGeneration,
+    );
+  }
 
   function syncDestinations(data = null) {
     const feature = data?.features?.code_workspace;
@@ -67,29 +94,35 @@
     });
   }
 
-  function loadWorkspace(data = featureStatus) {
+  function loadWorkspace(data = featureStatus, context = null) {
     if (window.CrumpCodeWorkspace) {
-      window.CrumpCodeWorkspace.hydrateAvailability?.(data);
+      if (!context || availabilityIsCurrent(context)) {
+        window.CrumpCodeWorkspace.hydrateAvailability?.(data);
+      }
       return Promise.resolve(window.CrumpCodeWorkspace);
     }
-    if (workspacePromise) return workspacePromise;
-    window.__crumpCodeBootstrapStatus = data || null;
-    workspacePromise = Promise.all([loadStyle(), loadScript()])
-      .then(() => {
-        if (!window.CrumpCodeWorkspace) throw new Error('Autonomous Crump is unavailable');
-        window.CrumpCodeWorkspace.hydrateAvailability?.(data);
+    if (!workspacePromise) {
+      window.__crumpCodeBootstrapStatus = data || null;
+      workspacePromise = Promise.all([loadStyle(), loadScript()])
+        .then(() => {
+          if (!window.CrumpCodeWorkspace) throw new Error('Autonomous Crump is unavailable');
+          return window.CrumpCodeWorkspace;
+        })
+        .catch(error => {
+          delete window.__crumpCodeBootstrapStatus;
+          document.querySelector('link[data-crump-code-lazy-style]')?.remove();
+          document.querySelector('script[data-crump-code-lazy-script]')?.remove();
+          workspacePromise = null;
+          throw error;
+        });
+    }
+    return workspacePromise.then(workspace => {
+      if (!context || availabilityIsCurrent(context)) {
+        workspace.hydrateAvailability?.(data);
         syncDestinations(data);
-        return window.CrumpCodeWorkspace;
-      })
-      .catch(error => {
-        delete window.__crumpCodeBootstrapStatus;
-        document.querySelector('link[data-crump-code-lazy-style]')?.remove();
-        document.querySelector('script[data-crump-code-lazy-script]')?.remove();
-        workspacePromise = null;
-        hideDestinations();
-        throw error;
-      });
-    return workspacePromise;
+      }
+      return workspace;
+    });
   }
 
   function configured(data) {
@@ -99,44 +132,52 @@
   }
 
   async function refreshAvailability() {
-    if (!window.currentUser) {
+    const ownerId = invalidateOwner();
+    if (!ownerId) {
       featureStatus = null;
       hideDestinations();
       return false;
     }
     if (availabilityPromise) return availabilityPromise;
-    availabilityPromise = (async () => {
+    const context = {ownerId, generation: availabilityGeneration};
+    let requestPromise;
+    requestPromise = (async () => {
       try {
         const response = await fetch('/api/features', {
           credentials: 'same-origin',
           headers: {Accept: 'application/json'},
         });
         const data = response.ok ? await response.json() : null;
+        if (!availabilityIsCurrent(context)) return false;
         featureStatus = data;
         if (!configured(data)) {
           hideDestinations();
           return false;
         }
         syncDestinations(data);
-        await loadWorkspace(data);
+        await loadWorkspace(data, context);
+        if (!availabilityIsCurrent(context)) return false;
         return true;
       } catch (_) {
-        featureStatus = null;
-        hideDestinations();
+        if (availabilityIsCurrent(context)) {
+          featureStatus = null;
+          hideDestinations();
+        }
         return false;
       } finally {
-        availabilityPromise = null;
+        if (availabilityPromise === requestPromise) availabilityPromise = null;
       }
     })();
+    availabilityPromise = requestPromise;
     return availabilityPromise;
   }
 
-  async function open() {
+  async function open(options = {}) {
     if (!window.CrumpCodeWorkspace && !(await refreshAvailability())) {
       window.showToast?.('Autonomous Crump is not available for this account.', 'info');
       return false;
     }
-    return window.CrumpCodeWorkspace?.open?.() || false;
+    return window.CrumpCodeWorkspace?.open?.(options) || false;
   }
 
   window.CrumpCodeLoader = Object.freeze({load: loadWorkspace, open, refreshAvailability});
@@ -145,6 +186,16 @@
     if (configured(featureStatus)) syncDestinations(featureStatus);
     else hideDestinations();
   });
-  window.addEventListener('crump:authenticated-ready', () => { void refreshAvailability(); });
+  window.addEventListener('crump:authenticated-ready', () => {
+    invalidateOwner();
+    void refreshAvailability();
+  });
+  window.addEventListener('crump:authentication-required', () => {
+    availabilityGeneration += 1;
+    availabilityOwnerId = '';
+    availabilityPromise = null;
+    featureStatus = null;
+    hideDestinations();
+  });
   if (window.currentUser) void refreshAvailability();
 })();

@@ -17,6 +17,7 @@ TERMINAL_STATUSES = frozenset({"completed", "failed", "cancelled"})
 ACTIVE_STATUSES = frozenset(
     {"queued", "provisioning", "running", "awaiting_approval", "verifying"}
 )
+ACTIVITY_LIMIT = 18
 TRANSITIONS: dict[str, frozenset[str]] = {
     "queued": frozenset({"provisioning", "cancelled"}),
     "provisioning": frozenset({"running", "queued", "failed", "cancelled"}),
@@ -99,6 +100,22 @@ class CodeApprovalExpiredError(CodeTaskConflictError):
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
+
+
+def _activity_timestamp(task: dict[str, Any]) -> datetime:
+    timestamps: list[datetime] = []
+    for key in ("created_at", "updated_at", "completed_at"):
+        raw = str(task.get(key) or "").strip()
+        if not raw:
+            continue
+        try:
+            parsed = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        except ValueError:
+            continue
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        timestamps.append(parsed.astimezone(timezone.utc))
+    return max(timestamps, default=datetime.min.replace(tzinfo=timezone.utc))
 
 
 def timestamp_has_passed(value: Any, *, now: datetime | None = None) -> bool:
@@ -237,6 +254,81 @@ class CodeTaskService:
         for item in items:
             reconciled.append(await self.reconcile_task_expiry(item))
         return reconciled
+
+    async def list_activity(self, *, user_id: str) -> list[dict[str, Any]]:
+        """Return a bounded, content-free activity summary for one account."""
+        columns = (
+            "id,project_id,status,created_at,updated_at,completed_at,payment_source"
+        )
+        active = await self.db.select(
+            "code_tasks",
+            columns=columns,
+            filters={
+                "user_id": eq(user_id),
+                "status": in_(sorted(ACTIVE_STATUSES - {"queued"})),
+            },
+            order="updated_at.desc",
+            limit=ACTIVITY_LIMIT,
+        )
+        dispatched_queued = await self.db.select(
+            "code_tasks",
+            columns=columns,
+            filters={
+                "user_id": eq(user_id),
+                "status": eq("queued"),
+                "payment_source": "not.is.null",
+            },
+            order="updated_at.desc",
+            limit=ACTIVITY_LIMIT,
+        )
+        terminal = await self.db.select(
+            "code_tasks",
+            columns=columns,
+            filters={
+                "user_id": eq(user_id),
+                "status": in_(sorted(TERMINAL_STATUSES)),
+            },
+            order="completed_at.desc",
+            limit=ACTIVITY_LIMIT,
+        )
+
+        # A status can change between the bounded reads. Keep the freshest snapshot
+        # for each task so an observed completion cannot be hidden by a stale active row.
+        # Queued rows are filtered by payment_source in the database so newer prepared
+        # drafts cannot consume the query bound and hide real running work.
+        newest_by_id: dict[str, dict[str, Any]] = {}
+        for item in [*active, *dispatched_queued, *terminal]:
+            task_id = str(item.get("id") or "").strip()
+            if not task_id:
+                continue
+            previous = newest_by_id.get(task_id)
+            if previous is None or _activity_timestamp(item) >= _activity_timestamp(previous):
+                newest_by_id[task_id] = item
+
+        current_active = sorted(
+            (
+                item
+                for item in newest_by_id.values()
+                if item.get("status") in ACTIVE_STATUSES
+            ),
+            key=_activity_timestamp,
+            reverse=True,
+        )
+        recent_terminal = sorted(
+            (
+                item
+                for item in newest_by_id.values()
+                if item.get("status") in TERMINAL_STATUSES
+            ),
+            key=_activity_timestamp,
+            reverse=True,
+        )
+        activity: list[dict[str, Any]] = []
+        for item in [*current_active, *recent_terminal]:
+            activity.append(self.activity_item(item))
+            if len(activity) == ACTIVITY_LIMIT:
+                break
+        return activity
 
     async def get(
         self,
@@ -710,3 +802,15 @@ class CodeTaskService:
             "dispatch_token",
         }
         return {key: value for key, value in task.items() if key not in hidden}
+
+    @staticmethod
+    def activity_item(task: dict[str, Any]) -> dict[str, Any]:
+        """Expose only the fields needed to resume or monitor a task."""
+        return {
+            "id": task.get("id"),
+            "projectId": task.get("project_id"),
+            "status": task.get("status"),
+            "createdAt": task.get("created_at"),
+            "updatedAt": task.get("updated_at"),
+            "completedAt": task.get("completed_at"),
+        }

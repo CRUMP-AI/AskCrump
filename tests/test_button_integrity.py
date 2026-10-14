@@ -77,27 +77,27 @@ INDIRECT_DYNAMIC_BUTTON_OWNERS = {
         "modal.addEventListener('click', event => {",
         "event.target.closest?.('[data-crump-pack]')",
     ),
-    "public/crump-code-5.9.35.js:315:button": (
+    "public/crump-code-5.9.35.js:355:button": (
         "button.dataset.crumpCodeTask =",
         "byId('crumpCodeTaskList')?.addEventListener('click'",
         "event.target.closest?.('[data-crump-code-task]')",
     ),
-    "public/crump-code-5.9.35.js:359:button": (
+    "public/crump-code-5.9.35.js:399:button": (
         "button.dataset.codeApproval =",
         "byId('crumpCodeDetail')?.addEventListener('click'",
         "event.target.closest?.('[data-code-approval]')",
     ),
-    "public/crump-code-5.9.35.js:473:download": (
+    "public/crump-code-5.9.35.js:513:download": (
         "download.dataset.codeAction = 'download'",
         "byId('crumpCodeDetail')?.addEventListener('click'",
         "button.dataset.codeAction === 'download'",
     ),
-    "public/crump-code-5.9.35.js:503:run": (
+    "public/crump-code-5.9.35.js:543:run": (
         "run.dataset.codeAction = 'run'",
         "byId('crumpCodeDetail')?.addEventListener('click'",
         "button.dataset.codeAction === 'run'",
     ),
-    "public/crump-code-5.9.35.js:521:cancel": (
+    "public/crump-code-5.9.35.js:561:cancel": (
         "cancel.dataset.codeAction = 'cancel'",
         "byId('crumpCodeDetail')?.addEventListener('click'",
         "button.dataset.codeAction === 'cancel'",

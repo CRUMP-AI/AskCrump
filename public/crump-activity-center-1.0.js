@@ -1,8 +1,8 @@
 /*
  * Ask Crump activity center
  *
- * A deliberately small, content-free view of durable video jobs and creative
- * work already represented in the signed-in conversation store. The module
+ * A deliberately small, content-free view of durable video, Autonomous Crump,
+ * and creative work already represented in the signed-in account. The module
  * does not create jobs, change billing, or introduce a second job runner.
  */
 (() => {
@@ -25,8 +25,13 @@
   const ACTIVE_TTL_MS = 3 * 24 * 60 * 60 * 1000;
   const MAX_STORED_ITEMS = 18;
   const MAX_VISIBLE_ITEMS = 12;
-  const KINDS = new Set(['video', 'image', 'document', 'presentation']);
+  const NETWORK_FEEDS = Object.freeze(['video', 'code']);
+  const KINDS = new Set(['video', 'image', 'document', 'presentation', 'code']);
   const STATUSES = new Set(['queued', 'running', 'ready', 'failed']);
+  const CODE_STATUSES = new Set([
+    'queued', 'provisioning', 'running', 'awaiting_approval', 'verifying',
+    'completed', 'failed', 'cancelled',
+  ]);
   const ACTIVE_STATUSES = new Set(['queued', 'running']);
   const OPAQUE_ID = /^[A-Za-z0-9._:-]{1,220}$/;
   const NETWORK_ABORT_REASONS = new WeakMap();
@@ -36,12 +41,15 @@
     items: new Map(),
     opened: false,
     lastNetworkAt: 0,
+    feedLastNetworkAt: {video: 0, code: 0},
     networkInFlight: null,
     networkController: null,
     loopTimer: null,
     networkUnavailable: false,
     networkIssue: '',
     networkFailureCount: 0,
+    feedFailureCount: {video: 0, code: 0},
+    feedIssue: {video: '', code: ''},
     trigger: null,
     panel: null,
     list: null,
@@ -95,7 +103,11 @@
     const id = safeOpaque(candidate.id);
     const kind = String(candidate.kind || '').toLowerCase();
     const status = String(candidate.status || '').toLowerCase();
-    const source = candidate.source === 'conversation' ? 'conversation' : 'video';
+    const source = candidate.source === 'conversation'
+      ? 'conversation'
+      : candidate.source === 'code'
+        ? 'code'
+        : 'video';
     if (!id || !KINDS.has(kind) || !STATUSES.has(status)) return null;
 
     const item = {
@@ -109,6 +121,14 @@
     if (source === 'video') {
       const jobId = safeOpaque(candidate.jobId);
       if (jobId) item.jobId = jobId;
+    } else if (source === 'code') {
+      const taskId = safeOpaque(candidate.taskId);
+      const projectId = safeOpaque(candidate.projectId);
+      const codeStatus = String(candidate.codeStatus || '').trim().toLowerCase();
+      if (!taskId || !projectId || !CODE_STATUSES.has(codeStatus)) return null;
+      item.taskId = taskId;
+      item.projectId = projectId;
+      item.codeStatus = codeStatus;
     } else {
       const chatId = safeOpaque(candidate.chatId);
       const requestMessageId = safeOpaque(candidate.requestMessageId);
@@ -174,10 +194,17 @@
     const item = safeItem(candidate);
     if (!item || !state.userId) return false;
     const previous = state.items.get(item.id);
+    const approvalResumed = Boolean(
+      previous?.source === 'code'
+      && previous?.codeStatus === 'awaiting_approval'
+      && item.source === 'code'
+      && ACTIVE_STATUSES.has(item.status),
+    );
     const preserveTerminal = Boolean(
       previous
       && !ACTIVE_STATUSES.has(previous.status)
-      && ACTIVE_STATUSES.has(item.status),
+      && ACTIVE_STATUSES.has(item.status)
+      && !approvalResumed,
     );
     state.items.set(item.id, {
       ...(previous || {}),
@@ -323,6 +350,15 @@
     return '';
   }
 
+  function normalizeCodeStatus(value) {
+    const normalized = String(value || '').trim().toLowerCase();
+    if (normalized === 'queued') return 'queued';
+    if (normalized === 'provisioning' || normalized === 'running' || normalized === 'verifying') return 'running';
+    if (normalized === 'completed') return 'ready';
+    if (normalized === 'awaiting_approval' || normalized === 'failed' || normalized === 'cancelled') return 'failed';
+    return '';
+  }
+
   function reconcileVideoResponse(data, ownerUserId) {
     if (!ownerUserId || ownerUserId !== state.userId || currentUserId() !== ownerUserId) return;
     const jobs = Array.isArray(data?.jobs) ? data.jobs.slice(0, 12) : [];
@@ -342,6 +378,29 @@
     });
   }
 
+  function reconcileCodeResponse(data, ownerUserId) {
+    if (!ownerUserId || ownerUserId !== state.userId || currentUserId() !== ownerUserId) return;
+    const activity = Array.isArray(data?.activity) ? data.activity.slice(0, MAX_STORED_ITEMS) : [];
+    activity.forEach(task => {
+      const taskId = safeOpaque(task?.id);
+      const projectId = safeOpaque(task?.projectId);
+      const codeStatus = String(task?.status || '').trim().toLowerCase();
+      const status = normalizeCodeStatus(codeStatus);
+      if (!taskId || !projectId || !status || !CODE_STATUSES.has(codeStatus)) return;
+      upsert({
+        id: `code:${taskId}`,
+        taskId,
+        projectId,
+        codeStatus,
+        source: 'code',
+        kind: 'code',
+        status,
+        createdAt: safeTime(task?.createdAt),
+        updatedAt: safeTime(task?.completedAt || task?.updatedAt || task?.createdAt),
+      });
+    });
+  }
+
   function counts() {
     return sortedItems().reduce((result, item) => {
       result[item.status] += 1;
@@ -349,19 +408,44 @@
     }, {queued: 0, running: 0, ready: 0, failed: 0});
   }
 
-  function hasActiveVideo() {
-    return sortedItems().some(item => item.kind === 'video' && ACTIVE_STATUSES.has(item.status));
+  function hasActiveFeed(feed) {
+    return sortedItems().some(item => item.kind === feed && ACTIVE_STATUSES.has(item.status));
   }
 
-  function networkRefreshDue(force) {
-    if (force) return true;
-    return now() - state.lastNetworkAt >= nextNetworkDelay();
+  function feedNextNetworkDelay(feed) {
+    const baseDelay = hasActiveFeed(feed) ? ACTIVE_REFRESH_MS : IDLE_REFRESH_MS;
+    const failures = Number(state.feedFailureCount[feed] || 0);
+    const backoffMultiplier = 2 ** Math.min(failures, MAX_FAILURE_BACKOFF_STEP);
+    return Math.min(MAX_FAILURE_BACKOFF_MS, baseDelay * backoffMultiplier);
+  }
+
+  function dueNetworkFeeds(force) {
+    return NETWORK_FEEDS.filter(feed => (
+      force
+      || now() - Number(state.feedLastNetworkAt[feed] || 0) >= feedNextNetworkDelay(feed)
+    ));
   }
 
   function nextNetworkDelay() {
-    const baseDelay = hasActiveVideo() ? ACTIVE_REFRESH_MS : IDLE_REFRESH_MS;
-    const backoffMultiplier = 2 ** Math.min(state.networkFailureCount, MAX_FAILURE_BACKOFF_STEP);
-    return Math.min(MAX_FAILURE_BACKOFF_MS, baseDelay * backoffMultiplier);
+    return Math.min(...NETWORK_FEEDS.map(feedNextNetworkDelay));
+  }
+
+  function syncNetworkState() {
+    state.lastNetworkAt = Math.max(...Object.values(state.feedLastNetworkAt));
+    state.networkFailureCount = Math.max(...Object.values(state.feedFailureCount));
+    state.networkUnavailable = state.networkFailureCount > 0;
+    state.networkIssue = Object.values(state.feedIssue).includes('timeout')
+      ? 'timeout'
+      : state.networkUnavailable
+        ? 'unavailable'
+        : '';
+  }
+
+  function resetNetworkState() {
+    state.feedLastNetworkAt = {video: 0, code: 0};
+    state.feedFailureCount = {video: 0, code: 0};
+    state.feedIssue = {video: '', code: ''};
+    syncNetworkState();
   }
 
   function abortNetwork(reason) {
@@ -384,7 +468,8 @@
     const ownerUserId = currentUserId();
     if (!ownerUserId || ownerUserId !== state.userId || document.hidden) return false;
     if (state.networkInFlight) return state.networkInFlight;
-    if (!networkRefreshDue(force)) return false;
+    const dueFeeds = dueNetworkFeeds(force);
+    if (!dueFeeds.length) return false;
 
     const controller = new AbortController();
     state.networkController = controller;
@@ -396,33 +481,64 @@
     let requestPromise;
     requestPromise = (async () => {
       try {
-        const response = await fetch('/api/media/video', {
-          method: 'GET',
-          credentials: 'same-origin',
-          cache: 'no-store',
-          headers: {'Accept': 'application/json'},
-          signal: controller.signal,
+        const fetchActivity = async path => {
+          const response = await fetch(path, {
+            method: 'GET',
+            credentials: 'same-origin',
+            cache: 'no-store',
+            headers: {'Accept': 'application/json'},
+            signal: controller.signal,
+          });
+          const data = await response.json().catch(() => ({}));
+          if (!response.ok) throw new Error('ACCOUNT_ACTIVITY_UNAVAILABLE');
+          return data;
+        };
+        const paths = {video: '/api/media/video', code: '/api/code/activity'};
+        const results = await Promise.allSettled(
+          dueFeeds.map(feed => fetchActivity(paths[feed])),
+        );
+        const abortReason = NETWORK_ABORT_REASONS.get(controller) || '';
+        const intentionalAbort = abortReason === 'visibility' || abortReason === 'signout';
+        if (intentionalAbort) return false;
+
+        let anySuccess = false;
+        results.forEach((result, index) => {
+          const feed = dueFeeds[index];
+          state.feedLastNetworkAt[feed] = now();
+          if (result.status === 'fulfilled') {
+            if (feed === 'video') reconcileVideoResponse(result.value, ownerUserId);
+            else reconcileCodeResponse(result.value, ownerUserId);
+            state.feedFailureCount[feed] = 0;
+            state.feedIssue[feed] = '';
+            anySuccess = true;
+          } else {
+            state.feedFailureCount[feed] = Math.min(
+              Number(state.feedFailureCount[feed] || 0) + 1,
+              MAX_FAILURE_BACKOFF_STEP,
+            );
+            state.feedIssue[feed] = abortReason === 'timeout' ? 'timeout' : 'unavailable';
+          }
         });
-        const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error('VIDEO_ACTIVITY_UNAVAILABLE');
-        reconcileVideoResponse(data, ownerUserId);
-        state.networkUnavailable = false;
-        state.networkIssue = '';
-        state.networkFailureCount = 0;
-        persist();
+        syncNetworkState();
+        if (anySuccess) {
+          persist();
+        }
         renderAll();
-        return true;
+        return anySuccess;
       } catch (error) {
         const abortReason = NETWORK_ABORT_REASONS.get(controller) || '';
         const intentionalAbort = abortReason === 'visibility' || abortReason === 'signout';
         const stillCurrentOwner = state.userId === ownerUserId && currentUserId() === ownerUserId;
         if (!intentionalAbort && stillCurrentOwner) {
-          state.networkUnavailable = true;
-          state.networkIssue = abortReason === 'timeout' ? 'timeout' : 'unavailable';
-          state.networkFailureCount = Math.min(
-            state.networkFailureCount + 1,
-            MAX_FAILURE_BACKOFF_STEP,
-          );
+          dueFeeds.forEach(feed => {
+            state.feedLastNetworkAt[feed] = now();
+            state.feedFailureCount[feed] = Math.min(
+              Number(state.feedFailureCount[feed] || 0) + 1,
+              MAX_FAILURE_BACKOFF_STEP,
+            );
+            state.feedIssue[feed] = abortReason === 'timeout' ? 'timeout' : 'unavailable';
+          });
+          syncNetworkState();
           renderAll();
         }
         return false;
@@ -430,7 +546,6 @@
         window.clearTimeout(timeout);
         const abortReason = NETWORK_ABORT_REASONS.get(controller) || '';
         const intentionalAbort = abortReason === 'visibility' || abortReason === 'signout';
-        if (!intentionalAbort && state.userId === ownerUserId) state.lastNetworkAt = now();
         NETWORK_ABORT_REASONS.delete(controller);
         if (state.networkController === controller) state.networkController = null;
         if (state.networkInFlight === requestPromise) state.networkInFlight = null;
@@ -447,6 +562,7 @@
       image: 'Image',
       document: 'Document',
       presentation: 'Presentation',
+      code: 'Autonomous task',
     }[kind] || 'Creation';
   }
 
@@ -460,6 +576,14 @@
   }
 
   function statusDetail(item) {
+    if (item.kind === 'code') {
+      if (item.codeStatus === 'awaiting_approval') return 'Approval required before it can continue';
+      if (item.status === 'queued') return 'Waiting for its isolated worker';
+      if (item.status === 'running') return 'Continues safely outside Autonomous Crump';
+      if (item.status === 'ready') return 'Patch and verification are ready';
+      if (item.codeStatus === 'cancelled') return 'Open Autonomous Crump to review the cancellation';
+      return 'Open Autonomous Crump to review';
+    }
     if (item.status === 'queued') return item.kind === 'video'
       ? 'Waiting for a generation slot'
       : 'Waiting to begin';
@@ -495,7 +619,9 @@
     const icon = document.createElement('span');
     icon.className = 'crump-activity-item-icon';
     icon.setAttribute('aria-hidden', 'true');
-    icon.innerHTML = item.kind === 'video'
+    icon.innerHTML = item.kind === 'code'
+      ? '<svg viewBox="0 0 24 24"><path d="m8 8-4 4 4 4M16 8l4 4-4 4M14 5l-4 14"></path></svg>'
+      : item.kind === 'video'
       ? '<svg viewBox="0 0 24 24"><rect x="3.8" y="5.25" width="16.4" height="13.5" rx="2.4"></rect><path d="m10.25 9.15 5 2.85-5 2.85v-5.7Z"></path></svg>'
       : item.kind === 'image'
         ? '<svg viewBox="0 0 24 24"><rect x="3.5" y="4" width="17" height="16" rx="2.5"></rect><circle cx="9" cy="9" r="1.5"></circle><path d="m5.5 17 4.3-4.4 3.1 3.1 2.1-2.2 3.5 3.5"></path></svg>'
@@ -588,7 +714,7 @@
     if (!visible.length) {
       const empty = document.createElement('div');
       empty.className = 'crump-activity-empty';
-      empty.innerHTML = '<span aria-hidden="true">✓</span><strong>You’re all caught up.</strong><p>New video and creative work will appear here.</p>';
+      empty.innerHTML = '<span aria-hidden="true">✓</span><strong>You’re all caught up.</strong><p>New video, Autonomous Crump, and creative work will appear here.</p>';
       state.list.appendChild(empty);
     } else {
       visible.forEach(item => state.list.appendChild(createActivityItem(item)));
@@ -602,9 +728,9 @@
     if (note) {
       note.hidden = !state.networkUnavailable;
       note.textContent = state.networkIssue === 'timeout'
-        ? 'Video status check took too long. Your work continues safely; retry when ready.'
+        ? 'Activity status took too long to refresh. Your work continues safely; retry when ready.'
         : state.networkUnavailable
-          ? 'Video status will refresh when the connection is available.'
+          ? 'Account activity will refresh when the connection is available.'
           : '';
     }
     dispatchCounts(tally);
@@ -628,6 +754,14 @@
 
   function openItem(item) {
     closePanel();
+    if (item.kind === 'code') {
+      if (typeof window.CrumpCodeLoader?.open === 'function') {
+        void window.CrumpCodeLoader.open({projectId: item.projectId, taskId: item.taskId});
+      } else {
+        window.showToast?.('Autonomous Crump is still loading. Try again in a moment.', 'info');
+      }
+      return;
+    }
     if (item.kind === 'video') {
       if (typeof window.CrumpVision?.navigate === 'function') {
         window.CrumpVision.navigate('video');
@@ -715,7 +849,7 @@
       <div id="crumpActivityList" class="crump-activity-list"></div>
       <footer class="crump-activity-foot">
         <p id="crumpActivityNetworkNote" hidden></p>
-        <span>Video status syncs from your account. Current chat creations appear when their conversation is available.</span>
+        <span>Video and Autonomous Crump status sync from your account. Current chat creations appear with their conversation.</span>
         <button type="button" class="crump-activity-refresh">Refresh status</button>
       </footer>`;
 
@@ -784,10 +918,7 @@
     if (state.userId !== ownerUserId) {
       state.userId = ownerUserId;
       state.items = new Map(readPersisted(ownerUserId).map(item => [item.id, item]));
-      state.lastNetworkAt = 0;
-      state.networkUnavailable = false;
-      state.networkIssue = '';
-      state.networkFailureCount = 0;
+      resetNetworkState();
       state.lastRenderSignature = '';
       state.lastCountSignature = '';
     }
@@ -809,10 +940,7 @@
     if (state.trigger) state.trigger.hidden = true;
     state.userId = '';
     state.items.clear();
-    state.lastNetworkAt = 0;
-    state.networkUnavailable = false;
-    state.networkIssue = '';
-    state.networkFailureCount = 0;
+    resetNetworkState();
     state.lastRenderSignature = '';
     state.lastCountSignature = '';
     renderAll({force: true});
@@ -869,9 +997,7 @@
   });
   window.addEventListener('online', () => {
     if (!state.userId) return;
-    state.networkUnavailable = false;
-    state.networkIssue = '';
-    state.networkFailureCount = 0;
+    resetNetworkState();
     void refreshVideos({force: true});
   });
   window.addEventListener('storage', handleStorage);
@@ -899,6 +1025,8 @@
         networkUnavailable: state.networkUnavailable,
         networkIssue: state.networkIssue,
         networkFailureCount: state.networkFailureCount,
+        feedFailureCount: {...state.feedFailureCount},
+        feedLastNetworkAt: {...state.feedLastNetworkAt},
         nextNetworkDelay: nextNetworkDelay(),
       }),
     });

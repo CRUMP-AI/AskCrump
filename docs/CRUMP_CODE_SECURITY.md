@@ -1,6 +1,6 @@
 # Crump Code security and release boundary
 
-Last reviewed: 2026-08-30
+Last reviewed: 2026-10-14
 
 ## Product scope
 
@@ -82,6 +82,29 @@ requires both independent controls to be deliberately opened and all of the foll
    fixed four-case offline suite currently passes 4/4 at 100/100; representative live latency and
    unit cost remain unmeasured.
 5. Monitoring and a one-click kill switch are verified in production.
+
+### Activation blockers confirmed 2026-10-14
+
+The source lock must remain closed until executable tests and implementation prove all of these
+boundaries end to end:
+
+1. Reserve an authoritative per-run, per-account, and global provider-cost budget before every
+   model call. Cancellation after provider work must remain cost-accounted and non-replayable;
+   cancellation before provider acceptance may refund safely.
+2. Make allowance or credit reservation and durable dispatch atomically idempotent for one task,
+   including commit-then-timeout and concurrent-run-request cases.
+3. Reconcile expired charged tasks and approvals from a scheduled sweep even when the owner never
+   returns to a list or detail screen.
+4. Verify the Vercel OIDC signature, issuer, audience, expiry, project, and team before a paid task
+   can be claimed or provisioned. A caller-supplied header alone is never configuration proof.
+5. Complete the owner-approved live Sandbox, cancellation, refund, monitoring, rollback, quality,
+   latency, and unit-cost drills already required above.
+
+Before a wider beta, failed checks must not produce a plain completed state; truncated patches or
+file lists must fail closed or be explicitly incomplete; verification receipts, active tasks, API
+requests, and queue depth must be bounded; task/event writes must be transactionally idempotent;
+and customer serializers must use explicit response allowlists. Approval records must bind a
+single decision to the exact action and arguments without causing a second charge.
 
 ## Known limitations
 

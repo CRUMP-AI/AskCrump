@@ -13,11 +13,16 @@ BEHAVIOR = (ROOT / "scripts" / "verify-activity-center-behavior.cjs").read_text(
 def test_activity_center_reuses_owner_scoped_product_state_without_new_mutations() -> None:
     assert "askcrump.videoJob53" in JS
     assert "askcrump.videoRequest53" in JS
-    assert "fetch('/api/media/video'" in JS
+    assert "video: '/api/media/video'" in JS
+    assert "code: '/api/code/activity'" in JS
+    assert "dueFeeds.map(feed => fetchActivity(paths[feed]))" in JS
     assert "credentials: 'same-origin'" in JS
     assert "method: 'GET'" in JS
     assert "ACTIVE_REFRESH_MS = 30 * 1000" in JS
     assert "IDLE_REFRESH_MS = 5 * 60 * 1000" in JS
+    assert "feedFailureCount: {video: 0, code: 0}" in JS
+    assert "function dueNetworkFeeds(force)" in JS
+    assert "function feedNextNetworkDelay(feed)" in JS
     assert "if (state.networkInFlight) return state.networkInFlight" in JS
     assert "if (!ownerUserId || ownerUserId !== state.userId || document.hidden)" in JS
 
@@ -57,11 +62,13 @@ def test_activity_persistence_is_user_scoped_content_free_and_bounded() -> None:
     safe_item = JS[JS.index("function safeItem"):JS.index("function itemExpired")]
     for private_field in ("prompt", "content", "fileName", "filename", "url", "error"):
         assert private_field not in safe_item
+    for safe_code_field in ("taskId", "projectId", "codeStatus"):
+        assert safe_code_field in safe_item
     assert "title.textContent = `${kindLabel(item.kind)}" in JS
 
 
 def test_activity_center_tracks_only_provable_video_and_creative_states() -> None:
-    assert "const KINDS = new Set(['video', 'image', 'document', 'presentation'])" in JS
+    assert "const KINDS = new Set(['video', 'image', 'document', 'presentation', 'code'])" in JS
     assert "const STATUSES = new Set(['queued', 'running', 'ready', 'failed'])" in JS
     assert "meta.creativeTool === 'image'" in JS
     assert "artifactKind(meta.artifactFormat)" in JS
@@ -80,10 +87,37 @@ def test_activity_center_tracks_only_provable_video_and_creative_states() -> Non
     assert "if (jobs.some(job => safeOpaque(job?.id))) removeItem('video-request:pending')" not in JS
 
 
+def test_activity_center_ingests_content_free_autonomous_status_and_reopens_exact_task() -> None:
+    assert "const CODE_STATUSES = new Set" in JS
+    assert "function normalizeCodeStatus(value)" in JS
+    assert "function reconcileCodeResponse(data, ownerUserId)" in JS
+    assert "ownerUserId !== state.userId || currentUserId() !== ownerUserId" in JS
+    assert "const activity = Array.isArray(data?.activity) ? data.activity.slice(0, MAX_STORED_ITEMS)" in JS
+    assert "id: `code:${taskId}`" in JS
+    assert "source: 'code'" in JS
+    assert "kind: 'code'" in JS
+    assert "window.CrumpCodeLoader.open({projectId: item.projectId, taskId: item.taskId})" in JS
+
+    reconcile = JS[JS.index("function reconcileCodeResponse"):JS.index("function counts")]
+    for private_field in (
+        "objective",
+        "repository",
+        "result",
+        "patch",
+        "receipt",
+        "sandbox",
+        "failure",
+    ):
+        assert private_field not in reconcile.lower()
+
+
 def test_activity_center_has_executable_terminal_timeout_priority_and_focus_coverage() -> None:
     assert "verifyTerminalPermanence(browser)" in BEHAVIOR
     assert "verifyFailurePriorityAndFocus(browser)" in BEHAVIOR
     assert "verifyTimeoutAndBackoff(browser)" in BEHAVIOR
+    assert "verifyCodeActivityContinuity(browser)" in BEHAVIOR
+    assert "verifyCodeOwnerFence(browser)" in BEHAVIOR
+    assert "verifyIndependentFeedBackoff(browser)" in BEHAVIOR
     assert "window.__CrumpActivityCenterTestHooks.reconcileStoredVideo()" in BEHAVIOR
     assert "hooks.refreshVideos({force: false})" in BEHAVIOR
     assert "hooks.abortNetwork('visibility')" in BEHAVIOR
@@ -101,6 +135,7 @@ def test_activity_actions_only_open_existing_public_product_destinations() -> No
     assert "window.CrumpProduct53.open('video')" in JS
     assert "window.CrumpVision.navigate('ask')" in JS
     assert "window.loadChat?.(chatId)" in JS
+    assert "window.CrumpCodeLoader.open({projectId: item.projectId, taskId: item.taskId})" in JS
     assert "window.CrumpActivityCenter = Object.freeze" in JS
     assert "window.addEventListener('crump:activity'" in JS
     assert "window.addEventListener('crump:authenticated-ready', activate)" in JS

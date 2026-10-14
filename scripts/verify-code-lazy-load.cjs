@@ -43,7 +43,7 @@ function fixtureHtml() {
     window.toasts = [];
     window.showToast = (message, type) => window.toasts.push({message, type});
   </script>
-  <script src="${assetPaths.loader}?v=5.9.76-friendly-workspace-1"></script>
+  <script src="${assetPaths.loader}?v=5.9.76-autonomous-continuity-1"></script>
 </body>
 </html>`;
 }
