@@ -5,6 +5,8 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from ..auth_service import authenticate_request
+from ..code_budget import CodeBudgetError, CodeBudgetPolicy
+from ..code_identity import CodeIdentityError, code_identity_token, verify_code_identity
 from ..feature_service import FeatureAccessError
 from ..runtime import db, features, settings, video, voice
 
@@ -33,9 +35,13 @@ async def feature_status(request: Request):
     auth = await authenticate_request(request, db, settings)
     status = await features.status(auth.user)
     engines = video.engine_status
-    sandbox_configured = bool(
-        request.headers.get("x-vercel-oidc-token") or settings.vercel_oidc_token
-    )
+    sandbox_configured = False
+    if settings.code_workspace_enabled and settings.anthropic_api_key:
+        try:
+            await verify_code_identity(code_identity_token(settings, request.headers), settings)
+            sandbox_configured = CodeBudgetPolicy.from_env().model == settings.anthropic_model
+        except (CodeIdentityError, CodeBudgetError):
+            pass
     configured = {
         "think_longer": bool(settings.anthropic_api_key),
         "research": bool((settings.brave_api_key and settings.web_search_enabled) or settings.openweather_api_key),

@@ -8,11 +8,13 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from ..auth_service import authenticate_request
+from ..code_identity import code_identity_token
+from ..code_reconciliation import reconcile_code_tasks
 from ..feature_service import FeatureAccessError
 from ..file_service import FileServiceError
 from ..manuscript_service import ManuscriptError, chapter_count_from_prompt
 from ..project_service import ProjectNotFoundError
-from ..runtime import account_deletions, code_worker, db, features, files, manuscripts, projects, settings
+from ..runtime import account_deletions, code_tasks, code_worker, db, features, files, manuscripts, projects, settings
 
 router = APIRouter(tags=["manuscripts"])
 logger = logging.getLogger(__name__)
@@ -356,21 +358,21 @@ async def manuscript_cron(request: Request):
     authorization = request.headers.get("authorization", "")
     if not expected or not hmac.compare_digest(authorization, f"Bearer {expected}"):
         return JSONResponse(status_code=401, content={"success": False, "error": "Unauthorized."})
-    oidc_token = str(
-        request.headers.get("x-vercel-oidc-token") or settings.vercel_oidc_token or ""
-    ).strip()
+    oidc_token = code_identity_token(settings, request.headers)
+    code_maintenance = await reconcile_code_tasks(db, code_tasks)
     deletion_summary = await account_deletions.process_next()
     if deletion_summary.get("handled"):
         return {
             "success": True,
             "worker": "account-storage-deletion",
+            "codeMaintenance": code_maintenance,
             **deletion_summary,
         }
     code_summary = await code_worker.process_next(oidc_token=oidc_token)
     if code_summary.get("handled"):
-        return {"success": True, "worker": "code", **code_summary}
+        return {"success": True, "worker": "code", "codeMaintenance": code_maintenance, **code_summary}
     summary = await manuscripts.process_next_run()
-    return {"success": True, "worker": "manuscripts", **summary}
+    return {"success": True, "worker": "manuscripts", "codeMaintenance": code_maintenance, **summary}
 
 
 @router.post("/api/manuscripts/{manuscript_id}/blueprint")

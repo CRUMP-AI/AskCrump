@@ -90,6 +90,11 @@ class Settings:
     ai_gateway_enabled: bool
     ai_gateway_api_key: str | None
     vercel_oidc_token: str | None
+    code_oidc_issuer: str | None
+    code_oidc_audience: str | None
+    code_oidc_project_id: str | None
+    code_oidc_team_id: str | None
+    code_oidc_environment: str | None
     ai_gateway_free_model: str
     ai_gateway_free_provider: str
     ai_gateway_free_max_history_chars: int
@@ -265,6 +270,16 @@ def get_settings() -> Settings:
         ),
         ai_gateway_api_key=os.getenv('AI_GATEWAY_API_KEY'),
         vercel_oidc_token=os.getenv('VERCEL_OIDC_TOKEN'),
+        # Explicit workload trust policy; no claim or request header can set it.
+        code_oidc_issuer=os.getenv('CODE_OIDC_ISSUER'),
+        code_oidc_audience=os.getenv('CODE_OIDC_AUDIENCE'),
+        code_oidc_project_id=os.getenv('CODE_OIDC_PROJECT_ID') or os.getenv('VERCEL_PROJECT_ID'),
+        code_oidc_team_id=os.getenv('CODE_OIDC_TEAM_ID') or os.getenv('VERCEL_TEAM_ID'),
+        code_oidc_environment=(
+            os.getenv('CODE_OIDC_ENVIRONMENT')
+            or os.getenv('VERCEL_TARGET_ENV')
+            or os.getenv('VERCEL_ENV')
+        ),
         ai_gateway_free_model=os.getenv('AI_GATEWAY_FREE_MODEL', 'openai/gpt-oss-20b'),
         ai_gateway_free_provider=os.getenv('AI_GATEWAY_FREE_PROVIDER', 'groq'),
         ai_gateway_free_max_history_chars=int(

@@ -26,9 +26,9 @@ def test_code_workspace_is_lazy_loaded_only_after_server_configuration_and_entit
     assert "function hydrateAvailability(data)" in script
     assert "__crumpCodeBootstrapStatus" in script
     assert "window.CrumpCodeWorkspace = Object.freeze({open, close, refresh, refreshAvailability, hydrateAvailability})" in script
-    versioned_script = "/crump-code-5.9.35.js?v=5.9.76-autonomous-continuity-1"
-    versioned_style = "/crump-code-5.9.35.css?v=5.9.76-autonomous-continuity-1"
-    versioned_loader = "/crump-code-loader.js?v=5.9.76-autonomous-continuity-1"
+    versioned_script = "/crump-code-5.9.35.js?v=5.9.76-autonomous-enterprise-1"
+    versioned_style = "/crump-code-5.9.35.css?v=5.9.76-autonomous-enterprise-1"
+    versioned_loader = "/crump-code-loader.js?v=5.9.76-autonomous-enterprise-1"
     for source in (runtime, native, worker):
         assert versioned_loader in source
         assert versioned_script not in source
@@ -171,7 +171,22 @@ def test_code_workspace_exposes_review_cancellation_approval_and_patch_surfaces(
         "Activity history",
     ):
         assert signal in script
-    assert "pre.textContent = String(task.result_patch)" in script
+    # Remote patch contents and paths must remain text, with a bounded DOM.
+    patch_renderer = script[script.index("function renderPatch"):script.index("function renderDetail")]
+    assert "code.textContent = line.text" in patch_renderer
+    assert "name.textContent = file.path" in patch_renderer
+    assert "innerHTML" not in patch_renderer
+    assert "MAX_CHARS = 180000, MAX_LINES = 1600, MAX_FILES = 32, MAX_LINE = 2000" in script
+    assert "Preview shortened for readability and performance" in patch_renderer
+    assert "new Blob([String(state.task.result_patch)]" in script
+    # The browser verifier proves malicious markup stays inert, closed diff
+    # controls stay out of the tab order, and download bytes are not truncated.
+    verifier = read("scripts/verify-autonomous-workbench.cjs")
+    assert "window.fixtureXss === true" in verifier
+    assert "page.locator('.crump-code-diff img').count(), 0" in verifier
+    assert "Closed details descendants must not enter the tab sequence" in verifier
+    assert "page.locator('.crump-code-diff-line').count() <= 1600" in verifier
+    assert "assert.equal(Buffer.concat(chunks).toString('utf8'), original" in verifier
     assert "copy.textContent = String(task.result_summary)" in script
     assert "request cancellation. Autonomous Crump checks that request" in script
     assert "This approval expires" in script

@@ -190,6 +190,9 @@ class _LocalSandbox:
             executable = self.node
         environment = os.environ.copy()
         environment["CRUMP_BENCHMARK_NODE"] = self.node
+        environment["PYTHONDONTWRITEBYTECODE"] = "1"
+        environment["PYTHONPYCACHEPREFIX"] = str(self.root / ".git" / "crump-pycache")
+        environment["PYTEST_ADDOPTS"] = "-p no:cacheprovider"
         try:
             process = await asyncio.create_subprocess_exec(
                 executable,
@@ -264,10 +267,12 @@ class _ScriptedRunner(CrumpCodeRunner):
     async def _anthropic_turn(
         self,
         *,
+        task: dict[str, Any],
+        call_key: str,
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]],
     ) -> dict[str, Any]:
-        del messages, tools
+        del task, call_key, messages, tools
         if not self.turns:
             raise RuntimeError("The scripted provider exhausted its fixed turns.")
         return self.turns.pop(0)
@@ -276,7 +281,8 @@ class _ScriptedRunner(CrumpCodeRunner):
 def _initialize_fixture_repository(root: Path) -> None:
     destination = root / "benchmarks" / "crump_code" / "fixtures"
     destination.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(FIXTURE_ROOT, destination)
+    shutil.copytree(FIXTURE_ROOT, destination,
+                    ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".pytest_cache"))
     commands = (
         ["git", "init", "--quiet"],
         ["git", "config", "user.email", "benchmark@localhost.invalid"],

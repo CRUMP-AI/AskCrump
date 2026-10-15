@@ -9,10 +9,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC = ROOT / "public"
 BUTTON_TAG_PATTERN = re.compile(r"<button\b[^>]*>", re.IGNORECASE)
+DYNAMIC_BUTTON_VALUE_PREFIX = r"(?:(?:[^;\n?]+\?\s*)|(?:[^;\n]+?\|\|\s*))?"
 DYNAMIC_BUTTON_PATTERN = re.compile(
     r"(?P<name>[A-Za-z_$][\w$]*)\s*=\s*"
-    r"(?:[^;\n?]+\?\s*)?"
-    r"(?:document\.)?createElement\(\s*([\"'])button\2\s*\)",
+    + DYNAMIC_BUTTON_VALUE_PREFIX
+    + r"(?:document\.)?createElement\(\s*([\"'])button\2\s*\)",
     re.IGNORECASE,
 )
 EXPECTED_BUTTON_INVENTORY = {
@@ -22,7 +23,7 @@ EXPECTED_BUTTON_INVENTORY = {
     "public/crump-5.2.js": 5,
     "public/crump-activity-center-1.0.js": 2,
     "public/crump-billing-5.1.js": 3,
-    "public/crump-code-5.9.35.js": 4,
+    "public/crump-code-5.9.35.js": 7,
     "public/crump-library-5.7.js": 43,
     "public/crump-navigation-5.9.30.js": 2,
     "public/crump-product-5.3.1.js": 10,
@@ -77,27 +78,29 @@ INDIRECT_DYNAMIC_BUTTON_OWNERS = {
         "modal.addEventListener('click', event => {",
         "event.target.closest?.('[data-crump-pack]')",
     ),
-    "public/crump-code-5.9.35.js:355:button": (
+    "public/crump-code-5.9.35.js:440:button": (
+        "const button = existing.get(taskId) || document.createElement('button')",
         "button.dataset.crumpCodeTask =",
         "byId('crumpCodeTaskList')?.addEventListener('click'",
         "event.target.closest?.('[data-crump-code-task]')",
+        "selectTask(button.dataset.crumpCodeTask)",
     ),
-    "public/crump-code-5.9.35.js:399:button": (
+    "public/crump-code-5.9.35.js:487:button": (
         "button.dataset.codeApproval =",
         "byId('crumpCodeDetail')?.addEventListener('click'",
         "event.target.closest?.('[data-code-approval]')",
     ),
-    "public/crump-code-5.9.35.js:513:download": (
+    "public/crump-code-5.9.35.js:621:download": (
         "download.dataset.codeAction = 'download'",
         "byId('crumpCodeDetail')?.addEventListener('click'",
         "button.dataset.codeAction === 'download'",
     ),
-    "public/crump-code-5.9.35.js:543:run": (
+    "public/crump-code-5.9.35.js:789:run": (
         "run.dataset.codeAction = 'run'",
         "byId('crumpCodeDetail')?.addEventListener('click'",
         "button.dataset.codeAction === 'run'",
     ),
-    "public/crump-code-5.9.35.js:561:cancel": (
+    "public/crump-code-5.9.35.js:807:cancel": (
         "cancel.dataset.codeAction = 'cancel'",
         "byId('crumpCodeDetail')?.addEventListener('click'",
         "button.dataset.codeAction === 'cancel'",
@@ -247,8 +250,8 @@ def _dynamic_button_tail(source: str, match: re.Match[str]) -> str:
     name = re.escape(match.group("name"))
     remainder = source[match.end():]
     next_declaration = re.search(
-        rf"(?<![\w$]){name}\s*=\s*(?:[^;\n?]+\?\s*)?"
-        rf"(?:document\.)?createElement\(\s*([\"'])button\1\s*\)",
+        rf"(?<![\w$]){name}\s*=\s*" + DYNAMIC_BUTTON_VALUE_PREFIX
+        + r"(?:document\.)?createElement\(\s*([\"'])button\1\s*\)",
         remainder,
         re.IGNORECASE,
     )
@@ -299,7 +302,7 @@ def test_rendered_button_inventory_requires_explicit_review() -> None:
             inventory[page.relative_to(ROOT).as_posix()] = len(parser.buttons)
 
     assert inventory == EXPECTED_BUTTON_INVENTORY
-    assert sum(inventory.values()) == 222
+    assert sum(inventory.values()) == 225
 
 
 def test_programmatically_created_button_inventory_requires_explicit_review() -> None:
@@ -311,7 +314,7 @@ def test_programmatically_created_button_inventory_requires_explicit_review() ->
 
     assert inventory == DYNAMIC_BUTTON_INVENTORY
     assert sum(inventory.values()) == 104
-    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 326
+    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 329
 
 
 def test_programmatically_created_buttons_declare_type_and_runtime_owner() -> None:
@@ -357,6 +360,26 @@ def test_dynamic_button_owner_guard_rejects_an_unowned_control() -> None:
 
     assert _dynamic_button_declares_type("futureDeadButton", tail)
     assert not _dynamic_button_has_direct_owner("futureDeadButton", tail)
+
+
+def test_cached_button_creation_is_counted_without_borrowing_a_later_owner() -> None:
+    source = (
+        "function unowned() {\n"
+        "const cached = existing.get('first') || document.createElement('button');\n"
+        "cached.type = 'button';\n"
+        "host.appendChild(cached);\n}\n"
+        "function owned() {\n"
+        "const cached = existing.get('second') || document.createElement('button');\n"
+        "cached.type = 'button';\n"
+        "cached.addEventListener('click', runSecondAction);\n}\n"
+    )
+    matches = list(DYNAMIC_BUTTON_PATTERN.finditer(source))
+    assert len(matches) == 2
+    first = _dynamic_button_tail(source, matches[0])
+    second = _dynamic_button_tail(source, matches[1])
+    assert _dynamic_button_declares_type("cached", first)
+    assert not _dynamic_button_has_direct_owner("cached", first)
+    assert _dynamic_button_has_direct_owner("cached", second)
 
 
 def test_every_rendered_button_has_a_form_or_runtime_owner() -> None:
@@ -646,7 +669,7 @@ def test_browser_control_matrix_is_fail_closed_and_one_command() -> None:
     workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     verifier_names = sorted(path.name for path in (ROOT / "scripts").glob("verify-*.cjs"))
 
-    assert len(verifier_names) == 56
+    assert len(verifier_names) == 57
     for name in verifier_names:
         assert f"'{name}'" in runner
     assert "Browser verifier inventory drifted." in runner
