@@ -6,12 +6,14 @@ on:
     paths:
       - "migrations/**"
       - "tests/postgres/**"
+      - "scripts/verify_code_budget_postgres.py"
       - ".github/workflows/postgres-migration-gate.yml"
   pull_request:
     branches: [main]
     paths:
       - "migrations/**"
       - "tests/postgres/**"
+      - "scripts/verify_code_budget_postgres.py"
       - ".github/workflows/postgres-migration-gate.yml"
 
 concurrency:
@@ -22,6 +24,42 @@ permissions:
   contents: read
 
 jobs:
+  autonomous-code-budget-concurrency:
+    name: Autonomous Code parallel budget integrity
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: askcrump_code_test_ci
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d askcrump_code_test_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGDATABASE: askcrump_code_test_ci
+      PGUSER: postgres
+      PGPASSWORD: postgres-ci-only
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+      - name: Race actual Code dispatch, allowance, provider and deletion RPCs
+        run: python scripts/verify_code_budget_postgres.py
+
   project-artifact-continuity:
     name: Project artifact continuity aggregate
     runs-on: ubuntu-latest
