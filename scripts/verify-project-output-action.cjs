@@ -84,12 +84,6 @@ const executablePath = process.env.ASKCRUMP_BROWSER_EXECUTABLE
           eventKey: 'project-save-offer-shown',
           source: 'artifact_result',
         },
-      }, {
-        eventName: 'ProjectSaveOfferShown',
-        values: {
-          eventKey: 'project-save-offer-shown',
-          source: 'conversation_result',
-        },
       }]);
       assert.deepEqual(completed.analytics.at(-1), {
         eventName: 'ProjectSaveIntentReached',

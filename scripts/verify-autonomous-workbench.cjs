@@ -9,11 +9,20 @@ const root = path.resolve(__dirname, '..');
 const allowed = new Map([
   ['/', 'tests/fixtures/autonomous-workbench.html'],
   ['/fixture.html', 'tests/fixtures/autonomous-workbench.html'],
+  ['/project-integration.html', 'tests/fixtures/autonomous-project-integration.html'],
   ['/crump-code-5.9.35.js', 'public/crump-code-5.9.35.js'],
   ['/crump-code-5.9.35.css', 'public/crump-code-5.9.35.css'],
   ['/crump-design-pass.css', 'public/crump-design-pass.css'],
+  ['/crump-vision-shell-1.0.js', 'public/crump-vision-shell-1.0.js'],
+  ['/crump-vision-shell-1.0.css', 'public/crump-vision-shell-1.0.css'],
+  ['/crump-vision-projects-1.0.js', 'public/crump-vision-projects-1.0.js'],
+  ['/crump-vision-projects-1.0.css', 'public/crump-vision-projects-1.0.css'],
+  ['/crump-navigation-5.9.30.js', 'public/crump-navigation-5.9.30.js'],
+  ['/crump-navigation-5.9.30.css', 'public/crump-navigation-5.9.30.css'],
+  ['/crump-code-loader.js', 'public/crump-code-loader.js'],
+  ['/assets/brand/crump-mark-320.webp', 'public/assets/brand/crump-mark-320.webp'],
 ]);
-const types = {'.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css'};
+const types = {'.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.webp': 'image/webp'};
 
 async function startServer() {
   const unexpected = [];
@@ -194,6 +203,21 @@ async function run({url, unexpected}) {
     assert.equal(await page.locator('.crump-code-outcome strong').textContent(), 'The run stopped');
     results.push('null check codes and failed runs are not presented as verified');
 
+    await visit('scenario=repair');
+    assert.equal(await page.locator('.crump-code-progress-status').textContent(), 'Checks need a repair');
+    assert.equal(await page.locator('.crump-code-status').getAttribute('data-status'), 'running');
+    assert.equal(await page.locator('.crump-code-outcome strong').textContent(), 'Output is not final');
+    await page.locator('.crump-code-history summary').click();
+    assert.match(await page.locator('.crump-code-history').textContent(), /File edit requested/);
+    await page.evaluate(() => {
+      fixture.task.events.push({event_type: 'verification.started', created_at: '2026-10-15T15:32:00Z'}, {event_type: 'verification.completed', created_at: '2026-10-15T15:33:00Z', payload: {status: 'passed', verificationCount: 1}});
+      fixture.pollUpdate({status: 'completed', verification: [{command: 'node', args: ['--test', 'tests/account.test.js'], returnCode: 0}]});
+    });
+    await page.waitForFunction(() => document.querySelector('.crump-code-outcome strong')?.textContent === 'Reported checks passed');
+    assert.match(await page.locator('.crump-code-history').textContent(), /Checks need a repair/);
+    assert.match(await page.locator('.crump-code-history').textContent(), /Verification passed/);
+    results.push('repair progress uses actual events / remains unverified until final passing receipts');
+
     await visit('scenario=oversize');
     assert.equal(await page.locator('.crump-code-preview-limit').count(), 1);
     assert.ok(await page.locator('.crump-code-diff-line').count() <= 1600);
@@ -256,6 +280,73 @@ async function run({url, unexpected}) {
     await page.keyboard.press('Escape');
     assert.equal(await page.locator('#crumpCodeWorkspace').isHidden(), true);
     assert.deepEqual(await page.evaluate(() => fixture.blocked), []);
+
+    const integrationUrl = new URL('/project-integration.html', url);
+    for (const access of ['disabled', 'locked', 'entitled']) {
+      await page.setViewportSize({width: 1440, height: 1000});
+      await page.goto(`${integrationUrl}?access=${access}`, {waitUntil: 'networkidle'});
+      await page.waitForFunction(() => fixtureReady && document.querySelector('[data-cvp-autonomous]') && fixture.requests.filter(item => item.path === '/api/features').length >= 2);
+      const entry = page.locator('[data-cvp-autonomous]');
+      const action = page.locator('[data-cvp-open-autonomous]');
+      if (access !== 'entitled') {
+        assert.equal(await entry.isHidden(), true, `${access} Project entry must stay hidden`);
+        assert.equal(await action.isDisabled(), true, `${access} Project action must stay disabled`);
+        assert.equal(await page.evaluate(() => fixture.requests.some(item => item.path.endsWith('/code/tasks'))), false);
+        continue;
+      }
+      await action.waitFor({state: 'visible'});
+      for (const target of [
+        {id: 'fixture-project-beta', width: 1440, key: 'ArrowRight'},
+        {id: 'fixture-project-alpha', width: 390, key: 'ArrowLeft'},
+      ]) {
+        await page.setViewportSize({width: target.width, height: 1000});
+        await page.locator('[data-cvp-project][aria-selected="true"]').focus();
+        await page.keyboard.press(target.key);
+        await page.waitForFunction(id => document.querySelector('#cvpProjectDetail')?.dataset.cvpActiveProject === id && !document.querySelector('[data-cvp-open-autonomous]')?.disabled, target.id);
+        await action.focus();
+        await page.keyboard.press('Enter');
+        await page.waitForFunction(id => document.querySelector('#crumpCodeProject')?.value === id && document.querySelector('#crumpCodeTaskHeading')?.textContent.includes(id.includes('beta') ? 'Beta workspace' : 'Alpha workspace'), target.id);
+        assert.equal(await page.locator('.v1-workspace').getAttribute('inert'), '');
+        assert.equal(await page.locator('#crumpCodeWorkspace').isVisible(), true);
+        await page.keyboard.press('Escape');
+        await page.waitForFunction(() => document.activeElement?.hasAttribute('data-cvp-open-autonomous') && !document.activeElement.closest('[inert]'));
+        assert.equal(await page.locator('#cvpProjectDetail').getAttribute('data-cvp-active-project'), target.id);
+        await action.evaluate(node => node.scrollIntoView({block: 'nearest', behavior: 'instant'}));
+        await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
+        const projectFraming = await action.evaluate(node => {
+          const rect = node.getBoundingClientRect();
+          const nav = document.querySelector('#cvMobileNav');
+          const bottom = nav && getComputedStyle(nav).display !== 'none' ? nav.getBoundingClientRect().top : innerHeight;
+          return rect.top >= document.querySelector('.fixture-banner').getBoundingClientRect().bottom && rect.bottom <= bottom;
+        });
+        assert.equal(projectFraming, true, `${target.width}px Project action must clear the fixed navigation`);
+        const projectScreenshot = path.join(artifactDirectory, target.width === 390 ? 'project-context-mobile.png' : 'project-context-desktop.png');
+        await page.screenshot({path: projectScreenshot, fullPage: false});
+        screenshots.push(projectScreenshot);
+      }
+      assert.deepEqual(await page.evaluate(() => fixture.requests.filter(item => item.path.endsWith('/code/tasks')).map(item => item.path)), [
+        '/api/projects/fixture-project-beta/code/tasks', '/api/projects/fixture-project-alpha/code/tasks',
+      ]);
+      await page.addScriptTag({path: require.resolve('axe-core/axe.min.js')});
+      for (const theme of ['light', 'dark']) {
+        await page.evaluate(value => document.documentElement.dataset.theme = value, theme);
+        await page.evaluate(() => Promise.all(document.getAnimations().map(animation => animation.finished.catch(() => {}))));
+        const projectA11y = await page.evaluate(async () => axe.run(document.querySelector('#cvpProjectDetail'), {runOnly: {type: 'tag', values: ['wcag2a', 'wcag2aa', 'wcag22aa']}}));
+        assert.deepEqual(projectA11y.violations.map(item => ({id: item.id, targets: item.nodes.map(node => node.target)})), [], `${theme} Project detail must pass accessibility checks`);
+      }
+      await page.evaluate(() => { fixture.access = 'disabled'; });
+      await action.click();
+      await page.waitForFunction(() => document.querySelector('[data-cvp-autonomous]')?.hidden);
+      assert.equal(await page.locator('#crumpCodeWorkspace').isHidden(), true, 'Fresh server denial must prevent a stale Project action from opening Code');
+      assert.equal(await page.evaluate(() => fixture.requests.some(item => item.method !== 'GET')), false);
+      assert.deepEqual(await page.evaluate(() => fixture.blocked), []);
+    }
+    await page.goto(`${integrationUrl}?access=entitled`, {waitUntil: 'networkidle'});
+    await page.locator('[data-cvp-open-autonomous]').waitFor({state: 'visible'});
+    await page.evaluate(() => { window.currentUser = null; window.dispatchEvent(new Event('crump:authentication-required')); });
+    assert.equal(await page.locator('[data-cvp-autonomous]').isHidden(), true);
+    assert.equal(await page.locator('[data-cvp-open-autonomous]').isDisabled(), true);
+    results.push('existing Project → Autonomous / exact Project context / keyboard-mobile return / strict server gates');
     assert.deepEqual(unexpected, []);
     assert.deepEqual(external, []);
     assert.deepEqual(errors, []);
@@ -267,7 +358,8 @@ async function run({url, unexpected}) {
   const fixture = await startServer();
   if (process.argv.includes('--serve')) {
     console.log(`Local test fixture — no paid execution: ${fixture.url}`);
-    console.log('Optional query: ?scenario=approval&theme=dark (completed, queued, running, approval, failed, cancelled, unknown, oversize).');
+    console.log('Optional query: ?scenario=approval&theme=dark (completed, queued, running, repair, approval, failed, cancelled, unknown, oversize, patch-edge).');
+    console.log('Project integration fixture: /project-integration.html?access=entitled (or disabled / locked).');
     console.log('Loopback only. No browser opened. Stop with Ctrl+C.');
     return;
   }

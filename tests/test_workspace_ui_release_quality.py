@@ -229,13 +229,13 @@ def test_release_quality_contract_covers_the_exact_reported_mobile_surfaces() ->
     ui = read("public/ui-functions.js")
 
     for copy in (
-        "Continue this work later",
-        "Keep this conversation in a private Project.",
         "Did this move your work forward?",
         "Yes",
         "Not yet",
     ):
         assert copy in ui
+    assert "Continue this work later" not in ui
+    assert "Keep this conversation in a private Project." not in ui
 
     for selector in (
         ".outcome-continuity-detail",

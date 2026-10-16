@@ -30,7 +30,7 @@ EXPECTED_BUTTON_INVENTORY = {
     "public/crump-product-5.3.js": 58,
     "public/crump-vision-home-1.0.js": 1,
     "public/crump-vision-library-1.0.js": 6,
-    "public/crump-vision-projects-1.0.js": 5,
+    "public/crump-vision-projects-1.0.js": 6,
     "public/crump-vision-shell-1.0.js": 7,
     "public/crump-vision-studios-1.0.js": 5,
     "public/crump-vision-you-1.0.js": 6,
@@ -90,17 +90,17 @@ INDIRECT_DYNAMIC_BUTTON_OWNERS = {
         "byId('crumpCodeDetail')?.addEventListener('click'",
         "event.target.closest?.('[data-code-approval]')",
     ),
-    "public/crump-code-5.9.35.js:621:download": (
+    "public/crump-code-5.9.35.js:644:download": (
         "download.dataset.codeAction = 'download'",
         "byId('crumpCodeDetail')?.addEventListener('click'",
         "button.dataset.codeAction === 'download'",
     ),
-    "public/crump-code-5.9.35.js:789:run": (
+    "public/crump-code-5.9.35.js:813:run": (
         "run.dataset.codeAction = 'run'",
         "byId('crumpCodeDetail')?.addEventListener('click'",
         "button.dataset.codeAction === 'run'",
     ),
-    "public/crump-code-5.9.35.js:807:cancel": (
+    "public/crump-code-5.9.35.js:831:cancel": (
         "cancel.dataset.codeAction = 'cancel'",
         "byId('crumpCodeDetail')?.addEventListener('click'",
         "button.dataset.codeAction === 'cancel'",
@@ -109,6 +109,11 @@ INDIRECT_DYNAMIC_BUTTON_OWNERS = {
         "button.className = 'crump531-chat-menu-button'",
         "document.addEventListener('click', event => {",
         "event.target.closest?.('.crump531-chat-menu-button')",
+    ),
+    # Detached state controller owned by the explicit lifecycle Project action.
+    "public/ui-functions.js:773:projectButton": (
+        "keepLatestInProject: () => keepLatestOutcomeInProject()",
+        "return performOutcomeProjectAction(projectButton)",
     ),
     "public/ui-functions.js:358:submit": (
         "submit.type = 'submit'",
@@ -302,7 +307,7 @@ def test_rendered_button_inventory_requires_explicit_review() -> None:
             inventory[page.relative_to(ROOT).as_posix()] = len(parser.buttons)
 
     assert inventory == EXPECTED_BUTTON_INVENTORY
-    assert sum(inventory.values()) == 225
+    assert sum(inventory.values()) == 226
 
 
 def test_programmatically_created_button_inventory_requires_explicit_review() -> None:
@@ -314,7 +319,7 @@ def test_programmatically_created_button_inventory_requires_explicit_review() ->
 
     assert inventory == DYNAMIC_BUTTON_INVENTORY
     assert sum(inventory.values()) == 104
-    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 329
+    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 330
 
 
 def test_programmatically_created_buttons_declare_type_and_runtime_owner() -> None:

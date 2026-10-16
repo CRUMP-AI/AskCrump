@@ -1,0 +1,97 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>Ask Crump Project → Autonomous — local synthetic fixture</title>
+  <link rel="stylesheet" href="/crump-vision-shell-1.0.css">
+  <link rel="stylesheet" href="/crump-vision-projects-1.0.css">
+  <link rel="stylesheet" href="/crump-navigation-5.9.30.css">
+  <link rel="stylesheet" href="/crump-design-pass.css">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; }
+    body { margin: 0; background: #f6f4ee; color: #22252a; font: 15px/1.5 system-ui, sans-serif; }
+    .fixture-banner { position: fixed; inset: 0 0 auto; z-index: 100700; padding: 10px 16px; background: #efe0b5; color: #362b15; font: 600 12px/1.4 system-ui,sans-serif; }
+    #appContainer { padding-top: 54px; }
+    .v1-shell { display: grid; grid-template-columns: 240px minmax(0,1fr); height: calc(100dvh - 54px); }
+    .v1-workspace { min-width: 0; min-height: 0; position: relative; overflow: hidden; }
+    .v1-workspace-body { padding: 24px; }
+    #sidebar, #sidebarOverlay { display: none; }
+    #cvStage { position: absolute; inset: 0; overflow: hidden; }
+    .crump-code-overlay { padding-top: 64px; }
+    .crump-code-shell { height: min(900px, calc(100dvh - 82px)); }
+    [hidden] { display: none !important; }
+    @media(max-width:820px) {
+      .v1-shell { display: block; }
+      .v1-rail { display: none; }
+      .v1-workspace { height: calc(100dvh - 54px); }
+      .crump-code-overlay { padding: 54px 0 0; }
+      .crump-code-shell { height: calc(100dvh - 54px); }
+    }
+  </style>
+  <script>
+    (() => {
+      const params = new URLSearchParams(location.search);
+      const projects = [
+        {id: 'fixture-project-alpha', name: 'Alpha workspace', description: 'Synthetic Project A. No customer data.'},
+        {id: 'fixture-project-beta', name: 'Beta workspace', description: 'Synthetic Project B. No customer data.'},
+      ];
+      const makeTask = project => ({
+        id: `${project.id}-task`, project_id: project.id, status: 'completed', mode: 'implement',
+        objective: `Review the ${project.name} fixture`, source_repo_url: 'https://github.com/example/local-fixture',
+        source_ref: 'fixture-only', network_policy: 'deny_all', max_duration_seconds: 180,
+        payment_source: 'fixture-included', credits_spent: 0, updated_at: '2026-10-15T15:30:00Z',
+        result_summary: 'Synthetic preview only. No repository or worker was accessed.',
+        result_patch: 'diff --git a/fixture.txt b/fixture.txt\n--- a/fixture.txt\n+++ b/fixture.txt\n@@ -1 +1 @@\n-before\n+after',
+        verification: [{command: 'fixture-check', args: [], returnCode: 0}], approvals: [], events: [],
+      });
+      window.currentUser = {id: 'local-integration-owner'};
+      window.fixture = {projects, tasks: projects.map(makeTask), access: params.get('access') || 'entitled', requests: [], blocked: [], events: []};
+      window.fetch = async (input, options = {}) => {
+        const url = new URL(String(input), location.origin), method = options.method || 'GET';
+        fixture.requests.push({path: url.pathname, method});
+        let data;
+        if (url.origin === location.origin && method === 'GET') {
+          if (url.pathname === '/api/features') {
+            const configured = fixture.access !== 'disabled';
+            data = {success: true, features: {code_workspace: {configured, entitled: configured && fixture.access !== 'locked', includedDaily: 2}}, providers: {code: {configured, maxDurationSeconds: 180}}};
+          } else if (url.pathname === '/api/projects') data = {success: true, projects};
+          else if (url.pathname === '/api/library/books') data = {success: true, books: []};
+          else {
+            const project = projects.find(project => url.pathname === `/api/projects/${project.id}`);
+            const chats = projects.find(project => url.pathname === `/api/projects/${project.id}/chats`);
+            const list = projects.find(project => url.pathname === `/api/projects/${project.id}/code/tasks`);
+            const selected = fixture.tasks.find(task => url.pathname === `/api/code/tasks/${task.id}`);
+            if (project) data = {success: true, project, context: {}};
+            if (chats) data = {success: true, conversations: []};
+            if (list) data = {success: true, tasks: fixture.tasks.filter(task => task.project_id === list.id)};
+            if (selected) data = {success: true, task: selected};
+          }
+        }
+        if (!data) fixture.blocked.push(`${method} ${url.pathname}`);
+        return new Response(JSON.stringify(data || {success: false, error: 'Local integration fixture blocked this request.'}), {status: data ? 200 : 400, headers: {'Content-Type': 'application/json'}});
+      };
+      window.CrumpAnalytics = {track: (event, detail) => fixture.events.push({event, detail})};
+      window.showToast = () => {};
+      window.CrumpBodyV1 = {syncConversationLibrary() {}};
+      document.addEventListener('DOMContentLoaded', () => {
+        CrumpVision.navigate('projects');
+        window.fixtureReady = true;
+      });
+    })();
+  </script>
+  <script defer src="/crump-vision-shell-1.0.js"></script>
+  <script defer src="/crump-vision-projects-1.0.js"></script>
+  <script defer src="/crump-navigation-5.9.30.js"></script>
+  <script defer src="/crump-code-loader.js"></script>
+</head>
+<body class="crump-v1-body">
+  <div class="fixture-banner">Local test fixture — no paid execution. Projects, tasks, checks and patches are synthetic.</div>
+  <div id="appContainer"><div class="v1-shell">
+    <aside class="v1-rail" aria-label="Ask Crump navigation"></aside>
+    <aside id="sidebar" class="v1-library" aria-label="Conversations"></aside><div id="sidebarOverlay"></div>
+    <main class="v1-workspace"><div class="v1-workspace-body"><h1>Ask Crump fixture</h1><textarea id="userInput" aria-label="Message Crump"></textarea></div></main>
+  </div></div>
+</body>
+</html>

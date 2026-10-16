@@ -26,9 +26,9 @@ def test_code_workspace_is_lazy_loaded_only_after_server_configuration_and_entit
     assert "function hydrateAvailability(data)" in script
     assert "__crumpCodeBootstrapStatus" in script
     assert "window.CrumpCodeWorkspace = Object.freeze({open, close, refresh, refreshAvailability, hydrateAvailability})" in script
-    versioned_script = "/crump-code-5.9.35.js?v=5.9.76-autonomous-enterprise-1"
-    versioned_style = "/crump-code-5.9.35.css?v=5.9.76-autonomous-enterprise-1"
-    versioned_loader = "/crump-code-loader.js?v=5.9.76-autonomous-enterprise-1"
+    versioned_script = "/crump-code-5.9.35.js?v=5.9.76-autonomous-integration-2"
+    versioned_style = "/crump-code-5.9.35.css?v=5.9.76-autonomous-integration-2"
+    versioned_loader = "/crump-code-loader.js?v=5.9.76-autonomous-integration-2"
     for source in (runtime, native, worker):
         assert versioned_loader in source
         assert versioned_script not in source
@@ -40,7 +40,7 @@ def test_code_workspace_is_lazy_loaded_only_after_server_configuration_and_entit
     assert "const DESTINATION_SELECTOR = '[data-crump-code-destination], [data-cv-destination=\"autonomous\"]'" in loader
     assert "syncDestinations(data);" in loader
     assert "window.CrumpCodeLoader = Object.freeze" in loader
-    assert "window.CrumpCodeLoader?.open?.()" in navigation
+    assert "window.CrumpCodeLoader?.open?.(options)" in navigation
     assert "url.pathname === '/crump-code-loader.js'" in worker
     assert "url.pathname === '/crump-code-5.9.35.js'" not in worker
     assert "url.pathname === '/crump-code-5.9.35.css'" not in worker
@@ -211,7 +211,7 @@ def test_code_workspace_has_its_own_gated_navigation_destination():
     navigation = read("public/crump-navigation-5.9.30.js")
     styles = read("public/crump-navigation-5.9.30.css")
 
-    assert "else if (destination === 'code') void openCode();" in navigation
+    assert "else if (destination === 'code') return openCode(options);" in navigation
     assert "if (codeWorkspaceIsOpen()) return 'code';" in navigation
     assert "createCard('code'" not in navigation
     assert ".crump5930-destination.is-locked::after" in styles
@@ -227,3 +227,27 @@ def test_local_preview_fixture_cannot_reach_real_product_endpoints():
     assert "task-preview" in preview
     assert "previewStatus === 'expired'" in preview
     assert "CODE_TASK_EXPIRED" in preview
+
+
+def test_project_entry_preserves_context_and_requires_real_server_entitlement():
+    projects = read("public/crump-vision-projects-1.0.js")
+    navigation = read("public/crump-navigation-5.9.30.js")
+    verifier = read("scripts/verify-autonomous-workbench.cjs")
+    assert 'data-cvp-autonomous hidden aria-hidden="true"' in projects
+    assert "data-cvp-open-autonomous disabled" in projects
+    assert "feature.configured === true && feature.entitled === true" in projects
+    assert "provider.configured === true" in projects
+    assert "ownerId === String(window.currentUser && window.currentUser.id || '')" in projects
+    assert "open?.('code', { projectId: projectId })" in projects
+    assert "window.CrumpCodeWorkspace.open(options)" in navigation
+    assert "active?.hasAttribute?.('data-cvp-open-autonomous')" in navigation
+    assert "Fresh server denial must prevent a stale Project action" in verifier
+    assert "document.activeElement?.hasAttribute('data-cvp-open-autonomous')" in verifier
+
+
+def test_repair_progress_uses_real_event_payload_without_inventing_task_status():
+    script = read("public/crump-code-5.9.35.js")
+    assert "verification.payload?.status === 'repair_required'" in script
+    assert "task.status === 'running'" in script
+    assert "the output is not verified yet" in script
+    assert "Verification did not pass" in script

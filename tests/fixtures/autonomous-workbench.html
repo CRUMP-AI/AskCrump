@@ -37,12 +37,16 @@
         result_patch: patch, verification: [{command: 'node', args: ['--test', 'tests/account.test.js'], returnCode: 0}],
         approvals: [], events: [{event_type: 'task.prepared', created_at: time}, {event_type: 'run.started', created_at: time}],
       });
-      const scenarios = ['completed', 'queued', 'running', 'approval', 'failed', 'cancelled', 'unknown', 'oversize', 'patch-edge'];
+      const scenarios = ['completed', 'queued', 'running', 'repair', 'approval', 'failed', 'cancelled', 'unknown', 'oversize', 'patch-edge'];
       function scenario(name) {
         const task = base();
-        task.status = name === 'approval' ? 'awaiting_approval' : ['unknown', 'oversize', 'patch-edge'].includes(name) ? 'completed' : name;
+        task.status = name === 'approval' ? 'awaiting_approval' : name === 'repair' ? 'running' : ['unknown', 'oversize', 'patch-edge'].includes(name) ? 'completed' : name;
         if (name === 'queued') Object.assign(task, {payment_source: null, result_summary: null, result_patch: null, verification: []});
         if (name === 'running') Object.assign(task, {result_summary: null, result_patch: null, verification: []});
+        if (name === 'repair') {
+          task.verification[0].returnCode = 1;
+          task.events.push({event_type: 'verification.completed', created_at: time, payload: {status: 'repair_required', verificationCount: 1}}, {event_type: 'tool.requested', created_at: time, payload: {tool: 'edit_file', path: 'src/account.js'}});
+        }
         if (name === 'approval') task.approvals = [{id: 'fixture-approval', status: 'pending', title: 'Retry a failed check inside the existing boundary', details: 'Synthetic request. Review this bounded action before deciding.', expires_at: '2026-10-16T15:30:00Z'}];
         if (name === 'failed') { task.failure_code = 'CODE_VERIFICATION_FAILED'; task.verification[0].returnCode = 1; }
         if (name === 'unknown') task.verification[0].returnCode = null;

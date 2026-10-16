@@ -27,7 +27,6 @@ if str(ROOT) not in sys.path:
 from backend.code_runner import (  # noqa: E402
     CrumpCodeRunner,
     SandboxWorkspace,
-    redact_sensitive_text,
 )
 from scripts.evaluate_crump_code_benchmark import (  # noqa: E402
     DEFAULT_MANIFEST,
@@ -193,10 +192,21 @@ class _LocalSandbox:
         environment["PYTHONDONTWRITEBYTECODE"] = "1"
         environment["PYTHONPYCACHEPREFIX"] = str(self.root / ".git" / "crump-pycache")
         environment["PYTEST_ADDOPTS"] = "-p no:cacheprovider"
+        # Authored fixtures must not inherit the operator's global/system LFS
+        # filters. Repository-local filters still exercise the production gate.
+        environment["GIT_CONFIG_NOSYSTEM"] = "1"
+        environment["GIT_CONFIG_GLOBAL"] = os.devnull
+        # Translate only the production runner's fixed scratch locations into
+        # this authored offline fixture; preserve the real guarded patch path.
+        patch_file = str(self.root / ".git" / "crump-code.patch")
+        values = [patch_file if value == "/tmp/crump-code.patch" else
+                  "--output=" + patch_file if value == "--output=/tmp/crump-code.patch" else
+                  "pycache_prefix=" + environment["PYTHONPYCACHEPREFIX"]
+                  if value == "pycache_prefix=/tmp/crump-code-pycache" else value for value in args]
         try:
             process = await asyncio.create_subprocess_exec(
                 executable,
-                *args,
+                *values,
                 cwd=self.root,
                 env=environment,
                 stdout=asyncio.subprocess.PIPE if capture_output else None,
@@ -221,15 +231,13 @@ class _BenchmarkWorkspace(SandboxWorkspace):
         self.revision = revision
 
     async def base_revision(self) -> str:
+        # Pin the actual temporary Git HEAD for production source-state guards.
+        # Public offline metadata still names the frozen fixture inventory.
+        await super().base_revision()
         return self.revision
 
     async def patch(self) -> str:
-        result = await self._run(
-            "git", ["diff", "--binary", "--no-ext-diff", "--", "."], kill_after=30
-        )
-        if result.returncode != 0:
-            raise RuntimeError("The offline fixture patch could not be packaged.")
-        return redact_sensitive_text(result.stdout, limit=200_000)
+        return await super().patch()
 
 
 class _MemoryTaskService:

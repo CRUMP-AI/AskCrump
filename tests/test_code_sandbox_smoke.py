@@ -6,6 +6,8 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import shutil
+import subprocess
 import sys
 from types import SimpleNamespace
 import time
@@ -326,19 +328,28 @@ async def test_real_python_syntax_verification_keeps_bytecode_outside_repository
     source = repository / "example.py"
     source.write_text("answer = 42\n", encoding="utf-8")
     cache = tmp_path / "outside-repository-cache"
-    process_environment = {name: os.environ[name] for name in ("SystemRoot", "WINDIR", "TEMP", "TMP")
+    process_environment = {name: os.environ[name] for name in ("SystemRoot", "WINDIR", "TEMP", "TMP", "PATH")
                            if name in os.environ}
     process_environment.update(captured["create"]["env"])
     # The production Linux /tmp prefix maps to a private native temp path here.
     process_environment["PYTHONPYCACHEPREFIX"] = str(cache)
+    process_environment.update({"GIT_CONFIG_NOSYSTEM": "1", "GIT_CONFIG_GLOBAL": os.devnull,
+        "GIT_AUTHOR_NAME": "Offline fixture", "GIT_AUTHOR_EMAIL": "offline@example.invalid",
+        "GIT_COMMITTER_NAME": "Offline fixture", "GIT_COMMITTER_EMAIL": "offline@example.invalid"})
+    git = shutil.which("git")
+    assert git, "This source-integrity regression requires offline Git"
+    for args in (["init", "--quiet"], ["add", "example.py"],
+                 ["-c", "commit.gpgsign=false", "commit", "--quiet", "--no-verify", "-m", "Source fixture"]):
+        subprocess.run([git, *args], cwd=repository, env=process_environment, check=True, capture_output=True)
     commands = []
 
     class LocalPythonProcess:
         async def run_process(self, command, args, *, kill_after, capture_output):
-            assert command == "python3" and capture_output is True
+            assert command in {"python3", "git"} and capture_output is True
             commands.append([command, *args])
+            native_args = ["pycache_prefix=" + str(cache) if value == "pycache_prefix=/tmp/crump-code-pycache" else value for value in args]
             process = await asyncio.create_subprocess_exec(
-                sys.executable, *args, cwd=repository, env=process_environment,
+                sys.executable if command == "python3" else git, *native_args, cwd=repository, env=process_environment,
                 stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE,
             )
             try:
@@ -354,9 +365,13 @@ async def test_real_python_syntax_verification_keeps_bytecode_outside_repository
 
     workspace = code_runner.SandboxWorkspace(LocalPythonProcess())
     await workspace.syntax_verify(["example.py"])
-    assert commands == [["python3", "-m", "py_compile", "example.py"]]
+    assert commands[0] == ["python3", "-I", "-c", code_runner._EXISTING_SOURCE_SCRIPT, '["example.py"]']
+    assert [command for command in commands if "py_compile" in command] == [
+        ["python3", "-I", "-X", "pycache_prefix=/tmp/crump-code-pycache", "-m", "py_compile", "example.py"]]
+    assert sum(command[:3] == ["python3", "-I", "-c"] and command[3] == code_runner._SOURCE_STATE_SCRIPT for command in commands) == 2
     assert workspace.verification[0]["returnCode"] == 0
-    assert sorted(path.relative_to(repository).as_posix() for path in repository.rglob("*")) == ["example.py"]
+    assert sorted(path.relative_to(repository).as_posix() for path in repository.rglob("*")
+                  if ".git" not in path.relative_to(repository).parts) == ["example.py"]
     assert source.read_text(encoding="utf-8") == "answer = 42\n"
     assert list(cache.rglob("example.*.pyc")), "py_compile must write its actual artifact outside the repository"
 

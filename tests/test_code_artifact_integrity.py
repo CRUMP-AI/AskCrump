@@ -50,7 +50,8 @@ class LocalRepository:
         executable = sys.executable if command == "python3" else self.git_executable
         assert command in {"python3", "git"}, "This fixture executes no other programs"
         patch_path = str(self.scratch / "review.patch")
-        actual_args = [patch_path if value == "/tmp/crump-code.patch" else
+        actual_args = ["pycache_prefix=" + str(self.scratch / "pycache") if value == "pycache_prefix=/tmp/crump-code-pycache" else
+                       patch_path if value == "/tmp/crump-code.patch" else
                        "--output=" + patch_path if value == "--output=/tmp/crump-code.patch" else value
                        for value in args]
         process = await asyncio.create_subprocess_exec(

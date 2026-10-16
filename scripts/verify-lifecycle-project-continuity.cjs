@@ -25,17 +25,15 @@ const { chromium } = require('playwright');
 
   const result = await page.evaluate(() => ({
     ...window.__fixture,
-    projectButtonText: document.querySelector('.outcome-project-btn')?.textContent,
-    projectButtonSaved: document.querySelector('.outcome-project-btn')?.dataset.saved,
-    continuityText: document.querySelector('.outcome-continuity-prompt')?.textContent,
+    continuityCards: document.querySelectorAll('.outcome-continuity').length,
+    projectButtons: document.querySelectorAll('.outcome-project-btn').length,
   }));
   assert.equal(result.keepCalls, 1);
   assert.equal(result.decisionCalls, 1);
   assert.equal(result.genericProjectOpens, 0);
   assert.deepEqual(result.projectArgs, [{projectId: null, continuitySource: 'result_action'}]);
-  assert.equal(result.projectButtonText, 'Open Project');
-  assert.equal(result.projectButtonSaved, 'true');
-  assert.equal(result.continuityText, 'Saved privately to "Launch plan".');
+  assert.equal(result.continuityCards, 0);
+  assert.equal(result.projectButtons, 0);
   assert.deepEqual(result.actions, ['shown', 'acted']);
 
   const typedPage = await openFixture();
@@ -56,12 +54,26 @@ const { chromium } = require('playwright');
   assert.equal(await activeReplyPage.evaluate(() => window.__fixture.decisionCalls), 0);
   assert.equal(await activeReplyPage.locator('.crump-lifecycle-card').count(), 0);
 
+  const staleActions = [];
+  for (const change of ['chat', 'account']) {
+    const stalePage = await openFixture();
+    const stale = await stalePage.evaluate(async change => {
+      const pending = window.CrumpOutcomeActions.keepLatestInProject();
+      if (change === 'chat') window.currentChatId = '55555555-5555-4555-8555-555555555555';
+      else window.currentUser = {id: '66666666-6666-4666-8666-666666666666'};
+      return {result: await pending, calls: window.__fixture.keepCalls};
+    }, change);
+    assert.deepEqual(stale, {result: false, calls: 0});
+    staleActions.push({change, ...stale});
+  }
+
   assert.deepEqual(errors, []);
 
   await browser.close();
   process.stdout.write(JSON.stringify({
     result,
     suppression: {typed: true, attachment: true, activeReply: true},
+    staleActions,
     errors,
   }));
 })().catch(error => {

@@ -538,7 +538,7 @@
       if (!event || typeof event !== 'object') continue;
       const item = document.createElement('li');
       const name = document.createElement('strong');
-      name.textContent = String(event.event_type || 'task.updated').replaceAll('.', ' ');
+      name.textContent = eventLabel(event);
       const time = document.createElement('span');
       time.textContent = formatDate(event.created_at);
       item.append(name, time);
@@ -547,6 +547,29 @@
     details.append(summary, list);
     if (events.length > 100) appendNote(details, 'Showing the latest 100 activity entries.');
     container.appendChild(details);
+  }
+
+  function eventLabel(event) {
+    const type = String(event?.event_type || 'task.updated');
+    const payload = event?.payload || {};
+    if (type === 'verification.started') return 'Checking the proposed change';
+    if (type === 'verification.completed') {
+      return {repair_required: 'Checks need a repair', passed: 'Verification passed', failed: 'Verification did not pass'}[payload.status] || 'Verification results recorded';
+    }
+    const tools = {list_files: 'Repository inventory', read_file: 'File read', search: 'Repository search', write_file: 'File write', edit_file: 'File edit', delete_file: 'File deletion', run_verification: 'Verification command'};
+    if ((type === 'tool.requested' || type === 'tool.completed') && tools[payload.tool]) {
+      return `${tools[payload.tool]} ${type === 'tool.requested' ? 'requested' : payload.status === 'error' ? 'failed' : 'finished'}`;
+    }
+    return { 'task.created': 'Task prepared', 'agent.started': 'Work started in the isolated copy', 'task.completed': 'Task completed', 'task.failed': 'Task stopped with an issue', 'task.cancelled': 'Task cancelled' }[type] || type.replaceAll('.', ' ');
+  }
+
+  function progressLabel(task) {
+    if (task.status === 'running') {
+      const verification = [...(Array.isArray(task.events) ? task.events : [])].reverse()
+        .find(event => event?.event_type === 'verification.started' || event?.event_type === 'verification.completed');
+      if (verification?.event_type === 'verification.completed' && verification.payload?.status === 'repair_required') return 'Checks need a repair';
+    }
+    return statusLabel(task.status, task.failure_code);
   }
 
   function appendNote(parent, text) {
@@ -731,8 +754,9 @@
     const status = document.createElement('p');
     status.className = 'crump-code-progress-status';
     status.setAttribute('role', 'status');
-    status.textContent = statusLabel(task.status, task.failure_code);
+    status.textContent = progressLabel(task);
     progressPane.appendChild(status);
+    if (status.textContent === 'Checks need a repair') appendNote(progressPane, 'The checks found an issue. A bounded repair has been requested in the same isolated copy; the output is not verified yet.');
     renderApprovals(progressPane, task);
     renderVerification(progressPane, task);
     if (!Array.isArray(task.verification) || !task.verification.length) appendNote(progressPane, 'No verification checks have been reported for this task.');

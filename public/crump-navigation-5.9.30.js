@@ -189,7 +189,8 @@
     }[destination] || destination;
     destinationFocusOpener = (
       active?.dataset?.crump5930Destination === destination ||
-      active?.dataset?.cvDestination === visionDestination
+      active?.dataset?.cvDestination === visionDestination ||
+      (destination === 'code' && active?.hasAttribute?.('data-cvp-open-autonomous'))
     )
       ? active
       : visibleDestinationButton(destination) || null;
@@ -481,7 +482,7 @@
     syncDestinationFocus();
   }
 
-  async function openCode() {
+  async function openCode(options = {}) {
     rememberDestinationOpener('code');
     closeSidebar();
     closeStudio();
@@ -489,8 +490,8 @@
     closeCreateHub();
     closeToolSheet();
     const opened = window.CrumpCodeWorkspace?.open
-      ? await window.CrumpCodeWorkspace.open()
-      : await window.CrumpCodeLoader?.open?.();
+      ? await window.CrumpCodeWorkspace.open(options)
+      : await window.CrumpCodeLoader?.open?.(options);
     if (!opened) {
       setActive('ask');
       return;
@@ -499,6 +500,7 @@
     setActive('code');
     recordDestinationSelection('code');
     syncDestinationFocus();
+    return true;
   }
 
   function recordDestinationSelection(destination) {
@@ -508,9 +510,9 @@
     });
   }
 
-  function openDestination(destination) {
+  function openDestination(destination, options = {}) {
     if (destination === 'projects') openProjects();
-    else if (destination === 'code') void openCode();
+    else if (destination === 'code') return openCode(options);
     else if (destination === 'create') openCreateHub();
     else if (destination === 'video') openVideo();
     else if (destination === 'library') openLibrary();

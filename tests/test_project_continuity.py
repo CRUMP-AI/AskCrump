@@ -911,38 +911,36 @@ async def test_project_routes_reject_an_invented_save_source(monkeypatch):
     }
 
 
-def test_latest_result_prioritizes_one_click_private_continuity_before_feedback_and_referral():
+def test_explicit_project_action_preserves_private_continuity_without_a_response_card():
     ui = (ROOT / "public" / "ui-functions.js").read_text(encoding="utf-8")
     product = (ROOT / "public" / "crump-product-5.3.js").read_text(encoding="utf-8")
     route = (ROOT / "backend" / "routes" / "projects.py").read_text(encoding="utf-8")
 
     assert "Keep in a new Project" in ui
-    assert "Continue this work later" in ui
-    assert "Keep this conversation in a private Project." in ui
+    assert "Continue this work later" not in ui
+    assert "Keep this conversation in a private Project." not in ui
     assert r"Keep in \u201c${target.displayName}\u201d" in ui
-    assert ui.index("syncOutcomeProjectAction(projectButton)") < ui.index("Or help someone else:")
-    assert "group.append(continuity, feedbackQuestion)" in ui
-    assert "group.replaceChildren(continuity, status)" in ui
+    assert "group.append(feedbackQuestion)" in ui
+    assert "group.replaceChildren(status)" in ui
     assert r'Open Project \u201c${projectName}\u201d containing this conversation' in ui
     assert "showSavedOutcomeProject(projectButton, result.project)" in ui
     assert "'ProjectSaveIntentReached'" in ui
     assert "eventKey: 'project-save-intent'" in ui
     assert "source: targetProjectId ? 'existing_project' : 'new_project'" in ui
     assert "projectButton.textContent = 'Saving…';" in ui
-    assert "Saving this conversation privately…" in ui
     assert "Couldn’t save yet. Your conversation is still here." in ui
-    assert 'Saved privately to "${projectName}".' in ui
-    assert "projectButton.dataset.chatId = String(window.currentChatId" in ui
+    assert "projectButton.dataset.chatId = chatId" in ui
     assert "hydrateOutcomeProjectAction(projectButton)" in ui
     assert "recordOutcomeProjectSaveOffer(button)" in ui
     assert "'ProjectSaveOfferShown'" in ui
+    assert "!button?.isConnected" in ui
     assert "eventKey: 'project-save-offer-shown'" in ui
     assert "source: 'conversation_result'" in ui
     assert "window.addEventListener?.('crump:project-service-ready'" in ui
     assert "if (await openProject(projectId)) return" in ui
     direct_action = ui[
-        ui.index("const continuityPrompt"):
-        ui.index("const renderThanks")
+        ui.index("async function performOutcomeProjectAction"):
+        ui.index("function createOutcomeFeedback")
     ]
     assert "keepConversation" in direct_action
     assert "OutcomeFeedbackSubmitted" not in direct_action
@@ -1167,9 +1165,9 @@ def test_project_save_timeout_fixture_uses_real_runtime_order_without_credential
     verifier = (ROOT / "scripts" / "verify-project-save-activation.cjs").read_text(encoding="utf-8")
     assert "project-save-intent" in verifier
     assert "continuitySource, 'result_action'" in verifier
-    assert "Saving this conversation privately" in verifier
+    assert "CrumpOutcomeActions.keepLatestInProject()" in verifier
     assert "Couldn’t save yet" in verifier
-    assert "Saved privately" in verifier
+    assert "continuityCards" in verifier
 
 
 def test_project_target_disclosure_fixture_covers_selected_and_new_destinations():

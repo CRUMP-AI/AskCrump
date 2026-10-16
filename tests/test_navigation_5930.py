@@ -22,11 +22,11 @@ def test_six_destination_navigation_is_final_runtime_layer_and_boot_critical():
 
     assert runtime.index("/crump-library-loader.js") < runtime.index("/crump-navigation-5.9.30.js")
     assert "/crump-library-5.7.js" not in runtime
-    assert "ask-crump-new-body-v1-r264-autonomous-enterprise-1" in worker
+    assert "ask-crump-new-body-v1-r266-response-continuity-cleanup-1" in worker
     navigation_css = "/crump-navigation-5.9.30.css?v=5.9.76-nav-focus-visibility-1"
     for source in (runtime, worker, native):
         assert navigation_css in source
-    assert "/crump-navigation-5.9.30.js?v=5.9.76-atelier-workspace-1" in runtime
+    assert "/crump-navigation-5.9.30.js?v=5.9.76-autonomous-integration-2" in runtime
 
 
 def test_vision_shell_owns_navigation_while_adapter_preserves_destinations():
