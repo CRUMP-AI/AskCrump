@@ -88,7 +88,11 @@ class Fixture:
         return json.loads(self.scalar(f"select {invocation(name, *args)}"))
 
     def bootstrap(self) -> None:
-        assert self.scalar("select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public'") == "0", "Fixture database public schema must be empty"
+        assert self.scalar("""select
+          (select count(*) from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public') +
+          (select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public') +
+          (select count(*) from pg_type t join pg_namespace n on n.oid=t.typnamespace where n.nspname='public')
+        """) == "0", "Fixture database public schema must be empty"
         self.sql("""do $$ begin
           if not exists(select from pg_roles where rolname='anon') then create role anon; end if;
           if not exists(select from pg_roles where rolname='authenticated') then create role authenticated; end if;
@@ -174,8 +178,8 @@ class Fixture:
                     raise AssertionError("contention gate did not acquire its lock")
                 assert time.monotonic() < deadline, "gate timeout"
                 time.sleep(0.03)
-            actors = [pool.submit(self.sql, (prefixes or [""] * len(expressions))[i] +
-                       f"select json_build_object('pid',pg_backend_pid(),'result',{expr});", f"{prefix}-actor-{i}")
+            actors = [pool.submit(self.sql, "set role service_role;" + (prefixes or [""] * len(expressions))[i] +
+                       f"select json_build_object('pid',pg_backend_pid(),'role',current_user,'result',{expr});", f"{prefix}-actor-{i}")
                       for i, expr in enumerate(expressions)]
             observed = 0
             while time.monotonic() < deadline:
@@ -187,6 +191,8 @@ class Fixture:
             rows = [json.loads(future.result()[-1]) for future in actors]
         assert observed >= min(2, len(expressions)), "race did not demonstrate overlapping blocked sessions"
         assert len({row["pid"] for row in rows}) == len(rows), "actors must use independent backend sessions"
+        assert all(row["role"] == "service_role" for row in rows), "actors must use application RPC privileges"
+        print(f"  independent_sessions={len(rows)} observed_overlapping_blocked={observed}", flush=True)
         return [row["result"] for row in rows]
 
     def passed(self, name: str) -> None:
