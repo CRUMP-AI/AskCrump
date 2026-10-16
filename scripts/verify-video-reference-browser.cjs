@@ -249,6 +249,7 @@ const { chromium } = require(playwrightModule);
       selectedEngine: window.__videoRequest?.engine || '',
       providerStarts: window.__videoProviderStarts,
       receiptCount: document.querySelectorAll('[data-video-reference-receipt]').length,
+      continuityCardCount: document.querySelectorAll('.outcome-continuity').length,
       receiptHeading: receipt?.querySelector('h3')?.textContent || '',
       receiptText: receipt?.textContent || '',
       receiptTransport: receipt?.querySelector('[data-video-reference-transport]')?.textContent || '',
@@ -968,6 +969,7 @@ const { chromium } = require(playwrightModule);
     || ownerScopedResume.serverHistoryResume.polls.length < 1
     || !ownerScopedResume.serverHistoryResume.recentText.includes('Recent videos')
     || !ownerScopedResume.serverHistoryResume.resultReady
+    || result.continuityCardCount !== 0
     || result.runwayAttributionVisible
     || result.mobileOverflow
     || result.errorOverlay

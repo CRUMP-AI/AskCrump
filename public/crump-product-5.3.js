@@ -2187,10 +2187,16 @@
   async function keepArtifact(file, options = {}) {
     const fileId = String(file?.id || '').trim();
     if (!fileId) throw new Error('This file is not ready to add to a Project yet.');
+    const operation = projectOperationContext();
+    if (!operation.userId) return {success: false, cancelled: true};
     const hasExplicitTarget = Object.prototype.hasOwnProperty.call(options, 'projectId');
+    const restoredTarget = hasExplicitTarget
+      ? null
+      : (currentProjectTarget() || await restoreStoredProjectTarget());
+    if (!projectOperationIsCurrent(operation)) return {success: false, cancelled: true};
     const targetProjectId = hasExplicitTarget
       ? String(options.projectId || '').trim()
-      : String(state.activeProject?.id || '').trim();
+      : String(restoredTarget?.id || '').trim();
 
     const role = options.role === 'generated_image' ? 'generated_image' : 'generated_document';
     try {
@@ -4288,9 +4294,12 @@
   }
 
   function hydrateAuthenticatedState() {
-    if (authenticatedHydrationStarted || !window.currentUser) return;
+    if (!window.currentUser) return;
     if (!bindProjectStateToCurrentUser()) return;
-    if (!readProjectRoute()) return;
+    // Restoring a saved destination belongs to the service lifecycle, whether
+    // or not a Project route or a post-response suggestion is currently shown.
+    void restoreStoredProjectTarget();
+    if (authenticatedHydrationStarted || !readProjectRoute()) return;
     authenticatedHydrationStarted = true;
     openStudio('projects', {preserveProjectRoute: true});
   }
