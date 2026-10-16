@@ -133,7 +133,8 @@ class Fixture:
         task = dict(id=str(uuid.uuid4()), user=owner[0], lease=str(uuid.uuid4()), policy=policy or POLICY)
         self.sql(f"insert into public.code_tasks(id,user_id,project_id,objective,source_repo_url) values({literal(task['id'])},{literal(owner[0])},{literal(owner[1])},'Disposable concurrency fixture','https://github.com/example/fixture');")
         if dispatch:
-            assert self.rpc("reserve_and_dispatch_code_task", task["id"], task["user"], str(uuid.uuid4()), 0, 12, 12, str(uuid.uuid4()), None, task["policy"])["outcome"] == "dispatched"
+            receipt = self.rpc("reserve_and_dispatch_code_task", task["id"], task["user"], str(uuid.uuid4()), 0, 12, 12, str(uuid.uuid4()), None, task["policy"])
+            assert receipt["outcome"] == "dispatched", receipt.get("code", "fixture dispatch refused")
             self.sql(f"update public.code_tasks set status='running',lease_token={literal(task['lease'])},lease_expires_at=clock_timestamp()+interval '5 minutes' where id={literal(task['id'])}")
         return task
 
@@ -231,8 +232,8 @@ class Fixture:
         self.passed("shared included allowance never silently spends credits")
 
         for name, owners, policy, expected in [
-            ("account", 1, {**POLICY, "account_daily_limit": 18_000}, 3),
-            ("global", 4, {**POLICY, "global_daily_limit": 24_000}, 4),
+            ("account", 1, {**POLICY, "call_limit": 6000, "run_limit": 6000, "account_daily_limit": 18_000}, 3),
+            ("global", 4, {**POLICY, "call_limit": 6000, "run_limit": 6000, "account_daily_limit": 24_000, "global_daily_limit": 24_000}, 4),
         ]:
             self.reset()
             accounts = [self.owner() for _ in range(owners)]
