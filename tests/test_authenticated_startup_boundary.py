@@ -26,8 +26,16 @@ def test_protected_product_modules_hydrate_only_after_an_intentional_open():
     library = read('crump-library-5.7.js')
     billing = read('crump-billing-5.1.js')
 
-    assert 'if (authenticatedHydrationStarted || !window.currentUser) return;' in product
-    assert 'if (!readProjectRoute()) return;' in product
+    hydration = product[product.index('  function hydrateAuthenticatedState()'):product.index('  function init()')]
+    assert hydration.index('if (!window.currentUser) return;') < hydration.index('if (!bindProjectStateToCurrentUser()) return;')
+    assert hydration.index('if (!bindProjectStateToCurrentUser()) return;') < hydration.index('void restoreStoredProjectTarget();')
+    assert hydration.index('void restoreStoredProjectTarget();') < hydration.index('if (authenticatedHydrationStarted || !readProjectRoute()) return;')
+    assert hydration.index('if (authenticatedHydrationStarted || !readProjectRoute()) return;') < hydration.index("openStudio('projects', {preserveProjectRoute: true});")
+    restore = product[product.index('  async function restoreStoredProjectTarget()'):product.index('  async function resolveOutcomeProject(')]
+    assert 'if (!operation.userId) return null;' in restore
+    assert 'if (!projectId) return null;' in restore
+    assert '/api/projects/target/${encodeURIComponent(projectId)}' in restore
+    assert 'if (!projectOperationIsCurrent(operation)) return null;' in restore
     assert "openStudio('projects', {preserveProjectRoute: true});" in product
     assert "window.addEventListener('crump:authenticated-ready', () => {" in product
     assert "hydrateAuthenticatedState();" in product
