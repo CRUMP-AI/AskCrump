@@ -82,7 +82,7 @@ const loader = String.raw`
     ['/subscription-ui.js?v=5.9.76-commerce-recovery-1', 'workspacesubscription'],
     ['/credit-confirmation.js?v=5.9.76-credit-confirmation-1', 'workspacecreditconfirmation'],
     ['/chat-resilience.js?v=5.9.76-credit-confirmation-1', 'workspacechatresilience'],
-    ['/ui-functions.js?v=5.9.76-atelier-workspace-1', 'workspaceui'],
+    ['/ui-functions.js?v=5.9.76-response-continuity-cleanup-1', 'workspaceui'],
     ['/presence-manager.js?v=5.9.76-native-push-handoff-1', 'workspacepresence'],
     ['/sync-manager.js?v=5.9.76-sync-cursor-1', 'workspacesync'],
     ['/chat-sync.js?v=5.9.76-settings-sync-1', 'workspacechatsync'],
@@ -105,7 +105,7 @@ const loader = String.raw`
 
   const finalScripts = Object.freeze([
     ['/crump-navigation-5.2.5.js?v=5.9.76-chats-language-1', 'crumpnav525'],
-    ['/crump-product-loader.js?v=5.9.76-projects-empty-state-1', 'crumpproductloader'],
+    ['/crump-product-loader.js?v=5.9.76-response-continuity-cleanup-1', 'crumpproductloader'],
     ['/crump-product-5.3.1.js?v=5.9.76-conversation-action-labels-2', 'crumpproduct531'],
     ['/crump-subscriptions-5.3.2.js?v=5.9.76-checkout-destination-label-1', 'crumpsubscriptions532'],
     ['/crump-polish-5.6.js?v=5.9.76-friendly-workspace-1', 'crumppolish56'],

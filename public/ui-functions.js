@@ -642,13 +642,11 @@
     button.dataset.saved = 'true';
     button.textContent = 'Open Project';
     button.setAttribute('aria-label', `Open Project \u201c${projectName}\u201d containing this conversation`);
-    const prompt = button.closest('.outcome-feedback')?.querySelector('.outcome-continuity-prompt');
-    if (prompt) prompt.textContent = `Saved privately to "${projectName}".`;
     return true;
   }
 
   function recordOutcomeProjectSaveOffer(button) {
-    if (!button || button.dataset.saved === 'true' || button.dataset.projectSaveOfferTracked === 'true') return;
+    if (!button?.isConnected || button.dataset.saved === 'true' || button.dataset.projectSaveOfferTracked === 'true') return;
     const track = window.CrumpAnalytics?.track;
     if (typeof track !== 'function') return;
     button.dataset.projectSaveOfferTracked = 'true';
@@ -703,7 +701,8 @@
 
   async function performOutcomeProjectAction(projectButton) {
     if (!projectButton || projectButton.disabled) return false;
-    const continuityPrompt = projectButton.closest('.outcome-feedback')?.querySelector('.outcome-continuity-prompt');
+    const actionOwnerId = String(window.currentUser?.id || '');
+    const actionChatId = String(window.currentChatId || '').trim();
     if (projectButton.dataset.saved === 'true') {
       const projectId = String(projectButton.dataset.projectId || '').trim();
       const openProject = window.CrumpProduct53?.openProject;
@@ -734,17 +733,20 @@
     projectButton.disabled = true;
     projectButton.setAttribute('aria-busy', 'true');
     projectButton.textContent = 'Saving…';
-    if (continuityPrompt) continuityPrompt.textContent = 'Saving this conversation privately…';
     try {
       const result = await keepConversation({
         projectId: targetProjectId || null,
         continuitySource: 'result_action',
       });
+      if (result?.cancelled) return false;
       if (!result?.success) throw new Error('Projects are still loading. Try again in a moment.');
       showSavedOutcomeProject(projectButton, result.project);
       return true;
     } catch (_) {
-      if (continuityPrompt) continuityPrompt.textContent = 'Couldn’t save yet. Your conversation is still here.';
+      if (actionOwnerId === String(window.currentUser?.id || '')
+          && actionChatId === String(window.currentChatId || '').trim()) {
+        window.showToast?.('Couldn’t save yet. Your conversation is still here.', 'error');
+      }
       syncOutcomeProjectAction(projectButton);
       return false;
     } finally {
@@ -753,28 +755,33 @@
     }
   }
 
+  const outcomeProjectRequests = new Map();
+
   async function keepLatestOutcomeInProject() {
-    const buttons = Array.from(document.querySelectorAll('.outcome-project-btn'));
-    const projectButton = buttons.at(-1);
-    if (!projectButton) {
+    const chatId = String(window.currentChatId || '').trim();
+    const ownerId = String(window.currentUser?.id || '');
+    const hasResponse = !!document.querySelector('#chatContainer .assistant-message[data-message-id]');
+    if (!chatId || !hasResponse) {
       window.showToast?.('Finish a response before keeping it in a Project.', 'error');
       return false;
     }
-    if (projectButton.dataset.projectLookup === 'pending') {
-      const chatId = String(projectButton.dataset.chatId || '').trim();
-      const resolver = window.CrumpProduct53?.resolveOutcomeProject;
-      try {
-        const resolution = chatId && typeof resolver === 'function' ? await resolver(chatId) : null;
-        if (resolution?.saved) showSavedOutcomeProject(projectButton, resolution.project);
-        else syncOutcomeProjectAction(projectButton);
-      } catch (_) {
-        syncOutcomeProjectAction(projectButton);
-      }
-      delete projectButton.dataset.projectLookup;
-      projectButton.disabled = false;
-      projectButton.removeAttribute('aria-busy');
-    }
-    return performOutcomeProjectAction(projectButton);
+    const key = JSON.stringify([ownerId, chatId]);
+    if (outcomeProjectRequests.has(key)) return outcomeProjectRequests.get(key);
+    // Lifecycle's explicit Project action uses the same relationship lookup and
+    // save flow without adding a promotional card beneath every response.
+    const request = (async () => {
+      const projectButton = document.createElement('button');
+      projectButton.type = 'button';
+      projectButton.dataset.chatId = chatId;
+      syncOutcomeProjectAction(projectButton);
+      await hydrateOutcomeProjectAction(projectButton);
+      if (chatId !== String(window.currentChatId || '').trim()
+          || ownerId !== String(window.currentUser?.id || '')) return false;
+      return performOutcomeProjectAction(projectButton);
+    })();
+    outcomeProjectRequests.set(key, request);
+    try { return await request; }
+    finally { outcomeProjectRequests.delete(key); }
   }
 
   window.addEventListener?.('crump:project-target-changed', syncOutcomeProjectActions);
@@ -785,33 +792,14 @@
     const group = document.createElement('div');
     group.className = 'outcome-feedback';
     group.setAttribute('role', 'group');
-    group.setAttribute('aria-label', 'Keep this result and share feedback');
-
-    const continuity = document.createElement('div');
-    continuity.className = 'outcome-continuity';
-    const continuityCopy = document.createElement('div');
-    continuityCopy.className = 'outcome-continuity-copy';
-    const continuityPrompt = document.createElement('span');
-    continuityPrompt.className = 'outcome-continuity-prompt';
-    continuityPrompt.textContent = 'Continue this work later';
-    const continuityDetail = document.createElement('span');
-    continuityDetail.className = 'outcome-continuity-detail';
-    continuityDetail.textContent = 'Keep this conversation in a private Project.';
-    continuityCopy.append(continuityPrompt, continuityDetail);
-    const projectButton = document.createElement('button');
-    projectButton.type = 'button';
-    projectButton.className = 'outcome-feedback-btn outcome-project-btn';
-    projectButton.dataset.chatId = String(window.currentChatId || '').trim();
-    syncOutcomeProjectAction(projectButton);
-    projectButton.addEventListener('click', () => { void performOutcomeProjectAction(projectButton); });
-    continuity.append(continuityCopy, projectButton);
+    group.setAttribute('aria-label', 'Share feedback about this response');
 
     const renderThanks = value => {
       const status = document.createElement('span');
       status.className = 'outcome-feedback-status';
       status.setAttribute('role', 'status');
       status.textContent = 'Thanks — feedback saved.';
-      group.replaceChildren(continuity, status);
+      group.replaceChildren(status);
       if (value === 'needs_work') {
         const issueKey = outcomeIssueKey(eventKey);
         if (savedOutcomeIssue(issueKey)) {
@@ -878,7 +866,6 @@
     const savedFeedback = savedOutcomeFeedback(eventKey);
     if (savedFeedback) {
       renderThanks(savedFeedback);
-      void hydrateOutcomeProjectAction(projectButton);
       return group;
     }
 
@@ -912,8 +899,7 @@
     }
 
     feedbackQuestion.append(prompt, ...buttons);
-    group.append(continuity, feedbackQuestion);
-    void hydrateOutcomeProjectAction(projectButton);
+    group.append(feedbackQuestion);
     return group;
   }
 

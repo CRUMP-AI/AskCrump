@@ -7,12 +7,77 @@ const baseUrl = process.env.ASKCRUMP_FIXTURE_ORIGIN || 'http://127.0.0.1:8765';
 (async () => {
   const executablePath = process.env.ASKCRUMP_BROWSER_EXECUTABLE || undefined;
   const browser = await chromium.launch({headless: true, ...(executablePath ? {executablePath} : {})});
-  const page = await browser.newPage({viewport: {width: 390, height: 844}});
+  const page = await browser.newPage({viewport: {width: 390, height: 844}, hasTouch: true, reducedMotion: 'reduce', acceptDownloads: true});
   const browserErrors = [];
   page.on('console', message => { if (message.type() === 'error') browserErrors.push(message.text()); });
   page.on('pageerror', error => browserErrors.push(error.message));
 
+  await page.addInitScript(() => {
+    window.__responseControls = {copies: [], shares: [], spoken: [], retries: []};
+    Object.defineProperty(navigator, 'clipboard', {configurable: true, value: {
+      writeText: async value => { window.__responseControls.copies.push(value); },
+    }});
+    Object.defineProperty(navigator, 'share', {configurable: true, value: async value => {
+      window.__responseControls.shares.push(value);
+    }});
+    window.speakText = value => window.__responseControls.spoken.push(value);
+    window.retryMessage = id => window.__responseControls.retries.push(id);
+  });
+  const imagePath = '/public/assets/brand/crump-mark.png';
   await page.goto(`${baseUrl}/tests/fixtures/outcome-issue-categories.html`, {waitUntil: 'networkidle'});
+  const cleanResponses = [];
+  for (const kind of ['text', 'image']) {
+    await page.evaluate(({kind, imagePath}) => {
+      const message = {
+        id: `clean-${kind}`,
+        role: 'assistant',
+        content: 'A useful answer with [source](https://example.com/evidence).',
+        intelligence: {plannerUsed: true, verifierUsed: true},
+        ...(kind === 'image' ? {imageUrl: new URL(imagePath, location.origin).href} : {}),
+      };
+      window.chats[0].messages = [message];
+      window.renderMessages([message]);
+    }, {kind, imagePath});
+    const rendered = await page.locator('.assistant-message').evaluate(node => ({
+      continuityCards: node.querySelectorAll('.outcome-continuity').length,
+      projectButtons: node.querySelectorAll('.outcome-project-btn').length,
+      text: node.textContent,
+      source: node.querySelector('.message-content a')?.href,
+    }));
+    assert.equal(rendered.continuityCards, 0);
+    assert.equal(rendered.projectButtons, 0);
+    assert.doesNotMatch(rendered.text, /Continue this work later|Keep this conversation in a private Project\./);
+    assert.equal(rendered.source, 'https://example.com/evidence');
+    await page.getByRole('button', {name: 'Copy', exact: true}).click();
+    await page.getByRole('button', {name: 'Share this response', exact: true}).click();
+    await page.getByRole('button', {name: 'Read aloud', exact: true}).click();
+    if (kind === 'image') {
+      const downloadStarted = page.waitForEvent('download');
+      await page.locator('.image-actions').getByRole('button', {name: 'Download', exact: true}).click();
+      const download = await downloadStarted;
+      assert.match(download.suggestedFilename(), /^ask-crump-image-\d+\.png$/);
+      assert.equal(await download.failure(), null);
+      await download.delete();
+      rendered.download = true;
+    }
+    cleanResponses.push({kind, ...rendered});
+  }
+  await page.evaluate(() => {
+    window.renderMessages([{id: 'failed-delivery', role: 'user', content: 'Retry this request', deliveryStatus: 'failed'}]);
+  });
+  await page.getByRole('button', {name: 'Not delivered — tap to retry'}).click();
+  const responseControls = await page.evaluate(() => window.__responseControls);
+  assert.deepEqual(responseControls.copies, Array(2).fill('A useful answer with [source](https://example.com/evidence).'));
+  assert.equal(responseControls.shares.length, 2);
+  assert.ok(responseControls.shares.every(payload => payload.text.includes('A useful answer with [source]')));
+  assert.deepEqual(responseControls.spoken, responseControls.copies);
+  assert.deepEqual(responseControls.retries, ['failed-delivery']);
+  await page.evaluate(() => {
+    window.__fixture.analytics = [];
+    window.__fixture.toasts = [];
+    window.chats[0].messages = window.__fixtureMessages;
+    window.renderMessages(window.__fixtureMessages);
+  });
   await page.getByRole('button', {name: 'Not yet'}).click();
   await page.getByText('Thanks — what missed the mark? Optional.').waitFor();
 
@@ -86,6 +151,7 @@ const baseUrl = process.env.ASKCRUMP_FIXTURE_ORIGIN || 'http://127.0.0.1:8765';
     reportRequests: window.__fixture.reportRequests,
     toasts: window.__fixture.toasts,
     horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    continuityCards: document.querySelectorAll('.outcome-continuity').length,
   }));
   assert.deepEqual(result.analytics, [
     {
@@ -124,10 +190,11 @@ const baseUrl = process.env.ASKCRUMP_FIXTURE_ORIGIN || 'http://127.0.0.1:8765';
     'Thanks — this response was sent for safety review.',
   ]);
   assert.equal(result.horizontalOverflow, false);
+  assert.equal(result.continuityCards, 0);
   assert.deepEqual(browserErrors, []);
 
   await browser.close();
-  process.stdout.write(`${JSON.stringify({result, browserErrors})}\n`);
+  process.stdout.write(`${JSON.stringify({cleanResponses, responseControls, result, browserErrors})}\n`);
 })().catch(error => {
   console.error(error);
   process.exit(1);

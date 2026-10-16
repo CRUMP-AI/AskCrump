@@ -107,6 +107,11 @@ INDIRECT_DYNAMIC_BUTTON_OWNERS = {
         "document.addEventListener('click', event => {",
         "event.target.closest?.('.crump531-chat-menu-button')",
     ),
+    # Detached state controller owned by the explicit lifecycle Project action.
+    "public/ui-functions.js:773:projectButton": (
+        "keepLatestInProject: () => keepLatestOutcomeInProject()",
+        "return performOutcomeProjectAction(projectButton)",
+    ),
     "public/ui-functions.js:358:submit": (
         "submit.type = 'submit'",
         "form.addEventListener('submit', async event => {",
