@@ -189,6 +189,15 @@ distinguish a broken baseline from a known repair. They do not prove that a mode
 four-case offline/scripted benchmark and checked-in intelligence passing fixture retain their
 original, narrower meanings.
 
+The [host observation adapter](../scripts/crump_code_v2_observations.py) now translates three
+complete value-call contracts (`rename-boundary`, `workspace-paths`, `image-size`) while keeping
+expected results outside the candidate job. Its compatibility report explicitly blocks the other
+seventeen contracts on missing callback, state, identity, binary or concurrency support. Sixty-one
+synthetic protocol tests cover request/artifact binding, replay, bounded JSON and exact result
+membership. Even a perfectly matching packet is `observations_matched_unverified`, with both
+`execution_verified` and `capability_evaluated` false. There is no trusted isolated transport,
+execution attestation or bridge to a model-quality result, and no candidate ran on the host.
+
 | Gate | Required evidence | Workshop state |
 | --- | --- | --- |
 | Corpus integrity | Exactly 20 frozen original cases, file hashes, difficulty labels, failing baselines and passing references; prohibit candidate changes to oracle/reference files. | Corpus/evaluator work is separately owned and locally testable; reference checks are not model results. |
