@@ -13,6 +13,8 @@ import json
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 from backend.code_runner import CrumpCodeRunner, SandboxWorkspace
 from scripts.crump_code_v2_fake_driver import (
     SUPPORTED_OBSERVATION_CONTRACTS,
@@ -286,6 +288,160 @@ def test_two_runs_are_canonically_identical(tmp_path):
     first = asyncio.run(drive_two())
     second = asyncio.run(drive_two())
     assert canonical_report({"cases": first}) == canonical_report({"cases": second})
+
+
+def test_write_file_lands_with_expected_content_and_patch_retained(tmp_path):
+    """write_file must work through the fs adapter and stay in the packaged patch.
+
+    Regression test for the LocalSandbox AttributeError: production
+    SandboxWorkspace.write_file requires sandbox.fs.mkdir/write_text.
+    """
+    content = "operator notes\nsecond line\n"
+    script = [
+        _tool_response(
+            "Writing notes.", "write_file", {"path": "notes.txt", "content": content}
+        ),
+        _tool_response(
+            "Checking.",
+            "run_verification",
+            {"command": "python3", "args": ["-m", "pytest", "tests/test_visible.py", "-q"]},
+        ),
+        _text_response("Done."),
+    ]
+    provider, service, result, case = asyncio.run(
+        run_with_script("activity-latest", script, seed="write", work_root=tmp_path)
+    )
+    assert result.get("status") == "completed"
+    assert result.get("failure_code") is None
+    written = tmp_path / "ws" / "notes.txt"
+    assert written.read_text(encoding="utf-8") == content
+    write_events = [
+        e
+        for e in service.events
+        if e["event_type"] == "tool.completed"
+        and (e["payload"] or {}).get("tool") == "write_file"
+        and (e["payload"] or {}).get("status") == "completed"
+    ]
+    assert write_events, "write_file must complete through the production tool path"
+    patch = result.get("result_patch") or ""
+    assert patch, "a nonempty patch must be retained and packaged"
+    assert "notes.txt" in patch
+    assert "operator notes" in patch
+
+
+def test_write_file_rejects_workspace_escape(tmp_path):
+    """The local fs adapter must refuse paths escaping the workspace root."""
+    sandbox = LocalSandbox(str(tmp_path))
+    with pytest.raises(ValueError):
+        asyncio.run(sandbox.fs.write_text("../escape.txt", "x"))
+    with pytest.raises(ValueError):
+        asyncio.run(sandbox.fs.write_text("/abs.txt", "x"))
+
+
+def test_harness_error_in_one_case_does_not_stop_suite(tmp_path, monkeypatch):
+    """An unexpected error in one case is recorded; the rest stay represented."""
+    import scripts.crump_code_v2_fake_driver as fd
+
+    real_drive_case = fd.drive_case
+
+    async def flaky_drive_case(case, **kwargs):
+        if case.id == "call-lease":
+            raise RuntimeError("injected harness failure")
+        return await real_drive_case(case, **kwargs)
+
+    monkeypatch.setattr(fd, "drive_case", flaky_drive_case)
+    report = asyncio.run(
+        fd.drive_all(CORPUS_ROOT, tmp_path, CrumpCodeRunner, make_settings(), seed="contain")
+    )
+    assert len(report["cases"]) == 20
+    by_id = {c["id"]: c for c in report["cases"]}
+    bad = by_id["call-lease"]
+    assert bad["driver"] is None
+    assert bad["harness_error"]["type"] == "RuntimeError"
+    assert "injected harness failure" in bad["harness_error"]["message"]
+    assert bad["honest_label"] == "Not evaluated"
+    assert bad["honest_reason"] == "model evaluation not run"
+    for record in report["cases"]:
+        if record["id"] == "call-lease":
+            continue
+        assert record["driver"] is not None
+        assert "harness_error" not in record
+
+
+def test_turn_limit_exhaustion_terminates_honestly(tmp_path):
+    """Hitting the step limit ends the run with the limit recorded, not a crash."""
+    script = [
+        _tool_response(
+            "Reading.", "read_file", {"path": "merge.py", "start_line": 1, "max_lines": 50}
+        ),
+    ]
+    provider, service, result, case = asyncio.run(
+        run_with_script(
+            "activity-latest",
+            script,
+            seed="turnlimit",
+            settings=make_settings(code_max_agent_steps=1),
+            work_root=tmp_path,
+        )
+    )
+    assert result.get("status") == "failed"
+    assert result.get("failure_code") == "CODE_STEP_LIMIT"
+    assert len(provider.turn_log) == 1, "no provider turn may run past the step limit"
+
+
+def _persistently_broken_script(corpus, case_id):
+    """Break the source and keep its visible checks failing: repair must give up.
+
+    The syntax check alone passes, so the repair limit is only reached when a
+    requested behavioral check keeps failing across rounds.
+    """
+    content = (corpus / "cases" / case_id / "workspace" / "merge.py").read_text()
+    lines = content.splitlines(keepends=True)
+    old_tail = lines[-1]
+    new_tail = old_tail + 'raise RuntimeError("fake-break")\n'
+    verify = {
+        "command": "python3",
+        "args": ["-m", "pytest", "tests/test_visible.py", "-q"],
+    }
+    return [
+        _tool_response(
+            "Reading.",
+            "read_file",
+            {"path": "merge.py", "start_line": 1, "max_lines": 250},
+        ),
+        _tool_response(
+            "Breaking.",
+            "edit_file",
+            {"path": "merge.py", "old": old_tail, "new": new_tail},
+        ),
+        _tool_response("Checking.", "run_verification", verify),
+        _text_response("Summary one."),
+        _text_response("Summary two."),
+        _text_response("Summary three."),
+    ]
+
+
+def test_repair_limit_exhaustion_terminates_honestly(tmp_path):
+    """Hitting the repair limit ends the run with the limit recorded, not a crash."""
+    provider, service, result, case = asyncio.run(
+        run_with_script(
+            "activity-latest",
+            _persistently_broken_script(CORPUS_ROOT, "activity-latest"),
+            seed="repairlimit",
+            work_root=tmp_path,
+        )
+    )
+    assert result.get("status") == "failed"
+    assert result.get("failure_code") == "CODE_VERIFICATION_FAILED"
+    # 3 tool turns + 3 text turns; the third failure hits the repair limit.
+    assert len(provider.turn_log) == 6, "loop must stop when the repair limit is hit"
+    repair_rounds = sum(
+        1
+        for e in service.events
+        if e["event_type"] == "verification.completed"
+        and (e["payload"] or {}).get("status") == "repair_required"
+    )
+    assert repair_rounds >= 2, "repair lifecycle must engage before the limit stops it"
 
 
 def test_report_carries_no_capability_language(tmp_path):
