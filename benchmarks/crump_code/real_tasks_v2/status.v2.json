@@ -1,0 +1,285 @@
+{
+  "schema_version": 1,
+  "suite_id": "askcrump-original-real-tasks-v2",
+  "manifest_sha256": "59451dadb2e312ddda5fe12b35b80a20f597f4587a373580015c9a846ccc3f43",
+  "honest_state": "Model evaluation not run",
+  "labels": {
+    "verified_fix": 0,
+    "attempted_not_fixed": 0,
+    "not_evaluated": 20,
+    "plumbing_only": 0
+  },
+  "aggregate": "0/20 - authored regression reductions, sandboxed harness",
+  "fix_rate": null,
+  "fix_rate_note": "No model run has been performed. The fix-rate number gates activation and marketing, not the merge, and is not computable from this file.",
+  "scope": "Twenty original sanitized regression exercises; cited history motivates adaptations, not literal historical reproducers or broad coding capability. No model quality result is included. Difficulty strata are author-assigned, not empirically calibrated.",
+  "excluded_capabilities": [
+    "conversational clarification of ambiguous requirements",
+    "general coding parity",
+    "browser/mobile end-to-end behavior",
+    "production provider interoperability"
+  ],
+  "note": "Plumbing coverage (failing baselines, passing references, frozen fixtures) is shown per case and is not a model quality result.",
+  "cases": [
+    {
+      "id": "activity-latest",
+      "stratum": "integration",
+      "fixture_sha256": "d6360350532535d6950cf45da28b56509a630f44cb3b10d22497e0f26cc02611",
+      "label": "Not evaluated",
+      "reason": "model evaluation not run",
+      "plumbing": {
+        "baseline_rejected": true,
+        "reference_accepted": true,
+        "oracle_tests": 3,
+        "last_verified_solvable_at": "2026-10-17T20:43:50.136076+00:00"
+      }
+    },
+    {
+      "id": "gateway-retry",
+      "stratum": "integration",
+      "fixture_sha256": "81ef476b97655236429424473eb41c7bff2f4ef9a94cb4cfa3f8203e0cce3cbd",
+      "label": "Not evaluated",
+      "reason": "model evaluation not run",
+      "plumbing": {
+        "baseline_rejected": true,
+        "reference_accepted": true,
+        "oracle_tests": 3,
+        "last_verified_solvable_at": "2026-10-17T20:43:50.543826+00:00"
+      }
+    },
+    {
+      "id": "sync-write-replay",
+      "stratum": "integration",
+      "fixture_sha256": "fb166cffc29ae08859b5a612ca4aec45edec859e97fc967db63310056c488d3d",
+      "label": "Not evaluated",
+      "reason": "model evaluation not run",
+      "plumbing": {
+        "baseline_rejected": true,
+        "reference_accepted": true,
+        "oracle_tests": 2,
+        "last_verified_solvable_at": "2026-10-17T20:43:50.909083+00:00"
+      }
+    },
+    {
+      "id": "quote-scope",
+      "stratum": "adversarial",
+      "fixture_sha256": "fff286381e54e15435647853d3208652bc1ec2a823ed1ddda14daafd7d986a73",
+      "label": "Not evaluated",
+      "reason": "model evaluation not run",
+      "plumbing": {
+        "baseline_rejected": true,
+        "reference_accepted": true,
+        "oracle_tests": 3,
+        "last_verified_solvable_at": "2026-10-17T20:43:51.306280+00:00"
+      }
+    },
+    {
+      "id": "provider-retry",
+      "stratum": "integration",
+      "fixture_sha256": "1516a8a85d9ed43216bb3a7670e9334757954b9c2a2a529e36426d72dcf62614",
+      "label": "Not evaluated",
+      "reason": "model evaluation not run",
+      "plumbing": {
+        "baseline_rejected": true,
+        "reference_accepted": true,
+        "oracle_tests": 2,
+        "last_verified_solvable_at": "2026-10-17T20:43:51.692223+00:00"
+      }
+    },
+    {
+      "id": "complete-patch",
+      "stratum": "bounded",
+      "fixture_sha256": "9bcb948d77694cb4062a6d09fface3ce93d44c4d2f0957f350ac309394c951c6",
+      "label": "Not evaluated",
+      "reason": "model evaluation not run",
+      "plumbing": {
+        "baseline_rejected": true,
+        "reference_accepted": true,
+        "oracle_tests": 2,
+        "last_verified_solvable_at": "2026-10-17T20:43:52.046726+00:00"
+      }
+    },
+    {
+      "id": "rename-boundary",
+      "stratum": "adversarial",
+      "fixture_sha256": "9df4a4cf1ff19158e665a6aa750c8d904d911a1f6576fb6aaf40197f5288b2ea",
+      "label": "Not evaluated",
+      "reason": "model evaluation not run",
+      "plumbing": {
+        "baseline_rejected": true,
+        "reference_accepted": true,
+        "oracle_tests": 2,
+        "last_verified_solvable_at": "2026-10-17T20:43:52.399961+00:00"
+      }
+    },
+    {
+      "id": "ignored-write",
+      "stratum": "bounded",
+      "fixture_sha256": "f1262ce4ee1ad196ec5fff60a94c44745f06fa864b67a5865e9b4d5d603600c8",
+      "label": "Not evaluated",
+      "reason": "model evaluation not run",
+      "plumbing": {
+        "baseline_rejected": true,
+        "reference_accepted": true,
+        "oracle_tests": 2,
+        "last_verified_solvable_at": "2026-10-17T20:43:52.787462+00:00"
+      }
+    },
+    {
+      "id": "expiry-projection",
+      "stratum": "integration",
+      "fixture_sha256": "6fe8ae482c583af9d029e353f71fe1967b88b86e9e5ec355c4af834948d0d254",
+      "label": "Not evaluated",
+      "reason": "model evaluation not run",
+      "plumbing": {
+        "baseline_rejected": true,
+        "reference_accepted": true,
+        "oracle_tests": 2,
+        "last_verified_solvable_at": "2026-10-17T20:43:53.163470+00:00"
+      }
+    },
+    {
+      "id": "verification-repair",
+      "stratum": "adversarial",
+      "fixture_sha256": "9f6c845121a5748dde4a0a26ed94a9b3fedc5a57fffecf6950565ad9bc69446e",
+      "label": "Not evaluated",
+      "reason": "model evaluation not run",
+      "plumbing": {
+        "baseline_rejected": true,
+        "reference_accepted": true,
+        "oracle_tests": 2,
+        "last_verified_solvable_at": "2026-10-17T20:43:53.543415+00:00"
+      }
+    },
+    {
+      "id": "cancel-begin",
+      "stratum": "adversarial",
+      "fixture_sha256": "3ab0735bd3ac5a9caf30738d75791578ebde7704f8fbf6eb647ff29f7cd5a1b9",
+      "label": "Not evaluated",
+      "reason": "model evaluation not run",
+      "plumbing": {
+        "baseline_rejected": true,
+        "reference_accepted": true,
+        "oracle_tests": 2,
+        "last_verified_solvable_at": "2026-10-17T20:43:53.953274+00:00"
+      }
+    },
+    {
+      "id": "daily-retention",
+      "stratum": "adversarial",
+      "fixture_sha256": "05ce7461365c5d84c44454180cd69ffbe875dfcde1608ca2a7c5ead6a778f449",
+      "label": "Not evaluated",
+      "reason": "model evaluation not run",
+      "plumbing": {
+        "baseline_rejected": true,
+        "reference_accepted": true,
+        "oracle_tests": 3,
+        "last_verified_solvable_at": "2026-10-17T20:43:54.311263+00:00"
+      }
+    },
+    {
+      "id": "workspace-paths",
+      "stratum": "bounded",
+      "fixture_sha256": "8d45e8d49f6592713b5308da01d0e4d2824f0eabea6365c56a293a86fcfa6822",
+      "label": "Not evaluated",
+      "reason": "model evaluation not run",
+      "plumbing": {
+        "baseline_rejected": true,
+        "reference_accepted": true,
+        "oracle_tests": 2,
+        "last_verified_solvable_at": "2026-10-17T20:43:54.695317+00:00"
+      }
+    },
+    {
+      "id": "signed-admission",
+      "stratum": "adversarial",
+      "fixture_sha256": "3be2530408b2aaf411232f69640069eefa903b19f5ed6358a0ad6162475294e8",
+      "label": "Not evaluated",
+      "reason": "model evaluation not run",
+      "plumbing": {
+        "baseline_rejected": true,
+        "reference_accepted": true,
+        "oracle_tests": 2,
+        "last_verified_solvable_at": "2026-10-17T20:43:55.079521+00:00"
+      }
+    },
+    {
+      "id": "request-cost",
+      "stratum": "adversarial",
+      "fixture_sha256": "b7fa4be1b8284d6b6b3d5892617f1d2fd81d956061de84acb104f77bff456c9c",
+      "label": "Not evaluated",
+      "reason": "model evaluation not run",
+      "plumbing": {
+        "baseline_rejected": true,
+        "reference_accepted": true,
+        "oracle_tests": 2,
+        "last_verified_solvable_at": "2026-10-17T20:43:55.511677+00:00"
+      }
+    },
+    {
+      "id": "call-lease",
+      "stratum": "adversarial",
+      "fixture_sha256": "9ab3791803faed61587f36220aaf55ed7cebc61bfc868a4288488334b3d1dde0",
+      "label": "Not evaluated",
+      "reason": "model evaluation not run",
+      "plumbing": {
+        "baseline_rejected": true,
+        "reference_accepted": true,
+        "oracle_tests": 2,
+        "last_verified_solvable_at": "2026-10-17T20:43:55.906052+00:00"
+      }
+    },
+    {
+      "id": "image-size",
+      "stratum": "bounded",
+      "fixture_sha256": "9bb62c0c07ad56449d1e06c159508b7a00568b3cdc27294df1c6528e26a7ef57",
+      "label": "Not evaluated",
+      "reason": "model evaluation not run",
+      "plumbing": {
+        "baseline_rejected": true,
+        "reference_accepted": true,
+        "oracle_tests": 2,
+        "last_verified_solvable_at": "2026-10-17T20:43:56.255462+00:00"
+      }
+    },
+    {
+      "id": "image-recovery",
+      "stratum": "bounded",
+      "fixture_sha256": "be86cfb42109bd0dcb9d2534643c94434ac8dc4cc3530c871b6180dd93b92607",
+      "label": "Not evaluated",
+      "reason": "model evaluation not run",
+      "plumbing": {
+        "baseline_rejected": true,
+        "reference_accepted": true,
+        "oracle_tests": 2,
+        "last_verified_solvable_at": "2026-10-17T20:43:56.605564+00:00"
+      }
+    },
+    {
+      "id": "startup-order",
+      "stratum": "integration",
+      "fixture_sha256": "89429c379ea5de2ecd37c31946182ba3e4303f046f95e8ae833c4ff53274d576",
+      "label": "Not evaluated",
+      "reason": "model evaluation not run",
+      "plumbing": {
+        "baseline_rejected": true,
+        "reference_accepted": true,
+        "oracle_tests": 2,
+        "last_verified_solvable_at": "2026-10-17T20:43:56.958566+00:00"
+      }
+    },
+    {
+      "id": "verification-feedback",
+      "stratum": "adversarial",
+      "fixture_sha256": "738a2745a20b10e78fc1c187c33f0599d88e79fac60316512339c53b118f0696",
+      "label": "Not evaluated",
+      "reason": "model evaluation not run",
+      "plumbing": {
+        "baseline_rejected": true,
+        "reference_accepted": true,
+        "oracle_tests": 3,
+        "last_verified_solvable_at": "2026-10-17T20:43:57.339750+00:00"
+      }
+    }
+  ]
+}
