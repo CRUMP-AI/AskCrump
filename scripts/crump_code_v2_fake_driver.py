@@ -11,6 +11,7 @@ infrastructure is used. Per-case labels remain "Not evaluated (model
 evaluation not run)"; fake execution proves the loop runs, nothing more.
 Evaluator-owned oracle isolation is separately open and is not claimed here.
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -24,7 +25,6 @@ import subprocess
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
-
 
 FIXED_EPOCH = "2026-01-01T00:00:00+00:00"
 PROVIDER_NAME = "deterministic-fake"
@@ -83,9 +83,16 @@ class DeterministicFakeProvider:
     inherited unchanged.
     """
 
-    def __init__(self, runner_cls, settings, service, *, seed: str,
-                 script: list[dict[str, Any]] | None = None,
-                 cancel_after_turns: int | None = None) -> None:
+    def __init__(
+        self,
+        runner_cls,
+        settings,
+        service,
+        *,
+        seed: str,
+        script: list[dict[str, Any]] | None = None,
+        cancel_after_turns: int | None = None,
+    ) -> None:
         # runner_cls is backend.code_runner.CrumpCodeRunner; passed in so this
         # module never imports backend at module scope (keeps unit-test
         # collection light).
@@ -100,32 +107,46 @@ class DeterministicFakeProvider:
     def __getattr__(self, name: str) -> Any:
         return getattr(self._runner, name)
 
-    async def _request_turn(self, *, task: dict[str, Any], call_key: str,
-                            messages: list[dict[str, Any]],
-                            tools: list[dict[str, Any]]) -> dict[str, Any]:
+    async def _request_turn(
+        self,
+        *,
+        task: dict[str, Any],
+        call_key: str,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+    ) -> dict[str, Any]:
         step = len(self.turn_log)
         entry = self.script[min(step, len(self.script) - 1)]
         payload = copy.deepcopy(entry)
         for index, block in enumerate(payload.get("content", [])):
-            if isinstance(block, dict) and block.get("type") == "tool_use" and not block.get("id"):
+            if (
+                isinstance(block, dict)
+                and block.get("type") == "tool_use"
+                and not block.get("id")
+            ):
                 block["id"] = f"toolu_fake_{self.seed}_{step}_{index}"
         saw_repair_feedback = any(
-            isinstance(m, dict) and m.get("role") == "user"
+            isinstance(m, dict)
+            and m.get("role") == "user"
             and "Final verification requires repair" in json.dumps(m.get("content", ""))
             for m in messages
         )
-        self.turn_log.append({
-            "call_key": call_key,
-            "step": step,
-            "message_count": len(messages),
-            "saw_repair_feedback": saw_repair_feedback,
-        })
+        self.turn_log.append(
+            {
+                "call_key": call_key,
+                "step": step,
+                "message_count": len(messages),
+                "saw_repair_feedback": saw_repair_feedback,
+            }
+        )
         if self.cancel_after_turns is not None and step + 1 >= self.cancel_after_turns:
             # Simulate an external cancellation landing between provider turns.
             self.service.cancel_requested = True
         return payload
 
-    async def run_in_workspace(self, task: dict[str, Any], workspace: Any) -> dict[str, Any]:
+    async def run_in_workspace(
+        self, task: dict[str, Any], workspace: Any
+    ) -> dict[str, Any]:
         # Route through the REAL production loop; only _request_turn is fake.
         original = self._runner._request_turn
         self._runner._request_turn = self._request_turn  # type: ignore[method-assign]
@@ -148,24 +169,39 @@ class FakeCodeTaskService:
         self._clock += 1
         return f"2026-01-01T00:00:{self._clock:02d}+00:00"
 
-    async def get(self, *, user_id: str, task_id: str,
-                  include_history: bool = False) -> dict[str, Any]:
+    async def get(
+        self, *, user_id: str, task_id: str, include_history: bool = False
+    ) -> dict[str, Any]:
         task = dict(self.task)
         if self.cancel_requested:
             task["status"] = "cancelled"
         return task
 
-    async def append_event(self, task: dict[str, Any], event_type: str,
-                           payload: dict[str, Any] | None = None) -> None:
+    async def append_event(
+        self,
+        task: dict[str, Any],
+        event_type: str,
+        payload: dict[str, Any] | None = None,
+    ) -> None:
         if event_type not in EVENT_TYPES:
             raise ValueError("Unknown Crump Code event type.")
-        self.events.append({"t": self._tick(), "event_type": event_type,
-                            "payload": copy.deepcopy(payload)})
+        self.events.append(
+            {
+                "t": self._tick(),
+                "event_type": event_type,
+                "payload": copy.deepcopy(payload),
+            }
+        )
 
-    async def transition(self, task: dict[str, Any], target: str, *,
-                         changes: dict[str, Any] | None = None,
-                         event_type: str | None = None,
-                         event_payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def transition(
+        self,
+        task: dict[str, Any],
+        target: str,
+        *,
+        changes: dict[str, Any] | None = None,
+        event_type: str | None = None,
+        event_payload: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         current = str(task.get("status") or "")
         if target not in TRANSITIONS.get(current, frozenset()):
             raise ValueError(f"Crump Code task cannot move from {current} to {target}.")
@@ -185,21 +221,30 @@ class LocalSandbox:
         self.root = root
         self.commands: list[dict[str, Any]] = []
 
-    async def run_process(self, command: str, args: list[str], *,
-                          kill_after: int = 40,
-                          capture_output: bool = True) -> Any:
+    async def run_process(
+        self,
+        command: str,
+        args: list[str],
+        *,
+        kill_after: int = 40,
+        capture_output: bool = True,
+    ) -> Any:
         env = dict(os.environ)
         env["GIT_AUTHOR_DATE"] = FIXED_EPOCH
         env["GIT_COMMITTER_DATE"] = FIXED_EPOCH
         self.commands.append({"command": command, "args": list(args)})
         proc = await asyncio.create_subprocess_exec(
-            command, *args,
-            cwd=self.root, env=env,
+            command,
+            *args,
+            cwd=self.root,
+            env=env,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
         try:
-            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=kill_after)
+            stdout, stderr = await asyncio.wait_for(
+                proc.communicate(), timeout=kill_after
+            )
         except asyncio.TimeoutError:
             proc.kill()
             await proc.communicate()
@@ -220,14 +265,21 @@ def prepare_workspace(case_id: str, corpus_root: Path, dest: Path) -> None:
     # Real target repositories ignore build/test caches; without this, the
     # runner's own source-integrity accounting rejects pytest's __pycache__.
     (dest / ".gitignore").write_text(
-        "__pycache__/\n*.pyc\n.pytest_cache/\n", encoding="utf-8")
+        "__pycache__/\n*.pyc\n.pytest_cache/\n", encoding="utf-8"
+    )
     env = dict(os.environ)
     env["GIT_AUTHOR_DATE"] = FIXED_EPOCH
     env["GIT_COMMITTER_DATE"] = FIXED_EPOCH
 
     def git(*args: str) -> None:
-        subprocess.run(["git", *args], cwd=dest, env=env, check=True,
-                       capture_output=True, text=True)
+        subprocess.run(
+            ["git", *args],
+            cwd=dest,
+            env=env,
+            check=True,
+            capture_output=True,
+            text=True,
+        )
 
     git("init", "-q")
     git("config", "user.email", "fake-driver@example.invalid")
@@ -240,20 +292,33 @@ def prepare_workspace(case_id: str, corpus_root: Path, dest: Path) -> None:
 def default_script(case: Any) -> list[dict[str, Any]]:
     """Inspect, read one required file, run visible checks, summarize."""
     steps = [
-        _tool_response("Inspecting the workspace inventory.",
-                       "list_files", {"path": ""}),
+        _tool_response(
+            "Inspecting the workspace inventory.", "list_files", {"path": ""}
+        ),
     ]
     first_py = sorted(p for p in case.required_paths if p.endswith(".py"))
     target = first_py[0] if first_py else sorted(case.required_paths)[0]
-    steps.append(_tool_response(f"Reading {target}.", "read_file",
-                               {"path": target, "start_line": 1, "max_lines": 250}))
+    steps.append(
+        _tool_response(
+            f"Reading {target}.",
+            "read_file",
+            {"path": target, "start_line": 1, "max_lines": 250},
+        )
+    )
     if "tests/test_visible.py" in case.workspace:
-        steps.append(_tool_response(
-            "Running the visible checks.", "run_verification",
-            {"command": "python3",
-             "args": ["-m", "pytest", "tests/test_visible.py", "-q"]}))
-    steps.append(_text_response(
-        "Inspection and checks complete. No source changes were needed."))
+        steps.append(
+            _tool_response(
+                "Running the visible checks.",
+                "run_verification",
+                {
+                    "command": "python3",
+                    "args": ["-m", "pytest", "tests/test_visible.py", "-q"],
+                },
+            )
+        )
+    steps.append(
+        _text_response("Inspection and checks complete. No source changes were needed.")
+    )
     return steps
 
 
@@ -276,7 +341,9 @@ def _tool_calls_from_events(events: list[dict[str, Any]]) -> list[dict[str, Any]
     for event in events:
         if event["event_type"] == "tool.requested":
             payload = event["payload"] or {}
-            calls.append({k: payload[k] for k in ("tool", "path", "command") if k in payload})
+            calls.append(
+                {k: payload[k] for k in ("tool", "path", "command") if k in payload}
+            )
     return calls
 
 
@@ -287,13 +354,19 @@ def _receipts_summary(receipts: list[dict[str, Any]]) -> list[dict[str, Any]]:
     ]
 
 
-async def drive_case(case: Any, *, corpus_root: Path, work_root: Path,
-                     runner_cls: Any, settings: Any,
-                     script: list[dict[str, Any]] | None = None,
-                     seed: str | None = None,
-                     cancel_after_turns: int | None = None,
-                     adapter_support: str = "supported",
-                     blocked_reason: str | None = None) -> dict[str, Any]:
+async def drive_case(
+    case: Any,
+    *,
+    corpus_root: Path,
+    work_root: Path,
+    runner_cls: Any,
+    settings: Any,
+    script: list[dict[str, Any]] | None = None,
+    seed: str | None = None,
+    cancel_after_turns: int | None = None,
+    adapter_support: str = "supported",
+    blocked_reason: str | None = None,
+) -> dict[str, Any]:
     """Drive one corpus case through the REAL production loop with a fake provider.
 
     Returns a plumbing-only record. The honest per-case label is unchanged:
@@ -303,7 +376,10 @@ async def drive_case(case: Any, *, corpus_root: Path, work_root: Path,
     dest = work_root / f"ws-{case.id}"
     prepare_workspace(case.id, corpus_root, dest)
 
-    from backend.code_runner import CodeRunnerError, SandboxWorkspace  # local import: heavy deps
+    from backend.code_runner import (  # local import: heavy deps
+        CodeRunnerError,
+        SandboxWorkspace,
+    )
 
     task = {
         "id": f"fake-{case.id}",
@@ -318,7 +394,10 @@ async def drive_case(case: Any, *, corpus_root: Path, work_root: Path,
     }
     service = FakeCodeTaskService(task)
     provider = DeterministicFakeProvider(
-        runner_cls, settings, service, seed=seed,
+        runner_cls,
+        settings,
+        service,
+        seed=seed,
         script=script if script is not None else default_script(case),
         cancel_after_turns=cancel_after_turns,
     )
@@ -333,15 +412,19 @@ async def drive_case(case: Any, *, corpus_root: Path, work_root: Path,
     except CodeRunnerError as exc:
         if exc.code == "CODE_TASK_CANCELLED":
             cancelled = await service.transition(
-                service.task, "cancelled", event_type="task.cancelled",
-                event_payload={"status": "cancelled", "failureCode": exc.code})
+                service.task,
+                "cancelled",
+                event_type="task.cancelled",
+                event_payload={"status": "cancelled", "failureCode": exc.code},
+            )
             outcome["final_status"] = cancelled.get("status")
             outcome["failure_code"] = exc.code
         else:
             outcome["final_status"] = "error"
             outcome["error"] = {"code": exc.code, "message": str(exc)[:200]}
     repair_rounds = sum(
-        1 for e in service.events
+        1
+        for e in service.events
         if e["event_type"] == "verification.completed"
         and (e["payload"] or {}).get("status") == "repair_required"
     )
@@ -361,21 +444,33 @@ async def drive_case(case: Any, *, corpus_root: Path, work_root: Path,
             "provider_turns": len(provider.turn_log),
             "tool_calls": _tool_calls_from_events(service.events),
             "repair_rounds_observed": repair_rounds,
-            "events": [(e["event_type"], (e["payload"] or {}).get("status")) for e in service.events],
+            "events": [
+                (e["event_type"], (e["payload"] or {}).get("status"))
+                for e in service.events
+            ],
             **outcome,
         },
     }
     return record
 
 
-async def drive_all(corpus_root: Path, work_root: Path, runner_cls: Any,
-                    settings: Any, *, seed: str = "v1") -> dict[str, Any]:
+async def drive_all(
+    corpus_root: Path,
+    work_root: Path,
+    runner_cls: Any,
+    settings: Any,
+    *,
+    seed: str = "v1",
+) -> dict[str, Any]:
     """Drive all 20 corpus cases. Blocked cases are driven AND marked blocked."""
     from scripts.evaluate_crump_code_v2 import load_suite  # local import: heavy deps
+
     suite = load_suite(corpus_root)
     # Integrity: workspace files must match the frozen manifest before driving.
     for case in suite.cases:
-        for rel, expected in sorted(_manifest_files(corpus_root).get(case.id, {}).items()):
+        for rel, expected in sorted(
+            _manifest_files(corpus_root).get(case.id, {}).items()
+        ):
             if not rel.startswith("workspace/"):
                 continue
             data = (corpus_root / "cases" / case.id / rel).read_bytes()
@@ -386,8 +481,12 @@ async def drive_all(corpus_root: Path, work_root: Path, runner_cls: Any,
     for case in suite.cases:
         supported = case.id in SUPPORTED_OBSERVATION_CONTRACTS
         record = await drive_case(
-            case, corpus_root=corpus_root, work_root=work_root,
-            runner_cls=runner_cls, settings=settings, seed=f"{case.id}-{seed}",
+            case,
+            corpus_root=corpus_root,
+            work_root=work_root,
+            runner_cls=runner_cls,
+            settings=settings,
+            seed=f"{case.id}-{seed}",
             adapter_support="supported" if supported else "blocked",
             blocked_reason=None if supported else "missing trusted adapter",
         )
@@ -419,29 +518,44 @@ def canonical_report(report: dict[str, Any]) -> str:
 
 def main() -> None:
     import argparse
-    parser = argparse.ArgumentParser(description="Deterministic fake-provider driver (plumbing only).")
+
+    parser = argparse.ArgumentParser(
+        description="Deterministic fake-provider driver (plumbing only)."
+    )
     parser.add_argument("--corpus-root", default="benchmarks/crump_code/real_tasks_v2")
     parser.add_argument("--work-root", default="/tmp/crump-code-v2-fake-driver")
     parser.add_argument("--out", default="fake_driver_report.json")
     parser.add_argument("--seed", default="v1")
     args = parser.parse_args()
 
-    from types import SimpleNamespace
     import sys
+    from types import SimpleNamespace
+
     repo_root = Path(__file__).resolve().parents[1]
     if str(repo_root) not in sys.path:
         sys.path.insert(0, str(repo_root))
     from backend.code_runner import CrumpCodeRunner
 
-    settings = SimpleNamespace(code_max_agent_steps=8, anthropic_api_key=None,
-                               anthropic_model="fake-provider")
+    settings = SimpleNamespace(
+        code_max_agent_steps=8, anthropic_api_key=None, anthropic_model="fake-provider"
+    )
     work_root = Path(args.work_root)
-    report = asyncio.run(drive_all(Path(args.corpus_root), work_root,
-                                   CrumpCodeRunner, settings, seed=args.seed))
+    report = asyncio.run(
+        drive_all(
+            Path(args.corpus_root), work_root, CrumpCodeRunner, settings, seed=args.seed
+        )
+    )
     # Determinism self-check: run twice, compare canonical form.
     work_root2 = Path(str(work_root) + "-second")
-    report2 = asyncio.run(drive_all(Path(args.corpus_root), work_root2,
-                                    CrumpCodeRunner, settings, seed=args.seed))
+    report2 = asyncio.run(
+        drive_all(
+            Path(args.corpus_root),
+            work_root2,
+            CrumpCodeRunner,
+            settings,
+            seed=args.seed,
+        )
+    )
     identical = canonical_report(report) == canonical_report(report2)
     report["determinism"] = {"runs": 2, "canonical_identical": identical}
     if not identical:
@@ -449,8 +563,10 @@ def main() -> None:
     Path(args.out).write_text(canonical_report(report), encoding="utf-8")
     n = len(report["cases"])
     blocked = sum(1 for c in report["cases"] if c["adapter_support"] == "blocked")
-    print(f"drove {n} cases ({blocked} blocked, all represented); "
-          f"determinism check passed; report -> {args.out}")
+    print(
+        f"drove {n} cases ({blocked} blocked, all represented); "
+        f"determinism check passed; report -> {args.out}"
+    )
 
 
 if __name__ == "__main__":
