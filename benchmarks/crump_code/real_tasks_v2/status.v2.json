@@ -9,9 +9,9 @@
     "not_evaluated": 20,
     "plumbing_only": 0
   },
-  "aggregate": "0/20 - authored regression reductions, sandboxed harness",
+  "aggregate": "Model evaluation not run; 0 cases evaluated; fix rate unavailable",
   "fix_rate": null,
-  "fix_rate_note": "No model run has been performed. The fix-rate number gates activation and marketing, not the merge, and is not computable from this file.",
+  "fix_rate_note": "No model run has been performed. No fix rate is computable: 0 cases evaluated. The fix-rate number gates activation and marketing, not the merge.",
   "scope": "Twenty original sanitized regression exercises; cited history motivates adaptations, not literal historical reproducers or broad coding capability. No model quality result is included. Difficulty strata are author-assigned, not empirically calibrated.",
   "excluded_capabilities": [
     "conversational clarification of ambiguous requirements",
@@ -19,7 +19,7 @@
     "browser/mobile end-to-end behavior",
     "production provider interoperability"
   ],
-  "note": "Plumbing coverage (failing baselines, passing references, frozen fixtures) is shown per case and is not a model quality result.",
+  "note": "Plumbing coverage (failing baselines, passing references, frozen fixtures) is shown per case and is not a model quality result. Fixture checks do not establish sandbox isolation.",
   "cases": [
     {
       "id": "activity-latest",
