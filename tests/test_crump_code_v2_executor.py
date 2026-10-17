@@ -28,7 +28,9 @@ from scripts.crump_code_v2_executor import (
     REASON_DEADLINE_EXPIRED,
     REASON_DUPLICATE_TEST_ID,
     REASON_EVIDENCE_DIGEST_MISMATCH,
+    REASON_EVIDENCE_RECORDS_MISMATCH,
     REASON_EXTRA_TEST_ID,
+    REASON_MALFORMED_EVIDENCE,
     REASON_MISSING_TEST_ID,
     REASON_NON_TERMINAL_TEST_RECORD,
     REASON_REFERENCE_BYTES_PRESENT,
@@ -39,6 +41,7 @@ from scripts.crump_code_v2_executor import (
     FrozenRun,
     MaliciousFakeProducer,
     TestRecord,
+    canonical_evidence_bytes,
 )
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -98,13 +101,7 @@ def make_evidence(
     pairs: list[tuple[str, str]], raw: bytes | None = None
 ) -> EvidenceBundle:
     records = tuple(TestRecord(test_id=tid, status=st) for tid, st in pairs)
-    blob = (
-        raw
-        if raw is not None
-        else json.dumps(
-            [(r.test_id, r.status) for r in records], sort_keys=True
-        ).encode()
-    )
+    blob = raw if raw is not None else canonical_evidence_bytes(records)
     return EvidenceBundle(
         test_records=records,
         evidence_bytes=blob,
@@ -661,3 +658,286 @@ def test_honest_labels_untouched_by_executor():
     assert len(record["cases"]) == 20
     assert all(c["label"] == "Not evaluated" for c in record["cases"])
     assert all(c["reason"] == "model evaluation not run" for c in record["cases"])
+
+
+# ---------------------------------------------------------------------------
+# Blockers: evidence/grade binding, malformed evidence, state/receipt
+# agreement, descriptor/evidence mutation, timeout/cancel precedence
+# ---------------------------------------------------------------------------
+
+from types import SimpleNamespace  # noqa: E402
+
+
+def test_evidence_bytes_records_substitution_refused(ex):
+    # BLOCKER 1 reproducer: the digest covers b'[]' but the submitted
+    # records claim all-pass. The verdict is derived from the bytes, so
+    # this is incomplete (records mismatch), never pass.
+    candidate = b"candidate bytes here"
+    handle = ex.bind(make_frozen(ex, candidate=candidate), candidate)
+    evidence = make_evidence(
+        [("T.test_one", "pass"), ("T.test_two", "pass"), ("T.test_three", "pass")],
+        raw=b"[]",
+    )
+    result = ex.evaluate(handle, evidence)
+    assert result.outcome == "incomplete"
+    assert result.reason_code == REASON_EVIDENCE_RECORDS_MISMATCH
+    # The handle is terminal, not stranded.
+    assert ex.cancel(handle) == "incomplete"
+
+
+def test_malformed_evidence_bytes_none_is_incomplete(ex):
+    candidate = b"candidate bytes here"
+    handle = ex.bind(make_frozen(ex, candidate=candidate), candidate)
+    bad = EvidenceBundle(
+        test_records=passing_evidence().test_records,
+        evidence_bytes=None,
+        evidence_sha256="x",
+    )
+    result = ex.evaluate(handle, bad)
+    assert result.outcome == "incomplete"
+    assert result.reason_code == REASON_MALFORMED_EVIDENCE
+    assert result.diagnostics  # safe diagnostics retained
+    # Identity survives: the receipt still names the run.
+    assert result.run_id and result.case_id == "alpha"
+    # Handle is terminal, not stranded in running.
+    assert ex.cancel(handle) == "incomplete"
+    with pytest.raises(BoundaryRefusal) as err:
+        ex.evaluate(handle, passing_evidence())
+    assert err.value.code == CODE_REPLAYED_HANDLE
+
+
+@pytest.mark.parametrize("raw", [b"not json", b'{"a": 1}', b'[["T.test_one"]]', b""])
+def test_malformed_evidence_bytes_unparseable_is_incomplete(ex, raw):
+    candidate = b"candidate bytes here"
+    handle = ex.bind(make_frozen(ex, candidate=candidate), candidate)
+    bad = EvidenceBundle(
+        test_records=(),
+        evidence_bytes=raw,
+        evidence_sha256=hashlib.sha256(raw).hexdigest(),
+    )
+    result = ex.evaluate(handle, bad)
+    assert result.outcome == "incomplete"
+    assert result.reason_code == REASON_MALFORMED_EVIDENCE
+
+
+def test_malformed_evidence_digest_none_is_incomplete(ex):
+    candidate = b"candidate bytes here"
+    handle = ex.bind(make_frozen(ex, candidate=candidate), candidate)
+    good = passing_evidence()
+    bad = EvidenceBundle(
+        test_records=good.test_records,
+        evidence_bytes=good.evidence_bytes,
+        evidence_sha256=None,
+    )
+    result = ex.evaluate(handle, bad)
+    assert result.outcome == "incomplete"
+    assert result.reason_code == REASON_MALFORMED_EVIDENCE
+
+
+def test_malformed_status_unhashable_is_incomplete(ex):
+    # Previously: `status not in _KNOWN_TEST_STATUSES` raised TypeError for
+    # unhashable statuses. Now: immutable incomplete, no crash.
+    candidate = b"candidate bytes here"
+    handle = ex.bind(make_frozen(ex, candidate=candidate), candidate)
+    pairs = [("T.test_one", []), ("T.test_two", "pass"), ("T.test_three", "pass")]
+    blob = json.dumps(pairs).encode()
+    records = tuple(TestRecord(test_id=tid, status=st) for tid, st in pairs)
+    bad = EvidenceBundle(
+        test_records=records,
+        evidence_bytes=blob,
+        evidence_sha256=hashlib.sha256(blob).hexdigest(),
+    )
+    result = ex.evaluate(handle, bad)
+    assert result.outcome == "incomplete"
+    assert result.reason_code == REASON_MALFORMED_EVIDENCE
+
+
+def test_malformed_test_records_not_tuple_is_incomplete(ex):
+    candidate = b"candidate bytes here"
+    handle = ex.bind(make_frozen(ex, candidate=candidate), candidate)
+    good = passing_evidence()
+    bad = EvidenceBundle(
+        test_records=list(good.test_records),
+        evidence_bytes=good.evidence_bytes,
+        evidence_sha256=good.evidence_sha256,
+    )
+    result = ex.evaluate(handle, bad)
+    assert result.outcome == "incomplete"
+    assert result.reason_code == REASON_MALFORMED_EVIDENCE
+
+
+def test_callback_exception_becomes_immutable_incomplete(ex):
+    candidate = b"candidate bytes here"
+    handle = ex.bind(make_frozen(ex, candidate=candidate), candidate)
+    original = ex._oracle_phase
+
+    def boom(record, validated, surface):
+        raise RuntimeError("producer callback exploded")
+
+    ex._oracle_phase = boom
+    try:
+        result = ex.evaluate(handle, passing_evidence())
+    finally:
+        ex._oracle_phase = original
+    assert result.outcome == "incomplete"
+    assert result.reason_code == REASON_MALFORMED_EVIDENCE
+    assert "RuntimeError" in (result.diagnostics or "")
+    assert ex.cancel(handle) == "incomplete"  # terminal, not stranded
+
+
+def test_cancel_after_reference_downgrade_returns_receipt_outcome(corpus):
+    # BLOCKER 3 reproducer: reference blob + passing records. The receipt
+    # says incomplete (reference downgrade); cancel() must return the
+    # receipt's outcome, not a stale "pass".
+    ref_blob = (corpus / "cases" / "alpha" / "reference" / "solution.py").read_bytes()
+    smuggled = b"candidate bytes here\n" + ref_blob
+    ex = make_executor(corpus)
+    handle = ex.bind(make_frozen(ex, candidate=smuggled), smuggled)
+    result = ex.evaluate(handle, passing_evidence())
+    assert result.outcome == "incomplete"
+    assert result.reason_code == REASON_REFERENCE_BYTES_PRESENT
+    assert ex.cancel(handle) == "incomplete"
+
+
+def test_descriptor_mutation_after_bind_ignored(ex):
+    # BLOCKER 4a: a mutable descriptor passes validation; later mutation
+    # must not change the binding — the executor keeps its own snapshot.
+    candidate = b"candidate bytes here"
+    ns = SimpleNamespace(
+        run_id="run-mutable-1",
+        case_id="alpha",
+        corpus_manifest_sha=ex.manifest_sha256,
+        candidate_artifact_sha=hashlib.sha256(candidate).hexdigest(),
+        oracle_suite_sha=ex.oracle_suite_sha256,
+        provenance={"driver": "fake"},
+    )
+    handle = ex.bind(ns, candidate)
+    ns.case_id = "beta"  # mutate after bind: must have no effect
+    ns.run_id = "run-mutated"
+    result = ex.evaluate(handle, passing_evidence())
+    assert result.case_id == "alpha"
+    assert result.run_id == "run-mutable-1"
+    assert result.outcome == "pass"  # graded against alpha's suite, not beta's
+    # The registry still keys the ORIGINAL run_id: rebinding it is refused.
+    ns2 = SimpleNamespace(
+        run_id="run-mutable-1",
+        case_id="alpha",
+        corpus_manifest_sha=ex.manifest_sha256,
+        candidate_artifact_sha=hashlib.sha256(candidate).hexdigest(),
+        oracle_suite_sha=ex.oracle_suite_sha256,
+        provenance={},
+    )
+    with pytest.raises(BoundaryRefusal) as err:
+        ex.bind(ns2, candidate)
+    assert err.value.code == CODE_BINDING_MISMATCH
+
+
+def test_receipt_carries_bound_artifact_digests(ex):
+    # BLOCKER 4b: exported receipts identify the actual bound artifacts.
+    candidate = b"candidate bytes here"
+    handle = ex.bind(make_frozen(ex, candidate=candidate), candidate)
+    result = ex.evaluate(handle, passing_evidence())
+    assert result.corpus_manifest_sha == ex.manifest_sha256
+    assert result.candidate_artifact_sha == hashlib.sha256(candidate).hexdigest()
+    assert result.oracle_suite_sha == ex.oracle_suite_sha256
+
+
+def test_evidence_bytearray_mutation_after_snapshot_ignored(ex):
+    # BLOCKER 4c: the evidence bytes are snapshotted once at validation;
+    # later mutation cannot change the receipt.
+    candidate = b"candidate bytes here"
+    handle = ex.bind(make_frozen(ex, candidate=candidate), candidate)
+    good = passing_evidence()
+    mutable = bytearray(good.evidence_bytes)
+    evidence = EvidenceBundle(
+        test_records=good.test_records,
+        evidence_bytes=mutable,
+        evidence_sha256=good.evidence_sha256,
+    )
+    expected_digest = hashlib.sha256(bytes(mutable)).hexdigest()
+    result = ex.evaluate(handle, evidence)
+    assert result.outcome == "pass"
+    mutable[:] = b"tampered!!"
+    assert result.evidence_sha256 == expected_digest
+
+
+def test_evidence_bytearray_mutated_before_evaluate_is_digest_mismatch(ex):
+    candidate = b"candidate bytes here"
+    handle = ex.bind(make_frozen(ex, candidate=candidate), candidate)
+    good = passing_evidence()
+    mutable = bytearray(good.evidence_bytes)
+    evidence = EvidenceBundle(
+        test_records=good.test_records,
+        evidence_bytes=mutable,
+        evidence_sha256=good.evidence_sha256,
+    )
+    mutable[0:1] = b"X"  # mutate before evaluate: digest no longer matches
+    result = ex.evaluate(handle, evidence)
+    assert result.outcome == "incomplete"
+    assert result.reason_code == REASON_EVIDENCE_DIGEST_MISMATCH
+
+
+def test_cancel_after_expiry_yields_timeout(tmp_path):
+    # Precedence: observed expired deadline wins unless cancellation was
+    # already accepted before expiry. Cancel requested after expiry.
+    clock = FakeClock()
+    ex = make_executor(
+        make_corpus(tmp_path / "corpus-cancel-exp"),
+        clock=clock,
+        default_deadline_seconds=10.0,
+    )
+    candidate = b"candidate bytes here"
+    handle = ex.bind(make_frozen(ex, candidate=candidate), candidate)
+    clock.advance(11.0)
+    assert ex.cancel(handle) == "timeout"
+    with pytest.raises(BoundaryRefusal) as err:
+        ex.evaluate(handle, passing_evidence())
+    assert err.value.code == CODE_REPLAYED_HANDLE
+
+
+def test_expiry_before_cancel_race_timeout_wins(tmp_path):
+    clock = FakeClock()
+    ex = make_executor(
+        make_corpus(tmp_path / "corpus-exp-cancel"),
+        clock=clock,
+        default_deadline_seconds=10.0,
+    )
+    candidate = b"candidate bytes here"
+    handle = ex.bind(make_frozen(ex, candidate=candidate), candidate)
+    outcome, thread, release = _gated_evaluate(ex, handle, passing_evidence())
+    clock.advance(11.0)  # deadline expires first...
+    assert ex.cancel(handle) == "timeout"  # ...so the late cancel loses
+    release.set()
+    thread.join(10)
+    result = outcome["result"]
+    assert result.outcome == "timeout"
+    assert result.reason_code == REASON_DEADLINE_EXPIRED
+
+
+def test_concurrent_cancel_and_expiry_invariant(tmp_path):
+    # Truly concurrent cancel/expiry: the outcome is always exactly one of
+    # the two legal results, and the stored receipt is immutable.
+    clock = FakeClock()
+    ex = make_executor(
+        make_corpus(tmp_path / "corpus-conc"),
+        clock=clock,
+        default_deadline_seconds=10.0,
+    )
+    candidate = b"candidate bytes here"
+    handle = ex.bind(make_frozen(ex, candidate=candidate), candidate)
+    outcome, thread, release = _gated_evaluate(ex, handle, passing_evidence())
+
+    def hammer():
+        for _ in range(50):
+            clock.advance(0.5)
+            ex.cancel(handle)
+
+    hammer_thread = threading.Thread(target=hammer)
+    hammer_thread.start()
+    release.set()
+    thread.join(10)
+    hammer_thread.join(10)
+    result = outcome["result"]
+    assert result.outcome in ("cancelled", "timeout")
+    assert result.reason_code in (REASON_CANCEL_ACCEPTED, REASON_DEADLINE_EXPIRED)
+    assert ex.cancel(handle) == result.outcome  # immutable shared receipt
