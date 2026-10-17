@@ -10,9 +10,30 @@ Nothing here evaluates model capability. No model is called. No paid
 infrastructure is used. Per-case labels remain "Not evaluated (model
 evaluation not run)"; fake execution proves the loop runs, nothing more.
 Evaluator-owned oracle isolation is separately open and is not claimed here.
+
+REMAINING LIMITATIONS (explicit, by design):
+- In-memory task service: provisioning, durable cancellation, and refunds
+  are not tested.
+- Local subprocess sandbox: commands run locally, not in isolated
+  execution; the isolation boundary is not the production one.
+- Deterministic fake provider: scripted responses prove the loop runs
+  (plumbing); they prove nothing about model capability and cannot
+  discover failures the script does not encode.
+- 17 of 20 observation contracts remain blocked on the missing trusted
+  adapter; blocked outcomes are represented, not resolved.
+- Oracle isolation is evaluator-owned and separately open; nothing here
+  touches or claims it.
 """
 
 from __future__ import annotations
+
+LIMITATIONS = [
+    "In-memory task service: provisioning, durable cancellation, and refunds are not tested.",
+    "Local subprocess sandbox: commands run locally, not in isolated execution; the isolation boundary is not the production one.",
+    "Deterministic fake provider: scripted responses prove the loop runs (plumbing); they prove nothing about model capability.",
+    "17 of 20 observation contracts remain blocked on the missing trusted adapter; blocked outcomes are represented, not resolved.",
+    "Oracle isolation is evaluator-owned and separately open; nothing here touches or claims it.",
+]
 
 import asyncio
 import copy
@@ -229,12 +250,54 @@ def _hermetic_git_env() -> dict[str, str]:
     return env
 
 
+class _LocalFs:
+    """Faithful local stand-in for the production sandbox fs adapter.
+
+    Production SandboxWorkspace.write_file calls
+    ``sandbox.fs.mkdir(parent, recursive=True)`` and
+    ``sandbox.fs.write_text(path, text)``. This adapter performs the same
+    operations against the local per-case temp repo. Paths arrive
+    workspace-relative and normalized by SandboxWorkspace; the adapter
+    additionally refuses anything that would escape the workspace root.
+    """
+
+    def __init__(self, root: str, log: list[dict[str, Any]]) -> None:
+        self._root = Path(root)
+        self._log = log
+
+    def _resolve(self, path: str) -> Path:
+        from pathlib import PurePosixPath
+
+        posix = PurePosixPath(str(path))
+        if posix.is_absolute() or ".." in posix.parts:
+            raise ValueError(f"fs path escapes the workspace: {path}")
+        target = (self._root / posix.as_posix()).resolve()
+        root = self._root.resolve()
+        if target != root and root not in target.parents:
+            raise ValueError(f"fs path escapes the workspace: {path}")
+        if target.is_symlink():
+            raise ValueError(f"refusing to write through a symlink: {path}")
+        return target
+
+    async def mkdir(self, path: str, recursive: bool = False) -> None:
+        self._log.append({"fs": "mkdir", "path": path, "recursive": recursive})
+        self._resolve(path).mkdir(parents=recursive, exist_ok=True)
+
+    async def write_text(self, path: str, text: str) -> None:
+        self._log.append({"fs": "write_text", "path": path, "chars": len(text)})
+        target = self._resolve(path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        target.write_text(text, encoding="utf-8")
+
+
 class LocalSandbox:
     """Runs workspace commands as local subprocesses. No paid infrastructure."""
 
     def __init__(self, root: str) -> None:
         self.root = root
         self.commands: list[dict[str, Any]] = []
+        self.fs_ops: list[dict[str, Any]] = []
+        self.fs = _LocalFs(root, self.fs_ops)
 
     async def run_process(
         self,
@@ -473,7 +536,11 @@ async def drive_all(
     *,
     seed: str = "v1",
 ) -> dict[str, Any]:
-    """Drive all 20 corpus cases. Blocked cases are driven AND marked blocked."""
+    """Drive all 20 corpus cases. Blocked cases are driven AND marked blocked.
+
+    An unexpected error in one case is recorded as a harness error on that
+    case; the remaining cases are still driven and represented.
+    """
     from scripts.evaluate_crump_code_v2 import load_suite  # local import: heavy deps
 
     suite = load_suite(corpus_root)
@@ -491,16 +558,36 @@ async def drive_all(
     cases = []
     for case in suite.cases:
         supported = case.id in SUPPORTED_OBSERVATION_CONTRACTS
-        record = await drive_case(
-            case,
-            corpus_root=corpus_root,
-            work_root=work_root,
-            runner_cls=runner_cls,
-            settings=settings,
-            seed=f"{case.id}-{seed}",
-            adapter_support="supported" if supported else "blocked",
-            blocked_reason=None if supported else "missing trusted adapter",
-        )
+        try:
+            record = await drive_case(
+                case,
+                corpus_root=corpus_root,
+                work_root=work_root,
+                runner_cls=runner_cls,
+                settings=settings,
+                seed=f"{case.id}-{seed}",
+                adapter_support="supported" if supported else "blocked",
+                blocked_reason=None if supported else "missing trusted adapter",
+            )
+        except Exception as exc:  # noqa: BLE001 - containment is the point:
+            # an unexpected error in one case must not hide the rest of the
+            # suite. Record it on the case and keep driving.
+            record = {
+                "id": case.id,
+                "stratum": case.stratum,
+                "adapter_support": "supported" if supported else "blocked",
+                "blocked_reason": (
+                    None if supported else "missing trusted adapter"
+                ),
+                "honest_label": "Not evaluated",
+                "honest_reason": "model evaluation not run",
+                "plumbing_only": True,
+                "harness_error": {
+                    "type": type(exc).__name__,
+                    "message": str(exc)[:500],
+                },
+                "driver": None,
+            }
         cases.append(record)
     return {
         "report": "crump_code_v2_fake_driver",
@@ -511,6 +598,7 @@ async def drive_all(
         "provider": PROVIDER_NAME,
         "model_calls": 0,
         "paid_sandbox_used": False,
+        "limitations": list(LIMITATIONS),
         "cases": cases,
     }
 
