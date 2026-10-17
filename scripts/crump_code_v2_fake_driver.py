@@ -214,6 +214,21 @@ class FakeCodeTaskService:
         return dict(updated)
 
 
+def _hermetic_git_env() -> dict[str, str]:
+    """Fixed timestamps plus a hermetic git config.
+
+    The runner rejects repositories with clean/process filters; CI runner
+    images configure Git LFS globally, which is host noise, not a repository
+    filter. Ignoring system/global config keeps the temp repos hermetic.
+    """
+    env = dict(os.environ)
+    env["GIT_AUTHOR_DATE"] = FIXED_EPOCH
+    env["GIT_COMMITTER_DATE"] = FIXED_EPOCH
+    env["GIT_CONFIG_NOSYSTEM"] = "1"
+    env["GIT_CONFIG_GLOBAL"] = os.devnull
+    return env
+
+
 class LocalSandbox:
     """Runs workspace commands as local subprocesses. No paid infrastructure."""
 
@@ -229,9 +244,7 @@ class LocalSandbox:
         kill_after: int = 40,
         capture_output: bool = True,
     ) -> Any:
-        env = dict(os.environ)
-        env["GIT_AUTHOR_DATE"] = FIXED_EPOCH
-        env["GIT_COMMITTER_DATE"] = FIXED_EPOCH
+        env = _hermetic_git_env()
         self.commands.append({"command": command, "args": list(args)})
         proc = await asyncio.create_subprocess_exec(
             command,
@@ -267,9 +280,7 @@ def prepare_workspace(case_id: str, corpus_root: Path, dest: Path) -> None:
     (dest / ".gitignore").write_text(
         "__pycache__/\n*.pyc\n.pytest_cache/\n", encoding="utf-8"
     )
-    env = dict(os.environ)
-    env["GIT_AUTHOR_DATE"] = FIXED_EPOCH
-    env["GIT_COMMITTER_DATE"] = FIXED_EPOCH
+    env = _hermetic_git_env()
 
     def git(*args: str) -> None:
         subprocess.run(
