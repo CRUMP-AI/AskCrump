@@ -1,10 +1,10 @@
 # Crump Code security and release boundary
 
-Last reviewed: 2026-10-14
+Last reviewed: 2026-10-15
 
 ## Product scope
 
-Crump Code is a disabled-by-default foundation for project-scoped repository work. The first
+Autonomous Crump (internal `crump_code` identifiers) is a disabled-by-default foundation for project-scoped repository work. The first
 release supports public GitHub repositories, planning, patch-based implementation, bounded
 verification, durable task history, and explicit approval records. It is not yet a public
 Codex- or Claude Code-equivalent product and must not be described that way until benchmarked.
@@ -16,7 +16,8 @@ Codex- or Claude Code-equivalent product and must not be described that way unti
 - Repository sources are limited to credential-free `https://github.com/owner/repository` URLs
   and a restricted optional revision.
 - Every run uses a new, non-persistent Vercel Sandbox with two vCPUs, 4 GB memory, a 30–240
-  second limit, an empty environment, deny-all networking, and destruction on exit.
+  second limit, no privileged environment variables, deny-all networking, and destruction on exit.
+  Three static Python cache settings keep verification bytecode and pytest caches out of patches.
 - The sandbox contains only the requested public repository. It receives no production
   database, billing, provider, email, push, or storage credentials.
 - The model can use a small allowlist of file, search, edit, and verification tools. Write tools
@@ -38,7 +39,7 @@ graph. Approval records are designed for network access, credential access, dest
 writes, publishing, or extended runtime. None of those actions is granted by the initial runner.
 
 Nonterminal tasks expire after seven days and pending approvals expire after 30 minutes. Owner
-reads reconcile stale records into durable terminal states, while atomic claim and approval filters
+reads and a bounded scheduled sweep reconcile stale records into durable terminal states, while atomic claim and approval filters
 enforce the boundary even before reconciliation. Expiry is checked before entitlement evaluation,
 claim, charging, Sandbox identity resolution, and provisioning. Cancellation or expiry is checked
 again after provisioning and around the remaining model, verification, and patch boundaries.
@@ -46,7 +47,9 @@ again after provisioning and around the remaining model, verification, and patch
 Cancellation prevents a queued task from starting, clears its lease, and records the decision.
 The worker checks task status and lease ownership again around expensive boundaries. A running
 sandbox is also bounded by its execution deadline and destruction-on-exit contract. Terminal
-refunds are reconciled before any new compute, including while the feature flag is off. The
+refunds are reconciled before any new compute, including while the feature flag is off. A refund
+is eligible only before the durable first provider begin; accepted or uncertain provider work
+retains its charge and cost accounting. Expired started leases retire as uncertain without replay. The
 initial release returns a patch; it does not push, merge, publish, deploy, or mutate the source
 repository. Rollback therefore consists of declining the patch or reverting an applied patch
 outside the sandbox.
@@ -60,9 +63,12 @@ IDs, sandbox identifiers, dispatch tokens, lease tokens, and internal usage rece
 audit events and operational logs use separate allowlists and do not store prompts, source file
 bodies, repository URLs, model output, secrets, account/task identifiers, or arbitrary errors.
 
-The three tables use row-level security without client policies. `anon` and `authenticated` have
+The task, event, approval, provider reservation and daily aggregate tables use row-level security without client policies. `anon` and `authenticated` have
 no access. The server role can manage tasks, append but not modify/delete audit events, and create
 or decide but not delete approvals.
+Daily account totals survive task deletion and are removed with the account. Global daily
+held/spent totals and the strictest admitted cap contain no customer identifiers and survive
+account deletion, so deleting an account cannot reopen a spent global budget.
 
 ## Release gates
 
@@ -83,12 +89,12 @@ requires both independent controls to be deliberately opened and all of the foll
    unit cost remain unmeasured.
 5. Monitoring and a one-click kill switch are verified in production.
 
-### Activation blockers confirmed 2026-10-14
+### Foundation implemented 2026-10-15; activation remains blocked
 
-The source lock must remain closed until executable tests and implementation prove all of these
-boundaries end to end:
+The following controls now have implementation and offline regression evidence. That evidence
+does not substitute for live deployment, multiple-session concurrency, cost, or quality proof:
 
-1. Reserve an authoritative per-run, per-account, and global provider-cost budget before every
+1. Reserve an authoritative per-call, per-run, per-account, and global model-cost budget before every
    model call. Cancellation after provider work must remain cost-accounted and non-replayable;
    cancellation before provider acceptance may refund safely.
 2. Make allowance or credit reservation and durable dispatch atomically idempotent for one task,
@@ -97,8 +103,14 @@ boundaries end to end:
    returns to a list or detail screen.
 4. Verify the Vercel OIDC signature, issuer, audience, expiry, project, and team before a paid task
    can be claimed or provisioned. A caller-supplied header alone is never configuration proof.
-5. Complete the owner-approved live Sandbox, cancellation, refund, monitoring, rollback, quality,
-   latency, and unit-cost drills already required above.
+5. Failed or unknown checks produce a failed result; incomplete patches and unsafe or oversized
+   changed-file inventories fail closed. The final inventory is rechecked after verification.
+
+The source lock remains closed pending real multi-connection PostgreSQL race tests and the
+owner-approved live Sandbox, cancellation, refund, monitoring, rollback, quality, latency, and
+unit-cost drills. The model ledger excludes Sandbox infrastructure charges; duration/resources
+bound infrastructure use, while measured total cost remains an independent activation gate.
+See `AUTONOMOUS_CRUMP_FOUNDATION_2026-10-15.md` for rollout order and evidence limits.
 
 Before a wider beta, failed checks must not produce a plain completed state; truncated patches or
 file lists must fail closed or be explicitly incomplete; verification receipts, active tasks, API
@@ -113,7 +125,8 @@ single decision to the exact action and arguments without causing a second charg
 - Execution is accepted asynchronously and processed by the existing minute worker. The current
   worker claims one Crump Code task per shared cron invocation, so throughput and manuscript
   fairness must be measured under representative load before wider activation.
-- Expiry reconciliation is lazy on owner list/detail reads and execution boundaries rather than a
-  background scheduler. Atomic run and approval guards remain authoritative.
+- The bounded maintenance sweep runs before account-deletion/manuscript early returns on the
+  shared minute cron, even with Code disabled. Backlog clearance time and shared-worker fairness
+  still need load measurement. Atomic run, lease and approval guards remain authoritative.
 - Approval records exist, but the initial runner never requests elevated capabilities.
 - The model and verification suite can still miss defects. Every patch remains user-reviewable.

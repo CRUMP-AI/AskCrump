@@ -27,7 +27,6 @@ if str(ROOT) not in sys.path:
 from backend.code_runner import (  # noqa: E402
     CrumpCodeRunner,
     SandboxWorkspace,
-    redact_sensitive_text,
 )
 from scripts.evaluate_crump_code_benchmark import (  # noqa: E402
     DEFAULT_MANIFEST,
@@ -190,10 +189,24 @@ class _LocalSandbox:
             executable = self.node
         environment = os.environ.copy()
         environment["CRUMP_BENCHMARK_NODE"] = self.node
+        environment["PYTHONDONTWRITEBYTECODE"] = "1"
+        environment["PYTHONPYCACHEPREFIX"] = str(self.root / ".git" / "crump-pycache")
+        environment["PYTEST_ADDOPTS"] = "-p no:cacheprovider"
+        # Authored fixtures must not inherit the operator's global/system LFS
+        # filters. Repository-local filters still exercise the production gate.
+        environment["GIT_CONFIG_NOSYSTEM"] = "1"
+        environment["GIT_CONFIG_GLOBAL"] = os.devnull
+        # Translate only the production runner's fixed scratch locations into
+        # this authored offline fixture; preserve the real guarded patch path.
+        patch_file = str(self.root / ".git" / "crump-code.patch")
+        values = [patch_file if value == "/tmp/crump-code.patch" else
+                  "--output=" + patch_file if value == "--output=/tmp/crump-code.patch" else
+                  "pycache_prefix=" + environment["PYTHONPYCACHEPREFIX"]
+                  if value == "pycache_prefix=/tmp/crump-code-pycache" else value for value in args]
         try:
             process = await asyncio.create_subprocess_exec(
                 executable,
-                *args,
+                *values,
                 cwd=self.root,
                 env=environment,
                 stdout=asyncio.subprocess.PIPE if capture_output else None,
@@ -218,15 +231,13 @@ class _BenchmarkWorkspace(SandboxWorkspace):
         self.revision = revision
 
     async def base_revision(self) -> str:
+        # Pin the actual temporary Git HEAD for production source-state guards.
+        # Public offline metadata still names the frozen fixture inventory.
+        await super().base_revision()
         return self.revision
 
     async def patch(self) -> str:
-        result = await self._run(
-            "git", ["diff", "--binary", "--no-ext-diff", "--", "."], kill_after=30
-        )
-        if result.returncode != 0:
-            raise RuntimeError("The offline fixture patch could not be packaged.")
-        return redact_sensitive_text(result.stdout, limit=200_000)
+        return await super().patch()
 
 
 class _MemoryTaskService:
@@ -264,10 +275,12 @@ class _ScriptedRunner(CrumpCodeRunner):
     async def _anthropic_turn(
         self,
         *,
+        task: dict[str, Any],
+        call_key: str,
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]],
     ) -> dict[str, Any]:
-        del messages, tools
+        del task, call_key, messages, tools
         if not self.turns:
             raise RuntimeError("The scripted provider exhausted its fixed turns.")
         return self.turns.pop(0)
@@ -276,7 +289,8 @@ class _ScriptedRunner(CrumpCodeRunner):
 def _initialize_fixture_repository(root: Path) -> None:
     destination = root / "benchmarks" / "crump_code" / "fixtures"
     destination.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copytree(FIXTURE_ROOT, destination)
+    shutil.copytree(FIXTURE_ROOT, destination,
+                    ignore=shutil.ignore_patterns("__pycache__", "*.pyc", ".pytest_cache"))
     commands = (
         ["git", "init", "--quiet"],
         ["git", "config", "user.email", "benchmark@localhost.invalid"],

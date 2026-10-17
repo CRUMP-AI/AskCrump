@@ -359,6 +359,11 @@
           timelineHTML +
         '</section>' +
         '<aside class="cvp-side">' +
+          '<section class="cvp-panel" data-cvp-autonomous hidden aria-hidden="true" aria-label="Autonomous Crump for this Project">' +
+            '<div class="cvp-panel-head">' + eyebrowHTML('Autonomous Crump') + '</div>' +
+            '<p class="cvp-quiet">Plan and review public-repository changes inside this Ask Crump Project.</p>' +
+            '<button type="button" class="cvp-button cvp-empty-action" data-cvp-open-autonomous disabled>Open Autonomous Crump</button>' +
+          '</section>' +
           '<section class="cvp-panel" aria-label="Linked chats">' +
             '<div class="cvp-panel-head">' + eyebrowHTML('Conversations') + '</div>' +
             '<div data-cvp-chats></div>' +
@@ -372,7 +377,60 @@
 
     renderChats(detail.querySelector('[data-cvp-chats]'), conversations);
     renderKeepsakes(detail.querySelector('[data-cvp-keepsakes]'), keepsakes);
+    bindAutonomousEntry(detail, project);
   }
+
+  function bindAutonomousEntry(detail, project) {
+    var section = detail.querySelector('[data-cvp-autonomous]');
+    var button = section && section.querySelector('[data-cvp-open-autonomous]');
+    var ownerId = String(window.currentUser && window.currentUser.id || '');
+    if (!section || !button || !ownerId) return;
+    // Keyboard focus must clear the existing fixed mobile navigation.
+    button.style.scrollMarginBlockEnd = 'calc(var(--cv-mobile-nav, 0px) + 24px)';
+    var projectId = String(project.id || '');
+    function current() {
+      return section.isConnected && detail.dataset.cvpActiveProject === projectId &&
+        ownerId === String(window.currentUser && window.currentUser.id || '');
+    }
+    button.addEventListener('click', async function () {
+      if (!current() || button.disabled) return;
+      // The shared navigation owns modal focus/background state; the existing
+      // workspace still rechecks account availability before opening anything.
+      var opening = window.CrumpNavigation5930?.open?.('code', { projectId: projectId });
+      button.disabled = true;
+      button.setAttribute('aria-busy', 'true');
+      try {
+        if (!await opening && current()) {
+          section.hidden = true;
+          section.setAttribute('aria-hidden', 'true');
+        }
+      } catch (_) {
+        if (current()) { section.hidden = true; section.setAttribute('aria-hidden', 'true'); }
+      } finally {
+        button.removeAttribute('aria-busy');
+        if (current()) button.disabled = section.hidden;
+      }
+    });
+    // This is a server feature decision, not a demo flag or local plan guess.
+    // No Code assets, task creation, model call, or credit spend is requested.
+    api('/api/features').then(function (data) {
+      if (!current()) return;
+      var feature = data && data.features && data.features.code_workspace;
+      var provider = data && data.providers && data.providers.code;
+      var available = Boolean(feature && feature.configured === true && feature.entitled === true && provider && provider.configured === true);
+      section.hidden = !available;
+      section.toggleAttribute('aria-hidden', !available);
+      button.disabled = !available;
+    }).catch(function () { /* Keep the entry hidden when availability is unknown. */ });
+  }
+
+  window.addEventListener('crump:authentication-required', function () {
+    document.querySelectorAll('[data-cvp-autonomous]').forEach(function (section) {
+      section.hidden = true;
+      section.setAttribute('aria-hidden', 'true');
+      section.querySelector('[data-cvp-open-autonomous]').disabled = true;
+    });
+  });
 
   /* ---- Linked chats (real, content-free metadata) ---- */
 

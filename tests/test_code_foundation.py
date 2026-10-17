@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
@@ -71,7 +72,10 @@ class CodeLifecycleDB:
         if table == "code_task_approvals" and self.approval:
             return [dict(self.approval)]
         if table == "code_tasks":
-            return [dict(self.task)]
+            columns = _kwargs.get("columns", "*")
+            return [dict(self.task) if columns == "*" else {
+                key: self.task.get(key) for key in columns.split(",")
+            }]
         return []
 
     async def update(self, table, payload, **kwargs):
@@ -191,13 +195,12 @@ def test_code_routes_are_authenticated_server_surfaces():
     source = read("backend/routes/code.py")
     cron_source = read("backend/routes/manuscripts.py")
     assert "authenticate_request(request, db, settings)" in source
-    assert "features.consume(" in source
-    assert "code_tasks.dispatch(" in source
-    assert 'request.headers.get("x-vercel-oidc-token")' in cron_source
+    assert "features.consume(" not in source
+    assert "code_tasks.dispatch_authorized(" in source
+    assert 'code_identity_token(settings, request.headers)' in cron_source
     assert 'payload.get("confirmed") is not True' in source
     assert '"RUN_CONFIRMATION_REQUIRED"' in source
-    assert source.index("ensure_not_expired(task)") < source.index("features.consume(")
-    assert source.index("features.consume(") < source.index("code_tasks.dispatch(")
+    assert source.index("ensure_not_expired(task)") < source.index("code_tasks.dispatch_authorized(")
 
 
 def test_code_schema_is_private_audited_and_deny_all_by_contract():
@@ -223,11 +226,19 @@ def test_code_audit_foreign_keys_remain_indexed_for_bounded_cleanup():
             assert f"on public.{table}({column})" in migration
 
 
-def test_sandbox_execution_is_ephemeral_bounded_and_has_no_environment():
+def test_sandbox_execution_is_ephemeral_bounded_and_has_no_privileged_environment():
     source = read("backend/code_runner.py")
     assert "NetworkPolicy.deny_all()" in source
     assert "persistent=False" in source
-    assert "env={}" in source
+    provision = next(node for node in ast.walk(ast.parse(source))
+                     if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                     and node.func.attr == "create_sandbox")
+    environment = ast.literal_eval(next(keyword.value for keyword in provision.keywords
+                                       if keyword.arg == "env"))
+    assert environment == {
+        "PYTHONDONTWRITEBYTECODE": "1", "PYTHONPYCACHEPREFIX": "/tmp/crump-code-pycache",
+        "PYTEST_ADDOPTS": "-p no:cacheprovider",
+    }
     assert "destroy=True" in source
     assert "vcpus=2, memory=4096" in source
     assert "MAX_PATCH = 200_000" in source
@@ -291,10 +302,14 @@ async def test_expired_code_task_is_terminal_before_claim_or_charge():
 
 
 @pytest.mark.asyncio
-async def test_code_task_list_reconciles_expiry_before_rendering():
+@pytest.mark.parametrize("paid", [False, True])
+async def test_code_task_list_reconciles_expiry_before_rendering(paid):
     database = CodeLifecycleDB(
         code_task(status="queued", expires_at="2000-01-01T00:00:00+00:00")
     )
+    if paid:
+        database.task.update(usage_receipt={"eventId": "offline-credit-receipt"},
+                             payment_source="credits", lease_token="offline-lease")
 
     async def get_project(_user_id, _project_id):
         return {"id": CODE_PROJECT_ID}
@@ -304,6 +319,10 @@ async def test_code_task_list_reconciles_expiry_before_rendering():
 
     assert tasks[0]["status"] == "cancelled"
     assert tasks[0]["failure_code"] == "CODE_TASK_EXPIRED"
+    assert database.task.get("payment_source") == ("refund_pending" if paid else None)
+    assert database.task.get("lease_token") is None
+    public = CodeTaskService.public_task(tasks[0])
+    assert not {"user_id", "usage_receipt", "lease_token"} & public.keys()
 
 
 @pytest.mark.asyncio

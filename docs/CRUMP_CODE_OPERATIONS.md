@@ -1,6 +1,6 @@
 # Crump Code operations runbook
 
-Last reviewed: 2026-09-09
+Last reviewed: 2026-10-15
 
 ## Current operating state
 
@@ -9,8 +9,9 @@ Crump Code remains disabled in production. The source-controlled
 `CRUMP_ENABLE_CODE_WORKSPACE=false` switch are independent compute stops: both must be deliberately
 opened before customer feature status can report Code as configured. While either is closed, task
 creation and run requests fail closed and the shared worker does not claim new Code tasks. The
-worker may still reconcile an already-terminal refund before returning to manuscript work; that
-path never provisions a Sandbox or calls a model.
+shared cron first runs bounded task/approval/started-lease expiry and terminal refund maintenance,
+before account-deletion or manuscript early returns. The worker may also reconcile a terminal
+refund. Neither maintenance path provisions a Sandbox or calls a model.
 
 This runbook documents the release-safe controls and signals. It does not claim the remaining live
 OIDC, Sandbox-destruction, cancellation, alert-routing, rollback-drill, or benchmark activation
@@ -47,7 +48,8 @@ than statistical alerts:
 - **dispatch_rejected** with any outcome other than **refunded**, or
   **worker_unexpected_failure** with **recovery_failed:** page the operator and stop new Code work.
 - **worker_terminal_failure:** verify the task reached a terminal state and its usage receipt is
-  refunded or queued for reconciliation before allowing more compute.
+  either refunded before provider begin or retained with started/uncertain provider cost accounted.
+  Missing settlement evidence must stop further compute.
 - **refund_reconciliation_failed:** Code compute remains stopped and the shared slot returns to
   manuscripts. Investigate the refund boundary immediately and confirm the next retry settles it.
 - Repeated **worker_retry_scheduled** records in the same launch window: inspect provider and
@@ -123,9 +125,44 @@ Evidence and privacy boundaries are recorded in
 `docs/CRUMP_CODE_LIVE_SMOKE_HARNESS_RELEASE_2026-09-09.md`.
 
 Before public activation, record one owner-approved end-to-end drill that proves OIDC identity,
-deny-all networking, empty Sandbox environment, destruction, cancellation, expiry, refund,
+deny-all networking, absence of privileged Sandbox environment variables, destruction, cancellation, expiry, refund,
 operational signal visibility, and rollback timing. Then complete the fixed quality, latency, and
 unit-cost benchmark. Only after those gates and explicit enablement approval may a reviewed code
 release change `CODE_WORKSPACE_PUBLIC_RELEASED`; the environment switch remains a separate
 operator control. Crump Code stays unadvertised and disabled until both controls are deliberately
 open.
+
+## Atomic billing and model budget rollout
+
+Keep both compute stops closed. Apply
+`migrations/20261015230059_atomic_code_dispatch_provider_budget.sql` before deploying the
+application that uses its RPCs. The migration revokes legacy `dispatch_code_task` execution from
+the service role, so older rolling instances fail closed. Never restore that grant to make a
+mixed deployment appear healthy. Roll back to a disabled application and retain the additive
+schema if needed.
+
+Signed workload admission requires explicit `CODE_OIDC_ISSUER`, `CODE_OIDC_AUDIENCE`,
+`CODE_OIDC_PROJECT_ID`, `CODE_OIDC_TEAM_ID`, and `CODE_OIDC_ENVIRONMENT`. The last three may use
+the documented server-side Vercel project/team/environment fallback. Pin values from the intended
+deployment; never infer trusted values from the incoming token. RSA signature and issuer,
+audience, project, team, environment and time claims are checked before claim and provisioning.
+
+Model admission additionally requires all of these operator-approved environment values:
+
+- `CODE_PROVIDER_MODEL` (exact match with the configured Anthropic model)
+- `CODE_PROVIDER_INPUT_USD_MICROS_PER_MILLION` (upper bound including cache-write premiums)
+- `CODE_PROVIDER_OUTPUT_USD_MICROS_PER_MILLION`
+- `CODE_PROVIDER_MAX_INPUT_BYTES`, `CODE_PROVIDER_MAX_OUTPUT_TOKENS`
+- `CODE_PROVIDER_CALL_USD_MICROS`, `CODE_PROVIDER_RUN_USD_MICROS`
+- `CODE_PROVIDER_ACCOUNT_DAILY_USD_MICROS`, `CODE_PROVIDER_GLOBAL_DAILY_USD_MICROS`
+
+No price defaults or model aliases are assumed. Amounts are integer USD millionths. Policy is
+pinned atomically at task dispatch and checked again before Sandbox provisioning and every model
+reservation. A policy change requires a newly prepared task. Daily caps use UTC and retain the
+strictest observed cap for that day. Started requests never automatically replay or release
+their maximum cost hold when acceptance or usage is uncertain. Reconcile against provider billing
+before any manual correction; do not silently delete or downgrade a reservation.
+
+These budgets meter model calls only. Sandbox infrastructure cost, throughput, customer credit
+pricing and margin remain separately measured business/release gates. The browser fixture and
+PGlite verifier are offline evidence, not production activation evidence.

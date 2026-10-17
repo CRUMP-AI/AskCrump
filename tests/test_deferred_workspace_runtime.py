@@ -35,7 +35,7 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
         '/runtime-body-v1.js?v=5.9.76-response-continuity-cleanup-1',
         '/crump-vision-shell-1.0.js?v=5.9.76-atelier-workspace-1',
         '/crump-vision-chats-1.0.js?v=5.9.76-atelier-workspace-1',
-        '/crump-vision-projects-1.0.js?v=5.9.76-atelier-workspace-1',
+        '/crump-vision-projects-1.0.js?v=5.9.76-autonomous-integration-2',
         '/crump-vision-library-1.0.js?v=5.9.76-atelier-workspace-1',
         '/native-runtime.js',
         '/mobile-bridge.js',
