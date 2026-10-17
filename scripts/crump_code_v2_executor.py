@@ -66,6 +66,8 @@ REASON_AGENT_SURFACE_VIOLATION = "agent_surface_violation"
 REASON_REFERENCE_BYTES_PRESENT = "reference_bytes_present"
 REASON_DEADLINE_EXPIRED = "deadline_expired"
 REASON_CANCEL_ACCEPTED = "cancel_accepted"
+REASON_MALFORMED_EVIDENCE = "malformed_evidence"
+REASON_EVIDENCE_RECORDS_MISMATCH = "evidence_records_mismatch"
 
 
 class BoundaryRefusal(Exception):
@@ -84,6 +86,21 @@ class BoundaryRefusal(Exception):
 
 def _refuse(code: str, detail: str) -> NoReturn:
     raise BoundaryRefusal(code, detail)
+
+
+_MISSING = object()
+
+
+def _descriptor_field(obj: object, name: str) -> Any:
+    """Read a run-descriptor field defensively.
+
+    The caller may pass any attribute-bearing object; a missing attribute
+    is a binding refusal, never an AttributeError escaping to the caller.
+    """
+    value = getattr(obj, name, _MISSING)
+    if value is _MISSING:
+        _refuse(CODE_BINDING_MISMATCH, f"run descriptor is missing field {name!r}")
+    return value
 
 
 def _require_str(value: object, where: str) -> str:
@@ -221,6 +238,43 @@ class EvidenceBundle:
     evidence_sha256: str
 
 
+def canonical_evidence_bytes(records: tuple[TestRecord, ...]) -> bytes:
+    """Canonical serialization of authoritative test records.
+
+    The executor derives its verdict from the DIGESTED BYTES, never from
+    caller-supplied record objects alone — so this canonical form is the
+    single source of truth for what "the evidence says". The digest and
+    the graded records are always the same data.
+    """
+    pairs = [[r.test_id, r.status] for r in records]
+    return json.dumps(pairs, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+
+class _MalformedEvidence(Exception):
+    """Producer output that fails type/schema validation.
+
+    Converted by the caller into an immutable `incomplete` result with a
+    mechanical reason code and retained safe diagnostics — never a crash,
+    never a stranded handle.
+    """
+
+    def __init__(self, reason: str, diagnostics: str) -> None:
+        super().__init__(reason)
+        self.reason = reason
+        self.diagnostics = diagnostics
+
+
+@dataclass(frozen=True)
+class _ValidatedEvidence:
+    """Evidence after strict validation. The snapshot is taken ONCE; every
+    later step (digest check, parsing, grading, receipt) uses the snapshot,
+    never the caller-supplied bytes object again."""
+
+    snapshot: bytes
+    records: tuple[TestRecord, ...]  # derived FROM the snapshot bytes
+    declared_sha256: str
+
+
 @dataclass(frozen=True)
 class OracleResult:
     """The executor's verdict. Constructed ONLY from executor state.
@@ -241,6 +295,14 @@ class OracleResult:
     test_records: tuple[TestRecord, ...]
     evidence_sha256: str | None
     evaluated_at: str  # informational UTC timestamp, executor clock
+    # Bound-artifact digests, from executor state at bind time, so an
+    # exported receipt identifies the actual artifacts that were bound.
+    corpus_manifest_sha: str
+    candidate_artifact_sha: str
+    oracle_suite_sha: str
+    # Safe diagnostics only (type names, short reasons) — never raw
+    # evidence bytes or secrets.
+    diagnostics: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -283,8 +345,8 @@ class _BoundRun:
         "state",
         "consumed",
         "deadline_monotonic",
-        "cancel_requested",
         "sequence",
+        "result",
     )
 
     def __init__(
@@ -303,8 +365,9 @@ class _BoundRun:
         self.state = "issued"
         self.consumed = False
         self.deadline_monotonic = deadline_monotonic
-        self.cancel_requested = False
         self.sequence = sequence
+        # The single immutable terminal result, shared by every read path.
+        self.result: OracleResult | None = None
 
 
 class FakeBoundaryExecutor:
@@ -415,14 +478,23 @@ class FakeBoundaryExecutor:
         declared digest matches the executor's frozen state and every field
         is the right actual type.
         """
-        run_id = _require_str(frozen.run_id, "run_id")
-        case_id = _require_str(frozen.case_id, "case_id")
-        manifest_sha = _require_str(frozen.corpus_manifest_sha, "corpus_manifest_sha")
-        artifact_sha = _require_str(
-            frozen.candidate_artifact_sha, "candidate_artifact_sha"
+        # Descriptor fields are read defensively: a caller may hand us any
+        # object with attributes (e.g. a mutable SimpleNamespace). Missing
+        # attributes are a binding refusal, not an AttributeError.
+        run_id = _require_str(_descriptor_field(frozen, "run_id"), "run_id")
+        case_id = _require_str(_descriptor_field(frozen, "case_id"), "case_id")
+        manifest_sha = _require_str(
+            _descriptor_field(frozen, "corpus_manifest_sha"), "corpus_manifest_sha"
         )
-        oracle_sha = _require_str(frozen.oracle_suite_sha, "oracle_suite_sha")
-        _require_mapping(frozen.provenance, "provenance")
+        artifact_sha = _require_str(
+            _descriptor_field(frozen, "candidate_artifact_sha"), "candidate_artifact_sha"
+        )
+        oracle_sha = _require_str(
+            _descriptor_field(frozen, "oracle_suite_sha"), "oracle_suite_sha"
+        )
+        provenance = _require_mapping(
+            _descriptor_field(frozen, "provenance"), "provenance"
+        )
         snapshot = _require_bytes(candidate_bytes, "candidate_bytes")
 
         if manifest_sha != self._manifest_sha:
@@ -448,9 +520,21 @@ class FakeBoundaryExecutor:
             if any(r.frozen.run_id == run_id for r in self._registry.values()):
                 _refuse(CODE_BINDING_MISMATCH, f"run_id already bound: {run_id!r}")
             self._sequence += 1
+            # Executor-owned descriptor: reconstructed from validated
+            # snapshots only. The caller's object is NEVER retained, so a
+            # later mutation of the caller's object cannot change the
+            # expected suite, the receipt identity, or the replay checks.
+            owned = FrozenRun(
+                run_id=run_id,
+                case_id=case_id,
+                corpus_manifest_sha=manifest_sha,
+                candidate_artifact_sha=artifact_sha,
+                oracle_suite_sha=oracle_sha,
+                provenance=_deep_freeze(dict(provenance)),
+            )
             record = _BoundRun(
                 handle=handle,
-                frozen=frozen,
+                frozen=owned,
                 candidate_bytes=snapshot,
                 deadline_monotonic=self._clock.monotonic() + self._default_deadline,
                 sequence=self._sequence,
@@ -463,9 +547,15 @@ class FakeBoundaryExecutor:
     def cancel(self, handle: str) -> str:
         """Accept cancellation for an issued or running run.
 
-        Terminal states are immutable: cancelling a terminated run is a
-        no-op returning the current state. An accepted cancellation consumes
-        the handle, so no later evaluation can produce a pass for the run.
+        Every read path shares the single stored terminal result: if a
+        result was already stored, its outcome is returned. Terminal states
+        are immutable. An accepted cancellation consumes the handle, so no
+        later evaluation can produce a pass for the run.
+
+        Timeout/cancel precedence: an observed expired deadline wins unless
+        the cancellation was already accepted before expiry. If the
+        deadline is already expired when cancel is called, the run resolves
+        to timeout immediately — the late cancellation does not overwrite it.
         """
         with self._lock:
             record = self._registry.get(handle)
@@ -473,11 +563,26 @@ class FakeBoundaryExecutor:
                 _refuse(
                     CODE_UNKNOWN_HANDLE, "no such handle in this executor's registry"
                 )
-            if record.state in ("issued", "running"):
-                record.state = "cancelled"
-                record.consumed = True
-                record.cancel_requested = True
-            return record.state
+            if record.result is not None:
+                return record.result.outcome
+            now = self._clock.monotonic()
+            if now >= record.deadline_monotonic:
+                # Observed expired deadline: timeout wins. The cancellation
+                # was not accepted before expiry, so no cancelled outcome is
+                # produced. Store the single terminal receipt now so every
+                # read path agrees.
+                result = self._store_terminal(
+                    record, "timeout", REASON_DEADLINE_EXPIRED, (), None
+                )
+            elif record.state in ("issued", "running"):
+                # Cancellation accepted before expiry: it wins.
+                result = self._store_terminal(
+                    record, "cancelled", REASON_CANCEL_ACCEPTED, (), None
+                )
+            else:
+                return record.state  # defensive; unreachable in practice
+            record.consumed = True
+            return result.outcome
 
     # -- evaluate ----------------------------------------------------------
 
@@ -487,7 +592,13 @@ class FakeBoundaryExecutor:
         Raises BoundaryRefusal (unknown_handle / replayed_handle /
         run_terminated) for pre-execution problems. Returns an OracleResult
         with an explicit outcome otherwise — never raises for evidence
-        problems; those become incomplete outcomes with mechanical codes.
+        problems; those become immutable incomplete outcomes with mechanical
+        codes. Malformed producer output can never strand the handle: every
+        path stores exactly one immutable terminal result, shared by all
+        read paths.
+
+        Timeout/cancel precedence: an accepted cancellation before expiry
+        wins; otherwise an observed expired deadline wins.
         """
         with self._lock:
             record = self._registry.get(handle)
@@ -497,65 +608,161 @@ class FakeBoundaryExecutor:
                 )
             if record.consumed:
                 _refuse(CODE_REPLAYED_HANDLE, "handle already consumed")
-            if record.state != "issued":
+            if record.result is not None or record.state != "issued":
                 _refuse(CODE_RUN_TERMINATED, f"run is already {record.state}")
             # Atomic consumption happens BEFORE any execution.
             record.consumed = True
             if self._clock.monotonic() >= record.deadline_monotonic:
-                record.state = "timeout"
-                return self._result(
-                    record, "timeout", REASON_DEADLINE_EXPIRED, (), evidence
+                # Observed expired deadline and no prior terminal result:
+                # timeout wins.
+                return self._store_terminal(
+                    record, "timeout", REASON_DEADLINE_EXPIRED, (), None
                 )
             record.state = "running"
+
+        # Evidence validation: malformed producer output becomes an
+        # immutable incomplete result with safe diagnostics — never a crash,
+        # never a stranded handle, never weakened identity.
+        try:
+            validated = self._validate_evidence(evidence)
+        except _MalformedEvidence as exc:
+            with self._lock:
+                if record.result is not None:
+                    return record.result
+                return self._store_terminal(
+                    record, "incomplete", exc.reason, (), None, exc.diagnostics
+                )
 
         # Oracle phase. The agent surface is revoked for the whole phase;
         # HONESTY NOTE: this exercises the refusal mechanism in the fake and
         # does not prove live isolation.
         surface = RevokedAgentSurface()
-        outcome, reason, records = self._oracle_phase(record, evidence, surface)
+        try:
+            outcome, reason, records = self._oracle_phase(record, validated, surface)
+        except BoundaryRefusal:
+            raise
+        except Exception as exc:  # noqa: BLE001 - safety net, see below
+            # A callback raising must not crash the report or strand the
+            # handle: convert to an immutable incomplete with diagnostics.
+            with self._lock:
+                if record.result is not None:
+                    return record.result
+                return self._store_terminal(
+                    record,
+                    "incomplete",
+                    REASON_MALFORMED_EVIDENCE,
+                    (),
+                    validated,
+                    f"oracle phase raised {type(exc).__name__}",
+                )
 
         with self._lock:
-            if record.cancel_requested or record.state == "cancelled":
-                record.state = "cancelled"
-                return self._result(
-                    record, "cancelled", REASON_CANCEL_ACCEPTED, records, evidence
-                )
+            if record.result is not None:
+                # Terminalized concurrently (cancel stored a receipt):
+                # immutability wins, return the shared result.
+                return record.result
             if self._clock.monotonic() >= record.deadline_monotonic:
-                record.state = "timeout"
-                return self._result(
-                    record, "timeout", REASON_DEADLINE_EXPIRED, records, evidence
+                # Observed expired deadline: timeout wins. (A cancellation
+                # accepted before expiry would already have stored its
+                # receipt via cancel(), which this check sees first.)
+                return self._store_terminal(
+                    record, "timeout", REASON_DEADLINE_EXPIRED, (), validated
                 )
-            if record.state != "running":
-                # Defensive: terminal states are immutable.
-                return self._result(record, record.state, reason, records, evidence)
-            record.state = outcome
-            return self._result(record, outcome, reason, records, evidence)
+            # All final checks (reference exclusion, etc.) are computed
+            # BEFORE the single atomic store.
+            outcome, reason = self._apply_final_checks(record, outcome, reason)
+            return self._store_terminal(
+                record, outcome, reason, records, validated
+            )
+
+    def _validate_evidence(self, evidence: object) -> _ValidatedEvidence:
+        """Strictly validate producer output; derive records from the bytes.
+
+        The digest and the graded records are ALWAYS the same data: the
+        verdict is derived from the snapshotted bytes, and the submitted
+        record objects must exactly match what the bytes say. Any problem
+        raises _MalformedEvidence (converted to immutable incomplete by the
+        caller) — nothing here raises to the caller as a crash.
+        """
+        def bad(reason: str, detail: str) -> NoReturn:
+            # Safe diagnostics: type names and short reasons only — never
+            # raw evidence content.
+            raise _MalformedEvidence(reason, f"malformed evidence: {detail}")
+
+        if not isinstance(evidence, EvidenceBundle):
+            bad(
+                REASON_MALFORMED_EVIDENCE,
+                f"expected EvidenceBundle, got {type(evidence).__name__}",
+            )
+        raw = evidence.evidence_bytes
+        if not isinstance(raw, (bytes, bytearray, memoryview)):
+            bad(
+                REASON_MALFORMED_EVIDENCE,
+                f"evidence_bytes must be bytes-like, got {type(raw).__name__}",
+            )
+        # Snapshot ONCE. Everything downstream — digest check, parsing,
+        # grading, receipt — uses this snapshot, never the caller's object.
+        snapshot = bytes(raw)
+        declared = evidence.evidence_sha256
+        if not isinstance(declared, str) or not declared:
+            bad(REASON_MALFORMED_EVIDENCE, "evidence_sha256 must be a non-empty string")
+        if hashlib.sha256(snapshot).hexdigest() != declared:
+            raise _MalformedEvidence(
+                REASON_EVIDENCE_DIGEST_MISMATCH,
+                "evidence digest does not match evidence bytes",
+            )
+        try:
+            parsed = json.loads(snapshot.decode("utf-8"))
+        except (UnicodeDecodeError, ValueError) as exc:
+            bad(
+                REASON_MALFORMED_EVIDENCE,
+                f"evidence bytes are not canonical JSON ({type(exc).__name__})",
+            )
+        if not isinstance(parsed, list):
+            bad(REASON_MALFORMED_EVIDENCE, "evidence must be a JSON list of pairs")
+        derived: list[TestRecord] = []
+        for index, item in enumerate(parsed):
+            if not isinstance(item, list) or len(item) != 2:
+                bad(REASON_MALFORMED_EVIDENCE, f"record {index} is not a [test_id, status] pair")
+            test_id, status = item
+            if not isinstance(test_id, str) or not test_id:
+                bad(REASON_MALFORMED_EVIDENCE, f"record {index} has an invalid test_id")
+            if not isinstance(status, str) or status not in _KNOWN_TEST_STATUSES:
+                bad(
+                    REASON_MALFORMED_EVIDENCE,
+                    f"record {index} has an unknown status",
+                )
+            derived.append(TestRecord(test_id=test_id, status=status))
+        submitted = evidence.test_records
+        if not isinstance(submitted, tuple) or not all(
+            isinstance(r, TestRecord) for r in submitted
+        ):
+            bad(REASON_MALFORMED_EVIDENCE, "test_records must be a tuple of TestRecord")
+        if [(r.test_id, r.status) for r in submitted] != [
+            (r.test_id, r.status) for r in derived
+        ]:
+            raise _MalformedEvidence(
+                REASON_EVIDENCE_RECORDS_MISMATCH,
+                "submitted test_records do not match the evidence bytes",
+            )
+        return _ValidatedEvidence(
+            snapshot=snapshot, records=tuple(derived), declared_sha256=declared
+        )
 
     def _oracle_phase(
         self,
         record: _BoundRun,
-        evidence: EvidenceBundle,
+        validated: _ValidatedEvidence,
         surface: RevokedAgentSurface,
     ) -> tuple[str, str | None, tuple[TestRecord, ...]]:
-        """Apply the pass rules mechanically to the submitted evidence."""
-        # Evidence digest is recomputed, never trusted.
-        if not isinstance(evidence.evidence_sha256, str) or (
-            hashlib.sha256(evidence.evidence_bytes).hexdigest()
-            != evidence.evidence_sha256
-        ):
-            return "incomplete", REASON_EVIDENCE_DIGEST_MISMATCH, ()
+        """Apply the pass rules mechanically to bytes-derived records.
 
-        records = evidence.test_records
-        if not isinstance(records, tuple) or not all(
-            isinstance(r, TestRecord) for r in records
-        ):
-            return "incomplete", REASON_EVIDENCE_DIGEST_MISMATCH, ()
-        for record_item in records:
-            if not isinstance(record_item.test_id, str) or not record_item.test_id:
-                return "incomplete", REASON_EVIDENCE_DIGEST_MISMATCH, ()
-            if record_item.status not in _KNOWN_TEST_STATUSES:
-                return "incomplete", REASON_EVIDENCE_DIGEST_MISMATCH, ()
-
+        `validated.records` were derived from the snapshotted evidence
+        bytes (whose digest was verified upstream) — the graded records
+        and the digest are always the same data. `surface` is part of the
+        test seam (revocation assertions live in tests).
+        """
+        records = validated.records
         expected = self._expected_ids[record.frozen.case_id]
         ids = [r.test_id for r in records]
 
@@ -590,21 +797,41 @@ class FakeBoundaryExecutor:
                 return REASON_REFERENCE_BYTES_PRESENT
         return None
 
-    def _result(
+    def _apply_final_checks(
+        self, record: _BoundRun, outcome: str, reason: str | None
+    ) -> tuple[str, str | None]:
+        """Compute every final check BEFORE the single atomic store.
+
+        Reference exclusion is enforced on every terminal pass: a
+        candidate smuggling reference bytes can never pass, even with
+        all-pass records.
+        """
+        if outcome == "pass":
+            exclusion = self._check_reference_exclusion(record)
+            if exclusion is not None:
+                return "incomplete", exclusion
+        return outcome, reason
+
+    def _store_terminal(
         self,
         record: _BoundRun,
         outcome: str,
         reason: str | None,
         records: tuple[TestRecord, ...],
-        evidence: EvidenceBundle | None,
+        validated: _ValidatedEvidence | None,
+        diagnostics: str | None = None,
     ) -> OracleResult:
-        # Reference exclusion is enforced on every terminal result: a
-        # candidate smuggling reference bytes can never pass.
-        if outcome == "pass":
-            exclusion = self._check_reference_exclusion(record)
-            if exclusion is not None:
-                outcome, reason = "incomplete", exclusion
-        return OracleResult(
+        """Atomically store the ONE immutable terminal result.
+
+        All final checks must be computed BEFORE this call. The result is
+        built entirely from executor state (never caller objects): the
+        bound digests come from the executor-owned descriptor, the evidence
+        digest from the validated snapshot. Every read path (evaluate,
+        cancel) shares this single stored result.
+        """
+        if record.result is not None:
+            return record.result  # defensive: callers check first
+        result = OracleResult(
             run_id=record.frozen.run_id,
             case_id=record.frozen.case_id,
             executor_id=self.executor_id,
@@ -616,13 +843,20 @@ class FakeBoundaryExecutor:
             expected_test_ids=self._expected_ids[record.frozen.case_id],
             test_records=records,
             evidence_sha256=(
-                hashlib.sha256(evidence.evidence_bytes).hexdigest()
-                if evidence is not None
+                hashlib.sha256(validated.snapshot).hexdigest()
+                if validated is not None
                 else None
             ),
             # Informational UTC timestamp on the executor clock.
             evaluated_at=self._clock.utcnow(),
+            corpus_manifest_sha=record.frozen.corpus_manifest_sha,
+            candidate_artifact_sha=record.frozen.candidate_artifact_sha,
+            oracle_suite_sha=record.frozen.oracle_suite_sha,
+            diagnostics=diagnostics,
         )
+        record.state = outcome
+        record.result = result
+        return result
 
 
 # ---------------------------------------------------------------------------
