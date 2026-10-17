@@ -71,3 +71,34 @@ jobs:
         run: npm run test:a11y
       - name: Validate production bundle and store evidence
         run: npm run build && npm run store:verify:metadata && npm run store:verify:privacy
+
+  v2-status:
+    name: Crump Code v2 status labeling
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Run against the raw head content, not the PR merge commit, so the
+          # generator and its checks validate what would actually be merged.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+      - name: Regenerate status record
+        run: python3 scripts/crump_code_v2_status.py --out /tmp/status.v2.json
+      - name: Committed status must match regenerated output
+        run: |
+          python3 - <<'EOF'
+          import json, sys
+          committed = json.load(open("benchmarks/crump_code/real_tasks_v2/status.v2.json"))
+          fresh = json.load(open("/tmp/status.v2.json"))
+          if committed != fresh:
+              sys.exit("committed status.v2.json differs from regenerated output")
+          print("status.v2.json matches regenerated output;", len(fresh["cases"]),
+                "cases;", fresh["aggregate"])
+          EOF
+      - name: Run status generator negative tests
+        run: python3 -m pytest tests/test_crump_code_v2_status.py -q
