@@ -27,7 +27,7 @@
       "baseline_rejected": true,
       "reference_accepted": true,
       "oracle_tests": 3,
-      "last_verified_solvable_at": "2026-10-16T00:03:17.081487+00:00"
+      "last_verified_solvable_at": "2026-10-17T20:43:50.136076+00:00"
     },
     {
       "id": "gateway-retry",
@@ -36,7 +36,7 @@
       "baseline_rejected": true,
       "reference_accepted": true,
       "oracle_tests": 3,
-      "last_verified_solvable_at": "2026-10-16T00:03:17.679319+00:00"
+      "last_verified_solvable_at": "2026-10-17T20:43:50.543826+00:00"
     },
     {
       "id": "sync-write-replay",
@@ -45,7 +45,7 @@
       "baseline_rejected": true,
       "reference_accepted": true,
       "oracle_tests": 2,
-      "last_verified_solvable_at": "2026-10-16T00:03:18.235893+00:00"
+      "last_verified_solvable_at": "2026-10-17T20:43:50.909083+00:00"
     },
     {
       "id": "quote-scope",
@@ -54,7 +54,7 @@
       "baseline_rejected": true,
       "reference_accepted": true,
       "oracle_tests": 3,
-      "last_verified_solvable_at": "2026-10-16T00:03:18.867781+00:00"
+      "last_verified_solvable_at": "2026-10-17T20:43:51.306280+00:00"
     },
     {
       "id": "provider-retry",
@@ -63,7 +63,7 @@
       "baseline_rejected": true,
       "reference_accepted": true,
       "oracle_tests": 2,
-      "last_verified_solvable_at": "2026-10-16T00:03:19.607602+00:00"
+      "last_verified_solvable_at": "2026-10-17T20:43:51.692223+00:00"
     },
     {
       "id": "complete-patch",
@@ -72,7 +72,7 @@
       "baseline_rejected": true,
       "reference_accepted": true,
       "oracle_tests": 2,
-      "last_verified_solvable_at": "2026-10-16T00:03:20.662982+00:00"
+      "last_verified_solvable_at": "2026-10-17T20:43:52.046726+00:00"
     },
     {
       "id": "rename-boundary",
@@ -81,7 +81,7 @@
       "baseline_rejected": true,
       "reference_accepted": true,
       "oracle_tests": 2,
-      "last_verified_solvable_at": "2026-10-16T00:03:21.362448+00:00"
+      "last_verified_solvable_at": "2026-10-17T20:43:52.399961+00:00"
     },
     {
       "id": "ignored-write",
@@ -90,7 +90,7 @@
       "baseline_rejected": true,
       "reference_accepted": true,
       "oracle_tests": 2,
-      "last_verified_solvable_at": "2026-10-16T00:03:22.012376+00:00"
+      "last_verified_solvable_at": "2026-10-17T20:43:52.787462+00:00"
     },
     {
       "id": "expiry-projection",
@@ -99,7 +99,7 @@
       "baseline_rejected": true,
       "reference_accepted": true,
       "oracle_tests": 2,
-      "last_verified_solvable_at": "2026-10-16T00:03:22.607402+00:00"
+      "last_verified_solvable_at": "2026-10-17T20:43:53.163470+00:00"
     },
     {
       "id": "verification-repair",
@@ -108,7 +108,7 @@
       "baseline_rejected": true,
       "reference_accepted": true,
       "oracle_tests": 2,
-      "last_verified_solvable_at": "2026-10-16T00:03:23.157097+00:00"
+      "last_verified_solvable_at": "2026-10-17T20:43:53.543415+00:00"
     },
     {
       "id": "cancel-begin",
@@ -117,7 +117,7 @@
       "baseline_rejected": true,
       "reference_accepted": true,
       "oracle_tests": 2,
-      "last_verified_solvable_at": "2026-10-16T00:03:23.772560+00:00"
+      "last_verified_solvable_at": "2026-10-17T20:43:53.953274+00:00"
     },
     {
       "id": "daily-retention",
@@ -126,7 +126,7 @@
       "baseline_rejected": true,
       "reference_accepted": true,
       "oracle_tests": 3,
-      "last_verified_solvable_at": "2026-10-16T00:03:24.293132+00:00"
+      "last_verified_solvable_at": "2026-10-17T20:43:54.311263+00:00"
     },
     {
       "id": "workspace-paths",
@@ -135,7 +135,7 @@
       "baseline_rejected": true,
       "reference_accepted": true,
       "oracle_tests": 2,
-      "last_verified_solvable_at": "2026-10-16T00:03:24.841106+00:00"
+      "last_verified_solvable_at": "2026-10-17T20:43:54.695317+00:00"
     },
     {
       "id": "signed-admission",
@@ -144,7 +144,7 @@
       "baseline_rejected": true,
       "reference_accepted": true,
       "oracle_tests": 2,
-      "last_verified_solvable_at": "2026-10-16T00:03:25.487488+00:00"
+      "last_verified_solvable_at": "2026-10-17T20:43:55.079521+00:00"
     },
     {
       "id": "request-cost",
@@ -153,7 +153,7 @@
       "baseline_rejected": true,
       "reference_accepted": true,
       "oracle_tests": 2,
-      "last_verified_solvable_at": "2026-10-16T00:03:26.087011+00:00"
+      "last_verified_solvable_at": "2026-10-17T20:43:55.511677+00:00"
     },
     {
       "id": "call-lease",
@@ -162,7 +162,7 @@
       "baseline_rejected": true,
       "reference_accepted": true,
       "oracle_tests": 2,
-      "last_verified_solvable_at": "2026-10-16T00:03:26.743181+00:00"
+      "last_verified_solvable_at": "2026-10-17T20:43:55.906052+00:00"
     },
     {
       "id": "image-size",
@@ -171,7 +171,7 @@
       "baseline_rejected": true,
       "reference_accepted": true,
       "oracle_tests": 2,
-      "last_verified_solvable_at": "2026-10-16T00:03:27.290488+00:00"
+      "last_verified_solvable_at": "2026-10-17T20:43:56.255462+00:00"
     },
     {
       "id": "image-recovery",
@@ -180,7 +180,7 @@
       "baseline_rejected": true,
       "reference_accepted": true,
       "oracle_tests": 2,
-      "last_verified_solvable_at": "2026-10-16T00:03:27.855681+00:00"
+      "last_verified_solvable_at": "2026-10-17T20:43:56.605564+00:00"
     },
     {
       "id": "startup-order",
@@ -189,7 +189,7 @@
       "baseline_rejected": true,
       "reference_accepted": true,
       "oracle_tests": 2,
-      "last_verified_solvable_at": "2026-10-16T00:03:28.390995+00:00"
+      "last_verified_solvable_at": "2026-10-17T20:43:56.958566+00:00"
     },
     {
       "id": "verification-feedback",
@@ -198,7 +198,7 @@
       "baseline_rejected": true,
       "reference_accepted": true,
       "oracle_tests": 3,
-      "last_verified_solvable_at": "2026-10-16T00:03:28.982157+00:00"
+      "last_verified_solvable_at": "2026-10-17T20:43:57.339750+00:00"
     }
   ],
   "model_runs": 0,
