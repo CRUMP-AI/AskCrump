@@ -167,6 +167,73 @@ def test_fixture_sha_mismatch_rejected(tmp_path):
         build_status(root)
 
 
+@pytest.mark.parametrize("bad", ["3", 3.0, True, None])
+def test_oracle_tests_noninteger_rejected(tmp_path, bad):
+    def mutate(doc):
+        set_row(doc, 0, oracle_tests=bad)
+
+    root = mutated_corpus(tmp_path, mutate)
+    with pytest.raises(SystemExit):
+        build_status(root)
+
+
+def test_oracle_tests_count_mismatch_rejected(tmp_path):
+    # First case has 3 oracle test ids; a different count must refuse.
+    def mutate(doc):
+        set_row(doc, 0, oracle_tests=999)
+
+    root = mutated_corpus(tmp_path, mutate)
+    with pytest.raises(SystemExit):
+        build_status(root)
+
+
+def test_oracle_tests_matches_suite_count(tmp_path):
+    # Sanity: the committed data's counts agree with the frozen suite.
+    root = tmp_path / "corpus"
+    shutil.copytree(DEFAULT_CORPUS, root)
+    status = build_status(root)
+    first = status["cases"][0]
+    assert first["plumbing"]["oracle_tests"] == 3
+
+
+@pytest.mark.parametrize("bad", [1, 2, -1, "0", True, None])
+def test_contradictory_model_runs_rejected(tmp_path, bad):
+    # Any model_runs that is not actual integer 0 contradicts the honest
+    # "not evaluated" label and must refuse.
+    root = mutated_corpus(tmp_path, lambda doc: doc.update(model_runs=bad))
+    with pytest.raises(SystemExit):
+        build_status(root)
+
+
+def test_missing_model_runs_rejected(tmp_path):
+    def mutate(doc):
+        del doc["model_runs"]
+
+    root = mutated_corpus(tmp_path, mutate)
+    with pytest.raises(SystemExit):
+        build_status(root)
+
+
+@pytest.mark.parametrize("bad", [True, "false", "true", 1, None])
+def test_contradictory_capability_flag_rejected(tmp_path, bad):
+    # coding_capability_evaluated must be actual boolean False; anything else
+    # (including truthy strings like "false") contradicts "not evaluated".
+    root = mutated_corpus(
+        tmp_path, lambda doc: doc.update(coding_capability_evaluated=bad)
+    )
+    with pytest.raises(SystemExit):
+        build_status(root)
+
+
+def test_missing_capability_flag_rejected(tmp_path):
+    def mutate(doc):
+        del doc["coding_capability_evaluated"]
+
+    root = mutated_corpus(tmp_path, mutate)
+    with pytest.raises(SystemExit):
+        build_status(root)
+
+
 def test_aggregate_language_is_honest(tmp_path):
     root = tmp_path / "corpus"
     shutil.copytree(DEFAULT_CORPUS, root)
