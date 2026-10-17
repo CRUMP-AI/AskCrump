@@ -10,7 +10,12 @@ Validation is strict and loud. It refuses to write output if:
   rejected, not coerced),
 - solvability row IDs are duplicated, missing, or extra relative to the suite,
 - the solvability record is not bound to this suite_id and manifest_sha256,
-- a row's stratum, fixture SHA, counts, or timestamp fail validation.
+- a row's stratum, fixture SHA, counts, or timestamp fail validation,
+- a row's oracle_tests is not an actual integer equal to the suite's
+  oracle_test_ids count for that case,
+- the solvability record claims any model state (model_runs != 0 or
+  coding_capability_evaluated not actually False): the honest "not
+  evaluated" label may only be emitted when no model run has happened.
 
 Usage: python3 scripts/crump_code_v2_status.py [--out PATH]
 """
@@ -48,6 +53,16 @@ def _require_bool(value: object, where: str) -> bool:
     return value
 
 
+def _require_int(value: object, where: str) -> int:
+    # bool is a subclass of int in Python; exclude it explicitly so True/False
+    # can never slip through as 1/0.
+    if isinstance(value, bool) or not isinstance(value, int):
+        _refuse(
+            f"{where} must be an actual integer, got {type(value).__name__} ({value!r})"
+        )
+    return value
+
+
 def _require_timestamp(value: object, where: str) -> str:
     if not isinstance(value, str):
         _refuse(
@@ -75,6 +90,27 @@ def build_status(corpus_root: Path = DEFAULT_CORPUS) -> dict:
 
     if not _require_bool(solvability.get("success"), "solvability.success"):
         _refuse("self-check record unsuccessful")
+
+    # No-model-state gate: the honest "not evaluated" label may only be emitted
+    # when the record itself claims zero model runs and unevaluated capability.
+    # Contradictory input must refuse, not emit the honest label anyway.
+    model_runs = _require_int(solvability.get("model_runs"), "solvability.model_runs")
+    if model_runs != 0:
+        _refuse(
+            f"solvability.model_runs is {model_runs}: a model run is recorded, "
+            "so 'Model evaluation not run' would be a lie; this generator only "
+            "emits the not-evaluated state"
+        )
+    capability = _require_bool(
+        solvability.get("coding_capability_evaluated"),
+        "solvability.coding_capability_evaluated",
+    )
+    if capability:
+        _refuse(
+            "solvability.coding_capability_evaluated is True: coding capability "
+            "is recorded as evaluated, so 'Model evaluation not run' would be "
+            "a lie; this generator only emits the not-evaluated state"
+        )
 
     # Suite/manifest binding: the solvability record must describe THIS suite.
     if solvability.get("suite_id") != suite.suite_id:
@@ -130,6 +166,14 @@ def build_status(corpus_root: Path = DEFAULT_CORPUS) -> dict:
         timestamp = _require_timestamp(
             row.get("last_verified_solvable_at"), f"{case.id}.last_verified_solvable_at"
         )
+        # oracle_tests must be an actual integer equal to the suite's oracle
+        # test count for this case — copied blindly it could be anything.
+        oracle_tests = _require_int(row.get("oracle_tests"), f"{case.id}.oracle_tests")
+        if oracle_tests != len(case.oracle_test_ids):
+            _refuse(
+                f"oracle_tests count {oracle_tests} for {case.id} != "
+                f"{len(case.oracle_test_ids)} oracle_test_ids in the frozen suite"
+            )
         cases.append(
             {
                 "id": case.id,
@@ -140,7 +184,7 @@ def build_status(corpus_root: Path = DEFAULT_CORPUS) -> dict:
                 "plumbing": {
                     "baseline_rejected": True,
                     "reference_accepted": True,
-                    "oracle_tests": row["oracle_tests"],
+                    "oracle_tests": oracle_tests,
                     "last_verified_solvable_at": timestamp,
                 },
             }
