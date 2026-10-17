@@ -842,11 +842,22 @@ def test_receipt_carries_bound_artifact_digests(ex):
     assert result.oracle_suite_sha == ex.oracle_suite_sha256
 
 
-def test_evidence_bytearray_mutation_after_snapshot_ignored(ex):
-    # BLOCKER 4c: the evidence bytes are snapshotted once at validation;
-    # later mutation cannot change the receipt.
+def test_evidence_mutation_between_snapshot_and_finalization_ignored(corpus):
+    # DEFECT 3a (strengthened): the old version of this test mutated only
+    # AFTER evaluate returned, so the old bug would pass. This version gates
+    # between snapshot and finalization: the ORIGINAL bytearray is mutated
+    # after the snapshot is taken, and the receipt must still reflect the
+    # snapshot — never the mutated bytes.
+    mutated = {}
+
+    def gate(original, snapshot):
+        assert bytes(original) == snapshot  # snapshot taken pre-mutation
+        original[:] = b"X" * len(original)  # mutate between snapshot and use
+        mutated["done"] = True
+
+    ex2 = make_executor(corpus, _hooks={"after_snapshot": gate})
     candidate = b"candidate bytes here"
-    handle = ex.bind(make_frozen(ex, candidate=candidate), candidate)
+    handle = ex2.bind(make_frozen(ex2, candidate=candidate), candidate)
     good = passing_evidence()
     mutable = bytearray(good.evidence_bytes)
     evidence = EvidenceBundle(
@@ -854,11 +865,28 @@ def test_evidence_bytearray_mutation_after_snapshot_ignored(ex):
         evidence_bytes=mutable,
         evidence_sha256=good.evidence_sha256,
     )
-    expected_digest = hashlib.sha256(bytes(mutable)).hexdigest()
-    result = ex.evaluate(handle, evidence)
+    result = ex2.evaluate(handle, evidence)
+    assert mutated["done"]  # the gate actually ran mid-flight
+    assert result.outcome == "pass"  # graded on the snapshot, not tampered bytes
+    assert result.evidence_sha256 == hashlib.sha256(good.evidence_bytes).hexdigest()
+    assert bytes(result.evidence_snapshot) == good.evidence_bytes
+
+
+def test_receipt_retains_immutable_evidence_snapshot(ex):
+    # DEFECT 4: the exact evidence bytes are retained alongside the receipt
+    # (not merely re-encoded records or a digest) so the audit digest can be
+    # recomputed and checked later.
+    candidate = b"candidate bytes here"
+    handle = ex.bind(make_frozen(ex, candidate=candidate), candidate)
+    good = passing_evidence()
+    result = ex.evaluate(handle, good)
     assert result.outcome == "pass"
-    mutable[:] = b"tampered!!"
-    assert result.evidence_sha256 == expected_digest
+    assert isinstance(result.evidence_snapshot, bytes)
+    assert result.evidence_snapshot == good.evidence_bytes
+    assert (
+        hashlib.sha256(result.evidence_snapshot).hexdigest()
+        == result.evidence_sha256
+    )
 
 
 def test_evidence_bytearray_mutated_before_evaluate_is_digest_mismatch(ex):
@@ -914,30 +942,201 @@ def test_expiry_before_cancel_race_timeout_wins(tmp_path):
     assert result.reason_code == REASON_DEADLINE_EXPIRED
 
 
-def test_concurrent_cancel_and_expiry_invariant(tmp_path):
-    # Truly concurrent cancel/expiry: the outcome is always exactly one of
-    # the two legal results, and the stored receipt is immutable.
+def test_race_completion_first_late_cancel_returns_pass(tmp_path):
+    # DEFECT 3b: the old hammer test had an unsynchronized schedule where
+    # completion could legitimately win with `pass` while the assertion
+    # rejected it. Enforced ordering instead: completion wins the race
+    # fairly, and a late cancel returns the immutable pass receipt.
     clock = FakeClock()
     ex = make_executor(
-        make_corpus(tmp_path / "corpus-conc"),
+        make_corpus(tmp_path / "corpus-race-cf"),
         clock=clock,
         default_deadline_seconds=10.0,
     )
     candidate = b"candidate bytes here"
     handle = ex.bind(make_frozen(ex, candidate=candidate), candidate)
     outcome, thread, release = _gated_evaluate(ex, handle, passing_evidence())
-
-    def hammer():
-        for _ in range(50):
-            clock.advance(0.5)
-            ex.cancel(handle)
-
-    hammer_thread = threading.Thread(target=hammer)
-    hammer_thread.start()
     release.set()
     thread.join(10)
-    hammer_thread.join(10)
     result = outcome["result"]
-    assert result.outcome in ("cancelled", "timeout")
-    assert result.reason_code in (REASON_CANCEL_ACCEPTED, REASON_DEADLINE_EXPIRED)
-    assert ex.cancel(handle) == result.outcome  # immutable shared receipt
+    assert result.outcome == "pass"
+    assert ex.cancel(handle) == "pass"  # immutable shared receipt
+
+
+def test_race_expiry_first_completion_returns_timeout(tmp_path):
+    # DEFECT 3b, other ordering: the deadline expires while evaluation is
+    # gated, so completion cannot win after expiry.
+    clock = FakeClock()
+    ex = make_executor(
+        make_corpus(tmp_path / "corpus-race-ef"),
+        clock=clock,
+        default_deadline_seconds=10.0,
+    )
+    candidate = b"candidate bytes here"
+    handle = ex.bind(make_frozen(ex, candidate=candidate), candidate)
+    outcome, thread, release = _gated_evaluate(ex, handle, passing_evidence())
+    clock.advance(11.0)
+    release.set()
+    thread.join(10)
+    result = outcome["result"]
+    assert result.outcome == "timeout"
+    assert result.reason_code == REASON_DEADLINE_EXPIRED
+    assert ex.cancel(handle) == "timeout"  # immutable shared receipt
+
+
+# ---------------------------------------------------------------------------
+# Defect 1 — accepted-run exceptions become shared incomplete, never stranded
+# ---------------------------------------------------------------------------
+
+
+def test_released_memoryview_evidence_is_incomplete_not_stranded(ex):
+    # A released memoryview raises ValueError at bytes(raw). That must
+    # become an immutable incomplete — not a stranded running handle.
+    mv = memoryview(b"some bytes")
+    mv.release()
+    evidence = EvidenceBundle(
+        test_records=(),
+        evidence_bytes=mv,
+        evidence_sha256="deadbeef",
+    )
+    candidate = b"candidate bytes here"
+    handle = ex.bind(make_frozen(ex, candidate=candidate), candidate)
+    result = ex.evaluate(handle, evidence)
+    assert result.outcome == "incomplete"
+    assert result.reason_code == REASON_MALFORMED_EVIDENCE
+    # Not stranded: the handle was consumed and holds a terminal receipt.
+    with pytest.raises(BoundaryRefusal) as err:
+        ex.evaluate(handle, evidence)
+    assert err.value.code == CODE_REPLAYED_HANDLE
+    assert ex.cancel(handle) == "incomplete"
+
+
+def test_deeply_nested_json_evidence_is_incomplete(ex):
+    # Pathological nesting raises RecursionError in json.loads (not a
+    # ValueError subclass). Must become incomplete, never a crash.
+    blob = b"[" * 10000 + b"]" * 10000
+    evidence = EvidenceBundle(
+        test_records=(),
+        evidence_bytes=blob,
+        evidence_sha256=hashlib.sha256(blob).hexdigest(),
+    )
+    candidate = b"candidate bytes here"
+    handle = ex.bind(make_frozen(ex, candidate=candidate), candidate)
+    result = ex.evaluate(handle, evidence)
+    assert result.outcome == "incomplete"
+    assert result.reason_code == REASON_MALFORMED_EVIDENCE
+    with pytest.raises(BoundaryRefusal) as err:
+        ex.evaluate(handle, evidence)
+    assert err.value.code == CODE_REPLAYED_HANDLE
+
+
+def test_revoked_surface_callback_becomes_surface_violation(ex):
+    # A callback invoking the revoked surface raises BoundaryRefusal; the
+    # old code reraised it (stranding the handle). Now it becomes an
+    # incomplete with the attempt reason surfaced.
+    candidate = b"candidate bytes here"
+    handle = ex.bind(make_frozen(ex, candidate=candidate), candidate)
+    original = ex._oracle_phase
+
+    def sneaky(record, validated, surface):
+        surface.invoke("write_file", path="x.py", content="y")
+        return original(record, validated, surface)
+
+    ex._oracle_phase = sneaky
+    try:
+        result = ex.evaluate(handle, passing_evidence())
+    finally:
+        ex._oracle_phase = original
+    assert result.outcome == "incomplete"
+    assert result.reason_code == REASON_AGENT_SURFACE_VIOLATION
+    assert "unknown_handle" not in (result.diagnostics or "")
+
+
+def test_base_exception_during_validation_propagates(corpus):
+    # KeyboardInterrupt/SystemExit must NEVER be swallowed by the safety net.
+    def boom(raw, snapshot):
+        raise KeyboardInterrupt()
+
+    ex2 = make_executor(corpus, _hooks={"after_snapshot": boom})
+    candidate = b"candidate bytes here"
+    handle = ex2.bind(make_frozen(ex2, candidate=candidate), candidate)
+    with pytest.raises(KeyboardInterrupt):
+        ex2.evaluate(handle, passing_evidence())
+
+
+# ---------------------------------------------------------------------------
+# Defect 2 — unified terminal paths: expiry checked immediately before store
+# ---------------------------------------------------------------------------
+
+
+def test_expiry_during_malformed_validation_yields_timeout(tmp_path):
+    # The deadline expires DURING validation (via hook). The malformed
+    # evidence must not clobber the timeout: observed expiry wins.
+    clock = FakeClock()
+
+    def advance(raw, snapshot):
+        clock.advance(11.0)
+
+    ex = make_executor(
+        make_corpus(tmp_path / "corpus-mv-exp"),
+        clock=clock,
+        default_deadline_seconds=10.0,
+        _hooks={"after_snapshot": advance},
+    )
+    candidate = b"candidate bytes here"
+    handle = ex.bind(make_frozen(ex, candidate=candidate), candidate)
+    bad_blob = b"not json"
+    evidence = EvidenceBundle(
+        test_records=(),
+        evidence_bytes=bad_blob,
+        evidence_sha256=hashlib.sha256(bad_blob).hexdigest(),
+    )
+    result = ex.evaluate(handle, evidence)
+    assert result.outcome == "timeout"
+    assert result.reason_code == REASON_DEADLINE_EXPIRED
+
+
+def test_expiry_during_callback_exception_yields_timeout(tmp_path):
+    # Expiry crosses during a failing callback: timeout wins over the
+    # callback-failure incomplete.
+    clock = FakeClock()
+    ex = make_executor(
+        make_corpus(tmp_path / "corpus-cb-exp"),
+        clock=clock,
+        default_deadline_seconds=10.0,
+    )
+    candidate = b"candidate bytes here"
+    handle = ex.bind(make_frozen(ex, candidate=candidate), candidate)
+
+    def boom(record, validated, surface):
+        clock.advance(11.0)  # expiry crosses during the callback
+        raise RuntimeError("callback blew up")
+
+    ex._oracle_phase = boom
+    result = ex.evaluate(handle, passing_evidence())
+    assert result.outcome == "timeout"
+    assert result.reason_code == REASON_DEADLINE_EXPIRED
+
+
+def test_expiry_during_final_checks_yields_timeout(tmp_path):
+    # Direct reproducer for the old bug: final checks crossed the deadline
+    # after the clock check and still stored `pass`. Now the deadline is
+    # checked immediately before the atomic store.
+    clock = FakeClock()
+    ex = make_executor(
+        make_corpus(tmp_path / "corpus-fc-exp"),
+        clock=clock,
+        default_deadline_seconds=10.0,
+    )
+    candidate = b"candidate bytes here"
+    handle = ex.bind(make_frozen(ex, candidate=candidate), candidate)
+    original = ex._apply_final_checks
+
+    def slow_checks(record, outcome, reason):
+        clock.advance(11.0)  # expiry crosses during final checks
+        return original(record, outcome, reason)
+
+    ex._apply_final_checks = slow_checks
+    result = ex.evaluate(handle, passing_evidence())
+    assert result.outcome == "timeout"
+    assert result.reason_code == REASON_DEADLINE_EXPIRED

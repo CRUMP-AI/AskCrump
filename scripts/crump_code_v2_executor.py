@@ -268,11 +268,13 @@ class _MalformedEvidence(Exception):
 class _ValidatedEvidence:
     """Evidence after strict validation. The snapshot is taken ONCE; every
     later step (digest check, parsing, grading, receipt) uses the snapshot,
-    never the caller-supplied bytes object again."""
+    never the caller-supplied bytes object again. The digest is computed
+    once here and cached — receipt creation never rehashes."""
 
     snapshot: bytes
     records: tuple[TestRecord, ...]  # derived FROM the snapshot bytes
     declared_sha256: str
+    digest: str  # sha256(snapshot), computed once at validation time
 
 
 @dataclass(frozen=True)
@@ -300,6 +302,10 @@ class OracleResult:
     corpus_manifest_sha: str
     candidate_artifact_sha: str
     oracle_suite_sha: str
+    # The immutable retained evidence snapshot (defect 4): the exact bytes
+    # the verdict was derived from, so the audit digest can be recomputed
+    # and checked later. Never the caller's object — always the snapshot.
+    evidence_snapshot: bytes | None = None
     # Safe diagnostics only (type names, short reasons) — never raw
     # evidence bytes or secrets.
     diagnostics: str | None = None
@@ -386,9 +392,15 @@ class FakeBoundaryExecutor:
         clock: Any | None = None,
         executor_id: str = "fake-boundary-executor",
         default_deadline_seconds: float = 300.0,
+        _hooks: dict[str, Any] | None = None,
     ) -> None:
         self.corpus_root = Path(corpus_root)
         self._clock = clock or SystemClock()
+        # Test-only seams (defect 3): named hooks invoked at fixed points so
+        # tests can interleave deterministically (mutate between snapshot and
+        # finalization, advance the fake clock mid-phase). Never used in
+        # production paths; a raising hook is a test bug and propagates.
+        self._hooks: dict[str, Any] = dict(_hooks) if _hooks else {}
         self.executor_id = str(executor_id)
         self._default_deadline = float(default_deadline_seconds)
         self._lock = threading.Lock()
@@ -620,18 +632,29 @@ class FakeBoundaryExecutor:
                 )
             record.state = "running"
 
-        # Evidence validation: malformed producer output becomes an
-        # immutable incomplete result with safe diagnostics — never a crash,
-        # never a stranded handle, never weakened identity.
+        # Everything below this point converts ordinary failures into the
+        # SHARED incomplete receipt via _terminalize — never a crash, never
+        # a stranded handle, never weakened identity. True pre-execution
+        # handle/binding refusals above stay as BoundaryRefusal. BaseException
+        # (KeyboardInterrupt/SystemExit) is never swallowed: only Exception
+        # subclasses are converted.
         try:
             validated = self._validate_evidence(evidence)
         except _MalformedEvidence as exc:
-            with self._lock:
-                if record.result is not None:
-                    return record.result
-                return self._store_terminal(
-                    record, "incomplete", exc.reason, (), None, exc.diagnostics
-                )
+            return self._terminalize(
+                record, "incomplete", exc.reason, (), None, exc.diagnostics
+            )
+        except Exception as exc:  # noqa: BLE001 - snapshot/decoder safety net
+            # e.g. ValueError from bytes() on a released memoryview,
+            # RecursionError from pathological JSON. Never BaseException.
+            return self._terminalize(
+                record,
+                "incomplete",
+                REASON_MALFORMED_EVIDENCE,
+                (),
+                None,
+                f"{type(exc).__name__} during evidence validation",
+            )
 
         # Oracle phase. The agent surface is revoked for the whole phase;
         # HONESTY NOTE: this exercises the refusal mechanism in the fake and
@@ -639,40 +662,67 @@ class FakeBoundaryExecutor:
         surface = RevokedAgentSurface()
         try:
             outcome, reason, records = self._oracle_phase(record, validated, surface)
-        except BoundaryRefusal:
-            raise
-        except Exception as exc:  # noqa: BLE001 - safety net, see below
+        except BoundaryRefusal as exc:
+            # A revoked-surface attempt escaping a callback: record the
+            # attempt as an agent-surface violation, never a crash and never
+            # a stranded handle.
+            return self._terminalize(
+                record,
+                "incomplete",
+                REASON_AGENT_SURFACE_VIOLATION,
+                (),
+                validated,
+                f"agent surface attempt refused: {exc.code}",
+            )
+        except Exception as exc:  # noqa: BLE001 - callback safety net
             # A callback raising must not crash the report or strand the
             # handle: convert to an immutable incomplete with diagnostics.
-            with self._lock:
-                if record.result is not None:
-                    return record.result
-                return self._store_terminal(
-                    record,
-                    "incomplete",
-                    REASON_MALFORMED_EVIDENCE,
-                    (),
-                    validated,
-                    f"oracle phase raised {type(exc).__name__}",
-                )
+            # Never BaseException: KeyboardInterrupt/SystemExit propagate.
+            return self._terminalize(
+                record,
+                "incomplete",
+                REASON_MALFORMED_EVIDENCE,
+                (),
+                validated,
+                f"oracle phase raised {type(exc).__name__}",
+            )
 
+        # Expensive checks are done. Cheap final checks run WITHOUT the lock;
+        # the unified terminal gate below re-checks the deadline immediately
+        # before the atomic store, so no path can store `pass` after expiry.
+        outcome, reason = self._apply_final_checks(record, outcome, reason)
+        return self._terminalize(record, outcome, reason, records, validated)
+
+    def _terminalize(
+        self,
+        record: _BoundRun,
+        outcome: str,
+        reason: str | None,
+        records: tuple[TestRecord, ...],
+        validated: _ValidatedEvidence | None,
+        diagnostics: str | None = None,
+    ) -> OracleResult:
+        """The single unified terminal gate (defect 2).
+
+        Every terminal path funnels through here: preserve any already-
+        stored terminal receipt (a cancellation/timeout that won a race);
+        otherwise an observed expired deadline wins; otherwise the computed
+        outcome is stored atomically. The deadline check and the store run
+        under the same lock with nothing between them, so final checks can
+        never cross the deadline and still store `pass`.
+        """
         with self._lock:
             if record.result is not None:
-                # Terminalized concurrently (cancel stored a receipt):
-                # immutability wins, return the shared result.
                 return record.result
             if self._clock.monotonic() >= record.deadline_monotonic:
-                # Observed expired deadline: timeout wins. (A cancellation
-                # accepted before expiry would already have stored its
-                # receipt via cancel(), which this check sees first.)
+                # Observed expired deadline: timeout wins over whatever
+                # outcome was computed (a cancellation accepted before
+                # expiry would already have stored its receipt above).
                 return self._store_terminal(
                     record, "timeout", REASON_DEADLINE_EXPIRED, (), validated
                 )
-            # All final checks (reference exclusion, etc.) are computed
-            # BEFORE the single atomic store.
-            outcome, reason = self._apply_final_checks(record, outcome, reason)
             return self._store_terminal(
-                record, outcome, reason, records, validated
+                record, outcome, reason, records, validated, diagnostics
             )
 
     def _validate_evidence(self, evidence: object) -> _ValidatedEvidence:
@@ -702,18 +752,35 @@ class FakeBoundaryExecutor:
             )
         # Snapshot ONCE. Everything downstream — digest check, parsing,
         # grading, receipt — uses this snapshot, never the caller's object.
-        snapshot = bytes(raw)
+        # A released memoryview (or other unreadable buffer) raises here;
+        # that is malformed input, never a crash.
+        try:
+            snapshot = bytes(raw)
+        except (ValueError, MemoryError) as exc:
+            bad(
+                REASON_MALFORMED_EVIDENCE,
+                f"evidence bytes unreadable ({type(exc).__name__})",
+            )
+        # Test seam (defect 3): runs after the snapshot is taken, before any
+        # use of it — lets tests mutate the ORIGINAL object to prove the
+        # receipt reflects the snapshot, or advance the fake clock mid-phase.
+        hook = self._hooks.get("after_snapshot")
+        if hook is not None:
+            hook(raw, snapshot)
+        # The digest is computed ONCE here and cached on the validated
+        # record — receipt creation never rehashes.
+        digest = hashlib.sha256(snapshot).hexdigest()
         declared = evidence.evidence_sha256
         if not isinstance(declared, str) or not declared:
             bad(REASON_MALFORMED_EVIDENCE, "evidence_sha256 must be a non-empty string")
-        if hashlib.sha256(snapshot).hexdigest() != declared:
+        if digest != declared:
             raise _MalformedEvidence(
                 REASON_EVIDENCE_DIGEST_MISMATCH,
                 "evidence digest does not match evidence bytes",
             )
         try:
             parsed = json.loads(snapshot.decode("utf-8"))
-        except (UnicodeDecodeError, ValueError) as exc:
+        except (UnicodeDecodeError, ValueError, RecursionError) as exc:
             bad(
                 REASON_MALFORMED_EVIDENCE,
                 f"evidence bytes are not canonical JSON ({type(exc).__name__})",
@@ -746,7 +813,10 @@ class FakeBoundaryExecutor:
                 "submitted test_records do not match the evidence bytes",
             )
         return _ValidatedEvidence(
-            snapshot=snapshot, records=tuple(derived), declared_sha256=declared
+            snapshot=snapshot,
+            records=tuple(derived),
+            declared_sha256=declared,
+            digest=digest,
         )
 
     def _oracle_phase(
@@ -842,16 +912,22 @@ class FakeBoundaryExecutor:
             reason_code=reason,
             expected_test_ids=self._expected_ids[record.frozen.case_id],
             test_records=records,
+            # The digest was computed once at validation time and cached —
+            # never rehashed here.
             evidence_sha256=(
-                hashlib.sha256(validated.snapshot).hexdigest()
-                if validated is not None
-                else None
+                validated.digest if validated is not None else None
             ),
             # Informational UTC timestamp on the executor clock.
             evaluated_at=self._clock.utcnow(),
             corpus_manifest_sha=record.frozen.corpus_manifest_sha,
             candidate_artifact_sha=record.frozen.candidate_artifact_sha,
             oracle_suite_sha=record.frozen.oracle_suite_sha,
+            # The immutable retained snapshot (defect 4): the exact bytes
+            # the verdict was derived from, so the audit digest can be
+            # recomputed and checked later.
+            evidence_snapshot=(
+                validated.snapshot if validated is not None else None
+            ),
             diagnostics=diagnostics,
         )
         record.state = outcome
