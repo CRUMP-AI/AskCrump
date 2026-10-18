@@ -504,19 +504,71 @@
     cancel.addEventListener('click', close);
     overlay.addEventListener('click', event => { if (event.target === overlay) close(); });
     save.addEventListener('click', () => {
+      if (state.renameSaving) return;
       const title = String(input.value || '').replace(/\s+/g, ' ').trim().slice(0, 120);
       if (!title) {
         input.focus();
         return;
       }
-      chat.title = title;
-      chat.updatedAt = new Date().toISOString();
-      chat.revision = Math.max(1, Number(chat.revision || 0) + 1);
-      window.saveChats?.();
+      // Re-resolve the canonical chat by ID at Save time. The object captured
+      // when the dialog opened may have been orphaned by saveChats/replaceChats,
+      // which replace every chat with a normalized copy; mutating the captured
+      // object would silently discard the rename.
+      const current = (window.chats || []).find(item => String(item.id || item.chat_id) === String(chatId));
+      if (!current) {
+        close();
+        window.showToast?.('Conversation no longer exists.', 'error');
+        return;
+      }
+      state.renameSaving = true;
+      save.disabled = true;
+      current.title = title;
+      current.updatedAt = new Date().toISOString();
+      current.revision = Math.max(1, Number(current.revision || 0) + 1);
+      window.saveChats?.({ sync: false });
       window.renderChatsList?.();
-      void window.syncChatsToServer?.();
-      close();
-      window.showToast?.('Conversation renamed.', 'success');
+      window.showToast?.('Saving new title\u2026', 'info');
+      const finish = (closeDialog) => {
+        state.renameSaving = false;
+        save.disabled = false;
+        if (closeDialog) close();
+      };
+      Promise.resolve()
+        .then(() => window.syncChatsToServer?.())
+        .then((result) => {
+          const id = String(chatId);
+          const accepted = Array.isArray(result?.accepted) ? result.accepted.map(String) : [];
+          const ignored = Array.isArray(result?.ignored) ? result.ignored.map(String) : [];
+          if (!result || result.success === false) {
+            if (result?.queued || result?.offline) {
+              // Saved on this device; the queued push syncs when back online.
+              finish(true);
+              window.showToast?.('Title saved on this device. It will sync when you are back online.', 'info');
+              return;
+            }
+            finish(false);
+            window.showToast?.("Couldn't save the new title. Try again.", 'error');
+            return;
+          }
+          if (ignored.includes(id)) {
+            finish(false);
+            window.showToast?.("Couldn't save the new title \u2014 it changed elsewhere. Try again.", 'error');
+            return;
+          }
+          const readback = (window.chats || []).find(item => String(item.id || item.chat_id) === id);
+          if (accepted.includes(id) && readback && readback.title === title) {
+            finish(true);
+            window.showToast?.('Conversation renamed.', 'success');
+          } else {
+            finish(false);
+            window.showToast?.("Couldn't confirm the new title. Try again.", 'error');
+          }
+        })
+        .catch(() => {
+          state.renameSaving = false;
+          save.disabled = false;
+          window.showToast?.("Couldn't save the new title. Try again.", 'error');
+        });
     });
     input.addEventListener('keydown', event => {
       if (event.key === 'Enter') {

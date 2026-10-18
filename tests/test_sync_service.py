@@ -324,3 +324,37 @@ def test_manuscript_workspace_handoff_survives_cross_device_sanitization():
     assert workspace['chapterCount'] == 28
     assert workspace['targetWords'] == 80000
     assert 'untrusted' not in workspace
+
+
+@pytest.mark.asyncio
+async def test_title_change_with_advanced_version_is_accepted():
+    # Pins the sync-protocol path the rename fix relies on: a title-only
+    # change that advances updated_at/revision must be accepted and applied
+    # by apply_chat_sync (the client fix re-resolves the canonical chat and
+    # bumps both before pushing).
+    db = FakeDB()
+    chat_id = '7be94047-aaf4-458a-a599-8f37a0256e53'
+    base = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+
+    first = await push_sync(db, 'user-1', {'chats': [{
+        'id': chat_id,
+        'title': 'Original title',
+        'updatedAt': base,
+        'createdAt': base,
+        'revision': 1,
+        'messages': [{'role': 'user', 'content': 'hello'}],
+    }]})
+    assert first['accepted'] == [chat_id]
+
+    later = datetime.now(timezone.utc).isoformat()
+    second = await push_sync(db, 'user-1', {'chats': [{
+        'id': chat_id,
+        'title': 'Renamed title',
+        'updatedAt': later,
+        'createdAt': base,
+        'revision': 2,
+        'messages': [{'role': 'user', 'content': 'hello'}],
+    }]})
+    assert second['accepted'] == [chat_id]
+    assert second['ignored'] == []
+    assert db.rows[chat_id]['title'] == 'Renamed title'
