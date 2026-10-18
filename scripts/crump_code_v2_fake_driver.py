@@ -428,6 +428,89 @@ def _receipts_summary(receipts: list[dict[str, Any]]) -> list[dict[str, Any]]:
     ]
 
 
+def _git_base_revision(dest: Path) -> str | None:
+    """Best-effort base revision of a prepared case workspace.
+
+    ``prepare_workspace`` commits the pristine workspace, so HEAD identifies
+    the base the fake provider started from. Returns None when git is
+    unavailable; the export never fails because of this.
+    """
+    try:
+        out = subprocess.run(
+            ["git", "rev-parse", "HEAD"],
+            cwd=dest,
+            env=_hermetic_git_env(),
+            capture_output=True,
+            text=True,
+            check=True,
+            timeout=30,
+        )
+        sha = out.stdout.strip()
+        return sha or None
+    except Exception:
+        return None
+
+
+def export_candidate_patch(
+    *,
+    export_dir: Path,
+    case_id: str,
+    patch: Any,
+    base_revision: str | None,
+) -> dict[str, Any]:
+    """Write the exact ``result_patch`` bytes for later binding.
+
+    This is the only place the in-memory patch touches disk. Bytes are
+    written raw — never JSON-escaped, never canonicalized. An empty patch
+    (``""``) is valid and exports as zero bytes; a missing patch (None) is
+    unavailable and exports nothing — an empty file is never fabricated.
+    A non-string, non-bytes value is recorded as unavailable with a note
+    rather than coerced.
+    """
+    meta: dict[str, Any] = {
+        "case_id": case_id,
+        "base_revision": base_revision,
+        "available": False,
+        "sha256": None,
+        "bytes": 0,
+        "path": None,
+        "note": None,
+    }
+    export_dir.mkdir(parents=True, exist_ok=True)
+    sidecar_path = export_dir / f"{case_id}.patch.json"
+
+    def _write_sidecar() -> None:
+        # The sidecar is always written -- even when the patch itself is
+        # unavailable -- so "unavailable" stays distinguishable from
+        # "no export happened".
+        sidecar_path.write_text(
+            json.dumps(meta, sort_keys=True, indent=2), encoding="utf-8"
+        )
+
+    if patch is None:
+        meta["note"] = "result_patch missing from provider result; unavailable"
+        _write_sidecar()
+        return meta
+    if isinstance(patch, str):
+        raw = patch.encode("utf-8")
+    elif isinstance(patch, (bytes, bytearray)):
+        raw = bytes(patch)
+    else:
+        meta["note"] = (
+            f"unexpected result_patch type {type(patch).__name__}; not exported"
+        )
+        _write_sidecar()
+        return meta
+    patch_path = export_dir / f"{case_id}.patch"
+    patch_path.write_bytes(raw)
+    digest = hashlib.sha256(raw).hexdigest()
+    meta.update(
+        available=True, sha256=digest, bytes=len(raw), path=patch_path.name
+    )
+    _write_sidecar()
+    return meta
+
+
 async def drive_case(
     case: Any,
     *,
@@ -440,6 +523,7 @@ async def drive_case(
     cancel_after_turns: int | None = None,
     adapter_support: str = "supported",
     blocked_reason: str | None = None,
+    export_patch_to: str | Path | None = None,
 ) -> dict[str, Any]:
     """Drive one corpus case through the REAL production loop with a fake provider.
 
@@ -477,8 +561,18 @@ async def drive_case(
     )
     workspace = SandboxWorkspace(LocalSandbox(str(dest)))
     outcome = {"final_status": None, "failure_code": None, "error": None}
+    patch_export: dict[str, Any] | None = None
     try:
         result = await provider.run_in_workspace(task, workspace)
+        if export_patch_to is not None:
+            # Optional, default-off: retain the exact patch bytes before the
+            # result dict is discarded. Raw bytes only; nothing canonicalized.
+            patch_export = export_candidate_patch(
+                export_dir=Path(export_patch_to),
+                case_id=case.id,
+                patch=result.get("result_patch"),
+                base_revision=_git_base_revision(dest),
+            )
         outcome["final_status"] = result.get("status")
         outcome["failure_code"] = result.get("failure_code")
         outcome["result_patch_bytes"] = len(result.get("result_patch") or "")
@@ -510,6 +604,7 @@ async def drive_case(
         "honest_label": "Not evaluated",
         "honest_reason": "model evaluation not run",
         "plumbing_only": True,
+        "patch_export": patch_export,
         "driver": {
             "provider": PROVIDER_NAME,
             "seed": seed,
@@ -535,6 +630,7 @@ async def drive_all(
     settings: Any,
     *,
     seed: str = "v1",
+    export_patch_to: str | Path | None = None,
 ) -> dict[str, Any]:
     """Drive all 20 corpus cases. Blocked cases are driven AND marked blocked.
 
@@ -568,6 +664,7 @@ async def drive_all(
                 seed=f"{case.id}-{seed}",
                 adapter_support="supported" if supported else "blocked",
                 blocked_reason=None if supported else "missing trusted adapter",
+                export_patch_to=export_patch_to,
             )
         except Exception as exc:  # noqa: BLE001 - containment is the point:
             # an unexpected error in one case must not hide the rest of the
@@ -625,6 +722,13 @@ def main() -> None:
     parser.add_argument("--work-root", default="/tmp/crump-code-v2-fake-driver")
     parser.add_argument("--out", default="fake_driver_report.json")
     parser.add_argument("--seed", default="v1")
+    parser.add_argument(
+        "--export-patches",
+        default=None,
+        help="Optional directory receiving exact per-case result_patch bytes "
+        "(default off; empty patch exports as zero bytes, missing patch "
+        "exports nothing).",
+    )
     args = parser.parse_args()
 
     import sys
@@ -641,7 +745,12 @@ def main() -> None:
     work_root = Path(args.work_root)
     report = asyncio.run(
         drive_all(
-            Path(args.corpus_root), work_root, CrumpCodeRunner, settings, seed=args.seed
+            Path(args.corpus_root),
+            work_root,
+            CrumpCodeRunner,
+            settings,
+            seed=args.seed,
+            export_patch_to=args.export_patches,
         )
     )
     # Determinism self-check: run twice, compare canonical form.
