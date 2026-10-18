@@ -129,10 +129,18 @@ def test_all_passing_receipts_score_the_fixed_suite_without_echoing_content():
     assert "result_patch" not in encoded
 
 
-def test_current_runner_automatic_syntax_receipts_do_not_break_valid_runs():
+@pytest.mark.parametrize("isolated", [False, True])
+def test_current_runner_automatic_syntax_receipts_do_not_break_valid_runs(isolated):
     manifest = load_manifest()
     artifact = passing_artifact(manifest)
     add_runner_syntax_receipts(manifest, artifact)
+    if isolated:
+        for run in artifact["runs"]:
+            for receipt in run["verification"]:
+                receipt["command"] = receipt["command"].replace(
+                    "python3 -m py_compile ",
+                    "python3 -I -X pycache_prefix=/tmp/crump-code-pycache -m py_compile ",
+                )
     report = evaluate_benchmark(manifest, artifact)
     assert report["passed"] is True
     assert report["passed_case_count"] == len(manifest["cases"])
@@ -145,6 +153,8 @@ def test_current_runner_automatic_syntax_receipts_do_not_break_valid_runs():
         "node --check public/landing.js",
         "node --check benchmarks/crump_code/fixtures/python_boundary/range_utils.py",
         "python3 -m py_compile backend/code_runner.py",
+        "python3 -I -X pycache_prefix=/tmp/crump-code-pycache -m py_compile backend/code_runner.py",
+        "python3 -I -X pycache_prefix=/tmp/unapproved -m py_compile range_utils.py",
     ],
 )
 def test_automatic_syntax_receipts_are_bound_to_changed_paths(command: str):

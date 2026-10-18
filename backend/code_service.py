@@ -9,8 +9,11 @@ from urllib.parse import urlsplit, urlunsplit
 from uuid import uuid4
 
 from .db import SupabaseDB, eq, gt, in_, lte
+from .code_budget import CodeBudgetPolicy, rpc_object
+from .feature_service import FeatureAccessError
 from .project_service import ProjectService
 from .security import normalize_chat_id
+from .usage_service import has_internal_access, tier_name
 
 
 TERMINAL_STATUSES = frozenset({"completed", "failed", "cancelled"})
@@ -241,10 +244,10 @@ class CodeTaskService:
         items = await self.db.select(
             "code_tasks",
             columns=(
-                "id,project_id,objective,mode,source_repo_url,source_ref,status,network_policy,"
+                "id,user_id,project_id,objective,mode,source_repo_url,source_ref,status,network_policy,"
                 "base_revision,result_summary,failure_code,payment_source,credits_spent,"
                 "attempt_count,max_attempts,next_attempt_at,started_at,completed_at,"
-                "expires_at,created_at,updated_at"
+                "expires_at,created_at,updated_at,usage_receipt,lease_token"
             ),
             filters={"user_id": eq(user_id), "project_id": eq(project["id"])},
             order="created_at.desc",
@@ -481,6 +484,104 @@ class CodeTaskService:
         if not rows:
             raise CodeTaskConflictError("Crump Code task is no longer ready to run.")
         return rows[0]
+
+    async def dispatch_authorized(
+        self, task: dict[str, Any], *, user: dict[str, Any], features: Any,
+        dispatch_token: str, budget_policy: CodeBudgetPolicy,
+        confirmation: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        """Authorize a quote, then debit + dispatch in one retry-safe transaction.
+
+        No client receipt or price enters the RPC. Reconcile the durable task
+        before authorization so a lost response can be recovered with a new
+        HTTP request token, even after its original credit quote expires.
+        """
+        if str(task.get("user_id")) != str(user.get("id")):
+            raise CodeTaskNotFoundError("Crump Code task not found.")
+
+        async def current_task() -> dict[str, Any]:
+            current = await self.db.select_one("code_tasks", filters={
+                "id": eq(task["id"]), "user_id": eq(user["id"]),
+            })
+            if not current:
+                raise CodeTaskNotFoundError("Crump Code task not found.")
+            return current
+
+        current = await current_task()
+        if current.get("dispatch_token"):
+            return current
+        current = await self.ensure_not_expired(current)
+        if current.get("status") != "queued":
+            raise CodeTaskConflictError("Crump Code task is no longer ready to run.")
+        if not isinstance(budget_policy, CodeBudgetPolicy):
+            raise ValueError("A validated Code provider policy is required.")
+        policy = await features.require_tier(user, "code_workspace")
+        usage_key = f"code-task:{current['id']}"
+        scope = {"route": "code_task", "taskId": str(current["id"]), "mode": current.get("mode")}
+        try:
+            authorization = await features.authorize(
+                user, {"code_workspace": 1}, confirmation,
+                scope=scope, usage_instance_keys={"code_workspace": usage_key},
+            )
+        except FeatureAccessError:
+            # A simultaneous request may already have committed this task while
+            # this request was checking its now-stale allowance/quote.
+            recovered = await current_task()
+            if recovered.get("dispatch_token"):
+                return recovered
+            raise
+        if (str(authorization.user_id) != str(user["id"])
+                or authorization.quantities != {"code_workspace": 1}):
+            raise CodeTaskConflictError("Code credit authorization does not match this account.")
+        internal = has_internal_access(user)
+        included = -1 if internal else int(policy.included_daily[tier_name(user)])
+        result = rpc_object(await self.db.rpc("reserve_and_dispatch_code_task", {
+            "p_task_id": current["id"], "p_user_id": user["id"],
+            "p_dispatch_token": dispatch_token, "p_included_limit": included,
+            "p_credit_cost": int(policy.credit_cost),
+            "p_confirmed_max": int(authorization.max_by_code.get("code_workspace", 0)),
+            "p_action_key": authorization.action_key,
+            "p_bypass_source": "internal" if internal else "subscription" if included < 0 else None,
+            "p_budget_policy": budget_policy.as_dict(),
+        }, retry_transient=True))
+        if result.get("outcome") in {"dispatched", "replay"} and isinstance(result.get("task"), dict):
+            return result["task"]
+        if result.get("code") in {"CREDIT_CONFIRMATION_REQUIRED", "CREDITS_REQUIRED"}:
+            quote = await features.quote(user, {"code_workspace": 1}, scope=scope,
+                                         usage_instance_keys={"code_workspace": usage_key})
+            raise FeatureAccessError(
+                "Your allowance changed. Review the current Code credit amount before continuing.",
+                str(result["code"]), 402 if result["code"] == "CREDITS_REQUIRED" else 409,
+                credit_cost=int(policy.credit_cost), credit_balance=int(quote.get("creditBalance") or 0),
+                quote=quote,
+            )
+        raise CodeTaskConflictError("Crump Code task is no longer ready to run.")
+
+    async def refund_if_unstarted(self, task: dict[str, Any]) -> dict[str, Any]:
+        """Refund a terminal task only before the first durable provider begin.
+
+        Eligibility, the credit/allowance reversal, and receipt retirement are
+        locked in one transaction. Never compose this with FeatureService.refund.
+        """
+        result = rpc_object(await self.db.rpc("refund_code_task_if_unstarted", {
+            "p_task_id": task["id"], "p_user_id": task["user_id"],
+        }, retry_transient=True))
+        if not isinstance(result.get("task"), dict):
+            raise CodeTaskConflictError("Crump Code refund state could not be confirmed.")
+        return result["task"]
+
+    async def reconcile_provider_lease(self, task: dict[str, Any]) -> dict[str, Any]:
+        """Retire an expired started execution without replay or a credit refund.
+
+        SQL rechecks the current lease deadline under lock, so a concurrent
+        valid lease extension cannot be mistaken for an abandoned execution.
+        """
+        result = rpc_object(await self.db.rpc("reconcile_code_provider_lease", {
+            "p_task_id": task["id"], "p_user_id": task["user_id"],
+        }, retry_transient=True))
+        if not isinstance(result.get("task"), dict):
+            raise CodeTaskConflictError("Crump Code provider lease could not be reconciled.")
+        return result["task"]
 
     async def update_fields(self, task: dict[str, Any], changes: dict[str, Any]) -> dict[str, Any]:
         filters = {"id": eq(task["id"]), "user_id": eq(task["user_id"])}
@@ -790,18 +891,15 @@ class CodeTaskService:
 
     @staticmethod
     def public_task(task: dict[str, Any]) -> dict[str, Any]:
-        hidden = {
-            "user_id",
-            "sandbox_name",
-            "sandbox_session_id",
-            "base_snapshot_id",
-            "final_snapshot_id",
-            "usage_receipt",
-            "lease_token",
-            "lease_expires_at",
-            "dispatch_token",
+        public = {
+            "id", "project_id", "objective", "mode", "source_repo_url", "source_ref",
+            "status", "network_policy", "max_duration_seconds", "base_revision",
+            "result_summary", "result_patch", "verification", "failure_code",
+            "payment_source", "credits_spent", "cancel_requested_at", "started_at",
+            "completed_at", "expires_at", "created_at", "updated_at", "attempt_count",
+            "max_attempts", "next_attempt_at", "events", "approvals",
         }
-        return {key: value for key, value in task.items() if key not in hidden}
+        return {key: value for key, value in task.items() if key in public}
 
     @staticmethod
     def activity_item(task: dict[str, Any]) -> dict[str, Any]:

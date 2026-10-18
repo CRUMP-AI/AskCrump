@@ -1,0 +1,844 @@
+{
+  "schema_version": 2,
+  "suite_id": "askcrump-original-real-tasks-v2",
+  "source_revision": "f69e1fb542a2ff0c6a7e1db6895e85dc110f2129",
+  "language": "python-stdlib",
+  "claim": "Twenty original sanitized regression exercises; cited history motivates adaptations, not literal historical reproducers or broad coding capability. No model quality result is included. Difficulty strata are author-assigned, not empirically calibrated.",
+  "excluded_capabilities": [
+    "conversational clarification of ambiguous requirements",
+    "general coding parity",
+    "browser/mobile end-to-end behavior",
+    "production provider interoperability"
+  ],
+  "cases": [
+    {
+      "id": "activity-latest",
+      "title": "Merge asynchronous activity snapshots",
+      "category": "multi-file/lifecycle",
+      "stratum": "integration",
+      "verification_repair": false,
+      "objective": "Repair merge.py and view.py. A task may appear in multiple asynchronous reads. Keep the snapshot with the newest stamp (later read wins a tie), then show active tasks before terminal tasks, newest first within each group. Exclude undispatched queued drafts, ignore missing IDs, respect limit, and do not mutate inputs.",
+      "allowed_paths": [
+        "merge.py",
+        "view.py"
+      ],
+      "required_paths": [
+        "merge.py",
+        "view.py"
+      ],
+      "provenance": {
+        "kind": "history-adapted",
+        "commit": "323dfb4c3edef72c5c631b50a26fe42f6815cdbc",
+        "paths": [
+          "backend/code_service.py"
+        ],
+        "rationale": "Original reduction of freshest-snapshot activity reconciliation and bounded ordering.",
+        "repository": "https://github.com/CRUMP-AI/AskCrump"
+      },
+      "oracle_test_ids": [
+        "Hidden.test_latest_and_detached",
+        "Hidden.test_tie_uses_later_read",
+        "Hidden.test_group_limit_and_drafts"
+      ],
+      "files": {
+        "workspace/merge.py": "28d0460ae360ed678c65e0646936ec2dd9f9057a1925eb573b6755f4f0544609",
+        "workspace/view.py": "669e18dfc463256e25919f1c1175fd544ec3eea37f99a8a6ee976ff837fd716f",
+        "reference/merge.py": "563998437601c0ff2a358bbce6a1ef06171a979e2c3a4c33cdb6d78e0e685578",
+        "reference/view.py": "2050a0e2ff6c29221eefa3845ed14b796bf23ed85e8869751c5fc3e25b7d7f8f",
+        "workspace/README.txt": "0b2956e7f4f03ce3b9824cd181f6f4be0db7ded6da4d678d9c5a552af142e204",
+        "workspace/tests/test_visible.py": "955fd1e8ffb857d980be3d71687924d7fedac89e1bfbd60b33f99c3ed721301b",
+        "oracle/test_hidden.py": "f4e65aabb42bcb62f11efdf947b54d58cc9de551725d5707d72b7bcead927afa"
+      },
+      "limits": {
+        "patch_bytes": 80000,
+        "candidate_bytes": 160000,
+        "timeout_seconds": 15
+      },
+      "fixture_sha256": "d6360350532535d6950cf45da28b56509a630f44cb3b10d22497e0f26cc02611"
+    },
+    {
+      "id": "gateway-retry",
+      "title": "Recover only safe transient reads",
+      "category": "async/retry",
+      "stratum": "integration",
+      "verification_repair": false,
+      "objective": "Fix transport.request(send, method, max_attempts=4). send is async and yields an HTTP status or raises ConnectionError. Retry GET/HEAD on connection failures and 408/500/502/503/504/520 up to the bound, yielding between attempts. Never retry another method or permanent status; propagate an exhausted connection error.",
+      "allowed_paths": [
+        "transport.py"
+      ],
+      "required_paths": [
+        "transport.py"
+      ],
+      "provenance": {
+        "kind": "history-adapted",
+        "commit": "249da8f4c83ebd676a9d3bdb11934ba5d3ff14af",
+        "paths": [
+          "backend/db.py"
+        ],
+        "rationale": "Transient gateway recovery distinguishes safe reads from writes.",
+        "repository": "https://github.com/CRUMP-AI/AskCrump"
+      },
+      "oracle_test_ids": [
+        "Hidden.test_gateway_and_transport",
+        "Hidden.test_writes_permanent_and_bound",
+        "Hidden.test_exhausted_connection"
+      ],
+      "files": {
+        "workspace/transport.py": "1a0fe47b09736f4b80b06696a77726f6380f7c641c69adad888841b644a1cfed",
+        "reference/transport.py": "8a9b9302cb7a31304946fc64c55d61abe7d95e8290cb081abb9483dc4d590c54",
+        "workspace/README.txt": "4cdfcb8cf66f7dba5f5c5dc07dbfd1ab25103e278fc1b4a3f5b31037a24ced00",
+        "workspace/tests/test_visible.py": "c99c7b2d006e9ab40acd2e480c51f5af1f8889bc0088c9e2a4ef80289d638a8e",
+        "oracle/test_hidden.py": "29eeef858fcaad937b39f659b6b4f89d130a2f2c87db095964c64cbb3d5b734a"
+      },
+      "limits": {
+        "patch_bytes": 80000,
+        "candidate_bytes": 160000,
+        "timeout_seconds": 15
+      },
+      "fixture_sha256": "81ef476b97655236429424473eb41c7bff2f4ef9a94cb4cfa3f8203e0cce3cbd"
+    },
+    {
+      "id": "sync-write-replay",
+      "title": "Retry an idempotent sync boundary",
+      "category": "multi-file/async",
+      "stratum": "integration",
+      "verification_repair": false,
+      "objective": "Fix sync.push and store.MemoryStore. Replaying the same owner/chat/revision after a dropped response must not append another conversation. A newer revision replaces its value; an older/equal revision is ignored. push must opt in to the transport's retry_transient switch, preserve owner isolation and return the accepted/ignored result.",
+      "allowed_paths": [
+        "store.py",
+        "sync.py"
+      ],
+      "required_paths": [
+        "store.py",
+        "sync.py"
+      ],
+      "provenance": {
+        "kind": "history-adapted",
+        "commit": "54c5255e209f9195d4e312faa6675b9daba96561",
+        "paths": [
+          "backend/sync_service.py"
+        ],
+        "rationale": "Explicit idempotent retry at compare-and-apply sync and settings boundaries.",
+        "repository": "https://github.com/CRUMP-AI/AskCrump"
+      },
+      "oracle_test_ids": [
+        "Hidden.test_lost_response_replay",
+        "Hidden.test_revision_and_owner"
+      ],
+      "files": {
+        "workspace/sync.py": "1ca9a35eddc3a148f0b0945cf1abb55017cedb4f466f6d41a2a93fe5a52ce11d",
+        "workspace/store.py": "0398d141ee4486f207e5d7a59498c8c9a7cfcbf366da2609b75fd0d34fbbc837",
+        "reference/sync.py": "754e9735ed0c332e03217a217f1da8f4f7ba75f0a56cff92553e264be36a142a",
+        "reference/store.py": "9c651fac509baba79aab30373973faf491a621c8f79a9bee2012e1098a054607",
+        "workspace/README.txt": "a36431bc0faf15eed8c0b31cf56d417a016c72c7defabce170e5ff832bb19619",
+        "workspace/tests/test_visible.py": "66ee312928d53f1b6c1e34d3efc2629044784bb5dbafe9caef64de6be9b427db",
+        "oracle/test_hidden.py": "70d90089b59d0305d831964fbe849643a964d36f5aecb5d2e3cfae735a501501"
+      },
+      "limits": {
+        "patch_bytes": 80000,
+        "candidate_bytes": 160000,
+        "timeout_seconds": 15
+      },
+      "fixture_sha256": "fb166cffc29ae08859b5a612ca4aec45edec859e97fc967db63310056c488d3d"
+    },
+    {
+      "id": "quote-scope",
+      "title": "Bind credit confirmation to exact work",
+      "category": "multi-file/security",
+      "stratum": "adversarial",
+      "verification_repair": false,
+      "objective": "Fix scope.digest and dispatch.authorized. Scope hashing must be deterministic canonical JSON, independent of dictionary insertion order. A 12-credit confirmation is valid only for exactly this owner, task ID, and mode; reject any changed field and every non-integer/bool/insufficient amount before calling charge. Return the canonical charge receipt unchanged.",
+      "allowed_paths": [
+        "dispatch.py",
+        "scope.py"
+      ],
+      "required_paths": [
+        "dispatch.py",
+        "scope.py"
+      ],
+      "provenance": {
+        "kind": "history-adapted",
+        "commit": "f69e1fb542a2ff0c6a7e1db6895e85dc110f2129",
+        "paths": [
+          "backend/code_service.py"
+        ],
+        "rationale": "Task/mode-scoped credit authorization before atomic dispatch; fixture uses an original digest envelope, not production tokens.",
+        "repository": "https://github.com/CRUMP-AI/AskCrump"
+      },
+      "oracle_test_ids": [
+        "Hidden.test_valid_canonical_receipt",
+        "Hidden.test_changed_scope_has_zero_charge",
+        "Hidden.test_invalid_credit_types"
+      ],
+      "files": {
+        "workspace/scope.py": "fd24723e2d494b651771fcf8a0f157b610f42ee94fc8043137fd1b2651406535",
+        "workspace/dispatch.py": "77edfb87e8ca3f20d4d3f9d336cc91c6a5eb7f914005f1c39869c5df1f75ceb3",
+        "reference/scope.py": "f63f8ddf21753631eda3574cccd8d0804eefe0e2d5da231272a71762fcbc2ec5",
+        "reference/dispatch.py": "49ac2a794df53ebe95ce8706d321dc10b14e775647b1b097c1da657ffbf06a54",
+        "workspace/README.txt": "b1c7498799c3b20f203d95ee3e0b6a7dd1e26c4ca7cd88248dfd4ebc928d0662",
+        "workspace/tests/test_visible.py": "e0d2f260e5ea92b8f8d9ca05ff9bc66205b748a73370f5b82f2f38a676047b1e",
+        "oracle/test_hidden.py": "2ebd00fefc2376a51fd77b9efb70824ea98204f9639f2dd979c02413d77bd97d"
+      },
+      "limits": {
+        "patch_bytes": 80000,
+        "candidate_bytes": 160000,
+        "timeout_seconds": 15
+      },
+      "fixture_sha256": "fff286381e54e15435647853d3208652bc1ec2a823ed1ddda14daafd7d986a73"
+    },
+    {
+      "id": "provider-retry",
+      "title": "Do not replay accepted provider work",
+      "category": "multi-file/async",
+      "stratum": "integration",
+      "verification_repair": false,
+      "objective": "Fix policy.retryable and worker.process. A provider_started marker forbids any automatic retry, including unexpected exceptions. Before it starts, retry only declared transient failures below max_attempts; missing/unknown failures terminate. process returns completed on success, retrying on a permitted retry and failed otherwise, with one run invocation.",
+      "allowed_paths": [
+        "policy.py",
+        "worker.py"
+      ],
+      "required_paths": [
+        "policy.py",
+        "worker.py"
+      ],
+      "provenance": {
+        "kind": "history-adapted",
+        "commit": "f69e1fb542a2ff0c6a7e1db6895e85dc110f2129",
+        "paths": [
+          "backend/code_worker.py"
+        ],
+        "rationale": "All failure branches guard the durable first-provider marker.",
+        "repository": "https://github.com/CRUMP-AI/AskCrump"
+      },
+      "oracle_test_ids": [
+        "Hidden.test_all_post_begin_failures_terminal",
+        "Hidden.test_pre_begin_limits"
+      ],
+      "files": {
+        "workspace/policy.py": "7cd3a628d23be86953063f9468f4a7211f3aa762cf9ae9ad417ed93e188ac6be",
+        "workspace/worker.py": "6bf005d7205c28b4a631fab0ccf0f552fe0a4ce190879ecb6a95abce44c450a6",
+        "reference/policy.py": "4b69ddad5b108d3a6bbb1de18f73f3a72809c6ae9f30943aeb4ffced40b1c40d",
+        "reference/worker.py": "84691b45a06d61e7f9e198fcc43e0cbc7f04f46897813ef8c17f5319aa69f694",
+        "workspace/README.txt": "16b1a5f033b009ffa0f2f5d477fc4490264f39f165b039d9a2ba2917912fab48",
+        "workspace/tests/test_visible.py": "b8faafc2b263eea8232b170959d857e58c5779f7af52320ad967c3c3553e2e0b",
+        "oracle/test_hidden.py": "013f231bfe888445df00387036c320b37ba03191ee78c9eb53f37abd9b349bbe"
+      },
+      "limits": {
+        "patch_bytes": 80000,
+        "candidate_bytes": 160000,
+        "timeout_seconds": 15
+      },
+      "fixture_sha256": "1516a8a85d9ed43216bb3a7670e9334757954b9c2a2a529e36426d72dcf62614"
+    },
+    {
+      "id": "complete-patch",
+      "title": "Never return a truncated patch",
+      "category": "artifacts/boundaries",
+      "stratum": "bounded",
+      "verification_repair": false,
+      "objective": "Fix artifact.read_patch(read_bytes, limit). Return the complete UTF-8 text only when its byte count is at most limit. A larger, invalid UTF-8, missing, or non-byte artifact must raise ValueError, never yield a shortened or replacement-decoded artifact. Empty bytes are valid; bool/negative/non-integer limits are invalid.",
+      "allowed_paths": [
+        "artifact.py"
+      ],
+      "required_paths": [
+        "artifact.py"
+      ],
+      "provenance": {
+        "kind": "history-adapted",
+        "commit": "f69e1fb542a2ff0c6a7e1db6895e85dc110f2129",
+        "paths": [
+          "backend/code_runner.py"
+        ],
+        "rationale": "Original byte-level reduction of complete patch limit enforcement.",
+        "repository": "https://github.com/CRUMP-AI/AskCrump"
+      },
+      "oracle_test_ids": [
+        "Hidden.test_complete_boundary",
+        "Hidden.test_missing_and_bad_limits"
+      ],
+      "files": {
+        "workspace/artifact.py": "26c345dc85a5b623d62de0703f6f97c015a9bedc235de6d4470ec0b7d5bda895",
+        "reference/artifact.py": "4d1c36a71677af09e6d73e82e59ba0e78c0efc670de8e038001c02704fcd9d6a",
+        "workspace/README.txt": "2275453c134b4d3b96b2b0ebe88c02e08e45eb87ded1a54756bc041a598ff76a",
+        "workspace/tests/test_visible.py": "c87cbbb319e4f609379690ecd8389430c7cdede045c15b7802ad833771f2a67a",
+        "oracle/test_hidden.py": "4d9d411c1ff6868bb842e29fc18c2a5966c5ac5b2c7d40e692a8908f36bcc743"
+      },
+      "limits": {
+        "patch_bytes": 80000,
+        "candidate_bytes": 160000,
+        "timeout_seconds": 15
+      },
+      "fixture_sha256": "9bcb948d77694cb4062a6d09fface3ce93d44c4d2f0957f350ac309394c951c6"
+    },
+    {
+      "id": "rename-boundary",
+      "title": "Parse the entire NUL Git inventory",
+      "category": "path/security",
+      "stratum": "adversarial",
+      "verification_repair": false,
+      "objective": "Fix inventory.paths(raw). Parse porcelain-v1 -z status: ordinary records are XY<space>path<NUL>; rename/copy records add source<NUL> after destination. Return sorted unique paths including both sides. Reject a truncated/malformed record, any .env or .git path component, absolute/traversal/backslash paths, and leading/trailing whitespace. Interior spaces are valid; empty inventory returns [].",
+      "allowed_paths": [
+        "inventory.py"
+      ],
+      "required_paths": [
+        "inventory.py"
+      ],
+      "provenance": {
+        "kind": "history-adapted",
+        "commit": "f69e1fb542a2ff0c6a7e1db6895e85dc110f2129",
+        "paths": [
+          "backend/code_runner.py"
+        ],
+        "rationale": "NUL porcelain parsing and source/destination eligibility at the artifact boundary.",
+        "repository": "https://github.com/CRUMP-AI/AskCrump"
+      },
+      "oracle_test_ids": [
+        "Hidden.test_space_and_rename",
+        "Hidden.test_protected_source_and_bad_inputs"
+      ],
+      "files": {
+        "workspace/inventory.py": "a076926ebbda0ab71e3c951658afc57552278616bcdfa8ce037b88e57615d849",
+        "reference/inventory.py": "182b7a308e9f38cf97fe06aa49f5da4ef9a685fbb3dd41d7b5ff17d66ff44be9",
+        "workspace/README.txt": "5b548cf0d02e39ca880588cb09b00609ba2cb9b44ddc273224d50d9e93a0fb1e",
+        "workspace/tests/test_visible.py": "740bdce579a5748a0039e5b8a72e9dc3b8e83675027d8103ecd2f71dde1d2fb0",
+        "oracle/test_hidden.py": "c7b071595daecb58e0020e822be2f875ccaf68c401cccea4551a8a70dcd79cf9"
+      },
+      "limits": {
+        "patch_bytes": 80000,
+        "candidate_bytes": 160000,
+        "timeout_seconds": 15
+      },
+      "fixture_sha256": "9df4a4cf1ff19158e665a6aa750c8d904d911a1f6576fb6aaf40197f5288b2ea"
+    },
+    {
+      "id": "ignored-write",
+      "title": "Validate patch eligibility before writing",
+      "category": "async/side-effects",
+      "stratum": "bounded",
+      "verification_repair": false,
+      "objective": "Fix writer.write(fs, git, path, content). git.check_ignore returns async status0 ignored,1 eligible (including tracked files matching a pattern),other unknown. Reject ignored with ValueError and unknown with RuntimeError before creating a directory or writing. On1, mkdir the parent if needed then write and return the path; never reinterpret a tracked file based on pattern text.",
+      "allowed_paths": [
+        "writer.py"
+      ],
+      "required_paths": [
+        "writer.py"
+      ],
+      "provenance": {
+        "kind": "history-adapted",
+        "commit": "f69e1fb542a2ff0c6a7e1db6895e85dc110f2129",
+        "paths": [
+          "backend/code_runner.py"
+        ],
+        "rationale": "Original no-side-effect reduction of ignored-file rejection before source writes.",
+        "repository": "https://github.com/CRUMP-AI/AskCrump"
+      },
+      "oracle_test_ids": [
+        "Hidden.test_zero_side_effects_for_rejection",
+        "Hidden.test_eligible_parent_and_order"
+      ],
+      "files": {
+        "workspace/writer.py": "2bd5baddb06ee3167083ef7aca11105517bdc236adebbd8fb1639bab2ed1e028",
+        "reference/writer.py": "e8b383bf82a21429fedcad2d3fd22d28847029a20c4788feb4df593485c4e13b",
+        "workspace/README.txt": "d646e37b44766550282deb73cb98b47d38a2eb0d4a6fb1b8eeecf44124a6e06a",
+        "workspace/tests/test_visible.py": "75a581c4bd87e1d0211caec19e4a3ceb4067ae68f1f924f478c007d028f46b0f",
+        "oracle/test_hidden.py": "e0f5087c4f46d2249e2bd6521321d3ebd37b41410aad4344fe3fdab424e781a4"
+      },
+      "limits": {
+        "patch_bytes": 80000,
+        "candidate_bytes": 160000,
+        "timeout_seconds": 15
+      },
+      "fixture_sha256": "f1262ce4ee1ad196ec5fff60a94c44745f06fa864b67a5865e9b4d5d603600c8"
+    },
+    {
+      "id": "expiry-projection",
+      "title": "Retain private fields for expiry reconciliation",
+      "category": "multi-file/data-boundary",
+      "stratum": "integration",
+      "verification_repair": false,
+      "objective": "Fix query.list_tasks and lifecycle.expire. DB projection is real: it returns only requested fields. Reconcile expired rows using owner, receipt and lease, mark paid unstarted work refund_pending, and use the lease as an optimistic filter. Public results contain only id/status/failure_code. Unexpired rows must not be written; preserve canonical owner and never leak receipt/lease.",
+      "allowed_paths": [
+        "lifecycle.py",
+        "query.py"
+      ],
+      "required_paths": [
+        "lifecycle.py",
+        "query.py"
+      ],
+      "provenance": {
+        "kind": "history-adapted",
+        "commit": "f69e1fb542a2ff0c6a7e1db6895e85dc110f2129",
+        "paths": [
+          "backend/code_service.py"
+        ],
+        "rationale": "Projection-aware expiry reconciliation must retain private fields internally and whitelist public output.",
+        "repository": "https://github.com/CRUMP-AI/AskCrump"
+      },
+      "oracle_test_ids": [
+        "Hidden.test_projection_and_refund",
+        "Hidden.test_unexpired_public_projection"
+      ],
+      "files": {
+        "workspace/query.py": "76b716c086f8e44deaec9e99f5be4a0e6a583b3844ed39873b31edf90c5f2b60",
+        "workspace/lifecycle.py": "56086d1b4398c4021d85c6c4cb5dd51c716d5f7509c76cfbbeca00a14cdfd490",
+        "reference/query.py": "0f0ebe3732caf9012efca5450202694b4e4d032a5088a6f07b81b68bb08351f5",
+        "reference/lifecycle.py": "beef895e1e0f9e962f6a7757c81af606a7aa322e66a7dcd1c272f1a4fbdff1c7",
+        "workspace/README.txt": "f8c2334608fc4b66dfa89e7bc2ff18fe755a35d9f481ac7e751c4572154ca606",
+        "workspace/tests/test_visible.py": "f32dfc8fd247456d1719a9b7c627a0349b80273a0b1c1c765459dccd490b9bea",
+        "oracle/test_hidden.py": "6749dfd0ff2a4cccdf954d379af267837377d01536f7f6611b63715dadf733b8"
+      },
+      "limits": {
+        "patch_bytes": 80000,
+        "candidate_bytes": 160000,
+        "timeout_seconds": 15
+      },
+      "fixture_sha256": "6fe8ae482c583af9d029e353f71fe1967b88b86e9e5ec355c4af834948d0d254"
+    },
+    {
+      "id": "verification-repair",
+      "title": "Require fresh verification after the final edit",
+      "category": "multi-file/verification-repair",
+      "stratum": "adversarial",
+      "verification_repair": true,
+      "objective": "Fix workspace.Workspace and verdict.verdict. Every edit increments generation; checks record current generation, command and return code. Verdict is completed only if each required command's latest check at the FINAL generation has integer code0. Old failures can be repaired by a later passing check; checks before the last edit do not count. Empty requirements/invalid/null/bool codes cannot certify changed work. Unchanged work completes without checks.",
+      "allowed_paths": [
+        "verdict.py",
+        "workspace.py"
+      ],
+      "required_paths": [
+        "verdict.py",
+        "workspace.py"
+      ],
+      "provenance": {
+        "kind": "original",
+        "commit": null,
+        "paths": [],
+        "rationale": "Original verification-repair exercise; no historical-production equivalence is claimed.",
+        "repository": null
+      },
+      "oracle_test_ids": [
+        "Hidden.test_repair_uses_latest_and_generation",
+        "Hidden.test_all_required_and_strict_codes"
+      ],
+      "files": {
+        "workspace/workspace.py": "efd96b3bc06f10d8ad50ea1c694bdc3e4b0246c8b0ef64287ae2298ceba72e0d",
+        "workspace/verdict.py": "b0b0cd1a9b019ab1d240bd7b6c2e1ea06b2a745310936f48bc4c61bab82a9fb0",
+        "reference/workspace.py": "fb9ea1e0609904b2953623f7d965a2f92f43bbee1c38ffd252e334db00163ae4",
+        "reference/verdict.py": "44edd0c3047216971f575fc85791044eb3fcddb89b6040a65c58faf76c778493",
+        "workspace/README.txt": "1907a9be1b901ae6d1fc3902f1885c5e35d92af77a56a4fe8be599bf63084cfd",
+        "workspace/tests/test_visible.py": "ae9caf491632255c351c06b1486413cc9899d60d9a2323b6984b03b600454cba",
+        "oracle/test_hidden.py": "405aa513c5e3c6dc45300ba5474b221f1f0cabd2b7444c3f1c0fe3be44c2a1b9"
+      },
+      "limits": {
+        "patch_bytes": 80000,
+        "candidate_bytes": 160000,
+        "timeout_seconds": 15
+      },
+      "fixture_sha256": "9f6c845121a5748dde4a0a26ed94a9b3fedc5a57fffecf6950565ad9bc69446e"
+    },
+    {
+      "id": "cancel-begin",
+      "title": "Serialize provider begin against cancellation",
+      "category": "async/concurrency",
+      "stratum": "adversarial",
+      "verification_repair": false,
+      "objective": "Repair gate.Gate so concurrent begin/cancel have one atomic decision. begin returns True exactly when it changes ready to started. cancel returns True and refunds exactly once only when ready; after started it may mark cancelled but must never refund. Any later begin returns False. Keep state/refunds public for inspection; use no sleeps or I/O while holding a mutation boundary.",
+      "allowed_paths": [
+        "gate.py"
+      ],
+      "required_paths": [
+        "gate.py"
+      ],
+      "provenance": {
+        "kind": "history-adapted",
+        "commit": "f69e1fb542a2ff0c6a7e1db6895e85dc110f2129",
+        "paths": [
+          "migrations/20261015230059_atomic_code_dispatch_provider_budget.sql"
+        ],
+        "rationale": "Original async in-memory reduction of the SQL begin/refund serialization invariant.",
+        "repository": "https://github.com/CRUMP-AI/AskCrump"
+      },
+      "oracle_test_ids": [
+        "Hidden.test_race_never_starts_and_refunds",
+        "Hidden.test_multiple_cancel_is_once"
+      ],
+      "files": {
+        "workspace/gate.py": "d74293bf46a06fa0e641c3e1c6523ce67d72480df1cffb5f803e1a154318fa1a",
+        "reference/gate.py": "ef4d475a407565051a80582714f1f665eb65113b11b91e127abfd6a567e166d2",
+        "workspace/README.txt": "61844cc19029cc5867170330bb37531436a1d90138d0da3681bb14e3c32870b9",
+        "workspace/tests/test_visible.py": "252b2459ecc6b49ebd2e3f9b8c1f38924fa381964604aa01d50ce5426b69e3fc",
+        "oracle/test_hidden.py": "baeb65c59361e7fa0b9b527f88eeeb381010731abdd511ec8cbd89e507effcc6"
+      },
+      "limits": {
+        "patch_bytes": 80000,
+        "candidate_bytes": 160000,
+        "timeout_seconds": 15
+      },
+      "fixture_sha256": "3ab0735bd3ac5a9caf30738d75791578ebde7704f8fbf6eb647ff29f7cd5a1b9"
+    },
+    {
+      "id": "daily-retention",
+      "title": "Preserve daily admission history across deletion",
+      "category": "stateful/budget",
+      "stratum": "adversarial",
+      "verification_repair": false,
+      "objective": "Fix ledger.Ledger. reserve(id,day,amount,cap) must reject duplicate IDs and daily overflow, preserving the strictest admitted cap. settle changes that reservation's held cost to actual (or max(reserved,actual) when uncertain); release holds0; erase removes only identifiable reservation data, not historical day totals/caps. Late settlement updates original day. Reject noninteger/negative amounts and settlement on absent IDs. totals(day) returns (held,cap) or (0,None).",
+      "allowed_paths": [
+        "ledger.py"
+      ],
+      "required_paths": [
+        "ledger.py"
+      ],
+      "provenance": {
+        "kind": "history-adapted",
+        "commit": "f69e1fb542a2ff0c6a7e1db6895e85dc110f2129",
+        "paths": [
+          "migrations/20261015230059_atomic_code_dispatch_provider_budget.sql"
+        ],
+        "rationale": "Deletion-independent daily budget aggregates, cap minima and original-day settlement; original Python reduction of SQL accounting.",
+        "repository": "https://github.com/CRUMP-AI/AskCrump"
+      },
+      "oracle_test_ids": [
+        "Hidden.test_deletion_and_minimum",
+        "Hidden.test_late_usage_and_uncertainty",
+        "Hidden.test_duplicate_and_invalid"
+      ],
+      "files": {
+        "workspace/ledger.py": "bba047cdaffac8c2bcde5ecb21e33e44c636af3dce0783300005e8f82812f80a",
+        "reference/ledger.py": "a77f8e64a443a46c55b7246e4e9c918950ddbb02d9d6a5c3fe66fa3631cc222a",
+        "workspace/README.txt": "d6d4336f8d7ca486fbe727a451f59af14529768e1b3b46b3abc877bcdab908d7",
+        "workspace/tests/test_visible.py": "d188b48e96abb1c563c76a35db04309f5f307bf49359c5ff685a0d68c946fba8",
+        "oracle/test_hidden.py": "8981538c6f958279aa3ecce044229ddf5230cdec44e10cb12f7a65baa32049e9"
+      },
+      "limits": {
+        "patch_bytes": 80000,
+        "candidate_bytes": 160000,
+        "timeout_seconds": 15
+      },
+      "fixture_sha256": "05ce7461365c5d84c44454180cd69ffbe875dfcde1608ca2a7c5ead6a778f449"
+    },
+    {
+      "id": "workspace-paths",
+      "title": "Enforce canonical source paths",
+      "category": "path/security",
+      "stratum": "bounded",
+      "verification_repair": false,
+      "objective": "Fix paths.normalize(value). Accept only nonempty canonical relative POSIX source paths ending .py/.js/.txt/.md. Reject leading/trailing whitespace, slash/backslash roots, drive names, repeated separators, dot/dotdot components, control characters and any case-insensitive .git/.env component. Return input unchanged when valid. No filesystem access belongs in this pure canonicalizer.",
+      "allowed_paths": [
+        "paths.py"
+      ],
+      "required_paths": [
+        "paths.py"
+      ],
+      "provenance": {
+        "kind": "history-adapted",
+        "commit": "f69e1fb542a2ff0c6a7e1db6895e85dc110f2129",
+        "paths": [
+          "backend/code_runner.py"
+        ],
+        "rationale": "Original canonical-path exercise extending the production path boundary; not a literal extracted historical test.",
+        "repository": "https://github.com/CRUMP-AI/AskCrump"
+      },
+      "oracle_test_ids": [
+        "Hidden.test_canonical",
+        "Hidden.test_escapes_and_protected"
+      ],
+      "files": {
+        "workspace/paths.py": "7e3eb034ccffbd2242a1d5a89271ebd48aba8b7e140de1ba12fd16f116d9f476",
+        "reference/paths.py": "019d5034b38f3e754738f6fc39741d6c7313e5c64d126809c3c57b2b04528f68",
+        "workspace/README.txt": "62bc6b5f4df87283eb98b43b8e9763f4988d4e730f647a6394f366e80718b4b7",
+        "workspace/tests/test_visible.py": "8d4b644964bd4e8c303c3827826cbfee0d1f7ba7f35cabae3ccf1910c2ea07fd",
+        "oracle/test_hidden.py": "769624488f4d5dee8af2edb18e41d4e45445630145848c83ceccf5571afe9e40"
+      },
+      "limits": {
+        "patch_bytes": 80000,
+        "candidate_bytes": 160000,
+        "timeout_seconds": 15
+      },
+      "fixture_sha256": "8d45e8d49f6592713b5308da01d0e4d2824f0eabea6365c56a293a86fcfa6822"
+    },
+    {
+      "id": "signed-admission",
+      "title": "Authenticate a fixed workload envelope",
+      "category": "multi-file/signature-security",
+      "stratum": "adversarial",
+      "verification_repair": false,
+      "objective": "Fix tokens.verify and admission.admit. This ORIGINAL stdlib HMAC fixture is an analogue, NOT production RS256/OIDC. Format payload_hex.signature_hex; signature is HMAC-SHA256 over payload bytes with provided key. Verify signature BEFORE trusting JSON, require a dict, strict integer exp>now and exact issuer/audience/project/team/environment policy. Return only project/team; invalid envelopes raise ValueError before provision. Policy comes from the caller, never token claims.",
+      "allowed_paths": [
+        "admission.py",
+        "tokens.py"
+      ],
+      "required_paths": [
+        "admission.py",
+        "tokens.py"
+      ],
+      "provenance": {
+        "kind": "original-analogue",
+        "commit": "f69e1fb542a2ff0c6a7e1db6895e85dc110f2129",
+        "paths": [
+          "backend/code_identity.py"
+        ],
+        "rationale": "Original HMAC analogue tests trust-before-side-effects, not production OIDC interoperability or cryptographic parity.",
+        "repository": "https://github.com/CRUMP-AI/AskCrump"
+      },
+      "oracle_test_ids": [
+        "Hidden.test_valid_projection",
+        "Hidden.test_signature_and_each_binding"
+      ],
+      "files": {
+        "workspace/tokens.py": "345569ec6e5dfa67c4eb793d628b68065a6b6b496a1fd7d9ad3d088c292294d1",
+        "workspace/admission.py": "ce118a543ae5f0042350d08c4c55c9dd54a2fdd098941021dd0fc3816ebcc3fb",
+        "reference/tokens.py": "91f48477be0744bf6c3cb995fbe39907727c50e11ed9da4ee3cc44493718c340",
+        "reference/admission.py": "0126b0bab11579bf2f2ddbbe8116b0e17884c389fdc79a361aa33a17102370ca",
+        "workspace/README.txt": "de5b18eec116705408b11c50b41ad7efba9594822a6617e676aa8d25f6eccf5e",
+        "workspace/tests/test_visible.py": "31c6a9ac67af9fe7e9b0f8b949591e1f2d144d83f9e902e3606fdfdc0815607d",
+        "oracle/test_hidden.py": "7739dc0c91492dc920730e808c83a083ffb57e6a5a85c43cdea71dcc0a330c0f"
+      },
+      "limits": {
+        "patch_bytes": 80000,
+        "candidate_bytes": 160000,
+        "timeout_seconds": 15
+      },
+      "fixture_sha256": "3be2530408b2aaf411232f69640069eefa903b19f5ed6358a0ad6162475294e8"
+    },
+    {
+      "id": "request-cost",
+      "title": "Reserve the whole model request",
+      "category": "budget/encoding",
+      "stratum": "adversarial",
+      "verification_repair": false,
+      "objective": "Fix budget.reserve(body, policy). Exact model must match; max_tokens strict int1..max_output; UTF-8 canonical JSON of ALL fields (including tools/system) must fit max_bytes and reject NaN. Price ceiling is ceil(((bytes+4096)*input_rate + max_tokens*output_rate)/1_000_000). Return digest/cost/input_ceiling; reject ceiling above call_limit, invalid shape or nonpositive limits/rates. Never mutate body.",
+      "allowed_paths": [
+        "budget.py"
+      ],
+      "required_paths": [
+        "budget.py"
+      ],
+      "provenance": {
+        "kind": "history-adapted",
+        "commit": "f69e1fb542a2ff0c6a7e1db6895e85dc110f2129",
+        "paths": [
+          "backend/code_budget.py"
+        ],
+        "rationale": "Complete request-body hashing, UTF-8 upper bound and integer ceiling admission.",
+        "repository": "https://github.com/CRUMP-AI/AskCrump"
+      },
+      "oracle_test_ids": [
+        "Hidden.test_every_field_and_canonical_digest",
+        "Hidden.test_rejections"
+      ],
+      "files": {
+        "workspace/budget.py": "32295b2f91e080029fdb4e118694ef18375c1ecb679befbbf6cf0da7f941c592",
+        "reference/budget.py": "318de555ce4c1ce6fba4d23a4f564a449309757ce8000b2b0e7dc3492220b477",
+        "workspace/README.txt": "66642fbb65cb6c4debdbbc6da548d4dd0f084c84596569fb7db7fe3a0a836729",
+        "workspace/tests/test_visible.py": "460eb80702944a89ab15f17ea15f849a0943db092fe0a63198cfd9fb822193be",
+        "oracle/test_hidden.py": "eb3cb52b0423da2ad7fe954d1bc3d7e3f7edad1724aeaa09093996f60f8f0d62"
+      },
+      "limits": {
+        "patch_bytes": 80000,
+        "candidate_bytes": 160000,
+        "timeout_seconds": 15
+      },
+      "fixture_sha256": "b7fa4be1b8284d6b6b3d5892617f1d2fd81d956061de84acb104f77bff456c9c"
+    },
+    {
+      "id": "call-lease",
+      "title": "Make provider begin a one-owner transition",
+      "category": "async/concurrency",
+      "stratum": "adversarial",
+      "verification_repair": false,
+      "objective": "Fix calls.Calls. reserve(key,digest,lease) is idempotent only for the same digest while still reserved; a new lease may take that unused reservation. begin(key,lease) atomically returns True once for current owner, sets started, and later begins always return False. Wrong owners/different digest/reserving a started call raise ValueError without mutations. At most one concurrent begin may win.",
+      "allowed_paths": [
+        "calls.py"
+      ],
+      "required_paths": [
+        "calls.py"
+      ],
+      "provenance": {
+        "kind": "history-adapted",
+        "commit": "f69e1fb542a2ff0c6a7e1db6895e85dc110f2129",
+        "paths": [
+          "migrations/20261015230059_atomic_code_dispatch_provider_budget.sql"
+        ],
+        "rationale": "Stable call digest, pre-start lease handoff and one-time provider-begin ownership.",
+        "repository": "https://github.com/CRUMP-AI/AskCrump"
+      },
+      "oracle_test_ids": [
+        "Hidden.test_exactly_one_begin",
+        "Hidden.test_takeover_and_conflict_do_not_rewrite"
+      ],
+      "files": {
+        "workspace/calls.py": "f7403a96f5a2708443865c88bb766381e42bc43b12b900caa77deb421f601505",
+        "reference/calls.py": "c653364f84faa943ab279860ac82c96c6b6896e66d9a733efe50b6af72c7fdf6",
+        "workspace/README.txt": "cf253819a66e2cc6d2746575a953939569b3eae3a43e2705de157c89b44c9566",
+        "workspace/tests/test_visible.py": "a34e81f38b5e5fd20045f4fe1dafb9d884f6a6d65095639a4d98c97ab706b733",
+        "oracle/test_hidden.py": "2f1b1ab772b1d8e6a35ccf7ef9314a2b0020adbff056f12546803d6f45932a39"
+      },
+      "limits": {
+        "patch_bytes": 80000,
+        "candidate_bytes": 160000,
+        "timeout_seconds": 15
+      },
+      "fixture_sha256": "9ab3791803faed61587f36220aaf55ed7cebc61bfc868a4288488334b3d1dde0"
+    },
+    {
+      "id": "image-size",
+      "title": "Respect edge and pixel limits together",
+      "category": "numerical/boundaries",
+      "stratum": "bounded",
+      "verification_repair": false,
+      "objective": "Fix sizing.prepare(width,height,max_edge,max_pixels,encoded_bytes,max_bytes). Validate strict positive integer dimensions/limits and nonnegative integer byte count. Reject encoded_bytes>=max_bytes. Downscale only: one aspect-preserving scale=min(1,edge/maxdimension,sqrt(pixelcap/area)), floor each result with minimum1; final area and edge must fit, never upscale. No image library or I/O needed.",
+      "allowed_paths": [
+        "sizing.py"
+      ],
+      "required_paths": [
+        "sizing.py"
+      ],
+      "provenance": {
+        "kind": "history-adapted",
+        "commit": "f8feca89dfc6ba46308fbd40650ab59532cd9de1",
+        "paths": [
+          "backend/media_service.py"
+        ],
+        "rationale": "Aspect-preserving maximum edge plus pixel cap, floor rounding and encoded-byte rejection; original stdlib numeric reduction.",
+        "repository": "https://github.com/CRUMP-AI/AskCrump"
+      },
+      "oracle_test_ids": [
+        "Hidden.test_square_pixel_cap_and_portrait",
+        "Hidden.test_bytes_boundary_and_dimensions"
+      ],
+      "files": {
+        "workspace/sizing.py": "943f97d22c199d99d4f5ed92398604933458ddbe9dd6a5f1cd168aa9e92be576",
+        "reference/sizing.py": "a398cf2849f78a1398c785799c7fed7b1575b9637321b5c31a4f63a98679f43e",
+        "workspace/README.txt": "d56dfea768eeb9c60e4a77b5eac22544737b4c4a13f0d0ae3cdd4ddb80a08307",
+        "workspace/tests/test_visible.py": "a858d05905e80af96af1021cfaf4537fde5163e51439b07b4b9ab3f59953fe08",
+        "oracle/test_hidden.py": "72cd84da1fd6e39e7e9a34743af6c0b07d69fce8d0d579305fc6eadb6b6cee40"
+      },
+      "limits": {
+        "patch_bytes": 80000,
+        "candidate_bytes": 160000,
+        "timeout_seconds": 15
+      },
+      "fixture_sha256": "9bb62c0c07ad56449d1e06c159508b7a00568b3cdc27294df1c6528e26a7ef57"
+    },
+    {
+      "id": "image-recovery",
+      "title": "Preserve only server-shaped recovery metadata",
+      "category": "data/security",
+      "stratum": "bounded",
+      "verification_repair": false,
+      "objective": "Fix recovery.sanitize(item). Return a fresh dict with role/content only, plus recognized replyErrorCode/replyRecovery for USER messages. Codes IMAGE_SAFETY_REJECTED expect changeRequired prompt_or_reference; INVALID_IMAGE_EDIT_SOURCE/IMAGE_EDIT_SOURCE_TOO_LARGE expect reference. Recovery action must be revise_image_request and usageRestored strictly True. Missing changeRequired on old records defaults by code; a mismatched value is rejected. Drop arbitrary metadata and never mutate input.",
+      "allowed_paths": [
+        "recovery.py"
+      ],
+      "required_paths": [
+        "recovery.py"
+      ],
+      "provenance": {
+        "kind": "history-adapted",
+        "commit": "f8feca89dfc6ba46308fbd40650ab59532cd9de1",
+        "paths": [
+          "backend/sync_service.py"
+        ],
+        "rationale": "Persist only recognized recovery metadata while preserving earlier saved safety records.",
+        "repository": "https://github.com/CRUMP-AI/AskCrump"
+      },
+      "oracle_test_ids": [
+        "Hidden.test_legacy_recovery_detached_whitelist",
+        "Hidden.test_reject_bad_role_code_type_and_change"
+      ],
+      "files": {
+        "workspace/recovery.py": "e6c1c9b885dc9fbf30853dfbd89d3187b7f61da15ca0323eee6d0f724edd7129",
+        "reference/recovery.py": "fab12e9c153ab2854f1ceb6ae3977befe7a22431eca6db60db16f6c0f2d10e85",
+        "workspace/README.txt": "54e3aa10ad053fa6b446d009c9ea4937c7c41d2d2809656a43cd0b49018a5335",
+        "workspace/tests/test_visible.py": "8969e99714aded25cf61adec999ee46a09d6dc8f10fa35dc64b025555fb9cc63",
+        "oracle/test_hidden.py": "ece290ebbcd3d2b183e003cf5d0868b79b0049954b270ac62c677a73bfc2a887"
+      },
+      "limits": {
+        "patch_bytes": 80000,
+        "candidate_bytes": 160000,
+        "timeout_seconds": 15
+      },
+      "fixture_sha256": "be86cfb42109bd0dcb9d2534643c94434ac8dc4cc3530c871b6180dd93b92607"
+    },
+    {
+      "id": "startup-order",
+      "title": "Arm demo transport before the shell mounts",
+      "category": "lifecycle/state-machine",
+      "stratum": "integration",
+      "verification_repair": false,
+      "objective": "Fix startup.Boot. An armed demo installs its interceptor immediately on construction, but enters only after shell_ready or dom_ready. Any event order/repetition enters once. On dom_ready, register the demo chats renderer once even if already entered; DOM fallback permits a missing shell. Unarmed boot must never intercept, enter or register. Use callbacks, no global state.",
+      "allowed_paths": [
+        "startup.py"
+      ],
+      "required_paths": [
+        "startup.py"
+      ],
+      "provenance": {
+        "kind": "history-adapted",
+        "commit": "d80d6c3b9c1c393ad2c34e97d72673441aaef49d",
+        "paths": [
+          "public/crump-vision-demo-1.0.js"
+        ],
+        "rationale": "Original Python event-state reduction of interceptor-before-mount and shell/DOMContentLoaded readiness; no browser-equivalence claim.",
+        "repository": "https://github.com/CRUMP-AI/AskCrump"
+      },
+      "oracle_test_ids": [
+        "Hidden.test_ready_orders_and_once",
+        "Hidden.test_unarmed_and_dom_fallback"
+      ],
+      "files": {
+        "workspace/startup.py": "db2d03d1ecca585c2fa29f204f41bfaaef8224047c1020d4cfb1f8afaef71b37",
+        "reference/startup.py": "3fbb972760ad766c69e75700d3c36cdb8dfa076fd40cbee690b7385eb3af1c40",
+        "workspace/README.txt": "1ac0fa77c251208e7f74532954a5774246b07ba3396bd7a938047b27cd898c2b",
+        "workspace/tests/test_visible.py": "9de53724aaa52fe00e48c1b6feb2cd117e33746c91495c6c087f02ae390f1528",
+        "oracle/test_hidden.py": "8d1ad49dc5a64cf0278d1617cca628cbc38d26eba6bada05b4ac97138f703ae3"
+      },
+      "limits": {
+        "patch_bytes": 80000,
+        "candidate_bytes": 160000,
+        "timeout_seconds": 15
+      },
+      "fixture_sha256": "89429c379ea5de2ecd37c31946182ba3e4303f046f95e8ae833c4ff53274d576"
+    },
+    {
+      "id": "verification-feedback",
+      "title": "Repair from real verification feedback within one budget",
+      "category": "async/verification-repair",
+      "stratum": "adversarial",
+      "verification_repair": true,
+      "objective": "Fix repair.run(workspace, propose, max_turns). Each iteration calls async propose(last_feedback), then async workspace.verify(). Ignore propose's success claims; only a dict receipt with strict integer returnCode0 and revision==workspace.revision completes. Feed the actual failed/stale receipt to the next propose unchanged. All attempts/repairs share max_turns; invalid/zero/bool limits reject before callbacks. On exhaustion return failed; never call propose after a verified success.",
+      "allowed_paths": [
+        "repair.py"
+      ],
+      "required_paths": [
+        "repair.py"
+      ],
+      "provenance": {
+        "kind": "original",
+        "commit": null,
+        "paths": [],
+        "rationale": "Original bounded verification-feedback exercise, not a historical production reproducer or actual model trial.",
+        "repository": null
+      },
+      "oracle_test_ids": [
+        "Hidden.test_actual_failure_reaches_next_turn_and_success_stops",
+        "Hidden.test_stale_and_bool_checks_share_bound",
+        "Hidden.test_invalid_limit_no_callbacks"
+      ],
+      "files": {
+        "workspace/repair.py": "419d0b4a754deb93c1ab4239be3348da147e5dde4fec60d82cf309a446db73c5",
+        "reference/repair.py": "b154d62e02839d5caeb4b0c78b4f9b9b4310272339e4568926505ae05b029f24",
+        "workspace/README.txt": "802943f6313f68af9d607f8bc6e69aacd51e6ff32e9310da277e5849c2b65ceb",
+        "workspace/tests/test_visible.py": "176883be9faddb27bce25f8829f5720111d975345243183076724ebfbd7287f4",
+        "oracle/test_hidden.py": "9c671da46f98d937d2ee170bfc83e9654321b76a8736e2d28e05a593ae584d2d"
+      },
+      "limits": {
+        "patch_bytes": 80000,
+        "candidate_bytes": 160000,
+        "timeout_seconds": 15
+      },
+      "fixture_sha256": "738a2745a20b10e78fc1c187c33f0599d88e79fac60316512339c53b118f0696"
+    }
+  ]
+}

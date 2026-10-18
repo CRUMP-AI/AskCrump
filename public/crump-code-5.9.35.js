@@ -22,7 +22,11 @@
     pollTimer: 0,
     pollController: null,
     pollFailureCount: 0,
+    pollNoticeTaskId: '',
     pollGeneration: 0,
+    pane: 'brief',
+    detailSignature: '',
+    renderedTaskId: '',
   };
   const ACTIVE = new Set(['queued', 'provisioning', 'running', 'awaiting_approval', 'verifying']);
   const POLL_INITIAL_MS = 1200;
@@ -121,12 +125,18 @@
 
   function setButtonBusy(button, busy, busyLabel) {
     if (!button) return () => {};
-    const label = button.textContent;
-    button.disabled = busy;
+    const peers = button.dataset.codeApproval
+      ? [...button.parentElement.querySelectorAll('button')].filter(node => node.dataset.codeApproval === button.dataset.codeApproval)
+      : [button];
+    const original = peers.map(node => [node, node.textContent]);
+    peers.forEach(node => { node.disabled = busy; node.setAttribute('aria-busy', String(busy)); });
     if (busy && busyLabel) button.textContent = busyLabel;
     return () => {
-      button.disabled = false;
-      button.textContent = label;
+      for (const [node, label] of original) {
+        node.removeAttribute('aria-busy');
+        node.disabled = node.id === 'crumpCodeRun' ? !byId('crumpCodeRunConfirmed')?.checked : false;
+        node.textContent = label;
+      }
     };
   }
 
@@ -148,10 +158,10 @@
     overlay.className = 'crump-code-overlay';
     overlay.hidden = true;
     overlay.innerHTML = `
-      <section class="crump-code-shell" role="dialog" aria-modal="true" aria-labelledby="crumpCodeTitle">
+      <section class="crump-code-shell" role="dialog" aria-modal="true" aria-labelledby="crumpCodeTitle" tabindex="-1">
         <header class="crump-code-header">
           <div>
-            <span class="crump-code-kicker">CODING AGENT · BETA</span>
+            <span class="crump-code-kicker">ASK CRUMP / WORKING STUDIO · BETA</span>
             <h2 id="crumpCodeTitle">Autonomous Crump</h2>
             <p>Prepare and verify coding work in a temporary copy of a public GitHub repository. Autonomous Crump receives no Ask Crump credentials and cannot publish or push changes.</p>
           </div>
@@ -163,6 +173,12 @@
           <span><b>Reviewable</b> patch and checks</span>
           <span><b>Bounded</b> four-minute maximum</span>
         </div>
+        <nav class="crump-code-workflow" aria-label="Task workflow">
+          <button type="button" data-code-pane-target="brief" aria-current="step"><span>01</span> Brief</button>
+          <button type="button" data-code-pane-target="progress"><span>02</span> Progress</button>
+          <button type="button" data-code-pane-target="review"><span>03</span> Review</button>
+          <span class="crump-code-workflow-note">Prepare. Inspect. Decide.</span>
+        </nav>
         <div id="crumpCodeNotice" class="crump-code-notice" role="status" aria-live="polite" hidden></div>
         <div class="crump-code-layout">
           <aside class="crump-code-sidebar" aria-label="Autonomous Crump tasks">
@@ -175,7 +191,7 @@
             <div id="crumpCodeTaskList" class="crump-code-task-list"></div>
           </aside>
           <main class="crump-code-main">
-            <section id="crumpCodeComposer" class="crump-code-panel" aria-labelledby="crumpCodeComposerTitle">
+            <section id="crumpCodeComposer" class="crump-code-panel" data-code-pane="brief" aria-labelledby="crumpCodeComposerTitle">
               <div class="crump-code-panel-head">
                 <div><span>NEW TASK</span><h3 id="crumpCodeComposerTitle">Prepare an isolated task</h3></div>
                 <span id="crumpCodeCost" class="crump-code-cost"></span>
@@ -211,7 +227,7 @@
                 <button type="button" id="crumpCodeOpenProjects" class="crump-code-secondary">Open Projects</button>
               </div>
             </section>
-            <section id="crumpCodeDetail" class="crump-code-panel crump-code-detail" aria-live="polite" hidden></section>
+            <section id="crumpCodeDetail" class="crump-code-detail" aria-label="Selected task" hidden></section>
           </main>
         </div>
       </section>`;
@@ -226,6 +242,18 @@
       if (event.target === overlay) close({restoreFocus: true});
     });
     overlay.addEventListener('keydown', trapFocus);
+    overlay.querySelector('.crump-code-workflow').addEventListener('click', event => {
+      const button = event.target.closest('[data-code-pane-target]');
+      if (!button || button.disabled) return;
+      state.pane = button.dataset.codePaneTarget;
+      applyPane({scroll: true});
+    });
+    window.matchMedia('(max-width: 820px)').addEventListener('change', () => {
+      // A resize must not hide the section containing keyboard focus.
+      const focusedPane = document.activeElement?.closest?.('[data-code-pane]');
+      if (focusedPane) state.pane = focusedPane.dataset.codePane;
+      applyPane();
+    });
     byId('crumpCodeProject')?.addEventListener('change', event => {
       state.projectId = event.target.value;
       state.task = null;
@@ -247,6 +275,60 @@
     });
   }
 
+  function applyPane({scroll = false} = {}) {
+    const overlay = byId('crumpCodeWorkspace');
+    if (!overlay) return;
+    if (!state.task) state.pane = 'brief';
+    const mobile = window.matchMedia('(max-width: 820px)').matches;
+    overlay.querySelectorAll('[data-code-pane]').forEach(section => {
+      section.hidden = mobile && section.dataset.codePane !== state.pane;
+    });
+    overlay.querySelectorAll('[data-code-pane-target]').forEach(button => {
+      button.disabled = button.dataset.codePaneTarget !== 'brief' && !state.task;
+      if (button.dataset.codePaneTarget === state.pane) button.setAttribute('aria-current', 'step');
+      else button.removeAttribute('aria-current');
+    });
+    if (scroll) overlay.querySelector(`[data-code-pane="${state.pane}"]:not([hidden])`)?.scrollIntoView({block: 'start', behavior: 'instant'});
+  }
+
+  function focusKey(node) {
+    if (!node) return '';
+    if (node.id) return `id:${node.id}`;
+    if (node.dataset.scrollKey) return `scroll:${node.dataset.scrollKey}`;
+    if (node.dataset.codeApproval) return `approval:${node.dataset.codeApproval}:${node.dataset.codeDecision}`;
+    if (node.dataset.codeAction) return `action:${node.dataset.codeAction}`;
+    if (node.tagName === 'SUMMARY') return `summary:${node.parentElement.dataset.disclosure || ''}`;
+    return '';
+  }
+
+  function preserveDetailView(detail) {
+    const active = detail.contains(document.activeElement) ? focusKey(document.activeElement) : '';
+    const pending = [...detail.querySelectorAll('button[aria-busy="true"]')];
+    const open = new Set([...detail.querySelectorAll('details[open]')].map(node => node.dataset.disclosure));
+    const scroll = [...document.querySelectorAll('#crumpCodeWorkspace .crump-code-main, #crumpCodeWorkspace .crump-code-layout, #crumpCodeWorkspace [data-scroll-key]')]
+      .map(node => [node.id || node.dataset.scrollKey || node.className, node.scrollTop, node.scrollLeft]);
+    return () => {
+      // Keep the actual pending controls so their request's finally handler
+      // restores the current buttons, rather than detached pre-poll copies.
+      for (const button of pending) {
+        const replacement = [...detail.querySelectorAll('button')].find(node => focusKey(node) === focusKey(button));
+        replacement?.replaceWith(button);
+      }
+      detail.querySelectorAll('details').forEach(node => { node.open = open.has(node.dataset.disclosure); });
+      applyPane();
+      if (active) {
+        const replacement = [...detail.querySelectorAll('button,input,summary,[tabindex]')].find(node => focusKey(node) === active);
+        const target = replacement && !replacement.disabled && replacement.getClientRects().length ? replacement : byId('crumpCodeTaskHeading');
+        target?.focus({preventScroll: true});
+      }
+      for (const [key, top, left] of scroll) {
+        const node = [...document.querySelectorAll('#crumpCodeWorkspace .crump-code-main, #crumpCodeWorkspace .crump-code-layout, #crumpCodeWorkspace [data-scroll-key]')]
+          .find(item => (item.id || item.dataset.scrollKey || item.className) === key);
+        if (node) { node.scrollTop = top; node.scrollLeft = left; }
+      }
+    };
+  }
+
   function trapFocus(event) {
     if (event.key === 'Escape') {
       event.preventDefault();
@@ -255,15 +337,15 @@
     }
     if (event.key !== 'Tab') return;
     const shell = document.querySelector('#crumpCodeWorkspace .crump-code-shell');
-    const focusable = [...(shell?.querySelectorAll('button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [href]') || [])]
-      .filter(node => !node.closest('[hidden]'));
-    if (!focusable.length) return;
+    const focusable = [...(shell?.querySelectorAll('button, input, select, textarea, [href], summary, [tabindex]') || [])]
+      .filter(node => !node.disabled && node.tabIndex >= 0 && !node.closest('[hidden], [inert]') && node.getClientRects().length && getComputedStyle(node).visibility !== 'hidden');
+    if (!focusable.length) { event.preventDefault(); shell?.focus(); return; }
     const first = focusable[0];
     const last = focusable[focusable.length - 1];
-    if (event.shiftKey && document.activeElement === first) {
+    if (event.shiftKey && (document.activeElement === first || !focusable.includes(document.activeElement))) {
       event.preventDefault();
       last.focus();
-    } else if (!event.shiftKey && document.activeElement === last) {
+    } else if (!event.shiftKey && (document.activeElement === last || !focusable.includes(document.activeElement))) {
       event.preventDefault();
       first.focus();
     }
@@ -342,28 +424,34 @@
   function renderTasks() {
     const list = byId('crumpCodeTaskList');
     if (!list) return;
-    list.replaceChildren();
-    if (!state.projectId) return;
+    if (!state.projectId) { list.replaceChildren(); return; }
     if (!state.tasks.length) {
       const empty = document.createElement('p');
       empty.className = 'crump-code-sidebar-empty';
       empty.textContent = 'No Autonomous Crump tasks in this Project yet.';
+      list.replaceChildren();
       list.appendChild(empty);
       return;
     }
+    list.querySelectorAll('.crump-code-sidebar-empty').forEach(node => node.remove());
+    const existing = new Map([...list.querySelectorAll('[data-crump-code-task]')].map(node => [node.dataset.crumpCodeTask, node]));
     for (const task of state.tasks) {
-      const button = document.createElement('button');
+      const taskId = String(task.id || '');
+      const button = existing.get(taskId) || document.createElement('button');
+      existing.delete(taskId);
       button.type = 'button';
       button.className = 'crump-code-task';
-      if (state.task?.id === task.id) button.classList.add('is-active');
-      button.dataset.crumpCodeTask = String(task.id || '');
-      const title = document.createElement('strong');
+      if (state.task?.id === task.id) { button.classList.add('is-active'); button.setAttribute('aria-current', 'true'); }
+      else button.removeAttribute('aria-current');
+      button.dataset.crumpCodeTask = taskId;
+      const title = button.querySelector('strong') || document.createElement('strong');
       title.textContent = String(task.objective || 'Untitled Autonomous Crump task').replace(/\s+/g, ' ').trim().slice(0, 90);
-      const meta = document.createElement('span');
+      const meta = button.querySelector('span') || document.createElement('span');
       meta.textContent = `${statusLabel(task.status, task.failure_code)} · ${formatDate(task.updated_at || task.created_at)}`;
-      button.append(title, meta);
-      list.appendChild(button);
+      if (!button.children.length) button.append(title, meta);
+      if (!button.parentElement) list.appendChild(button);
     }
+    existing.forEach(node => node.remove());
   }
 
   function addTextRow(parent, label, value) {
@@ -379,7 +467,7 @@
   }
 
   function renderApprovals(container, task) {
-    const approvals = Array.isArray(task.approvals) ? task.approvals.filter(item => item.status === 'pending') : [];
+    const approvals = Array.isArray(task.approvals) ? task.approvals.filter(item => item?.status === 'pending') : [];
     if (!approvals.length) return;
     const section = document.createElement('section');
     section.className = 'crump-code-result crump-code-approval';
@@ -418,19 +506,22 @@
     const heading = document.createElement('h4');
     heading.textContent = 'Verification';
     section.appendChild(heading);
-    for (const check of checks) {
+    for (const check of checks.slice(0, 60)) {
+      if (!check || typeof check !== 'object') continue;
       const row = document.createElement('div');
       row.className = 'crump-code-check';
       const command = document.createElement('code');
       const args = Array.isArray(check.args) ? check.args.join(' ') : '';
       command.textContent = `${check.command || 'check'} ${args}`.trim();
       const result = document.createElement('span');
-      const passed = Number(check.returnCode) === 0;
-      result.textContent = passed ? 'Passed' : `Exited ${check.returnCode ?? 'unknown'}`;
-      result.dataset.tone = passed ? 'success' : 'danger';
+      const known = Number.isInteger(check.returnCode);
+      const passed = known && check.returnCode === 0;
+      result.textContent = passed ? 'Passed' : known ? `Exited ${check.returnCode}` : 'Not reported';
+      result.dataset.tone = passed ? 'success' : known ? 'danger' : 'neutral';
       row.append(command, result);
       section.appendChild(row);
     }
+    if (checks.length > 60) appendNote(section, `Showing 60 of ${checks.length} reported checks.`);
     container.appendChild(section);
   }
 
@@ -439,29 +530,185 @@
     if (!events.length) return;
     const details = document.createElement('details');
     details.className = 'crump-code-history';
+    details.dataset.disclosure = 'history';
     const summary = document.createElement('summary');
     summary.textContent = `Activity history (${events.length})`;
     const list = document.createElement('ol');
-    for (const event of events) {
+    for (const event of events.slice(-100)) {
+      if (!event || typeof event !== 'object') continue;
       const item = document.createElement('li');
       const name = document.createElement('strong');
-      name.textContent = String(event.event_type || 'task.updated').replaceAll('.', ' ');
+      name.textContent = eventLabel(event);
       const time = document.createElement('span');
       time.textContent = formatDate(event.created_at);
       item.append(name, time);
       list.appendChild(item);
     }
     details.append(summary, list);
+    if (events.length > 100) appendNote(details, 'Showing the latest 100 activity entries.');
     container.appendChild(details);
+  }
+
+  function eventLabel(event) {
+    const type = String(event?.event_type || 'task.updated');
+    const payload = event?.payload || {};
+    if (type === 'verification.started') return 'Checking the proposed change';
+    if (type === 'verification.completed') {
+      return {repair_required: 'Checks need a repair', passed: 'Verification passed', failed: 'Verification did not pass'}[payload.status] || 'Verification results recorded';
+    }
+    const tools = {list_files: 'Repository inventory', read_file: 'File read', search: 'Repository search', write_file: 'File write', edit_file: 'File edit', delete_file: 'File deletion', run_verification: 'Verification command'};
+    if ((type === 'tool.requested' || type === 'tool.completed') && tools[payload.tool]) {
+      return `${tools[payload.tool]} ${type === 'tool.requested' ? 'requested' : payload.status === 'error' ? 'failed' : 'finished'}`;
+    }
+    return { 'task.created': 'Task prepared', 'agent.started': 'Work started in the isolated copy', 'task.completed': 'Task completed', 'task.failed': 'Task stopped with an issue', 'task.cancelled': 'Task cancelled' }[type] || type.replaceAll('.', ' ');
+  }
+
+  function progressLabel(task) {
+    if (task.status === 'running') {
+      const verification = [...(Array.isArray(task.events) ? task.events : [])].reverse()
+        .find(event => event?.event_type === 'verification.started' || event?.event_type === 'verification.completed');
+      if (verification?.event_type === 'verification.completed' && verification.payload?.status === 'repair_required') return 'Checks need a repair';
+    }
+    return statusLabel(task.status, task.failure_code);
+  }
+
+  function appendNote(parent, text) {
+    const note = document.createElement('p');
+    note.className = 'crump-code-help';
+    note.textContent = text;
+    parent.appendChild(note);
+  }
+
+  function taskOutcome(task) {
+    const reported = Array.isArray(task.verification) ? task.verification : [];
+    const checks = reported.filter(item => item && typeof item === 'object');
+    const failed = checks.some(item => Number.isInteger(item.returnCode) && item.returnCode !== 0);
+    const unreported = checks.length !== reported.length || checks.some(item => !Number.isInteger(item.returnCode));
+    if (task.status === 'completed') {
+      if (failed) return ['Checks need attention', 'The run completed, but at least one reported check failed. Review the patch and check results before using it.', 'danger'];
+      if (!checks.length || unreported) return ['Verification incomplete', 'The run completed. A successful check result was not reported for every check; review and verify the output before using it.', 'neutral'];
+      return ['Reported checks passed', 'The run completed and its reported checks passed. Review the output before applying it; no changes have been pushed.', 'success'];
+    }
+    if (task.status === 'failed') return ['The run stopped', 'The task did not complete. Any partial output below still needs your review.', 'danger'];
+    if (task.status === 'cancelled') return [statusLabel(task.status, task.failure_code), 'This task ended without a completed result. Any partial output below has not been approved for use.', 'neutral'];
+    return ['Output is not final', 'Results and checks may change while this task is active.', 'neutral'];
+  }
+
+  // Preview only. The download always uses the complete original result_patch.
+  function parsePatch(source) {
+    const MAX_CHARS = 180000, MAX_LINES = 1600, MAX_FILES = 32, MAX_LINE = 2000;
+    const text = String(source);
+    const lines = text.slice(0, MAX_CHARS).split('\n');
+    const files = [];
+    let file = null, oldLine = null, newLine = null, oldRemaining = 0, newRemaining = 0, rendered = 0;
+    let truncated = text.length > MAX_CHARS;
+    const makeFile = name => {
+      if (files.length >= MAX_FILES) { truncated = true; return null; }
+      const next = {path: String(name || 'Patch output').slice(0, 500), lines: [], added: 0, removed: 0};
+      files.push(next);
+      return next;
+    };
+    for (const raw of lines) {
+      if (rendered >= MAX_LINES) { truncated = true; break; }
+      const line = raw.replace(/\r$/, '');
+      if (line.startsWith('diff --git ')) { file = makeFile(line.replace(/^diff --git a\/.*? b\//, '')); oldLine = newLine = null; oldRemaining = newRemaining = 0; if (!file) break; }
+      if (!file) { file = makeFile('Patch output'); if (!file) break; }
+      const inHunk = oldRemaining > 0 || newRemaining > 0;
+      if (!inHunk && line.startsWith('+++ ') && line !== '+++ /dev/null') file.path = line.slice(4).replace(/^b\//, '').slice(0, 500);
+      else if (!inHunk && line.startsWith('--- ') && file.path === 'Patch output') file.path = line.slice(4).replace(/^a\//, '').slice(0, 500);
+      const hunk = /^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@/.exec(line);
+      let kind = 'meta', old = '', next = '';
+      if (hunk) {
+        oldLine = Number(hunk[1]); newLine = Number(hunk[3]);
+        oldRemaining = hunk[2] === undefined ? 1 : Number(hunk[2]);
+        newRemaining = hunk[4] === undefined ? 1 : Number(hunk[4]);
+        kind = 'hunk';
+      } else if (inHunk && newRemaining > 0 && line.startsWith('+')) { kind = 'added'; next = newLine++; newRemaining--; file.added++; }
+      else if (inHunk && oldRemaining > 0 && line.startsWith('-')) { kind = 'removed'; old = oldLine++; oldRemaining--; file.removed++; }
+      else if (inHunk && oldRemaining > 0 && newRemaining > 0 && line.startsWith(' ')) { kind = 'context'; old = oldLine++; next = newLine++; oldRemaining--; newRemaining--; }
+      if (line.length > MAX_LINE) truncated = true;
+      file.lines.push({kind, old, next, text: line.slice(0, MAX_LINE) + (line.length > MAX_LINE ? ' … [line shortened]' : '')});
+      rendered++;
+    }
+    return {files, truncated};
+  }
+
+  function renderPatch(container, task) {
+    const parsed = parsePatch(task.result_patch);
+    const section = document.createElement('section');
+    section.className = 'crump-code-patch';
+    const head = document.createElement('div');
+    head.className = 'crump-code-patch-head';
+    const heading = document.createElement('h4');
+    heading.textContent = 'Review patch';
+    const download = document.createElement('button');
+    download.type = 'button';
+    download.className = 'crump-code-secondary';
+    download.dataset.codeAction = 'download';
+    download.textContent = 'Download .patch';
+    head.append(heading, download);
+    section.appendChild(head);
+    appendNote(section, `${parsed.files.length} file section${parsed.files.length === 1 ? '' : 's'} in this preview. Green adds; red removes. The original patch is available in full above.`);
+    if (parsed.truncated) {
+      const limit = document.createElement('p');
+      limit.className = 'crump-code-preview-limit';
+      limit.textContent = 'Preview shortened for readability and performance. Download the full patch to review every change.';
+      section.appendChild(limit);
+    }
+    parsed.files.forEach((file, index) => {
+      const details = document.createElement('details');
+      details.className = 'crump-code-file';
+      details.dataset.disclosure = `file:${index}:${file.path}`;
+      details.open = index === 0;
+      const summary = document.createElement('summary');
+      const name = document.createElement('span');
+      name.className = 'crump-code-file-name';
+      name.textContent = file.path;
+      const counts = document.createElement('span');
+      counts.className = 'crump-code-file-counts';
+      counts.textContent = `+${file.added} / −${file.removed}`;
+      summary.append(name, counts);
+      const diff = document.createElement('div');
+      diff.className = 'crump-code-diff';
+      diff.dataset.scrollKey = `diff:${index}:${file.path}`;
+      diff.tabIndex = 0;
+      diff.setAttribute('role', 'region');
+      diff.setAttribute('aria-label', `Patch for ${file.path}`);
+      for (const line of file.lines) {
+        const row = document.createElement('div');
+        row.className = `crump-code-diff-line is-${line.kind}`;
+        const old = document.createElement('span'), next = document.createElement('span');
+        old.className = next.className = 'crump-code-line-number';
+        old.setAttribute('aria-hidden', 'true'); next.setAttribute('aria-hidden', 'true');
+        old.textContent = line.old; next.textContent = line.next;
+        const code = document.createElement('code');
+        code.textContent = line.text;
+        row.append(old, next, code);
+        diff.appendChild(row);
+      }
+      details.append(summary, diff);
+      section.appendChild(details);
+    });
+    container.appendChild(section);
   }
 
   function renderDetail() {
     const detail = byId('crumpCodeDetail');
     if (!detail) return;
-    detail.replaceChildren();
     const task = state.task;
     detail.hidden = !task;
-    if (!task) return;
+    if (!task) {
+      detail.replaceChildren(); state.detailSignature = ''; state.renderedTaskId = '';
+      applyPane(); return;
+    }
+    const signature = JSON.stringify([task, costCopy()]);
+    if (signature === state.detailSignature) { applyPane(); return; }
+    const sameTask = state.renderedTaskId === String(task.id);
+    const restore = sameTask ? preserveDetailView(detail) : null;
+    if (!sameTask) state.pane = task.status === 'queued' ? 'brief' : ACTIVE.has(task.status) ? 'progress' : 'review';
+    state.detailSignature = signature;
+    state.renderedTaskId = String(task.id);
+    detail.replaceChildren();
 
     const head = document.createElement('div');
     head.className = 'crump-code-detail-head';
@@ -469,6 +716,8 @@
     const label = document.createElement('span');
     label.textContent = String(task.mode || 'plan').toUpperCase();
     const title = document.createElement('h3');
+    title.id = 'crumpCodeTaskHeading';
+    title.tabIndex = -1;
     title.textContent = String(task.objective || 'Autonomous Crump task');
     titleWrap.append(label, title);
     const badge = document.createElement('span');
@@ -478,6 +727,19 @@
     head.append(titleWrap, badge);
     detail.appendChild(head);
 
+    const pane = (name, titleText, number) => {
+      const section = document.createElement('section');
+      section.className = 'crump-code-panel crump-code-stage';
+      section.dataset.codePane = name;
+      const heading = document.createElement('h4');
+      heading.className = 'crump-code-stage-title';
+      heading.textContent = `${number} / ${titleText}`;
+      section.appendChild(heading);
+      detail.appendChild(section);
+      return section;
+    };
+    const brief = pane('brief', 'Task brief', '01');
+
     const facts = document.createElement('div');
     facts.className = 'crump-code-facts';
     addTextRow(facts, 'Repository', String(task.source_repo_url || '').replace(/\.git$/, ''));
@@ -486,9 +748,30 @@
     addTextRow(facts, 'Maximum', `${task.max_duration_seconds || state.provider?.maxDurationSeconds || 180} seconds`);
     addTextRow(facts, 'Expires', formatDate(task.expires_at));
     addTextRow(facts, 'Charge', task.payment_source ? `${task.payment_source}${Number(task.credits_spent) ? ` · ${task.credits_spent} credits` : ''}` : 'Not started');
-    detail.appendChild(facts);
+    brief.appendChild(facts);
 
-    renderApprovals(detail, task);
+    const progressPane = pane('progress', 'Progress & checks', '02');
+    const status = document.createElement('p');
+    status.className = 'crump-code-progress-status';
+    status.setAttribute('role', 'status');
+    status.textContent = progressLabel(task);
+    progressPane.appendChild(status);
+    if (status.textContent === 'Checks need a repair') appendNote(progressPane, 'The checks found an issue. A bounded repair has been requested in the same isolated copy; the output is not verified yet.');
+    renderApprovals(progressPane, task);
+    renderVerification(progressPane, task);
+    if (!Array.isArray(task.verification) || !task.verification.length) appendNote(progressPane, 'No verification checks have been reported for this task.');
+
+    const reviewPane = pane('review', 'Result to review', '03');
+    const [outcomeTitle, outcomeCopy, outcomeTone] = taskOutcome(task);
+    const outcome = document.createElement('div');
+    outcome.className = 'crump-code-outcome';
+    outcome.dataset.tone = outcomeTone;
+    const outcomeHeading = document.createElement('strong');
+    outcomeHeading.textContent = outcomeTitle;
+    const outcomeText = document.createElement('p');
+    outcomeText.textContent = outcomeCopy;
+    outcome.append(outcomeHeading, outcomeText);
+    reviewPane.appendChild(outcome);
 
     if (task.result_summary) {
       const result = document.createElement('section');
@@ -499,31 +782,18 @@
       copy.className = 'crump-code-summary';
       copy.textContent = String(task.result_summary);
       result.append(heading, copy);
-      detail.appendChild(result);
+      reviewPane.appendChild(result);
     }
-    renderVerification(detail, task);
 
     if (task.result_patch) {
-      const patch = document.createElement('details');
-      patch.className = 'crump-code-patch';
-      const summary = document.createElement('summary');
-      summary.textContent = 'Review patch';
-      const pre = document.createElement('pre');
-      pre.textContent = String(task.result_patch);
-      const download = document.createElement('button');
-      download.type = 'button';
-      download.className = 'crump-code-secondary';
-      download.dataset.codeAction = 'download';
-      download.textContent = 'Download .patch';
-      patch.append(summary, pre, download);
-      detail.appendChild(patch);
-    }
+      renderPatch(reviewPane, task);
+    } else appendNote(reviewPane, task.mode === 'plan' ? 'Plan-only tasks do not require a patch. Review the reported result and checks.' : 'No patch has been reported. No file changes are available to download.');
 
     if (task.failure_code) {
       const failure = document.createElement('p');
       failure.className = 'crump-code-failure';
       failure.textContent = `Stopped safely: ${String(task.failure_code).replaceAll('_', ' ').toLowerCase()}.`;
-      detail.appendChild(failure);
+      progressPane.appendChild(failure);
     }
 
     if (task.status === 'queued') {
@@ -548,7 +818,7 @@
       run.disabled = true;
       run.textContent = 'Run isolated task';
       review.append(heading, copy, labelNode, run);
-      detail.appendChild(review);
+      brief.appendChild(review);
     }
 
     if (ACTIVE.has(String(task.status || '')) && task.status !== 'queued') {
@@ -564,10 +834,12 @@
       cancel.dataset.codeAction = 'cancel';
       cancel.textContent = 'Cancel task';
       actions.append(progress, cancel);
-      detail.appendChild(actions);
+      progressPane.appendChild(actions);
     }
 
-    renderHistory(detail, task);
+    renderHistory(progressPane, task);
+    applyPane();
+    if (restore) restore();
   }
 
   function resetWorkspaceState(ownerId = '') {
@@ -578,6 +850,7 @@
     state.projectId = '';
     state.tasks = [];
     state.task = null;
+    state.pollNoticeTaskId = '';
     for (const id of ['crumpCodeRepository', 'crumpCodeRevision', 'crumpCodeObjective']) {
       const control = byId(id);
       if (control) control.value = '';
@@ -591,7 +864,7 @@
   function updateRunButton() {
     const button = byId('crumpCodeRun');
     const checkbox = byId('crumpCodeRunConfirmed');
-    if (button) button.disabled = !checkbox?.checked;
+    if (button) button.disabled = button.getAttribute('aria-busy') === 'true' || !checkbox?.checked;
   }
 
   function activityStatus(task) {
@@ -763,6 +1036,7 @@
         method: 'POST', body: {confirmed: true},
       });
       if (!navigationIsCurrent(requestContext) || state.task?.id !== taskId) return;
+      state.pane = 'progress';
       applyTask(data.task);
       setNotice('Task accepted. You can close this window; Autonomous Crump will continue safely.', 'success');
       startPolling(taskId);
@@ -909,6 +1183,8 @@
         });
         if (generation !== state.pollGeneration || ownerId !== state.ownerId || state.task?.id !== taskId) return;
         applyTask(data.task || state.task);
+        if (state.pollNoticeTaskId === taskId) setNotice('Connection restored. Task status is up to date.');
+        state.pollNoticeTaskId = '';
         state.pollFailureCount = 0;
         if (!shouldPollTask()) {
           if (state.task?.status === 'completed') {
@@ -929,7 +1205,8 @@
           || state.task?.id !== taskId
         ) return;
         state.pollFailureCount = Math.min(state.pollFailureCount + 1, 4);
-        setNotice('Status refresh is delayed. The durable task continues safely; Ask Crump will retry.', '');
+        state.pollNoticeTaskId = taskId;
+        setNotice('Status refresh is delayed. Ask Crump will retry; the current task status is not confirmed.', '');
       } finally {
         window.clearTimeout(timeout);
         if (state.pollController === controller) state.pollController = null;
@@ -988,6 +1265,7 @@
     overlay.hidden = true;
     document.body.classList.remove('crump-code-open');
     stopPolling();
+    state.pollNoticeTaskId = '';
     if (restoreFocus) state.restoreFocus?.focus?.({preventScroll: true});
     state.restoreFocus = null;
   }

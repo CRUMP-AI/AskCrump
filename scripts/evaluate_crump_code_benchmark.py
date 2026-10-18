@@ -294,6 +294,9 @@ def _automatic_syntax_verification(command: str, paths: set[str]) -> bool:
     if len(pieces) == 3 and pieces[:2] == ["node", "--check"]:
         path = pieces[2]
         return path in paths and PurePosixPath(path).suffix.lower() in {".js", ".mjs", ".cjs"}
+    isolated_prefix = ["python3", "-I", "-X", "pycache_prefix=/tmp/crump-code-pycache", "-m", "py_compile"]
+    if pieces[:len(isolated_prefix)] == isolated_prefix:
+        pieces = ["python3", "-m", "py_compile", *pieces[len(isolated_prefix):]]
     if len(pieces) >= 4 and pieces[:3] == ["python3", "-m", "py_compile"]:
         syntax_paths = pieces[3:]
         return (

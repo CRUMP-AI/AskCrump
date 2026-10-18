@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="icon" href="data:,">
+  <title>Autonomous workbench — local synthetic fixture</title>
+  <link rel="stylesheet" href="/crump-design-pass.css">
+  <link rel="stylesheet" href="/crump-code-5.9.35.css">
+  <style>
+    body { margin: 0; font-family: system-ui, sans-serif; background: #f6f4ee; color: #22252a; }
+    .fixture-home { padding: 32px; max-width: 720px; }
+    .fixture-banner { display: flex; gap: 10px 18px; flex-wrap: wrap; align-items: center; padding: 10px 18px; background: #efe0b5; color: #362b15; border-bottom: 1px solid #a89262; font: 12px/1.4 system-ui, sans-serif; }
+    .fixture-banner strong { flex: 1 1 220px; }
+    .fixture-banner label { display: flex; align-items: center; gap: 7px; font-size: 12px; }
+    .fixture-banner select { max-width: 150px; min-height: 34px; border: 1px solid #847454; border-radius: 5px; color: #362b15; background: #fff8e8; font: inherit; }
+  </style>
+  <script>
+    // This fixture intercepts every fetch. It cannot contact a worker or production API.
+    (() => {
+      const params = new URLSearchParams(location.search);
+      const time = '2026-10-15T15:30:00Z';
+      const patch = [
+        'diff --git a/src/account.js b/src/account.js', '--- a/src/account.js', '+++ b/src/account.js',
+        '@@ -1,3 +1,4 @@', ' export function displayName(user) {', '-  return user.name;',
+        '+  return user.name || "Your workspace";', '+  // <img src=x onerror="window.fixtureXss=true">', ' }',
+        'diff --git a/tests/account.test.js b/tests/account.test.js', '--- a/tests/account.test.js', '+++ b/tests/account.test.js',
+        '@@ -0,0 +1,90 @@', ...Array.from({length: 90}, (_, i) => `+// Synthetic verification line ${i + 1}: no real repository is accessed.`),
+      ].join('\n');
+      const base = () => ({
+        id: 'fixture-task-001', project_id: 'fixture-project', mode: 'implement',
+        objective: 'Make an empty account name readable, and verify the fallback.',
+        source_repo_url: 'https://github.com/example/review-fixture', source_ref: 'fixture-only',
+        network_policy: 'deny_all', max_duration_seconds: 180, created_at: time, updated_at: time,
+        expires_at: '2026-10-16T15:30:00Z', payment_source: 'fixture-included', credits_spent: 0,
+        result_summary: 'Synthetic review data. The fallback now displays “Your workspace” when an account has no name. This fixture has not edited or checked any real repository.',
+        result_patch: patch, verification: [{command: 'node', args: ['--test', 'tests/account.test.js'], returnCode: 0}],
+        approvals: [], events: [{event_type: 'task.prepared', created_at: time}, {event_type: 'run.started', created_at: time}],
+      });
+      const scenarios = ['completed', 'queued', 'running', 'repair', 'approval', 'failed', 'cancelled', 'unknown', 'oversize', 'patch-edge'];
+      function scenario(name) {
+        const task = base();
+        task.status = name === 'approval' ? 'awaiting_approval' : name === 'repair' ? 'running' : ['unknown', 'oversize', 'patch-edge'].includes(name) ? 'completed' : name;
+        if (name === 'queued') Object.assign(task, {payment_source: null, result_summary: null, result_patch: null, verification: []});
+        if (name === 'running') Object.assign(task, {result_summary: null, result_patch: null, verification: []});
+        if (name === 'repair') {
+          task.verification[0].returnCode = 1;
+          task.events.push({event_type: 'verification.completed', created_at: time, payload: {status: 'repair_required', verificationCount: 1}}, {event_type: 'tool.requested', created_at: time, payload: {tool: 'edit_file', path: 'src/account.js'}});
+        }
+        if (name === 'approval') task.approvals = [{id: 'fixture-approval', status: 'pending', title: 'Retry a failed check inside the existing boundary', details: 'Synthetic request. Review this bounded action before deciding.', expires_at: '2026-10-16T15:30:00Z'}];
+        if (name === 'failed') { task.failure_code = 'CODE_VERIFICATION_FAILED'; task.verification[0].returnCode = 1; }
+        if (name === 'unknown') task.verification[0].returnCode = null;
+        if (name === 'oversize') task.result_patch = ['diff --git a/large.txt b/large.txt', '--- a/large.txt', '+++ b/large.txt', '@@ -0,0 +1,9000 @@', ...Array.from({length: 9000}, (_, i) => `+${i}: ${'bounded preview, full original download. '.repeat(8)}`)].join('\n');
+        if (name === 'patch-edge') task.result_patch = [
+          'diff --git a/format.txt b/format.txt', '--- a/format.txt', '+++ b/format.txt',
+          '@@ -1,2 +1,2 @@', '--- previous heading', '+++ replacement heading', ' unchanged',
+          'diff --git a/second.txt b/second.txt', '--- a/second.txt', '+++ b/second.txt', '@@ -4 +9 @@', '-before', '+after',
+        ].join('\n');
+        return task;
+      }
+      window.currentUser = {id: 'local-fixture-user'};
+      window.fixture = {
+        task: scenario(scenarios.includes(params.get('scenario')) ? params.get('scenario') : 'completed'),
+        requests: [], blocked: [], scenarios, failNextTaskReads: 0,
+        async setScenario(name) { this.task = scenario(name); return window.CrumpCodeWorkspace.open(); },
+        pollUpdate(change = {}) { Object.assign(this.task, change); this.task.updated_at = new Date().toISOString(); window.dispatchEvent(new Event('online')); },
+      };
+      window.fetch = async (input, options = {}) => {
+        const url = new URL(String(input), location.origin), method = options.method || 'GET';
+        const body = options.body ? JSON.parse(options.body) : null;
+        fixture.requests.push({path: url.pathname, method, body});
+        if (url.pathname === '/api/code/tasks/fixture-task-001' && method === 'GET' && fixture.failNextTaskReads > 0) {
+          fixture.failNextTaskReads--;
+          return new Response(JSON.stringify({success: false, error: 'Synthetic temporary status failure.'}), {status: 503, headers: {'Content-Type': 'application/json'}});
+        }
+        let data;
+        if (url.origin !== location.origin) fixture.blocked.push(url.href);
+        else if (url.pathname === '/api/features' && method === 'GET') {
+          const configured = params.get('access') !== 'disabled';
+          data = {success: true, features: {code_workspace: {configured, entitled: configured && params.get('access') !== 'locked', includedDaily: 2}}, providers: {code: {configured, maxDurationSeconds: 180}}};
+        } else if (url.pathname === '/api/projects' && method === 'GET') data = {success: true, projects: [{id: 'fixture-project', name: 'Local review fixture'}]};
+        else if (url.pathname === '/api/projects/fixture-project/code/tasks' && method === 'GET') data = {success: true, tasks: [fixture.task]};
+        else if (url.pathname === '/api/code/tasks/fixture-task-001' && method === 'GET') data = {success: true, task: fixture.task};
+        else if (url.pathname === '/api/code/tasks/fixture-task-001/run' && method === 'POST' && body?.confirmed === true) {
+          Object.assign(fixture.task, {status: 'running', payment_source: 'fixture-included'}); data = {success: true, task: fixture.task};
+        } else if (url.pathname === '/api/code/tasks/fixture-task-001/cancel' && method === 'POST') {
+          fixture.task.status = 'cancelled'; data = {success: true, task: fixture.task};
+        } else if (url.pathname === '/api/code/tasks/fixture-task-001/approvals/fixture-approval' && method === 'POST' && ['approved', 'denied'].includes(body?.decision)) {
+          if (fixture.holdApproval) await new Promise(resolve => { fixture.releaseApproval = resolve; });
+          if (fixture.rejectApproval) return new Response(JSON.stringify({success: false, error: 'Synthetic approval request failed. You can retry.'}), {status: 503, headers: {'Content-Type': 'application/json'}});
+          fixture.task.approvals[0].status = body.decision; fixture.task.status = body.decision === 'approved' ? 'running' : 'cancelled'; data = {success: true, task: fixture.task};
+        } else fixture.blocked.push(`${method} ${url.pathname}`);
+        return new Response(JSON.stringify(data || {success: false, error: 'The local fixture blocked this unsupported request.'}), {status: data ? 200 : 400, headers: {'Content-Type': 'application/json'}});
+      };
+      window.showToast = () => {};
+      window.showUpgradePrompt = () => {};
+      window.showBillingCenter = () => true;
+      document.documentElement.dataset.theme = params.get('theme') === 'dark' ? 'dark' : 'light';
+      document.addEventListener('DOMContentLoaded', async () => {
+        await window.CrumpCodeWorkspace.open();
+        const banner = document.createElement('div');
+        banner.className = 'fixture-banner';
+        const label = document.createElement('strong');
+        label.textContent = 'Local test fixture — no paid execution. All tasks, checks and patches are synthetic.';
+        banner.appendChild(label);
+        for (const [title, values, selected, change] of [
+          ['Scenario', scenarios, params.get('scenario') || 'completed', value => fixture.setScenario(value)],
+          ['Theme', ['light', 'dark'], document.documentElement.dataset.theme, value => { document.documentElement.dataset.theme = value; }],
+        ]) {
+          const wrapper = document.createElement('label'); wrapper.append(document.createTextNode(title));
+          const select = document.createElement('select'); select.dataset.fixtureControl = title.toLowerCase();
+          for (const value of values) { const option = document.createElement('option'); option.value = value; option.textContent = value; select.append(option); }
+          select.value = selected; select.addEventListener('change', () => change(select.value)); wrapper.append(select); banner.append(wrapper);
+        }
+        const shell = document.querySelector('.crump-code-shell');
+        if (shell && !document.getElementById('crumpCodeWorkspace').hidden) shell.prepend(banner);
+        else document.querySelector('.fixture-home').prepend(banner);
+        window.fixtureReady = true;
+      });
+    })();
+  </script>
+  <script defer src="/crump-code-5.9.35.js"></script>
+</head>
+<body><main class="fixture-home"><h1>Local Autonomous workbench fixture</h1><p>No paid execution. No worker, repository, credentials, or production service is contacted.</p><button type="button" onclick="CrumpCodeWorkspace.open()">Open synthetic workbench</button></main></body>
+</html>

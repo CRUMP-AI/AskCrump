@@ -15,6 +15,7 @@ const expectedVerifiers = Object.freeze([
   'verify-activity-center-behavior.cjs',
   'verify-appearance-theme.cjs',
   'verify-attach-creation-routing.cjs',
+  'verify-autonomous-workbench.cjs',
   'verify-button-state-integrity.cjs',
   'verify-chat-action-accessibility.cjs',
   'verify-create-destination-handoff.cjs',

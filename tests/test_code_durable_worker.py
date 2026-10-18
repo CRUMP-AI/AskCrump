@@ -5,6 +5,7 @@ import logging
 from pathlib import Path
 from types import SimpleNamespace
 from uuid import UUID
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -56,6 +57,12 @@ class WorkerService:
 
     async def mark_refunded(self, item):
         self.refunded.append(dict(item))
+        return {**item, "usage_receipt": None, "payment_source": "refunded"}
+
+    async def refund_if_unstarted(self, item):
+        self.refunded.append(dict(item))
+        if item.get("provider_started_at"):
+            return dict(item)
         return {**item, "usage_receipt": None, "payment_source": "refunded"}
 
     async def claim_next(self, **kwargs):
@@ -117,6 +124,7 @@ def worker(service, runner, features=None, *, enabled=True):
         SimpleNamespace(
             code_workspace_enabled=enabled,
             anthropic_api_key="configured" if enabled else None,
+            anthropic_model="explicit-offline-model",
             code_max_duration_seconds=30,
         ),
         SimpleNamespace(),
@@ -124,6 +132,23 @@ def worker(service, runner, features=None, *, enabled=True):
         runner,
         features or WorkerFeatures(),
     )
+
+
+@pytest.fixture(autouse=True)
+def verified_worker_identity(monkeypatch):
+    """Worker lifecycle cases isolate identity; real signatures have separate tests."""
+    from backend import code_worker
+    verifier = AsyncMock(return_value=SimpleNamespace(project_id="prj_offline", team_id="team_offline"))
+    monkeypatch.setattr(code_worker, "verify_code_identity", verifier)
+    for suffix, value in {
+        "MODEL": "explicit-offline-model", "INPUT_USD_MICROS_PER_MILLION": "3000000",
+        "OUTPUT_USD_MICROS_PER_MILLION": "15000000", "MAX_INPUT_BYTES": "100000",
+        "MAX_OUTPUT_TOKENS": "6000", "CALL_USD_MICROS": "500000",
+        "RUN_USD_MICROS": "2000000", "ACCOUNT_DAILY_USD_MICROS": "10000000",
+        "GLOBAL_DAILY_USD_MICROS": "20000000",
+    }.items():
+        monkeypatch.setenv("CODE_PROVIDER_" + suffix, value)
+    return verifier
 
 
 def test_durable_code_schema_is_private_replay_safe_and_leased():
@@ -162,7 +187,8 @@ def test_worker_reuses_existing_cron_slot_and_browser_only_dispatches():
     )
     run_route = read("backend/routes/code.py")
     assert "run_with_deadline" not in run_route
-    assert "code_tasks.dispatch(" in run_route
+    assert "code_tasks.dispatch_authorized(" in run_route
+    assert "features.consume(" not in run_route
     assert "status_code=202" in run_route
 
 
@@ -241,7 +267,7 @@ async def test_retry_limit_fails_and_refunds_before_starting_more_compute():
     assert result == {"handled": True, "claimed": True, "status": "failed"}
     assert service.transitions[0][1] == "failed"
     assert service.transitions[0][2]["changes"]["failure_code"] == "CODE_RETRY_LIMIT"
-    assert features.refunds == [(USER_ID, claimed["usage_receipt"])]
+    assert features.refunds == []  # Only the atomic task refund RPC may retire usage.
     assert len(service.refunded) == 1
 
 
@@ -276,7 +302,7 @@ async def test_refund_reconciliation_precedes_new_provider_work():
         oidc_token="oidc"
     )
     assert result == {"handled": True, "claimed": False, "refundReconciled": True}
-    assert features.refunds == [(USER_ID, pending["usage_receipt"])]
+    assert features.refunds == []
     assert len(service.refunded) == 1
     assert service.claim_calls == []
 
@@ -294,7 +320,7 @@ async def test_emergency_stop_keeps_refunds_moving_without_claiming_compute(capl
         enabled=False,
     ).process_next(oidc_token="")
     assert result == {"handled": True, "claimed": False, "refundReconciled": True}
-    assert features.refunds == [(USER_ID, pending["usage_receipt"])]
+    assert features.refunds == []
     assert len(service.refunded) == 1
     assert service.claim_calls == []
     assert [json.loads(record.message)["event"] for record in caplog.records] == [

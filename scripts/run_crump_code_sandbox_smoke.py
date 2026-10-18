@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 import sys
 from time import monotonic
+from types import SimpleNamespace
 from typing import Any, Mapping
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -24,6 +25,7 @@ from backend.code_runner import (
     decode_sandbox_identity,
     provision_code_sandbox,
 )
+from backend import config as code_config
 
 
 EXPECTED_PROJECT_ID = "prj_aG1X6SVzWMa2YE6MOTafsfCjghil"
@@ -61,7 +63,8 @@ def smoke_plan() -> dict[str, Any]:
         "networkPolicy": "deny-all",
         "persistent": False,
         "destroy": True,
-        "injectedEnvironmentVariables": 0,
+        "injectedEnvironmentVariables": 3,
+        "privilegedEnvironmentVariables": 0,
         "modelCalls": 0,
         "databaseWrites": 0,
         "customerData": False,
@@ -70,24 +73,41 @@ def smoke_plan() -> dict[str, Any]:
     }
 
 
-def validate_live_gate(
+def smoke_identity_settings(environment: Mapping[str, str]) -> SimpleNamespace:
+    """Only workload trust fields; never load unrelated application credentials.
+
+    IDs are fixed to Ask Crump, even if the process has other Vercel projects'
+    environment variables. Issuer/audience/environment require explicit policy.
+    """
+    return SimpleNamespace(
+        code_oidc_issuer=environment.get("CODE_OIDC_ISSUER"),
+        code_oidc_audience=environment.get("CODE_OIDC_AUDIENCE"),
+        code_oidc_environment=environment.get("CODE_OIDC_ENVIRONMENT"),
+        code_oidc_project_id=EXPECTED_PROJECT_ID,
+        code_oidc_team_id=EXPECTED_TEAM_ID,
+    )
+
+
+async def validate_live_gate(
     *,
     confirmed_cost_cents: int | None,
     confirmed_source: str | None,
     environment: Mapping[str, str],
 ) -> str:
-    if confirmed_cost_cents != MAX_ACKNOWLEDGED_COST_CENTS:
+    if type(confirmed_cost_cents) is not int or confirmed_cost_cents != MAX_ACKNOWLEDGED_COST_CENTS:
         raise SmokeGateError("CODE_SMOKE_COST_ACK_REQUIRED")
     if confirmed_source != SOURCE_ACKNOWLEDGEMENT:
         raise SmokeGateError("CODE_SMOKE_SOURCE_ACK_REQUIRED")
-    if _is_true(environment.get("CRUMP_ENABLE_CODE_WORKSPACE")):
+    if code_config.CODE_WORKSPACE_PUBLIC_RELEASED or _is_true(environment.get("CRUMP_ENABLE_CODE_WORKSPACE")):
         raise SmokeGateError("CODE_SMOKE_PUBLIC_FEATURE_MUST_BE_DISABLED")
 
     token = str(environment.get("VERCEL_OIDC_TOKEN") or "").strip()
     if not token:
         raise SmokeGateError("CODE_SMOKE_OIDC_REQUIRED")
     try:
-        project_id, team_id = decode_sandbox_identity(token)
+        project_id, team_id = await decode_sandbox_identity(
+            token, settings=smoke_identity_settings(environment),
+        )
     except CodeRunnerError as exc:
         raise SmokeGateError("CODE_SMOKE_OIDC_INVALID") from exc
     if project_id != EXPECTED_PROJECT_ID or team_id != EXPECTED_TEAM_ID:
@@ -110,7 +130,7 @@ async def _run(
     )
 
 
-async def run_live_smoke(oidc_token: str) -> dict[str, Any]:
+async def run_live_smoke(oidc_token: str, *, settings: Any) -> dict[str, Any]:
     task = {
         "id": "operator-smoke",
         "source_repo_url": FIXTURE_REPOSITORY,
@@ -122,7 +142,7 @@ async def run_live_smoke(oidc_token: str) -> dict[str, Any]:
 
     try:
         async with asyncio.timeout(SMOKE_DEADLINE_SECONDS):
-            async with provision_code_sandbox(task, oidc_token=oidc_token) as sandbox:
+            async with provision_code_sandbox(task, oidc_token=oidc_token, settings=settings) as sandbox:
                 revision = await _run(sandbox, "git", ["rev-parse", "HEAD"])
                 write_read = await _run(
                     sandbox,
@@ -229,13 +249,24 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps(smoke_plan(), sort_keys=True))
         return 0
 
-    try:
-        oidc_token = validate_live_gate(
+    # Snapshot only the smoke gate's inputs, never unrelated application secrets.
+    environment = {key: os.environ.get(key, "") for key in (
+        "VERCEL_OIDC_TOKEN", "CRUMP_ENABLE_CODE_WORKSPACE", "CODE_OIDC_ISSUER",
+        "CODE_OIDC_AUDIENCE", "CODE_OIDC_ENVIRONMENT",
+    )}
+
+    async def authorized_smoke() -> dict[str, Any]:
+        oidc_token = await validate_live_gate(
             confirmed_cost_cents=args.confirm_max_cost_cents,
             confirmed_source=args.confirm_source,
-            environment=os.environ,
+            environment=environment,
         )
-        receipt = asyncio.run(run_live_smoke(oidc_token))
+        return await run_live_smoke(
+            oidc_token, settings=smoke_identity_settings(environment),
+        )
+
+    try:
+        receipt = asyncio.run(authorized_smoke())
     except SmokeGateError as exc:
         print(json.dumps({"success": False, "code": exc.code}, sort_keys=True))
         return 1

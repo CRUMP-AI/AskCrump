@@ -4,6 +4,8 @@ from types import SimpleNamespace
 import pytest
 
 from backend.feature_service import FeatureAccessError, FeatureService
+from backend.code_budget import CodeBudgetPolicy
+from backend.code_service import CodeTaskService
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -840,6 +842,75 @@ async def test_confirmation_is_bound_to_the_reviewed_action_scope():
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("changed", [None, "task", "mode"])
+async def test_atomic_code_dispatch_keeps_credit_confirmation_bound_to_task_and_mode(changed):
+    reviewed = {"id": "00000000-0000-4000-8000-000000000092", "user_id": USER_ID,
+                "mode": "plan", "status": "queued", "expires_at": "2099-01-01T00:00:00Z"}
+
+    class CodeDispatchDB(CreditDB):
+        def __init__(self):
+            super().__init__()
+            self.task = dict(reviewed)
+            self.dispatches = []
+
+        async def select_one(self, table, **options):
+            if table == "code_tasks":
+                assert options["filters"] == {"id": "eq." + self.task["id"], "user_id": "eq." + USER_ID}
+                return dict(self.task)
+            return await super().select_one(table, **options)
+
+        async def rpc(self, name, params, **options):
+            if name == "reserve_and_dispatch_code_task":
+                self.dispatches.append((dict(params), options))
+                self.task.update(status="provisioning", dispatch_token=params["p_dispatch_token"])
+                return {"outcome": "dispatched", "task": dict(self.task)}
+            return await super().rpc(name, params, **options)
+
+    db = CodeDispatchDB()
+    db.usage["feature:code_workspace"] = 100
+    features = FeatureService(db)
+    account = user("professional")
+    quote = await features.quote(
+        account, {"code_workspace": 1},
+        scope={"route": "code_task", "taskId": reviewed["id"], "mode": reviewed["mode"]},
+        usage_instance_keys={"code_workspace": "code-task:" + reviewed["id"]},
+    )
+    assert quote["creditsRequired"] == 12
+    confirmation = {"quoteToken": quote["token"], "confirmedCredits": quote["creditsRequired"]}
+    if changed == "task":
+        db.task["id"] = "00000000-0000-4000-8000-000000000093"
+    if changed == "mode":
+        db.task["mode"] = "implement"
+    budget = CodeBudgetPolicy(
+        model="offline-approved-model", input_rate=3_000_000, output_rate=15_000_000,
+        max_input_bytes=100_000, max_output_tokens=6000, call_limit=500_000,
+        run_limit=2_000_000, account_daily_limit=10_000_000, global_daily_limit=20_000_000,
+    )
+    service = CodeTaskService(db, None)
+
+    if changed:
+        with pytest.raises(FeatureAccessError) as rejected:
+            await service.dispatch_authorized(
+                dict(db.task), user=account, features=features, dispatch_token="offline-dispatch",
+                confirmation=confirmation, budget_policy=budget,
+            )
+        assert rejected.value.code == "CREDIT_CONFIRMATION_REQUIRED"
+        assert db.dispatches == []
+        assert db.balance == 1000 and not db.ledger
+    else:
+        result = await service.dispatch_authorized(
+            dict(db.task), user=account, features=features, dispatch_token="offline-dispatch",
+            confirmation=confirmation, budget_policy=budget,
+        )
+        assert result["status"] == "provisioning"
+        assert len(db.dispatches) == 1
+        params, options = db.dispatches[0]
+        assert params["p_task_id"] == reviewed["id"]
+        assert params["p_credit_cost"] == params["p_confirmed_max"] == 12
+        assert options == {"retry_transient": True}
+
+
+@pytest.mark.asyncio
 async def test_confirmed_maximum_cannot_be_replayed_across_components():
     db = CreditDB()
     db.usage["feature:image_edit"] = 100
@@ -948,7 +1019,13 @@ def test_ui_copy_routes_and_fixed_rate_table_match_server_policy():
         source = read(relative)
         assert "creditConfirmation" in source
         assert "creditQuote" in source
-        assert "scope=" in source
+        if relative == "backend/routes/code.py":
+            assert "code_tasks.dispatch_authorized(" in source
+            service = read("backend/code_service.py")
+            assert 'scope = {"route": "code_task", "taskId": str(current["id"]), "mode": current.get("mode")}' in service
+            assert 'scope=scope, usage_instance_keys={"code_workspace": usage_key}' in service
+        else:
+            assert "scope=" in source
 
 
 def test_project_credit_wrapper_keeps_one_low_level_transport():

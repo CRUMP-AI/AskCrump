@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r264-response-continuity-cleanup-1';
+const CACHE_NAME = 'ask-crump-new-body-v1-r266-response-continuity-cleanup-1';
 
 const CORE = [
   '/app',
@@ -30,7 +30,7 @@ const CORE = [
   '/crump-navigation-5.2.5.css',
   '/crump-navigation-5.2.5.js?v=5.9.76-chats-language-1',
   '/crump-navigation-5.9.30.css?v=5.9.76-nav-focus-visibility-1',
-  '/crump-navigation-5.9.30.js?v=5.9.76-atelier-workspace-1',
+  '/crump-navigation-5.9.30.js?v=5.9.76-autonomous-integration-2',
   '/crump-vision-shell-1.0.css?v=5.9.76-atelier-workspace-1',
   '/crump-vision-shell-1.0.js?v=5.9.76-atelier-workspace-1',
   '/crump-vision-chats-1.0.css?v=5.9.76-atelier-workspace-1',
@@ -38,9 +38,9 @@ const CORE = [
   '/crump-vision-library-1.0.css?v=5.9.76-atelier-workspace-1',
   '/crump-vision-library-1.0.js?v=5.9.76-atelier-workspace-1',
   '/crump-vision-projects-1.0.css?v=5.9.76-atelier-workspace-1',
-  '/crump-vision-projects-1.0.js?v=5.9.76-atelier-workspace-1',
+  '/crump-vision-projects-1.0.js?v=5.9.76-autonomous-integration-2',
   '/crump-vision-studios-1.0.css?v=5.9.76-atelier-workspace-1',
-  '/crump-code-loader.js?v=5.9.76-autonomous-continuity-1',
+  '/crump-code-loader.js?v=5.9.76-autonomous-integration-2',
   '/crump-product-loader.js?v=5.9.76-response-continuity-cleanup-1',
   '/crump-product-5.3.1.css',
   '/crump-product-5.3.1.js?v=5.9.76-conversation-action-labels-2',

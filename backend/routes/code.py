@@ -8,6 +8,8 @@ from uuid import uuid4
 
 from ..auth_service import authenticate_request
 from ..code_observability import code_log
+from ..code_budget import CodeBudgetError, CodeBudgetPolicy
+from ..code_identity import CodeIdentityError, code_identity_token, verify_code_identity
 from ..code_service import (
     CodeTaskConflictError,
     CodeTaskError,
@@ -48,15 +50,17 @@ def _task_error(exc: CodeTaskError) -> JSONResponse:
     return _error(str(exc), exc.code, exc.status_code)
 
 
-def _configured(request: Request) -> bool:
-    oidc_token = str(
-        request.headers.get("x-vercel-oidc-token") or settings.vercel_oidc_token or ""
-    ).strip()
-    return bool(
-        settings.code_workspace_enabled
-        and settings.anthropic_api_key
-        and oidc_token
-    )
+async def _configured(request: Request) -> bool:
+    if not settings.code_workspace_enabled or not settings.anthropic_api_key:
+        return False
+    try:
+        await verify_code_identity(code_identity_token(settings, request.headers), settings)
+        policy = CodeBudgetPolicy.from_env()
+        if policy.model != settings.anthropic_model:
+            return False
+    except (CodeIdentityError, CodeBudgetError):
+        return False
+    return True
 
 
 @router.get("/api/code/activity")
@@ -73,7 +77,7 @@ async def list_code_tasks(project_id: str, request: Request):
         items = await code_tasks.list(user_id=auth.user["id"], project_id=project_id)
         return {
             "success": True,
-            "configured": _configured(request),
+            "configured": await _configured(request),
             "tasks": [CodeTaskService.public_task(item) for item in items],
         }
     except ProjectNotFoundError:
@@ -83,7 +87,7 @@ async def list_code_tasks(project_id: str, request: Request):
 @router.post("/api/projects/{project_id}/code/tasks")
 async def create_code_task(project_id: str, request: Request):
     auth = await authenticate_request(request, db, settings)
-    if not _configured(request):
+    if not await _configured(request):
         return _error("Crump Code is not enabled yet.", "CODE_WORKSPACE_NOT_CONFIGURED", 503)
     try:
         await features.require_tier(auth.user, "code_workspace")
@@ -127,7 +131,7 @@ async def get_code_task(task_id: str, request: Request):
 @router.post("/api/code/tasks/{task_id}/run")
 async def run_code_task(task_id: str, request: Request):
     auth = await authenticate_request(request, db, settings)
-    if not _configured(request):
+    if not await _configured(request):
         return _error("Crump Code is not enabled yet.", "CODE_WORKSPACE_NOT_CONFIGURED", 503)
     try:
         payload = await request.json()
@@ -148,53 +152,39 @@ async def run_code_task(task_id: str, request: Request):
     except CodeTaskError as exc:
         return _task_error(exc)
 
-    try:
-        receipt = await features.consume(
-            auth.user,
-            "code_workspace",
-            {"route": "code_task", "mode": task.get("mode")},
-            confirmation=payload.get("creditConfirmation"),
-            instance_key=str(task.get("id") or task_id),
-            scope={
-                "route": "code_task",
-                "taskId": str(task.get("id") or task_id),
-                "mode": task.get("mode"),
-            },
-        )
-    except FeatureAccessError as exc:
-        return _feature_error(exc)
-
     dispatch_token = str(uuid4())
     recovered = False
     try:
-        claimed = await code_tasks.dispatch(
-            task,
-            receipt=receipt,
-            dispatch_token=dispatch_token,
+        claimed = await code_tasks.dispatch_authorized(
+            task, user=auth.user, features=features,
+            confirmation=payload.get("creditConfirmation"),
+            dispatch_token=dispatch_token, budget_policy=CodeBudgetPolicy.from_env(),
         )
+    except FeatureAccessError as exc:
+        return _feature_error(exc)
+    except CodeBudgetError as exc:
+        return _error(str(exc), exc.code, exc.status_code)
     except CodeTaskError as exc:
-        await features.refund(auth.user["id"], receipt)
         code_log(
             logger,
             logging.WARNING,
             "dispatch_rejected",
             failure_code=exc.code,
-            outcome="refunded",
+            outcome="not_dispatched",
         )
         return _task_error(exc)
     except Exception as exc:
         current = await code_tasks.get(user_id=auth.user["id"], task_id=task_id)
-        if str(current.get("dispatch_token") or "") == dispatch_token:
+        if current.get("usage_receipt") and current.get("payment_source") and current.get("dispatch_token"):
             claimed = current
             recovered = True
         else:
-            await features.refund(auth.user["id"], receipt)
             code_log(
                 logger,
                 logging.ERROR,
                 "dispatch_rejected",
                 error_type=type(exc).__name__,
-                outcome="refunded",
+                outcome="unconfirmed",
             )
             raise
 

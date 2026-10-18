@@ -8,6 +8,8 @@ from typing import Any
 from uuid import uuid4
 
 from .code_observability import code_log
+from .code_identity import CodeIdentityError, verify_code_identity
+from .code_budget import CodeBudgetError, CodeBudgetPolicy
 from .code_runner import CodeRunnerError, run_with_deadline
 from .code_service import CodeTaskConflictError, CodeTaskService, TERMINAL_STATUSES
 from .config import Settings
@@ -46,24 +48,23 @@ class CodeWorker:
     def configured(self) -> bool:
         return bool(self.settings.code_workspace_enabled and self.settings.anthropic_api_key)
 
-    async def _refund(self, task: dict[str, Any]) -> None:
+    async def _refund(self, task: dict[str, Any]) -> dict[str, Any]:
         receipt = task.get("usage_receipt")
         if not receipt:
-            return
-        await self.features.refund(str(task["user_id"]), receipt)
-        await self.service.mark_refunded(task)
+            return task
+        return await self.service.refund_if_unstarted(task)
 
     async def _reconcile_one_refund(self) -> bool:
         task = await self.service.next_refund_pending()
         if not task:
             return False
-        await self._refund(task)
+        current = await self._refund(task)
         code_log(
             logger,
             logging.INFO,
             "refund_reconciled",
             status=str(task.get("status") or ""),
-            payment_source="refunded",
+            payment_source=str(current.get("payment_source") or ""),
         )
         return True
 
@@ -111,6 +112,22 @@ class CodeWorker:
                 "worker_misconfigured",
                 outcome="missing_oidc",
             )
+            return {"handled": False, "claimed": False, "misconfigured": True}
+
+        try:
+            await verify_code_identity(oidc_token, self.settings)
+        except CodeIdentityError as exc:
+            code_log(logger, logging.WARNING, "worker_misconfigured", failure_code=exc.code,
+                     outcome="identity_unverified")
+            return {"handled": False, "claimed": False, "misconfigured": True}
+
+        try:
+            policy = CodeBudgetPolicy.from_env()
+            if policy.model != self.settings.anthropic_model:
+                raise CodeBudgetError("Coding model policy changed.", "CODE_BUDGET_MODEL_MISMATCH")
+        except CodeBudgetError as exc:
+            code_log(logger, logging.WARNING, "worker_misconfigured", failure_code=exc.code,
+                     outcome="budget_unverified")
             return {"handled": False, "claimed": False, "misconfigured": True}
 
         lease_seconds = min(300, max(60, int(self.settings.code_max_duration_seconds) + 45))
@@ -201,7 +218,7 @@ class CodeWorker:
                     duration_ms=int((monotonic() - started) * 1000),
                 )
                 return {"handled": True, "claimed": True, "status": "superseded"}
-            if failure_code in RETRYABLE_FAILURES and attempt < maximum:
+            if failure_code in RETRYABLE_FAILURES and attempt < maximum and not current.get("provider_started_at"):
                 delay = min(120, 15 * (2 ** max(0, attempt - 1)))
                 await self.service.requeue_after_failure(
                     current,
@@ -258,7 +275,7 @@ class CodeWorker:
                 result_status = str(current.get("status") or "failed")
                 outcome = result_status
             elif str(current.get("lease_token") or "") == str(task.get("lease_token") or ""):
-                if attempt < maximum:
+                if attempt < maximum and not current.get("provider_started_at"):
                     await self.service.requeue_after_failure(
                         current,
                         failure_code="CODE_RUN_FAILED",
