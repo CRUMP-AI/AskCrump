@@ -1,0 +1,526 @@
+"""Tests for the driver <-> executor integration (fake-only, offline).
+
+PLUMBING EVIDENCE ONLY. These tests prove the wiring between the fake
+production-loop driver and the fake boundary executor: patch export,
+identical-byte binding, synthetic evidence scenarios, roster integrity,
+validity marking, and determinism. They prove nothing about model
+capability. No model is called; no paid infrastructure is used.
+"""
+
+from __future__ import annotations
+
+import asyncio
+import hashlib
+import json
+from pathlib import Path
+
+import pytest
+
+from scripts import crump_code_v2_integration as integ
+from scripts.crump_code_v2_fake_driver import export_candidate_patch
+
+REAL_CORPUS = (
+    Path(__file__).resolve().parents[1] / "benchmarks" / "crump_code" / "real_tasks_v2"
+)
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+
+def make_corpus(tmp_path, case_ids=("case-a", "case-b", "case-c", "case-d")):
+    root = tmp_path / "corpus"
+    cases = []
+    for cid in case_ids:
+        tids = [f"{cid}.t1", f"{cid}.t2"]
+        oracle_dir = root / "cases" / cid / "oracle"
+        oracle_dir.mkdir(parents=True)
+        (oracle_dir / "check.py").write_text(f"# oracle for {cid}\n")
+        cases.append({"id": cid, "stratum": "s1", "oracle_test_ids": tids})
+    (root / "manifest.json").write_text(json.dumps({"cases": cases}))
+    return root
+
+
+def manifest_sha(root):
+    return hashlib.sha256((root / "manifest.json").read_bytes()).hexdigest()
+
+
+def make_drive_all(case_ids, *, patch_map=None, fail_with=None, fail_case=None,
+                   blocked=(), second_call_patch_map=None, corrupt_case=None):
+    """Fake drive_all: crafts records and stages patch exports like the driver.
+
+    patch_map: {case_id: bytes} patch bytes, or {case_id: None} for a
+    missing (unavailable) patch. corrupt_case: case whose patch file is
+    rewritten after export, simulating mutation between export and bind.
+    """
+    calls = {"n": 0}
+
+    async def fake_drive_all(corpus_root, work_root, runner_cls, settings,
+                            *, seed="v1", export_patch_to=None):
+        calls["n"] += 1
+        if fail_with is not None:
+            raise fail_with
+        active_map = (
+            second_call_patch_map if calls["n"] == 2 and second_call_patch_map is not None
+            else patch_map
+        )
+        cases = []
+        for cid in case_ids:
+            if fail_case == cid:
+                cases.append(
+                    {
+                        "id": cid, "stratum": "s1",
+                        "adapter_support": "supported", "blocked_reason": None,
+                        "honest_label": "Not evaluated",
+                        "honest_reason": "model evaluation not run",
+                        "plumbing_only": True,
+                        "harness_error": {"type": "RuntimeError", "message": "boom"},
+                        "driver": None,
+                    }
+                )
+                continue
+            patch = (active_map or {}).get(cid, f"patch-bytes-for-{cid}".encode())
+            if export_patch_to is not None:
+                export_candidate_patch(
+                    export_dir=Path(export_patch_to), case_id=cid,
+                    patch=patch, base_revision="deadbeef",
+                )
+                if corrupt_case == cid:
+                    (Path(export_patch_to) / f"{cid}.patch").write_bytes(b"MUTATED")
+            rec = {
+                "id": cid, "stratum": "s1",
+                "adapter_support": "blocked" if cid in blocked else "supported",
+                "blocked_reason": "missing trusted adapter" if cid in blocked else None,
+                "honest_label": "Not evaluated",
+                "honest_reason": "model evaluation not run",
+                "plumbing_only": True,
+                "driver": {
+                    "provider": "deterministic-fake", "seed": f"{cid}-v1",
+                    "model_calls": 0, "paid_sandbox_used": False,
+                    "final_status": "completed", "failure_code": None,
+                    "result_patch_bytes": len(patch or b""),
+                },
+            }
+            cases.append(rec)
+        return {
+            "report": "crump_code_v2_fake_driver",
+            "plumbing_evidence_only": True,
+            "aggregate": integ.AGGREGATE,
+            "fix_rate": None,
+            "cases": cases,
+        }
+
+    return fake_drive_all
+
+
+def run_pass(tmp_path, corpus, fake, **kw):
+    return integ.run_single_pass(
+        corpus_root=corpus,
+        work_root=tmp_path / "work",
+        seed="v1",
+        expected_manifest_sha=manifest_sha(corpus),
+        drive_all_fn=fake,
+        runner_cls=None,
+        settings=None,
+        **kw,
+    )
+
+
+def row_by_id(report, cid):
+    return next(r for r in report["cases"] if r["id"] == cid and not r["unexpected"])
+
+
+# ---------------------------------------------------------------------------
+# Driver patch export (pure function)
+# ---------------------------------------------------------------------------
+
+
+def test_export_patch_exact_bytes(tmp_path):
+    meta = export_candidate_patch(
+        export_dir=tmp_path, case_id="c1", patch="diff --git a/x", base_revision="abc"
+    )
+    assert (tmp_path / "c1.patch").read_bytes() == b"diff --git a/x"
+    assert meta["available"] is True
+    assert meta["sha256"] == hashlib.sha256(b"diff --git a/x").hexdigest()
+    assert meta["bytes"] == len(b"diff --git a/x")
+    sidecar = json.loads((tmp_path / "c1.patch.json").read_text())
+    assert sidecar["available"] is True
+    assert sidecar["sha256"] == meta["sha256"]
+
+
+def test_export_patch_empty_is_valid_zero_bytes(tmp_path):
+    meta = export_candidate_patch(
+        export_dir=tmp_path, case_id="c1", patch="", base_revision=None
+    )
+    assert (tmp_path / "c1.patch").read_bytes() == b""
+    assert meta["available"] is True
+    assert meta["bytes"] == 0
+    assert meta["sha256"] == hashlib.sha256(b"").hexdigest()
+
+
+def test_export_patch_missing_is_unavailable_never_fabricated(tmp_path):
+    meta = export_candidate_patch(
+        export_dir=tmp_path, case_id="c1", patch=None, base_revision="abc"
+    )
+    assert meta["available"] is False
+    assert not (tmp_path / "c1.patch").exists(), "missing patch must not fabricate a file"
+
+
+def test_export_patch_unexpected_type_not_coerced(tmp_path):
+    meta = export_candidate_patch(
+        export_dir=tmp_path, case_id="c1", patch=12345, base_revision=None
+    )
+    assert meta["available"] is False
+    assert not (tmp_path / "c1.patch").exists()
+
+
+# ---------------------------------------------------------------------------
+# Driver export wiring through drive_case (real corpus, fake provider turn)
+# ---------------------------------------------------------------------------
+
+
+async def _drive_one_export(tmp_path, monkeypatch, patch_value, export_on=True):
+    from types import SimpleNamespace
+
+    from backend.code_runner import CrumpCodeRunner
+    from scripts.crump_code_v2_fake_driver import (
+        DeterministicFakeProvider,
+        drive_case,
+    )
+    from scripts.evaluate_crump_code_v2 import load_suite
+
+    async def fake_run(self, task, workspace):
+        return {
+            "status": "completed",
+            "failure_code": None,
+            "result_patch": patch_value,
+            "verification": [],
+        }
+
+    monkeypatch.setattr(DeterministicFakeProvider, "run_in_workspace", fake_run)
+    suite = load_suite(REAL_CORPUS)
+    case = suite.case("rename-boundary")
+    settings = SimpleNamespace(
+        code_max_agent_steps=8, anthropic_api_key=None, anthropic_model="fake-provider"
+    )
+    kwargs = {}
+    if export_on:
+        kwargs["export_patch_to"] = tmp_path / "patches"
+    record = await drive_case(
+        case,
+        corpus_root=REAL_CORPUS,
+        work_root=tmp_path / "w",
+        runner_cls=CrumpCodeRunner,
+        settings=settings,
+        seed="t-export",
+        **kwargs,
+    )
+    return record
+
+
+@pytest.mark.skipif(not REAL_CORPUS.exists(), reason="needs real corpus")
+def test_drive_case_exports_patch_when_enabled(tmp_path, monkeypatch):
+    record = asyncio.run(_drive_one_export(tmp_path, monkeypatch, "DIFF-BYTES"))
+    assert (tmp_path / "patches" / "rename-boundary.patch").read_bytes() == b"DIFF-BYTES"
+    assert record["patch_export"]["available"] is True
+    assert record["patch_export"]["base_revision"], "base revision should be captured"
+
+
+@pytest.mark.skipif(not REAL_CORPUS.exists(), reason="needs real corpus")
+def test_drive_case_export_default_off(tmp_path, monkeypatch):
+    record = asyncio.run(
+        _drive_one_export(tmp_path, monkeypatch, "DIFF-BYTES", export_on=False)
+    )
+    assert record["patch_export"] is None
+    assert not (tmp_path / "patches").exists()
+
+
+# ---------------------------------------------------------------------------
+# Integration: happy path (valid report)
+# ---------------------------------------------------------------------------
+
+
+def test_valid_run_small_corpus(tmp_path):
+    corpus = make_corpus(tmp_path)
+    fake = make_drive_all(
+        ("case-a", "case-b", "case-c", "case-d"), blocked=("case-c", "case-d")
+    )
+    report, code, fatal = integ.run_pipeline(
+        corpus_root=corpus,
+        work_root=tmp_path / "work",
+        out_path=tmp_path / "out" / "report.json",
+        seed="v1",
+        expected_manifest_sha=manifest_sha(corpus),
+        drive_all_fn=fake,
+        runner_cls=None,
+        settings=None,
+    )
+    assert fatal is None
+    assert report["report_validity"] == "valid", report["invalid_reasons"]
+    assert code == 0
+    assert report["fix_rate"] is None
+    assert report["aggregate"] == integ.AGGREGATE
+    assert len(report["cases"]) == 4
+    # scenarios assigned round-robin: clean_pass, assertion_fail, skipped_error, malformed
+    assert row_by_id(report, "case-a")["executor"]["outcome"] == "pass"
+    assert row_by_id(report, "case-a")["executor"]["expectation_matched"] is True
+    assert row_by_id(report, "case-b")["executor"]["outcome"] == "fail"
+    assert row_by_id(report, "case-c")["executor"]["reason"] == "non_terminal_test_record"
+    assert row_by_id(report, "case-d")["executor"]["reason"] == "malformed_evidence"
+    # blocked adapters still exercise synthetic plumbing, labels unchanged
+    assert row_by_id(report, "case-c")["adapter_support"] == "blocked"
+    assert all(r["honest_label"] == "Not evaluated" for r in report["cases"])
+    # candidate bytes retained exactly
+    assert (
+        row_by_id(report, "case-a")["candidate"]["bytes_hex"]
+        == b"patch-bytes-for-case-a".hex()
+    )
+    # determinism section present and clean
+    assert report["determinism"]["canonical_identical"] is True
+    # report file written
+    assert (tmp_path / "out" / "report.json").exists()
+
+
+def test_timeout_scenario_via_fakeclock(tmp_path):
+    corpus = make_corpus(tmp_path, case_ids=("case-a",))
+    fake = make_drive_all(("case-a",))
+    report, fatal = run_pass(
+        tmp_path, corpus, fake, scenario_override={"case-a": "timeout"}
+    )
+    assert fatal is None
+    row = row_by_id(report, "case-a")
+    assert row["executor"]["outcome"] == "timeout"
+    assert row["executor"]["reason"] == "deadline_expired"
+    assert row["executor"]["expectation_matched"] is True
+    assert report["report_validity"] == "valid", report["invalid_reasons"]
+
+
+def test_cancellation_scenario(tmp_path):
+    corpus = make_corpus(tmp_path, case_ids=("case-a",))
+    fake = make_drive_all(("case-a",))
+    report, fatal = run_pass(
+        tmp_path, corpus, fake, scenario_override={"case-a": "cancellation"}
+    )
+    assert fatal is None
+    row = row_by_id(report, "case-a")
+    assert row["executor"]["outcome"] == "cancelled"
+    assert row["executor"]["reason"] == "cancel_accepted"
+    assert row["executor"]["expectation_matched"] is True
+    assert row["executor"]["evaluation_skipped_after_cancel"] is True
+    assert report["report_validity"] == "valid", report["invalid_reasons"]
+
+
+# ---------------------------------------------------------------------------
+# Integration: failure handling
+# ---------------------------------------------------------------------------
+
+
+def test_global_drive_all_failure(tmp_path):
+    corpus = make_corpus(tmp_path, case_ids=("case-a", "case-b"))
+    fake = make_drive_all(("case-a", "case-b"), fail_with=RuntimeError("boom"))
+    report, code, fatal = integ.run_pipeline(
+        corpus_root=corpus,
+        work_root=tmp_path / "work",
+        out_path=tmp_path / "out" / "report.json",
+        seed="v1",
+        expected_manifest_sha=manifest_sha(corpus),
+        drive_all_fn=fake,
+        runner_cls=None,
+        settings=None,
+    )
+    assert fatal is None
+    # report IS written (diagnostics preserved), but invalid; nonzero exit
+    assert (tmp_path / "out" / "report.json").exists()
+    assert report["report_validity"] == "invalid"
+    assert code == 2
+    assert len(report["cases"]) == 2
+    assert all(r["driver_disposition"] == "unattempted" for r in report["cases"])
+    assert any("drive_all" in reason for reason in report["invalid_reasons"])
+
+
+def test_single_case_harness_error(tmp_path):
+    corpus = make_corpus(tmp_path)
+    fake = make_drive_all(("case-a", "case-b"), fail_case="case-b")
+    report, fatal = run_pass(tmp_path, corpus, fake)
+    assert fatal is None
+    bad = row_by_id(report, "case-b")
+    assert bad["driver_disposition"] == "harness_error"
+    assert bad["executor"]["invoked"] is False
+    assert bad["executor"]["not_invoked_reason"] == "harness_error_no_evidence"
+    assert bad["candidate"]["available"] is False
+    good = row_by_id(report, "case-a")
+    assert good["executor"]["expectation_matched"] is True
+    assert report["report_validity"] == "invalid"
+    assert any(r.startswith("harness_error:case-b") for r in report["invalid_reasons"])
+
+
+def test_missing_vs_empty_patch(tmp_path):
+    corpus = make_corpus(tmp_path)
+    fake = make_drive_all(
+        ("case-a", "case-b"), patch_map={"case-a": b"", "case-b": None}
+    )
+    report, fatal = run_pass(tmp_path, corpus, fake)
+    assert fatal is None
+    empty = row_by_id(report, "case-a")
+    assert empty["candidate"]["available"] is True
+    assert empty["candidate"]["bytes_hex"] == ""
+    assert empty["executor"]["invoked"] is True
+    missing = row_by_id(report, "case-b")
+    assert missing["candidate"]["available"] is False
+    assert missing["executor"]["invoked"] is False
+    assert missing["executor"]["not_invoked_reason"] == "patch_unavailable"
+    assert report["report_validity"] == "invalid"
+
+
+def test_malformed_roster_manifest_duplicates(tmp_path):
+    root = tmp_path / "corpus"
+    cases = [
+        {"id": "dup", "stratum": "s", "oracle_test_ids": ["t1"]},
+        {"id": "dup", "stratum": "s", "oracle_test_ids": ["t1"]},
+    ]
+    (root / "manifest.json").parent.mkdir(parents=True)
+    (root / "manifest.json").write_text(json.dumps({"cases": cases}))
+    roster, fatal = integ.freeze_roster(root)
+    assert roster is None
+    assert "duplicate" in fatal
+    report, code, fatal2 = integ.run_pipeline(
+        corpus_root=root,
+        work_root=tmp_path / "work",
+        out_path=tmp_path / "out" / "report.json",
+        seed="v1",
+    )
+    assert report is None
+    assert code == 1
+    assert not (tmp_path / "out" / "report.json").exists()
+
+
+def test_duplicate_driver_records_detected_not_overwritten(tmp_path):
+    corpus = make_corpus(tmp_path, case_ids=("case-a",))
+
+    async def fake_drive_all(corpus_root, work_root, runner_cls, settings,
+                             *, seed="v1", export_patch_to=None):
+        rec = {
+            "id": "case-a", "stratum": "s1", "adapter_support": "supported",
+            "blocked_reason": None, "honest_label": "Not evaluated",
+            "honest_reason": "model evaluation not run", "plumbing_only": True,
+            "driver": {"provider": "deterministic-fake"},
+        }
+        return {"cases": [dict(rec), dict(rec)]}
+
+    report, fatal = run_pass(tmp_path, corpus, fake_drive_all)
+    assert fatal is None
+    row = row_by_id(report, "case-a")
+    assert row["driver_disposition"] == "duplicate_records"
+    assert len(row["duplicate_records"]) == 2, "both duplicates retained"
+    assert row["executor"]["invoked"] is False
+    assert report["report_validity"] == "invalid"
+    assert any("duplicate_case_id:case-a" in r for r in report["invalid_reasons"])
+
+
+def test_unexpected_case_id_detected(tmp_path):
+    corpus = make_corpus(tmp_path, case_ids=("case-a",))
+
+    async def fake_drive_all(corpus_root, work_root, runner_cls, settings,
+                             *, seed="v1", export_patch_to=None):
+        rec = {
+            "id": "ghost-case", "stratum": "s1", "adapter_support": "supported",
+            "blocked_reason": None, "honest_label": "Not evaluated",
+            "honest_reason": "model evaluation not run", "plumbing_only": True,
+            "driver": {"provider": "deterministic-fake"},
+        }
+        return {"cases": [rec]}
+
+    report, fatal = run_pass(tmp_path, corpus, fake_drive_all)
+    assert fatal is None
+    assert any(r.startswith("missing_case_id:case-a") for r in report["invalid_reasons"])
+    assert any(r.startswith("unexpected_case_id:ghost-case") for r in report["invalid_reasons"])
+    ghost_rows = [r for r in report["cases"] if r["unexpected"]]
+    assert len(ghost_rows) == 1 and ghost_rows[0]["id"] == "ghost-case"
+    assert report["report_validity"] == "invalid"
+
+
+def test_unexpected_executor_result_invalidates(tmp_path, monkeypatch):
+    corpus = make_corpus(tmp_path, case_ids=("case-a",))
+    fake = make_drive_all(("case-a",))
+    monkeypatch.setitem(integ.EXPECTED_OUTCOME, "clean_pass", ("fail", None))
+    report, fatal = run_pass(
+        tmp_path, corpus, fake, scenario_override={"case-a": "clean_pass"}
+    )
+    assert fatal is None
+    row = row_by_id(report, "case-a")
+    assert row["executor"]["outcome"] == "pass"  # actual executor behavior
+    assert row["executor"]["expectation_matched"] is False
+    assert report["report_validity"] == "invalid"
+    assert any(
+        r.startswith("unexpected_executor_result:case-a") for r in report["invalid_reasons"]
+    )
+
+
+def test_artifact_mutation_detected(tmp_path):
+    corpus = make_corpus(tmp_path, case_ids=("case-a",))
+    fake = make_drive_all(("case-a",), corrupt_case="case-a")
+    report, fatal = run_pass(tmp_path, corpus, fake)
+    assert fatal is None
+    row = row_by_id(report, "case-a")
+    assert row["candidate"]["available"] is False
+    assert row["candidate"]["unavailable_reason"] == "candidate_artifact_mutated"
+    assert row["executor"]["invoked"] is False
+    assert report["report_validity"] == "invalid"
+    assert any("candidate_artifact_mutated:case-a" in r for r in report["invalid_reasons"])
+
+
+def test_determinism_failure_still_emits_invalid_report(tmp_path):
+    corpus = make_corpus(tmp_path, case_ids=("case-a",))
+    fake = make_drive_all(
+        ("case-a",),
+        patch_map={"case-a": b"stable-bytes"},
+        second_call_patch_map={"case-a": b"changed-bytes"},
+    )
+    report, code, fatal = integ.run_pipeline(
+        corpus_root=corpus,
+        work_root=tmp_path / "work",
+        out_path=tmp_path / "out" / "report.json",
+        seed="v1",
+        expected_manifest_sha=manifest_sha(corpus),
+        drive_all_fn=fake,
+        runner_cls=None,
+        settings=None,
+    )
+    assert fatal is None
+    # report IS emitted (not swallowed), marked invalid, nonzero exit
+    assert (tmp_path / "out" / "report.json").exists()
+    assert report["report_validity"] == "invalid"
+    assert code == 2
+    assert report["determinism"]["canonical_identical"] is False
+    assert "determinism_mismatch" in report["invalid_reasons"][-1]
+
+
+def test_synthetic_evidence_independent_of_driver(tmp_path):
+    """Evidence builders never touch driver output: same input, same bytes."""
+    ids = ["t1", "t2", "t3"]
+    for scenario in integ.SCENARIO_ORDER:
+        if scenario in ("timeout", "cancellation"):
+            continue
+        b1, raw1 = integ.build_synthetic_evidence(scenario, ids)
+        b2, raw2 = integ.build_synthetic_evidence(scenario, ids)
+        assert raw1 == raw2
+        assert b1.evidence_sha256 == b2.evidence_sha256 or scenario == "digest_mismatch"
+
+
+def test_manifest_digest_mismatch_is_global_error(tmp_path):
+    corpus = make_corpus(tmp_path, case_ids=("case-a",))
+    fake = make_drive_all(("case-a",))
+    report, fatal = integ.run_single_pass(
+        corpus_root=corpus,
+        work_root=tmp_path / "work",
+        seed="v1",
+        expected_manifest_sha="0" * 64,  # wrong on purpose
+        drive_all_fn=fake,
+        runner_cls=None,
+        settings=None,
+    )
+    assert fatal is None
+    assert report["report_validity"] == "invalid"
+    assert all(r["driver_disposition"] == "unattempted" for r in report["cases"])
+    assert any("manifest_digest_mismatch" in r for r in report["invalid_reasons"])
