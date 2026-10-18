@@ -120,3 +120,31 @@ jobs:
         run: pip install -r requirements-dev.txt
       - name: Run executor boundary tests
         run: python3 -m pytest tests/test_crump_code_v2_executor.py -q
+
+  v2-integration:
+    name: Crump Code v2 driver-executor integration
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # Run against the raw head content, not the PR merge commit, so the
+          # integration and its determinism check validate what would
+          # actually be merged.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+      - name: Run integration unit tests
+        run: python3 -m pytest tests/test_crump_code_v2_integration.py -q
+      - name: Run real fake-only 20-case integration end to end
+        # Fake provider only: no model calls, no credentials, no spend.
+        # Exits nonzero unless the report is valid AND deterministic.
+        run: >-
+          python3 scripts/crump_code_v2_integration.py
+          --corpus-root benchmarks/crump_code/real_tasks_v2
+          --work-root /tmp/crump-code-v2-integration
+          --out /tmp/integration_report.v1.json
+          --seed v1
