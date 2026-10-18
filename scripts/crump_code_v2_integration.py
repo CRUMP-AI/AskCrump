@@ -692,6 +692,157 @@ def _validate_driver_report_shape(report: Any) -> list[dict[str, Any]]:
     return cases
 
 
+def _json_safe(value: Any) -> Any:
+    """Return value if JSON-serializable, else a type/repr placeholder.
+
+    The report itself must always be writable with json.dumps, so retained
+    observations can never carry unserializable objects.
+    """
+    try:
+        json.dumps(value)
+        return value
+    except (TypeError, ValueError):
+        return {
+            "__unserializable__": type(value).__name__,
+            "repr": repr(value)[:500],
+        }
+
+
+def _extract_observations(
+    driver_report: Any,
+) -> tuple[list[dict[str, Any]], list[str]]:
+    """Extract per-position observations and observed string IDs.
+
+    Returns (observations, observed_ids). Each observation records its
+    position in the driver's cases list, the JSON-safe record, the observed
+    string id (or None), and a malformed diagnostic (or None). observed_ids
+    lists every string id observed, in position order, duplicates included.
+    Used when shape validation fails so the original input survives in the
+    report instead of being replaced by blank rows.
+    """
+    observations: list[dict[str, Any]] = []
+    observed_ids: list[str] = []
+    cases = driver_report.get("cases") if isinstance(driver_report, dict) else None
+    if not isinstance(cases, list):
+        return observations, observed_ids
+    for index, rec in enumerate(cases):
+        if isinstance(rec, dict) and isinstance(rec.get("id"), str):
+            observations.append(
+                {
+                    "position": index,
+                    "record": _json_safe(rec),
+                    "observed_id": rec["id"],
+                    "malformed": None,
+                }
+            )
+            observed_ids.append(rec["id"])
+        else:
+            if isinstance(rec, dict):
+                diag = (
+                    f"record id is {type(rec.get('id')).__name__}, not a string"
+                )
+            else:
+                diag = f"record is {type(rec).__name__}, not a JSON object"
+            observations.append(
+                {
+                    "position": index,
+                    "record": _json_safe(rec),
+                    "observed_id": None,
+                    "malformed": diag,
+                }
+            )
+    return observations, observed_ids
+
+
+def _build_report(
+    *,
+    roster: list[dict[str, Any]],
+    rows: list[dict[str, Any]],
+    invalid_reasons: list[str],
+    seen_ids: set[str],
+    dupes: list[str],
+    unexpected: list[str],
+    executor: Any | None,
+    seed: str,
+    expected_manifest_sha: str,
+    input_observations: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Assemble the report artifact from rows + bookkeeping.
+
+    Module-level so run_pipeline can publish the frozen-roster invalid
+    report on directory failures without running any pass. input_observations
+    carries retained driver observations on shape-validation failure
+    (None otherwise).
+    """
+    import scripts.crump_code_v2_executor as executor_mod
+    import scripts.crump_code_v2_fake_driver as driver_mod
+
+    missing = [e["id"] for e in roster if e["id"] not in seen_ids]
+    validity = "valid" if not invalid_reasons else "invalid"
+    return {
+        "artifact": "crump_code_v2_driver_executor_integration",
+        "schema_version": 1,
+        "report_validity": validity,
+        "invalid_reasons": list(invalid_reasons),
+        "plumbing_evidence_only": True,
+        "capability_claims": "none",
+        "synthetic_evidence": True,
+        "synthetic_note": (
+            "A synthetic pass NEVER means the candidate fixes the case: "
+            "evidence is arbitrary by construction and carries zero "
+            "information about the case or the driver run. Executor "
+            "outcomes on synthetic evidence exercise the terminal-path "
+            "wiring only."
+        ),
+        "run_id": uuid.uuid4().hex,
+        "created_utc": datetime.now(timezone.utc).isoformat(),
+        "seed": seed,
+        "corpus": {
+            "manifest_sha": (
+                executor.manifest_sha256 if executor else None
+            ),
+            "expected_manifest_sha": expected_manifest_sha,
+            "case_count": len(roster),
+            "frozen": True,
+        },
+        "components": {
+            "driver": {
+                **_component_identity(
+                    driver_mod, "scripts/crump_code_v2_fake_driver.py"
+                ),
+                "provider": "deterministic-fake",
+                "model_calls": 0,
+                "paid_sandbox_used": False,
+            },
+            "executor": {
+                **_component_identity(
+                    executor_mod, "scripts/crump_code_v2_executor.py"
+                ),
+                "kind": "fake",
+                "oracle_suite_sha256": (
+                    executor.oracle_suite_sha256 if executor else None
+                ),
+            },
+        },
+        "synthetic_scenarios": {
+            name: {"expected_outcome": o, "expected_reason": r}
+            for name, (o, r) in EXPECTED_OUTCOME.items()
+        },
+        "input_observations": input_observations,
+        "cases": rows,
+        "completeness": {
+            "expected": len(roster),
+            "present": len(rows),
+            "missing_ids": missing,
+            "duplicate_ids": sorted(dupes),
+            "unexpected_ids": sorted(unexpected),
+        },
+        "aggregate": AGGREGATE,
+        "fix_rate": None,
+        "limitations": list(LIMITATIONS),
+    }
+
+
 def run_single_pass(
     *,
     corpus_root: Path,
@@ -732,75 +883,22 @@ def run_single_pass(
         cancellation_executor_factory=cancellation_executor_factory,
         invalid_reasons=[],
         executor=None,
+        input_observations=None,
     )
 
     def _finish(rows: list[dict[str, Any]]) -> dict[str, Any]:
-        import scripts.crump_code_v2_executor as executor_mod
-        import scripts.crump_code_v2_fake_driver as driver_mod
-
-        missing = [e["id"] for e in roster if e["id"] not in seen_ids]
-        validity = "valid" if not ctx.invalid_reasons else "invalid"
-        return {
-            "artifact": "crump_code_v2_driver_executor_integration",
-            "schema_version": 1,
-            "report_validity": validity,
-            "invalid_reasons": list(ctx.invalid_reasons),
-            "plumbing_evidence_only": True,
-            "capability_claims": "none",
-            "synthetic_evidence": True,
-            "synthetic_note": (
-                "A synthetic pass NEVER means the candidate fixes the case: "
-                "evidence is arbitrary by construction and carries zero "
-                "information about the case or the driver run. Executor "
-                "outcomes on synthetic evidence exercise the terminal-path "
-                "wiring only."
-            ),
-            "run_id": uuid.uuid4().hex,
-            "created_utc": datetime.now(timezone.utc).isoformat(),
-            "seed": seed,
-            "corpus": {
-                "manifest_sha": (
-                    ctx.executor.manifest_sha256 if ctx.executor else None
-                ),
-                "expected_manifest_sha": expected_manifest_sha,
-                "case_count": len(roster),
-                "frozen": True,
-            },
-            "components": {
-                "driver": {
-                    **_component_identity(
-                        driver_mod, "scripts/crump_code_v2_fake_driver.py"
-                    ),
-                    "provider": "deterministic-fake",
-                    "model_calls": 0,
-                    "paid_sandbox_used": False,
-                },
-                "executor": {
-                    **_component_identity(
-                        executor_mod, "scripts/crump_code_v2_executor.py"
-                    ),
-                    "kind": "fake",
-                    "oracle_suite_sha256": (
-                        ctx.executor.oracle_suite_sha256 if ctx.executor else None
-                    ),
-                },
-            },
-            "synthetic_scenarios": {
-                name: {"expected_outcome": o, "expected_reason": r}
-                for name, (o, r) in EXPECTED_OUTCOME.items()
-            },
-            "cases": rows,
-            "completeness": {
-                "expected": len(roster),
-                "present": len(rows),
-                "missing_ids": missing,
-                "duplicate_ids": sorted(dupes),
-                "unexpected_ids": sorted(unexpected),
-            },
-            "aggregate": AGGREGATE,
-            "fix_rate": None,
-            "limitations": list(LIMITATIONS),
-        }
+        return _build_report(
+            roster=roster,
+            rows=rows,
+            invalid_reasons=ctx.invalid_reasons,
+            seen_ids=seen_ids,
+            dupes=dupes,
+            unexpected=unexpected,
+            executor=ctx.executor,
+            seed=seed,
+            expected_manifest_sha=expected_manifest_sha,
+            input_observations=ctx.input_observations,
+        )
 
     # -- executor construction + frozen digest check -------------------------
     # (initialized before _finish's early-return call sites below)
@@ -831,6 +929,7 @@ def run_single_pass(
 
         if runner_cls is None or settings is None:
             raise ValueError("runner_cls and settings are required with the real driver")
+    driver_report = None
     try:
         work_root.mkdir(parents=True, exist_ok=True)
     except OSError as exc:
@@ -853,6 +952,34 @@ def run_single_pass(
     except _ShapeError as exc:
         reason = f"driver_report_shape:{exc}"
         ctx.invalid_reasons.append(reason)
+        # Retain the original observations with positions and per-record
+        # malformed diagnostics instead of replacing them with blank rows.
+        # Executor invocations are skipped on this global failure, but the
+        # observed string IDs still feed completeness accounting.
+        observations, observed_ids = _extract_observations(driver_report)
+        ctx.input_observations = {
+            "records": observations,
+            "observed_string_ids": sorted(set(observed_ids)),
+            "note": (
+                "Original driver observations retained with positions; "
+                "executor invocations skipped on this global shape failure."
+            ),
+        }
+        roster_ids = {e["id"] for e in roster}
+        seen_obs: set[str] = set()
+        for oid in observed_ids:
+            if oid in roster_ids:
+                seen_ids.add(oid)
+            elif oid not in unexpected:
+                unexpected.append(oid)
+                ctx.invalid_reasons.append(f"unexpected_case_id:{oid}")
+            if oid in seen_obs and oid not in dupes:
+                dupes.append(oid)
+                ctx.invalid_reasons.append(
+                    f"duplicate_case_id:{oid} "
+                    f"({observed_ids.count(oid)} observations retained)"
+                )
+            seen_obs.add(oid)
         return _finish(_global_error_rows(roster, reason)), None
     except Exception as exc:  # noqa: BLE001 - global containment; never BaseException
         reason = f"drive_all:{type(exc).__name__}:{str(exc)[:300]}"
@@ -948,6 +1075,54 @@ def canonical_projection(report: dict[str, Any]) -> str:
 # ---------------------------------------------------------------------------
 
 
+def _write_report_text(out_path: Path, report: dict[str, Any]) -> str | None:
+    """Write the report JSON; return a fatal diagnostic, or None on success."""
+    try:
+        out_path.write_text(
+            json.dumps(report, sort_keys=True, indent=2, ensure_ascii=False),
+            encoding="utf-8",
+        )
+    except Exception as exc:
+        return (
+            f"failed to write report {out_path}: {type(exc).__name__}: {exc}"
+        )
+    return None
+
+
+def _publish_invalid_report(
+    *,
+    roster: list[dict[str, Any]],
+    reason: str,
+    out_path: Path,
+    seed: str,
+    expected_manifest_sha: str,
+) -> tuple[dict[str, Any] | None, int, str | None]:
+    """Build and write the frozen-roster invalid report.
+
+    Used when the roster is usable but no pass can run (work-root or
+    pass-directory failure): every expected case appears as an unattempted
+    row with candidate null and executor not invoked, and the directory
+    error is retained in invalid_reasons. Returns (report, 2, None); a
+    write failure is the only path returning fatal (None, 1, ...).
+    """
+    report = _build_report(
+        roster=roster,
+        rows=_global_error_rows(roster, reason),
+        invalid_reasons=[reason],
+        seen_ids=set(),
+        dupes=[],
+        unexpected=[],
+        executor=None,
+        seed=seed,
+        expected_manifest_sha=expected_manifest_sha,
+        input_observations=None,
+    )
+    fatal = _write_report_text(out_path, report)
+    if fatal is not None:
+        return None, 1, fatal
+    return report, 2, None
+
+
 def run_pipeline(
     *,
     corpus_root: Path,
@@ -960,7 +1135,8 @@ def run_pipeline(
 
     Returns (report_or_None, exit_code, fatal_or_None).
     Exit codes: 0 = valid; 2 = report written but invalid (includes
-    determinism failure); 1 = fatal, no report written.
+    determinism failure); 1 = fatal, no report written (unusable roster
+    or unwritable destination/publication failure only).
     """
     corpus_root = Path(corpus_root)
     work_root = Path(work_root)
@@ -968,13 +1144,22 @@ def run_pipeline(
     roster, fatal = freeze_roster(corpus_root)
     if fatal:
         return None, 1, fatal
+    expected_manifest_sha = pass_kwargs.get(
+        "expected_manifest_sha", EXPECTED_FROZEN_MANIFEST_SHA
+    )
     try:
         work_root.mkdir(parents=True, exist_ok=True)
     except Exception as exc:
-        return (
-            None,
-            1,
-            f"unwritable work root {work_root}: {type(exc).__name__}: {exc}",
+        # The roster is usable and the destination was verified writable:
+        # publish the frozen-roster invalid report rather than a fatal
+        # without one.
+        reason = f"work_root_unwritable:{type(exc).__name__}:{exc}"
+        return _publish_invalid_report(
+            roster=roster,
+            reason=reason,
+            out_path=out_path,
+            seed=seed,
+            expected_manifest_sha=expected_manifest_sha,
         )
     try:
         out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1002,11 +1187,17 @@ def run_pipeline(
         work_a = Path(tempfile.mkdtemp(prefix="crump-integ-pass-a-", dir=work_root))
         work_b = Path(tempfile.mkdtemp(prefix="crump-integ-pass-b-", dir=work_root))
     except Exception as exc:
-        return (
-            None,
-            1,
-            f"cannot create pass work dirs under {work_root}: "
-            f"{type(exc).__name__}: {exc}",
+        # Same as work_root failure: the roster is usable, so publish the
+        # frozen-roster invalid report with the directory error retained.
+        reason = (
+            f"cannot_create_pass_work_dirs:{type(exc).__name__}:{exc}"
+        )
+        return _publish_invalid_report(
+            roster=roster,
+            reason=reason,
+            out_path=out_path,
+            seed=seed,
+            expected_manifest_sha=expected_manifest_sha,
         )
     try:
         report_a, fatal_a = run_single_pass(
@@ -1038,18 +1229,9 @@ def run_pipeline(
         # The final write lives inside containment: an unwritable out_path
         # (a directory, a permission error) yields the fatal diagnostic,
         # never a traceback.
-        try:
-            out_path.write_text(
-                json.dumps(report_a, sort_keys=True, indent=2, ensure_ascii=False),
-                encoding="utf-8",
-            )
-        except Exception as exc:
-            return (
-                None,
-                1,
-                f"failed to write report {out_path}: "
-                f"{type(exc).__name__}: {exc}",
-            )
+        fatal_write = _write_report_text(out_path, report_a)
+        if fatal_write is not None:
+            return None, 1, fatal_write
         code = 0 if report_a["report_validity"] == "valid" else 2
         return report_a, code, None
     finally:

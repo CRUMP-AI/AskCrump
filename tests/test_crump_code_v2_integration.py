@@ -828,3 +828,201 @@ def test_driver_cli_export_patches_determinism(tmp_path, monkeypatch):
     first = sorted(p.name for p in (tmp_path / "patches").iterdir())
     second = sorted(p.name for p in (tmp_path / "patches-second").iterdir())
     assert first and first == second
+
+
+# ---------------------------------------------------------------------------
+# Review fixes: pipeline publishes invalid report on directory failures;
+# shape failure retains original observations
+# ---------------------------------------------------------------------------
+
+
+def test_pipeline_work_root_is_file_writes_invalid_report(tmp_path):
+    """run_pipeline (not just run_single_pass) with work_root as a regular
+    file: the frozen-roster invalid report must be published to out_path,
+    not a fatal without a report."""
+    corpus = make_corpus(tmp_path, case_ids=("case-a", "case-b"))
+    fake = make_drive_all(("case-a", "case-b"))
+    blocker = tmp_path / "blocker"
+    blocker.write_text("a file, not a directory")
+    out_path = tmp_path / "report.json"
+    report, code, fatal = integ.run_pipeline(
+        corpus_root=corpus,
+        work_root=blocker,
+        out_path=out_path,
+        seed="v1",
+        expected_manifest_sha=manifest_sha(corpus),
+        drive_all_fn=fake,
+        runner_cls=None,
+        settings=None,
+    )
+    assert fatal is None, fatal
+    assert code == 2
+    assert out_path.exists(), "invalid report must be written"
+    written = json.loads(out_path.read_text(encoding="utf-8"))
+    assert written["report_validity"] == "invalid"
+    assert len(written["cases"]) == 2
+    for row in written["cases"]:
+        assert row["driver_disposition"] == "unattempted"
+        assert row["honest_label"] == "Not evaluated"
+        assert row["honest_reason"] == "model evaluation not run"
+        assert row["candidate"]["available"] is False
+        assert row["executor"]["invoked"] is False
+    assert any("work_root_unwritable" in r for r in written["invalid_reasons"])
+    assert written["fix_rate"] is None
+    assert written["aggregate"] == integ.AGGREGATE
+
+
+def test_pipeline_pass_dir_failure_writes_invalid_report(tmp_path, monkeypatch):
+    """Injected pass-directory creation failure: the invalid report is
+    published with the directory error retained, exit nonzero."""
+    corpus = make_corpus(tmp_path, case_ids=("case-a", "case-b"))
+    fake = make_drive_all(("case-a", "case-b"))
+    out_path = tmp_path / "report.json"
+
+    def boom(*a, **k):
+        raise OSError("injected mkdtemp failure")
+
+    monkeypatch.setattr(integ.tempfile, "mkdtemp", boom)
+    report, code, fatal = integ.run_pipeline(
+        corpus_root=corpus,
+        work_root=tmp_path / "work",
+        out_path=out_path,
+        seed="v1",
+        expected_manifest_sha=manifest_sha(corpus),
+        drive_all_fn=fake,
+        runner_cls=None,
+        settings=None,
+    )
+    assert fatal is None, fatal
+    assert code == 2
+    assert out_path.exists(), "invalid report must be written"
+    written = json.loads(out_path.read_text(encoding="utf-8"))
+    assert written["report_validity"] == "invalid"
+    assert len(written["cases"]) == 2
+    assert all(
+        r["driver_disposition"] == "unattempted" for r in written["cases"]
+    )
+    assert all(r["executor"]["invoked"] is False for r in written["cases"])
+    assert any(
+        "cannot_create_pass_work_dirs" in r for r in written["invalid_reasons"]
+    )
+    assert written["fix_rate"] is None
+
+
+def test_shape_failure_retains_original_observations(tmp_path):
+    """Mixed input [valid expected, duplicate, unexpected-case, null]:
+    the written report must retain the original records with positions and
+    malformed diagnostics, extract observed string IDs for completeness
+    accounting, and invoke no executor."""
+    from scripts.crump_code_v2_executor import FakeBoundaryExecutor
+
+    corpus = make_corpus(tmp_path, case_ids=("case-a", "case-b", "case-c"))
+    evaluate_calls = {"n": 0}
+
+    class SpyExecutor(FakeBoundaryExecutor):
+        def evaluate(self, *a, **k):
+            evaluate_calls["n"] += 1
+            return super().evaluate(*a, **k)
+
+    def base_record(cid):
+        return {
+            "id": cid,
+            "stratum": "s1",
+            "adapter_support": "supported",
+            "blocked_reason": None,
+            "honest_label": "Not evaluated",
+            "honest_reason": "model evaluation not run",
+            "plumbing_only": True,
+            "driver": {"provider": "deterministic-fake"},
+        }
+
+    async def fake_drive_all(corpus_root, work_root, runner_cls, settings,
+                             *, seed="v1", export_patch_to=None):
+        return {
+            "report": "crump_code_v2_fake_driver",
+            "plumbing_evidence_only": True,
+            "aggregate": integ.AGGREGATE,
+            "fix_rate": None,
+            "cases": [
+                base_record("case-a"),    # valid expected
+                base_record("case-a"),    # duplicate
+                base_record("nope-zzz"),  # unexpected-case
+                None,                     # malformed -> shape error
+            ],
+        }
+
+    out_path = tmp_path / "report.json"
+    report, code, fatal = integ.run_pipeline(
+        corpus_root=corpus,
+        work_root=tmp_path / "work",
+        out_path=out_path,
+        seed="v1",
+        expected_manifest_sha=manifest_sha(corpus),
+        drive_all_fn=fake_drive_all,
+        runner_cls=None,
+        settings=None,
+        executor_factory=SpyExecutor,
+    )
+    assert fatal is None, fatal
+    assert code == 2
+    written = json.loads(out_path.read_text(encoding="utf-8"))
+    assert written["report_validity"] == "invalid"
+
+    # Original observations retained with positions and diagnostics.
+    obs = written["input_observations"]
+    assert obs is not None
+    recs = obs["records"]
+    assert [r["position"] for r in recs] == [0, 1, 2, 3]
+    assert recs[0]["observed_id"] == "case-a" and recs[0]["malformed"] is None
+    assert recs[1]["observed_id"] == "case-a" and recs[1]["malformed"] is None
+    assert recs[2]["observed_id"] == "nope-zzz" and recs[2]["malformed"] is None
+    assert recs[3]["observed_id"] is None
+    assert "not a JSON object" in recs[3]["malformed"]
+    assert recs[0]["record"]["id"] == "case-a"
+    assert recs[2]["record"]["id"] == "nope-zzz"
+    assert sorted(obs["observed_string_ids"]) == ["case-a", "nope-zzz"]
+
+    # Completeness accounting from observed IDs, even though invalid.
+    comp = written["completeness"]
+    assert comp["unexpected_ids"] == ["nope-zzz"]
+    assert comp["duplicate_ids"] == ["case-a"]
+    assert sorted(comp["missing_ids"]) == ["case-b", "case-c"]
+
+    reasons = written["invalid_reasons"]
+    assert any("driver_report_shape" in r for r in reasons)
+    assert any("unexpected_case_id:nope-zzz" in r for r in reasons)
+    assert any("duplicate_case_id:case-a" in r for r in reasons)
+
+    # All rows unattempted; no executor invocation anywhere.
+    assert len(written["cases"]) == 3
+    for row in written["cases"]:
+        assert row["driver_disposition"] == "unattempted"
+        assert row["executor"]["invoked"] is False
+        assert row["honest_label"] == "Not evaluated"
+    assert evaluate_calls["n"] == 0, "no executor invocations on shape failure"
+    assert written["fix_rate"] is None
+    assert written["aggregate"] == integ.AGGREGATE
+
+
+def test_pipeline_publish_failure_is_fatal_without_report(tmp_path):
+    """work_root unusable AND destination unwritable: no report can be
+    published -> fatal diagnostic, no report file. No-report is reserved
+    for unusable roster or publication failure only."""
+    corpus = make_corpus(tmp_path, case_ids=("case-a",))
+    fake = make_drive_all(("case-a",))
+    blocker = tmp_path / "blocker"
+    blocker.write_text("a file, not a directory")
+    out_path = blocker / "report.json"  # parent is a file: unwritable
+    report, code, fatal = integ.run_pipeline(
+        corpus_root=corpus,
+        work_root=blocker,
+        out_path=out_path,
+        seed="v1",
+        expected_manifest_sha=manifest_sha(corpus),
+        drive_all_fn=fake,
+        runner_cls=None,
+        settings=None,
+    )
+    assert report is None
+    assert code == 1
+    assert fatal is not None
