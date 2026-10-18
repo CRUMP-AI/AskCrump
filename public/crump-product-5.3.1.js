@@ -522,46 +522,86 @@
       }
       state.renameSaving = true;
       save.disabled = true;
+      // Advance both timestamp spellings: normalizeLocalChat prefers the
+      // server-style updated_at, so a camelCase-only bump would be dropped by
+      // the next saveChats() normalization before the push.
+      const now = new Date().toISOString();
       current.title = title;
-      current.updatedAt = new Date().toISOString();
+      current.updatedAt = now;
+      current.updated_at = now;
       current.revision = Math.max(1, Number(current.revision || 0) + 1);
       window.saveChats?.({ sync: false });
       window.renderChatsList?.();
       window.showToast?.('Saving new title\u2026', 'info');
-      const finish = (closeDialog) => {
+      const done = (closeDialog) => {
         state.renameSaving = false;
         save.disabled = false;
         if (closeDialog) close();
       };
+      const readServerTitle = async () => {
+        // Authoritative readback: a push `accepted` only proves a write was
+        // applied, and the server keeps the old title when the incoming row
+        // is older (apply_chat_sync title CASE). Never treat accepted plus a
+        // locally-mutated title as proof.
+        const pull = window.SyncManager?.pull;
+        if (typeof pull !== 'function') return undefined;
+        const body = await pull(null, { full: true });
+        const rows = body?.data?.chats;
+        if (!Array.isArray(rows)) return undefined;
+        const row = rows.find(item => String(item.chat_id || item.id) === String(chatId));
+        return row ? row.title : undefined;
+      };
+      const isOffline = (result) =>
+        !window.currentUser || result?.offline === true ||
+        (typeof navigator !== 'undefined' && navigator.onLine === false);
       Promise.resolve()
         .then(() => window.syncChatsToServer?.())
-        .then((result) => {
+        .then(async (result) => {
           const id = String(chatId);
           const accepted = Array.isArray(result?.accepted) ? result.accepted.map(String) : [];
           const ignored = Array.isArray(result?.ignored) ? result.ignored.map(String) : [];
           if (!result || result.success === false) {
-            if (result?.queued || result?.offline) {
-              // Saved on this device; the queued push syncs when back online.
-              finish(true);
+            if (isOffline(result)) {
+              // Saved on this device and queued; the queue flushes on reconnect.
+              done(true);
               window.showToast?.('Title saved on this device. It will sync when you are back online.', 'info');
               return;
             }
-            finish(false);
+            // Auth, transport, and server failures stay queued for retry, but
+            // we never promise the user they will resolve on their own.
+            done(false);
             window.showToast?.("Couldn't save the new title. Try again.", 'error');
             return;
           }
           if (ignored.includes(id)) {
-            finish(false);
+            done(false);
             window.showToast?.("Couldn't save the new title \u2014 it changed elsewhere. Try again.", 'error');
             return;
           }
-          const readback = (window.chats || []).find(item => String(item.id || item.chat_id) === id);
-          if (accepted.includes(id) && readback && readback.title === title) {
-            finish(true);
+          if (!accepted.includes(id)) {
+            done(false);
+            window.showToast?.("Couldn't confirm the new title. Try again.", 'error');
+            return;
+          }
+          let serverTitle;
+          try {
+            serverTitle = await readServerTitle();
+          } catch (_) {
+            serverTitle = undefined;
+          }
+          if (serverTitle === undefined) {
+            // Push accepted but the server title could not be read back;
+            // honestly distinct from a confirmed rename.
+            done(true);
+            window.showToast?.('Title saved. It will be confirmed on the next sync.', 'info');
+            return;
+          }
+          if (serverTitle === title) {
+            done(true);
             window.showToast?.('Conversation renamed.', 'success');
           } else {
-            finish(false);
-            window.showToast?.("Couldn't confirm the new title. Try again.", 'error');
+            done(false);
+            window.showToast?.('The server kept a different title \u2014 it changed elsewhere. Try again.', 'error');
           }
         })
         .catch(() => {
