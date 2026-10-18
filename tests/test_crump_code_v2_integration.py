@@ -1026,3 +1026,51 @@ def test_pipeline_publish_failure_is_fatal_without_report(tmp_path):
     assert report is None
     assert code == 1
     assert fatal is not None
+
+
+def test_pipeline_work_root_is_file_writes_nested_invalid_report(tmp_path):
+    """Reviewer repro: work_root is an existing regular file and out_path
+    parents do not exist yet. The invalid report must be published at the
+    nested path (exit 2, no fatal) — not an avoidable fatal without one."""
+    from scripts.crump_code_v2_executor import FakeBoundaryExecutor
+
+    corpus = make_corpus(tmp_path, case_ids=("case-a", "case-b"))
+    fake = make_drive_all(("case-a", "case-b"))
+    evaluate_calls = {"n": 0}
+
+    class SpyExecutor(FakeBoundaryExecutor):
+        def evaluate(self, *a, **k):
+            evaluate_calls["n"] += 1
+            return super().evaluate(*a, **k)
+
+    blocker = tmp_path / "blocker"
+    blocker.write_text("a file, not a directory")
+    out_path = tmp_path / "new" / "nested" / "report.json"
+    assert not out_path.parent.exists()
+    report, code, fatal = integ.run_pipeline(
+        corpus_root=corpus,
+        work_root=blocker,
+        out_path=out_path,
+        seed="v1",
+        expected_manifest_sha=manifest_sha(corpus),
+        drive_all_fn=fake,
+        runner_cls=None,
+        settings=None,
+        executor_factory=SpyExecutor,
+    )
+    assert fatal is None, fatal
+    assert code == 2
+    assert out_path.exists(), "invalid report must be written at nested path"
+    written = json.loads(out_path.read_text(encoding="utf-8"))
+    assert written["report_validity"] == "invalid"
+    assert sorted(r["id"] for r in written["cases"]) == ["case-a", "case-b"]
+    for row in written["cases"]:
+        assert row["driver_disposition"] == "unattempted"
+        assert row["honest_label"] == "Not evaluated"
+        assert row["honest_reason"] == "model evaluation not run"
+        assert row["candidate"]["available"] is False
+        assert row["executor"]["invoked"] is False
+    assert any("work_root_unwritable" in r for r in written["invalid_reasons"])
+    assert evaluate_calls["n"] == 0, "zero executor evaluations"
+    assert written["fix_rate"] is None
+    assert written["aggregate"] == integ.AGGREGATE

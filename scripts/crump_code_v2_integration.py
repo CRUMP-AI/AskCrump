@@ -1076,8 +1076,16 @@ def canonical_projection(report: dict[str, Any]) -> str:
 
 
 def _write_report_text(out_path: Path, report: dict[str, Any]) -> str | None:
-    """Write the report JSON; return a fatal diagnostic, or None on success."""
+    """Write the report JSON; return a fatal diagnostic, or None on success.
+
+    The parent directory is created here, inside the same error handling,
+    so a caller that reaches publication before creating parents — e.g.
+    the work-root failure path — still publishes the report when the
+    destination is writable. A real permission failure still returns the
+    fatal diagnostic, never a traceback and never silent success.
+    """
     try:
+        out_path.parent.mkdir(parents=True, exist_ok=True)
         out_path.write_text(
             json.dumps(report, sort_keys=True, indent=2, ensure_ascii=False),
             encoding="utf-8",
