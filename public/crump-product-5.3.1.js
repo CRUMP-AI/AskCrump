@@ -504,19 +504,123 @@
     cancel.addEventListener('click', close);
     overlay.addEventListener('click', event => { if (event.target === overlay) close(); });
     save.addEventListener('click', () => {
+      if (state.renameSaving) return;
       const title = String(input.value || '').replace(/\s+/g, ' ').trim().slice(0, 120);
       if (!title) {
         input.focus();
         return;
       }
-      chat.title = title;
-      chat.updatedAt = new Date().toISOString();
-      chat.revision = Math.max(1, Number(chat.revision || 0) + 1);
-      window.saveChats?.();
+      // Re-resolve the canonical chat by ID at Save time. The object captured
+      // when the dialog opened may have been orphaned by saveChats/replaceChats,
+      // which replace every chat with a normalized copy; mutating the captured
+      // object would silently discard the rename.
+      const current = (window.chats || []).find(item => String(item.id || item.chat_id) === String(chatId));
+      if (!current) {
+        close();
+        window.showToast?.('Conversation no longer exists.', 'error');
+        return;
+      }
+      state.renameSaving = true;
+      save.disabled = true;
+      // Advance both timestamp spellings: normalizeLocalChat prefers the
+      // server-style updated_at, so a camelCase-only bump would be dropped by
+      // the next saveChats() normalization before the push.
+      const now = new Date().toISOString();
+      current.title = title;
+      current.updatedAt = now;
+      current.updated_at = now;
+      current.revision = Math.max(1, Number(current.revision || 0) + 1);
+      window.saveChats?.({ sync: false });
       window.renderChatsList?.();
-      void window.syncChatsToServer?.();
-      close();
-      window.showToast?.('Conversation renamed.', 'success');
+      window.showToast?.('Saving new title\u2026', 'info');
+      const done = (closeDialog) => {
+        state.renameSaving = false;
+        save.disabled = false;
+        if (closeDialog) close();
+      };
+      const readServerRow = async () => {
+        // Authoritative readback: a push `accepted` only proves a write was
+        // applied, and the server keeps the old title when the incoming row
+        // is older (apply_chat_sync title CASE). Never treat accepted plus a
+        // locally-mutated title as proof.
+        // peek:true makes this a non-mutating verification read: it must not
+        // advance the crump_last_sync_v4 watermark, or a concurrent remote
+        // update observed here but not applied would be skipped by the next
+        // incremental pull.
+        const pull = window.SyncManager?.pull;
+        if (typeof pull !== 'function') return { status: 'unavailable' };
+        let body;
+        try {
+          body = await pull(null, { full: true, peek: true });
+        } catch (_) {
+          return { status: 'unavailable' };
+        }
+        const rows = body?.data?.chats;
+        if (!Array.isArray(rows)) return { status: 'unavailable' };
+        const row = rows.find(item => String(item.chat_id || item.id) === String(chatId));
+        // Absence covers a capped full pull as well as a genuinely missing
+        // row: either way the title cannot be confirmed from this response.
+        if (!row) return { status: 'missing' };
+        // A tombstone is a definitive server state: reject it even when the
+        // title happens to match.
+        if (row.deleted_at) return { status: 'deleted' };
+        return { status: 'ok', title: row.title };
+      };
+      const isOffline = (result) =>
+        !window.currentUser || result?.offline === true ||
+        (typeof navigator !== 'undefined' && navigator.onLine === false);
+      Promise.resolve()
+        .then(() => window.syncChatsToServer?.())
+        .then(async (result) => {
+          const id = String(chatId);
+          const accepted = Array.isArray(result?.accepted) ? result.accepted.map(String) : [];
+          const ignored = Array.isArray(result?.ignored) ? result.ignored.map(String) : [];
+          if (!result || result.success === false) {
+            if (isOffline(result)) {
+              // Saved on this device and queued; the queue flushes on reconnect.
+              done(true);
+              window.showToast?.('Title saved on this device. It will sync when you are back online.', 'info');
+              return;
+            }
+            // Auth, transport, and server failures stay queued for retry, but
+            // we never promise the user they will resolve on their own.
+            done(false);
+            window.showToast?.("Couldn't save the new title. Try again.", 'error');
+            return;
+          }
+          if (ignored.includes(id)) {
+            done(false);
+            window.showToast?.("Couldn't save the new title \u2014 it changed elsewhere. Try again.", 'error');
+            return;
+          }
+          if (!accepted.includes(id)) {
+            done(false);
+            window.showToast?.("Couldn't confirm the new title. Try again.", 'error');
+            return;
+          }
+          const verification = await readServerRow();
+          if (verification.status === 'ok' && verification.title === title) {
+            done(true);
+            window.showToast?.('Conversation renamed.', 'success');
+          } else if (verification.status === 'deleted') {
+            done(false);
+            window.showToast?.("Couldn't save the new title \u2014 it changed elsewhere. Try again.", 'error');
+          } else if (verification.status === 'ok') {
+            done(false);
+            window.showToast?.('The server kept a different title \u2014 it changed elsewhere. Try again.', 'error');
+          } else {
+            // missing / unreadable: the rename is saved locally, but the
+            // server title could not be confirmed. Honestly distinct from
+            // both a confirmed rename and a conflict.
+            done(true);
+            window.showToast?.('Saved on this device; server confirmation is unavailable.', 'info');
+          }
+        })
+        .catch(() => {
+          state.renameSaving = false;
+          save.disabled = false;
+          window.showToast?.("Couldn't save the new title. Try again.", 'error');
+        });
     });
     input.addEventListener('keydown', event => {
       if (event.key === 'Enter') {

@@ -36,6 +36,7 @@
 
   async function pull(_legacyDeviceId, options = {}) {
     const full = options.full !== false;
+    const peek = options.peek === true;
     const since = full ? null : read(userKey(SYNC_KEY), null);
     const url = since ? `/api/sync/pull?since=${encodeURIComponent(since)}` : '/api/sync/pull';
     const {response, data} = await requestJson(
@@ -43,7 +44,11 @@
       {method: 'GET'},
       'Invalid sync response.',
     );
-    if (response.ok && data.success) write(userKey(SYNC_KEY), data.serverTime || new Date().toISOString());
+    // A peek is a non-mutating verification read: it must never advance the
+    // incremental-pull watermark, or rows it observed but did not apply would
+    // be skipped by the next incremental pull. Never save/restore the cursor
+    // around a peek either — that could clobber a concurrent advancement.
+    if (!peek && response.ok && data.success) write(userKey(SYNC_KEY), data.serverTime || new Date().toISOString());
     return data;
   }
 

@@ -324,3 +324,72 @@ def test_manuscript_workspace_handoff_survives_cross_device_sanitization():
     assert workspace['chapterCount'] == 28
     assert workspace['targetWords'] == 80000
     assert 'untrusted' not in workspace
+
+
+@pytest.mark.asyncio
+async def test_title_change_with_advanced_version_is_accepted():
+    # Pins the sync-protocol path the rename fix relies on: a title-only
+    # change that advances updated_at/revision must be accepted and applied
+    # by apply_chat_sync (the client fix re-resolves the canonical chat and
+    # bumps both before pushing).
+    db = FakeDB()
+    chat_id = '7be94047-aaf4-458a-a599-8f37a0256e53'
+    base = (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat()
+
+    first = await push_sync(db, 'user-1', {'chats': [{
+        'id': chat_id,
+        'title': 'Original title',
+        'updatedAt': base,
+        'createdAt': base,
+        'revision': 1,
+        'messages': [{'role': 'user', 'content': 'hello'}],
+    }]})
+    assert first['accepted'] == [chat_id]
+
+    later = datetime.now(timezone.utc).isoformat()
+    second = await push_sync(db, 'user-1', {'chats': [{
+        'id': chat_id,
+        'title': 'Renamed title',
+        'updatedAt': later,
+        'createdAt': base,
+        'revision': 2,
+        'messages': [{'role': 'user', 'content': 'hello'}],
+    }]})
+    assert second['accepted'] == [chat_id]
+    assert second['ignored'] == []
+    assert db.rows[chat_id]['title'] == 'Renamed title'
+
+
+@pytest.mark.asyncio
+async def test_accepted_push_does_not_prove_title_applied():
+    # Mirrors migrations/002 apply_chat_sync: the title CASE keeps the current
+    # title when the incoming row is accepted via message merge but carries an
+    # older updated_at. A client must read the server title back rather than
+    # trusting `accepted` plus its own optimistic mutation.
+    rows = {}
+
+    def apply(chat_id, title, messages, updated_at, revision):
+        cur = rows.get(chat_id)
+        if cur is None:
+            rows[chat_id] = {'title': title, 'messages': list(messages),
+                             'updated_at': updated_at, 'revision': revision}
+            return True
+        gate = (updated_at > cur['updated_at']
+                or (updated_at == cur['updated_at'] and revision > cur['revision'])
+                or list(messages) != list(cur['messages']))
+        if not gate:
+            return False
+        if updated_at >= cur['updated_at']:
+            cur['title'] = title
+        cur['messages'] = list(messages)
+        cur['updated_at'] = max(cur['updated_at'], updated_at)
+        cur['revision'] = max(revision, cur['revision'] + 1)
+        return True
+
+    cid = '7be94047-aaf4-458a-a599-8f37a0256e54'
+    new_ts = '2026-10-18T01:00:00.000Z'
+    old_ts = '2026-10-18T00:00:00.000Z'
+    assert apply(cid, 'Server title', ['m1', 'm2'], new_ts, 5) is True
+    # Older row, different messages: accepted via merge, title retained.
+    assert apply(cid, 'Stale rename', ['m1'], old_ts, 2) is True
+    assert rows[cid]['title'] == 'Server title'
