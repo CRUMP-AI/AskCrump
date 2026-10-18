@@ -753,8 +753,12 @@ def main() -> None:
             export_patch_to=args.export_patches,
         )
     )
-    # Determinism self-check: run twice, compare canonical form.
+    # Determinism self-check: run twice, compare canonical form. When
+    # --export-patches is on, the second pass exports into its own fresh
+    # location so both passes carry equivalent logical metadata (the
+    # metadata records the file name, never the directory).
     work_root2 = Path(str(work_root) + "-second")
+    export2 = f"{args.export_patches}-second" if args.export_patches else None
     report2 = asyncio.run(
         drive_all(
             Path(args.corpus_root),
@@ -762,6 +766,7 @@ def main() -> None:
             CrumpCodeRunner,
             settings,
             seed=args.seed,
+            export_patch_to=export2,
         )
     )
     identical = canonical_report(report) == canonical_report(report2)

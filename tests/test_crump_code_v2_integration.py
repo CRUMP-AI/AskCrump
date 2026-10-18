@@ -47,12 +47,16 @@ def manifest_sha(root):
 
 
 def make_drive_all(case_ids, *, patch_map=None, fail_with=None, fail_case=None,
-                   blocked=(), second_call_patch_map=None, corrupt_case=None):
+                   blocked=(), second_call_patch_map=None, corrupt_case=None,
+                   tamper=None):
     """Fake drive_all: crafts records and stages patch exports like the driver.
 
     patch_map: {case_id: bytes} patch bytes, or {case_id: None} for a
     missing (unavailable) patch. corrupt_case: case whose patch file is
     rewritten after export, simulating mutation between export and bind.
+    tamper: optional callable(export_dir: Path, case_id: str) run after the
+    export for each case, for pair-replacement / sidecar-swap attacks.
+    Records carry the REAL returned patch_export metadata, like drive_case.
     """
     calls = {"n": 0}
 
@@ -81,13 +85,16 @@ def make_drive_all(case_ids, *, patch_map=None, fail_with=None, fail_case=None,
                 )
                 continue
             patch = (active_map or {}).get(cid, f"patch-bytes-for-{cid}".encode())
+            patch_export = None
             if export_patch_to is not None:
-                export_candidate_patch(
+                patch_export = export_candidate_patch(
                     export_dir=Path(export_patch_to), case_id=cid,
                     patch=patch, base_revision="deadbeef",
                 )
                 if corrupt_case == cid:
                     (Path(export_patch_to) / f"{cid}.patch").write_bytes(b"MUTATED")
+                if tamper is not None:
+                    tamper(Path(export_patch_to), cid)
             rec = {
                 "id": cid, "stratum": "s1",
                 "adapter_support": "blocked" if cid in blocked else "supported",
@@ -95,6 +102,7 @@ def make_drive_all(case_ids, *, patch_map=None, fail_with=None, fail_case=None,
                 "honest_label": "Not evaluated",
                 "honest_reason": "model evaluation not run",
                 "plumbing_only": True,
+                "patch_export": patch_export,
                 "driver": {
                     "provider": "deterministic-fake", "seed": f"{cid}-v1",
                     "model_calls": 0, "paid_sandbox_used": False,
@@ -304,11 +312,54 @@ def test_cancellation_scenario(tmp_path):
     )
     assert fatal is None
     row = row_by_id(report, "case-a")
+    # The ACTUAL returned OracleResult is recorded (cancel driven through
+    # the after_snapshot hook during evaluate), not the expected reason
+    # copied into the observed fields.
     assert row["executor"]["outcome"] == "cancelled"
     assert row["executor"]["reason"] == "cancel_accepted"
     assert row["executor"]["expectation_matched"] is True
-    assert row["executor"]["evaluation_skipped_after_cancel"] is True
+    assert row["executor"]["evaluation_skipped_after_cancel"] is False
     assert report["report_validity"] == "valid", report["invalid_reasons"]
+
+
+def test_cancellation_records_actual_not_expected_reason(tmp_path):
+    """A rigged executor returning an unexpected cancellation reason must
+    fail expectations: proves the observed value is really checked."""
+    from types import SimpleNamespace
+
+    corpus = make_corpus(tmp_path, case_ids=("case-a",))
+    fake = make_drive_all(("case-a",))
+
+    def rigged_factory(corpus_root, clock, deadline_seconds, hooks):
+        rigged = SimpleNamespace(
+            outcome="cancelled",
+            reason_code="some_unexpected_reason",
+            evidence_sha256=None,
+            evidence_snapshot=None,
+        )
+        return SimpleNamespace(
+            bind=lambda frozen, patch: "handle-1",
+            cancel=lambda handle: "cancelled",
+            evaluate=lambda handle, evidence: rigged,
+        )
+
+    report, fatal = run_pass(
+        tmp_path,
+        corpus,
+        fake,
+        scenario_override={"case-a": "cancellation"},
+        cancellation_executor_factory=rigged_factory,
+    )
+    assert fatal is None
+    row = row_by_id(report, "case-a")
+    assert row["executor"]["outcome"] == "cancelled"
+    assert row["executor"]["reason"] == "some_unexpected_reason"
+    assert row["executor"]["expectation_matched"] is False
+    assert report["report_validity"] == "invalid"
+    assert any(
+        r.startswith("unexpected_executor_result:case-a")
+        for r in report["invalid_reasons"]
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -524,3 +575,256 @@ def test_manifest_digest_mismatch_is_global_error(tmp_path):
     assert report["report_validity"] == "invalid"
     assert all(r["driver_disposition"] == "unattempted" for r in report["cases"])
     assert any("manifest_digest_mismatch" in r for r in report["invalid_reasons"])
+
+
+# ---------------------------------------------------------------------------
+# Fix 1: temp path hygiene (sentinels survive; write failures are fatal)
+# ---------------------------------------------------------------------------
+
+
+def test_sentinel_files_survive_pipeline(tmp_path):
+    """Preexisting files at the old fixed paths must survive: the pipeline
+    uses only uniquely owned temp paths and cleans up only what it created."""
+    corpus = make_corpus(tmp_path, case_ids=("case-a",))
+    fake = make_drive_all(("case-a",))
+    work_root = tmp_path / "work"
+    work_root.mkdir()
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
+    sentinel_dirs = [work_root / "pass-a", work_root / "pass-b"]
+    for d in sentinel_dirs:
+        d.mkdir()
+        (d / "sentinel.txt").write_text("do-not-delete")
+    probe_sentinel = out_dir / ".integration_write_probe"
+    probe_sentinel.write_text("do-not-delete")
+    report, code, fatal = integ.run_pipeline(
+        corpus_root=corpus,
+        work_root=work_root,
+        out_path=out_dir / "report.json",
+        seed="v1",
+        expected_manifest_sha=manifest_sha(corpus),
+        drive_all_fn=fake,
+        runner_cls=None,
+        settings=None,
+    )
+    assert fatal is None
+    assert code == 0, report["invalid_reasons"]
+    for d in sentinel_dirs:
+        assert (d / "sentinel.txt").read_text() == "do-not-delete"
+    assert probe_sentinel.read_text() == "do-not-delete"
+    assert (out_dir / "report.json").exists()
+
+
+def test_final_write_failure_is_fatal_diagnostic(tmp_path):
+    """out_path being a directory must yield the clear fatal diagnostic,
+    not an unhandled traceback."""
+    corpus = make_corpus(tmp_path, case_ids=("case-a",))
+    fake = make_drive_all(("case-a",))
+    out_dir = tmp_path / "out"
+    out_dir.mkdir()
+    report, code, fatal = integ.run_pipeline(
+        corpus_root=corpus,
+        work_root=tmp_path / "work",
+        out_path=out_dir,  # a directory, not a file
+        seed="v1",
+        expected_manifest_sha=manifest_sha(corpus),
+        drive_all_fn=fake,
+        runner_cls=None,
+        settings=None,
+    )
+    assert report is None
+    assert code == 1
+    assert fatal is not None and "failed to write report" in fatal
+
+
+# ---------------------------------------------------------------------------
+# Fix 2: patch identity cross-checks (returned metadata vs sidecar vs bytes)
+# ---------------------------------------------------------------------------
+
+
+def test_patch_pair_replacement_rejected(tmp_path):
+    """Export A, then replace BOTH patch file and sidecar with B on disk.
+    The driver's returned metadata still describes A -> must be rejected."""
+    corpus = make_corpus(tmp_path, case_ids=("case-a",))
+
+    def tamper(export_dir, case_id):
+        b_bytes = b"COMPLETELY-DIFFERENT-BYTES"
+        (export_dir / f"{case_id}.patch").write_bytes(b_bytes)
+        (export_dir / f"{case_id}.patch.json").write_text(json.dumps({
+            "case_id": case_id,
+            "base_revision": "deadbeef",
+            "available": True,
+            "sha256": hashlib.sha256(b_bytes).hexdigest(),
+            "bytes": len(b_bytes),
+            "path": f"{case_id}.patch",
+            "note": None,
+        }))
+
+    fake = make_drive_all(("case-a",), tamper=tamper)
+    report, fatal = run_pass(tmp_path, corpus, fake)
+    assert fatal is None
+    row = row_by_id(report, "case-a")
+    assert row["candidate"]["available"] is False
+    assert row["candidate"]["unavailable_reason"] == "candidate_artifact_mutated"
+    assert row["executor"]["invoked"] is False
+    assert report["report_validity"] == "invalid"
+    assert any(
+        "candidate_artifact_mutated:case-a" in r for r in report["invalid_reasons"]
+    )
+
+
+def test_swapped_sidecars_rejected(tmp_path):
+    """Swap the two sidecar files after export: each case's returned
+    metadata disagrees with the sidecar on disk -> both rejected."""
+    corpus = make_corpus(tmp_path, case_ids=("case-a", "case-b"))
+
+    async def fake_drive_all(corpus_root, work_root, runner_cls, settings,
+                             *, seed="v1", export_patch_to=None):
+        cases = []
+        for cid in ("case-a", "case-b"):
+            meta = export_candidate_patch(
+                export_dir=Path(export_patch_to), case_id=cid,
+                patch=f"patch-{cid}".encode(), base_revision="r",
+            )
+            cases.append({
+                "id": cid, "stratum": "s1",
+                "adapter_support": "supported", "blocked_reason": None,
+                "honest_label": "Not evaluated",
+                "honest_reason": "model evaluation not run",
+                "plumbing_only": True,
+                "patch_export": meta,
+                "driver": {"provider": "deterministic-fake"},
+            })
+        a_sc = Path(export_patch_to) / "case-a.patch.json"
+        b_sc = Path(export_patch_to) / "case-b.patch.json"
+        a_txt, b_txt = a_sc.read_text(), b_sc.read_text()
+        a_sc.write_text(b_txt)
+        b_sc.write_text(a_txt)
+        return {"cases": cases}
+
+    report, fatal = run_pass(tmp_path, corpus, fake_drive_all)
+    assert fatal is None
+    for cid in ("case-a", "case-b"):
+        row = row_by_id(report, cid)
+        assert row["executor"]["invoked"] is False, cid
+        assert row["candidate"]["unavailable_reason"] == "candidate_artifact_mutated"
+    assert report["report_validity"] == "invalid"
+    assert sum(
+        "candidate_artifact_mutated" in r for r in report["invalid_reasons"]
+    ) == 2
+
+
+def test_missing_returned_metadata_invalid(tmp_path):
+    """A record with no patch_export metadata must not bind on the sidecar
+    alone, even if the sidecar exists on disk."""
+    corpus = make_corpus(tmp_path, case_ids=("case-a",))
+
+    async def fake_drive_all(corpus_root, work_root, runner_cls, settings,
+                             *, seed="v1", export_patch_to=None):
+        if export_patch_to is not None:
+            # sidecar exists on disk, but the record carries no metadata
+            export_candidate_patch(
+                export_dir=Path(export_patch_to), case_id="case-a",
+                patch=b"bytes", base_revision="r",
+            )
+        return {"cases": [{
+            "id": "case-a", "stratum": "s1",
+            "adapter_support": "supported", "blocked_reason": None,
+            "honest_label": "Not evaluated",
+            "honest_reason": "model evaluation not run",
+            "plumbing_only": True,
+            "driver": {"provider": "deterministic-fake"},
+        }]}
+
+    report, fatal = run_pass(tmp_path, corpus, fake_drive_all)
+    assert fatal is None
+    row = row_by_id(report, "case-a")
+    assert row["executor"]["invoked"] is False
+    assert row["executor"]["not_invoked_reason"] == "patch_export_metadata_missing"
+    assert report["report_validity"] == "invalid"
+    assert any(
+        "patch_export_metadata_missing:case-a" in r
+        for r in report["invalid_reasons"]
+    )
+
+
+# ---------------------------------------------------------------------------
+# Fix 3: shape validation inside global containment
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.parametrize("bad", [
+    None,
+    "not-a-dict",
+    {"cases": None},
+    {"cases": [None]},
+    {"cases": [{"id": ["unhashable", "id"]}]},
+    {"cases": [{"noid": 1}]},
+])
+def test_malformed_driver_report_shapes(tmp_path, bad):
+    """None / null / [null] / unhashable ids must yield the 20-row invalid
+    report with the frozen roster retained, never a traceback."""
+    corpus = make_corpus(tmp_path, case_ids=("case-a", "case-b"))
+
+    async def fake_drive_all(corpus_root, work_root, runner_cls, settings,
+                             *, seed="v1", export_patch_to=None):
+        return bad
+
+    report, fatal = run_pass(tmp_path, corpus, fake_drive_all)
+    assert fatal is None
+    assert report is not None
+    assert report["report_validity"] == "invalid"
+    assert len(report["cases"]) == 2
+    assert all(r["driver_disposition"] == "unattempted" for r in report["cases"])
+    assert all(r["honest_label"] == "Not evaluated" for r in report["cases"])
+    assert any("driver_report_shape" in r for r in report["invalid_reasons"])
+
+
+def test_work_root_unwritable_is_invalid_report(tmp_path):
+    corpus = make_corpus(tmp_path, case_ids=("case-a",))
+    fake = make_drive_all(("case-a",))
+    blocker = tmp_path / "blocker"
+    blocker.write_text("a file, not a directory")
+    report, fatal = integ.run_single_pass(
+        corpus_root=corpus,
+        work_root=blocker,
+        seed="v1",
+        expected_manifest_sha=manifest_sha(corpus),
+        drive_all_fn=fake,
+        runner_cls=None,
+        settings=None,
+    )
+    assert fatal is None
+    assert report["report_validity"] == "invalid"
+    assert all(r["driver_disposition"] == "unattempted" for r in report["cases"])
+    assert any("work_root_unwritable" in r for r in report["invalid_reasons"])
+
+
+# ---------------------------------------------------------------------------
+# Fix 5: driver CLI --export-patches determinism (actual CLI path)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.skipif(not REAL_CORPUS.exists(), reason="needs real corpus")
+def test_driver_cli_export_patches_determinism(tmp_path, monkeypatch):
+    """Run the driver's ACTUAL main() with --export-patches: both
+    determinism passes must export, so the self-check passes."""
+    import sys
+
+    from scripts import crump_code_v2_fake_driver as drv
+
+    monkeypatch.setattr(sys, "argv", [
+        "crump_code_v2_fake_driver",
+        "--corpus-root", str(REAL_CORPUS),
+        "--work-root", str(tmp_path / "w"),
+        "--out", str(tmp_path / "report.json"),
+        "--seed", "v1",
+        "--export-patches", str(tmp_path / "patches"),
+    ])
+    drv.main()  # must not raise SystemExit
+    assert (tmp_path / "patches").is_dir()
+    assert (tmp_path / "patches-second").is_dir()
+    assert (tmp_path / "report.json").exists()
+    first = sorted(p.name for p in (tmp_path / "patches").iterdir())
+    second = sorted(p.name for p in (tmp_path / "patches-second").iterdir())
+    assert first and first == second

@@ -45,8 +45,10 @@ import argparse
 import asyncio
 import hashlib
 import json
+import os
 import shutil
 import sys
+import tempfile
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -58,7 +60,6 @@ if str(_repo_root) not in sys.path:
     sys.path.insert(0, str(_repo_root))
 
 from scripts.crump_code_v2_executor import (  # noqa: E402
-    REASON_CANCEL_ACCEPTED,
     BoundaryRefusal,
     EvidenceBundle,
     FakeBoundaryExecutor,
@@ -214,40 +215,77 @@ def build_synthetic_evidence(
 
 
 def read_exported_patch(
-    patch_dir: Path, case_id: str
+    patch_dir: Path, case_id: str, returned: dict[str, Any] | None
 ) -> tuple[str, bytes | None, dict[str, Any] | None, str | None]:
-    """Read back the driver's patch export and verify it against the sidecar.
+    """Read back the driver's patch export, cross-checked against the
+    driver's RETURNED metadata -- never the disk sidecar alone.
+
+    The returned metadata is snapshotted at intake from the driver's own
+    record (``record["patch_export"]``). Case ID, availability, byte
+    length, and digest must agree across all three: returned metadata,
+    sidecar file, and retained patch bytes. Any disagreement, or missing
+    returned metadata, is an integrity fault. These are consistency
+    checks, never authenticity claims.
 
     Returns (status, raw_bytes, sidecar, detail) where status is one of
-    "ok" | "unavailable" | "missing" | "mutated".
+    "ok" | "unavailable" | "missing" | "mutated" | "metadata_missing".
     """
+    if not isinstance(returned, dict):
+        return (
+            "metadata_missing",
+            None,
+            None,
+            "no returned patch_export metadata from the driver; "
+            "refusing to bind on sidecar alone",
+        )
     meta_path = patch_dir / f"{case_id}.patch.json"
     patch_path = patch_dir / f"{case_id}.patch"
     try:
-        meta = json.loads(meta_path.read_bytes().decode("utf-8"))
+        sidecar = json.loads(meta_path.read_bytes().decode("utf-8"))
     except Exception:
         return "missing", None, None, "patch sidecar missing; no export to bind"
-    if not meta.get("available"):
+    if not isinstance(sidecar, dict):
+        return "missing", None, None, "patch sidecar is not a JSON object"
+    # Cross-check returned metadata against the sidecar file: a replaced
+    # pair (patch + sidecar swapped on disk after export) must not pass.
+    for key in ("case_id", "available", "bytes", "sha256"):
+        if returned.get(key) != sidecar.get(key):
+            return (
+                "mutated",
+                None,
+                sidecar,
+                f"patch identity mismatch on {key!r}: returned "
+                f"{returned.get(key)!r} != sidecar {sidecar.get(key)!r}",
+            )
+    if sidecar.get("case_id") != case_id:
+        return (
+            "mutated",
+            None,
+            sidecar,
+            f"sidecar case_id {sidecar.get('case_id')!r} != expected {case_id!r}",
+        )
+    if not sidecar.get("available"):
         return (
             "unavailable",
             None,
-            meta,
-            meta.get("note") or "patch unavailable at export time",
+            sidecar,
+            sidecar.get("note") or "patch unavailable at export time",
         )
     try:
         raw = patch_path.read_bytes()
     except Exception:
-        return "missing", None, meta, "patch file missing despite available sidecar"
+        return "missing", None, sidecar, "patch file missing despite available sidecar"
     actual = hashlib.sha256(raw).hexdigest()
-    if actual != meta.get("sha256"):
+    if actual != returned.get("sha256") or len(raw) != returned.get("bytes"):
         return (
             "mutated",
             None,
-            meta,
-            f"patch bytes changed between export and bind "
-            f"(export sha {meta.get('sha256')} != file sha {actual})",
+            sidecar,
+            "patch bytes disagree with returned metadata "
+            f"(file sha {actual} vs {returned.get('sha256')}, "
+            f"len {len(raw)} vs {returned.get('bytes')})",
         )
-    return "ok", raw, meta, None
+    return "ok", raw, sidecar, None
 
 
 # ---------------------------------------------------------------------------
@@ -263,6 +301,21 @@ def _default_timeout_executor_factory(
         clock=clock,
         executor_id="integration-timeout",
         default_deadline_seconds=deadline_seconds,
+    )
+
+
+def _default_cancellation_executor_factory(
+    corpus_root: Path,
+    clock: FakeClock,
+    deadline_seconds: float,
+    hooks: dict[str, Any],
+) -> FakeBoundaryExecutor:
+    return FakeBoundaryExecutor(
+        corpus_root,
+        clock=clock,
+        executor_id="integration-cancellation",
+        default_deadline_seconds=deadline_seconds,
+        _hooks=hooks,
     )
 
 
@@ -312,13 +365,33 @@ def invoke_executor(
     oracle_ids = list(executor.expected_test_ids(case_id))
     try:
         if scenario == "cancellation":
-            handle = executor.bind(frozen, patch_bytes)
-            observed = executor.cancel(handle)
-            # cancel() returns the outcome; the reason follows from the
-            # cancel contract (accepted before expiry -> cancel_accepted).
-            sec["outcome"] = observed
-            sec["reason"] = REASON_CANCEL_ACCEPTED
-            sec["evaluation_skipped_after_cancel"] = True
+            # Cancel DURING evaluate via the after_snapshot hook and record
+            # the ACTUAL returned OracleResult -- never copy the expected
+            # reason into the observed fields.
+            clock = FakeClock()
+            cell: dict[str, Any] = {}
+
+            def _cancel_during_evaluate(raw: bytes, snapshot: bytes) -> None:
+                cell["executor"].cancel(cell["handle"])
+
+            cexec = ctx.cancellation_executor_factory(
+                ctx.corpus_root,
+                clock,
+                ctx.timeout_deadline_seconds,
+                {"after_snapshot": _cancel_during_evaluate},
+            )
+            cell["executor"] = cexec
+            handle = cexec.bind(frozen, patch_bytes)
+            cell["handle"] = handle
+            evidence, submitted = build_synthetic_evidence("clean_pass", oracle_ids)
+            sec["evidence_submitted_hex"] = submitted.hex()
+            result = cexec.evaluate(handle, evidence)
+            sec["outcome"] = result.outcome
+            sec["reason"] = result.reason_code
+            sec["evidence_sha256"] = result.evidence_sha256
+            if result.evidence_snapshot is not None:
+                sec["evidence_snapshot_hex"] = result.evidence_snapshot.hex()
+            sec["evaluation_skipped_after_cancel"] = False
         elif scenario == "timeout":
             clock = FakeClock()
             texec = ctx.timeout_executor_factory(
@@ -468,7 +541,14 @@ def _process_case_inner(
         if record.get("adapter_support") == "blocked"
         else "completed"
     )
-    status, raw, meta, detail = read_exported_patch(ctx.patch_dir, case_id)
+    # Snapshot the driver's RETURNED patch_export metadata at intake and
+    # cross-check it against the sidecar file and the retained bytes.
+    # Missing returned metadata is an integrity fault: never bind on the
+    # sidecar alone.
+    returned_meta = record.get("patch_export")
+    status, raw, meta, detail = read_exported_patch(
+        ctx.patch_dir, case_id, returned_meta
+    )
     if status == "ok":
         assert raw is not None and meta is not None
         row["candidate"].update(
@@ -483,9 +563,15 @@ def _process_case_inner(
         row["executor"] = _executor_section_not_invoked("patch_unavailable")
         ctx.invalid_reasons.append(f"patch_unavailable:{case_id}")
         return row
-    else:  # "missing" or "mutated": artifact integrity fault
+    else:  # "missing", "mutated", or "metadata_missing": integrity fault
         reason = (
-            "candidate_artifact_mutated" if status == "mutated" else "patch_file_missing"
+            "candidate_artifact_mutated"
+            if status == "mutated"
+            else (
+                "patch_export_metadata_missing"
+                if status == "metadata_missing"
+                else "patch_file_missing"
+            )
         )
         row["candidate"]["unavailable_reason"] = reason
         row["candidate"]["export_sha256"] = (meta or {}).get("sha256")
@@ -571,6 +657,41 @@ def _missing_row(entry: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+class _ShapeError(ValueError):
+    """Driver report failed structural validation."""
+
+
+def _validate_driver_report_shape(report: Any) -> list[dict[str, Any]]:
+    """Validate the driver report's JSON-compatible shape inside containment.
+
+    The report must be a dict, cases a list, every record a dict, every id
+    a string. Anything else (None report, null cases, null records,
+    unhashable ids) raises _ShapeError so the caller emits the 20-row
+    invalid report with the frozen roster retained -- never a traceback,
+    never a silent drop.
+    """
+    if not isinstance(report, dict):
+        raise _ShapeError(
+            f"driver report is {type(report).__name__}, not a JSON object"
+        )
+    cases = report.get("cases")
+    if not isinstance(cases, list):
+        raise _ShapeError(
+            f"driver report cases is {type(cases).__name__}, not a list"
+        )
+    for index, rec in enumerate(cases):
+        if not isinstance(rec, dict):
+            raise _ShapeError(
+                f"case record {index} is {type(rec).__name__}, not a JSON object"
+            )
+        rid = rec.get("id")
+        if not isinstance(rid, str):
+            raise _ShapeError(
+                f"case record {index} id is {type(rid).__name__}, not a string"
+            )
+    return cases
+
+
 def run_single_pass(
     *,
     corpus_root: Path,
@@ -581,6 +702,7 @@ def run_single_pass(
     runner_cls: Any | None = None,
     settings: Any | None = None,
     executor_factory: Any | None = None,
+    cancellation_executor_factory: Any | None = None,
     scenario_override: dict[str, str] | None = None,
     timeout_deadline_seconds: float = 5.0,
 ) -> tuple[dict[str, Any] | None, str | None]:
@@ -597,6 +719,8 @@ def run_single_pass(
     assert roster is not None
     if executor_factory is None:
         executor_factory = FakeBoundaryExecutor
+    if cancellation_executor_factory is None:
+        cancellation_executor_factory = _default_cancellation_executor_factory
     ctx = SimpleNamespace(
         corpus_root=corpus_root,
         work_root=work_root,
@@ -605,6 +729,7 @@ def run_single_pass(
         scenario_override=scenario_override or {},
         timeout_deadline_seconds=timeout_deadline_seconds,
         timeout_executor_factory=_default_timeout_executor_factory,
+        cancellation_executor_factory=cancellation_executor_factory,
         invalid_reasons=[],
         executor=None,
     )
@@ -697,14 +822,23 @@ def run_single_pass(
         ctx.invalid_reasons.append(reason)
         return _finish(_global_error_rows(roster, reason)), None
 
-    # -- drive --------------------------------------------------------------
+    # -- drive + intake (all inside containment) -----------------------------
+    # Work-root creation, the drive itself, and roster-shape validation all
+    # live here: any ordinary failure becomes the 20-row invalid report
+    # with the frozen roster retained. Only BaseException escapes.
     if drive_all_fn is None:
         from scripts.crump_code_v2_fake_driver import drive_all as drive_all_fn
 
         if runner_cls is None or settings is None:
             raise ValueError("runner_cls and settings are required with the real driver")
-    ctx.patch_dir.mkdir(parents=True, exist_ok=True)
     try:
+        work_root.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        reason = f"work_root_unwritable:{type(exc).__name__}:{exc}"
+        ctx.invalid_reasons.append(reason)
+        return _finish(_global_error_rows(roster, reason)), None
+    try:
+        ctx.patch_dir.mkdir(parents=True, exist_ok=True)
         driver_report = asyncio.run(
             drive_all_fn(
                 corpus_root,
@@ -715,15 +849,20 @@ def run_single_pass(
                 export_patch_to=ctx.patch_dir,
             )
         )
-    except Exception as exc:  # noqa: BLE001 - global drive failure
+        cases = _validate_driver_report_shape(driver_report)
+    except _ShapeError as exc:
+        reason = f"driver_report_shape:{exc}"
+        ctx.invalid_reasons.append(reason)
+        return _finish(_global_error_rows(roster, reason)), None
+    except Exception as exc:  # noqa: BLE001 - global containment; never BaseException
         reason = f"drive_all:{type(exc).__name__}:{str(exc)[:300]}"
         ctx.invalid_reasons.append(reason)
         return _finish(_global_error_rows(roster, reason)), None
 
     # -- roster matching (detect, never overwrite) ---------------------------
     by_id: dict[str, list[dict[str, Any]]] = {}
-    for rec in driver_report.get("cases", []):
-        rid = rec.get("id")
+    for rec in cases:
+        rid = rec["id"]
         by_id.setdefault(rid, []).append(rec)
     roster_ids = [e["id"] for e in roster]
     rows: list[dict[str, Any]] = []
@@ -830,54 +969,92 @@ def run_pipeline(
     if fatal:
         return None, 1, fatal
     try:
+        work_root.mkdir(parents=True, exist_ok=True)
+    except Exception as exc:
+        return (
+            None,
+            1,
+            f"unwritable work root {work_root}: {type(exc).__name__}: {exc}",
+        )
+    try:
         out_path.parent.mkdir(parents=True, exist_ok=True)
-        probe = out_path.parent / ".integration_write_probe"
-        probe.write_text("ok", encoding="utf-8")
-        probe.unlink()
+        # Uniquely owned write probe: a fixed path would overwrite/unlink
+        # whatever a previous run (or a user) left there. Only the file
+        # this run created is ever unlinked.
+        fd, probe_name = tempfile.mkstemp(
+            dir=out_path.parent, prefix=".integration_write_probe_"
+        )
+        try:
+            os.write(fd, b"ok")
+        finally:
+            os.close(fd)
+        Path(probe_name).unlink()
     except Exception as exc:
         return (
             None,
             1,
             f"unwritable destination {out_path}: {type(exc).__name__}: {exc}",
         )
-    work_a = work_root / "pass-a"
-    work_b = work_root / "pass-b"
-    for d in (work_a, work_b):
-        if d.exists():
-            shutil.rmtree(d)
-        d.mkdir(parents=True)
-    report_a, fatal_a = run_single_pass(
-        corpus_root=corpus_root, work_root=work_a, seed=seed, **pass_kwargs
-    )
-    report_b, fatal_b = run_single_pass(
-        corpus_root=corpus_root, work_root=work_b, seed=seed, **pass_kwargs
-    )
-    # Pre-checks make fatals unreachable here; handle defensively anyway.
-    if fatal_a or report_a is None:
-        return None, 1, f"first pass failed fatally: {fatal_a}"
-    if fatal_b or report_b is None:
-        return None, 1, f"second pass failed fatally: {fatal_b}"
-    identical = canonical_projection(report_a) == canonical_projection(report_b)
-    report_a["determinism"] = {
-        "runs": 2,
-        "work_roots": ["pass-a", "pass-b"],
-        "canonical_identical": identical,
-        "note": (
-            "two fresh work roots, fixed seeds; projection excludes only "
-            "run_id, created_utc, evaluated_at"
-        ),
-    }
-    if not identical:
-        report_a["invalid_reasons"].append(
-            "determinism_mismatch: two passes were not canonically identical"
+    # Uniquely owned fresh work roots per pass: fixed pass-a/pass-b paths
+    # would rmtree preexisting content. Only these two directories are
+    # ever cleaned up.
+    try:
+        work_a = Path(tempfile.mkdtemp(prefix="crump-integ-pass-a-", dir=work_root))
+        work_b = Path(tempfile.mkdtemp(prefix="crump-integ-pass-b-", dir=work_root))
+    except Exception as exc:
+        return (
+            None,
+            1,
+            f"cannot create pass work dirs under {work_root}: "
+            f"{type(exc).__name__}: {exc}",
         )
-        report_a["report_validity"] = "invalid"
-    out_path.write_text(
-        json.dumps(report_a, sort_keys=True, indent=2, ensure_ascii=False),
-        encoding="utf-8",
-    )
-    code = 0 if report_a["report_validity"] == "valid" else 2
-    return report_a, code, None
+    try:
+        report_a, fatal_a = run_single_pass(
+            corpus_root=corpus_root, work_root=work_a, seed=seed, **pass_kwargs
+        )
+        report_b, fatal_b = run_single_pass(
+            corpus_root=corpus_root, work_root=work_b, seed=seed, **pass_kwargs
+        )
+        # Pre-checks make fatals unreachable here; handle defensively anyway.
+        if fatal_a or report_a is None:
+            return None, 1, f"first pass failed fatally: {fatal_a}"
+        if fatal_b or report_b is None:
+            return None, 1, f"second pass failed fatally: {fatal_b}"
+        identical = canonical_projection(report_a) == canonical_projection(report_b)
+        report_a["determinism"] = {
+            "runs": 2,
+            "work_roots": ["pass-a", "pass-b"],
+            "canonical_identical": identical,
+            "note": (
+                "two fresh work roots, fixed seeds; projection excludes only "
+                "run_id, created_utc, evaluated_at"
+            ),
+        }
+        if not identical:
+            report_a["invalid_reasons"].append(
+                "determinism_mismatch: two passes were not canonically identical"
+            )
+            report_a["report_validity"] = "invalid"
+        # The final write lives inside containment: an unwritable out_path
+        # (a directory, a permission error) yields the fatal diagnostic,
+        # never a traceback.
+        try:
+            out_path.write_text(
+                json.dumps(report_a, sort_keys=True, indent=2, ensure_ascii=False),
+                encoding="utf-8",
+            )
+        except Exception as exc:
+            return (
+                None,
+                1,
+                f"failed to write report {out_path}: "
+                f"{type(exc).__name__}: {exc}",
+            )
+        code = 0 if report_a["report_validity"] == "valid" else 2
+        return report_a, code, None
+    finally:
+        for d in (work_a, work_b):
+            shutil.rmtree(d, ignore_errors=True)
 
 
 def main(argv: list[str] | None = None) -> int:
