@@ -538,18 +538,33 @@
         save.disabled = false;
         if (closeDialog) close();
       };
-      const readServerTitle = async () => {
+      const readServerRow = async () => {
         // Authoritative readback: a push `accepted` only proves a write was
         // applied, and the server keeps the old title when the incoming row
         // is older (apply_chat_sync title CASE). Never treat accepted plus a
         // locally-mutated title as proof.
+        // peek:true makes this a non-mutating verification read: it must not
+        // advance the crump_last_sync_v4 watermark, or a concurrent remote
+        // update observed here but not applied would be skipped by the next
+        // incremental pull.
         const pull = window.SyncManager?.pull;
-        if (typeof pull !== 'function') return undefined;
-        const body = await pull(null, { full: true });
+        if (typeof pull !== 'function') return { status: 'unavailable' };
+        let body;
+        try {
+          body = await pull(null, { full: true, peek: true });
+        } catch (_) {
+          return { status: 'unavailable' };
+        }
         const rows = body?.data?.chats;
-        if (!Array.isArray(rows)) return undefined;
+        if (!Array.isArray(rows)) return { status: 'unavailable' };
         const row = rows.find(item => String(item.chat_id || item.id) === String(chatId));
-        return row ? row.title : undefined;
+        // Absence covers a capped full pull as well as a genuinely missing
+        // row: either way the title cannot be confirmed from this response.
+        if (!row) return { status: 'missing' };
+        // A tombstone is a definitive server state: reject it even when the
+        // title happens to match.
+        if (row.deleted_at) return { status: 'deleted' };
+        return { status: 'ok', title: row.title };
       };
       const isOffline = (result) =>
         !window.currentUser || result?.offline === true ||
@@ -583,25 +598,22 @@
             window.showToast?.("Couldn't confirm the new title. Try again.", 'error');
             return;
           }
-          let serverTitle;
-          try {
-            serverTitle = await readServerTitle();
-          } catch (_) {
-            serverTitle = undefined;
-          }
-          if (serverTitle === undefined) {
-            // Push accepted but the server title could not be read back;
-            // honestly distinct from a confirmed rename.
-            done(true);
-            window.showToast?.('Title saved. It will be confirmed on the next sync.', 'info');
-            return;
-          }
-          if (serverTitle === title) {
+          const verification = await readServerRow();
+          if (verification.status === 'ok' && verification.title === title) {
             done(true);
             window.showToast?.('Conversation renamed.', 'success');
-          } else {
+          } else if (verification.status === 'deleted') {
+            done(false);
+            window.showToast?.("Couldn't save the new title \u2014 it changed elsewhere. Try again.", 'error');
+          } else if (verification.status === 'ok') {
             done(false);
             window.showToast?.('The server kept a different title \u2014 it changed elsewhere. Try again.', 'error');
+          } else {
+            // missing / unreadable: the rename is saved locally, but the
+            // server title could not be confirmed. Honestly distinct from
+            // both a confirmed rename and a conflict.
+            done(true);
+            window.showToast?.('Saved on this device; server confirmation is unavailable.', 'info');
           }
         })
         .catch(() => {

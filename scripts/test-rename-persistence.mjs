@@ -466,8 +466,24 @@ test('unreadable server title after accept is info, not success', async () => {
   dlg.save.click();
   await tick();
   assert.ok(!sb.toasts.some((t) => t.type === 'success'), 'no success without readback');
-  assert.ok(sb.toasts.some((t) => t.type === 'info' && /confirmed on the next sync/i.test(t.message)), 'unconfirmed info shown');
+  assert.ok(sb.toasts.some((t) => t.type === 'info' && /server confirmation is unavailable/i.test(t.message)), 'unconfirmed info shown');
   assert.ok(dlg.overlay.removed, 'dialog closed');
+});
+
+test('a tombstoned server row is rejected even when the title matches', async () => {
+  const sb = buildSandbox();
+  sb.seedChat({ ...CHAT });
+  const dlg = sb.openRenameDialog('chat-qa-1');
+  dlg.input.value = 'QA readiness 2026-10-18';
+  sb.setPullImpl(() => Promise.resolve({
+    success: true,
+    data: { chats: [{ chat_id: 'chat-qa-1', title: 'QA readiness 2026-10-18', deleted_at: '2026-10-18T01:30:00.000Z' }] },
+  }));
+  dlg.save.click();
+  await tick();
+  assert.ok(!sb.toasts.some((t) => t.type === 'success'), 'no success for a tombstoned row');
+  assert.ok(sb.toasts.some((t) => t.type === 'error' && /elsewhere/i.test(t.message)), 'changed-elsewhere error shown');
+  assert.ok(!dlg.overlay.removed, 'dialog stays open for retry');
 });
 
 test('reload round-trip keeps the renamed title, version and messages', async () => {
