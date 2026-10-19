@@ -30,13 +30,18 @@
       headers: { Accept: 'application/json' },
       signal: controller.signal,
     }).then(function (response) {
+      // Two-argument then: the rejection handler covers only response.json()
+      // failures. An application-level failure (HTTP 200 with success:false)
+      // thrown below must propagate to the caller, not resolve as {}.
       return response.json().then(function (data) {
         done();
         if (!response.ok || data.success === false) {
-          throw new Error((data && (data.error || data.message)) || 'Request failed');
+          var message = (data && (data.error || data.message)) ||
+            (!response.ok ? 'Request failed (' + response.status + ')' : 'Request failed');
+          throw new Error(message);
         }
         return data || {};
-      }).catch(function (err) {
+      }, function (err) {
         done();
         if (err && err.name === 'AbortError') throw requestTimeoutError();
         if (!response.ok) throw new Error('Request failed (' + response.status + ')');

@@ -82,7 +82,13 @@
         signal: controller.signal,
       });
       var data = {};
-      try { data = await response.json(); } catch (_) { data = {}; }
+      try { data = await response.json(); }
+      catch (err) {
+        // A stall after HTTP 200 headers aborts mid-body: that AbortError must
+        // reach the handler below as REQUEST_TIMEOUT, not resolve as {}.
+        if (err && err.name === 'AbortError') throw err;
+        data = {};
+      }
       if (!response.ok || data.success === false) {
         var error = new Error(data.error || data.message || 'Request failed (' + response.status + ')');
         error.status = response.status;
