@@ -66,19 +66,39 @@
     return match ? match[1].toUpperCase() : '';
   }
 
-  async function api(path) {
-    var response = await fetch(path, {
-      credentials: 'include',
-      headers: { Accept: 'application/json' },
-    });
-    var data = {};
-    try { data = await response.json(); } catch (_) { data = {}; }
-    if (!response.ok || data.success === false) {
-      var error = new Error(data.error || data.message || 'Request failed (' + response.status + ')');
-      error.status = response.status;
-      throw error;
+  // Library requests must never spin forever: abort past the timeout so the
+  // existing error panels (with retry) actually get to appear. A hung request
+  // used to leave "Opening your library…" / "Opening book…" on screen
+  // indefinitely.
+  var LIBRARY_TIMEOUT_MS = 15000;
+
+  async function api(path, timeoutMs) {
+    var controller = new AbortController();
+    var timer = setTimeout(function () { controller.abort(); }, timeoutMs || LIBRARY_TIMEOUT_MS);
+    try {
+      var response = await fetch(path, {
+        credentials: 'include',
+        headers: { Accept: 'application/json' },
+        signal: controller.signal,
+      });
+      var data = {};
+      try { data = await response.json(); } catch (_) { data = {}; }
+      if (!response.ok || data.success === false) {
+        var error = new Error(data.error || data.message || 'Request failed (' + response.status + ')');
+        error.status = response.status;
+        throw error;
+      }
+      return data;
+    } catch (err) {
+      if (err && err.name === 'AbortError') {
+        var timeoutError = new Error('The request took too long. Check your connection and try again.');
+        timeoutError.code = 'REQUEST_TIMEOUT';
+        throw timeoutError;
+      }
+      throw err;
+    } finally {
+      clearTimeout(timer);
     }
-    return data;
   }
 
   function bookInitial(title) {

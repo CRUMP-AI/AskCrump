@@ -10,20 +10,42 @@
 (() => {
   'use strict';
 
+  // Briefing requests must never hang the home view: a stuck request used to
+  // leave "Loading your projects…" on screen forever. Abort past the timeout
+  // and let the caller render an honest error state instead.
+  var BRIEFING_TIMEOUT_MS = 15000;
+
+  function requestTimeoutError() {
+    var error = new Error('The request took too long. Check your connection and try again.');
+    error.code = 'REQUEST_TIMEOUT';
+    return error;
+  }
+
   function api(path) {
+    var controller = new AbortController();
+    var timer = setTimeout(function () { controller.abort(); }, BRIEFING_TIMEOUT_MS);
+    function done() { clearTimeout(timer); }
     return fetch(path, {
       credentials: 'include',
       headers: { Accept: 'application/json' },
+      signal: controller.signal,
     }).then(function (response) {
       return response.json().then(function (data) {
+        done();
         if (!response.ok || data.success === false) {
           throw new Error((data && (data.error || data.message)) || 'Request failed');
         }
         return data || {};
-      }).catch(function () {
+      }).catch(function (err) {
+        done();
+        if (err && err.name === 'AbortError') throw requestTimeoutError();
         if (!response.ok) throw new Error('Request failed (' + response.status + ')');
         return {};
       });
+    }, function (err) {
+      done();
+      if (err && err.name === 'AbortError') throw requestTimeoutError();
+      throw err;
     });
   }
 
@@ -159,22 +181,54 @@
         return;
       }
 
-      Promise.all([
-        api('/api/projects').catch(function () { return {}; }),
-        api('/api/library/books').catch(function () { return {}; }),
-      ]).then(function (results) {
-        var projects = Array.isArray(results[0].projects) ? results[0].projects : [];
-        var books = Array.isArray(results[1].books) ? results[1].books : [];
-        if (!container.isConnected) return;
-        sub.textContent = greetingSub(projects, books);
-        plateBody.innerHTML = '<div class="cv-plate">' + plateRowsHTML(projects) + '</div>';
-        nudgeBody.innerHTML = '<div class="cv-nudges">' + nudgeListHTML(books) + '</div>';
-        wireNudges(nudges);
-      }).catch(function () {
-        if (!container.isConnected) return;
+      // Each briefing request settles on its own: one slow endpoint must not
+      // take the other section down with it, and a failed section renders its
+      // own honest state instead of masquerading as empty.
+      function settled(promise) {
+        return promise.then(
+          function (data) { return { ok: true, data: data }; },
+          function (error) { return { ok: false, error: error }; }
+        );
+      }
+
+      function unreachableState() {
         sub.textContent = 'Couldn\u2019t reach your workspace just now.';
         plateBody.innerHTML = '<div class="cv-plate"><p class="cv-empty">Projects couldn\u2019t load. Try again in a moment.</p></div>';
         nudgeBody.innerHTML = '<div class="cv-nudges"><p class="cv-empty">Library couldn\u2019t load. Try again in a moment.</p></div>';
+      }
+
+      Promise.all([
+        settled(api('/api/projects')),
+        settled(api('/api/library/books')),
+      ]).then(function (results) {
+        if (!container.isConnected) return;
+        var projectsResult = results[0];
+        var booksResult = results[1];
+        if (!projectsResult.ok && !booksResult.ok) {
+          unreachableState();
+          return;
+        }
+        var projects = projectsResult.ok && Array.isArray(projectsResult.data.projects)
+          ? projectsResult.data.projects : [];
+        var books = booksResult.ok && Array.isArray(booksResult.data.books)
+          ? booksResult.data.books : [];
+        sub.textContent = greetingSub(projects, books);
+        plateBody.innerHTML = '<div class="cv-plate">' +
+          (projectsResult.ok
+            ? plateRowsHTML(projects)
+            : '<p class="cv-empty">Projects couldn\u2019t load. Try again in a moment.</p>') +
+          '</div>';
+        nudgeBody.innerHTML = '<div class="cv-nudges">' +
+          (booksResult.ok
+            ? nudgeListHTML(books)
+            : '<p class="cv-empty">Library couldn\u2019t load. Try again in a moment.</p>') +
+          '</div>';
+        wireNudges(nudges);
+      }).catch(function () {
+        // Safety net only: settled() resolves for every request outcome, so
+        // reaching here means something unexpected threw during render.
+        if (!container.isConnected) return;
+        unreachableState();
       });
     }
 
