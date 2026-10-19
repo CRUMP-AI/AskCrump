@@ -18,7 +18,11 @@
   body.crump-v1-body #scrollToEndBtn {
     right: auto !important;
     left: 50% !important;
-    bottom: calc(6px + 118px) !important;
+    /* Ride above the dock via var(--ac-dock): 124px normally (100+24),
+       170px when the project-context dock grows to 146px — the 48px
+       button no longer overlaps the dock's top edge. Keyboard-safe:
+       neither term depends on env(safe-area-inset-bottom). */
+    bottom: calc(var(--ac-dock) + 24px) !important;
     transform: translateX(-50%) !important;
     border-color: rgba(217,191,132,.34) !important;
     background: #202832 !important;
