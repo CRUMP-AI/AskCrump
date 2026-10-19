@@ -112,11 +112,17 @@
       });
     }
 
-    function greetingSub(projects, books) {
+    function greetingSub(projects, books, projectsOk, booksOk) {
+      // Failure-aware: a failed section must never be summarized as empty.
+      // (Both-failed is handled by unreachableState(); this only sees
+      // at-most-one failure.)
       var bits = [];
-      bits.push(projects.length === 1 ? 'One project in motion' : projects.length + ' projects in motion');
-      if (books.length) bits.push('your latest keepsake is waiting');
-      else bits.push('nothing waiting on you');
+      bits.push(projectsOk
+        ? (projects.length === 1 ? 'One project in motion' : projects.length + ' projects in motion')
+        : 'couldn\u2019t check your projects just now');
+      bits.push(booksOk
+        ? (books.length ? 'your latest keepsake is waiting' : 'nothing waiting on you')
+        : 'couldn\u2019t check your library just now');
       return bits.join(', ').replace(/^./, function (c) { return c.toUpperCase(); }) + '.';
     }
 
@@ -217,7 +223,7 @@
           ? projectsResult.data.projects : [];
         var books = booksResult.ok && Array.isArray(booksResult.data.books)
           ? booksResult.data.books : [];
-        sub.textContent = greetingSub(projects, books);
+        sub.textContent = greetingSub(projects, books, projectsResult.ok, booksResult.ok);
         plateBody.innerHTML = '<div class="cv-plate">' +
           (projectsResult.ok
             ? plateRowsHTML(projects)

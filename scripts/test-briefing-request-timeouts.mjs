@@ -240,4 +240,134 @@ await check('library: fast success still resolves data', async () => {
 });
 
 console.log(`\n${pass} passed, ${fail} failed`);
+
+// --- Render-level regressions: the greeting summary must be failure-aware ---
+//
+// These drive the REAL render() from public/crump-vision-home-1.0.js in a
+// node:vm sandbox with stubbed CrumpVision/document/fetch. The defect: on a
+// one-endpoint failure the summary substituted [] for the failed section and
+// still called greetingSub(projects, books), so a failed Projects request
+// falsely read "0 projects in motion" and a failed Library request falsely
+// read "nothing waiting on you".
+
+function fakeNode() {
+  return {
+    children: [],
+    innerHTML: '',
+    textContent: '',
+    className: '',
+    _sel: {},
+    appendChild(c) { this.children.push(c); return c; },
+    querySelector(sel) { return this._sel[sel] || null; },
+    querySelectorAll() { return []; },
+    classList: { add() {}, remove() {}, toggle() {} },
+    addEventListener() {},
+    getAttribute() { return null; },
+  };
+}
+
+function loadHomeView() {
+  const src = readFileSync(path.join(ROOT, 'public/crump-vision-home-1.0.js'), 'utf8')
+    .replaceAll('15000', String(FAST_TIMEOUT_MS));
+  const created = [];
+  const cards = [];
+  const win = {
+    __crumpVisionShellLoaded: true,
+    currentUser: { id: 'u1' },
+    __crumpVisionDemo: false,
+  };
+  win.CrumpVision = {
+    el: () => fakeNode(),
+    eyebrow: () => fakeNode(),
+    navigate: () => {},
+    esc: (s) => String(s == null ? '' : s),
+    card() {
+      const card = fakeNode();
+      const body = fakeNode();
+      card._sel['.cv-card-copy'] = body;
+      cards.push({ card, body });
+      return card;
+    },
+    registerView(name, view) { win.__view = view; },
+  };
+  const sandbox = {
+    fetch: null,
+    AbortController, setTimeout, clearTimeout, Error,
+    window: win,
+    document: {
+      createElement(tag) {
+        const el = fakeNode();
+        el.tagName = String(tag).toUpperCase();
+        created.push(el);
+        return el;
+      },
+      addEventListener() {},
+    },
+  };
+  sandbox.globalThis = sandbox;
+  vm.createContext(sandbox);
+  vm.runInContext(src, sandbox);
+  if (!win.__view) throw new Error('home view was not registered');
+  return {
+    view: win.__view,
+    setFetch(fn) { sandbox.fetch = fn; },
+    findSub() {
+      const el = created.find((e) => /cv-home-sub/.test(e.className));
+      if (!el) throw new Error('greeting sub element not found');
+      return el;
+    },
+    plateBody: () => cards[0].body,
+    nudgeBody: () => cards[1].body,
+  };
+}
+
+async function renderHome(fetchImpl) {
+  const h = loadHomeView();
+  h.setFetch(fetchImpl);
+  const container = fakeNode();
+  container.isConnected = true;
+  h.view.render(container);
+  await new Promise((r) => setTimeout(r, 100));
+  return h;
+}
+
+const okProjectsFetch = async () => ({
+  ok: true, status: 200,
+  json: async () => ({ projects: [
+    { name: 'Alpha', description: 'First', updated_at: '2026-10-18T00:00:00Z' },
+    { name: 'Beta', description: 'Second', updated_at: '2026-10-17T00:00:00Z' },
+  ] }),
+});
+const okBooksFetch = async () => ({
+  ok: true, status: 200,
+  json: async () => ({ books: [{ title: 'Keepsake' }] }),
+});
+const failFetch = async () => { throw new Error('boom'); };
+
+await check('render: projects-only failure keeps an honest summary', async () => {
+  const h = await renderHome((url) => (url.includes('/api/projects') ? failFetch(url) : okBooksFetch(url)));
+  const sub = h.findSub().textContent;
+  assert(!/0 projects in motion/.test(sub), `false empty claim in summary: "${sub}"`);
+  assert(/couldn’t check your projects just now/i.test(sub), `missing honest projects state: "${sub}"`);
+  assert(/keepsake is waiting/.test(sub), `library success lost from summary: "${sub}"`);
+  assert(/Projects couldn’t load/.test(h.plateBody().innerHTML), 'plate missing honest error');
+  assert(!/couldn’t load/i.test(h.nudgeBody().innerHTML), 'library section wrongly shows error');
+});
+
+await check('render: library-only failure keeps an honest summary', async () => {
+  const h = await renderHome((url) => (url.includes('/api/library/books') ? failFetch(url) : okProjectsFetch(url)));
+  const sub = h.findSub().textContent;
+  assert(!/nothing waiting on you/.test(sub), `false empty claim in summary: "${sub}"`);
+  assert(/couldn’t check your library just now/i.test(sub), `missing honest library state: "${sub}"`);
+  assert(/2 projects in motion/.test(sub), `projects success lost from summary: "${sub}"`);
+  assert(/Library couldn’t load/.test(h.nudgeBody().innerHTML), 'nudges missing honest error');
+});
+
+await check('render: both failed keeps the unreachable state', async () => {
+  const h = await renderHome(() => failFetch());
+  const sub = h.findSub().textContent;
+  assert(/Couldn’t reach your workspace just now/.test(sub), `unexpected summary: "${sub}"`);
+});
+
+console.log(`render: ${pass} passed total, ${fail} failed total`);
 process.exit(fail ? 1 : 0);
