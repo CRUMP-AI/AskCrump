@@ -194,13 +194,18 @@ await check('library: hanging request rejects with REQUEST_TIMEOUT', async () =>
   }
 });
 
-await check('library: explicit timeoutMs parameter is honored', async () => {
+await check('library: explicit timeoutMs override is honored (distinguishable from default)', async () => {
+  // Default is rewritten to 120ms for test speed; the override is 2000ms.
+  // If the implementation ignored timeoutMs, this would reject at ~120ms.
   library.setFetch(hangingFetch());
+  const t0 = Date.now();
   try {
-    await library.call('/api/library/books', FAST_TIMEOUT_MS);
+    await library.call('/api/library/books', 2000);
     assert(false, 'resolved instead of rejecting');
   } catch (e) {
+    const elapsed = Date.now() - t0;
     assert(e.code === 'REQUEST_TIMEOUT', `expected REQUEST_TIMEOUT, got ${e.code}`);
+    assert(elapsed >= 1500, `override ignored: rejected after ${elapsed}ms (default is 120ms)`);
   }
 });
 
@@ -215,6 +220,16 @@ await check('library: HTTP 200 success:false rejects', async () => {
     assert(false, 'resolved instead of rejecting');
   } catch (e) {
     assert(/Shelf unavailable/.test(e.message), `error message lost: ${e.message}`);
+  }
+});
+
+await check('library: HTTP 500 rejects with status error', async () => {
+  library.setFetch(async () => ({ ok: false, status: 500, json: async () => ({}) }));
+  try {
+    await library.call('/api/library/books');
+    assert(false, 'resolved instead of rejecting');
+  } catch (e) {
+    assert(e.message === 'Request failed (500)', `unexpected message: ${e.message}`);
   }
 });
 
