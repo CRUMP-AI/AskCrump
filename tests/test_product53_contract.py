@@ -69,7 +69,16 @@ def test_mobile_polish_matches_approved_scope():
     assert "right: auto !important" in css
     assert "translateX(-50%)" in css
     assert "padding-bottom: 0 !important" in css
-    assert "env(safe-area-inset-bottom) - 24px" in css
+    # Greg-approved composer seating: the pill sits right above the tab bar
+    # with a flat 6px gap. The dock no longer computes its own safe-area
+    # inset — the tab bar stays the single bottom safe-area owner, whether
+    # or not the keyboard is visible (the old formula is gone).
+    assert "padding-bottom: 6px !important" in css
+    assert "env(safe-area-inset-bottom) - 24px" not in css
+    # The jump button rides above the dock on var(--ac-dock): 124px in the
+    # normal state, clearing the 146px project-context dock instead of
+    # overlapping its top edge.
+    assert "bottom: calc(var(--ac-dock) + 24px) !important" in css
 
 
 def test_projects_media_manuscripts_and_cost_controls_are_registered():
