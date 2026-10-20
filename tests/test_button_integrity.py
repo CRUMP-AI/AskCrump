@@ -26,7 +26,7 @@ EXPECTED_BUTTON_INVENTORY = {
     "public/crump-library-5.7.js": 43,
     "public/crump-navigation-5.9.30.js": 2,
     "public/crump-product-5.3.1.js": 10,
-    "public/crump-product-5.3.js": 58,
+    "public/crump-product-5.3.js": 60,
     "public/crump-vision-home-1.0.js": 1,
     "public/crump-vision-library-1.0.js": 6,
     "public/crump-vision-projects-1.0.js": 5,
@@ -304,7 +304,7 @@ def test_rendered_button_inventory_requires_explicit_review() -> None:
             inventory[page.relative_to(ROOT).as_posix()] = len(parser.buttons)
 
     assert inventory == EXPECTED_BUTTON_INVENTORY
-    assert sum(inventory.values()) == 222
+    assert sum(inventory.values()) == 224
 
 
 def test_programmatically_created_button_inventory_requires_explicit_review() -> None:
@@ -316,7 +316,7 @@ def test_programmatically_created_button_inventory_requires_explicit_review() ->
 
     assert inventory == DYNAMIC_BUTTON_INVENTORY
     assert sum(inventory.values()) == 104
-    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 326
+    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 328
 
 
 def test_programmatically_created_buttons_declare_type_and_runtime_owner() -> None:

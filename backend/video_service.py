@@ -1112,6 +1112,33 @@ class VideoService:
             raise VideoServiceError("Video job not found.", "VIDEO_JOB_NOT_FOUND", 404)
         return row
 
+    async def delete_job(self, *, user_id: str, job_id: str) -> dict[str, Any]:
+        """Delete one finished video job and hide its saved file.
+
+        In-progress jobs are refused: their provider work and billing
+        reservation are still live, and removing the row would strand both.
+        """
+        row = await self.get(user_id=user_id, job_id=job_id)
+        status = str(row.get("status") or "").lower()
+        if status in {"queued", "processing"}:
+            raise VideoServiceError(
+                "This video is still generating. Wait for it to finish before deleting it.",
+                "VIDEO_DELETE_IN_PROGRESS",
+                409,
+            )
+        file_id = row.get("file_id")
+        if file_id:
+            await self.files.soft_delete(user_id=user_id, file_id=str(file_id))
+        await self.db.delete(
+            "media_jobs",
+            filters={
+                "id": eq(str(row["id"])),
+                "user_id": eq(user_id),
+                "kind": eq("video"),
+            },
+        )
+        return {"id": str(row["id"]), "deleted": True}
+
     async def active_count(self, *, user_id: str) -> int:
         rows = await self.db.select(
             "media_jobs",
