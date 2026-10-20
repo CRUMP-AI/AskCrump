@@ -1520,6 +1520,13 @@
         pollVideo(jobId, ownerUserId);
       }
     });
+    byId('crump53VideoRecentList')?.addEventListener('click', event => {
+      const button = event.target.closest?.('[data-video-job-delete]');
+      if (!button) return;
+      const jobId = String(button.dataset.videoJobDelete || '');
+      const job = state.recentVideoJobs.find(item => String(item?.id || '') === jobId);
+      if (job) void deleteVideoJob(job);
+    });
     byId('crump53VideoProjectClear')?.addEventListener('click', () => {
       clearActiveProject({announce: true});
       setStatus('crump53VideoStatus', 'This video will save to your private Files only.');
@@ -3750,6 +3757,7 @@
         ${projectAction}
         <a class="crump53-button crump53-button-link" href="${escapeHtml(job.file.url)}?download=1" download>Download video</a>
         <button type="button" class="crump53-button" id="crump53OpenLibraryFromVideo">Open Files</button>
+        <button type="button" class="crump53-button" id="crump53DeleteVideo">Delete video</button>
       </div>
       ${projectNotice}
       ${job.canContinue ? `
@@ -3763,6 +3771,7 @@
     byId('crump53OpenVideoProject')?.addEventListener('click', () => void openProject(projectId));
     byId('crump53RetryVideoProject')?.addEventListener('click', () => void retryVideoProjectAttachment(job));
     byId('crump53OpenLibraryFromVideo')?.addEventListener('click', openProjectFiles);
+    byId('crump53DeleteVideo')?.addEventListener('click', () => void deleteVideoJob(job));
     byId('crump53ContinueScene')?.addEventListener('click', () => {
       const composer = byId('crump53VideoContinuation');
       if (composer) composer.hidden = false;
@@ -3776,6 +3785,44 @@
     if (openContinuation && job.canContinue) {
       byId('crump53ContinueScene')?.click();
     }
+    // The result renders at the bottom of a tall studio dialog; reveal it so
+    // opening a saved video (or a finished generation) shows in front of the
+    // user instead of below the fold.
+    requestAnimationFrame(() => revealVideoResult());
+  }
+
+  function revealVideoResult() {
+    const node = byId('crump53VideoResult');
+    if (!node || !node.isConnected || !node.getClientRects().length) return;
+    if (typeof node.scrollIntoView === 'function') {
+      node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
+
+  function videoJobCanDelete(job) {
+    const status = String(job?.status || '').toLowerCase();
+    return status === 'ready' || status === 'failed';
+  }
+
+  async function deleteVideoJob(job) {
+    const jobId = String(job?.id || '');
+    if (!jobId || !videoJobCanDelete(job)) return;
+    const confirmed = window.confirm('Delete this video? It will be removed from your recent videos and Files.');
+    if (!confirmed) return;
+    try {
+      await api(`/api/media/video/${encodeURIComponent(jobId)}`, { method: 'DELETE' });
+    } catch (error) {
+      setStatus('crump53VideoStatus', error.message || 'Could not delete that video.', true);
+      return;
+    }
+    state.recentVideoJobs = state.recentVideoJobs.filter(item => String(item?.id || '') !== jobId);
+    renderRecentVideos();
+    if (String(state.activeVideoJob?.id || '') === jobId) {
+      state.activeVideoJob = null;
+      const result = byId('crump53VideoResult');
+      if (result) result.innerHTML = '';
+    }
+    setStatus('crump53VideoStatus', 'Video deleted.');
   }
 
   function renderRecentVideos() {
@@ -3804,9 +3851,13 @@
         : (safeStatus === 'queued' || safeStatus === 'processing'
             ? `<button class="crump53-button" type="button" data-video-job-action="${escapeHtml(job.id)}">Check status</button>`
             : '');
+      const deleteAction = videoJobCanDelete(job)
+        ? `<button class="crump53-button" type="button" data-video-job-delete="${escapeHtml(job.id)}">Delete</button>`
+        : '';
       return `<article class="crump53-video-recent-item" data-video-job-status="${safeStatus}">
         <div><strong>${escapeHtml(label)}</strong><span>${escapeHtml(engine)} · ${escapeHtml(created || 'Recent')}</span></div>
         ${action}
+        ${deleteAction}
       </article>`;
     }).join('');
   }

@@ -50,6 +50,7 @@ _VIDEO_ERROR_STAGES = frozenset({
     "continuation_budget",
     "continuation_generation",
     "status",
+    "delete",
 })
 
 
@@ -791,6 +792,16 @@ async def video_status(job_id: str, request: Request):
         return {"success": True, "job": public_job}
     except VideoServiceError as exc:
         return _video_error(exc, stage="status")
+
+
+@router.delete("/video/{job_id}")
+async def delete_video(job_id: str, request: Request):
+    auth = await authenticate_request(request, db, settings)
+    try:
+        result = await video.delete_job(user_id=auth.user["id"], job_id=job_id)
+    except VideoServiceError as exc:
+        return _video_error(exc, stage="delete")
+    return {"success": True, **result}
 
 
 @cron_router.get("/api/cron/videos")
