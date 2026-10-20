@@ -10,20 +10,47 @@
 (() => {
   'use strict';
 
+  // Briefing requests must never hang the home view: a stuck request used to
+  // leave "Loading your projects…" on screen forever. Abort past the timeout
+  // and let the caller render an honest error state instead.
+  var BRIEFING_TIMEOUT_MS = 15000;
+
+  function requestTimeoutError() {
+    var error = new Error('The request took too long. Check your connection and try again.');
+    error.code = 'REQUEST_TIMEOUT';
+    return error;
+  }
+
   function api(path) {
+    var controller = new AbortController();
+    var timer = setTimeout(function () { controller.abort(); }, BRIEFING_TIMEOUT_MS);
+    function done() { clearTimeout(timer); }
     return fetch(path, {
       credentials: 'include',
       headers: { Accept: 'application/json' },
+      signal: controller.signal,
     }).then(function (response) {
+      // Two-argument then: the rejection handler covers only response.json()
+      // failures. An application-level failure (HTTP 200 with success:false)
+      // thrown below must propagate to the caller, not resolve as {}.
       return response.json().then(function (data) {
+        done();
         if (!response.ok || data.success === false) {
-          throw new Error((data && (data.error || data.message)) || 'Request failed');
+          var message = (data && (data.error || data.message)) ||
+            (!response.ok ? 'Request failed (' + response.status + ')' : 'Request failed');
+          throw new Error(message);
         }
         return data || {};
-      }).catch(function () {
+      }, function (err) {
+        done();
+        if (err && err.name === 'AbortError') throw requestTimeoutError();
         if (!response.ok) throw new Error('Request failed (' + response.status + ')');
         return {};
       });
+    }, function (err) {
+      done();
+      if (err && err.name === 'AbortError') throw requestTimeoutError();
+      throw err;
     });
   }
 
@@ -85,11 +112,17 @@
       });
     }
 
-    function greetingSub(projects, books) {
+    function greetingSub(projects, books, projectsOk, booksOk) {
+      // Failure-aware: a failed section must never be summarized as empty.
+      // (Both-failed is handled by unreachableState(); this only sees
+      // at-most-one failure.)
       var bits = [];
-      bits.push(projects.length === 1 ? 'One project in motion' : projects.length + ' projects in motion');
-      if (books.length) bits.push('your latest keepsake is waiting');
-      else bits.push('nothing waiting on you');
+      bits.push(projectsOk
+        ? (projects.length === 1 ? 'One project in motion' : projects.length + ' projects in motion')
+        : 'couldn\u2019t check your projects just now');
+      bits.push(booksOk
+        ? (books.length ? 'your latest keepsake is waiting' : 'nothing waiting on you')
+        : 'couldn\u2019t check your library just now');
       return bits.join(', ').replace(/^./, function (c) { return c.toUpperCase(); }) + '.';
     }
 
@@ -159,22 +192,54 @@
         return;
       }
 
-      Promise.all([
-        api('/api/projects').catch(function () { return {}; }),
-        api('/api/library/books').catch(function () { return {}; }),
-      ]).then(function (results) {
-        var projects = Array.isArray(results[0].projects) ? results[0].projects : [];
-        var books = Array.isArray(results[1].books) ? results[1].books : [];
-        if (!container.isConnected) return;
-        sub.textContent = greetingSub(projects, books);
-        plateBody.innerHTML = '<div class="cv-plate">' + plateRowsHTML(projects) + '</div>';
-        nudgeBody.innerHTML = '<div class="cv-nudges">' + nudgeListHTML(books) + '</div>';
-        wireNudges(nudges);
-      }).catch(function () {
-        if (!container.isConnected) return;
+      // Each briefing request settles on its own: one slow endpoint must not
+      // take the other section down with it, and a failed section renders its
+      // own honest state instead of masquerading as empty.
+      function settled(promise) {
+        return promise.then(
+          function (data) { return { ok: true, data: data }; },
+          function (error) { return { ok: false, error: error }; }
+        );
+      }
+
+      function unreachableState() {
         sub.textContent = 'Couldn\u2019t reach your workspace just now.';
         plateBody.innerHTML = '<div class="cv-plate"><p class="cv-empty">Projects couldn\u2019t load. Try again in a moment.</p></div>';
         nudgeBody.innerHTML = '<div class="cv-nudges"><p class="cv-empty">Library couldn\u2019t load. Try again in a moment.</p></div>';
+      }
+
+      Promise.all([
+        settled(api('/api/projects')),
+        settled(api('/api/library/books')),
+      ]).then(function (results) {
+        if (!container.isConnected) return;
+        var projectsResult = results[0];
+        var booksResult = results[1];
+        if (!projectsResult.ok && !booksResult.ok) {
+          unreachableState();
+          return;
+        }
+        var projects = projectsResult.ok && Array.isArray(projectsResult.data.projects)
+          ? projectsResult.data.projects : [];
+        var books = booksResult.ok && Array.isArray(booksResult.data.books)
+          ? booksResult.data.books : [];
+        sub.textContent = greetingSub(projects, books, projectsResult.ok, booksResult.ok);
+        plateBody.innerHTML = '<div class="cv-plate">' +
+          (projectsResult.ok
+            ? plateRowsHTML(projects)
+            : '<p class="cv-empty">Projects couldn\u2019t load. Try again in a moment.</p>') +
+          '</div>';
+        nudgeBody.innerHTML = '<div class="cv-nudges">' +
+          (booksResult.ok
+            ? nudgeListHTML(books)
+            : '<p class="cv-empty">Library couldn\u2019t load. Try again in a moment.</p>') +
+          '</div>';
+        wireNudges(nudges);
+      }).catch(function () {
+        // Safety net only: settled() resolves for every request outcome, so
+        // reaching here means something unexpected threw during render.
+        if (!container.isConnected) return;
+        unreachableState();
       });
     }
 

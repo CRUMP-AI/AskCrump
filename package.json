@@ -24,7 +24,7 @@
     "test:client-secrets": "node scripts/check-client-secrets.mjs",
     "test:browser-controls": "node scripts/verify-browser-control-matrix.mjs",
     "test:intelligence-contract": "python scripts/evaluate_intelligence_benchmark.py benchmarks/intelligence/fixtures/passing_results.v1.json",
-    "test": "npm run test:js && npm run test:rename-persistence && npm run test:rename-sync-cursor && npm run test:public-destination-parser && npm run test:native-release-guards && npm run test:native-push-handoff && npm run test:video-result-reveal && npm run test:video-delete",
+    "test": "npm run test:js && npm run test:rename-persistence && npm run test:rename-sync-cursor && npm run test:public-destination-parser && npm run test:native-release-guards && npm run test:native-push-handoff && npm run test:video-result-reveal && npm run test:video-delete && npm run test:briefing-request-timeouts",
     "native:configure": "node scripts/configure-native.mjs",
     "native:assets": "npx --yes @capacitor/assets@3.0.5 generate --iconBackgroundColor \"#0f1419\" --iconBackgroundColorDark \"#0f1419\" --splashBackgroundColor \"#0f1419\" --splashBackgroundColorDark \"#0f1419\"",
     "native:verify": "node scripts/verify-native-release.mjs",
@@ -39,7 +39,8 @@
     "test:rename-persistence": "node scripts/test-rename-persistence.mjs",
     "test:rename-sync-cursor": "node scripts/test-rename-sync-cursor.mjs",
     "test:video-result-reveal": "node scripts/test-video-result-reveal.mjs",
-    "test:video-delete": "node scripts/test-video-delete.mjs"
+    "test:video-delete": "node scripts/test-video-delete.mjs",
+    "test:briefing-request-timeouts": "node scripts/test-briefing-request-timeouts.mjs"
   },
   "dependencies": {
     "@aparajita/capacitor-secure-storage": "8.0.0",
