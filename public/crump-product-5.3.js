@@ -3776,6 +3776,18 @@
     if (openContinuation && job.canContinue) {
       byId('crump53ContinueScene')?.click();
     }
+    // The result renders at the bottom of a tall studio dialog; reveal it so
+    // opening a saved video (or a finished generation) shows in front of the
+    // user instead of below the fold.
+    requestAnimationFrame(() => revealVideoResult());
+  }
+
+  function revealVideoResult() {
+    const node = byId('crump53VideoResult');
+    if (!node || !node.isConnected || !node.getClientRects().length) return;
+    if (typeof node.scrollIntoView === 'function') {
+      node.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   }
 
   function renderRecentVideos() {
