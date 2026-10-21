@@ -13,7 +13,10 @@ from fastapi.responses import JSONResponse
 from ..ai_service import AIServiceError
 from ..auth_service import (
     GUEST_MESSAGE_LIMIT,
+    GUEST_STRIPPED_PAYLOAD_KEYS,
     authenticate_request,
+    guest_account_required_response,
+    guest_blocked_signal,
     is_guest_user,
     reserve_guest_message,
 )
@@ -743,6 +746,9 @@ async def _chat_impl(request: Request):
     explicit_mode = str(request_payload.get('intelligenceMode') or '').strip().lower()
     explicit_verification = str(request_payload.get('verificationMode') or '').strip().lower()
     premium_intelligence_requested = explicit_mode == 'deep' or explicit_verification == 'strict'
+    if premium_intelligence_requested and is_guest_user(auth.user):
+        # Guests hear "create a free account", not a plan upsell.
+        return guest_account_required_response('deep thinking and strict verification')
     if premium_intelligence_requested and not think_longer_entitled:
         try:
             await features.require_tier(auth.user, 'think_longer')
@@ -897,6 +903,27 @@ async def _chat_impl(request: Request):
         # messages consume allowance. The reservation is an atomic
         # compare-and-swap keyed to this claim, so concurrent fresh
         # messages cannot both take the last free slot.
+        # Guest capability allowlist, enforced server-side before any file
+        # resolution, preparation, or provider work: explicit signals for
+        # account-only capabilities are refused (without consuming
+        # allowance — the message never runs), and client-supplied
+        # creation/tool markers are stripped so nothing downstream can
+        # pick them up. Semantic intent is constrained inside prepare
+        # (guest_preview) and by the downgrade of text-detected artifact
+        # intent further below.
+        blocked_signal = guest_blocked_signal(
+            request_payload,
+            image_requested=media.is_image_request(
+                str(request_payload.get('message') or ''), None,
+            ),
+        )
+        if blocked_signal is not None:
+            released = await release_owned_chat_claim('GUEST_ACCOUNT_REQUIRED')
+            if not released:
+                logger.warning('Guest capability claim release was not confirmed.')
+            return guest_account_required_response(blocked_signal)
+        for marker in GUEST_STRIPPED_PAYLOAD_KEYS:
+            request_payload.pop(marker, None)
         if not await reserve_guest_message(db, auth.user):
             released = await release_owned_chat_claim('GUEST_LIMIT_REACHED')
             if not released:
@@ -1118,11 +1145,18 @@ async def _chat_impl(request: Request):
         history=request_payload.get('history'),
     )
     legacy_long_form = artifacts.is_long_form_request(str(request_payload.get('message') or ''))
+    if is_guest_user(auth.user):
+        # Text-detected document/manuscript intent is downgraded to plain
+        # chat for guests: the answer arrives as text, never as a packaged
+        # file or a manuscript workspace.
+        legacy_artifact = None
+        legacy_long_form = False
     prepared = await intelligence.prepare(
         auth.user['id'],
         request_payload,
         allow_think_longer=think_longer_entitled,
         user_tier=effective_user_tier,
+        guest_preview=is_guest_user(auth.user),
     )
     prepared_creation_kind = str((prepared.creation_intent or {}).get('kind') or '')
     manuscript_epub = bool(
@@ -1295,7 +1329,10 @@ async def _chat_impl(request: Request):
             draft_planned_steps = chapter_count_from_prompt(execution_brief)
             components['manuscript_blueprint'] = 1
             components['manuscript_draft'] = draft_planned_steps
-        elif not semantic_chat_only:
+        elif not semantic_chat_only and not is_guest_user(auth.user):
+            # Guests are never authorized feature components (research,
+            # images, visual analysis): the guest reservation above is
+            # their only meter, and their lookup policy is already off.
             feature_code, feature_metadata = feature_for_request(
                 payload=request_payload,
                 file_rows=file_rows,

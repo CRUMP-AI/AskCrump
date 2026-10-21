@@ -205,3 +205,79 @@ def test_reserve_always_passes_for_full_accounts():
     db = CasDb(0)
     assert asyncio.run(reserve_guest_message(db, full_user())) is True
     assert db.update_calls == 0
+
+
+# --- Guest capability allowlist (direct signals) ----------------------------
+
+from backend.auth_service import guest_blocked_signal  # noqa: E402
+
+
+@pytest.mark.parametrize('payload,image_requested,expected', [
+    ({'message': 'What is the capital of France?'}, False, None),
+    ({'message': 'Explain recursion like I am five'}, False, None),
+    ({'message': 'hi', 'fileRefs': [{'id': 'f1'}]}, False, 'file attachments'),
+    ({'message': 'hi', 'history': [{'role': 'user', 'fileRefs': ['f9']}]}, False, 'file attachments'),
+    ({'message': 'hi', 'projectId': 'p1'}, False, 'Projects'),
+    ({'message': 'hi', 'artifactFormat': 'docx'}, False, 'document downloads'),
+    ({'message': 'hi', 'longForm': True}, False, 'manuscripts'),
+    ({'message': 'hi', 'creativeTool': 'image'}, False, 'creative tools'),
+    ({'message': 'hi', 'requestedTool': 'web'}, False, 'web research'),
+    ({'message': 'draw a cat'}, True, 'image creation'),
+    ({'message': 'hi', 'imageReferencePlan': [{'x': 1}]}, False, 'image creation'),
+    ({'message': 'hi', 'imageUseReference': True}, False, 'image creation'),
+])
+def test_guest_blocked_signal_matrix(payload, image_requested, expected):
+    assert guest_blocked_signal(payload, image_requested=image_requested) == expected
+
+
+# --- Preparation lockdown in guest mode -------------------------------------
+
+from backend.intelligence_service import IntelligenceService  # noqa: E402
+
+
+class ExplodingAi:
+    def __getattr__(self, name):
+        raise AssertionError(f'AI service must not be touched here (.{name})')
+
+
+class StubDb:
+    async def select_one(self, table, columns='*', filters=None, **kwargs):
+        return None
+
+    async def select(self, table, columns='*', filters=None, **kwargs):
+        return []
+
+    async def rpc(self, name, params=None, **kwargs):
+        return []
+
+
+def test_prepare_guest_preview_disables_creation_and_lookups():
+    service = IntelligenceService(db=StubDb(), ai=ExplodingAi(), settings=SETTINGS)
+    prepared = asyncio.run(service.prepare(
+        'guest-1',
+        {
+            'message': 'Write me a childrens book about a turtle and search the web for turtle facts',
+            'requestedTool': 'web',
+            'creationIntent': {'kind': 'manuscript', 'stage': 'execute'},
+            'creativeTool': 'image',
+        },
+        allow_think_longer=False,
+        user_tier='free',
+        guest_preview=True,
+    ))
+    assert prepared.creation_intent is None
+    assert prepared.payload['_externalLookupPolicy'] == {'search': False, 'weather': False}
+    assert 'needsSearch' not in prepared.payload
+    assert 'needsWeather' not in prepared.payload
+    assert 'creationIntent' not in prepared.payload
+
+
+def test_prepare_registered_user_keeps_tool_policy():
+    service = IntelligenceService(db=StubDb(), ai=ExplodingAi(), settings=SETTINGS)
+    prepared = asyncio.run(service.prepare(
+        'user-1',
+        {'message': 'What is the weather in Savannah today?'},
+        allow_think_longer=False,
+        user_tier='free',
+    ))
+    assert prepared.payload['_externalLookupPolicy']['weather'] is True

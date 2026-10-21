@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import Request
+from fastapi.responses import JSONResponse
 
 from .config import Settings
 from .db import SupabaseDB, eq, gt
@@ -79,6 +80,94 @@ async def reserve_guest_message(db: SupabaseDB, user: dict[str, Any]) -> bool:
         if updated:
             return True
     return False
+
+
+def guest_account_required_response(feature_label: str) -> JSONResponse:
+    message = (
+        f'Guest preview covers standard chat. Create your free account to use '
+        f'{feature_label} — this conversation will be saved to your account.'
+    )
+    return JSONResponse(
+        status_code=403,
+        content={
+            'success': False,
+            'error': message,
+            'message': message,
+            'code': 'GUEST_ACCOUNT_REQUIRED',
+            'guestAccountRequired': True,
+        },
+    )
+
+
+# Client-supplied payload markers that carry no authority for a guest. The
+# chat route strips them before preparation so nothing downstream can pick
+# them up.
+GUEST_STRIPPED_PAYLOAD_KEYS = (
+    'creationIntent',
+    'creativeTool',
+    'artifactFormat',
+    'longForm',
+    'requestedTool',
+    'suppressCreativeExecution',
+    'imageUseReference',
+    'imageReferencePlan',
+    'imageReferencePlanConfirmed',
+)
+
+
+def _payload_file_ids(payload: dict[str, Any]) -> list[str]:
+    result: list[str] = []
+    values = payload.get('fileRefs') or []
+    if isinstance(values, list):
+        for item in values:
+            value = item.get('id') if isinstance(item, dict) else item
+            if value:
+                result.append(str(value))
+    history = payload.get('history') or []
+    if isinstance(history, list):
+        for item in history:
+            if not isinstance(item, dict):
+                continue
+            refs = item.get('fileRefs') or []
+            if not isinstance(refs, list):
+                continue
+            for value in refs:
+                file_id = value.get('id') if isinstance(value, dict) else value
+                if file_id:
+                    result.append(str(file_id))
+    return result
+
+
+def guest_blocked_signal(payload: dict[str, Any], *, image_requested: bool = False) -> str | None:
+    """Direct guest capability signals that require an account.
+
+    Only explicit client signals are rejected here; `image_requested` is
+    the caller's media-service verdict for the message text. Semantic
+    intent is handled separately: creation inference is disabled for
+    guests and text-detected artifact/manuscript intent is downgraded to
+    plain chat, so an ordinary question is never bounced — it is
+    answered as text.
+    """
+    if _payload_file_ids(payload):
+        return 'file attachments'
+    if str(payload.get('projectId') or '').strip():
+        return 'Projects'
+    if str(payload.get('artifactFormat') or '').strip():
+        return 'document downloads'
+    if payload.get('longForm'):
+        return 'manuscripts'
+    if str(payload.get('creativeTool') or '').strip():
+        return 'creative tools'
+    if str(payload.get('requestedTool') or '').strip().lower() == 'web':
+        return 'web research'
+    if (
+        image_requested
+        or payload.get('imageUseReference') is True
+        or payload.get('imageReferencePlan') is not None
+        or payload.get('imageReferencePlanConfirmed') is True
+    ):
+        return 'image creation'
+    return None
 
 
 def public_user(user: dict[str, Any]) -> dict[str, Any]:
