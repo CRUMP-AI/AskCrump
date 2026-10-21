@@ -1241,6 +1241,8 @@ body.crump-v1-body .v1-launchpad-mark video {
   height: 74px;
   object-fit: contain;
   filter: drop-shadow(0 16px 28px rgba(217,191,132,.09));
+  -webkit-mask-image: radial-gradient(100% 100% at 50% 50%, #000 82%, transparent 100%);
+  mask-image: radial-gradient(100% 100% at 50% 50%, #000 82%, transparent 100%);
 }
 body.crump-v1-body .v1-launchpad-greeting {
   margin-bottom: 9px;
