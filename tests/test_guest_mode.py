@@ -149,3 +149,59 @@ def test_wrong_token_is_unauthorized_even_for_accounts():
             make_request('some-other-token'), db, SETTINGS, touch=False,
         ))
     assert excinfo.value.status_code == 401
+
+
+# --- Allowance reservation (compare-and-swap) -------------------------------
+
+from backend.auth_service import reserve_guest_message  # noqa: E402
+
+
+class CasDb:
+    """In-memory users row with PostgREST-style conditional PATCH semantics."""
+
+    def __init__(self, count, *, steal_first_race=False):
+        self.count = count
+        self.steal_first_race = steal_first_race
+        self.update_calls = 0
+
+    async def select_one(self, table, columns='*', filters=None):
+        assert table == 'users'
+        return {'guest_message_count': self.count}
+
+    async def update(self, table, payload, *, filters):
+        assert table == 'users'
+        self.update_calls += 1
+        expected = int(str(filters['guest_message_count']).removeprefix('eq.'))
+        if self.steal_first_race and self.update_calls == 1:
+            # A concurrent request consumed the slot between read and PATCH.
+            self.count = GUEST_MESSAGE_LIMIT
+            return []
+        if self.count != expected:
+            return []
+        self.count = payload['guest_message_count']
+        return [{'guest_message_count': self.count}]
+
+
+def test_reserve_consumes_a_slot_below_the_cap():
+    db = CasDb(4)
+    assert asyncio.run(reserve_guest_message(db, guest_user(4))) is True
+    assert db.count == 5
+
+
+def test_reserve_refuses_at_the_cap_without_writing():
+    db = CasDb(5)
+    assert asyncio.run(reserve_guest_message(db, guest_user(5))) is False
+    assert db.count == 5
+    assert db.update_calls == 0
+
+
+def test_reserve_loses_a_race_at_the_cap_cleanly():
+    db = CasDb(4, steal_first_race=True)
+    assert asyncio.run(reserve_guest_message(db, guest_user(4))) is False
+    assert db.count == 5
+
+
+def test_reserve_always_passes_for_full_accounts():
+    db = CasDb(0)
+    assert asyncio.run(reserve_guest_message(db, full_user())) is True
+    assert db.update_calls == 0

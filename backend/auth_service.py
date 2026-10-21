@@ -43,6 +43,44 @@ def guest_limit_reached(user: dict[str, Any] | None) -> bool:
     return int(user.get('guest_message_count') or 0) >= GUEST_MESSAGE_LIMIT
 
 
+async def reserve_guest_message(db: SupabaseDB, user: dict[str, Any]) -> bool:
+    """Atomically consume one message from a guest's allowance.
+
+    Compare-and-swap on users.guest_message_count: the PATCH only lands
+    when the stored count still equals the value just read, so two
+    concurrent fresh messages can never both take the last slot. Returns
+    False when the allowance is exhausted (or a race was lost at the cap).
+    Callers must invoke this only for a genuinely fresh message — after
+    any idempotency claim has resolved — so retries never double-charge.
+    A successful reservation is consumed even if generation later fails:
+    the allowance counts messages accepted for generation, the same
+    send-based metering the registered plans use. Non-guests have no
+    allowance and always pass.
+    """
+    if not is_guest_user(user):
+        return True
+    user_id = str(user.get('id') or '')
+    if not user_id:
+        return False
+    for _attempt in range(2):
+        row = await db.select_one(
+            'users',
+            columns='guest_message_count',
+            filters={'id': eq(user_id)},
+        )
+        count = int((row or {}).get('guest_message_count') or 0)
+        if count >= GUEST_MESSAGE_LIMIT:
+            return False
+        updated = await db.update(
+            'users',
+            {'guest_message_count': count + 1, 'updated_at': iso_now()},
+            filters={'id': eq(user_id), 'guest_message_count': eq(count)},
+        )
+        if updated:
+            return True
+    return False
+
+
 def public_user(user: dict[str, Any]) -> dict[str, Any]:
     tier = tier_name(user)
     internal_access = bool(user.get('internal_tier'))

@@ -14,8 +14,8 @@ from ..ai_service import AIServiceError
 from ..auth_service import (
     GUEST_MESSAGE_LIMIT,
     authenticate_request,
-    guest_limit_reached,
     is_guest_user,
+    reserve_guest_message,
 )
 from ..checkin_service import mark_check_in_responded
 from ..db import eq
@@ -732,18 +732,6 @@ async def _chat_impl(request: Request):
     started = time.perf_counter()
     request_id = request.headers.get('X-Request-ID') or str(uuid4())
     auth = await authenticate_request(request, db, settings)
-    if guest_limit_reached(auth.user):
-        return JSONResponse(
-            status_code=403,
-            content={
-                'success': False,
-                'error': 'You have used your free guest messages. Create your free account to keep chatting — your conversation will be saved.',
-                'message': 'You have used your free guest messages. Create your free account to keep chatting — your conversation will be saved.',
-                'code': 'GUEST_LIMIT_REACHED',
-                'guestLimitReached': True,
-                'guestMessageLimit': GUEST_MESSAGE_LIMIT,
-            },
-        )
     effective_user_tier = tier_name(auth.user)
     payload = await request.json()
     request_payload = dict(payload) if isinstance(payload, dict) else {}
@@ -903,17 +891,27 @@ async def _chat_impl(request: Request):
             }
 
     if is_guest_user(auth.user):
-        # Count exactly once per fresh claim: the claim block above returns
-        # early for cached or busy duplicates, so retries of the same
-        # message never double-charge the guest allowance.
-        await db.update(
-            'users',
-            {
-                'guest_message_count': int(auth.user.get('guest_message_count') or 0) + 1,
-                'updated_at': iso_now(),
-            },
-            filters={'id': eq(auth.user['id'])},
-        )
+        # Enforce the guest allowance only now — after the claim block has
+        # resolved — so a retry of an already-completed message returns its
+        # cached reply instead of the wall, and only genuinely fresh
+        # messages consume allowance. The reservation is an atomic
+        # compare-and-swap keyed to this claim, so concurrent fresh
+        # messages cannot both take the last free slot.
+        if not await reserve_guest_message(db, auth.user):
+            released = await release_owned_chat_claim('GUEST_LIMIT_REACHED')
+            if not released:
+                logger.warning('Guest limit claim release was not confirmed.')
+            return JSONResponse(
+                status_code=403,
+                content={
+                    'success': False,
+                    'error': 'You have used your free guest messages. Create your free account to keep chatting — your conversation will be saved.',
+                    'message': 'You have used your free guest messages. Create your free account to keep chatting — your conversation will be saved.',
+                    'code': 'GUEST_LIMIT_REACHED',
+                    'guestLimitReached': True,
+                    'guestMessageLimit': GUEST_MESSAGE_LIMIT,
+                },
+            )
 
     try:
         current_file_rows = await files.resolve_many(user_id=auth.user['id'], file_ids=_file_ids(request_payload), limit=10)
