@@ -11,7 +11,12 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from ..ai_service import AIServiceError
-from ..auth_service import authenticate_request
+from ..auth_service import (
+    GUEST_MESSAGE_LIMIT,
+    authenticate_request,
+    guest_limit_reached,
+    is_guest_user,
+)
 from ..checkin_service import mark_check_in_responded
 from ..db import eq
 from ..feature_service import FeatureAccessError
@@ -268,7 +273,7 @@ async def chat_status(message_id: str, request: Request):
 
 @router.post('/artifacts/{message_id}/retry')
 async def retry_chat_artifact(message_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     try:
         normalized_message_id = normalize_chat_id(message_id)
     except Exception:
@@ -727,6 +732,18 @@ async def _chat_impl(request: Request):
     started = time.perf_counter()
     request_id = request.headers.get('X-Request-ID') or str(uuid4())
     auth = await authenticate_request(request, db, settings)
+    if guest_limit_reached(auth.user):
+        return JSONResponse(
+            status_code=403,
+            content={
+                'success': False,
+                'error': 'You have used your free guest messages. Create your free account to keep chatting — your conversation will be saved.',
+                'message': 'You have used your free guest messages. Create your free account to keep chatting — your conversation will be saved.',
+                'code': 'GUEST_LIMIT_REACHED',
+                'guestLimitReached': True,
+                'guestMessageLimit': GUEST_MESSAGE_LIMIT,
+            },
+        )
     effective_user_tier = tier_name(auth.user)
     payload = await request.json()
     request_payload = dict(payload) if isinstance(payload, dict) else {}
@@ -884,6 +901,19 @@ async def _chat_impl(request: Request):
                 'cached': True,
                 'reconciled': True,
             }
+
+    if is_guest_user(auth.user):
+        # Count exactly once per fresh claim: the claim block above returns
+        # early for cached or busy duplicates, so retries of the same
+        # message never double-charge the guest allowance.
+        await db.update(
+            'users',
+            {
+                'guest_message_count': int(auth.user.get('guest_message_count') or 0) + 1,
+                'updated_at': iso_now(),
+            },
+            filters={'id': eq(auth.user['id'])},
+        )
 
     try:
         current_file_rows = await files.resolve_many(user_id=auth.user['id'], file_ids=_file_ids(request_payload), limit=10)

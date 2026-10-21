@@ -279,7 +279,7 @@ async def _finalize_stripe_session(
 
 @router.get('/status')
 async def status(request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     wallet = await credit_status(db, auth.user['id'])
     history = await db.select(
         'credit_ledger',
@@ -379,7 +379,7 @@ async def checkout(request: Request):
             },
         )
 
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     payload = await request.json()
     pack = by_code(str((payload or {}).get('pack') or '')) if isinstance(payload, dict) else None
 
@@ -503,7 +503,7 @@ async def checkout(request: Request):
 
 @router.post('/finalize')
 async def finalize(request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     payload = await request.json()
     session_id = str((payload or {}).get('sessionId') or '').strip() if isinstance(payload, dict) else ''
     if not session_id.startswith('cs_'):
@@ -589,7 +589,7 @@ async def _revenuecat_customer(user_id: str) -> dict[str, Any] | None:
 
 @router.post('/revenuecat/sync')
 async def revenuecat_sync(request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     subscriber = await _revenuecat_customer(auth.user['id'])
     if subscriber is None:
         return JSONResponse(

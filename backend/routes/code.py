@@ -61,14 +61,14 @@ def _configured(request: Request) -> bool:
 
 @router.get("/api/code/activity")
 async def list_code_activity(request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     activity = await code_tasks.list_activity(user_id=auth.user["id"])
     return {"success": True, "activity": activity}
 
 
 @router.get("/api/projects/{project_id}/code/tasks")
 async def list_code_tasks(project_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     try:
         items = await code_tasks.list(user_id=auth.user["id"], project_id=project_id)
         return {
@@ -82,7 +82,7 @@ async def list_code_tasks(project_id: str, request: Request):
 
 @router.post("/api/projects/{project_id}/code/tasks")
 async def create_code_task(project_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     if not _configured(request):
         return _error("Crump Code is not enabled yet.", "CODE_WORKSPACE_NOT_CONFIGURED", 503)
     try:
@@ -114,7 +114,7 @@ async def create_code_task(project_id: str, request: Request):
 
 @router.get("/api/code/tasks/{task_id}")
 async def get_code_task(task_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     try:
         task = await code_tasks.get(
             user_id=auth.user["id"], task_id=task_id, include_history=True
@@ -126,7 +126,7 @@ async def get_code_task(task_id: str, request: Request):
 
 @router.post("/api/code/tasks/{task_id}/run")
 async def run_code_task(task_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     if not _configured(request):
         return _error("Crump Code is not enabled yet.", "CODE_WORKSPACE_NOT_CONFIGURED", 503)
     try:
@@ -219,7 +219,7 @@ async def run_code_task(task_id: str, request: Request):
 
 @router.post("/api/code/tasks/{task_id}/cancel")
 async def cancel_code_task(task_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     try:
         task = await code_tasks.get(user_id=auth.user["id"], task_id=task_id)
         cancelled = await code_tasks.cancel(task)
@@ -237,7 +237,7 @@ async def cancel_code_task(task_id: str, request: Request):
 
 @router.post("/api/code/tasks/{task_id}/approvals/{approval_id}")
 async def decide_code_approval(task_id: str, approval_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     payload = await request.json()
     if not isinstance(payload, dict):
         return _error("Invalid approval decision.", "INVALID_APPROVAL", 400)

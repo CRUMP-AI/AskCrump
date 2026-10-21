@@ -36,7 +36,7 @@ def failure(exc: FileServiceError | AIServiceError) -> JSONResponse:
 @router.get('')
 async def list_files(request: Request, kind: str = '', limit: int = 100):
     """Return the signed-in account's durable private-file library."""
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     normalized_kind = str(kind or '').strip().lower()
     if normalized_kind and normalized_kind not in LISTABLE_KINDS:
         return JSONResponse(
@@ -61,7 +61,7 @@ async def list_files(request: Request, kind: str = '', limit: int = 100):
 
 @router.post('/sign-upload')
 async def sign_upload(request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     payload = await request.json()
     if not isinstance(payload, dict):
         return JSONResponse(
@@ -84,7 +84,7 @@ async def sign_upload(request: Request):
 
 @router.post('/{file_id}/complete')
 async def complete(file_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     try:
         normalized = normalize_chat_id(file_id)
         item = await files.complete_upload(user_id=auth.user['id'], file_id=normalized)
@@ -96,7 +96,7 @@ async def complete(file_id: str, request: Request):
 @router.post('/{file_id}/image-adjust')
 async def image_adjust(file_id: str, request: Request):
     """Save a deterministic, provider-free image version without overwriting its source."""
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     payload = await request.json()
     if not isinstance(payload, dict):
         return JSONResponse(
@@ -129,7 +129,7 @@ async def image_adjust(file_id: str, request: Request):
 @router.get('/{file_id}/versions')
 async def image_versions(file_id: str, request: Request):
     """Return an owner-scoped, content-free lineage for one image version."""
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     try:
         normalized = normalize_chat_id(file_id)
         current = await files.get_owned(user_id=auth.user['id'], file_id=normalized)
@@ -203,7 +203,7 @@ async def chat_files(chat_id: str, request: Request):
     5.0/5.1, whose file arrays retained names/types but lost durable file IDs.
     The response never exposes storage paths or service-role credentials.
     """
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     normalized_chat = normalize_chat_id(chat_id)
     rows = await db.select(
         'user_files',
@@ -221,7 +221,7 @@ async def chat_files(chat_id: str, request: Request):
 
 @router.get('/{file_id}/content')
 async def content(file_id: str, request: Request, download: int = 0):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     try:
         normalized = normalize_chat_id(file_id)
         row = await files.get_owned(user_id=auth.user['id'], file_id=normalized)
@@ -274,7 +274,7 @@ async def signed(file_id: str, request: Request, download: bool = False):
     Native media saving needs the storage URL itself because the operating-system
     Photos API cannot follow Ask Crump's authenticated application redirect.
     """
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     try:
         normalized = normalize_chat_id(file_id)
         row = await files.get_owned(user_id=auth.user['id'], file_id=normalized)
@@ -319,7 +319,7 @@ async def playback(file_id: str, request: Request):
     user's session first, then streams the video directly from private storage
     with a time-limited signature.
     """
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     try:
         normalized = normalize_chat_id(file_id)
         row = await files.get_owned(user_id=auth.user['id'], file_id=normalized)
@@ -345,7 +345,7 @@ async def playback(file_id: str, request: Request):
 
 @router.delete('/{file_id}')
 async def delete(file_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     try:
         await files.soft_delete(
             user_id=auth.user['id'],

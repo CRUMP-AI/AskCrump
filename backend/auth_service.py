@@ -26,6 +26,23 @@ class AuthenticationError(RuntimeError):
         self.status_code = status_code
 
 
+# Guest mode: a signed-out visitor gets a real anonymous account and a small
+# chat allowance. Reaching the limit (or touching any account/paid surface)
+# is what asks them to create a free account — which upgrades the same row,
+# so their conversation carries over.
+GUEST_MESSAGE_LIMIT = 5
+
+
+def is_guest_user(user: dict[str, Any] | None) -> bool:
+    return bool(user and user.get('is_guest'))
+
+
+def guest_limit_reached(user: dict[str, Any] | None) -> bool:
+    if not is_guest_user(user):
+        return False
+    return int(user.get('guest_message_count') or 0) >= GUEST_MESSAGE_LIMIT
+
+
 def public_user(user: dict[str, Any]) -> dict[str, Any]:
     tier = tier_name(user)
     internal_access = bool(user.get('internal_tier'))
@@ -35,6 +52,9 @@ def public_user(user: dict[str, Any]) -> dict[str, Any]:
         'fullName': user.get('full_name'),
         'profilePicture': user.get('profile_picture'),
         'isVerified': bool(user.get('is_verified')),
+        'isGuest': bool(user.get('is_guest')),
+        'guestMessagesUsed': int(user.get('guest_message_count') or 0),
+        'guestMessageLimit': GUEST_MESSAGE_LIMIT,
         'createdAt': user.get('created_at'),
         'preferences': user.get('preferences') or {},
         'tier': tier,
@@ -174,6 +194,7 @@ async def authenticate_request(
     settings: Settings,
     *,
     touch: bool = True,
+    require_account: bool = False,
 ) -> AuthenticatedUser:
     raw_tokens = session_tokens_from_request(request, settings)
     if not raw_tokens:
@@ -201,6 +222,11 @@ async def authenticate_request(
     user = await db.select_one('users', columns='*', filters={'id': eq(session['user_id'])})
     if not user or user.get('deleted_at'):
         raise AuthenticationError('This account is no longer available.')
+    if require_account and is_guest_user(user):
+        raise AuthenticationError(
+            'Create your free account to use this feature.',
+            status_code=403,
+        )
 
     if touch:
         last = session.get('last_activity')

@@ -11,6 +11,7 @@ from ..auth_service import (
     AuthenticationError,
     authenticate_request,
     create_session,
+    is_guest_user,
     public_user,
     revoke_current_session,
 )
@@ -35,6 +36,7 @@ from ..schemas import (
 )
 from ..verification_handoff import verified_workspace_url
 from ..security import (
+    client_ip,
     expiry_iso,
     hash_password,
     iso_now,
@@ -151,24 +153,46 @@ async def register(payload: RegisterRequest, request: Request):
         await db.update('users', verification_values, filters={'id': eq(existing['id'])})
         user = {**existing, **verification_values}
     else:
-        user_payload = {
-            'id': new_uuid(),
-            'email': email,
-            'password_hash': hash_password(payload.password),
-            'full_name': (payload.fullName or '').strip() or None,
-            'is_verified': False,
-            'verification_token_hash': verification_values['verification_token_hash'],
-            'verification_token_expires': verification_values['verification_token_expires'],
-            'subscription_tier': 'free',
-            'subscription_status': 'inactive',
-            'registration_environment': environment_for_request(request),
-            'preferences': {},
-            'created_at': now,
-            'updated_at': now,
-            **terms_values,
-        }
-        inserted = await db.insert('users', user_payload)
-        user = inserted[0] if isinstance(inserted, list) and inserted else user_payload
+        guest_user = None
+        try:
+            session_auth = await authenticate_request(request, db, settings, touch=False)
+            if is_guest_user(session_auth.user):
+                guest_user = session_auth.user
+        except AuthenticationError:
+            guest_user = None
+        if guest_user:
+            # Conversion: the guest's own row becomes the account, so their
+            # conversations and history carry over instead of starting over.
+            # is_guest stays set until the email is verified (see
+            # verify_email) — registration alone must not unlock a full
+            # account behind an unverified address.
+            conversion_values = {
+                'email': email,
+                'password_hash': hash_password(payload.password),
+                'full_name': (payload.fullName or '').strip() or None,
+                **verification_values,
+            }
+            await db.update('users', conversion_values, filters={'id': eq(guest_user['id'])})
+            user = {**guest_user, **conversion_values}
+        else:
+            user_payload = {
+                'id': new_uuid(),
+                'email': email,
+                'password_hash': hash_password(payload.password),
+                'full_name': (payload.fullName or '').strip() or None,
+                'is_verified': False,
+                'verification_token_hash': verification_values['verification_token_hash'],
+                'verification_token_expires': verification_values['verification_token_expires'],
+                'subscription_tier': 'free',
+                'subscription_status': 'inactive',
+                'registration_environment': environment_for_request(request),
+                'preferences': {},
+                'created_at': now,
+                'updated_at': now,
+                **terms_values,
+            }
+            inserted = await db.insert('users', user_payload)
+            user = inserted[0] if isinstance(inserted, list) and inserted else user_payload
         await db.upsert(
             'user_settings',
             {'user_id': user['id'], 'updated_at': now},
@@ -213,6 +237,77 @@ async def register(payload: RegisterRequest, request: Request):
     else:
         message = 'Email delivery is not configured; an administrator must enable RESEND_API_KEY.'
     return {'success': True, 'message': message, 'emailSent': sent}
+
+
+@router.post('/guest')
+async def start_guest_session(request: Request, response: Response):
+    # A browser that already holds any valid session keeps it; guest sessions
+    # are minted only for genuinely signed-out visitors.
+    try:
+        current = await authenticate_request(request, db, settings, touch=False)
+        return {
+            'success': True,
+            'data': {
+                'user': public_user(current.user),
+                'guest': is_guest_user(current.user),
+            },
+        }
+    except AuthenticationError:
+        pass
+
+    ip = client_ip(
+        dict(request.headers),
+        request.client.host if request.client else None,
+    ) or 'unknown'
+    await enforce_auth_rate_limit(
+        db,
+        request,
+        action='guest',
+        identity=ip,
+        identity_limit=3,
+        ip_limit=3,
+        window_seconds=86400,
+    )
+    now = iso_now()
+    guest_id = new_uuid()
+    user_payload = {
+        'id': guest_id,
+        # Placeholder address: never mailed, never shown as the visitor's
+        # identity, and replaced by the real email when the guest registers.
+        # It keeps the row valid under the existing email constraints.
+        'email': f'guest-{guest_id}@guest.askcrump.local',
+        'password_hash': None,
+        'full_name': None,
+        'is_verified': False,
+        'is_guest': True,
+        'guest_message_count': 0,
+        'subscription_tier': 'free',
+        'subscription_status': 'inactive',
+        'registration_environment': environment_for_request(request),
+        'preferences': {},
+        'created_at': now,
+        'updated_at': now,
+    }
+    inserted = await db.insert('users', user_payload)
+    user = inserted[0] if isinstance(inserted, list) and inserted else user_payload
+    await db.upsert(
+        'user_settings',
+        {'user_id': user['id'], 'updated_at': now},
+        on_conflict='user_id',
+    )
+    raw_token, session = await create_session(db, settings, user, request)
+    set_session_cookie(response, raw_token, request)
+    logger.info('Auth guest outcome=session_issued client=%s', _auth_client_kind(request))
+    return {
+        'success': True,
+        'message': 'Guest session started.',
+        'data': {
+            'user': public_user(user),
+            'guest': True,
+            'expiresAt': session.get('expires_at'),
+            **native_token_payload(request, raw_token),
+        },
+    }
 
 
 @router.post('/login')
@@ -602,6 +697,11 @@ async def verify_email(
             'verification_token_expires': expiry_iso(minutes=15),
             'updated_at': iso_now(),
         }
+        if user.get('is_guest'):
+            # A converted guest becomes a full account at verification —
+            # the moment inbox control is proven. Their guest conversation
+            # history stays attached to this same user row.
+            verification_values['is_guest'] = False
         await db.update(
             'users',
             verification_values,

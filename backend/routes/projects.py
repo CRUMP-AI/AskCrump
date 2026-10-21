@@ -40,7 +40,7 @@ def _projects_unavailable() -> JSONResponse:
 
 @router.get("")
 async def list_projects(request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     items = await projects.list(auth.user["id"])
     return {
         "success": True,
@@ -51,7 +51,7 @@ async def list_projects(request: Request):
 
 @router.post("")
 async def create_project(request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     payload = await request.json()
     if not isinstance(payload, dict):
         return _error("Invalid project request.", "INVALID_PROJECT_REQUEST", 400)
@@ -134,7 +134,7 @@ async def project_limit_plan_message_shown(
     payload: ProjectLimitPlanShownRequest,
     request: Request,
 ):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     result = await record_project_limit_plan_message_shown(
         db,
         user_id=auth.user["id"],
@@ -148,7 +148,7 @@ async def project_limit_plan_message_shown(
 
 @router.post("/{project_id}/chats")
 async def attach_project_chat(project_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     payload = await request.json()
     if not isinstance(payload, dict):
         return _error("Invalid conversation request.", "INVALID_PROJECT_CHAT", 400)
@@ -192,7 +192,7 @@ async def attach_project_chat(project_id: str, request: Request):
 
 @router.get("/for-chat/{chat_id}")
 async def project_for_chat(chat_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     try:
         item = await projects.find_for_chat(
             user_id=auth.user["id"],
@@ -211,7 +211,7 @@ async def project_for_chat(chat_id: str, request: Request):
 
 @router.get("/target/{project_id}")
 async def project_target(project_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     try:
         item = await projects.get(auth.user["id"], project_id)
         project = {
@@ -225,7 +225,7 @@ async def project_target(project_id: str, request: Request):
 
 @router.get("/{project_id}/chats")
 async def list_project_chats(project_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     try:
         conversations = await projects.list_chats(
             user_id=auth.user["id"],
@@ -238,7 +238,7 @@ async def list_project_chats(project_id: str, request: Request):
 
 @router.get("/{project_id}")
 async def get_project(project_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     try:
         item = await projects.get(auth.user["id"], project_id)
         context = await projects.hydrate_context(auth.user["id"], project_id)
@@ -249,7 +249,7 @@ async def get_project(project_id: str, request: Request):
 
 @router.patch("/{project_id}")
 async def update_project(project_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     payload = await request.json()
     try:
         item = await projects.update(
@@ -266,7 +266,7 @@ async def update_project(project_id: str, request: Request):
 
 @router.delete("/{project_id}")
 async def archive_project(project_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     try:
         await projects.archive(auth.user["id"], project_id)
         return {"success": True}
@@ -276,7 +276,7 @@ async def archive_project(project_id: str, request: Request):
 
 @router.post("/{project_id}/context")
 async def add_context(project_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     payload = await request.json()
     if not isinstance(payload, dict):
         return _error("Invalid context request.", "INVALID_CONTEXT", 400)
@@ -297,7 +297,7 @@ async def add_context(project_id: str, request: Request):
 
 @router.get("/{project_id}/files")
 async def project_files(project_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     try:
         project = await projects.get(auth.user["id"], project_id)
         mappings = await db.select(
@@ -331,7 +331,7 @@ async def project_files(project_id: str, request: Request):
 
 @router.post("/{project_id}/files")
 async def attach_project_file(project_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     payload = await request.json()
     if not isinstance(payload, dict):
         return _error("Invalid file request.", "INVALID_PROJECT_FILE", 400)
