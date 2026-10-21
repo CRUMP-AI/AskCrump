@@ -1595,6 +1595,14 @@
   function openStudio(tab = 'projects', {preserveProjectRoute = false} = {}) {
     const studio = byId('crump53Studio');
     if (!studio) return;
+    if (window.CrumpGuest?.isGuest?.()) {
+      const labels = {
+        projects: 'Projects', library: 'The Library', images: 'Image Studio',
+        video: 'Video Studio', manuscripts: 'Manuscripts', research: 'Research',
+      };
+      window.CrumpGuest.showAccountPrompt(labels[tab] || 'Studios');
+      return;
+    }
     const section = configureStudioSection(tab);
     if (section === 'video') restoreVideoReferenceDraft();
     studio.hidden = false;

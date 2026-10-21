@@ -242,3 +242,34 @@
         animation: none;
     }
 }
+
+/* Guest preview: allowance pill under the workspace header + register note. */
+.guest-preview-pill {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 8px 20px;
+  background: #0d1319;
+  border-bottom: 1px solid rgba(213, 185, 113, 0.35);
+  color: #f1efe9;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.guest-preview-link {
+  color: #d5b971;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.guest-preview-link:hover { text-decoration: underline; }
+.guest-wall-note {
+  margin: 0 0 16px;
+  padding: 12px 14px;
+  border: 1px solid rgba(213, 185, 113, 0.45);
+  border-radius: 10px;
+  background: rgba(213, 185, 113, 0.08);
+  color: #f1efe9;
+  font-size: 14px;
+  line-height: 1.5;
+}

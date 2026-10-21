@@ -763,6 +763,7 @@
     setTimeout(() => window.tutorial?.autoStart?.(), 450);
     const creationKind = dispatchPendingCreationIntent();
     if (creationKind !== 'image') dispatchPendingPlanIntent();
+    renderGuestPill();
   }
 
   function profileNudgeKey() {
@@ -776,6 +777,10 @@
   function maybeOfferProfileSetup() {
     const nudge = byId('v1ProfileNudge');
     if (!nudge) return;
+    if (isGuestUser(window.currentUser || activeUser)) {
+      nudge.hidden = true;
+      return;
+    }
     nudge.hidden = Boolean(window.currentUser?.fullName || activeUser?.fullName) || profileNudgeDismissed();
   }
 
@@ -812,6 +817,130 @@
     startApp();
     if (!user.fullName) maybeOfferProfileSetup();
   }
+
+  // ---- Guest preview -------------------------------------------------
+  // A guest session is a real (bounded) account: five chat messages, no
+  // account features. The pill keeps the remaining allowance visible;
+  // the wall and the feature prompts route into registration, which
+  // converts the same account and keeps this conversation.
+  let guestPillState = null;
+
+  function isGuestUser(user) {
+    return Boolean(user?.isGuest);
+  }
+
+  function guestPillCounts(user) {
+    const limit = Math.max(1, Number(user?.guestMessageLimit || guestPillState?.limit || 5));
+    const serverUsed = Number(user?.guestMessagesUsed);
+    const used = Math.max(
+      Number.isFinite(serverUsed) ? serverUsed : 0,
+      Number(guestPillState?.used || 0),
+    );
+    return {used: Math.min(used, limit), limit};
+  }
+
+  function renderGuestPill() {
+    const user = window.currentUser || activeUser;
+    const existing = byId('guestPreviewPill');
+    if (!isGuestUser(user)) {
+      guestPillState = null;
+      existing?.remove();
+      return;
+    }
+    guestPillState = guestPillCounts(user);
+    let pill = existing;
+    if (!pill) {
+      pill = document.createElement('div');
+      pill.id = 'guestPreviewPill';
+      pill.className = 'guest-preview-pill';
+      pill.setAttribute('role', 'region');
+      pill.setAttribute('aria-label', 'Guest preview');
+      const copy = document.createElement('span');
+      copy.className = 'guest-preview-copy';
+      const link = document.createElement('a');
+      link.href = '#';
+      link.className = 'guest-preview-link';
+      link.textContent = 'Create a free account';
+      link.addEventListener('click', event => {
+        event.preventDefault();
+        showGuestWall();
+      });
+      pill.append(copy, link);
+      document.querySelector('.v1-workspace-header')?.insertAdjacentElement('afterend', pill);
+    }
+    const remaining = guestPillState.limit - guestPillState.used;
+    const copy = pill.querySelector('.guest-preview-copy');
+    if (copy) {
+      copy.textContent = remaining > 0
+        ? `Guest preview · ${remaining} of ${guestPillState.limit} messages left — a free account includes 25 a day and saves your work.`
+        : 'Guest preview · your messages are used up — create a free account to keep going.';
+    }
+  }
+
+  function showGuestNote(text) {
+    const note = byId('guestWallNote');
+    if (!note) return;
+    note.textContent = text;
+    note.hidden = false;
+  }
+
+  function showGuestWall() {
+    showAuth('register');
+    showGuestNote('Your guest preview is complete. Create your free account to keep chatting — 25 messages a day, and this conversation is saved to your account.');
+  }
+
+  function showGuestAccountPrompt(featureLabel) {
+    showAuth('register');
+    showGuestNote(`${featureLabel} comes with a free account. Create yours to unlock it — this conversation is saved, and the Free plan includes 25 messages a day.`);
+  }
+
+  function handleGuestChatError(error) {
+    const code = String(error?.code || '').toUpperCase();
+    if (code === 'GUEST_LIMIT_REACHED') {
+      if (guestPillState) guestPillState = {used: guestPillState.limit, limit: guestPillState.limit};
+      renderGuestPill();
+      showGuestWall();
+    } else if (code === 'GUEST_ACCOUNT_REQUIRED') {
+      const match = /to use (.+?) —/.exec(String(error?.message || ''));
+      const feature = match ? match[1].charAt(0).toUpperCase() + match[1].slice(1) : 'That feature';
+      showGuestAccountPrompt(feature);
+    }
+  }
+
+  async function enterAsGuest() {
+    try {
+      const {response, data} = await authRequest(
+        '/api/auth/guest',
+        {method: 'POST'},
+        'Starting a guest preview took too long. Try again.',
+      );
+      if (!response.ok || !data?.success) return false;
+      const session = await window.deviceAuth.checkSession();
+      if (!session.authenticated || !session.data?.user?.isGuest) return false;
+      await prepareAuthenticatedWorkspace();
+      activeUser = session.data.user;
+      window.currentUser = activeUser;
+      window.configureUserStorage?.(activeUser.id);
+      applyServerSettings(session.data.settings);
+      if (new URLSearchParams(location.search).get('signup') === '1') trackSignupIntent('deep-link');
+      routeAuthenticatedUser(activeUser);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  window.CrumpGuest = Object.freeze({
+    isGuest: () => isGuestUser(window.currentUser || activeUser),
+    noteMessageSent() {
+      if (!isGuestUser(window.currentUser || activeUser)) return;
+      if (guestPillState) guestPillState.used = Math.min(guestPillState.used + 1, guestPillState.limit);
+      renderGuestPill();
+    },
+    onChatError: handleGuestChatError,
+    showAccountPrompt: showGuestAccountPrompt,
+    refreshPill: renderGuestPill,
+  });
 
   function focusAuthView(view) {
     const fieldId = AUTH_VIEWS[view]?.fieldId;
@@ -955,6 +1084,14 @@
       return;
     }
     if (!session.authenticated || !session.data?.user) {
+      // Guest preview: a genuinely new visitor starts chatting right away
+      // in a bounded guest session. A device holding an account keeps the
+      // classic sign-in path, and a pending email verification always
+      // finishes on the auth screens.
+      const cachedHintUser = window.deviceAuth?.cachedUser?.() || null;
+      const accountOnDevice = returningDeviceHint && !cachedHintUser?.isGuest;
+      if (!accountOnDevice && !verification && await enterAsGuest()) return;
+      if (authFlowRevision !== bootstrapAuthFlowRevision) return;
       if (signupRequested) {
         showAuth('register');
         trackSignupIntent('deep-link');

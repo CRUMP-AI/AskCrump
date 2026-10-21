@@ -795,6 +795,7 @@ async function processUserMessage(chat, userMessage, attachment = null) {
 
     const data = await transport.send(requestBody);
     applyCompletedReplySafely(chat, userMessage, data);
+    window.CrumpGuest?.noteMessageSent?.();
 }
 
 async function sendMessage() {
@@ -853,6 +854,7 @@ async function sendMessage() {
         await processUserMessage(chat, userMessage, attachment);
     } catch (error) {
         console.error('[Chat]', error);
+        window.CrumpGuest?.onChatError?.(error);
         window.CrumpPresence?.stop?.();
         if (userMessage) {
             if (error.quiet) {
@@ -903,6 +905,7 @@ window.retryMessage = async function retryMessage(id) {
         await processUserMessage(chat, message, null);
     } catch (error) {
         console.error('[Chat retry]', error);
+        window.CrumpGuest?.onChatError?.(error);
         window.CrumpPresence?.stop?.();
         if (error.quiet) {
             updateMessageState(chat, message, {
