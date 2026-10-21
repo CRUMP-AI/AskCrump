@@ -1228,21 +1228,28 @@ body.crump-v1-body .v1-launchpad.is-hidden {
   pointer-events: none;
   transform: translateY(-7px);
 }
+/* Welcome mark: circular medallion with a muted-gold rim, matching the
+   badge treatment on the company site. The clip has no alpha, so the
+   container carries its ivory and the media is scaled inside the rim —
+   the full owl stays within the circle through the whole motion. */
 body.crump-v1-body .v1-launchpad-mark {
   display: grid;
   width: 76px;
   height: 76px;
   place-items: center;
   margin-bottom: 18px;
+  overflow: hidden;
+  border: 2px solid rgba(213, 185, 113, .85);
+  border-radius: 50%;
+  background: #fef8f3;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, .45);
 }
 body.crump-v1-body .v1-launchpad-mark img,
 body.crump-v1-body .v1-launchpad-mark video {
   width: 74px;
   height: 74px;
   object-fit: contain;
-  filter: drop-shadow(0 16px 28px rgba(217,191,132,.09));
-  -webkit-mask-image: radial-gradient(100% 100% at 50% 50%, #000 82%, transparent 100%);
-  mask-image: radial-gradient(100% 100% at 50% 50%, #000 82%, transparent 100%);
+  transform: scale(.88);
 }
 body.crump-v1-body .v1-launchpad-greeting {
   margin-bottom: 9px;
