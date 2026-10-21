@@ -924,7 +924,7 @@ async def _chat_impl(request: Request):
             return guest_account_required_response(blocked_signal)
         for marker in GUEST_STRIPPED_PAYLOAD_KEYS:
             request_payload.pop(marker, None)
-        if not await reserve_guest_message(db, auth.user):
+        if not await reserve_guest_message(db, auth.user, message_id=message_id):
             released = await release_owned_chat_claim('GUEST_LIMIT_REACHED')
             if not released:
                 logger.warning('Guest limit claim release was not confirmed.')

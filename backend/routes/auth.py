@@ -148,18 +148,52 @@ async def register(payload: RegisterRequest, request: Request):
             content={'success': False, 'error': 'An account with that email already exists.'},
         )
 
-    pending_account = bool(existing)
-    if existing:
+    # Detect a guest session once: same-row conversion and the
+    # pending-account guard below both depend on who is asking.
+    session_guest = None
+    try:
+        session_auth = await authenticate_request(request, db, settings, touch=False)
+        if is_guest_user(session_auth.user):
+            session_guest = session_auth.user
+    except AuthenticationError:
+        session_guest = None
+
+    own_guest_row = bool(
+        session_guest and existing and existing['id'] == session_guest['id']
+    )
+    if existing and session_guest and not own_guest_row:
+        # The submitted email belongs to a different, still-unverified
+        # registration. The guest has not proven they own that inbox, so
+        # the pending row is left completely untouched — no token rotation,
+        # no merge — and the guest session and its conversation stay as
+        # they are. The path forward is the pending account's own inbox.
+        return JSONResponse(
+            status_code=409,
+            content={
+                'success': False,
+                'error': (
+                    'That email already has a registration waiting for verification. '
+                    'Check your inbox for the verification email to finish creating '
+                    'that account. Your guest conversation is still here — nothing '
+                    'was changed.'
+                ),
+                'message': (
+                    'That email already has a registration waiting for verification. '
+                    'Check your inbox for the verification email to finish creating '
+                    'that account. Your guest conversation is still here — nothing '
+                    'was changed.'
+                ),
+                'code': 'PENDING_ACCOUNT_RECOVERY',
+                'guestPreserved': True,
+            },
+        )
+
+    pending_account = bool(existing) and not own_guest_row
+    if existing and not own_guest_row:
         await db.update('users', verification_values, filters={'id': eq(existing['id'])})
         user = {**existing, **verification_values}
     else:
-        guest_user = None
-        try:
-            session_auth = await authenticate_request(request, db, settings, touch=False)
-            if is_guest_user(session_auth.user):
-                guest_user = session_auth.user
-        except AuthenticationError:
-            guest_user = None
+        guest_user = session_guest
         if guest_user:
             # Conversion: the guest's own row becomes the account, so their
             # conversations and history carry over instead of starting over.
@@ -276,7 +310,11 @@ async def start_guest_session(request: Request, response: Response):
         # identity, and replaced by the real email when the guest registers.
         # It keeps the row valid under the existing email constraints.
         'email': f'guest-{guest_id}@guest.askcrump.local',
-        'password_hash': None,
+        # users.password_hash is NOT NULL. A guest has no password, so store
+        # a real hash of an unguessable random token whose plaintext exists
+        # nowhere: password login for a guest can never succeed, and the
+        # value is replaced when the guest registers with a real password.
+        'password_hash': hash_password(random_token(48)),
         'full_name': None,
         'is_verified': False,
         'is_guest': True,

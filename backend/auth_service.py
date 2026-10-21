@@ -44,25 +44,53 @@ def guest_limit_reached(user: dict[str, Any] | None) -> bool:
     return int(user.get('guest_message_count') or 0) >= GUEST_MESSAGE_LIMIT
 
 
-async def reserve_guest_message(db: SupabaseDB, user: dict[str, Any]) -> bool:
+async def reserve_guest_message(
+    db: SupabaseDB,
+    user: dict[str, Any],
+    *,
+    message_id: str | None = None,
+) -> bool:
     """Atomically consume one message from a guest's allowance.
 
-    Compare-and-swap on users.guest_message_count: the PATCH only lands
-    when the stored count still equals the value just read, so two
-    concurrent fresh messages can never both take the last slot. Returns
-    False when the allowance is exhausted (or a race was lost at the cap).
-    Callers must invoke this only for a genuinely fresh message — after
-    any idempotency claim has resolved — so retries never double-charge.
-    A successful reservation is consumed even if generation later fails:
-    the allowance counts messages accepted for generation, the same
-    send-based metering the registered plans use. Non-guests have no
-    allowance and always pass.
+    With a message id, the reservation is bound to a durable receipt
+    (public.reserve_guest_message): the first attempt consumes one unit
+    and records the receipt; any retry of the SAME message — after a
+    failed generation, an expired claim, or a reclaimed claim — reuses
+    that reservation and consumes nothing more. The accepted-send policy
+    is unchanged: the original reservation is never refunded. If the
+    receipt RPC is unavailable the call raises (fails closed) instead
+    of degrading to a counter-only reservation a retry could double.
+
+    Without a message id there is nothing to bind a receipt to, so the
+    fallback is a compare-and-swap on users.guest_message_count: the
+    PATCH only lands when the stored count still equals the value just
+    read, so two concurrent fresh messages can never both take the last
+    slot. Returns False when the allowance is exhausted. Callers must
+    invoke this only for a genuinely fresh message — after any
+    idempotency claim has resolved — so completed-message replays never
+    reach it. Non-guests have no allowance and always pass.
     """
     if not is_guest_user(user):
         return True
     user_id = str(user.get('id') or '')
     if not user_id:
         return False
+    if message_id:
+        # Identified messages fail closed: if the receipt RPC is not
+        # live, the send is refused by exception rather than silently
+        # degrading to a counter-only reservation that a reclaimed
+        # retry could consume twice. Callers treat a raise as "not
+        # reserved": no provider work runs and no slot is consumed.
+        raw = await db.rpc(
+            'reserve_guest_message',
+            {
+                'p_user_id': user_id,
+                'p_message_id': str(message_id),
+                'p_limit': GUEST_MESSAGE_LIMIT,
+            },
+        )
+        value = raw[0] if isinstance(raw, list) and raw else raw
+        return value in {'reserved', 'reused'}
     for _attempt in range(2):
         row = await db.select_one(
             'users',
