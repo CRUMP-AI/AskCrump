@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from pathlib import Path
-from types import SimpleNamespace
 from urllib.parse import parse_qs, urlparse
 
 import pytest
 from pydantic import ValidationError
+from starlette.requests import Request
 
 from backend.routes import auth as auth_routes
 from backend.schemas import RegisterRequest, ResendVerificationRequest
@@ -132,11 +132,11 @@ async def test_registration_and_resend_preserve_the_promised_destination(
     monkeypatch.setattr(auth_routes, "record_product_event", ignore_event)
     monkeypatch.setattr(auth_routes, "hash_password", lambda _password: "hashed")
 
-    request = SimpleNamespace(
-        headers={},
-        client=SimpleNamespace(host="127.0.0.1"),
-        url=SimpleNamespace(hostname="www.askcrump.com"),
-    )
+    request = Request({
+        "type": "http", "method": "POST", "path": "/api/auth/register",
+        "scheme": "https", "server": ("www.askcrump.com", 443),
+        "client": ("127.0.0.1", 12345), "headers": [],
+    })
     result = await auth_routes.register(
         RegisterRequest(
             email="new-user@example.com",

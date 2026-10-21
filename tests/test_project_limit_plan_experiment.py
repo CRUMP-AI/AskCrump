@@ -60,7 +60,8 @@ class FeaturesAtFreeLimit:
         return 2
 
 
-async def authenticated(*_args):
+async def authenticated(_request, _database, _settings, *, require_account=False):
+    assert require_account is True
     return SimpleNamespace(
         user={"id": "external-user", "subscription_tier": "free"},
         session={"id": "session-one"},
