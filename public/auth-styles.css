@@ -256,7 +256,19 @@
   font-size: 12.5px;
   line-height: 1.4;
   white-space: nowrap;
-  flex-shrink: 0;
+  flex-shrink: 1;
+  min-width: 0;
+  cursor: pointer;
+}
+/* Narrow viewports: the header has no room for the chip's link text, so
+   the chip compacts to the allowance alone and stays fully tappable. */
+@media (max-width: 560px) {
+  .guest-preview-pill {
+    padding: 4px 9px;
+    gap: 6px;
+    max-width: 44vw;
+  }
+  .guest-preview-link { display: none; }
 }
 .guest-preview-copy { overflow: hidden; text-overflow: ellipsis; }
 .guest-preview-link {

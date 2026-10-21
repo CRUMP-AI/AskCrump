@@ -866,6 +866,10 @@
         showGuestWall();
       });
       pill.append(copy, link);
+      pill.addEventListener('click', event => {
+        if (event.target === link) return;
+        showGuestWall();
+      });
       // The pill rides inside the workspace header so it never changes
       // the workspace layout geometry (dock offsets, scroll controls).
       document.querySelector('.v1-workspace-header')?.append(pill);
