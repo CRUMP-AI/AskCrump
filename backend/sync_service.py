@@ -21,6 +21,19 @@ MAX_MESSAGES_PER_CHAT = 1000
 MAX_MESSAGE_CHARS = 100_000
 MAX_CHAT_TEXT_CHARS = 1_500_000
 MAX_IMAGE_DATA_URI_CHARS = 2_500_000
+# Guest bounds. A guest's whole footprint is a five-message preview, so
+# sync stays available for signup continuity — the conversation must
+# survive — but within limits sized to that footprint, not the general
+# ones. Enforced server-side in push_sync; the client cannot widen them.
+# Growth past the stored ceilings is admitted only through
+# admit_guest_sync_chats, which serializes on the guest's user row and
+# records admissions durably in the same transaction (a Python-side
+# count-then-write check would race two concurrent pushes).
+GUEST_MAX_CHATS_PER_PUSH = 20
+GUEST_MAX_TOMBSTONES_PER_PUSH = 20
+GUEST_MAX_CHAT_TEXT_CHARS = 200_000
+GUEST_MAX_STORED_CHATS = 50
+GUEST_MAX_STORED_BYTES = 2_000_000
 CONTROL_CHARS = re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]')
 
 
@@ -274,7 +287,7 @@ async def pull_sync(db: SupabaseDB, user_id: str, since: str | None = None) -> d
     }
 
 
-async def push_sync(db: SupabaseDB, user_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+async def push_sync(db: SupabaseDB, user_id: str, payload: dict[str, Any], *, is_guest: bool = False) -> dict[str, Any]:
     incoming = payload.get('chats') or []
     deleted = payload.get('deletedChats') or payload.get('deleted_chats') or []
     if not isinstance(incoming, list):
@@ -284,8 +297,10 @@ async def push_sync(db: SupabaseDB, user_id: str, payload: dict[str, Any]) -> di
     accepted: list[str] = []
     ignored: list[str] = []
 
+    incoming_limit = GUEST_MAX_CHATS_PER_PUSH if is_guest else 500
+    deleted_limit = GUEST_MAX_TOMBSTONES_PER_PUSH if is_guest else 500
     normalized: list[dict[str, Any]] = []
-    for item in incoming[:500]:
+    for item in incoming[:incoming_limit]:
         if not isinstance(item, dict):
             continue
         chat_id = normalize_chat_id(str(item.get('chat_id') or item.get('id') or ''))
@@ -303,7 +318,7 @@ async def push_sync(db: SupabaseDB, user_id: str, payload: dict[str, Any]) -> di
             'revision': safe_int(item.get('revision')),
         })
 
-    for item in deleted[:500]:
+    for item in deleted[:deleted_limit]:
         if isinstance(item, str):
             item = {'id': item}
         if not isinstance(item, dict):
@@ -320,6 +335,53 @@ async def push_sync(db: SupabaseDB, user_id: str, payload: dict[str, Any]) -> di
             'deleted_at': deleted_at,
             'revision': safe_int(item.get('revision')),
         })
+
+    if is_guest:
+        # Guest growth control. Tombstones only apply to conversations
+        # the server already owns (deleting an unknown id is a no-op and
+        # never spends admission). New conversations are admitted only
+        # through admit_guest_sync_chats, which enforces the stored
+        # count/byte ceilings atomically; if that function is not live
+        # the push fails closed rather than degrading to a racy count.
+        stored_rows = await db.select(
+            'user_chats',
+            columns='chat_id',
+            filters={'user_id': eq(user_id)},
+            limit=1000,
+        )
+        stored_ids = {str(row.get('chat_id')) for row in stored_rows}
+        kept: list[dict[str, Any]] = []
+        candidates: list[tuple[dict[str, Any], int]] = []
+        for chat in normalized:
+            if chat['deleted_at']:
+                if chat['chat_id'] in stored_ids:
+                    kept.append(chat)
+                else:
+                    ignored.append(chat['chat_id'])
+                continue
+            size = len(json.dumps(chat['messages'], ensure_ascii=False)) if chat['messages'] else 0
+            if size > GUEST_MAX_CHAT_TEXT_CHARS:
+                ignored.append(chat['chat_id'])
+                continue
+            candidates.append((chat, size))
+        if candidates:
+            admitted = await db.rpc(
+                'admit_guest_sync_chats',
+                {
+                    'p_user_id': user_id,
+                    'p_chat_ids': [chat['chat_id'] for chat, _size in candidates],
+                    'p_sizes': [size for _chat, size in candidates],
+                    'p_max_chats': GUEST_MAX_STORED_CHATS,
+                    'p_max_bytes': GUEST_MAX_STORED_BYTES,
+                },
+            )
+            admitted_ids = {str(value) for value in (admitted or [])}
+            for chat, _size in candidates:
+                if chat['chat_id'] in admitted_ids:
+                    kept.append(chat)
+                else:
+                    ignored.append(chat['chat_id'])
+        normalized = kept
 
     # The database function performs compare-and-apply atomically, preventing two
     # devices from racing between a SELECT and a later UPSERT. Replaying the same

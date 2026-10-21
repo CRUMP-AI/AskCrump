@@ -44,11 +44,22 @@ def guest_limit_reached(user: dict[str, Any] | None) -> bool:
     return int(user.get('guest_message_count') or 0) >= GUEST_MESSAGE_LIMIT
 
 
+def guest_message_fingerprint(chat_id: str | None, message: str | None) -> str:
+    """Identity of one guest send: the conversation plus the exact text.
+
+    A retry of the same send reproduces the same fingerprint and reuses
+    its reservation; the same message id carrying a different prompt or
+    a different conversation is a different send and pays its own slot.
+    """
+    return token_hash(f'{chat_id or ""}\n{message or ""}')
+
+
 async def reserve_guest_message(
     db: SupabaseDB,
     user: dict[str, Any],
     *,
     message_id: str | None = None,
+    fingerprint: str | None = None,
 ) -> bool:
     """Atomically consume one message from a guest's allowance.
 
@@ -86,6 +97,7 @@ async def reserve_guest_message(
             {
                 'p_user_id': user_id,
                 'p_message_id': str(message_id),
+                'p_fingerprint': str(fingerprint or ''),
                 'p_limit': GUEST_MESSAGE_LIMIT,
             },
         )

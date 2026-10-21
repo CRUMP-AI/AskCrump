@@ -42,6 +42,7 @@ from ..security import (
     iso_now,
     new_uuid,
     normalize_email,
+    origin_allowed,
     password_hash_needs_upgrade,
     random_token,
     token_hash,
@@ -288,6 +289,19 @@ async def start_guest_session(request: Request, response: Response):
         }
     except AuthenticationError:
         pass
+
+    # Minting sets a session cookie, and CORS does not stop a cross-site
+    # form POST from planting one in a visitor's browser. Refuse mints
+    # that are not same-site before any rate budget or row is spent.
+    if not origin_allowed(dict(request.headers), settings.allowed_origins):
+        return JSONResponse(
+            status_code=403,
+            content={
+                'success': False,
+                'error': 'Guest sessions can only start from Ask Crump.',
+                'code': 'ORIGIN_NOT_ALLOWED',
+            },
+        )
 
     ip = client_ip(
         dict(request.headers),

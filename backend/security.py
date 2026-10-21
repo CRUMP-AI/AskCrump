@@ -4,9 +4,11 @@ from datetime import datetime, timedelta, timezone
 import base64
 import hashlib
 import hmac
+import ipaddress
 import re
 import secrets
 import uuid
+from urllib.parse import urlparse
 
 try:
     import bcrypt
@@ -146,8 +148,68 @@ def normalize_chat_id(value: str | None) -> str:
     return new_uuid()
 
 
+def _header_value(headers: dict[str, str], name: str) -> str | None:
+    value = headers.get(name)
+    if value is not None:
+        return value
+    for key, candidate in headers.items():
+        if key.lower() == name:
+            return candidate
+    return None
+
+
+def _canonical_ip(value: str | None) -> str | None:
+    if not value:
+        return None
+    try:
+        return str(ipaddress.ip_address(value.strip()))
+    except ValueError:
+        return None
+
+
 def client_ip(headers: dict[str, str], fallback: str | None = None) -> str | None:
-    forwarded = headers.get('x-forwarded-for')
-    if forwarded:
-        return forwarded.split(',')[0].strip()
-    return headers.get('x-real-ip') or fallback
+    """Best-effort client address, canonicalized.
+
+    On Vercel, the ingress overwrites X-Forwarded-For itself and sets
+    x-vercel-forwarded-for (documented behavior), so that header is the
+    trustworthy source when present; other deployments fall back to the
+    first X-Forwarded-For value, then x-real-ip. Values are parsed and
+    re-serialized so equivalent addresses always key rate limits,
+    sessions, and logs identically, and unparseable values never do.
+    """
+    for header in ('x-vercel-forwarded-for', 'x-forwarded-for', 'x-real-ip'):
+        forwarded = _header_value(headers, header)
+        if forwarded:
+            candidate = _canonical_ip(forwarded.split(',')[0])
+            if candidate:
+                return candidate
+    return _canonical_ip(fallback) or fallback
+
+
+def origin_allowed(headers: dict[str, str], allowed_origins: tuple[str, ...] | list[str]) -> bool:
+    """Same-site gate for cookie-minting endpoints.
+
+    CORS alone does not stop a cross-site form POST from planting a
+    session cookie, so state-creating public endpoints check the
+    request's own metadata: Fetch Metadata cross-site is refused, and a
+    present Origin must be same-host with the request or on the app's
+    configured origin list. Requests with neither header (non-browser
+    clients) are allowed; browsers always send at least one on POST.
+    """
+    fetch_site = (_header_value(headers, 'sec-fetch-site') or '').strip().lower()
+    if fetch_site == 'cross-site':
+        return False
+    origin = (_header_value(headers, 'origin') or '').strip()
+    if not origin:
+        return True
+    try:
+        parsed = urlparse(origin)
+    except ValueError:
+        return False
+    if parsed.scheme not in {'http', 'https'} or not parsed.netloc:
+        return False
+    candidate = f'{parsed.scheme}://{parsed.netloc}'.lower()
+    host = (_header_value(headers, 'host') or '').strip().lower()
+    if host and parsed.netloc.lower() == host:
+        return True
+    return candidate in {entry.rstrip('/').lower() for entry in allowed_origins}

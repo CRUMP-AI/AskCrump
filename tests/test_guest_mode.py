@@ -298,12 +298,12 @@ class ReceiptDb(CasDb):
         if self.rpc_down:
             from backend.db import DatabaseError
             raise DatabaseError('function unavailable')
-        message_id = payload['p_message_id']
-        if message_id in self.receipts:
+        key = (payload['p_message_id'], payload.get('p_fingerprint') or '')
+        if key in self.receipts:
             return 'reused'
         if self.count >= GUEST_MESSAGE_LIMIT:
             return 'exhausted'
-        self.receipts.add(message_id)
+        self.receipts.add(key)
         self.count += 1
         return 'reserved'
 
@@ -337,6 +337,28 @@ def test_receipt_rpc_unavailable_fails_closed_for_identified_messages():
     with pytest.raises(Exception):
         asyncio.run(reserve_guest_message(db, guest_user(0), message_id='m-1'))
     assert db.count == 0
+
+
+def test_receipt_recycled_message_id_with_new_content_pays_again():
+    # One receipt must not carry different sends: same id + same
+    # fingerprint reuses; same id + different fingerprint is a new send.
+    db = ReceiptDb(3)
+    user = guest_user(3)
+    assert asyncio.run(reserve_guest_message(db, user, message_id='m-1', fingerprint='fp-a')) is True
+    assert db.count == 4
+    assert asyncio.run(reserve_guest_message(db, user, message_id='m-1', fingerprint='fp-b')) is True
+    assert db.count == 5
+    assert asyncio.run(reserve_guest_message(db, user, message_id='m-1', fingerprint='fp-a')) is True
+    assert db.count == 5
+    assert asyncio.run(reserve_guest_message(db, user, message_id='m-1', fingerprint='fp-c')) is False
+    assert db.count == 5
+
+
+def test_guest_message_fingerprint_binds_chat_and_text():
+    from backend.auth_service import guest_message_fingerprint
+    assert guest_message_fingerprint('c1', 'hello') == guest_message_fingerprint('c1', 'hello')
+    assert guest_message_fingerprint('c1', 'hello') != guest_message_fingerprint('c2', 'hello')
+    assert guest_message_fingerprint('c1', 'hello') != guest_message_fingerprint('c1', 'hello!')
 
 
 # --- Guest creation stores an unusable password sentinel --------------------
@@ -538,3 +560,171 @@ def test_check_in_worker_skips_and_disables_guest_enrollment():
         table == 'check_in_preferences' and payload.get('enabled') is False
         for table, payload, _filters in db.updates
     )
+
+
+# --- Client IP canonicalization + mint origin gate ---------------------------
+
+from backend.security import client_ip, origin_allowed  # noqa: E402
+
+
+def test_client_ip_prefers_vercel_forwarded_for_and_canonicalizes():
+    headers = {
+        'x-vercel-forwarded-for': ' 203.0.113.7 , 10.0.0.1',
+        'x-forwarded-for': '198.51.100.9',
+    }
+    assert client_ip(headers) == '203.0.113.7'
+
+
+def test_client_ip_falls_back_and_normalizes():
+    assert client_ip({'x-forwarded-for': '203.0.113.7, 10.0.0.1'}) == '203.0.113.7'
+    assert client_ip({'x-forwarded-for': 'not-an-ip', 'x-real-ip': '192.0.2.4'}) == '192.0.2.4'
+    assert client_ip({'x-forwarded-for': '2001:0DB8:0000:0000:0000:ff00:0042:8329'}) == '2001:db8::ff00:42:8329'
+    assert client_ip({}, '192.0.2.1') == '192.0.2.1'
+
+
+def test_origin_allowed_matrix():
+    allowed = ('https://askcrump.com', 'http://localhost:3000')
+    same = {'host': 'askcrump.com', 'origin': 'https://askcrump.com'}
+    assert origin_allowed(same, allowed) is True
+    assert origin_allowed({'host': 'app.askcrump.com', 'origin': 'https://app.askcrump.com'}, allowed) is True
+    assert origin_allowed({'host': 'askcrump.com', 'origin': 'https://evil.example'}, allowed) is False
+    assert origin_allowed({'host': 'askcrump.com', 'sec-fetch-site': 'cross-site'}, allowed) is False
+    assert origin_allowed({'host': 'askcrump.com', 'sec-fetch-site': 'same-origin', 'origin': 'https://askcrump.com'}, allowed) is True
+    assert origin_allowed({'host': 'askcrump.com'}, allowed) is True  # non-browser client
+    assert origin_allowed({'host': 'x', 'origin': 'https://askcrump.com'}, allowed) is True  # configured origin
+
+
+def header_request(headers: dict):
+    raw = [(k.lower().encode(), v.encode()) for k, v in headers.items()]
+    return Request({
+        'type': 'http',
+        'method': 'POST',
+        'path': '/api/auth/guest',
+        'headers': raw,
+        'query_string': b'',
+        'client': ('203.0.113.7', 12345),
+    })
+
+
+def test_guest_mint_refuses_cross_site_origin(monkeypatch):
+    db = GuestFlowDb()
+    monkeypatch.setattr(auth_routes, 'db', db)
+    response = asyncio.run(auth_routes.start_guest_session(
+        header_request({'host': 'askcrump.com', 'origin': 'https://evil.example'}),
+        StarletteResponse(),
+    ))
+    assert response.status_code == 403
+    import json as _json
+    assert _json.loads(response.body)['code'] == 'ORIGIN_NOT_ALLOWED'
+    assert db.inserted == []  # nothing minted, no rate budget spent
+
+
+# --- Guest sync bounds --------------------------------------------------------
+
+from backend.sync_service import push_sync  # noqa: E402
+
+
+class SyncDb:
+    """Simulates apply_chat_sync plus the locked admission function."""
+
+    def __init__(self, stored_ids=(), stored_bytes=0):
+        self.stored = list(stored_ids)
+        self.stored_bytes = stored_bytes
+        self.apply_calls = []
+
+    async def select(self, table, columns='*', filters=None, order=None, limit=None):
+        if table == 'user_chats':
+            return [{'chat_id': chat_id} for chat_id in self.stored]
+        return []
+
+    async def rpc(self, name, payload, retry_transient=False):
+        if name == 'admit_guest_sync_chats':
+            admitted = []
+            for chat_id, size in zip(payload['p_chat_ids'], payload['p_sizes']):
+                if chat_id in self.stored or chat_id in admitted:
+                    admitted.append(chat_id)
+                elif len(self.stored) < payload['p_max_chats'] and self.stored_bytes + size <= payload['p_max_bytes']:
+                    self.stored.append(chat_id)
+                    self.stored_bytes += size
+                    admitted.append(chat_id)
+            return admitted
+        assert name == 'apply_chat_sync'
+        self.apply_calls.append(payload)
+        return [{'accepted': True}]
+
+    async def upsert(self, table, payload, on_conflict=None, retry_transient=False):
+        return [payload]
+
+
+def make_chat(index, content_chars=10):
+    return {
+        'id': f'chat-{index}',
+        'title': 'Chat',
+        'messages': [{'role': 'user', 'content': 'x' * content_chars, 'timestamp': '2026-10-20T12:00:00Z'}],
+        'updated_at': '2026-10-20T12:00:00Z',
+        'created_at': '2026-10-20T12:00:00Z',
+        'revision': 1,
+    }
+
+
+def test_guest_sync_push_caps_chats_per_request():
+    db = SyncDb()
+    payload = {'chats': [make_chat(i) for i in range(25)]}
+    result = asyncio.run(push_sync(db, 'guest-1', payload, is_guest=True))
+    assert len(result['accepted']) == 20
+    assert len(db.apply_calls) == 20
+
+
+def test_registered_sync_push_keeps_general_limits():
+    db = SyncDb()
+    payload = {'chats': [make_chat(i) for i in range(25)]}
+    result = asyncio.run(push_sync(db, 'user-1', payload))
+    assert len(result['accepted']) == 25
+
+
+def test_guest_sync_push_rejects_oversized_chat():
+    db = SyncDb()
+    big = make_chat(1, content_chars=90_000)
+    big['messages'] = [
+        {'role': 'user', 'content': 'x' * 90_000, 'timestamp': '2026-10-20T12:00:00Z'},
+        {'role': 'assistant', 'content': 'y' * 90_000, 'timestamp': '2026-10-20T12:01:00Z'},
+        {'role': 'user', 'content': 'z' * 90_000, 'timestamp': '2026-10-20T12:02:00Z'},
+    ]
+    result = asyncio.run(push_sync(db, 'guest-1', {'chats': [big]}, is_guest=True))
+    assert result['accepted'] == []
+    assert len(result['ignored']) == 1
+    assert db.apply_calls == []
+
+
+def test_guest_sync_push_bounds_stored_conversations_but_allows_updates():
+    from backend.security import normalize_chat_id
+    db = SyncDb(stored_ids=[normalize_chat_id(f'chat-{i}') for i in range(50)])
+    update = make_chat(0)          # already stored: always allowed
+    new_chat = make_chat(999)      # would exceed the stored ceiling
+    result = asyncio.run(push_sync(db, 'guest-1', {'chats': [update, new_chat]}, is_guest=True))
+    assert len(result['accepted']) == 1
+    assert len(result['ignored']) == 1
+
+
+def test_guest_sync_push_bounds_stored_bytes():
+    from backend.security import normalize_chat_id
+    db = SyncDb(stored_ids=[normalize_chat_id('chat-0')], stored_bytes=1_999_999)
+    new_chat = make_chat(7, content_chars=100)
+    result = asyncio.run(push_sync(db, 'guest-1', {'chats': [new_chat]}, is_guest=True))
+    assert result['accepted'] == []
+    assert len(result['ignored']) == 1
+
+
+def test_guest_sync_tombstone_only_for_stored_conversations():
+    from backend.security import normalize_chat_id
+    db = SyncDb(stored_ids=[normalize_chat_id('chat-0')])
+    payload = {
+        'chats': [],
+        'deletedChats': [
+            {'id': 'chat-0', 'deleted_at': '2026-10-20T13:00:00Z', 'revision': 2},
+            {'id': 'chat-unknown', 'deleted_at': '2026-10-20T13:00:00Z', 'revision': 2},
+        ],
+    }
+    result = asyncio.run(push_sync(db, 'guest-1', payload, is_guest=True))
+    assert len(result['accepted']) == 1
+    assert len(result['ignored']) == 1
