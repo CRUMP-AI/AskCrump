@@ -844,9 +844,11 @@
     const existing = byId('guestPreviewPill');
     if (!isGuestUser(user)) {
       guestPillState = null;
+      document.body.classList.remove('guest-active');
       existing?.remove();
       return;
     }
+    document.body.classList.add('guest-active');
     guestPillState = guestPillCounts(user);
     let pill = existing;
     if (!pill) {
@@ -866,12 +868,9 @@
         showGuestWall();
       });
       pill.append(copy, link);
-      pill.addEventListener('click', event => {
-        if (event.target === link) return;
-        showGuestWall();
-      });
-      // The pill rides inside the workspace header so it never changes
-      // the workspace layout geometry (dock offsets, scroll controls).
+      // The pill is an explicit second row inside the workspace header
+      // (see .guest-preview-pill in auth-styles.css); the header's grid
+      // row grows to fit it, so no other layout geometry changes.
       document.querySelector('.v1-workspace-header')?.append(pill);
     }
     const remaining = guestPillState.limit - guestPillState.used;
