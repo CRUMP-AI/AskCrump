@@ -27,15 +27,25 @@ const {chromium} = require(playwrightModule);
     overflowX: await page.evaluate(() => document.documentElement.scrollWidth > document.documentElement.clientWidth),
   };
   const canvas = editor.locator('.crump-precision-mask');
-  const baseImage = editor.locator('.crump-precision-canvas-frame img');
-  const visibleImage = {
-    naturalWidth: await baseImage.evaluate(node => node.naturalWidth),
-    naturalHeight: await baseImage.evaluate(node => node.naturalHeight),
-    width: await baseImage.evaluate(node => node.getBoundingClientRect().width),
-    height: await baseImage.evaluate(node => node.getBoundingClientRect().height),
-    canvasWidth: await canvas.evaluate(node => node.getBoundingClientRect().width),
-    canvasHeight: await canvas.evaluate(node => node.getBoundingClientRect().height),
-  };
+  // The dialog scales during entry. Compare one settled layout snapshot so
+  // separate browser calls cannot mistake animation progress for misalignment.
+  await editor.evaluate(async node => {
+    await Promise.all(node.getAnimations().map(animation => animation.finished));
+  });
+  const visibleImage = await editor.evaluate(node => {
+    const image = node.querySelector('.crump-precision-canvas-frame img');
+    const mask = node.querySelector('.crump-precision-mask');
+    const imageRect = image.getBoundingClientRect();
+    const maskRect = mask.getBoundingClientRect();
+    return {
+      naturalWidth: image.naturalWidth,
+      naturalHeight: image.naturalHeight,
+      width: imageRect.width,
+      height: imageRect.height,
+      canvasWidth: maskRect.width,
+      canvasHeight: maskRect.height,
+    };
+  });
   await page.waitForFunction(() => Boolean(window.__versionRequest));
   const versions = {
     count: await editor.locator('.crump-precision-version').count(),
