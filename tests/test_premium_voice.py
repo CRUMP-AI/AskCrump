@@ -111,7 +111,8 @@ def test_voice_route_feature_and_browser_fallback_contract():
 async def test_voice_route_returns_private_ephemeral_audio_and_usage_receipt(monkeypatch):
     calls = []
 
-    async def authenticate(_request, _database, _settings):
+    async def authenticate(_request, _database, _settings, *, require_account=False):
+        assert require_account is True
         return SimpleNamespace(user={
             "id": "00000000-0000-0000-0000-000000000001",
             "subscription_tier": "professional",
@@ -183,7 +184,8 @@ async def test_voice_route_returns_private_ephemeral_audio_and_usage_receipt(mon
 async def test_voice_route_refunds_usage_when_provider_fails(monkeypatch):
     refunds = []
 
-    async def authenticate(_request, _database, _settings):
+    async def authenticate(_request, _database, _settings, *, require_account=False):
+        assert require_account is True
         return SimpleNamespace(user={"id": "00000000-0000-0000-0000-000000000001"})
 
     async def rate_limit(_database, **_values):

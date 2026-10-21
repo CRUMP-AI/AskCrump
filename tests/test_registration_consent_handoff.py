@@ -1,9 +1,8 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
-
 import pytest
 from pydantic import ValidationError
+from starlette.requests import Request
 
 from backend.routes import auth as auth_routes
 from backend.schemas import (
@@ -64,7 +63,11 @@ async def test_current_registration_consent_is_saved_before_verification(monkeyp
             termsAccepted=True,
             termsVersion=CURRENT_TERMS_VERSION,
         ),
-        SimpleNamespace(),
+        Request({
+            "type": "http", "method": "POST", "path": "/api/auth/register",
+            "scheme": "https", "server": ("www.askcrump.com", 443),
+            "client": ("127.0.0.1", 12345), "headers": [],
+        }),
     )
 
     assert response['success'] is True

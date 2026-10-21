@@ -257,7 +257,8 @@ async def test_generated_document_download_records_only_content_free_artifact_st
     file_id = "00000000-0000-0000-0000-000000000002"
     message_id = "00000000-0000-0000-0000-000000000003"
 
-    async def authenticate(_request, _database, _settings):
+    async def authenticate(_request, _database, _settings, *, require_account=False):
+        assert require_account is True
         return type("Auth", (), {"user": {
             "id": user_id,
             "subscription_tier": "professional",
@@ -335,7 +336,8 @@ async def test_inline_opens_and_ordinary_uploads_do_not_record_artifact_download
     calls = []
     file_id = "00000000-0000-0000-0000-000000000002"
 
-    async def authenticate(_request, _database, _settings):
+    async def authenticate(_request, _database, _settings, *, require_account=False):
+        assert require_account is True
         return type("Auth", (), {"user": {"id": "user-1"}})()
 
     class FakeFiles:
@@ -381,7 +383,8 @@ async def test_inline_opens_and_ordinary_uploads_do_not_record_artifact_download
 async def test_large_document_download_uses_attachment_signed_url_without_function_proxy(monkeypatch):
     file_id = "00000000-0000-0000-0000-000000000002"
 
-    async def authenticate(_request, _database, _settings):
+    async def authenticate(_request, _database, _settings, *, require_account=False):
+        assert require_account is True
         return type("Auth", (), {"user": {"id": "user-1"}})()
 
     class FakeFiles:
@@ -423,7 +426,8 @@ async def test_native_signed_file_route_preserves_requested_download_disposition
     signed_calls = []
     event_calls = []
 
-    async def authenticate(_request, _database, _settings):
+    async def authenticate(_request, _database, _settings, *, require_account=False):
+        assert require_account is True
         return type("Auth", (), {"user": {
             "id": "user-1",
             "subscription_tier": "professional",
@@ -501,7 +505,8 @@ async def test_native_signed_inline_opens_and_ordinary_uploads_do_not_record_dow
     file_id = "00000000-0000-0000-0000-000000000019"
     event_calls = []
 
-    async def authenticate(_request, _database, _settings):
+    async def authenticate(_request, _database, _settings, *, require_account=False):
+        assert require_account is True
         return type("Auth", (), {"user": {"id": "user-1"}})()
 
     class FakeFiles:
