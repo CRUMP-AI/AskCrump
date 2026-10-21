@@ -91,7 +91,7 @@ def test_workspace_runtime_is_complete_idempotent_and_authentication_gated():
     assert "document.addEventListener('DOMContentLoaded', () => { void boot();" not in runtime
 
     assert 'async function prepareAuthenticatedWorkspace()' in controller
-    assert controller.count('await prepareAuthenticatedWorkspace();') == 2
+    assert controller.count('await prepareAuthenticatedWorkspace();') == 3
     bootstrap = controller[controller.index('  async function bootstrap()'):controller.index('  function wireNavigation()')]
     assert bootstrap.index('await prepareAuthenticatedWorkspace();') < bootstrap.index('activeUser = session.data.user;')
     login = controller[controller.index('  function wireLogin()'):controller.index('  function wireRegistration()')]
