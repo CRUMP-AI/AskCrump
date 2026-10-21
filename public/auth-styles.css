@@ -243,33 +243,37 @@
     }
 }
 
-/* Guest preview: allowance pill under the workspace header + register note. */
+/* Guest preview: allowance chip inside the workspace header + register note. */
 .guest-preview-pill {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 8px 20px;
-  background: #0d1319;
-  border-bottom: 1px solid rgba(213, 185, 113, 0.35);
-  color: #f1efe9;
-  font-size: 13px;
-  line-height: 1.45;
+  gap: 10px;
+  margin-left: auto;
+  padding: 5px 12px;
+  border: 1px solid rgba(182, 152, 85, 0.55);
+  border-radius: 999px;
+  background: rgba(182, 152, 85, 0.1);
+  font-size: 12.5px;
+  line-height: 1.4;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
+.guest-preview-copy { overflow: hidden; text-overflow: ellipsis; }
 .guest-preview-link {
-  color: #d5b971;
-  font-weight: 600;
+  color: #7a5f14;
+  font-weight: 700;
   text-decoration: none;
   white-space: nowrap;
 }
+html[data-theme="dark"] .guest-preview-link { color: #d5b971; }
 .guest-preview-link:hover { text-decoration: underline; }
 .guest-wall-note {
   margin: 0 0 16px;
   padding: 12px 14px;
-  border: 1px solid rgba(213, 185, 113, 0.45);
+  border: 1px solid #b69855;
   border-radius: 10px;
-  background: rgba(213, 185, 113, 0.08);
-  color: #f1efe9;
+  background: #faf3dd;
+  color: #4a3a08;
   font-size: 14px;
   line-height: 1.5;
 }

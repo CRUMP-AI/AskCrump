@@ -860,20 +860,23 @@
       const link = document.createElement('a');
       link.href = '#';
       link.className = 'guest-preview-link';
-      link.textContent = 'Create a free account';
+      link.textContent = 'Create free account';
       link.addEventListener('click', event => {
         event.preventDefault();
         showGuestWall();
       });
       pill.append(copy, link);
-      document.querySelector('.v1-workspace-header')?.insertAdjacentElement('afterend', pill);
+      // The pill rides inside the workspace header so it never changes
+      // the workspace layout geometry (dock offsets, scroll controls).
+      document.querySelector('.v1-workspace-header')?.append(pill);
     }
     const remaining = guestPillState.limit - guestPillState.used;
     const copy = pill.querySelector('.guest-preview-copy');
     if (copy) {
       copy.textContent = remaining > 0
-        ? `Guest preview · ${remaining} of ${guestPillState.limit} messages left — a free account includes 25 a day and saves your work.`
-        : 'Guest preview · your messages are used up — create a free account to keep going.';
+        ? `Guest · ${remaining} of ${guestPillState.limit} left`
+        : 'Guest · 0 left';
+      copy.title = 'Guest preview. A free account includes 25 messages a day and saves your work.';
     }
   }
 
@@ -1048,6 +1051,7 @@
     configureRegistrationHandoff();
     const params = new URLSearchParams(location.search);
     const signupRequested = params.get('signup') === '1';
+    const signInRequested = (params.get('source') || '').toLowerCase().includes('signin');
     const returningDeviceHint = hasReturningDeviceHint();
     const resetToken = params.get('token');
     if (resetToken) {
@@ -1086,11 +1090,12 @@
     if (!session.authenticated || !session.data?.user) {
       // Guest preview: a genuinely new visitor starts chatting right away
       // in a bounded guest session. A device holding an account keeps the
-      // classic sign-in path, and a pending email verification always
-      // finishes on the auth screens.
+      // classic sign-in path, a pending email verification always
+      // finishes on the auth screens, and an explicit Sign in link
+      // (source=*signin*) always lands on the login form it promised.
       const cachedHintUser = window.deviceAuth?.cachedUser?.() || null;
       const accountOnDevice = returningDeviceHint && !cachedHintUser?.isGuest;
-      if (!accountOnDevice && !verification && await enterAsGuest()) return;
+      if (!accountOnDevice && !verification && !signInRequested && await enterAsGuest()) return;
       if (authFlowRevision !== bootstrapAuthFlowRevision) return;
       if (signupRequested) {
         showAuth('register');
