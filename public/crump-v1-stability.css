@@ -84,7 +84,8 @@ body.crump-v1-body {
     margin-bottom: 8px !important;
   }
 
-  body.crump-v1-body .v1-launchpad-mark img {
+  body.crump-v1-body .v1-launchpad-mark img,
+  body.crump-v1-body .v1-launchpad-mark video {
     width: 60px !important;
     height: 60px !important;
   }
@@ -133,7 +134,8 @@ body.crump-v1-body {
     margin-bottom: 5px !important;
   }
 
-  body.crump-v1-body .v1-launchpad-mark img {
+  body.crump-v1-body .v1-launchpad-mark img,
+  body.crump-v1-body .v1-launchpad-mark video {
     width: 48px !important;
     height: 48px !important;
   }
