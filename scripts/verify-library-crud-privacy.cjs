@@ -280,7 +280,10 @@ async function directUploadWrapperScenarios(browser, port, browserErrors) {
 
     // Import A upload may resolve after Import B replaces it, but cannot read B's fields or POST/close/navigate.
     await boot(page, port);
-    await page.evaluate(() => void window.fixtureOpenImport());
+    await page.evaluate(() => {
+      window.fixtureCaptureReconciliationTimers();
+      void window.fixtureOpenImport();
+    });
     await page.waitForSelector('#crump57ImportForm');
     await page.locator('#crump57Title').fill('Import A title');
     await page.locator('#crump57SourceFile').setInputFiles({name: 'import-a.docx', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', buffer: Buffer.from('A')});
@@ -302,6 +305,7 @@ async function directUploadWrapperScenarios(browser, port, browserErrors) {
     assert.equal(result.overlayRemovals.length, importBRemovals, 'Import A closed an unrelated replacement modal');
     assert.deepEqual(result.toasts, [], 'Import A emitted a stale toast');
     assert.deepEqual(result.navigations, [], 'Import A navigated after modal replacement');
+    assert.equal((await page.evaluate(() => window.fixtureReconciliationTimerEvidence())).scheduled, 0, 'pre-mutation upload cancellation scheduled reconciliation');
 
     // Editor upload and PATCH continuations must not mutate or close Editor B.
     await boot(page, port);
@@ -359,6 +363,188 @@ async function directUploadWrapperScenarios(browser, port, browserErrors) {
     result = await snapshot(page);
     assert.equal(result.overlayRemovals.length, trashRemovals);
     assert.deepEqual(result.toasts, []);
+
+    // A post-start mutation may commit after its first recovery GET. One delayed,
+    // account-scoped pass repairs the shelf without touching the replacement modal.
+    await boot(page, port);
+    await page.evaluate(() => {
+      window.fixtureCaptureReconciliationTimers();
+      window.fixturePlan('trash:book-a');
+      window.fixturePlan('books', 2);
+      window.fixtureClick('[data-crump57-trash="book-a"]');
+    });
+    await click(page, '#crump57TrashConfirm');
+    await page.waitForFunction(() => window.fixtureDeferredCount('trash:book-a') === 1);
+    await click(page, '[data-crump57-edit="book-b"]');
+    await page.locator('#crump57EditTitle').fill('Editor B survives reconciliation');
+    await page.evaluate(() => window.fixtureResolve('trash:book-a'));
+    await page.waitForFunction(() => window.fixtureDeferredCount('books') === 1);
+    await page.evaluate(() => window.fixtureResolve('books', 0, {
+      success: true,
+      books: [window.fixtureBooks.a, window.fixtureBooks.b],
+    }));
+    await page.waitForFunction(() => document.getElementById('crump57Bookshelf')?.textContent.includes('Book A'));
+    assert.deepEqual(await page.evaluate(() => window.fixtureReconciliationTimerEvidence()), {
+      scheduled: 1,
+      cleared: 0,
+      fired: 0,
+      pending: 1,
+      delays: [1600],
+    });
+    await page.evaluate(() => {
+      window.fixtureSetBooks([window.fixtureBooks.b]);
+      window.fixtureFireReconciliationTimers();
+    });
+    await page.waitForFunction(() => window.fixtureDeferredCount('books') === 2);
+    await page.evaluate(() => window.fixtureResolve('books', 1));
+    await page.waitForFunction(() => !document.getElementById('crump57Bookshelf')?.textContent.includes('Book A'));
+    result = await snapshot(page);
+    assert.doesNotMatch(result.bookshelfText, /Book A/, 'delayed reconciliation did not repair the stale shelf');
+    assert.equal(await page.locator('#crump57EditTitle').inputValue(), 'Editor B survives reconciliation');
+    assert.equal(result.overlayLabel, 'Book details');
+    assert.deepEqual(result.toasts, []);
+
+    // Multiple uncertain same-account mutations share one trailing-edge timer.
+    await boot(page, port);
+    await page.evaluate(() => {
+      window.fixtureCaptureReconciliationTimers();
+      window.fixturePlan('trash:book-a');
+      window.fixtureClick('[data-crump57-trash="book-a"]');
+    });
+    await click(page, '#crump57TrashConfirm');
+    await page.waitForFunction(() => window.fixtureDeferredCount('trash:book-a') === 1);
+    await click(page, '[data-crump57-edit="book-b"]');
+    await page.evaluate(() => window.fixtureResolve('trash:book-a'));
+    await page.waitForFunction(() => window.fixtureReconciliationTimerEvidence().pending === 1);
+    await click(page, '[data-crump57-trash="book-b"]');
+    await page.evaluate(() => window.fixturePlan('trash:book-b'));
+    await click(page, '#crump57TrashConfirm');
+    await page.waitForFunction(() => window.fixtureDeferredCount('trash:book-b') === 1);
+    await click(page, '[data-crump57-edit="book-a"]');
+    await page.evaluate(() => window.fixtureResolve('trash:book-b'));
+    await page.waitForFunction(() => window.fixtureReconciliationTimerEvidence().scheduled === 2);
+    const coalescedTimers = await page.evaluate(() => window.fixtureReconciliationTimerEvidence());
+    assert.deepEqual(coalescedTimers, {scheduled: 2, cleared: 1, fired: 0, pending: 1, delays: [1600, 1600]});
+    const coalescedBookCount = (await requestEvidence(page, 'books')).length;
+    await page.evaluate(() => window.fixtureFireReconciliationTimers());
+    await page.waitForFunction(expected => window.fixtureRequestEvidence('books').length === expected + 1, coalescedBookCount);
+    assert.equal((await requestEvidence(page, 'books')).length, coalescedBookCount + 1, 'uncertain mutations did not coalesce to one delayed reconciliation');
+
+    // If the delayed pass lands during a foreground shelf refresh, it waits
+    // for that request and performs one auth-scoped follow-up. This closes the
+    // final stale-snapshot window without aborting foreground work.
+    await boot(page, port);
+    await page.evaluate(() => {
+      window.fixtureCaptureReconciliationTimers();
+      window.fixturePlan('trash:book-a');
+      window.fixtureClick('[data-crump57-trash="book-a"]');
+    });
+    await click(page, '#crump57TrashConfirm');
+    await page.waitForFunction(() => window.fixtureDeferredCount('trash:book-a') === 1);
+    await click(page, '[data-crump57-edit="book-b"]');
+    await page.evaluate(() => window.fixtureResolve('trash:book-a'));
+    await page.waitForFunction(() => window.fixtureReconciliationTimerEvidence().pending === 1);
+    const busyRetryBookCount = (await requestEvidence(page, 'books')).length;
+    await page.evaluate(() => {
+      window.fixturePlan('books');
+      void window.fixtureRefresh();
+    });
+    await page.waitForFunction(() => window.fixtureDeferredCount('books') === 1);
+    await page.evaluate(() => window.fixtureFireReconciliationTimers());
+    await settle(page);
+    assert.equal((await requestEvidence(page, 'books')).length, busyRetryBookCount + 1, 'delayed reconciliation superseded the foreground shelf refresh');
+    assertFencedRequest(await requestEvidence(page, 'books'), 'foreground shelf refresh protected from delayed reconciliation', {aborted: false});
+    await page.evaluate(() => {
+      window.fixtureSetBooks([window.fixtureBooks.b]);
+      window.fixtureResolve('books', 0, {
+        success: true,
+        books: [window.fixtureBooks.a, window.fixtureBooks.b],
+      });
+    });
+    await page.waitForFunction(expected => window.fixtureRequestEvidence('books').length === expected + 2, busyRetryBookCount);
+    await page.waitForFunction(() => !document.getElementById('crump57Bookshelf')?.textContent.includes('Book A'));
+    assert.equal((await requestEvidence(page, 'books')).length, busyRetryBookCount + 2, 'busy delayed reconciliation did not issue exactly one follow-up shelf request');
+    assert.doesNotMatch((await snapshot(page)).bookshelfText, /Book A/, 'busy delayed reconciliation did not repair the foreground stale snapshot');
+
+    // Auth reset, including A→B→A, cancels the old epoch's delayed work.
+    await boot(page, port);
+    await page.evaluate(() => {
+      window.fixtureCaptureReconciliationTimers();
+      window.fixturePlan('trash:book-a');
+      window.fixtureClick('[data-crump57-trash="book-a"]');
+    });
+    await click(page, '#crump57TrashConfirm');
+    await page.waitForFunction(() => window.fixtureDeferredCount('trash:book-a') === 1);
+    await click(page, '[data-crump57-edit="book-b"]');
+    await page.evaluate(() => window.fixtureResolve('trash:book-a'));
+    await page.waitForFunction(() => window.fixtureReconciliationTimerEvidence().pending === 1);
+    const authResetBookCount = (await requestEvidence(page, 'books')).length;
+    await page.evaluate(() => {
+      window.fixtureSwitchAccount(window.fixtureUsers.b);
+      window.fixtureSwitchAccount(window.fixtureUsers.a);
+      window.fixtureFireReconciliationTimers(true);
+    });
+    await settle(page);
+    const authResetTimers = await page.evaluate(() => window.fixtureReconciliationTimerEvidence());
+    assert.equal(authResetTimers.cleared, 1, 'auth reset did not cancel the delayed reconciliation');
+    assert.equal(authResetTimers.pending, 0);
+    assert.equal((await requestEvidence(page, 'books')).length, authResetBookCount, 'old auth epoch issued a delayed Library request');
+
+    // Background repair must not supersede the foreground refresh that opens
+    // Recently Deleted.
+    await boot(page, port);
+    await page.evaluate(() => {
+      window.fixtureCaptureReconciliationTimers();
+      window.fixturePlan('trash:book-a');
+      window.fixtureClick('[data-crump57-trash="book-a"]');
+    });
+    await click(page, '#crump57TrashConfirm');
+    await page.waitForFunction(() => window.fixtureDeferredCount('trash:book-a') === 1);
+    await click(page, '[data-crump57-edit="book-b"]');
+    await page.evaluate(() => window.fixtureResolve('trash:book-a'));
+    await page.waitForFunction(() => window.fixtureReconciliationTimerEvidence().pending === 1);
+    const openDeletedBookCount = (await requestEvidence(page, 'books')).length;
+    const openDeletedRefreshCount = (await requestEvidence(page, 'deleted')).length;
+    await page.evaluate(() => {
+      window.fixturePlan('deleted');
+      void window.fixtureOpenDeleted();
+    });
+    await page.waitForFunction(() => window.fixtureDeferredCount('deleted') === 1);
+    await page.evaluate(() => window.fixtureFireReconciliationTimers());
+    await page.waitForFunction(expected => window.fixtureRequestEvidence('books').length === expected + 1, openDeletedBookCount);
+    assert.equal((await requestEvidence(page, 'deleted')).length, openDeletedRefreshCount + 1, 'background reconciliation issued a competing deleted-books refresh');
+    assertFencedRequest(await requestEvidence(page, 'deleted'), 'foreground Recently Deleted refresh', {aborted: false});
+    await page.evaluate(() => window.fixtureResolve('deleted'));
+    await page.waitForFunction(() => document.querySelector('.crump57-overlay [aria-label="Recently Deleted books"]'));
+    assert.equal((await snapshot(page)).overlayLabel, 'Recently Deleted books', 'background reconciliation prevented Recently Deleted from opening');
+
+    // Background repair must not redraw a deleted-books overlay while a
+    // foreground restore owns nodes inside it.
+    await boot(page, port);
+    await page.evaluate(() => {
+      window.fixtureCaptureReconciliationTimers();
+      window.fixturePlan('trash:book-a');
+      window.fixtureClick('[data-crump57-trash="book-a"]');
+    });
+    await click(page, '#crump57TrashConfirm');
+    await page.waitForFunction(() => window.fixtureDeferredCount('trash:book-a') === 1);
+    await click(page, '[data-crump57-edit="book-b"]');
+    await page.evaluate(() => window.fixtureResolve('trash:book-a'));
+    await page.waitForFunction(() => window.fixtureReconciliationTimerEvidence().pending === 1);
+    await page.evaluate(() => void window.fixtureOpenDeleted());
+    await page.waitForSelector('[data-crump57-restore="deleted-a"]');
+    await page.evaluate(() => window.fixturePlan('restore:deleted-a'));
+    await click(page, '[data-crump57-restore="deleted-a"]');
+    await page.waitForFunction(() => window.fixtureDeferredCount('restore:deleted-a') === 1);
+    const restoreRaceBooks = (await requestEvidence(page, 'books')).length;
+    const restoreRaceDeleted = (await requestEvidence(page, 'deleted')).length;
+    await page.evaluate(() => window.fixtureFireReconciliationTimers());
+    await page.waitForFunction(expected => window.fixtureRequestEvidence('books').length === expected + 1, restoreRaceBooks);
+    assert.equal((await requestEvidence(page, 'deleted')).length, restoreRaceDeleted, 'background reconciliation refreshed a busy deleted-books overlay');
+    await page.evaluate(() => window.fixtureResolve('restore:deleted-a'));
+    await page.waitForFunction(() => window.fixtureEvidence.toasts.some(item => item.message === 'Deleted A restored.'));
+    assertFencedRequest(await requestEvidence(page, 'restore:deleted-a'), 'restore protected from background reconciliation', {aborted: false});
+    assert.deepEqual((await snapshot(page)).toasts, [{message: 'Deleted A restored.', type: 'success'}], 'background reconciliation made the active restore stale');
 
     await boot(page, port);
     await page.evaluate(() => void window.fixtureOpenDeleted());
@@ -453,7 +639,10 @@ async function directUploadWrapperScenarios(browser, port, browserErrors) {
 
     // Current same-account import succeeds with captured A-only metadata and guarded upload.
     await boot(page, port);
-    await page.evaluate(() => void window.fixtureOpenImport());
+    await page.evaluate(() => {
+      window.fixtureCaptureReconciliationTimers();
+      void window.fixtureOpenImport();
+    });
     await page.waitForSelector('#crump57ImportForm');
     await page.locator('#crump57Title').fill('Active import title');
     await page.locator('#crump57Author').fill('Active author');
@@ -471,6 +660,7 @@ async function directUploadWrapperScenarios(browser, port, browserErrors) {
     result = await snapshot(page);
     assert.deepEqual(result.toasts, [{message: 'Imported fixture added to your Library.', type: 'success'}]);
     assert.deepEqual(result.navigations.map(item => item.manuscriptId), ['imported-book']);
+    assert.equal((await page.evaluate(() => window.fixtureReconciliationTimerEvidence())).scheduled, 0, 'confirmed import scheduled uncertain-mutation recovery');
 
     // Current permanent-delete failure remains actionable and retry succeeds.
     await boot(page, port);
@@ -508,6 +698,12 @@ async function directUploadWrapperScenarios(browser, port, browserErrors) {
       trashFence: true,
       restoreFence: true,
       permanentDeleteFence: true,
+      delayedMutationReconciliation: true,
+      foregroundBooksBusyRetry: true,
+      mutationReconciliationCoalescing: true,
+      mutationReconciliationAuthEpoch: true,
+      foregroundDeletedRefreshPriority: true,
+      foregroundRestorePriority: true,
       refreshLatestWins: true,
       activeImportSuccess: true,
       activeDeleteRetry: true,

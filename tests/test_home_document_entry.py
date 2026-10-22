@@ -87,7 +87,7 @@ def test_document_home_asset_is_atomic_for_web_and_pwa_updates() -> None:
 
     assert app.count(expected) == 1
     assert worker.count(expected) == 1
-    assert "ask-crump-new-body-v1-r267-library-crud-privacy-1" in worker
+    assert "ask-crump-new-body-v1-r268-library-reconciliation-1" in worker
     assert "url.pathname === '/home-document-entry.js'" in worker
     assert "home-document-entry.js" in checker
     assert "homeDocumentEntryVersion" in checker

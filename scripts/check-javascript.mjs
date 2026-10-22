@@ -1039,9 +1039,10 @@ const atelierWorkspaceVersion = `${releaseVersion}-atelier-workspace-1`;
 const responseContinuityCleanupVersion = `${releaseVersion}-response-continuity-cleanup-1`;
 const manuscriptExportDeliveryVersion = `${releaseVersion}-manuscript-export-delivery-1`;
 const libraryCrudPrivacyVersion = `${releaseVersion}-library-crud-privacy-1`;
+const libraryReconciliationVersion = `${releaseVersion}-library-reconciliation-1`;
 const homeDocumentEntryVersion = `${releaseVersion}-home-document-entry-1`;
 const autonomousContinuityVersion = `${releaseVersion}-autonomous-continuity-1`;
-const runtimeBodyVersion = libraryCrudPrivacyVersion;
+const runtimeBodyVersion = libraryReconciliationVersion;
 const appearanceChoiceVersion = `${releaseVersion}-appearance-choice-3`;
 const uiReleaseAuditVersion = `${releaseVersion}-ui-release-audit-2`;
 const activityCenterVersion = autonomousContinuityVersion;
@@ -1457,7 +1458,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/crump-subscriptions-5.3.2.js?v=${checkoutDestinationLabelVersion}`) ||
     !runtime.includes(`/crump-polish-5.6.js?v=${cacheIntegrityVersion}`) || !runtime.includes('/crump-polish-5.6.css') ||
     !runtime.includes(`/crump-media-save.js?v=${libraryCrudPrivacyVersion}`) ||
-    !runtime.includes(`/crump-library-loader.js?v=${libraryCrudPrivacyVersion}`) ||
+    !runtime.includes(`/crump-library-loader.js?v=${libraryReconciliationVersion}`) ||
     runtime.includes('/crump-library-5.7.js') || runtime.includes('/crump-library-5.7.css') ||
     !runtime.includes(`/crump-navigation-5.9.30.js?v=${atelierWorkspaceVersion}`) ||
     !runtime.includes(`/crump-navigation-5.9.30.css?v=${navFocusVisibilityVersion}`) ||
@@ -1558,7 +1559,7 @@ if (!precisionLoader.includes(`/crump-precision-image-edit.css?v=${referenceFide
     !productLoader.includes(`/crump-product-5.3.css?v=${projectsEmptyStateVersion}`) ||
     !productLoader.includes(`/crump-product-5.3.js?v=${manuscriptExportDeliveryVersion}`) ||
     !libraryLoader.includes(`/crump-library-5.7.css?v=${libraryFirstRunVersion}`) ||
-    !libraryLoader.includes(`/crump-library-5.7.js?v=${libraryCrudPrivacyVersion}`)) {
+    !libraryLoader.includes(`/crump-library-5.7.js?v=${libraryReconciliationVersion}`)) {
   console.error('Reference-fidelity lazy loaders must use the same atomic release token as the shell.');
   process.exit(1);
 }
@@ -1713,7 +1714,7 @@ const cacheAddressabilitySources = Object.freeze([
 ]);
 for (const [pathname, expectedUrl] of [
   ['/crump-product-loader.js', `/crump-product-loader.js?v=${manuscriptExportDeliveryVersion}`],
-  ['/crump-library-loader.js', `/crump-library-loader.js?v=${libraryCrudPrivacyVersion}`],
+  ['/crump-library-loader.js', `/crump-library-loader.js?v=${libraryReconciliationVersion}`],
   ['/crump-navigation-5.9.30.css', `/crump-navigation-5.9.30.css?v=${navFocusVisibilityVersion}`],
   ['/crump-v1-body.js', `/crump-v1-body.js?v=${atelierWorkspaceVersion}`],
 ]) {
@@ -1755,7 +1756,7 @@ for (const [label, source] of [
     process.exit(1);
   }
 }
-if (!serviceWorker.includes('ask-crump-new-body-v1-r267-library-crud-privacy-1') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r268-library-reconciliation-1') ||
     !serviceWorker.includes(`'${shellBrandUrl}'`) ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||
@@ -1857,7 +1858,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r267-library-crud-privacy-1')
     !serviceWorker.includes(`/crump-5.2.js?v=${planStatusLineVersion}`) ||
     !serviceWorker.includes(`/crump-subscriptions-5.3.2.js?v=${checkoutDestinationLabelVersion}`) ||
     !serviceWorker.includes(`/crump-media-save.js?v=${libraryCrudPrivacyVersion}`) ||
-    !serviceWorker.includes(`/crump-library-loader.js?v=${libraryCrudPrivacyVersion}`) ||
+    !serviceWorker.includes(`/crump-library-loader.js?v=${libraryReconciliationVersion}`) ||
     serviceWorker.includes('/crump-library-5.7.js') ||
     serviceWorker.includes('/crump-library-5.7.css') ||
     !serviceWorker.includes("url.pathname === '/crump-media-save.js'") ||

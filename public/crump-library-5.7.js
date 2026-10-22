@@ -164,6 +164,10 @@
   const libraryModalIdentity = new WeakMap();
   const libraryRefreshes = new Map();
   const libraryRefreshGenerations = new Map();
+  const LIBRARY_MUTATION_RECONCILIATION_DELAY_MS = 1600;
+  let libraryMutationReconciliationTimer = null;
+  let libraryMutationReconciliationContext = null;
+  let libraryMutationReconciliationSequence = 0;
 
   function libraryAbortError(message = 'This Library action is no longer current.') {
     return Object.assign(new Error(message), {name: 'AbortError'});
@@ -311,16 +315,21 @@
     libraryOperations.clear();
   }
 
-  function beginLibraryRefresh(key, parentOperation = null) {
+  function beginLibraryRefresh(key, parentOperation = null, {replaceExisting = true} = {}) {
     if (parentOperation && !activeLibraryOperation(parentOperation)) return null;
     const auth = libraryOperationContext();
     if (!auth.userId) return null;
     const previous = libraryRefreshes.get(key);
-    if (previous && !previous.controller.signal.aborted) previous.controller.abort();
+    if (previous && !previous.controller.signal.aborted) {
+      if (!replaceExisting) return null;
+      previous.controller.abort();
+    }
     previous?.detachParent?.();
     const generation = Math.max(0, Number(libraryRefreshGenerations.get(key)) || 0) + 1;
     libraryRefreshGenerations.set(key, generation);
     const controller = new AbortController();
+    let resolveCompletion = null;
+    const completion = new Promise(resolve => { resolveCompletion = resolve; });
     let detachParent = null;
     if (parentOperation?.controller?.signal) {
       const abortFromParent = () => controller.abort();
@@ -335,6 +344,9 @@
       authSequence: auth.sequence,
       parentOperation,
       detachParent,
+      completion,
+      resolveCompletion,
+      completed: false,
     };
     libraryRefreshes.set(key, refresh);
     return refresh;
@@ -355,6 +367,10 @@
   function finishLibraryRefresh(refresh) {
     if (!refresh) return;
     refresh.detachParent?.();
+    if (!refresh.completed) {
+      refresh.completed = true;
+      refresh.resolveCompletion?.();
+    }
     if (libraryRefreshes.get(refresh.key) === refresh) libraryRefreshes.delete(refresh.key);
   }
 
@@ -362,20 +378,117 @@
     libraryRefreshes.forEach(refresh => {
       if (!refresh.controller.signal.aborted) refresh.controller.abort();
       refresh.detachParent?.();
+      if (!refresh.completed) {
+        refresh.completed = true;
+        refresh.resolveCompletion?.();
+      }
     });
     libraryRefreshes.clear();
     libraryRefreshGenerations.clear();
   }
 
+  function clearLibraryMutationReconciliation() {
+    if (libraryMutationReconciliationTimer !== null) {
+      window.clearTimeout(libraryMutationReconciliationTimer);
+      libraryMutationReconciliationTimer = null;
+    }
+    libraryMutationReconciliationContext = null;
+    libraryMutationReconciliationSequence += 1;
+  }
+
+  function libraryOverlayHasActiveOperations(overlay) {
+    const operations = overlay ? libraryOverlayOperations.get(overlay) : null;
+    if (!operations) return false;
+    return [...operations].some(operation => activeLibraryOperation(operation));
+  }
+
+  function currentLibraryRefresh(key) {
+    const refresh = libraryRefreshes.get(key);
+    return libraryRefreshIsCurrent(refresh) ? refresh : null;
+  }
+
+  function libraryMutationReconciliationIsCurrent(context) {
+    return Boolean(
+      libraryOperationIsCurrent(context)
+      && (
+        !Number.isFinite(context?.reconciliationSequence)
+        || context.reconciliationSequence === libraryMutationReconciliationSequence
+      )
+    );
+  }
+
+  async function reconcileLibraryViews(context, {retryAfterBusyBooks = false} = {}) {
+    if (!libraryMutationReconciliationIsCurrent(context)) return false;
+    const busyBooksRefresh = currentLibraryRefresh('books');
+    if (busyBooksRefresh) {
+      if (!retryAfterBusyBooks) return false;
+      await busyBooksRefresh.completion;
+      if (!libraryMutationReconciliationIsCurrent(context)) return false;
+      return reconcileLibraryViews(context, {retryAfterBusyBooks: false});
+    }
+    const refreshed = await refreshBooks({
+      showSkeleton: false,
+      includeDeleted: false,
+      replaceExisting: false,
+    });
+    if (!refreshed) {
+      const racedBooksRefresh = currentLibraryRefresh('books');
+      if (!retryAfterBusyBooks || !racedBooksRefresh) return false;
+      await racedBooksRefresh.completion;
+      if (!libraryMutationReconciliationIsCurrent(context)) return false;
+      return reconcileLibraryViews(context, {retryAfterBusyBooks: false});
+    }
+    if (!libraryMutationReconciliationIsCurrent(context)) return false;
+    const overlay = state.modal;
+    if (
+      !overlay?.isConnected
+      || overlay.dataset.crump57ResourceType !== 'deleted-books'
+      || libraryOverlayHasActiveOperations(overlay)
+    ) return true;
+    const modalIdentity = libraryModalIdentity.get(overlay) || null;
+    const deletedRefreshed = await refreshDeletedBooks(null, {replaceExisting: false});
+    if (
+      !deletedRefreshed
+      || !libraryMutationReconciliationIsCurrent(context)
+      || state.modal !== overlay
+      || !overlay.isConnected
+      || libraryModalIdentity.get(overlay) !== modalIdentity
+      || libraryOverlayHasActiveOperations(overlay)
+    ) return true;
+    const deletedList = overlay.querySelector('#crump57DeletedList');
+    if (deletedList) renderDeletedBooks(deletedList);
+    return true;
+  }
+
+  function scheduleLibraryMutationReconciliation(operation) {
+    if (!libraryOperationAccountIsCurrent(operation)) return false;
+    clearLibraryMutationReconciliation();
+    const context = Object.freeze({
+      userId: operation.userId,
+      sequence: operation.authSequence,
+      reconciliationSequence: libraryMutationReconciliationSequence,
+    });
+    libraryMutationReconciliationContext = context;
+    const timer = window.setTimeout(() => {
+      if (libraryMutationReconciliationTimer === timer) {
+        libraryMutationReconciliationTimer = null;
+        libraryMutationReconciliationContext = null;
+      }
+      if (!libraryMutationReconciliationIsCurrent(context)) return;
+      void reconcileLibraryViews(context, {retryAfterBusyBooks: true});
+    }, LIBRARY_MUTATION_RECONCILIATION_DELAY_MS);
+    libraryMutationReconciliationTimer = timer;
+    return true;
+  }
+
   async function refreshAfterPossibleMutation(operation) {
     if (!libraryOperationAccountIsCurrent(operation)) return false;
-    const refreshed = await refreshBooks({showSkeleton: false});
-    const overlay = state.modal;
-    const deletedList = overlay?.querySelector?.('#crump57DeletedList');
-    if (refreshed && deletedList && overlay.dataset.crump57ResourceType === 'deleted-books') {
-      renderDeletedBooks(deletedList);
-    }
-    return refreshed;
+    const context = Object.freeze({
+      userId: operation.userId,
+      sequence: operation.authSequence,
+    });
+    scheduleLibraryMutationReconciliation(operation);
+    return reconcileLibraryViews(context);
   }
 
   function show(message, type = 'success') {
@@ -1166,8 +1279,8 @@
     void hydrateCovers(grid, books);
   }
 
-  async function refreshDeletedBooks(parentOperation = null) {
-    const refresh = beginLibraryRefresh('deleted-books', parentOperation);
+  async function refreshDeletedBooks(parentOperation = null, {replaceExisting = true} = {}) {
+    const refresh = beginLibraryRefresh('deleted-books', parentOperation, {replaceExisting});
     if (!refresh) return false;
     try {
       const data = await api('/api/library/books/deleted', {signal: refresh.controller.signal});
@@ -1187,8 +1300,13 @@
     return true;
   }
 
-  async function refreshBooks({parentOperation = null, showSkeleton = true} = {}) {
-    const refresh = beginLibraryRefresh('books', parentOperation);
+  async function refreshBooks({
+    parentOperation = null,
+    showSkeleton = true,
+    includeDeleted = true,
+    replaceExisting = true,
+  } = {}) {
+    const refresh = beginLibraryRefresh('books', parentOperation, {replaceExisting});
     if (!refresh) return false;
     const grid = byId('crump57Bookshelf');
     if (grid && showSkeleton) {
@@ -1202,8 +1320,10 @@
       const data = await api('/api/library/books', {signal: refresh.controller.signal});
       if (!libraryRefreshIsCurrent(refresh)) return false;
       state.books = Array.isArray(data.books) ? data.books : [];
-      await refreshDeletedBooks(parentOperation);
-      if (!libraryRefreshIsCurrent(refresh)) return false;
+      if (includeDeleted) {
+        await refreshDeletedBooks(parentOperation, {replaceExisting});
+        if (!libraryRefreshIsCurrent(refresh)) return false;
+      }
       renderBooks();
       return true;
     } catch (error) {
@@ -1274,6 +1394,7 @@
   }
 
   function resetLibraryAuthMemory() {
+    clearLibraryMutationReconciliation();
     libraryAuthSequence += 1;
     abortAllLibraryOperations();
     abortAllLibraryRefreshes();
