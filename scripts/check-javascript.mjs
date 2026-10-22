@@ -1037,6 +1037,7 @@ const cacheIntegrityVersion = `${releaseVersion}-friendly-workspace-1`;
 const shellNoTaglineVersion = `${releaseVersion}-shell-no-tagline-1`;
 const atelierWorkspaceVersion = `${releaseVersion}-atelier-workspace-1`;
 const responseContinuityCleanupVersion = `${releaseVersion}-response-continuity-cleanup-1`;
+const manuscriptExportDeliveryVersion = `${releaseVersion}-manuscript-export-delivery-1`;
 const autonomousContinuityVersion = `${releaseVersion}-autonomous-continuity-1`;
 const runtimeBodyVersion = responseContinuityCleanupVersion;
 const appearanceChoiceVersion = `${releaseVersion}-appearance-choice-3`;
@@ -1552,7 +1553,7 @@ const productLoader = await readFile(new URL('public/crump-product-loader.js', r
 if (!precisionLoader.includes(`/crump-precision-image-edit.css?v=${referenceFidelityVersion}`) ||
     !precisionLoader.includes(`/crump-precision-image-edit.js?v=${referenceFidelityVersion}`) ||
     !productLoader.includes(`/crump-product-5.3.css?v=${projectsEmptyStateVersion}`) ||
-    !productLoader.includes(`/crump-product-5.3.js?v=${responseContinuityCleanupVersion}`)) {
+    !productLoader.includes(`/crump-product-5.3.js?v=${manuscriptExportDeliveryVersion}`)) {
   console.error('Reference-fidelity lazy loaders must use the same atomic release token as the shell.');
   process.exit(1);
 }

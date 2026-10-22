@@ -18,6 +18,7 @@
     manuscriptProgress: null,
     manuscriptRun: null,
     manuscriptPollTimer: null,
+    manuscriptExportInFlight: false,
     videoPollTimer: null,
     videoPollSequence: 0,
     videoStarting: false,
@@ -1492,7 +1493,7 @@
     byId('crump53SaveSection')?.addEventListener('click', saveSection);
     byId('crump53DraftSection')?.addEventListener('click', draftSection);
     overlay.querySelectorAll('[data-crump53-export]').forEach(button => {
-      button.addEventListener('click', () => exportManuscript(button.dataset.crump53Export));
+      button.addEventListener('click', () => void exportManuscript(button.dataset.crump53Export, button));
     });
     byId('crump53VideoForm')?.addEventListener('submit', startVideo);
     byId('crump53VideoEngine')?.addEventListener('change', () => updateVideoStudio({resetReferenceConfirmation: true}));
@@ -3163,17 +3164,77 @@
     renderManuscriptProgress();
   }
 
-  async function exportManuscript(format) {
-    if (!state.activeManuscript?.id) return;
+  const MANUSCRIPT_EXPORT_FORMATS = new Set(['docx', 'pdf', 'epub']);
+
+  async function deliverManuscriptExport(file) {
+    const fileId = String(file?.id || '').trim();
+    const fileUrl = String(file?.url || '').trim();
+    if (!file || (!fileId && !fileUrl)) {
+      throw new Error('Crump built the manuscript but did not return a downloadable file.');
+    }
+    if (window.CrumpFileTools?.open) {
+      const opened = await Promise.resolve(window.CrumpFileTools.open(file, true));
+      if (opened === false) {
+        throw new Error('The manuscript is saved in Files, but the download could not start. Try again from Files.');
+      }
+      return true;
+    }
+    if (fileId) {
+      window.location.assign(`/api/files/${encodeURIComponent(fileId)}/content?download=1`);
+      return true;
+    }
+    throw new Error('The manuscript is saved in Files, but private download tools are still loading. Try again in a moment.');
+  }
+
+  async function exportManuscript(format, requestedButton = null) {
+    const normalized = String(format || '').toLowerCase().trim();
+    if (!state.activeManuscript?.id) return false;
+    if (!MANUSCRIPT_EXPORT_FORMATS.has(normalized)) {
+      setStatus('crump53ManuscriptStatus', 'Choose DOCX, PDF, or EPUB.', true);
+      return false;
+    }
+    if (state.manuscriptExportInFlight) return false;
+    state.manuscriptExportInFlight = true;
+    const controls = Array.from(document.querySelectorAll('[data-crump53-export]'));
+    const controlState = controls.map(button => ({
+      button,
+      disabled: button.disabled,
+      label: button.textContent,
+      ariaBusy: button.getAttribute('aria-busy'),
+    }));
+    controls.forEach(button => {
+      button.disabled = true;
+      if (button === requestedButton || button.dataset.crump53Export === normalized) {
+        button.textContent = `Building ${normalized.toUpperCase()}…`;
+        button.setAttribute('aria-busy', 'true');
+      }
+    });
     try {
-      setStatus('crump53ManuscriptStatus', `Building ${String(format).toUpperCase()}…`);
+      setStatus('crump53ManuscriptStatus', `Building ${normalized.toUpperCase()}…`);
       const data = await api(`/api/manuscripts/${state.activeManuscript.id}/export`, {
-        method: 'POST', body: {format},
+        method: 'POST', body: {format: normalized},
       });
-      setStatus('crump53ManuscriptStatus', `Export ready · ${data.kdp?.wordCount?.toLocaleString?.() || 0} words.`);
-      if (data.file?.url) window.open(`${data.file.url}?download=1`, '_blank', 'noopener');
+      await deliverManuscriptExport(data.file);
+      setStatus(
+        'crump53ManuscriptStatus',
+        `${normalized.toUpperCase()} ready · ${data.kdp?.wordCount?.toLocaleString?.() || 0} words · saved to Files.`,
+      );
+      return true;
     } catch (error) {
-      setFeatureAccessStatus('crump53ManuscriptStatus', error);
+      setFeatureAccessStatus(
+        'crump53ManuscriptStatus',
+        error,
+        error?.message || 'Crump could not export that manuscript.',
+      );
+      return false;
+    } finally {
+      state.manuscriptExportInFlight = false;
+      controlState.forEach(({button, disabled, label, ariaBusy}) => {
+        button.disabled = disabled;
+        button.textContent = label;
+        if (ariaBusy == null) button.removeAttribute('aria-busy');
+        else button.setAttribute('aria-busy', ariaBusy);
+      });
     }
   }
 

@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Project manuscript export delivery fixture</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/public/crump-product-5.3.css?v=manuscript-export-delivery-1">
+  <style>
+    body { margin: 0; min-height: 100vh; background: #080b0f; color: #f5f1e8; font-family: system-ui, sans-serif; }
+    main { padding: 18px; }
+    output { display: block; }
+    [hidden] { display: none !important; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Project manuscript export delivery fixture</h1>
+    <output id="fixtureReady">loading</output>
+    <output id="fixtureErrors" aria-label="Browser errors">0</output>
+  </main>
+  <script>
+    (() => {
+      const project = {
+        id: '00000000-0000-4000-8000-000000000181',
+        name: 'Fixture Book Project',
+        description: 'A private fixture Project.',
+        instructions: 'Keep the fixture bounded.',
+        updated_at: '2026-10-22T00:00:00Z',
+      };
+      const manuscript = {
+        id: '00000000-0000-4000-8000-000000000182',
+        project_id: project.id,
+        title: 'Fixture Manuscript',
+        author_name: 'Fixture Author',
+        status: 'draft',
+        metadata: {targetWords: 80000, plannedChapterCount: 24},
+      };
+      const sections = [{
+        id: '00000000-0000-4000-8000-000000000183',
+        title: 'Chapter 1',
+        content: 'Fixture chapter content.',
+        word_count: 3,
+      }];
+
+      window.currentUser = {id: 'fixture-manuscript-export-user'};
+      window.currentChatId = '';
+      window.chats = [];
+      window.showToast = () => {};
+      window.CrumpAnalytics = {track: () => Promise.resolve(true)};
+      window.fixtureProject = project;
+      window.fixtureManuscript = manuscript;
+      window.fixtureExportMode = 'success';
+      window.fixtureExportRequests = [];
+      window.fixtureFileHandoffs = [];
+      window.fixtureWindowOpenCalls = [];
+      window.fixtureUnexpectedRequests = [];
+      window.fixtureDeferredExport = null;
+      window.open = (...args) => {
+        window.fixtureWindowOpenCalls.push(args);
+        return null;
+      };
+      window.CrumpFileTools = Object.freeze({
+        async open(file, download) {
+          window.fixtureFileHandoffs.push({file: {...file}, download});
+          return true;
+        },
+      });
+
+      const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), {
+        status,
+        headers: {'Content-Type': 'application/json'},
+      });
+      const successfulExport = format => ({
+        success: true,
+        file: {
+          id: `00000000-0000-4000-8000-${format === 'docx' ? '000000000184' : format === 'pdf' ? '000000000185' : '000000000186'}`,
+          name: `fixture-manuscript.${format}`,
+          type: format === 'pdf' ? 'application/pdf' : format === 'epub' ? 'application/epub+zip' : 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          url: `https://fixture.supabase.co/storage/v1/object/sign/private/${format}`,
+        },
+        kdp: {wordCount: 12345},
+      });
+
+      window.fixtureResolveDeferredExport = () => {
+        const deferred = window.fixtureDeferredExport;
+        window.fixtureDeferredExport = null;
+        deferred?.resolve(jsonResponse(successfulExport(deferred.format)));
+      };
+      window.fixtureResetExportEvidence = () => {
+        window.fixtureExportRequests.length = 0;
+        window.fixtureFileHandoffs.length = 0;
+        window.fixtureWindowOpenCalls.length = 0;
+        window.fixtureUnexpectedRequests.length = 0;
+        window.fixtureExportMode = 'success';
+        window.fixtureDeferredExport = null;
+      };
+
+      window.fetch = async (input, options = {}) => {
+        const url = new URL(typeof input === 'string' ? input : input.url, location.href);
+        const method = String(options.method || 'GET').toUpperCase();
+        if (url.pathname === '/api/features') {
+          return jsonResponse({success: true, projectLimit: 3, features: {}});
+        }
+        if (url.pathname === '/api/projects' && method === 'GET') {
+          return jsonResponse({success: true, projects: [project], limit: 3});
+        }
+        if (url.pathname === `/api/projects/${project.id}` && method === 'GET') {
+          return jsonResponse({success: true, project, context: {canon: []}});
+        }
+        if (url.pathname === `/api/projects/${project.id}/chats` && method === 'GET') {
+          return jsonResponse({success: true, conversations: []});
+        }
+        if (url.pathname === `/api/projects/${project.id}/files` && method === 'GET') {
+          return jsonResponse({success: true, files: []});
+        }
+        if (url.pathname === `/api/projects/${project.id}/manuscripts` && method === 'GET') {
+          return jsonResponse({success: true, manuscripts: [manuscript]});
+        }
+        if (url.pathname === `/api/manuscripts/${manuscript.id}` && method === 'GET') {
+          return jsonResponse({
+            success: true,
+            manuscript,
+            sections,
+            progress: {wordCount: 3, targetWords: 80000, wordProgress: 0, draftedSections: 1, plannedSections: 1},
+            run: null,
+          });
+        }
+        if (url.pathname === `/api/manuscripts/${manuscript.id}/export` && method === 'POST') {
+          const body = JSON.parse(String(options.body || '{}'));
+          const format = String(body.format || '');
+          window.fixtureExportRequests.push({format, method, path: url.pathname});
+          if (window.fixtureExportMode === 'failure') {
+            return jsonResponse({success: false, error: 'Fixture export request failed.'}, 503);
+          }
+          if (window.fixtureExportMode === 'missing-file') {
+            return jsonResponse({success: true, file: null, kdp: {wordCount: 12345}});
+          }
+          if (window.fixtureExportMode === 'deferred') {
+            return new Promise(resolve => {
+              window.fixtureDeferredExport = {format, resolve};
+            });
+          }
+          return jsonResponse(successfulExport(format));
+        }
+        window.fixtureUnexpectedRequests.push(`${method} ${url.pathname}`);
+        return jsonResponse({success: false, error: `Unexpected fixture request: ${method} ${url.pathname}`}, 500);
+      };
+
+      const recordBrowserError = () => {
+        const output = document.getElementById('fixtureErrors');
+        output.textContent = String(Number(output.textContent || 0) + 1);
+      };
+      window.addEventListener('error', recordBrowserError);
+      window.addEventListener('unhandledrejection', recordBrowserError);
+    })();
+  </script>
+  <script src="/public/crump-product-5.3.js?v=manuscript-export-delivery-fixture-1"></script>
+  <script>
+    window.addEventListener('load', async () => {
+      const opened = await window.CrumpProduct53.openManuscript({
+        projectId: window.fixtureProject.id,
+        manuscriptId: window.fixtureManuscript.id,
+        autoOpen: true,
+      });
+      document.getElementById('fixtureReady').textContent = opened ? 'ready' : 'failed';
+    }, {once: true});
+  </script>
+</body>
+</html>
