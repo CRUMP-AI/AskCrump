@@ -65,6 +65,8 @@ def test_library571_mobile_layout_and_book_views_are_intentional():
     assert "manuscriptExportDelivery.begin('library', operation.userId)" in library_js
     assert "await manuscriptExportDelivery.deliver(data.file, run, resourceIsCurrent)" in library_js
     assert "signal: run.controller.signal" in library_js
+    assert "!exported && button.isConnected && !button.disabled" in library_js
+    assert "button.focus({preventScroll: true})" in library_js
     assert "id=\"crump57ExportStatus\"" in library_js
     assert "data-crump57-export-format=\"docx\"" in library_js
     assert "data-crump57-export-format=\"pdf\"" in library_js

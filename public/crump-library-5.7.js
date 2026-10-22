@@ -635,6 +635,8 @@
           const summary = details.querySelector('summary');
           details.removeAttribute('open');
           summary?.focus({preventScroll: true});
+        } else if (!exported && button.isConnected && !button.disabled) {
+          button.focus({preventScroll: true});
         }
         if (exported && closeAfter && state.modal === root) closeModal();
       });
