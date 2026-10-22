@@ -2081,6 +2081,113 @@ if (JSON.stringify(persistedNativeBillingIdentity) !== JSON.stringify(expectedPe
 }
 
 const deviceAuthSource = await readFile(new URL('public/device-auth.js', repoRoot), 'utf8');
+const mobileBridgeSource = await readFile(new URL('public/mobile-bridge.js', repoRoot), 'utf8');
+
+async function exerciseNativeSecureStorageAuthLifecycle() {
+  const sessionKey = 'ask_crump_session_v4';
+  const storedValues = new Map([[sessionKey, 'persisted-token']]);
+  const storageCalls = [];
+  const transportCalls = [];
+  const fetchCalls = [];
+  const localValues = new Map();
+  const secureStorage = {
+    async get(key) {
+      storageCalls.push(['get', key]);
+      return {value: storedValues.get(key) ?? null};
+    },
+    async set(key, value) {
+      storageCalls.push(['set', key, value]);
+      storedValues.set(key, value);
+    },
+    async remove(key) {
+      storageCalls.push(['remove', key]);
+      storedValues.delete(key);
+    },
+  };
+  const localStorage = {
+    get length() { return localValues.size; },
+    getItem(key) { return localValues.get(key) ?? null; },
+    key(index) { return [...localValues.keys()][index] ?? null; },
+    removeItem(key) { localValues.delete(key); },
+    setItem(key, value) { localValues.set(key, String(value)); },
+  };
+  const windowMock = {
+    CRUMP_CONFIG: {apiBase: 'https://www.askcrump.com'},
+    CrumpNative: {
+      isNative: true,
+      Capacitor: {getPlatform: () => 'ios'},
+      SecureStorage: secureStorage,
+    },
+    addEventListener() {},
+    currentUser: null,
+    fetch: async (input, init = {}) => {
+      fetchCalls.push({input: String(input), headers: new Headers(init.headers)});
+      return new Response(null, {status: 401});
+    },
+  };
+  const context = createContext({
+    Headers,
+    Promise,
+    Response,
+    URL,
+    clearTimeout,
+    crypto: {
+      getRandomValues(target) {
+        target[0] = 123;
+        target[1] = 456;
+        return target;
+      },
+      randomUUID: () => 'fixture-installation-id',
+    },
+    localStorage,
+    navigator: {userAgent: 'Ask Crump native auth fixture'},
+    setTimeout,
+    window: windowMock,
+  });
+
+  runInContext(mobileBridgeSource, context);
+  await windowMock.CrumpAPI.ready;
+  if (windowMock.CrumpAPI.getSessionToken() !== 'persisted-token' ||
+      JSON.stringify(storageCalls[0]) !== JSON.stringify(['get', sessionKey])) {
+    throw new Error('The native bridge did not restore the persisted secure-storage session token.');
+  }
+
+  await windowMock.CrumpAPI.setSessionToken('fresh-token');
+  if (windowMock.CrumpAPI.getSessionToken() !== 'fresh-token' ||
+      storedValues.get(sessionKey) !== 'fresh-token' ||
+      !storageCalls.some(call => JSON.stringify(call) === JSON.stringify(['set', sessionKey, 'fresh-token']))) {
+    throw new Error('The native bridge did not persist the refreshed session token to secure storage.');
+  }
+
+  windowMock.CrumpAuthTransport = {
+    async request(path, init = {}) {
+      transportCalls.push([path, String(init.method || 'GET').toUpperCase()]);
+      return {response: {ok: true}, data: {success: true}};
+    },
+  };
+  windowMock.BillingManager = {async disconnect() { transportCalls.push(['billing-disconnect']); }};
+  runInContext(deviceAuthSource, context);
+  await windowMock.deviceAuth.logout();
+  if (windowMock.CrumpAPI.getSessionToken() !== null || storedValues.has(sessionKey) ||
+      !storageCalls.some(call => JSON.stringify(call) === JSON.stringify(['remove', sessionKey])) ||
+      !transportCalls.some(call => JSON.stringify(call) === JSON.stringify(['/api/auth/logout', 'POST']))) {
+    throw new Error('Native logout did not remove the secure-storage session token.');
+  }
+
+  await windowMock.CrumpAPI.setSessionToken('expired-token');
+  const unauthorized = await windowMock.fetch('/api/private-fixture');
+  const lastFetch = fetchCalls.at(-1);
+  if (unauthorized.status !== 401 ||
+      lastFetch?.input !== 'https://www.askcrump.com/api/private-fixture' ||
+      lastFetch?.headers.get('Authorization') !== 'Bearer expired-token' ||
+      windowMock.CrumpAPI.getSessionToken() !== null || storedValues.has(sessionKey) ||
+      storageCalls.filter(call => call[0] === 'remove' && call[1] === sessionKey).length !== 2) {
+    throw new Error('A native 401 did not clear the rejected secure-storage session token.');
+  }
+}
+
+await exerciseNativeSecureStorageAuthLifecycle();
+
 const nativeLogoutSource = deviceAuthSource.slice(
   deviceAuthSource.indexOf('  async logout('),
   deviceAuthSource.indexOf('\n  clearLocalState()', deviceAuthSource.indexOf('  async logout(')),
