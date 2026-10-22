@@ -1039,7 +1039,7 @@ const atelierWorkspaceVersion = `${releaseVersion}-atelier-workspace-1`;
 const responseContinuityCleanupVersion = `${releaseVersion}-response-continuity-cleanup-1`;
 const manuscriptExportDeliveryVersion = `${releaseVersion}-manuscript-export-delivery-1`;
 const autonomousContinuityVersion = `${releaseVersion}-autonomous-continuity-1`;
-const runtimeBodyVersion = responseContinuityCleanupVersion;
+const runtimeBodyVersion = manuscriptExportDeliveryVersion;
 const appearanceChoiceVersion = `${releaseVersion}-appearance-choice-3`;
 const uiReleaseAuditVersion = `${releaseVersion}-ui-release-audit-2`;
 const activityCenterVersion = autonomousContinuityVersion;
@@ -1448,7 +1448,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/crump-4.4.css?v=${cacheIntegrityVersion}`) ||
     !runtime.includes(`/crump-4.4.js?v=${cacheIntegrityVersion}`) ||
     !runtime.includes(`/crump-v1-stability.js?v=${intelligenceArchitectureVersion}`) ||
-    !runtime.includes(`/crump-product-loader.js?v=${responseContinuityCleanupVersion}`) ||
+    !runtime.includes(`/crump-product-loader.js?v=${manuscriptExportDeliveryVersion}`) ||
     runtime.includes(`/crump-product-5.3.js?v=${studioActionLabelsVersion}`) ||
     runtime.includes(`/crump-product-5.3.css?v=${fileLibraryWindowVersion}`) ||
     !runtime.includes(`/crump-product-5.3.1.js?v=${conversationActionLabelsVersion}`) || !runtime.includes('/crump-product-5.3.1.css') ||
@@ -1688,7 +1688,7 @@ const cacheAddressabilitySources = Object.freeze([
   ['service worker', serviceWorker],
 ]);
 for (const [pathname, expectedUrl] of [
-  ['/crump-product-loader.js', `/crump-product-loader.js?v=${responseContinuityCleanupVersion}`],
+  ['/crump-product-loader.js', `/crump-product-loader.js?v=${manuscriptExportDeliveryVersion}`],
   ['/crump-library-loader.js', `/crump-library-loader.js?v=${libraryFirstRunVersion}`],
   ['/crump-navigation-5.9.30.css', `/crump-navigation-5.9.30.css?v=${navFocusVisibilityVersion}`],
   ['/crump-v1-body.js', `/crump-v1-body.js?v=${atelierWorkspaceVersion}`],
@@ -1717,7 +1717,7 @@ for (const [label, source] of [
     process.exit(1);
   }
 }
-if (!serviceWorker.includes('ask-crump-new-body-v1-r264-response-continuity-cleanup-1') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r265-manuscript-export-delivery-1') ||
     !serviceWorker.includes(`'${shellBrandUrl}'`) ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||
@@ -1768,7 +1768,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r264-response-continuity-clea
     !serviceWorker.includes(`/crump-4.4.css?v=${cacheIntegrityVersion}`) ||
     !serviceWorker.includes(`/crump-4.4.js?v=${cacheIntegrityVersion}`) ||
     !serviceWorker.includes(`/crump-v1-stability.js?v=${intelligenceArchitectureVersion}`) ||
-    !serviceWorker.includes(`/crump-product-loader.js?v=${responseContinuityCleanupVersion}`) ||
+    !serviceWorker.includes(`/crump-product-loader.js?v=${manuscriptExportDeliveryVersion}`) ||
     !serviceWorker.includes(`/crump-product-5.3.1.js?v=${conversationActionLabelsVersion}`) ||
     serviceWorker.includes(`/crump-product-5.3.js?v=${studioActionLabelsVersion}`) ||
     serviceWorker.includes(`/crump-product-5.3.css?v=${fileLibraryWindowVersion}`) ||
