@@ -430,6 +430,42 @@ async function directUploadWrapperScenarios(browser, port, browserErrors) {
     await page.waitForFunction(expected => window.fixtureRequestEvidence('books').length === expected + 1, coalescedBookCount);
     assert.equal((await requestEvidence(page, 'books')).length, coalescedBookCount + 1, 'uncertain mutations did not coalesce to one delayed reconciliation');
 
+    // If the delayed pass lands during a foreground shelf refresh, it waits
+    // for that request and performs one auth-scoped follow-up. This closes the
+    // final stale-snapshot window without aborting foreground work.
+    await boot(page, port);
+    await page.evaluate(() => {
+      window.fixtureCaptureReconciliationTimers();
+      window.fixturePlan('trash:book-a');
+      window.fixtureClick('[data-crump57-trash="book-a"]');
+    });
+    await click(page, '#crump57TrashConfirm');
+    await page.waitForFunction(() => window.fixtureDeferredCount('trash:book-a') === 1);
+    await click(page, '[data-crump57-edit="book-b"]');
+    await page.evaluate(() => window.fixtureResolve('trash:book-a'));
+    await page.waitForFunction(() => window.fixtureReconciliationTimerEvidence().pending === 1);
+    const busyRetryBookCount = (await requestEvidence(page, 'books')).length;
+    await page.evaluate(() => {
+      window.fixturePlan('books');
+      void window.fixtureRefresh();
+    });
+    await page.waitForFunction(() => window.fixtureDeferredCount('books') === 1);
+    await page.evaluate(() => window.fixtureFireReconciliationTimers());
+    await settle(page);
+    assert.equal((await requestEvidence(page, 'books')).length, busyRetryBookCount + 1, 'delayed reconciliation superseded the foreground shelf refresh');
+    assertFencedRequest(await requestEvidence(page, 'books'), 'foreground shelf refresh protected from delayed reconciliation', {aborted: false});
+    await page.evaluate(() => {
+      window.fixtureSetBooks([window.fixtureBooks.b]);
+      window.fixtureResolve('books', 0, {
+        success: true,
+        books: [window.fixtureBooks.a, window.fixtureBooks.b],
+      });
+    });
+    await page.waitForFunction(expected => window.fixtureRequestEvidence('books').length === expected + 2, busyRetryBookCount);
+    await page.waitForFunction(() => !document.getElementById('crump57Bookshelf')?.textContent.includes('Book A'));
+    assert.equal((await requestEvidence(page, 'books')).length, busyRetryBookCount + 2, 'busy delayed reconciliation did not issue exactly one follow-up shelf request');
+    assert.doesNotMatch((await snapshot(page)).bookshelfText, /Book A/, 'busy delayed reconciliation did not repair the foreground stale snapshot');
+
     // Auth reset, including A→B→A, cancels the old epoch's delayed work.
     await boot(page, port);
     await page.evaluate(() => {
@@ -663,6 +699,7 @@ async function directUploadWrapperScenarios(browser, port, browserErrors) {
       restoreFence: true,
       permanentDeleteFence: true,
       delayedMutationReconciliation: true,
+      foregroundBooksBusyRetry: true,
       mutationReconciliationCoalescing: true,
       mutationReconciliationAuthEpoch: true,
       foregroundDeletedRefreshPriority: true,

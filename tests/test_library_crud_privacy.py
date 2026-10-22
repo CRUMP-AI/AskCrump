@@ -28,8 +28,9 @@ def test_library_lifecycle_runtime_fences_account_modal_and_resource_effects():
         "function finishLibraryRefresh(refresh)",
         "function abortAllLibraryRefreshes()",
         "const LIBRARY_MUTATION_RECONCILIATION_DELAY_MS = 1600;",
+        "let libraryMutationReconciliationSequence = 0;",
         "function clearLibraryMutationReconciliation()",
-        "async function reconcileLibraryViews(context)",
+        "async function reconcileLibraryViews(context, {retryAfterBusyBooks = false} = {})",
         "function scheduleLibraryMutationReconciliation(operation)",
         "function libraryOverlayHasActiveOperations(overlay)",
     ):
@@ -46,7 +47,9 @@ def test_library_lifecycle_runtime_fences_account_modal_and_resource_effects():
     assert "state.modal !== overlay" in library
     assert "const context = Object.freeze({" in library
     assert "sequence: operation.authSequence" in library
-    assert "if (!libraryOperationIsCurrent(scheduledContext)) return;" in library
+    assert "if (!libraryMutationReconciliationIsCurrent(context)) return;" in library
+    assert "await busyBooksRefresh.completion;" in library
+    assert "retryAfterBusyBooks: true" in library
     assert "includeDeleted: false" in library
     assert "replaceExisting: false" in library
     assert "libraryModalIdentity.get(overlay) !== modalIdentity" in library
