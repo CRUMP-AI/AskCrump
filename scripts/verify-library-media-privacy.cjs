@@ -175,6 +175,13 @@ async function evidence(page) {
     assert.deepEqual(result.fallbacks, [], 'ordinary Files delivery must keep canonical fallback ownership');
 
     await resetToAccountA(page);
+    const urlOnly = await page.evaluate(() => window.fixtureRunUrlOnlyMedia());
+    assert.deepEqual(urlOnly, {value: false, errorName: ''});
+    result = await evidence(page);
+    assert.equal(result.signedRequests.length, 0, 'URL-only media must not enter ID-based signing');
+    assert.deepEqual(result.fallbacks, [], 'URL-only media fallback must remain owned by CrumpFileTools');
+
+    await resetToAccountA(page);
     await page.evaluate(() => {
       window.fixtureSetMode();
       document.getElementById('fixtureVideoDownload').click();
@@ -212,6 +219,7 @@ async function evidence(page) {
       detachedVideoFallbackBlocked: true,
       directVideoFallbackCurrent: true,
       ordinaryFallbackCallerOwned: true,
+      urlOnlyFallbackCallerOwned: true,
       originalSourceViewerBlocked: true,
     }));
   } finally {

@@ -13,6 +13,7 @@ def test_media_delivery_is_single_owner_fenced_and_abortable():
 
     assert "const activeOperations = new Set();" in media
     assert "function beginOperation(file, {signal = null, shouldProceed = null} = {})" in media
+    assert "if (!String(file?.id || '').trim()) return false;" in media
     assert "activeOperations.add(operation);" in media
     assert "finishOperation(operation);" in media
     assert "operation.userId !== currentAuthenticatedUserId()" in media
@@ -52,6 +53,7 @@ def test_composer_preserves_guards_and_never_falls_through_after_auth_abort():
     assert "if (error?.name === 'AbortError' || !fileDeliveryMayProceed(deliveryOptions)) return false;" in composer
     assert "using the canonical file delivery fallback" in composer
     assert "open: (file, download = false, options = {}) => openFile(file, download, options)" in composer
+    assert composer.index("if (handled) return true;") < composer.index("url = await resolvedFileUrl(file, {download: true, ...deliveryOptions});")
 
 
 def test_privacy_browser_fixture_is_non_vacuous_and_registered():
@@ -77,6 +79,7 @@ def test_privacy_browser_fixture_is_non_vacuous_and_registered():
         "direct video navigation fell back after A→B",
         "detached direct-video action triggered a stale fallback",
         "ordinary Files delivery must keep canonical fallback ownership",
+        "URL-only media must not enter ID-based signing",
         "account A original source opened after A→B",
         "account A original-source delivery emitted a stale status after A→B",
     ):

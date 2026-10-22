@@ -211,6 +211,11 @@
       };
       window.fixtureRunMedia = options => window.CrumpMediaSave.saveMedia(window.fixtureMediaFile, options)
         .then(value => ({value, errorName: ''}), error => ({value: false, errorName: String(error?.name || '')}));
+      window.fixtureRunUrlOnlyMedia = () => window.CrumpMediaSave.saveMedia({
+        name: 'legacy-image.png',
+        type: 'image/png',
+        url: 'https://legacy.fixture/private-image.png',
+      }).then(value => ({value, errorName: ''}), error => ({value: false, errorName: String(error?.name || '')}));
       window.fixtureOpenOriginal = async () => {
         await window.CrumpLibrary57.refresh();
         const button = document.querySelector('[data-crump57-original]');

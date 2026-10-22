@@ -94,4 +94,4 @@ def test_native_push_consumer_and_runtime_loader_are_cache_busted_together() -> 
     assert presence_url in worker
     assert cache_name in worker
     assert cache_name in checker
-    assert "const runtimeBodyVersion = manuscriptExportDeliveryVersion;" in checker
+    assert "const runtimeBodyVersion = libraryMediaPrivacyVersion;" in checker

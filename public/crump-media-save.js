@@ -216,6 +216,9 @@
 
   async function saveMedia(file, deliveryOptions = {}) {
     if (!isMedia(file)) return false;
+    // URL-only and legacy media remains owned by CrumpFileTools' canonical
+    // delivery path. This module can enforce ownership only for a file ID.
+    if (!String(file?.id || '').trim()) return false;
     const operation = beginOperation(file, deliveryOptions);
     try {
       try {
