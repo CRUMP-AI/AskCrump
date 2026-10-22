@@ -60,15 +60,15 @@ DYNAMIC_BUTTON_INVENTORY = {
     "public/ui-functions.js": 16,
 }
 INDIRECT_DYNAMIC_BUTTON_OWNERS = {
-    "public/crump-5.0.js:1964:close": (
+    "public/crump-5.0.js:1966:close": (
         "mountLightbox(box, close);",
         "closeButton.addEventListener('click', dismiss)",
     ),
-    "public/crump-5.0.js:2056:close": (
+    "public/crump-5.0.js:2059:close": (
         "mountLightbox(box, close);",
         "closeButton.addEventListener('click', dismiss)",
     ),
-    "public/crump-5.0.js:2433:project": (
+    "public/crump-5.0.js:2436:project": (
         "wireOutputProjectAction(project, {",
         "button.addEventListener('click', async () => {",
     ),
@@ -651,7 +651,7 @@ def test_browser_control_matrix_is_fail_closed_and_one_command() -> None:
     workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     verifier_names = sorted(path.name for path in (ROOT / "scripts").glob("verify-*.cjs"))
 
-    assert len(verifier_names) == 57
+    assert len(verifier_names) == 58
     for name in verifier_names:
         assert f"'{name}'" in runner
     assert "Browser verifier inventory drifted." in runner
@@ -716,7 +716,7 @@ def test_library_layout_buttons_expose_their_selected_state() -> None:
 
 
 def test_library_new_button_release_is_loaded_only_on_library_entry() -> None:
-    asset = "/crump-library-5.7.js?v=5.9.76-manuscript-export-delivery-1"
+    asset = "/crump-library-5.7.js?v=5.9.76-library-media-privacy-1"
     loader = (PUBLIC / "crump-library-loader.js").read_text(encoding="utf-8")
 
     assert asset in loader

@@ -5,7 +5,7 @@
   window.__crumpLibraryLoaderLoaded = true;
 
   const STYLE_URL = '/crump-library-5.7.css?v=5.9.76-library-first-run-1';
-  const SCRIPT_URL = '/crump-library-5.7.js?v=5.9.76-manuscript-export-delivery-1';
+  const SCRIPT_URL = '/crump-library-5.7.js?v=5.9.76-library-media-privacy-1';
   const DESTINATION_SELECTOR = '[data-crump5930-destination="library"]';
   let loadPromise = null;
 

@@ -603,6 +603,7 @@
 
   function scrubComposerAuthBoundary() {
     composerAuthSequence += 1;
+    window.CrumpMediaSave?.abort?.();
     const privateItems = new Set([...state.attachments, ...activeUploads]);
     privateItems.forEach(item => {
       void item?.promise?.catch?.(() => {});
@@ -1935,6 +1936,7 @@
       try {
         url = await resolvedFileUrl(file, deliveryOptions);
       } catch (error) {
+        if (error?.name === 'AbortError' || !fileDeliveryMayProceed(deliveryOptions)) return false;
         show(error?.message || 'Crump could not open that file.', 'error');
         return false;
       }
@@ -2013,13 +2015,14 @@
   async function openFile(file, download = false, deliveryOptions = {}) {
     if ((!file?.id && !file?.url) || !fileDeliveryMayProceed(deliveryOptions)) return false;
     const type = String(file?.type || '').toLowerCase();
-    if (download && (type.startsWith('image/') || type.startsWith('video/')) && window.CrumpLibrary57?.saveMedia) {
+    if (download && (type.startsWith('image/') || type.startsWith('video/')) && window.CrumpMediaSave?.saveMedia) {
       try {
-        const handled = await window.CrumpLibrary57.saveMedia(file);
+        const handled = await window.CrumpMediaSave.saveMedia(file, deliveryOptions);
         if (!fileDeliveryMayProceed(deliveryOptions)) return false;
         if (handled) return true;
       } catch (error) {
-        console.warn('Ask Crump media save failed; using file download fallback.', error);
+        if (error?.name === 'AbortError' || !fileDeliveryMayProceed(deliveryOptions)) return false;
+        console.warn('Ask Crump media save failed; using the canonical file delivery fallback.', error);
       }
     }
     if (!download) return showFileViewer(file, deliveryOptions);

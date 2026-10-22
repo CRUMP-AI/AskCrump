@@ -14,8 +14,12 @@ PUBLIC = ROOT / "public"
 PUBLIC_SUFFIXES = frozenset({".html", ".js"})
 API_STRING = re.compile(r"(?P<quote>['\"`])(?P<value>/api/.*?)(?P=quote)")
 TEMPLATE_EXPRESSION = re.compile(r"\$\{[^{}]*\}")
-EXPECTED_RAW_REFERENCES = 103
+EXPECTED_RAW_REFERENCES = 105
 EXPECTED_SOURCE_FILES = 33
+OWNER_FENCED_MEDIA_REFERENCES = {
+    "/api/files/${encodeURIComponent(operation.fileId)}/signed": frozenset({"public/crump-media-save.js"}),
+    "/api/files/${encodeURIComponent(operation.fileId)}/content?download=1": frozenset({"public/crump-media-save.js"}),
+}
 
 # The final manuscript-run segment is deliberately selected from a fixed UI action.
 # Keeping the exact source expression and its three server destinations here makes
@@ -127,3 +131,14 @@ def test_dynamic_browser_api_families_are_exact_and_not_dead():
     references = browser_api_strings()
     observed = {raw for raw in references if "${action}" in raw}
     assert observed == set(DYNAMIC_ROUTE_FAMILIES)
+
+
+def test_media_delivery_references_resolve_only_through_owned_file_routes():
+    references = browser_api_strings()
+    observed = {raw: references.get(raw) for raw in OWNER_FENCED_MEDIA_REFERENCES}
+    assert observed == OWNER_FENCED_MEDIA_REFERENCES
+
+    file_routes = (ROOT / "backend" / "routes" / "files.py").read_text(encoding="utf-8")
+    assert "@router.get('/{file_id}/content')" in file_routes
+    assert "@router.get('/{file_id}/signed')" in file_routes
+    assert file_routes.count("row = await files.get_owned(user_id=auth.user['id'], file_id=normalized)") >= 2
