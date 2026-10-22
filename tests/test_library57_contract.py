@@ -135,7 +135,7 @@ def test_library571_download_uses_existing_owner_checked_export_pipeline():
     service = read("backend/manuscript_service.py")
 
     assert '@router.post("/api/manuscripts/{manuscript_id}/export")' in routes
-    assert "authenticate_request(request, db, settings)" in routes
+    assert "authenticate_request(request, db, settings, require_account=True)" in routes
     assert "manuscripts.export(" in routes
     assert '"file": files.public_file(row)' in routes
     assert 'if preferred_format not in {"docx", "pdf", "epub"}' in service

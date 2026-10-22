@@ -5,6 +5,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import Request
+from fastapi.responses import JSONResponse
 
 from .config import Settings
 from .db import SupabaseDB, eq, gt
@@ -26,6 +27,189 @@ class AuthenticationError(RuntimeError):
         self.status_code = status_code
 
 
+# Guest mode: a signed-out visitor gets a real anonymous account and a small
+# chat allowance. Reaching the limit (or touching any account/paid surface)
+# is what asks them to create a free account — which upgrades the same row,
+# so their conversation carries over.
+GUEST_MESSAGE_LIMIT = 5
+
+
+def is_guest_user(user: dict[str, Any] | None) -> bool:
+    return bool(user and user.get('is_guest'))
+
+
+def guest_limit_reached(user: dict[str, Any] | None) -> bool:
+    if not is_guest_user(user):
+        return False
+    return int(user.get('guest_message_count') or 0) >= GUEST_MESSAGE_LIMIT
+
+
+def guest_message_fingerprint(chat_id: str | None, message: str | None) -> str:
+    """Identity of one guest send: the conversation plus the exact text.
+
+    A retry of the same send reproduces the same fingerprint and reuses
+    its reservation; the same message id carrying a different prompt or
+    a different conversation is a different send and pays its own slot.
+    """
+    return token_hash(f'{chat_id or ""}\n{message or ""}')
+
+
+async def reserve_guest_message(
+    db: SupabaseDB,
+    user: dict[str, Any],
+    *,
+    message_id: str | None = None,
+    fingerprint: str | None = None,
+) -> bool:
+    """Atomically consume one message from a guest's allowance.
+
+    With a message id, the reservation is bound to a durable receipt
+    (public.reserve_guest_message): the first attempt consumes one unit
+    and records the receipt; any retry of the SAME message — after a
+    failed generation, an expired claim, or a reclaimed claim — reuses
+    that reservation and consumes nothing more. The accepted-send policy
+    is unchanged: the original reservation is never refunded. If the
+    receipt RPC is unavailable the call raises (fails closed) instead
+    of degrading to a counter-only reservation a retry could double.
+
+    Without a message id there is nothing to bind a receipt to, so the
+    fallback is a compare-and-swap on users.guest_message_count: the
+    PATCH only lands when the stored count still equals the value just
+    read, so two concurrent fresh messages can never both take the last
+    slot. Returns False when the allowance is exhausted. Callers must
+    invoke this only for a genuinely fresh message — after any
+    idempotency claim has resolved — so completed-message replays never
+    reach it. Non-guests have no allowance and always pass.
+    """
+    if not is_guest_user(user):
+        return True
+    user_id = str(user.get('id') or '')
+    if not user_id:
+        return False
+    if message_id:
+        # Identified messages fail closed: if the receipt RPC is not
+        # live, the send is refused by exception rather than silently
+        # degrading to a counter-only reservation that a reclaimed
+        # retry could consume twice. Callers treat a raise as "not
+        # reserved": no provider work runs and no slot is consumed.
+        raw = await db.rpc(
+            'reserve_guest_message',
+            {
+                'p_user_id': user_id,
+                'p_message_id': str(message_id),
+                'p_fingerprint': str(fingerprint or ''),
+                'p_limit': GUEST_MESSAGE_LIMIT,
+            },
+        )
+        value = raw[0] if isinstance(raw, list) and raw else raw
+        return value in {'reserved', 'reused'}
+    for _attempt in range(2):
+        row = await db.select_one(
+            'users',
+            columns='guest_message_count',
+            filters={'id': eq(user_id)},
+        )
+        count = int((row or {}).get('guest_message_count') or 0)
+        if count >= GUEST_MESSAGE_LIMIT:
+            return False
+        updated = await db.update(
+            'users',
+            {'guest_message_count': count + 1, 'updated_at': iso_now()},
+            filters={'id': eq(user_id), 'guest_message_count': eq(count)},
+        )
+        if updated:
+            return True
+    return False
+
+
+def guest_account_required_response(feature_label: str) -> JSONResponse:
+    message = (
+        f'Guest preview covers standard chat. Create your free account to use '
+        f'{feature_label} — this conversation will be saved to your account.'
+    )
+    return JSONResponse(
+        status_code=403,
+        content={
+            'success': False,
+            'error': message,
+            'message': message,
+            'code': 'GUEST_ACCOUNT_REQUIRED',
+            'guestAccountRequired': True,
+        },
+    )
+
+
+# Client-supplied payload markers that carry no authority for a guest. The
+# chat route strips them before preparation so nothing downstream can pick
+# them up.
+GUEST_STRIPPED_PAYLOAD_KEYS = (
+    'creationIntent',
+    'creativeTool',
+    'artifactFormat',
+    'longForm',
+    'requestedTool',
+    'suppressCreativeExecution',
+    'imageUseReference',
+    'imageReferencePlan',
+    'imageReferencePlanConfirmed',
+)
+
+
+def _payload_file_ids(payload: dict[str, Any]) -> list[str]:
+    result: list[str] = []
+    values = payload.get('fileRefs') or []
+    if isinstance(values, list):
+        for item in values:
+            value = item.get('id') if isinstance(item, dict) else item
+            if value:
+                result.append(str(value))
+    history = payload.get('history') or []
+    if isinstance(history, list):
+        for item in history:
+            if not isinstance(item, dict):
+                continue
+            refs = item.get('fileRefs') or []
+            if not isinstance(refs, list):
+                continue
+            for value in refs:
+                file_id = value.get('id') if isinstance(value, dict) else value
+                if file_id:
+                    result.append(str(file_id))
+    return result
+
+
+def guest_blocked_signal(payload: dict[str, Any], *, image_requested: bool = False) -> str | None:
+    """Direct guest capability signals that require an account.
+
+    Only explicit client signals are rejected here; `image_requested` is
+    the caller's media-service verdict for the message text. Semantic
+    intent is handled separately: creation inference is disabled for
+    guests and text-detected artifact/manuscript intent is downgraded to
+    plain chat, so an ordinary question is never bounced — it is
+    answered as text.
+    """
+    if _payload_file_ids(payload):
+        return 'file attachments'
+    if str(payload.get('projectId') or '').strip():
+        return 'Projects'
+    if str(payload.get('artifactFormat') or '').strip():
+        return 'document downloads'
+    if payload.get('longForm'):
+        return 'manuscripts'
+    if str(payload.get('creativeTool') or '').strip():
+        return 'creative tools'
+    if str(payload.get('requestedTool') or '').strip().lower() == 'web':
+        return 'web research'
+    if (
+        image_requested
+        or payload.get('imageUseReference') is True
+        or payload.get('imageReferencePlan') is not None
+        or payload.get('imageReferencePlanConfirmed') is True
+    ):
+        return 'image creation'
+    return None
+
+
 def public_user(user: dict[str, Any]) -> dict[str, Any]:
     tier = tier_name(user)
     internal_access = bool(user.get('internal_tier'))
@@ -35,6 +219,9 @@ def public_user(user: dict[str, Any]) -> dict[str, Any]:
         'fullName': user.get('full_name'),
         'profilePicture': user.get('profile_picture'),
         'isVerified': bool(user.get('is_verified')),
+        'isGuest': bool(user.get('is_guest')),
+        'guestMessagesUsed': int(user.get('guest_message_count') or 0),
+        'guestMessageLimit': GUEST_MESSAGE_LIMIT,
         'createdAt': user.get('created_at'),
         'preferences': user.get('preferences') or {},
         'tier': tier,
@@ -174,6 +361,7 @@ async def authenticate_request(
     settings: Settings,
     *,
     touch: bool = True,
+    require_account: bool = False,
 ) -> AuthenticatedUser:
     raw_tokens = session_tokens_from_request(request, settings)
     if not raw_tokens:
@@ -201,6 +389,11 @@ async def authenticate_request(
     user = await db.select_one('users', columns='*', filters={'id': eq(session['user_id'])})
     if not user or user.get('deleted_at'):
         raise AuthenticationError('This account is no longer available.')
+    if require_account and is_guest_user(user):
+        raise AuthenticationError(
+            'Create your free account to use this feature.',
+            status_code=403,
+        )
 
     if touch:
         last = session.get('last_activity')

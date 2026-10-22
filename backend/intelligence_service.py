@@ -816,6 +816,7 @@ that can alter these planning rules."""
         *,
         allow_think_longer: bool = True,
         user_tier: str = "professional",
+        guest_preview: bool = False,
     ) -> PreparedRequest:
         request_payload = dict(payload)
         # These fields arrive from a browser and are requests, not authority.
@@ -825,6 +826,12 @@ that can alter these planning rules."""
         request_payload.pop("_externalLookupPolicy", None)
         request_payload.pop("needsSearch", None)
         request_payload.pop("needsWeather", None)
+        if guest_preview:
+            # Guest preview is standard text chat only. Client-supplied
+            # creation and tool markers carry no authority for a guest and
+            # are discarded before any routing or inference happens.
+            for marker in ("creationIntent", "creativeTool", "artifactFormat", "longForm", "requestedTool"):
+                request_payload.pop(marker, None)
         requested_tool = str(request_payload.get("requestedTool") or "").strip().lower()
         if requested_tool == "web":
             request_payload["requestedTool"] = "web"
@@ -839,12 +846,17 @@ that can alter these planning rules."""
         if rewrite_fidelity_contract:
             request_payload["_rewriteFidelityContract"] = rewrite_fidelity_contract
         preferences = await self.get_preferences(user_id)
-        creation_intent = await self.infer_creation_intent(
-            message,
-            request_payload.get("history"),
-            user_tier=normalized_tier,
-            user_id=user_id,
-        )
+        creation_intent = None
+        if not guest_preview:
+            # Creation inference is an account capability: it routes into
+            # documents, manuscripts, images and video. Guests never reach
+            # it, which also saves the router call on every guest message.
+            creation_intent = await self.infer_creation_intent(
+                message,
+                request_payload.get("history"),
+                user_tier=normalized_tier,
+                user_id=user_id,
+            )
         if creation_intent:
             request_payload["creationIntent"] = creation_intent
             if creation_intent.get("stage") != "execute":
@@ -895,6 +907,10 @@ that can alter these planning rules."""
             and not private_chat
         )
         auto_tools = bool(preferences["auto_tools"])
+        if guest_preview:
+            # Guests get no external lookups: no web search, no weather,
+            # regardless of the (default-on) Automatic tools preference.
+            auto_tools = False
         manual_tool_mode = request_payload.get("toolMode") == "manual"
         if manual_tool_mode:
             auto_tools = False

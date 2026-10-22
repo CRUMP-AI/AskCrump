@@ -246,10 +246,23 @@ async def run_check_ins(
             'users',
             columns=(
                 'id,email,full_name,subscription_tier,subscription_status,'
-                'subscription_current_period_end,internal_tier'
+                'subscription_current_period_end,internal_tier,is_guest'
             ),
             filters={'id': eq(user_id)},
         ) or {}
+        if user.get('is_guest'):
+            # Fail closed: proactive check-ins are an account capability
+            # and their generation is not metered by the guest chat
+            # allowance. A stored guest preference — however it got
+            # there — never generates, and the invalid enrollment is
+            # switched off so it cannot reactivate later.
+            await db.update(
+                'check_in_preferences',
+                {'enabled': False, 'updated_at': iso_now()},
+                filters={'user_id': eq(user_id)},
+            )
+            summary['skipped'] += 1
+            continue
         user_settings = await db.select_one('user_settings', columns='assistant_name', filters={'user_id': eq(user_id)}) or {}
         content = await ai.generate_check_in(
             assistant_name=str(user_settings.get('assistant_name') or 'Crump'),

@@ -4,7 +4,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Request
 
-from ..auth_service import authenticate_request
+from ..auth_service import authenticate_request, is_guest_user
+from ..rate_limit import enforce_user_rate_limit
 from ..runtime import db, settings
 from ..security import iso_now
 from ..sync_service import pull_sync, push_sync
@@ -27,8 +28,20 @@ async def sync_pull(request: Request, since: str | None = None):
 @router.post('/sync/push')
 async def sync_push(request: Request):
     auth = await authenticate_request(request, db, settings)
+    guest = is_guest_user(auth.user)
+    if guest:
+        # Sync stays open to guests (their conversation must survive to
+        # signup), but push frequency is bounded on top of the payload
+        # limits push_sync enforces for guests.
+        await enforce_user_rate_limit(
+            db,
+            user_id=auth.user['id'],
+            action='guest_sync_push',
+            limit=30,
+            window_seconds=3600,
+        )
     payload = await request.json()
-    result = await push_sync(db, auth.user['id'], payload if isinstance(payload, dict) else {})
+    result = await push_sync(db, auth.user['id'], payload if isinstance(payload, dict) else {}, is_guest=guest)
     return {'success': True, 'serverTime': iso_now(), **result}
 
 

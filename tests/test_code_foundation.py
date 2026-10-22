@@ -190,7 +190,7 @@ def test_code_routes_are_authenticated_server_surfaces():
     assert ("POST", "/api/code/tasks/{task_id}/approvals/{approval_id}") in routes
     source = read("backend/routes/code.py")
     cron_source = read("backend/routes/manuscripts.py")
-    assert "authenticate_request(request, db, settings)" in source
+    assert "authenticate_request(request, db, settings, require_account=True)" in source
     assert "features.consume(" in source
     assert "code_tasks.dispatch(" in source
     assert 'request.headers.get("x-vercel-oidc-token")' in cron_source

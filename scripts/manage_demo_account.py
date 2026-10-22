@@ -59,7 +59,7 @@ DEMO_SETTINGS: dict[str, Any] = {
 # content, names, filenames, prompts, messages, or account identifiers.
 CONTENT_GROUPS: dict[str, tuple[str, ...]] = {
     "sessions": ("sessions",),
-    "conversations": ("user_chats", "message_receipts", "chat_jobs"),
+    "conversations": ("user_chats", "message_receipts", "chat_jobs", "guest_message_receipts"),
     "files": ("user_files",),
     "projects": ("projects", "project_chats", "project_files", "project_context"),
     "manuscripts": ("manuscripts", "manuscript_sections", "manuscript_runs"),

@@ -78,7 +78,7 @@ async def _public_run(user_id: str, row: dict | None) -> dict | None:
 
 @router.get("/api/projects/{project_id}/manuscripts")
 async def list_manuscripts(project_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     try:
         items = await manuscripts.list(user_id=auth.user["id"], project_id=project_id)
         return {"success": True, "manuscripts": items}
@@ -91,7 +91,7 @@ async def list_manuscripts(project_id: str, request: Request):
 
 @router.post("/api/projects/{project_id}/manuscripts")
 async def create_manuscript(project_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     payload = await request.json()
     if not isinstance(payload, dict):
         return JSONResponse(status_code=400, content={"success": False, "error": "Invalid request."})
@@ -121,7 +121,7 @@ async def create_manuscript(project_id: str, request: Request):
 
 @router.get("/api/manuscripts/{manuscript_id}")
 async def get_manuscript(manuscript_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     try:
         item = await manuscripts.get(user_id=auth.user["id"], manuscript_id=manuscript_id)
         sections = await manuscripts.list_sections(user_id=auth.user["id"], manuscript_id=manuscript_id)
@@ -139,7 +139,7 @@ async def get_manuscript(manuscript_id: str, request: Request):
 
 @router.post("/api/manuscripts/{manuscript_id}/runs")
 async def start_manuscript_run(manuscript_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     if not settings.manuscript_generation_enabled or not settings.anthropic_api_key:
         return JSONResponse(
             status_code=503,
@@ -252,7 +252,7 @@ async def start_manuscript_run(manuscript_id: str, request: Request):
 
 @router.get("/api/manuscripts/{manuscript_id}/run")
 async def manuscript_run_status(manuscript_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     try:
         row = await manuscripts.latest_run(user_id=auth.user["id"], manuscript_id=manuscript_id)
         return {"success": True, "run": await _public_run(auth.user["id"], row)}
@@ -262,7 +262,7 @@ async def manuscript_run_status(manuscript_id: str, request: Request):
 
 @router.post("/api/manuscript-runs/{run_id}/pause")
 async def pause_manuscript_run(run_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     try:
         row = await manuscripts.pause_run(user_id=auth.user["id"], run_id=run_id)
         return {"success": True, "run": await _public_run(auth.user["id"], row)}
@@ -272,7 +272,7 @@ async def pause_manuscript_run(run_id: str, request: Request):
 
 @router.post("/api/manuscript-runs/{run_id}/resume")
 async def resume_manuscript_run(run_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     try:
         payload = await request.json()
     except Exception:
@@ -342,7 +342,7 @@ async def resume_manuscript_run(run_id: str, request: Request):
 
 @router.post("/api/manuscript-runs/{run_id}/cancel")
 async def cancel_manuscript_run(run_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     try:
         row = await manuscripts.cancel_run(user_id=auth.user["id"], run_id=run_id)
         return {"success": True, "run": await _public_run(auth.user["id"], row)}
@@ -375,7 +375,7 @@ async def manuscript_cron(request: Request):
 
 @router.post("/api/manuscripts/{manuscript_id}/blueprint")
 async def blueprint_manuscript(manuscript_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     if not settings.manuscript_generation_enabled or not settings.anthropic_api_key:
         return JSONResponse(
             status_code=503,
@@ -440,7 +440,7 @@ async def blueprint_manuscript(manuscript_id: str, request: Request):
 
 @router.post("/api/manuscripts/{manuscript_id}/sections")
 async def add_section(manuscript_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     payload = await request.json()
     if not isinstance(payload, dict):
         return JSONResponse(status_code=400, content={"success": False, "error": "Invalid request."})
@@ -459,7 +459,7 @@ async def add_section(manuscript_id: str, request: Request):
 
 @router.patch("/api/manuscripts/{manuscript_id}/sections/{section_id}")
 async def update_section(manuscript_id: str, section_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     payload = await request.json()
     try:
         item = await manuscripts.update_section(
@@ -475,7 +475,7 @@ async def update_section(manuscript_id: str, section_id: str, request: Request):
 
 @router.post("/api/manuscripts/{manuscript_id}/sections/{section_id}/draft")
 async def draft_section(manuscript_id: str, section_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     if not settings.manuscript_generation_enabled or not settings.anthropic_api_key:
         return JSONResponse(
             status_code=503,
@@ -535,7 +535,7 @@ async def draft_section(manuscript_id: str, section_id: str, request: Request):
 
 @router.post("/api/manuscripts/{manuscript_id}/draft-next")
 async def draft_next_section(manuscript_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     if not settings.manuscript_generation_enabled or not settings.anthropic_api_key:
         return JSONResponse(
             status_code=503,
@@ -597,7 +597,7 @@ async def draft_next_section(manuscript_id: str, request: Request):
 
 @router.post("/api/manuscripts/{manuscript_id}/export")
 async def export_manuscript(manuscript_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     if not settings.manuscript_generation_enabled:
         return JSONResponse(
             status_code=503,

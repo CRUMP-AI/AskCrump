@@ -1597,8 +1597,10 @@
       const data = await window.CrumpChatTransport.send(body);
       if (authSequence !== composerAuthSequence) throw composerBoundaryAbortError();
       await applyCompletedReplySafely(fresh, userMessage, data);
+      window.CrumpGuest?.noteMessageSent?.();
     } catch (error) {
       if (authSequence !== composerAuthSequence) return;
+      window.CrumpGuest?.onChatError?.(error);
       window.CrumpPresence?.stop?.();
       const fresh = currentChat();
       const target = fresh?.messages?.find(item => item.id === userMessage?.id);
@@ -1714,8 +1716,10 @@
       const data = await window.CrumpChatTransport.send(body);
       if (!retryIsCurrent()) return;
       await applyCompletedReplySafely(chat, message, data);
+      window.CrumpGuest?.noteMessageSent?.();
     } catch (error) {
       if (!retryIsCurrent()) return;
+      window.CrumpGuest?.onChatError?.(error);
       window.CrumpPresence?.stop?.();
       chat=retryChat(); message=chat?.messages?.find(item => item.id===id) || message;
       if (message) {
