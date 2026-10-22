@@ -78,6 +78,7 @@ def test_composer_upload_honors_library_caller_abort_and_guard_without_breaking_
 
 def test_crud_privacy_browser_fixture_is_non_vacuous_and_registered():
     fixture = read("tests/fixtures/library-crud-privacy.html")
+    upload_fixture = read("tests/fixtures/image-upload-preview-stability.html")
     verifier = read("scripts/verify-library-crud-privacy.cjs")
     matrix = read("scripts/verify-browser-control-matrix.mjs")
     package = json.loads(read("package.json"))
@@ -125,6 +126,25 @@ def test_crud_privacy_browser_fixture_is_non_vacuous_and_registered():
     assert "hasSignal: true" in verifier
     assert "aborted: true" in verifier
     assert "mayProceed: false" in verifier
+    for marker in (
+        "fixtureResetDirectUploadEvidence",
+        "fixtureDirectUploadEvidence",
+        "__directUploadRequests",
+        "__directUploadRevocations",
+        "__xhrSends",
+    ):
+        assert marker in upload_fixture
+    for assertion in (
+        "pre-aborted real upload unexpectedly resolved",
+        "guard-false real upload unexpectedly resolved",
+        "caller abort did not reach the real upload XHR",
+        "cancelled real upload did not revoke its preview blob",
+        "successful real upload did not revoke its preview blob",
+    ):
+        assert assertion in verifier
+    assert "image-upload-preview-stability.html" in verifier
+    assert "window.CrumpFileTools.upload" in verifier
+    assert "directUploadWrapper" in verifier
     assert "'verify-library-crud-privacy.cjs'" in matrix
     assert package["scripts"]["test:library-crud-privacy"] == "node scripts/verify-library-crud-privacy.cjs"
     assert "npm run test:library-crud-privacy" in package["scripts"]["test"]
