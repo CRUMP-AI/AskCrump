@@ -1621,6 +1621,9 @@ if (!legacySavedBranch.includes('window.CrumpProduct53?.openFiles') ||
 
 const serviceWorker = await readFile(new URL('public/sw.js', repoRoot), 'utf8');
 const characterHoldFiles = Object.freeze([
+  'public/app.html',
+  'public/runtime-body-v1.js',
+  'public/crump-v1-body.js',
   'public/ui-functions.js',
   'public/crump-4.3.js',
   'public/crump-vision-chats-1.0.js',
@@ -1642,6 +1645,7 @@ for (const relative of characterHoldFiles) {
 }
 const forbiddenCharacterRuntimeTokens = Object.freeze([
   '/assets/brand/crump-mascot.png',
+  '/assets/brand/crump-mascot-idle.',
   'MASCOT_SRC',
   'crump-message-avatar',
   'crump-empty-mascot',
@@ -1654,6 +1658,21 @@ for (const [relative, source] of characterHoldSources) {
   const forbidden = forbiddenCharacterRuntimeTokens.find(token => source.includes(token));
   if (forbidden) {
     console.error(`Zero-runtime-mascot contract failed in ${relative}: ${forbidden}`);
+    process.exit(1);
+  }
+}
+const characterAssetOnlyFiles = Object.freeze([
+  'public/crump-v1-body.css',
+]);
+const forbiddenCharacterAssetTokens = Object.freeze([
+  '/assets/brand/crump-mascot.png',
+  '/assets/brand/crump-mascot-idle.',
+]);
+for (const relative of characterAssetOnlyFiles) {
+  const source = await readFile(new URL(relative, repoRoot), 'utf8');
+  const forbidden = forbiddenCharacterAssetTokens.find(token => source.includes(token));
+  if (forbidden) {
+    console.error(`Zero-runtime-mascot asset contract failed in ${relative}: ${forbidden}`);
     process.exit(1);
   }
 }
