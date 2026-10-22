@@ -21,7 +21,7 @@ def test_product53_runtime_is_lazy_loaded_and_cache_addressable():
     assert "/crump-product-5.3.css?v=5.9.76-projects-empty-state-1" in loader
     assert "/crump-product-5.3.js?v=5.9.76-manuscript-export-delivery-1" in loader
     assert runtime.index("/crump-navigation-5.2.5.js") < runtime.index("/crump-product-loader.js")
-    assert "ask-crump-new-body-v1-r266-library-media-privacy-1" in worker
+    assert "ask-crump-new-body-v1-r267-library-crud-privacy-1" in worker
     assert "crump-product-5.3.js" in checker
     assert "crump-product-loader.js" in checker
 

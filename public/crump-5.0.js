@@ -143,8 +143,19 @@
     return Object.assign(new Error('This upload belongs to a previous authentication session.'), {name: 'AbortError'});
   }
 
+  function uploadCallerMayProceed(item) {
+    if (typeof item?.callerShouldProceed !== 'function') return true;
+    try {
+      return item.callerShouldProceed() !== false;
+    } catch (_) {
+      return false;
+    }
+  }
+
   function composerUploadIsCurrent(item, sequence = item?.authSequence) {
-    return Number(sequence) === composerAuthSequence && !item?.authController?.signal?.aborted;
+    return Number(sequence) === composerAuthSequence
+      && !item?.authController?.signal?.aborted
+      && uploadCallerMayProceed(item);
   }
 
   function assertComposerUploadCurrent(item, sequence = item?.authSequence) {
@@ -2490,17 +2501,38 @@
       }
     },
     open: (file, download = false, options = {}) => openFile(file, download, options),
-    upload: async file => {
+    upload: async (file, options = {}) => {
+      const callerSignal = options?.signal || null;
+      const callerShouldProceed = typeof options?.shouldProceed === 'function'
+        ? options.shouldProceed
+        : null;
+      const callerMayProceed = () => {
+        if (callerSignal?.aborted) return false;
+        try {
+          return !callerShouldProceed || callerShouldProceed() !== false;
+        } catch (_) {
+          return false;
+        }
+      };
       const authSequence = composerAuthSequence;
+      if (!callerMayProceed()) throw composerBoundaryAbortError();
       const normalized = await normalizeInputFile(file);
-      if (authSequence !== composerAuthSequence) throw composerBoundaryAbortError();
+      if (authSequence !== composerAuthSequence || !callerMayProceed()) throw composerBoundaryAbortError();
       const issue = validateFile(normalized);
       if (issue) throw new Error(issue);
       const item = makeLocalAttachment(normalized);
       item.authSequence = authSequence;
+      item.callerShouldProceed = callerMayProceed;
+      const abortFromCaller = () => {
+        item.authController?.abort?.();
+        item.controller?.abort?.();
+      };
+      callerSignal?.addEventListener?.('abort', abortFromCaller, {once: true});
       try {
+        assertComposerUploadCurrent(item, authSequence);
         return await uploadItem(item);
       } finally {
+        callerSignal?.removeEventListener?.('abort', abortFromCaller);
         if (item.previewUrl?.startsWith('blob:')) URL.revokeObjectURL(item.previewUrl);
       }
     },

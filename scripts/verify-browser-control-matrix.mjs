@@ -33,6 +33,7 @@ const expectedVerifiers = Object.freeze([
   'verify-image-scroll-stability.cjs',
   'verify-image-studio-entry-cache-upgrade.cjs',
   'verify-library-media-privacy.cjs',
+  'verify-library-crud-privacy.cjs',
   'verify-library-lazy-load.cjs',
   'verify-lifecycle-project-continuity.cjs',
   'verify-lifecycle-referral-recovery.cjs',

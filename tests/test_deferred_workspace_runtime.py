@@ -32,7 +32,7 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
     assert scripts == [
         '/telemetry-config.js?v=5.9.76',
         '/crump-vision-demo-1.0.js?v=5.9.76-atelier-workspace-1',
-        '/runtime-body-v1.js?v=5.9.76-library-media-privacy-1',
+        '/runtime-body-v1.js?v=5.9.76-library-crud-privacy-1',
         '/home-document-entry.js?v=5.9.76-home-document-entry-1',
         '/crump-vision-shell-1.0.js?v=5.9.76-atelier-workspace-1',
         '/crump-vision-chats-1.0.js?v=5.9.76-atelier-workspace-1',
