@@ -6,6 +6,7 @@ const {chromium} = require('playwright');
 
 const root = path.resolve(__dirname, '..');
 const fixturePath = '/tests/fixtures/library-crud-privacy.html';
+const uploadFixturePath = '/tests/fixtures/image-upload-preview-stability.html';
 const contentTypes = Object.freeze({
   '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8',
@@ -101,6 +102,107 @@ async function staleReaderScenario(page, port, outcome) {
   assert.deepEqual(result.toasts, [], `reader A ${outcome} emitted a stale toast`);
   assert.deepEqual(result.navigations, [], `reader A ${outcome} navigated after A→B`);
   assert.doesNotMatch(await page.locator('body').textContent(), /Private content for book-a|Private reader A failed/);
+}
+
+async function directUploadWrapperScenarios(browser, port, browserErrors) {
+  const page = await browser.newPage();
+  page.on('console', message => { if (message.type() === 'error') browserErrors.push(message.text()); });
+  page.on('pageerror', error => browserErrors.push(error.message));
+  await page.goto(`http://127.0.0.1:${port}${uploadFixturePath}`, {waitUntil: 'load'});
+  await page.waitForFunction(() => window.CrumpFileTools?.upload && window.currentUser?.id);
+
+  const preAborted = await page.evaluate(async () => {
+    window.fixtureResetDirectUploadEvidence();
+    const controller = new AbortController();
+    controller.abort();
+    try {
+      await window.CrumpFileTools.upload(
+        new File([new Uint8Array([137, 80, 78, 71])], 'pre-aborted.png', {type: 'image/png'}),
+        {signal: controller.signal},
+      );
+      return {resolved: true, evidence: window.fixtureDirectUploadEvidence()};
+    } catch (error) {
+      return {resolved: false, errorName: error?.name, evidence: window.fixtureDirectUploadEvidence()};
+    }
+  });
+  assert.equal(preAborted.resolved, false, 'pre-aborted real upload unexpectedly resolved');
+  assert.equal(preAborted.errorName, 'AbortError');
+  assert.deepEqual(preAborted.evidence.requests, [], 'pre-aborted real upload reached signing');
+  assert.equal(preAborted.evidence.xhrSends, 0);
+
+  const guarded = await page.evaluate(async () => {
+    window.fixtureResetDirectUploadEvidence();
+    try {
+      await window.CrumpFileTools.upload(
+        new File([new Uint8Array([137, 80, 78, 71])], 'guarded.png', {type: 'image/png'}),
+        {shouldProceed: () => false},
+      );
+      return {resolved: true, evidence: window.fixtureDirectUploadEvidence()};
+    } catch (error) {
+      return {resolved: false, errorName: error?.name, evidence: window.fixtureDirectUploadEvidence()};
+    }
+  });
+  assert.equal(guarded.resolved, false, 'guard-false real upload unexpectedly resolved');
+  assert.equal(guarded.errorName, 'AbortError');
+  assert.deepEqual(guarded.evidence.requests, [], 'guard-false real upload reached signing');
+  assert.equal(guarded.evidence.xhrSends, 0);
+
+  await page.evaluate(() => {
+    window.fixtureResetDirectUploadEvidence();
+    window.__directUploadGuard = true;
+    window.__directUploadController = new AbortController();
+    window.__directUploadResult = window.CrumpFileTools.upload(
+      new File([new Uint8Array([137, 80, 78, 71])], 'cancelled.png', {type: 'image/png'}),
+      {
+        signal: window.__directUploadController.signal,
+        shouldProceed: () => window.__directUploadGuard,
+      },
+    ).then(
+      file => ({resolved: true, file}),
+      error => ({resolved: false, errorName: error?.name}),
+    );
+  });
+  await page.waitForFunction(() => window.__xhrSends === 1);
+  await page.evaluate(() => {
+    window.__directUploadGuard = false;
+    window.__directUploadController.abort();
+  });
+  const cancelled = await page.evaluate(async () => ({
+    result: await window.__directUploadResult,
+    evidence: window.fixtureDirectUploadEvidence(),
+  }));
+  assert.equal(cancelled.result.resolved, false, 'cancelled real upload unexpectedly resolved');
+  assert.equal(cancelled.result.errorName, 'AbortError');
+  assert.deepEqual(cancelled.evidence.requests.map(request => request.kind), ['sign']);
+  assert.equal(cancelled.evidence.xhrSends, 1);
+  assert.equal(cancelled.evidence.xhrAborts, 1, 'caller abort did not reach the real upload XHR');
+  assert.ok(cancelled.evidence.revocations.some(value => value.startsWith('blob:')), 'cancelled real upload did not revoke its preview blob');
+
+  const success = await page.evaluate(async () => {
+    window.fixtureResetDirectUploadEvidence();
+    const file = await window.CrumpFileTools.upload(
+      new File([new Uint8Array([137, 80, 78, 71])], 'success.png', {type: 'image/png'}),
+      {shouldProceed: () => true},
+    );
+    return {file, evidence: window.fixtureDirectUploadEvidence()};
+  });
+  assert.equal(success.file.id, '11111111-1111-4111-8111-111111111111');
+  assert.deepEqual(success.evidence.requests.map(request => request.kind), ['sign', 'complete']);
+  assert.deepEqual(success.evidence.requests.map(request => request.method), ['POST', 'POST']);
+  assert.deepEqual(success.evidence.requests.map(request => request.signalAborted), [false, false]);
+  assert.equal(success.evidence.xhrSends, 1);
+  assert.equal(success.evidence.xhrAborts, 0);
+  assert.equal(success.evidence.cacheControl, '0');
+  assert.ok(success.evidence.revocations.some(value => value.startsWith('blob:')), 'successful real upload did not revoke its preview blob');
+  assert.equal(success.evidence.toast, null);
+
+  await page.close();
+  return {
+    preAbortedFence: true,
+    guardFalseFence: true,
+    activeCancellation: true,
+    successPath: true,
+  };
 }
 
 (async () => {
@@ -392,6 +494,7 @@ async function staleReaderScenario(page, port, outcome) {
     assert.deepEqual((await snapshot(page)).toasts, [{message: 'Deleted A permanently deleted.', type: 'success'}]);
 
     assert.equal(await page.locator('#fixtureErrors').textContent(), '0');
+    const directUploadWrapper = await directUploadWrapperScenarios(browser, port, browserErrors);
     assert.deepEqual(browserErrors, []);
     process.stdout.write(JSON.stringify({
       readerResolveFence: true,
@@ -408,6 +511,7 @@ async function staleReaderScenario(page, port, outcome) {
       refreshLatestWins: true,
       activeImportSuccess: true,
       activeDeleteRetry: true,
+      directUploadWrapper,
     }));
   } finally {
     await browser.close();

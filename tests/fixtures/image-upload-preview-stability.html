@@ -28,15 +28,49 @@
     window.__fixtureUserB = {id: '00000000-0000-0000-0000-000000000002'};
     window.currentUser = null;
     window.__xhrAborts = 0;
-    window.fetch = async path => {
+    window.__xhrSends = 0;
+    window.__directUploadRequests = [];
+    window.__directUploadRevocations = [];
+    const nativeRevokeObjectUrl = URL.revokeObjectURL.bind(URL);
+    URL.revokeObjectURL = value => {
+      window.__directUploadRevocations.push(String(value || ''));
+      nativeRevokeObjectUrl(value);
+    };
+    window.fixtureResetDirectUploadEvidence = () => {
+      window.__xhrAborts = 0;
+      window.__xhrSends = 0;
+      window.__uploadCacheControl = null;
+      window.__directUploadRequests = [];
+      window.__directUploadRevocations = [];
+      window.__lastToast = null;
+    };
+    window.fixtureDirectUploadEvidence = () => ({
+      requests: window.__directUploadRequests.map(request => ({...request})),
+      xhrAborts: window.__xhrAborts,
+      xhrSends: window.__xhrSends,
+      cacheControl: window.__uploadCacheControl,
+      revocations: [...window.__directUploadRevocations],
+      toast: window.__lastToast ? {...window.__lastToast} : null,
+    });
+    window.fetch = async (path, options = {}) => {
       const url = String(path || '');
       if (url === '/api/files/sign-upload') {
+        window.__directUploadRequests.push({
+          kind: 'sign',
+          method: String(options.method || 'GET'),
+          signalAborted: !!options.signal?.aborted,
+        });
         return new Response(JSON.stringify({
           file: {id: '11111111-1111-4111-8111-111111111111', name: 'fixture.png', type: 'image/png', size: 68},
           uploadUrl: '/fixture-upload',
         }), {status: 200, headers: {'Content-Type': 'application/json'}});
       }
       if (url.includes('/complete')) {
+        window.__directUploadRequests.push({
+          kind: 'complete',
+          method: String(options.method || 'GET'),
+          signalAborted: !!options.signal?.aborted,
+        });
         return new Response(JSON.stringify({
           file: {id: '11111111-1111-4111-8111-111111111111', name: 'fixture.png', type: 'image/png', size: 68},
         }), {status: 200, headers: {'Content-Type': 'application/json'}});
@@ -48,6 +82,7 @@
     class FixtureXHR {
       constructor() {
         this.status = 200;
+        this.aborted = false;
         this.listeners = {};
         this.uploadListeners = {};
         this.upload = {addEventListener: (name, handler) => { this.uploadListeners[name] = handler; }};
@@ -56,13 +91,23 @@
       setRequestHeader() {}
       getResponseHeader() { return null; }
       addEventListener(name, handler) { this.listeners[name] = handler; }
-      abort() { window.__xhrAborts += 1; this.listeners.abort?.(); }
+      abort() {
+        if (this.aborted) return;
+        this.aborted = true;
+        window.__xhrAborts += 1;
+        this.listeners.abort?.();
+      }
       send(body) {
+        window.__xhrSends += 1;
         window.__uploadCacheControl = body?.get?.('cacheControl') || null;
         [20, 45, 70, 95].forEach((loaded, index) => {
-          setTimeout(() => this.uploadListeners.progress?.({lengthComputable: true, loaded, total: 100}), 45 * (index + 1));
+          setTimeout(() => {
+            if (!this.aborted) this.uploadListeners.progress?.({lengthComputable: true, loaded, total: 100});
+          }, 45 * (index + 1));
         });
-        setTimeout(() => this.listeners.load?.(), 250);
+        setTimeout(() => {
+          if (!this.aborted) this.listeners.load?.();
+        }, 250);
       }
     }
     window.XMLHttpRequest = FixtureXHR;
