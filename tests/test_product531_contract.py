@@ -49,7 +49,7 @@ def test_project_reference_ui_and_chat_rename_are_final_runtime_layers():
     assert "data.chatId" not in js
     assert "item.dataset.chatId = chat.id" in app
     assert "window.CrumpFileTools" in files
-    assert "upload: async file =>" in files
+    assert "upload: async (file, options = {}) =>" in files
     assert "CrumpFileTools?.upload" in js
     assert 'data-download-project-file="${escapeHtml(file.id)}"' in js
     assert "window.CrumpFileTools?.open?.(file, false)" in js
