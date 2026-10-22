@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r266-library-media-privacy-1';
+const CACHE_NAME = 'ask-crump-new-body-v1-r267-library-crud-privacy-1';
 
 const CORE = [
   '/app',
@@ -46,10 +46,10 @@ const CORE = [
   '/crump-product-5.3.1.js?v=5.9.76-conversation-action-labels-2',
   '/crump-polish-5.6.css',
   '/crump-polish-5.6.js?v=5.9.76-friendly-workspace-1',
-  '/crump-media-save.js?v=5.9.76-library-media-privacy-1',
-  '/crump-library-loader.js?v=5.9.76-library-media-privacy-1',
+  '/crump-media-save.js?v=5.9.76-library-crud-privacy-1',
+  '/crump-library-loader.js?v=5.9.76-library-crud-privacy-1',
   '/crump-subscriptions-5.3.2.js?v=5.9.76-checkout-destination-label-1',
-  '/runtime-body-v1.js?v=5.9.76-library-media-privacy-1',
+  '/runtime-body-v1.js?v=5.9.76-library-crud-privacy-1',
   '/home-document-entry.js?v=5.9.76-home-document-entry-1',
   '/native-runtime.js',
   '/mobile-bridge.js',
@@ -80,7 +80,7 @@ const CORE = [
   '/crump-4.4.css?v=5.9.76-friendly-workspace-1',
   '/crump-4.4.js?v=5.9.76-friendly-workspace-1',
   '/crump-5.0.css?v=5.9.76-reference-fidelity-hard-contract-1',
-  '/crump-5.0.js?v=5.9.76-library-media-privacy-1',
+  '/crump-5.0.js?v=5.9.76-library-crud-privacy-1',
   '/crump-precision-image-edit-loader.js?v=5.9.76-reference-fidelity-hard-contract-1',
   '/crump-billing-5.1.css?v=5.9.76-credit-truth-1',
   '/crump-billing-5.1.js?v=5.9.76-checkout-destination-label-1',

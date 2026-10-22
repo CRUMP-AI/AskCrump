@@ -91,8 +91,8 @@ def test_privacy_browser_fixture_is_non_vacuous_and_registered():
 
 
 def test_changed_assets_are_versioned_across_web_pwa_and_native():
-    token = "5.9.76-library-media-privacy-1"
-    cache_name = "ask-crump-new-body-v1-r266-library-media-privacy-1"
+    token = "5.9.76-library-crud-privacy-1"
+    cache_name = "ask-crump-new-body-v1-r267-library-crud-privacy-1"
     shell = read("public/app.html")
     runtime = read("public/runtime-body-v1.js")
     runtime_config = read("public/runtime-config.js")

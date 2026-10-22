@@ -156,7 +156,18 @@
   const manuscriptExportDelivery = manuscriptExportDeliveryRuntime();
   let libraryAuthSequence = 0;
   let libraryStateUserId = '';
+  let libraryOperationSequence = 0;
+  let libraryModalSequence = 0;
   const libraryFileDeliveryControllers = new Set();
+  const libraryOperations = new Set();
+  const libraryOverlayOperations = new WeakMap();
+  const libraryModalIdentity = new WeakMap();
+  const libraryRefreshes = new Map();
+  const libraryRefreshGenerations = new Map();
+
+  function libraryAbortError(message = 'This Library action is no longer current.') {
+    return Object.assign(new Error(message), {name: 'AbortError'});
+  }
 
   function currentLibraryUserId() {
     const currentUserId = String(window.currentUser?.id || '').trim();
@@ -180,6 +191,191 @@
       && context.userId === libraryStateUserId
       && context.userId === currentLibraryUserId()
     );
+  }
+
+  function beginLibraryOperation(surface, {
+    overlay = null,
+    modalSensitive = Boolean(overlay),
+    resourceType = '',
+    resourceId = '',
+    resourceCurrent = null,
+  } = {}) {
+    const auth = libraryOperationContext();
+    if (!auth.userId) return null;
+    const operation = {
+      id: ++libraryOperationSequence,
+      surface: String(surface || 'library'),
+      userId: auth.userId,
+      authSequence: auth.sequence,
+      controller: new AbortController(),
+      overlay,
+      modalSensitive: Boolean(modalSensitive),
+      modalSequence: libraryModalSequence,
+      expectedModal: overlay || state.modal || null,
+      modalIdentity: overlay ? libraryModalIdentity.get(overlay) || null : null,
+      resourceType: String(resourceType || ''),
+      resourceId: String(resourceId || ''),
+      resourceCurrent: typeof resourceCurrent === 'function' ? resourceCurrent : null,
+      finished: false,
+    };
+    libraryOperations.add(operation);
+    if (overlay) {
+      const overlayOperations = libraryOverlayOperations.get(overlay) || new Set();
+      overlayOperations.add(operation);
+      libraryOverlayOperations.set(overlay, overlayOperations);
+    }
+    return operation;
+  }
+
+  function attachLibraryOperationOverlay(operation, overlay, {
+    resourceType = operation?.resourceType || '',
+    resourceId = operation?.resourceId || '',
+  } = {}) {
+    if (!operation || !overlay) return false;
+    const previous = operation.overlay;
+    if (previous && previous !== overlay) {
+      libraryOverlayOperations.get(previous)?.delete(operation);
+    }
+    operation.overlay = overlay;
+    operation.modalSensitive = true;
+    operation.expectedModal = overlay;
+    operation.modalSequence = libraryModalSequence;
+    operation.modalIdentity = libraryModalIdentity.get(overlay) || null;
+    operation.resourceType = String(resourceType || '');
+    operation.resourceId = String(resourceId || '');
+    const overlayOperations = libraryOverlayOperations.get(overlay) || new Set();
+    overlayOperations.add(operation);
+    libraryOverlayOperations.set(overlay, overlayOperations);
+    return true;
+  }
+
+  function libraryOperationAccountIsCurrent(operation) {
+    return Boolean(
+      operation?.userId
+      && operation.authSequence === libraryAuthSequence
+      && operation.userId === libraryStateUserId
+      && operation.userId === currentLibraryUserId()
+    );
+  }
+
+  function activeLibraryOperation(operation) {
+    if (!operation || operation.finished || operation.controller?.signal?.aborted || !libraryOperationAccountIsCurrent(operation)) return false;
+    if (operation.modalSensitive) {
+      if (operation.overlay) {
+        if (
+          state.modal !== operation.overlay
+          || !operation.overlay.isConnected
+          || libraryModalIdentity.get(operation.overlay) !== operation.modalIdentity
+          || (operation.resourceType && operation.overlay.dataset.crump57ResourceType !== operation.resourceType)
+          || (operation.resourceId && operation.overlay.dataset.crump57ResourceId !== operation.resourceId)
+        ) return false;
+      } else if (
+        libraryModalSequence !== operation.modalSequence
+        || state.modal !== operation.expectedModal
+      ) return false;
+    }
+    if (operation.resourceCurrent) {
+      try {
+        if (operation.resourceCurrent() === false) return false;
+      } catch (_) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  function assertLibraryOperationCurrent(operation) {
+    if (!activeLibraryOperation(operation)) throw libraryAbortError();
+  }
+
+  function finishLibraryOperation(operation) {
+    if (!operation) return;
+    operation.finished = true;
+    libraryOperations.delete(operation);
+    if (operation.overlay) libraryOverlayOperations.get(operation.overlay)?.delete(operation);
+  }
+
+  function abortLibraryOverlayOperations(overlay) {
+    const operations = libraryOverlayOperations.get(overlay);
+    operations?.forEach(operation => {
+      if (!operation.controller.signal.aborted) operation.controller.abort();
+      finishLibraryOperation(operation);
+    });
+    if (overlay) libraryOverlayOperations.delete(overlay);
+  }
+
+  function abortAllLibraryOperations() {
+    libraryOperations.forEach(operation => {
+      if (!operation.controller.signal.aborted) operation.controller.abort();
+    });
+    libraryOperations.clear();
+  }
+
+  function beginLibraryRefresh(key, parentOperation = null) {
+    if (parentOperation && !activeLibraryOperation(parentOperation)) return null;
+    const auth = libraryOperationContext();
+    if (!auth.userId) return null;
+    const previous = libraryRefreshes.get(key);
+    if (previous && !previous.controller.signal.aborted) previous.controller.abort();
+    previous?.detachParent?.();
+    const generation = Math.max(0, Number(libraryRefreshGenerations.get(key)) || 0) + 1;
+    libraryRefreshGenerations.set(key, generation);
+    const controller = new AbortController();
+    let detachParent = null;
+    if (parentOperation?.controller?.signal) {
+      const abortFromParent = () => controller.abort();
+      parentOperation.controller.signal.addEventListener('abort', abortFromParent, {once: true});
+      detachParent = () => parentOperation.controller.signal.removeEventListener('abort', abortFromParent);
+    }
+    const refresh = {
+      key,
+      generation,
+      controller,
+      userId: auth.userId,
+      authSequence: auth.sequence,
+      parentOperation,
+      detachParent,
+    };
+    libraryRefreshes.set(key, refresh);
+    return refresh;
+  }
+
+  function libraryRefreshIsCurrent(refresh) {
+    return Boolean(
+      refresh
+      && libraryRefreshes.get(refresh.key) === refresh
+      && !refresh.controller.signal.aborted
+      && refresh.userId === currentLibraryUserId()
+      && refresh.userId === libraryStateUserId
+      && refresh.authSequence === libraryAuthSequence
+      && (!refresh.parentOperation || activeLibraryOperation(refresh.parentOperation))
+    );
+  }
+
+  function finishLibraryRefresh(refresh) {
+    if (!refresh) return;
+    refresh.detachParent?.();
+    if (libraryRefreshes.get(refresh.key) === refresh) libraryRefreshes.delete(refresh.key);
+  }
+
+  function abortAllLibraryRefreshes() {
+    libraryRefreshes.forEach(refresh => {
+      if (!refresh.controller.signal.aborted) refresh.controller.abort();
+      refresh.detachParent?.();
+    });
+    libraryRefreshes.clear();
+    libraryRefreshGenerations.clear();
+  }
+
+  async function refreshAfterPossibleMutation(operation) {
+    if (!libraryOperationAccountIsCurrent(operation)) return false;
+    const refreshed = await refreshBooks({showSkeleton: false});
+    const overlay = state.modal;
+    const deletedList = overlay?.querySelector?.('#crump57DeletedList');
+    if (refreshed && deletedList && overlay.dataset.crump57ResourceType === 'deleted-books') {
+      renderDeletedBooks(deletedList);
+    }
+    return refreshed;
   }
 
   function show(message, type = 'success') {
@@ -229,16 +425,18 @@
     return deliver(file, deliveryOptions);
   }
 
-  async function coverUrl(file, {force = false} = {}) {
+  async function coverUrl(file, {force = false, libraryRun = null} = {}) {
     if (!file?.id) return '';
     const operation = libraryOperationContext();
-    if (!operation.userId) return '';
+    if (!operation.userId || (libraryRun && !activeLibraryOperation(libraryRun))) return '';
     const cached = state.coverUrls.get(file.id);
     if (!force && cached?.url && cached.expiresAt > Date.now()) return cached.url;
     state.coverUrls.delete(file.id);
     const previous = state.coverSignControllers.get(file.id);
     if (previous && !previous.signal.aborted) previous.abort();
     const controller = new AbortController();
+    const abortFromRun = () => controller.abort();
+    libraryRun?.controller?.signal?.addEventListener('abort', abortFromRun, {once: true});
     state.coverSignControllers.set(file.id, controller);
     try {
       const signed = await signedLibraryFile(file, {signal: controller.signal});
@@ -246,6 +444,7 @@
         controller.signal.aborted
         || state.coverSignControllers.get(file.id) !== controller
         || !libraryOperationIsCurrent(operation)
+        || (libraryRun && !activeLibraryOperation(libraryRun))
       ) return '';
       const url = signed.url || '';
       if (!url) return '';
@@ -262,16 +461,17 @@
     } catch (_) {
       return '';
     } finally {
+      libraryRun?.controller?.signal?.removeEventListener('abort', abortFromRun);
       if (state.coverSignControllers.get(file.id) === controller) {
         state.coverSignControllers.delete(file.id);
       }
     }
   }
 
-  async function loadCoverImage(image, file, {force = false} = {}) {
+  async function loadCoverImage(image, file, {force = false, libraryRun = null} = {}) {
     if (!image || !file?.id) return false;
-    const url = await coverUrl(file, {force});
-    if (!url || !image.isConnected) return false;
+    const url = await coverUrl(file, {force, libraryRun});
+    if (!url || !image.isConnected || (libraryRun && !activeLibraryOperation(libraryRun))) return false;
 
     image.hidden = false;
     image.dataset.crump57CoverRetry = force ? '1' : '0';
@@ -284,8 +484,10 @@
       }
       image.dataset.crump57CoverRetry = '1';
       state.coverUrls.delete(file.id);
-      const replacement = await coverUrl(file, {force: true});
-      if (!replacement || !image.isConnected) {
+      const replacement = libraryRun
+        ? await coverUrl(file, {force: true, libraryRun})
+        : await coverUrl(file, {force: true});
+      if (!replacement || !image.isConnected || (libraryRun && !activeLibraryOperation(libraryRun))) {
         image.hidden = true;
         image.removeAttribute('src');
         return;
@@ -561,7 +763,7 @@
         } else if (!exported && button.isConnected && !button.disabled) {
           button.focus({preventScroll: true});
         }
-        if (exported && closeAfter && state.modal === root) closeModal();
+        if (exported && closeAfter && state.modal === root) closeModal({overlay: root});
       });
     });
   }
@@ -611,6 +813,7 @@
   }
 
   async function openBookReader(book) {
+    const bookId = String(book?.id || '');
     const overlay = mountModal(`
       <div class="crump57-overlay crump57-reader-overlay" role="presentation">
         <section class="crump57-sheet crump57-reader-sheet" role="dialog" aria-modal="true" aria-label="Read ${escapeHtml(book.title || 'manuscript')}">
@@ -637,23 +840,34 @@
             <span>Crump is preparing the manuscript for reading.</span>
           </div>
         </section>
-      </div>`);
+      </div>`, {resourceType: 'active-book', resourceId: bookId});
+    const operation = beginLibraryOperation('reader', {
+      overlay,
+      resourceType: 'active-book',
+      resourceId: bookId,
+    });
+    if (!operation) {
+      closeModal({overlay, restoreFocus: false});
+      return false;
+    }
     bindManuscriptExportButtons(overlay, book, false);
 
     try {
-      const data = await api(`/api/manuscripts/${encodeURIComponent(book.id)}`);
-      if (!overlay.isConnected) return;
+      const data = await api(`/api/manuscripts/${encodeURIComponent(bookId)}`, {
+        signal: operation.controller.signal,
+      });
+      if (!activeLibraryOperation(operation)) return false;
       const manuscript = data.manuscript || {};
       const sections = Array.isArray(data.sections) ? data.sections : [];
       const sheet = overlay.querySelector('.crump57-reader-sheet');
-      const loading = byId('crump57ReaderLoading');
-      if (!sheet || !loading) return;
+      const loading = overlay.querySelector('#crump57ReaderLoading');
+      if (!sheet || !loading || !activeLibraryOperation(operation)) return false;
 
       if (!sections.length) {
         loading.innerHTML = `
           <strong>No readable sections yet.</strong>
           <span>This manuscript exists in your Library, but it does not have any sections to read yet.</span>`;
-        return;
+        return true;
       }
 
       loading.remove();
@@ -697,14 +911,14 @@
         </main>`;
       sheet.appendChild(reader);
 
-      const page = byId('crump57ReaderPage');
-      const title = byId('crump57ReaderTitle');
-      const copy = byId('crump57ReaderCopy');
-      const meta = byId('crump57ReaderMeta');
-      const position = byId('crump57ReaderPosition');
-      const previous = byId('crump57ReaderPrev');
-      const next = byId('crump57ReaderNext');
-      const select = byId('crump57ReaderSelect');
+      const page = overlay.querySelector('#crump57ReaderPage');
+      const title = overlay.querySelector('#crump57ReaderTitle');
+      const copy = overlay.querySelector('#crump57ReaderCopy');
+      const meta = overlay.querySelector('#crump57ReaderMeta');
+      const position = overlay.querySelector('#crump57ReaderPosition');
+      const previous = overlay.querySelector('#crump57ReaderPrev');
+      const next = overlay.querySelector('#crump57ReaderNext');
+      const select = overlay.querySelector('#crump57ReaderSelect');
       const navButtons = Array.from(reader.querySelectorAll('[data-crump57-reader-index]'));
       let activeIndex = 0;
 
@@ -747,8 +961,10 @@
         head.textContent = [manuscript.author_name || manuscript.authorName || book.authorName, subtitle].filter(Boolean).join(' · ') || 'Ask Crump Library';
       }
       showSection(0, false);
+      return true;
     } catch (error) {
-      const loading = byId('crump57ReaderLoading');
+      if (error?.name === 'AbortError' || !activeLibraryOperation(operation)) return false;
+      const loading = overlay.querySelector('#crump57ReaderLoading');
       if (loading) {
         loading.innerHTML = `
           <strong>Book could not open.</strong>
@@ -756,18 +972,55 @@
       } else {
         show(error?.message || 'Crump could not open that book for reading.', 'error');
       }
+      return false;
+    } finally {
+      finishLibraryOperation(operation);
     }
   }
 
   async function openBookWorkspace(book) {
+    const bookId = String(book?.id || '');
+    const originOverlay = state.modal;
+    const operation = beginLibraryOperation('open-workspace', {
+      overlay: originOverlay,
+      modalSensitive: true,
+      resourceType: 'active-book',
+      resourceId: bookId,
+      resourceCurrent: () => originOverlay
+        ? originOverlay.dataset.crump57ResourceId === bookId
+        : state.books.some(item => String(item?.id || '') === bookId),
+    });
     const opener = window.CrumpProduct53?.openManuscript;
-    if (typeof opener !== 'function') {
+    if (!operation) return false;
+    if (typeof opener !== 'function' && activeLibraryOperation(operation)) {
       show('The manuscript workspace is not ready yet. Refresh Ask Crump and try again.', 'error');
-      return;
+      finishLibraryOperation(operation);
+      return false;
     }
-    closeModal();
-    const opened = await opener({projectId: book.projectId, manuscriptId: book.id, title: book.title});
-    if (opened === false) show('Crump could not open ' + (book.title || 'that manuscript') + ' for editing.', 'error');
+    try {
+      assertLibraryOperationCurrent(operation);
+      const opened = await opener({
+        projectId: book.projectId,
+        manuscriptId: bookId,
+        title: book.title,
+        signal: operation.controller.signal,
+        shouldProceed: () => activeLibraryOperation(operation),
+      });
+      if (!activeLibraryOperation(operation)) return false;
+      if (opened === false) {
+        show('Crump could not open ' + (book.title || 'that manuscript') + ' for editing.', 'error');
+        if (originOverlay) closeModal({overlay: originOverlay});
+        return false;
+      }
+      if (originOverlay) closeModal({overlay: originOverlay});
+      return true;
+    } catch (error) {
+      if (error?.name === 'AbortError' || !activeLibraryOperation(operation)) return false;
+      show(error?.message || 'Crump could not open that manuscript for editing.', 'error');
+      return false;
+    } finally {
+      finishLibraryOperation(operation);
+    }
   }
 
   async function openOriginalSource(book) {
@@ -913,15 +1166,18 @@
     void hydrateCovers(grid, books);
   }
 
-  async function refreshDeletedBooks(operation = libraryOperationContext()) {
-    if (!operation.userId) return false;
+  async function refreshDeletedBooks(parentOperation = null) {
+    const refresh = beginLibraryRefresh('deleted-books', parentOperation);
+    if (!refresh) return false;
     try {
-      const data = await api('/api/library/books/deleted');
-      if (!libraryOperationIsCurrent(operation)) return false;
+      const data = await api('/api/library/books/deleted', {signal: refresh.controller.signal});
+      if (!libraryRefreshIsCurrent(refresh)) return false;
       state.deletedBooks = Array.isArray(data.books) ? data.books : [];
-    } catch (_) {
-      if (!libraryOperationIsCurrent(operation)) return false;
+    } catch (error) {
+      if (error?.name === 'AbortError' || !libraryRefreshIsCurrent(refresh)) return false;
       state.deletedBooks = [];
+    } finally {
+      finishLibraryRefresh(refresh);
     }
     const button = byId('crump57Deleted');
     if (button) {
@@ -931,11 +1187,11 @@
     return true;
   }
 
-  async function refreshBooks() {
-    const operation = libraryOperationContext();
-    if (!operation.userId) return false;
+  async function refreshBooks({parentOperation = null, showSkeleton = true} = {}) {
+    const refresh = beginLibraryRefresh('books', parentOperation);
+    if (!refresh) return false;
     const grid = byId('crump57Bookshelf');
-    if (grid) {
+    if (grid && showSkeleton) {
       // Skeleton covers keep the bookshelf's shape while it loads, in the
       // same calm gold language as the rest of the surface.
       grid.className = 'crump57-bookshelf is-loading';
@@ -943,36 +1199,40 @@
       grid.innerHTML = '<div class="crump57-skeleton" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i></div>';
     }
     try {
-      const data = await api('/api/library/books');
-      if (!libraryOperationIsCurrent(operation)) return false;
+      const data = await api('/api/library/books', {signal: refresh.controller.signal});
+      if (!libraryRefreshIsCurrent(refresh)) return false;
       state.books = Array.isArray(data.books) ? data.books : [];
-      await refreshDeletedBooks(operation);
-      if (!libraryOperationIsCurrent(operation)) return false;
+      await refreshDeletedBooks(parentOperation);
+      if (!libraryRefreshIsCurrent(refresh)) return false;
       renderBooks();
       return true;
     } catch (error) {
-      if (!libraryOperationIsCurrent(operation)) return false;
+      if (error?.name === 'AbortError' || !libraryRefreshIsCurrent(refresh)) return false;
       if (grid) {
         grid.className = 'crump57-bookshelf';
         grid.removeAttribute('aria-busy');
         grid.innerHTML = `<div class="crump57-empty"><strong>Library could not load.</strong>${escapeHtml(error.message || 'Try again in a moment.')}</div>`;
       }
       return false;
+    } finally {
+      finishLibraryRefresh(refresh);
     }
   }
 
-  async function refreshProjects() {
-    const operation = libraryOperationContext();
-    if (!operation.userId) return false;
+  async function refreshProjects(parentOperation = null) {
+    const refresh = beginLibraryRefresh('projects', parentOperation);
+    if (!refresh) return false;
     try {
-      const data = await api('/api/projects');
-      if (!libraryOperationIsCurrent(operation)) return false;
+      const data = await api('/api/projects', {signal: refresh.controller.signal});
+      if (!libraryRefreshIsCurrent(refresh)) return false;
       state.projects = Array.isArray(data.projects) ? data.projects : [];
       state.projectLimit = Number(data.limit ?? 0);
-    } catch (_) {
-      if (!libraryOperationIsCurrent(operation)) return false;
+    } catch (error) {
+      if (error?.name === 'AbortError' || !libraryRefreshIsCurrent(refresh)) return false;
       state.projects = [];
       state.projectLimit = -1;
+    } finally {
+      finishLibraryRefresh(refresh);
     }
     return true;
   }
@@ -988,20 +1248,35 @@
     ].join('');
   }
 
-  function closeModal({restoreFocus = true} = {}) {
+  function closeModal({restoreFocus = true, overlay = state.modal} = {}) {
+    if (!overlay) return false;
+    const isCurrentModal = state.modal === overlay;
+    abortLibraryOverlayOperations(overlay);
+    overlay.querySelectorAll?.('[data-crump57-object-url]').forEach(image => {
+      const url = image.dataset.crump57ObjectUrl || '';
+      if (url.startsWith('blob:')) URL.revokeObjectURL(url);
+      delete image.dataset.crump57ObjectUrl;
+    });
+    overlay.remove();
+    if (!isCurrentModal) return false;
     const returnFocus = state.modalReturnFocus;
-    state.modal?.remove();
     state.modal = null;
     state.modalReturnFocus = null;
+    libraryModalSequence += 1;
+    const closedSequence = libraryModalSequence;
     if (restoreFocus && returnFocus?.isConnected) {
       window.requestAnimationFrame(() => {
+        if (libraryModalSequence !== closedSequence || state.modal) return;
         if (returnFocus.isConnected) returnFocus.focus({preventScroll: true});
       });
     }
+    return true;
   }
 
   function resetLibraryAuthMemory() {
     libraryAuthSequence += 1;
+    abortAllLibraryOperations();
+    abortAllLibraryRefreshes();
     manuscriptExportDelivery.abort();
     window.CrumpMediaSave?.abort?.();
     libraryFileDeliveryControllers.forEach(controller => controller.abort());
@@ -1016,7 +1291,7 @@
     state.coverSignControllers.forEach(controller => controller.abort());
     state.coverSignControllers.clear();
     state.coverUrls.clear();
-    closeModal({restoreFocus: false});
+    closeModal({restoreFocus: false, overlay: state.modal});
     const grid = byId('crump57Bookshelf');
     if (grid) {
       grid.className = 'crump57-bookshelf';
@@ -1032,24 +1307,41 @@
   }
 
   function bindModalClose(overlay) {
-    const close = () => closeModal();
+    const close = () => closeModal({overlay});
     overlay.querySelector('.crump57-close')?.addEventListener('click', close);
     overlay.querySelectorAll('[data-crump57-cancel]').forEach(button => button.addEventListener('click', close));
     overlay.addEventListener('click', event => { if (event.target === overlay) close(); });
     return close;
   }
 
-  function mountModal(markup, {returnFocus = null} = {}) {
+  function mountModal(markup, {
+    returnFocus = null,
+    operation = null,
+    resourceType = '',
+    resourceId = '',
+  } = {}) {
     const opener = returnFocus || (document.activeElement instanceof HTMLElement ? document.activeElement : null);
-    closeModal({restoreFocus: false});
+    if (state.modal) closeModal({restoreFocus: false, overlay: state.modal});
     const wrapper = document.createElement('div');
     wrapper.innerHTML = markup;
     const overlay = wrapper.firstElementChild;
+    libraryModalSequence += 1;
+    const identity = Object.freeze({sequence: libraryModalSequence});
+    libraryModalIdentity.set(overlay, identity);
+    overlay.dataset.crump57ModalSequence = String(identity.sequence);
+    overlay.dataset.crump57ResourceType = String(resourceType || '');
+    overlay.dataset.crump57ResourceId = String(resourceId || '');
     document.body.appendChild(overlay);
     state.modal = overlay;
     state.modalReturnFocus = opener?.isConnected ? opener : null;
+    if (operation) attachLibraryOperationOverlay(operation, overlay, {resourceType, resourceId});
     bindModalClose(overlay);
     window.requestAnimationFrame(() => {
+      if (
+        state.modal !== overlay
+        || !overlay.isConnected
+        || libraryModalIdentity.get(overlay) !== identity
+      ) return;
       const focusTarget = overlay.classList.contains('crump57-download-overlay')
         ? overlay.querySelector('[data-crump57-export-format]')
         : overlay.querySelector('.crump57-close, button, input, select, textarea, [tabindex]');
@@ -1060,6 +1352,9 @@
 
   function bindCoverPreview(input, image, box) {
     input?.addEventListener('change', () => {
+      const previousUrl = image.dataset.crump57ObjectUrl || '';
+      if (previousUrl.startsWith('blob:')) URL.revokeObjectURL(previousUrl);
+      delete image.dataset.crump57ObjectUrl;
       const file = input.files?.[0];
       if (!file) {
         image.removeAttribute('src');
@@ -1067,18 +1362,38 @@
         return;
       }
       const url = URL.createObjectURL(file);
+      image.dataset.crump57ObjectUrl = url;
       image.src = url;
       box.classList.add('has-image');
-      image.onload = () => URL.revokeObjectURL(url);
+      const release = () => {
+        if (image.dataset.crump57ObjectUrl !== url) return;
+        URL.revokeObjectURL(url);
+        delete image.dataset.crump57ObjectUrl;
+      };
+      image.onload = release;
+      image.onerror = release;
     });
   }
 
-  async function uploadOptional(input, label) {
-    const file = input?.files?.[0];
-    if (!file) return null;
+  function libraryUploadOptions(operation) {
+    return {
+      signal: operation?.controller?.signal,
+      shouldProceed: () => activeLibraryOperation(operation),
+    };
+  }
+
+  async function uploadLibraryFile(file, operation) {
+    assertLibraryOperationCurrent(operation);
     if (!window.CrumpFileTools?.upload) throw new Error('Ask Crump file upload tools are still loading.');
+    const uploaded = await window.CrumpFileTools.upload(file, libraryUploadOptions(operation));
+    assertLibraryOperationCurrent(operation);
+    return uploaded;
+  }
+
+  async function uploadOptional(file, label, operation) {
+    if (!file) return null;
     if (label === 'cover' && !String(file.type || '').startsWith('image/')) throw new Error('Cover files must be images.');
-    return window.CrumpFileTools.upload(file);
+    return uploadLibraryFile(file, operation);
   }
 
   function importModalMarkup() {
@@ -1130,65 +1445,110 @@
   }
 
   async function openImportModal() {
-    await refreshProjects();
-    const overlay = mountModal(importModalMarkup());
-    const source = byId('crump57SourceFile');
-    const front = byId('crump57FrontCover');
-    const back = byId('crump57BackCover');
-    const status = byId('crump57ImportStatus');
-    const submit = byId('crump57ImportSubmit');
+    const openerOperation = beginLibraryOperation('open-import', {modalSensitive: true});
+    if (!openerOperation) return false;
+    try {
+      const projectsReady = await refreshProjects(openerOperation);
+      if (!projectsReady || !activeLibraryOperation(openerOperation)) return false;
+      const overlay = mountModal(importModalMarkup(), {
+        operation: openerOperation,
+        resourceType: 'import',
+        resourceId: 'new',
+      });
+      if (!activeLibraryOperation(openerOperation)) return false;
+      const source = overlay.querySelector('#crump57SourceFile');
+      const front = overlay.querySelector('#crump57FrontCover');
+      const back = overlay.querySelector('#crump57BackCover');
+      const status = overlay.querySelector('#crump57ImportStatus');
+      const submit = overlay.querySelector('#crump57ImportSubmit');
 
-    source?.addEventListener('change', () => {
-      byId('crump57SourceName').textContent = source.files?.[0]?.name || 'Choose DOCX, PDF, EPUB, TXT, or Markdown';
-    });
-    bindCoverPreview(front, byId('crump57FrontPreview'), byId('crump57FrontBox'));
-    bindCoverPreview(back, byId('crump57BackPreview'), byId('crump57BackBox'));
+      source?.addEventListener('change', () => {
+        const sourceName = overlay.querySelector('#crump57SourceName');
+        if (sourceName) sourceName.textContent = source.files?.[0]?.name || 'Choose DOCX, PDF, EPUB, TXT, or Markdown';
+      });
+      bindCoverPreview(front, overlay.querySelector('#crump57FrontPreview'), overlay.querySelector('#crump57FrontBox'));
+      bindCoverPreview(back, overlay.querySelector('#crump57BackPreview'), overlay.querySelector('#crump57BackBox'));
 
-    byId('crump57ImportForm')?.addEventListener('submit', async event => {
-      event.preventDefault();
-      const sourceFile = source?.files?.[0];
-      if (!sourceFile) {
-        status.textContent = 'Choose a manuscript file first.';
-        status.classList.add('is-error');
-        return;
-      }
-
-      submit.disabled = true;
-      status.classList.remove('is-error');
-      try {
-        status.textContent = 'Uploading original manuscript…';
-        const sourceAsset = await window.CrumpFileTools.upload(sourceFile);
-        status.textContent = 'Uploading covers…';
-        const frontAsset = await uploadOptional(front, 'cover');
-        const backAsset = await uploadOptional(back, 'cover');
-        status.textContent = 'Reading chapters and building your Library entry…';
-        const data = await api('/api/library/books/import', {
-          method: 'POST',
-          body: {
-            sourceFileId: sourceAsset.id,
-            frontCoverFileId: frontAsset?.id || '',
-            backCoverFileId: backAsset?.id || '',
-            title: byId('crump57Title')?.value || '',
-            subtitle: byId('crump57Subtitle')?.value || '',
-            authorName: byId('crump57Author')?.value || '',
-            projectId: byId('crump57Project')?.value || '',
-          },
-        });
-
-        closeModal();
-        state.coverUrls.clear();
-        show(`${data.book?.title || 'Manuscript'} added to your Library.`, 'success');
-        await refreshBooks();
-        if (data.book?.projectId && data.book?.id) {
-          window.CrumpProduct53?.openManuscript?.({projectId: data.book.projectId, manuscriptId: data.book.id, title: data.book.title});
+      overlay.querySelector('#crump57ImportForm')?.addEventListener('submit', async event => {
+        event.preventDefault();
+        const sourceFile = source?.files?.[0] || null;
+        const frontFile = front?.files?.[0] || null;
+        const backFile = back?.files?.[0] || null;
+        const formValues = {
+          title: overlay.querySelector('#crump57Title')?.value || '',
+          subtitle: overlay.querySelector('#crump57Subtitle')?.value || '',
+          authorName: overlay.querySelector('#crump57Author')?.value || '',
+          projectId: overlay.querySelector('#crump57Project')?.value || '',
+        };
+        if (!sourceFile) {
+          status.textContent = 'Choose a manuscript file first.';
+          status.classList.add('is-error');
+          return;
         }
-      } catch (error) {
-        status.textContent = error.message || 'The manuscript could not be imported.';
-        status.classList.add('is-error');
-      } finally {
-        submit.disabled = false;
-      }
-    });
+        const operation = beginLibraryOperation('import', {
+          overlay,
+          resourceType: 'import',
+          resourceId: 'new',
+        });
+        if (!operation) return;
+        let mutationStarted = false;
+        submit.disabled = true;
+        status.classList.remove('is-error');
+        try {
+          status.textContent = 'Uploading original manuscript…';
+          const sourceAsset = await uploadLibraryFile(sourceFile, operation);
+          assertLibraryOperationCurrent(operation);
+          status.textContent = 'Uploading covers…';
+          const frontAsset = await uploadOptional(frontFile, 'cover', operation);
+          const backAsset = await uploadOptional(backFile, 'cover', operation);
+          assertLibraryOperationCurrent(operation);
+          status.textContent = 'Reading chapters and building your Library entry…';
+          mutationStarted = true;
+          const data = await api('/api/library/books/import', {
+            method: 'POST',
+            signal: operation.controller.signal,
+            body: {
+              sourceFileId: sourceAsset.id,
+              frontCoverFileId: frontAsset?.id || '',
+              backCoverFileId: backAsset?.id || '',
+              ...formValues,
+            },
+          });
+          if (!activeLibraryOperation(operation)) {
+            void refreshAfterPossibleMutation(operation);
+            return;
+          }
+
+          finishLibraryOperation(operation);
+          closeModal({overlay});
+          state.coverUrls.clear();
+          const continuation = beginLibraryOperation('import-committed', {modalSensitive: true});
+          if (!continuation) return;
+          try {
+            await refreshBooks({parentOperation: continuation, showSkeleton: false});
+            if (!activeLibraryOperation(continuation)) return;
+            show(`${data.book?.title || 'Manuscript'} added to your Library.`, 'success');
+          } finally {
+            finishLibraryOperation(continuation);
+          }
+          if (data.book?.projectId && data.book?.id) await openBookWorkspace(data.book);
+        } catch (error) {
+          if (mutationStarted && !activeLibraryOperation(operation)) {
+            void refreshAfterPossibleMutation(operation);
+            return;
+          }
+          if (error?.name === 'AbortError' || !activeLibraryOperation(operation)) return;
+          status.textContent = error.message || 'The manuscript could not be imported.';
+          status.classList.add('is-error');
+        } finally {
+          if (activeLibraryOperation(operation)) submit.disabled = false;
+          finishLibraryOperation(operation);
+        }
+      });
+      return true;
+    } finally {
+      finishLibraryOperation(openerOperation);
+    }
   }
 
   function bookEditorMarkup(book) {
@@ -1236,62 +1596,108 @@
       </div>`;
   }
 
-  async function setExistingCover(book, side) {
+  async function setExistingCover(book, side, overlay, operation) {
     const file = side === 'front' ? book.frontCover : book.backCover;
-    const image = byId(side === 'front' ? 'crump57EditFrontPreview' : 'crump57EditBackPreview');
-    const box = byId(side === 'front' ? 'crump57EditFrontBox' : 'crump57EditBackBox');
+    const image = overlay?.querySelector(side === 'front' ? '#crump57EditFrontPreview' : '#crump57EditBackPreview');
+    const box = overlay?.querySelector(side === 'front' ? '#crump57EditFrontBox' : '#crump57EditBackBox');
     if (!file?.id || !image || !box) return;
-    if (await loadCoverImage(image, file)) {
+    if (await loadCoverImage(image, file, {libraryRun: operation}) && activeLibraryOperation(operation)) {
       box.classList.add('has-image');
     }
   }
 
   function openBookEditor(book) {
-    mountModal(bookEditorMarkup(book));
-    const front = byId('crump57EditFront');
-    const back = byId('crump57EditBack');
-    bindCoverPreview(front, byId('crump57EditFrontPreview'), byId('crump57EditFrontBox'));
-    bindCoverPreview(back, byId('crump57EditBackPreview'), byId('crump57EditBackBox'));
-    void setExistingCover(book, 'front');
-    void setExistingCover(book, 'back');
+    const bookId = String(book?.id || '');
+    const overlay = mountModal(bookEditorMarkup(book), {
+      resourceType: 'active-book',
+      resourceId: bookId,
+    });
+    const front = overlay.querySelector('#crump57EditFront');
+    const back = overlay.querySelector('#crump57EditBack');
+    bindCoverPreview(front, overlay.querySelector('#crump57EditFrontPreview'), overlay.querySelector('#crump57EditFrontBox'));
+    bindCoverPreview(back, overlay.querySelector('#crump57EditBackPreview'), overlay.querySelector('#crump57EditBackBox'));
+    const coverOperation = beginLibraryOperation('editor-covers', {
+      overlay,
+      resourceType: 'active-book',
+      resourceId: bookId,
+    });
+    if (coverOperation) {
+      void Promise.all([
+        setExistingCover(book, 'front', overlay, coverOperation),
+        setExistingCover(book, 'back', overlay, coverOperation),
+      ]).finally(() => finishLibraryOperation(coverOperation));
+    }
 
-    byId('crump57BookForm')?.addEventListener('submit', async event => {
+    overlay.querySelector('#crump57BookForm')?.addEventListener('submit', async event => {
       event.preventDefault();
-      const status = byId('crump57EditStatusText');
-      const submit = byId('crump57BookSubmit');
+      const status = overlay.querySelector('#crump57EditStatusText');
+      const submit = overlay.querySelector('#crump57BookSubmit');
+      const frontFile = front?.files?.[0] || null;
+      const backFile = back?.files?.[0] || null;
+      const changes = {
+        title: overlay.querySelector('#crump57EditTitle')?.value || '',
+        subtitle: overlay.querySelector('#crump57EditSubtitle')?.value || '',
+        authorName: overlay.querySelector('#crump57EditAuthor')?.value || '',
+        status: overlay.querySelector('#crump57EditStatus')?.value || 'draft',
+      };
+      const operation = beginLibraryOperation('editor-save', {
+        overlay,
+        resourceType: 'active-book',
+        resourceId: bookId,
+      });
+      if (!operation) return;
+      let mutationStarted = false;
       submit.disabled = true;
       status.classList.remove('is-error');
       try {
-        const changes = {
-          title: byId('crump57EditTitle')?.value || '',
-          subtitle: byId('crump57EditSubtitle')?.value || '',
-          authorName: byId('crump57EditAuthor')?.value || '',
-          status: byId('crump57EditStatus')?.value || 'draft',
-        };
-        if (front?.files?.[0]) {
+        if (frontFile) {
           status.textContent = 'Uploading new front cover…';
-          changes.frontCoverFileId = (await window.CrumpFileTools.upload(front.files[0])).id;
+          changes.frontCoverFileId = (await uploadLibraryFile(frontFile, operation)).id;
         }
-        if (back?.files?.[0]) {
+        if (backFile) {
           status.textContent = 'Uploading new back cover…';
-          changes.backCoverFileId = (await window.CrumpFileTools.upload(back.files[0])).id;
+          changes.backCoverFileId = (await uploadLibraryFile(backFile, operation)).id;
         }
+        assertLibraryOperationCurrent(operation);
         status.textContent = 'Saving Library details…';
-        await api(`/api/library/books/${encodeURIComponent(book.id)}`, {method: 'PATCH', body: changes});
-        closeModal();
+        mutationStarted = true;
+        await api(`/api/library/books/${encodeURIComponent(bookId)}`, {
+          method: 'PATCH',
+          signal: operation.controller.signal,
+          body: changes,
+        });
+        if (!activeLibraryOperation(operation)) {
+          void refreshAfterPossibleMutation(operation);
+          return;
+        }
+        finishLibraryOperation(operation);
+        closeModal({overlay});
         state.coverUrls.clear();
-        await refreshBooks();
-        show('Book updated.', 'success');
+        const continuation = beginLibraryOperation('editor-committed', {modalSensitive: true});
+        if (!continuation) return;
+        try {
+          await refreshBooks({parentOperation: continuation, showSkeleton: false});
+          if (activeLibraryOperation(continuation)) show('Book updated.', 'success');
+        } finally {
+          finishLibraryOperation(continuation);
+        }
       } catch (error) {
+        if (mutationStarted && !activeLibraryOperation(operation)) {
+          void refreshAfterPossibleMutation(operation);
+          return;
+        }
+        if (error?.name === 'AbortError' || !activeLibraryOperation(operation)) return;
         status.textContent = error.message || 'The book could not be updated.';
         status.classList.add('is-error');
       } finally {
-        submit.disabled = false;
+        if (activeLibraryOperation(operation)) submit.disabled = false;
+        finishLibraryOperation(operation);
       }
     });
   }
 
   async function openBookPreview(book) {
+    const bookId = String(book?.id || '');
     const overlay = mountModal(`
       <div class="crump57-overlay" role="presentation">
         <section class="crump57-sheet crump57-preview-sheet" role="dialog" aria-modal="true" aria-label="Book preview">
@@ -1309,37 +1715,58 @@
             <div class="crump57-sheet-actions"><button type="button" class="crump53-button" data-crump57-cancel>Close</button><button type="button" class="crump53-button is-primary" id="crump57PreviewOpen">Open manuscript</button></div>
           </div>
         </section>
-      </div>`);
+      </div>`, {resourceType: 'active-book', resourceId: bookId});
+    const operation = beginLibraryOperation('preview', {
+      overlay,
+      resourceType: 'active-book',
+      resourceId: bookId,
+    });
+    if (!operation) {
+      closeModal({overlay, restoreFocus: false});
+      return false;
+    }
 
-    const frontNode = byId('crump57PreviewFront');
-    const backNode = byId('crump57PreviewBack');
+    const frontNode = overlay.querySelector('#crump57PreviewFront');
+    const backNode = overlay.querySelector('#crump57PreviewBack');
+    overlay.querySelector('#crump57PreviewOpen')?.addEventListener('click', () => {
+      if (state.modal !== overlay || !overlay.isConnected) return;
+      void openBookWorkspace(book);
+    });
+    const coverLoads = [];
     if (book.frontCover?.id) {
       const image = document.createElement('img');
       image.alt = `${book.title || 'Book'} front cover`;
       image.hidden = true;
       frontNode.replaceChildren(image);
-      if (!await loadCoverImage(image, book.frontCover)) image.remove();
+      coverLoads.push(loadCoverImage(image, book.frontCover, {libraryRun: operation}).then(loaded => {
+        if (!loaded && activeLibraryOperation(operation)) image.remove();
+      }));
     }
     if (book.backCover?.id) {
       const image = document.createElement('img');
       image.alt = `${book.title || 'Book'} back cover`;
       image.hidden = true;
       backNode.replaceChildren(image);
-      if (!await loadCoverImage(image, book.backCover)) image.remove();
+      coverLoads.push(loadCoverImage(image, book.backCover, {libraryRun: operation}).then(loaded => {
+        if (!loaded && activeLibraryOperation(operation)) image.remove();
+      }));
     }
-    byId('crump57PreviewOpen')?.addEventListener('click', () => {
-      closeModal();
-      window.CrumpProduct53?.openManuscript?.({projectId: book.projectId, manuscriptId: book.id, title: book.title});
-    });
+    try {
+      await Promise.all(coverLoads);
+      return activeLibraryOperation(operation);
+    } finally {
+      finishLibraryOperation(operation);
+    }
   }
 
   function openTrashModal(book) {
+    const bookId = String(book?.id || '');
     const sourceChoice = book.sourceFile?.id ? `
       <label class="crump57-check-row">
         <input type="checkbox" id="crump57DeleteSource">
         <span><strong>Also remove the original imported source from Files</strong><small>If another manuscript uses the same source, Crump will keep it.</small></span>
       </label>` : '';
-    mountModal(`
+    const overlay = mountModal(`
       <div class="crump57-overlay" role="presentation">
         <section class="crump57-sheet crump57-confirm-sheet" role="dialog" aria-modal="true" aria-label="Move book to Recently Deleted">
           <header class="crump57-sheet-head">
@@ -1353,23 +1780,53 @@
             <div class="crump57-sheet-actions"><button type="button" class="crump53-button" data-crump57-cancel>Cancel</button><button type="button" class="crump53-button is-danger" id="crump57TrashConfirm">Move to Recently Deleted</button></div>
           </div>
         </section>
-      </div>`);
-    byId('crump57TrashConfirm')?.addEventListener('click', async () => {
-      const button = byId('crump57TrashConfirm');
-      const status = byId('crump57TrashStatus');
+      </div>`, {resourceType: 'active-book', resourceId: bookId});
+    overlay.querySelector('#crump57TrashConfirm')?.addEventListener('click', async () => {
+      const button = overlay.querySelector('#crump57TrashConfirm');
+      const status = overlay.querySelector('#crump57TrashStatus');
+      const deleteSource = Boolean(overlay.querySelector('#crump57DeleteSource')?.checked);
+      const operation = beginLibraryOperation('trash', {
+        overlay,
+        resourceType: 'active-book',
+        resourceId: bookId,
+      });
+      if (!operation) return;
+      let mutationStarted = false;
       button.disabled = true;
       try {
-        const data = await api(`/api/library/books/${encodeURIComponent(book.id)}/trash`, {
+        mutationStarted = true;
+        const data = await api(`/api/library/books/${encodeURIComponent(bookId)}/trash`, {
           method: 'POST',
-          body: {deleteSource: Boolean(byId('crump57DeleteSource')?.checked)},
+          signal: operation.controller.signal,
+          body: {deleteSource},
         });
-        closeModal();
-        await refreshBooks();
-        show(data.sourceFileKept ? 'Book moved to Recently Deleted. Shared source file was kept.' : 'Book moved to Recently Deleted.', 'success');
+        if (!activeLibraryOperation(operation)) {
+          void refreshAfterPossibleMutation(operation);
+          return;
+        }
+        finishLibraryOperation(operation);
+        closeModal({overlay});
+        const continuation = beginLibraryOperation('trash-committed', {modalSensitive: true});
+        if (!continuation) return;
+        try {
+          await refreshBooks({parentOperation: continuation, showSkeleton: false});
+          if (activeLibraryOperation(continuation)) {
+            show(data.sourceFileKept ? 'Book moved to Recently Deleted. Shared source file was kept.' : 'Book moved to Recently Deleted.', 'success');
+          }
+        } finally {
+          finishLibraryOperation(continuation);
+        }
       } catch (error) {
+        if (mutationStarted && !activeLibraryOperation(operation)) {
+          void refreshAfterPossibleMutation(operation);
+          return;
+        }
+        if (error?.name === 'AbortError' || !activeLibraryOperation(operation)) return;
         status.textContent = error.message || 'The book could not be moved.';
         status.classList.add('is-error');
-        button.disabled = false;
+      } finally {
+        if (activeLibraryOperation(operation)) button.disabled = false;
+        finishLibraryOperation(operation);
       }
     });
   }
@@ -1395,15 +1852,44 @@
       button.addEventListener('click', async () => {
         const book = map.get(String(button.dataset.crump57Restore));
         if (!book) return;
+        const bookId = String(book.id || '');
+        const overlay = container.closest('.crump57-overlay');
+        const operation = beginLibraryOperation('restore', {
+          overlay,
+          resourceType: 'deleted-books',
+          resourceId: 'collection',
+          resourceCurrent: () => button.isConnected
+            && button.dataset.crump57Restore === bookId
+            && container.isConnected,
+        });
+        if (!operation) return;
+        let mutationStarted = false;
         button.disabled = true;
         try {
-          await api(`/api/library/books/${encodeURIComponent(book.id)}/restore`, {method: 'POST', body: {}});
-          await refreshBooks();
-          renderDeletedBooks(container);
+          mutationStarted = true;
+          await api(`/api/library/books/${encodeURIComponent(bookId)}/restore`, {
+            method: 'POST',
+            signal: operation.controller.signal,
+            body: {},
+          });
+          if (!activeLibraryOperation(operation)) {
+            void refreshAfterPossibleMutation(operation);
+            return;
+          }
+          await refreshBooks({parentOperation: operation, showSkeleton: false});
+          if (!activeLibraryOperation(operation)) return;
           show(`${book.title || 'Book'} restored.`, 'success');
+          renderDeletedBooks(container);
         } catch (error) {
+          if (mutationStarted && !activeLibraryOperation(operation)) {
+            void refreshAfterPossibleMutation(operation);
+            return;
+          }
+          if (error?.name === 'AbortError' || !activeLibraryOperation(operation)) return;
           show(error.message || 'The book could not be restored.', 'error');
-          button.disabled = false;
+        } finally {
+          if (activeLibraryOperation(operation)) button.disabled = false;
+          finishLibraryOperation(operation);
         }
       });
     });
@@ -1417,8 +1903,12 @@
   }
 
   async function openRecentlyDeleted() {
-    await refreshDeletedBooks();
-    mountModal(`
+    const openerOperation = beginLibraryOperation('open-deleted', {modalSensitive: true});
+    if (!openerOperation) return false;
+    try {
+      const refreshed = await refreshDeletedBooks(openerOperation);
+      if (!refreshed || !activeLibraryOperation(openerOperation)) return false;
+      const overlay = mountModal(`
       <div class="crump57-overlay" role="presentation">
         <section class="crump57-sheet" role="dialog" aria-modal="true" aria-label="Recently Deleted books">
           <header class="crump57-sheet-head">
@@ -1427,12 +1917,22 @@
           </header>
           <div class="crump57-sheet-body"><div id="crump57DeletedList" class="crump57-deleted-list"></div></div>
         </section>
-      </div>`);
-    renderDeletedBooks(byId('crump57DeletedList'));
+      </div>`, {
+        operation: openerOperation,
+        resourceType: 'deleted-books',
+        resourceId: 'collection',
+      });
+      if (!activeLibraryOperation(openerOperation)) return false;
+      renderDeletedBooks(overlay.querySelector('#crump57DeletedList'));
+      return true;
+    } finally {
+      finishLibraryOperation(openerOperation);
+    }
   }
 
   function openPermanentDeleteModal(book) {
-    mountModal(`
+    const bookId = String(book?.id || '');
+    const overlay = mountModal(`
       <div class="crump57-overlay" role="presentation">
         <section class="crump57-sheet crump57-confirm-sheet" role="dialog" aria-modal="true" aria-label="Permanently delete book">
           <header class="crump57-sheet-head">
@@ -1446,25 +1946,58 @@
             <div class="crump57-sheet-actions"><button type="button" class="crump53-button" data-crump57-cancel>Cancel</button><button type="button" class="crump53-button is-danger" id="crump57PermanentConfirm" disabled>Delete permanently</button></div>
           </div>
         </section>
-      </div>`);
-    const phrase = byId('crump57PermanentPhrase');
-    const confirm = byId('crump57PermanentConfirm');
+      </div>`, {resourceType: 'deleted-book', resourceId: bookId});
+    const phrase = overlay.querySelector('#crump57PermanentPhrase');
+    const confirm = overlay.querySelector('#crump57PermanentConfirm');
     phrase?.addEventListener('input', () => { confirm.disabled = phrase.value.trim() !== 'DELETE'; });
     confirm?.addEventListener('click', async () => {
+      const confirmation = phrase?.value?.trim() || '';
+      if (confirmation !== 'DELETE') return;
+      const operation = beginLibraryOperation('permanent-delete', {
+        overlay,
+        resourceType: 'deleted-book',
+        resourceId: bookId,
+      });
+      if (!operation) return;
+      let mutationStarted = false;
       confirm.disabled = true;
-      const status = byId('crump57PermanentStatus');
+      const status = overlay.querySelector('#crump57PermanentStatus');
       try {
-        const data = await api(`/api/library/books/${encodeURIComponent(book.id)}`, {method: 'DELETE'});
-        closeModal();
-        await refreshBooks();
-        show(data.sourceCleanupPending
-          ? `${book.title || 'Book'} deleted. Original source cleanup is still pending.`
-          : `${book.title || 'Book'} permanently deleted.`,
-        data.sourceCleanupPending ? 'warning' : 'success');
+        mutationStarted = true;
+        const data = await api(`/api/library/books/${encodeURIComponent(bookId)}`, {
+          method: 'DELETE',
+          signal: operation.controller.signal,
+        });
+        if (!activeLibraryOperation(operation)) {
+          void refreshAfterPossibleMutation(operation);
+          return;
+        }
+        finishLibraryOperation(operation);
+        closeModal({overlay});
+        const continuation = beginLibraryOperation('permanent-delete-committed', {modalSensitive: true});
+        if (!continuation) return;
+        try {
+          await refreshBooks({parentOperation: continuation, showSkeleton: false});
+          if (activeLibraryOperation(continuation)) {
+            show(data.sourceCleanupPending
+              ? `${book.title || 'Book'} deleted. Original source cleanup is still pending.`
+              : `${book.title || 'Book'} permanently deleted.`,
+            data.sourceCleanupPending ? 'warning' : 'success');
+          }
+        } finally {
+          finishLibraryOperation(continuation);
+        }
       } catch (error) {
+        if (mutationStarted && !activeLibraryOperation(operation)) {
+          void refreshAfterPossibleMutation(operation);
+          return;
+        }
+        if (error?.name === 'AbortError' || !activeLibraryOperation(operation)) return;
         status.textContent = error.message || 'The book could not be permanently deleted.';
         status.classList.add('is-error');
-        confirm.disabled = false;
+      } finally {
+        if (activeLibraryOperation(operation)) confirm.disabled = false;
+        finishLibraryOperation(operation);
       }
     });
   }
