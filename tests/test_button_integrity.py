@@ -716,7 +716,7 @@ def test_library_layout_buttons_expose_their_selected_state() -> None:
 
 
 def test_library_new_button_release_is_loaded_only_on_library_entry() -> None:
-    asset = "/crump-library-5.7.js?v=5.9.76-manuscript-export-delivery-1"
+    asset = "/crump-library-5.7.js?v=5.9.76-library-media-privacy-1"
     loader = (PUBLIC / "crump-library-loader.js").read_text(encoding="utf-8")
 
     assert asset in loader

@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Library media privacy fixture</title>
+  <link rel="icon" href="data:,">
+</head>
+<body>
+  <main>
+    <h1>Library media privacy fixture</h1>
+    <output id="fixtureReady">loading</output>
+    <output id="fixtureErrors" aria-label="Browser errors">0</output>
+    <div class="crump53-sheet">
+      <section data-crump53-panel="library"></section>
+      <section data-crump53-panel="manuscripts">
+        <div class="crump53-card"><h3>Manuscripts</h3><p>Fixture</p><div id="crump53ManuscriptList"></div></div>
+      </section>
+    </div>
+    <div class="crump53-video-result-actions">
+      <a id="fixtureVideoDownload" download href="/api/files/00000000-0000-4000-8000-000000000602/content">Download</a>
+    </div>
+  </main>
+  <script>
+    (() => {
+      const USER_A = 'fixture-library-media-user-a';
+      const USER_B = 'fixture-library-media-user-b';
+      const authHandlers = new Map();
+      let authenticatedUserId = USER_A;
+      let coarsePointer = false;
+      let fetchMode = 'normal';
+      let nativeMode = 'success';
+
+      const sourceFile = {
+        id: '00000000-0000-4000-8000-000000000601',
+        name: 'private-source-a.pdf',
+        type: 'application/pdf',
+      };
+      const book = {
+        id: '00000000-0000-4000-8000-000000000603',
+        title: 'Private fixture manuscript',
+        authorName: 'Fixture Author',
+        status: 'draft',
+        wordCount: 10,
+        sectionCount: 1,
+        origin: 'imported',
+        sourceFile,
+        updatedAt: '2026-10-22T00:00:00Z',
+      };
+
+      window.currentUser = {id: USER_A};
+      window.CrumpAPI = {isNative: false};
+      window.CrumpAuthBoundary = Object.freeze({
+        register(name, handler) { authHandlers.set(String(name), handler); },
+        authenticatedUserId: () => authenticatedUserId,
+      });
+      window.CrumpProductLoader = Object.freeze({authenticatedUserId: () => authenticatedUserId});
+      window.matchMedia = query => ({matches: query.includes('pointer: coarse') ? coarsePointer : false});
+      window.fixtureEvidence = {
+        signedRequests: [],
+        blobRequests: [],
+        photoSaves: [],
+        videoSaves: [],
+        shares: [],
+        fallbacks: [],
+        sourceHandoffs: [],
+        sourceViewers: [],
+        toasts: [],
+      };
+      window.showToast = (message, type = 'info') => {
+        window.fixtureEvidence.toasts.push({message: String(message || ''), type: String(type || '')});
+      };
+      window.fixtureDeferredSigns = [];
+      window.fixtureDeferredBlobs = [];
+      window.fixtureDeferredNativeSaves = [];
+      window.fixtureDeferredSources = [];
+
+      Object.defineProperty(navigator, 'share', {
+        configurable: true,
+        value: async payload => { window.fixtureEvidence.shares.push(payload); },
+      });
+      Object.defineProperty(navigator, 'canShare', {configurable: true, value: () => true});
+
+      window.CrumpNative = {
+        Capacitor: {getPlatform: () => 'ios'},
+        Media: {
+          async getAlbums() { return {albums: []}; },
+          async createAlbum() {},
+          async savePhoto(options) {
+            window.fixtureEvidence.photoSaves.push(options);
+            if (nativeMode === 'deferred-failure') {
+              return new Promise((resolve, reject) => window.fixtureDeferredNativeSaves.push({resolve, reject}));
+            }
+          },
+          async saveVideo(options) {
+            window.fixtureEvidence.videoSaves.push(options);
+            if (nativeMode === 'deferred-failure') {
+              return new Promise((resolve, reject) => window.fixtureDeferredNativeSaves.push({resolve, reject}));
+            }
+          },
+        },
+      };
+
+      const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), {
+        status,
+        headers: {'Content-Type': 'application/json'},
+      });
+      window.fetch = async (input, options = {}) => {
+        const url = new URL(typeof input === 'string' ? input : input.url, location.href);
+        if (/^\/api\/files\/[^/]+\/signed$/.test(url.pathname)) {
+          const request = {url: url.pathname, signal: options.signal || null, aborted: false};
+          request.signal?.addEventListener('abort', () => { request.aborted = true; }, {once: true});
+          window.fixtureEvidence.signedRequests.push(request);
+          if (fetchMode === 'deferred-sign') {
+            return new Promise(resolve => window.fixtureDeferredSigns.push({resolve, request}));
+          }
+          return jsonResponse({success: true, url: 'https://signed.fixture/private-media', name: 'private-media.png'});
+        }
+        if (url.origin === 'https://signed.fixture') {
+          const request = {
+            url: url.href,
+            signal: options.signal || null,
+            credentials: options.credentials,
+            aborted: false,
+          };
+          request.signal?.addEventListener('abort', () => { request.aborted = true; }, {once: true});
+          window.fixtureEvidence.blobRequests.push(request);
+          if (fetchMode === 'deferred-blob') {
+            return new Promise(resolve => window.fixtureDeferredBlobs.push({resolve, request}));
+          }
+          return new Response(new Blob(['fixture'], {type: 'image/png'}), {status: 200});
+        }
+        if (url.pathname === '/api/library/books') return jsonResponse({success: true, books: [book]});
+        if (url.pathname === '/api/library/books/deleted') return jsonResponse({success: true, books: []});
+        if (url.pathname === '/api/projects') return jsonResponse({success: true, projects: [], limit: 3});
+        return jsonResponse({success: false, error: `Unexpected fixture request: ${url.pathname}`}, 500);
+      };
+
+      document.addEventListener('click', event => {
+        const link = event.target.closest?.('a[href*="/api/files/"][href*="download=1"]');
+        if (!link) return;
+        event.preventDefault();
+        const url = new URL(link.href, location.href);
+        window.fixtureEvidence.fallbacks.push(url.pathname + url.search);
+      }, true);
+
+      window.CrumpFileTools = {
+        open(file, download, options = {}) {
+          const handoff = {file: {...file}, download, options};
+          window.fixtureEvidence.sourceHandoffs.push(handoff);
+          return new Promise(resolve => window.fixtureDeferredSources.push({
+            resolve(value = true) {
+              if (options.shouldProceed?.() === true && !options.signal?.aborted) {
+                window.fixtureEvidence.sourceViewers.push(String(file?.id || ''));
+              }
+              resolve(value);
+            },
+          }));
+        },
+      };
+
+      window.fixtureReset = () => {
+        window.fixtureEvidence.signedRequests.length = 0;
+        window.fixtureEvidence.blobRequests.length = 0;
+        window.fixtureEvidence.photoSaves.length = 0;
+        window.fixtureEvidence.videoSaves.length = 0;
+        window.fixtureEvidence.shares.length = 0;
+        window.fixtureEvidence.fallbacks.length = 0;
+        window.fixtureEvidence.sourceHandoffs.length = 0;
+        window.fixtureEvidence.sourceViewers.length = 0;
+        window.fixtureEvidence.toasts.length = 0;
+        window.fixtureDeferredSigns.length = 0;
+        window.fixtureDeferredBlobs.length = 0;
+        window.fixtureDeferredNativeSaves.length = 0;
+        window.fixtureDeferredSources.length = 0;
+        fetchMode = 'normal';
+        nativeMode = 'success';
+        coarsePointer = false;
+        window.CrumpAPI.isNative = false;
+      };
+      window.fixtureSwitchAccount = nextUserId => {
+        authenticatedUserId = String(nextUserId || '');
+        window.currentUser = {id: authenticatedUserId};
+        authHandlers.forEach(handler => handler());
+        window.dispatchEvent(new Event('crump:authenticated-ready'));
+      };
+      window.fixtureUseAccountA = async () => {
+        window.fixtureSwitchAccount(USER_A);
+        await window.CrumpLibrary57.refresh();
+      };
+      window.fixtureUserB = USER_B;
+      window.fixtureSetMode = ({fetch: nextFetch = 'normal', native: nextNative = 'success', coarse = false, isNative = false} = {}) => {
+        fetchMode = nextFetch;
+        nativeMode = nextNative;
+        coarsePointer = coarse;
+        window.CrumpAPI.isNative = isNative;
+      };
+      window.fixtureResolveSign = (index = 0) => window.fixtureDeferredSigns[index]?.resolve(
+        jsonResponse({success: true, url: 'https://signed.fixture/private-media', name: 'private-media.png'}),
+      );
+      window.fixtureResolveBlob = (index = 0) => window.fixtureDeferredBlobs[index]?.resolve(
+        new Response(new Blob(['fixture'], {type: 'image/png'}), {status: 200}),
+      );
+      window.fixtureRejectNativeSave = (index = 0) => window.fixtureDeferredNativeSaves[index]?.reject(
+        new Error('Fixture native save failed.'),
+      );
+      window.fixtureMediaFile = {
+        id: '00000000-0000-4000-8000-000000000604',
+        name: 'private-image.png',
+        type: 'image/png',
+      };
+      window.fixtureRunMedia = options => window.CrumpMediaSave.saveMedia(window.fixtureMediaFile, options)
+        .then(value => ({value, errorName: ''}), error => ({value: false, errorName: String(error?.name || '')}));
+      window.fixtureOpenOriginal = async () => {
+        await window.CrumpLibrary57.refresh();
+        const button = document.querySelector('[data-crump57-original]');
+        if (!button) throw new Error('Original-source action missing.');
+        button.click();
+      };
+
+      const recordBrowserError = () => {
+        const output = document.getElementById('fixtureErrors');
+        output.textContent = String(Number(output.textContent || 0) + 1);
+      };
+      window.addEventListener('error', recordBrowserError);
+      window.addEventListener('unhandledrejection', recordBrowserError);
+    })();
+  </script>
+  <script src="/public/crump-media-save.js?v=library-media-privacy-fixture-1"></script>
+  <script src="/public/crump-library-5.7.js?v=library-media-privacy-fixture-1"></script>
+  <script>
+    window.addEventListener('load', async () => {
+      window.dispatchEvent(new Event('crump:authenticated-ready'));
+      const refreshed = await window.CrumpLibrary57.refresh();
+      document.getElementById('fixtureReady').textContent = refreshed ? 'ready' : 'failed';
+    }, {once: true});
+  </script>
+</body>
+</html>

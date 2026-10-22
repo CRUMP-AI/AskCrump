@@ -156,6 +156,7 @@
   const manuscriptExportDelivery = manuscriptExportDeliveryRuntime();
   let libraryAuthSequence = 0;
   let libraryStateUserId = '';
+  const libraryFileDeliveryControllers = new Set();
 
   function currentLibraryUserId() {
     const currentUserId = String(window.currentUser?.id || '').trim();
@@ -215,95 +216,17 @@
     return data;
   }
 
-  function fileStem(name) {
-    return String(name || 'Ask-Crump').replace(/\.[^.]+$/, '').replace(/[^\w\- ()]+/g, '_').slice(0, 100) || 'Ask-Crump';
-  }
-
-  function isMedia(file) {
-    const type = String(file?.type || '').toLowerCase();
-    return type.startsWith('image/') || type.startsWith('video/');
-  }
-
-  async function signedFile(file, {signal = null} = {}) {
+  async function signedLibraryFile(file, {signal = null} = {}) {
     if (!file?.id) throw new Error('That saved media item is missing its file ID.');
     const data = await api(`/api/files/${encodeURIComponent(file.id)}/signed`, {signal: signal || undefined});
     if (!data.url) throw new Error('Crump could not prepare that media file.');
     return data;
   }
 
-  async function androidAlbum(Media) {
-    const response = await Media.getAlbums();
-    let album = (response?.albums || []).find(item => String(item?.name || '').toLowerCase() === 'ask crump');
-    if (album?.identifier) return album.identifier;
-
-    await Media.createAlbum({name: 'Ask Crump'});
-    const refreshed = await Media.getAlbums();
-    album = (refreshed?.albums || []).find(item => String(item?.name || '').toLowerCase() === 'ask crump');
-    if (!album?.identifier) throw new Error('Ask Crump could not prepare a Photos album.');
-    return album.identifier;
-  }
-
-  async function saveNativeMedia(file) {
-    const Media = window.CrumpNative?.Media;
-    const Capacitor = window.CrumpNative?.Capacitor;
-    if (!window.CrumpAPI?.isNative || !Media || !Capacitor) return false;
-
-    const signed = await signedFile(file);
-    const type = String(file.type || signed.mimeType || '').toLowerCase();
-    const platform = Capacitor.getPlatform?.() || '';
-    const options = {
-      path: signed.url,
-      fileName: fileStem(file.name || signed.name),
-    };
-
-    if (platform === 'android') options.albumIdentifier = await androidAlbum(Media);
-
-    if (type.startsWith('video/')) {
-      await Media.saveVideo(options);
-      show('Video saved to Photos.', 'success');
-    } else if (type.startsWith('image/')) {
-      await Media.savePhoto(options);
-      show('Image saved to Photos.', 'success');
-    } else {
-      return false;
-    }
-    return true;
-  }
-
-  async function shareMediaFile(file) {
-    if (!navigator.share || !window.File) return false;
-    try {
-      const signed = await signedFile(file);
-      const response = await fetch(signed.url, {cache: 'no-store'});
-      if (!response.ok) throw new Error('Could not read that media file.');
-      const blob = await response.blob();
-      const name = file.name || signed.name || (String(blob.type).startsWith('video/') ? 'Ask-Crump-video.mp4' : 'Ask-Crump-image.png');
-      const shareFile = new File([blob], name, {type: blob.type || file.type || 'application/octet-stream'});
-      if (navigator.canShare && !navigator.canShare({files: [shareFile]})) return false;
-      await navigator.share({files: [shareFile], title: name});
-      return true;
-    } catch (error) {
-      if (error?.name === 'AbortError') return true;
-      console.warn('Ask Crump media share fallback failed:', error);
-      return false;
-    }
-  }
-
-  function mobileLike() {
-    return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent || '') ||
-      Boolean(window.matchMedia?.('(pointer: coarse)').matches);
-  }
-
-  async function saveMedia(file) {
-    if (!isMedia(file)) return false;
-    try {
-      if (await saveNativeMedia(file)) return true;
-    } catch (error) {
-      console.warn('Native Photos save failed; falling back:', error);
-      show(error.message || 'Could not save directly to Photos. Opening another save option.', 'warning');
-    }
-    if (!mobileLike()) return false;
-    return shareMediaFile(file);
+  async function saveMedia(file, deliveryOptions = {}) {
+    const deliver = window.CrumpMediaSave?.saveMedia;
+    if (typeof deliver !== 'function') throw new Error('Private media delivery is still loading. Try again.');
+    return deliver(file, deliveryOptions);
   }
 
   async function coverUrl(file, {force = false} = {}) {
@@ -318,7 +241,7 @@
     const controller = new AbortController();
     state.coverSignControllers.set(file.id, controller);
     try {
-      const signed = await signedFile(file, {signal: controller.signal});
+      const signed = await signedLibraryFile(file, {signal: controller.signal});
       if (
         controller.signal.aborted
         || state.coverSignControllers.get(file.id) !== controller
@@ -847,6 +770,37 @@
     if (opened === false) show('Crump could not open ' + (book.title || 'that manuscript') + ' for editing.', 'error');
   }
 
+  async function openOriginalSource(book) {
+    const operation = libraryOperationContext();
+    const bookId = String(book?.id || '').trim();
+    const sourceFileId = String(book?.sourceFile?.id || '').trim();
+    const openFile = window.CrumpFileTools?.open;
+    if (!operation.userId || !bookId || !sourceFileId || typeof openFile !== 'function') return false;
+
+    const controller = new AbortController();
+    libraryFileDeliveryControllers.add(controller);
+    const shouldProceed = () => {
+      if (controller.signal.aborted || !libraryOperationIsCurrent(operation)) return false;
+      const currentBook = state.books.find(item => String(item?.id || '') === bookId);
+      return String(currentBook?.sourceFile?.id || '') === sourceFileId;
+    };
+    try {
+      if (!shouldProceed()) return false;
+      const opened = await Promise.resolve(openFile(
+        {...book.sourceFile, id: sourceFileId, url: ''},
+        false,
+        {signal: controller.signal, shouldProceed},
+      ));
+      return shouldProceed() && opened === true;
+    } catch (error) {
+      if (error?.name === 'AbortError' || !shouldProceed()) return false;
+      show(error?.message || 'Crump could not open that original source.', 'error');
+      return false;
+    } finally {
+      libraryFileDeliveryControllers.delete(controller);
+    }
+  }
+
   function bindBookActions(grid) {
     const map = new Map(state.books.map(book => [String(book.id), book]));
     grid.querySelectorAll('[data-crump57-open]').forEach(button => {
@@ -905,7 +859,7 @@
       button.addEventListener('click', () => {
         const book = map.get(String(button.dataset.crump57Original));
         if (!book?.sourceFile) return;
-        window.CrumpFileTools?.open?.(book.sourceFile, false);
+        void openOriginalSource(book);
       });
     });
     grid.querySelectorAll('[data-crump57-trash]').forEach(button => {
@@ -1049,6 +1003,9 @@
   function resetLibraryAuthMemory() {
     libraryAuthSequence += 1;
     manuscriptExportDelivery.abort();
+    window.CrumpMediaSave?.abort?.();
+    libraryFileDeliveryControllers.forEach(controller => controller.abort());
+    libraryFileDeliveryControllers.clear();
     libraryStateUserId = '';
     state.books = [];
     state.deletedBooks = [];

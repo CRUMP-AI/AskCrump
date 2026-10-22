@@ -85,9 +85,9 @@ def test_native_push_consumer_and_runtime_loader_are_cache_busted_together() -> 
     runtime = read("public/runtime-body-v1.js")
     checker = read("scripts/check-javascript.mjs")
 
-    runtime_url = "/runtime-body-v1.js?v=5.9.76-manuscript-export-delivery-1"
+    runtime_url = "/runtime-body-v1.js?v=5.9.76-library-media-privacy-1"
     presence_url = "/presence-manager.js?v=5.9.76-native-push-handoff-1"
-    cache_name = "ask-crump-new-body-v1-r265-manuscript-export-delivery-1"
+    cache_name = "ask-crump-new-body-v1-r266-library-media-privacy-1"
     assert runtime_url in shell
     assert runtime_url in worker
     assert presence_url in runtime

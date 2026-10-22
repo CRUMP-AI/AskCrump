@@ -232,7 +232,7 @@ def test_library_cover_signing_cannot_repopulate_account_a_cache_after_auth_swit
     assert "coverSignControllers: new Map()" in library
     assert "const operation = libraryOperationContext()" in cover
     assert "const controller = new AbortController()" in cover
-    assert "signedFile(file, {signal: controller.signal})" in cover
+    assert "signedLibraryFile(file, {signal: controller.signal})" in cover
     assert "state.coverSignControllers.get(file.id) !== controller" in cover
     assert "!libraryOperationIsCurrent(operation)" in cover
     assert "state.coverUrls.set(file.id" in cover
@@ -259,7 +259,7 @@ def test_manuscript_export_runtime_is_cache_busted_through_both_lazy_loaders():
     worker = read("public/sw.js")
 
     assert "/crump-product-5.3.js?v=5.9.76-manuscript-export-delivery-1" in product_loader
-    assert "/crump-library-5.7.js?v=5.9.76-manuscript-export-delivery-1" in library_loader
+    assert "/crump-library-5.7.js?v=5.9.76-library-media-privacy-1" in library_loader
     for shell in (runtime, native, worker):
         assert "/crump-product-loader.js?v=5.9.76-manuscript-export-delivery-1" in shell
-        assert "/crump-library-loader.js?v=5.9.76-manuscript-export-delivery-1" in shell
+        assert "/crump-library-loader.js?v=5.9.76-library-media-privacy-1" in shell
