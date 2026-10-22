@@ -16,7 +16,7 @@ DYNAMIC_BUTTON_PATTERN = re.compile(
     re.IGNORECASE,
 )
 EXPECTED_BUTTON_INVENTORY = {
-    "public/app.html": 51,
+    "public/app.html": 52,
     "public/credit-confirmation.js": 3,
     "public/crump-5.0.js": 4,
     "public/crump-5.2.js": 5,
@@ -26,7 +26,7 @@ EXPECTED_BUTTON_INVENTORY = {
     "public/crump-library-5.7.js": 43,
     "public/crump-navigation-5.9.30.js": 2,
     "public/crump-product-5.3.1.js": 10,
-    "public/crump-product-5.3.js": 60,
+    "public/crump-product-5.3.js": 61,
     "public/crump-vision-home-1.0.js": 1,
     "public/crump-vision-library-1.0.js": 6,
     "public/crump-vision-projects-1.0.js": 5,
@@ -60,15 +60,15 @@ DYNAMIC_BUTTON_INVENTORY = {
     "public/ui-functions.js": 16,
 }
 INDIRECT_DYNAMIC_BUTTON_OWNERS = {
-    "public/crump-5.0.js:1950:close": (
+    "public/crump-5.0.js:1964:close": (
         "mountLightbox(box, close);",
         "closeButton.addEventListener('click', dismiss)",
     ),
-    "public/crump-5.0.js:2034:close": (
+    "public/crump-5.0.js:2056:close": (
         "mountLightbox(box, close);",
         "closeButton.addEventListener('click', dismiss)",
     ),
-    "public/crump-5.0.js:2411:project": (
+    "public/crump-5.0.js:2433:project": (
         "wireOutputProjectAction(project, {",
         "button.addEventListener('click', async () => {",
     ),
@@ -304,7 +304,7 @@ def test_rendered_button_inventory_requires_explicit_review() -> None:
             inventory[page.relative_to(ROOT).as_posix()] = len(parser.buttons)
 
     assert inventory == EXPECTED_BUTTON_INVENTORY
-    assert sum(inventory.values()) == 224
+    assert sum(inventory.values()) == 226
 
 
 def test_programmatically_created_button_inventory_requires_explicit_review() -> None:
@@ -316,7 +316,7 @@ def test_programmatically_created_button_inventory_requires_explicit_review() ->
 
     assert inventory == DYNAMIC_BUTTON_INVENTORY
     assert sum(inventory.values()) == 104
-    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 328
+    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 330
 
 
 def test_programmatically_created_buttons_declare_type_and_runtime_owner() -> None:
@@ -651,7 +651,7 @@ def test_browser_control_matrix_is_fail_closed_and_one_command() -> None:
     workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     verifier_names = sorted(path.name for path in (ROOT / "scripts").glob("verify-*.cjs"))
 
-    assert len(verifier_names) == 56
+    assert len(verifier_names) == 57
     for name in verifier_names:
         assert f"'{name}'" in runner
     assert "Browser verifier inventory drifted." in runner
@@ -716,7 +716,7 @@ def test_library_layout_buttons_expose_their_selected_state() -> None:
 
 
 def test_library_new_button_release_is_loaded_only_on_library_entry() -> None:
-    asset = "/crump-library-5.7.js?v=5.9.76-library-first-run-1"
+    asset = "/crump-library-5.7.js?v=5.9.76-manuscript-export-delivery-1"
     loader = (PUBLIC / "crump-library-loader.js").read_text(encoding="utf-8")
 
     assert asset in loader

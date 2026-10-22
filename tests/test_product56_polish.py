@@ -117,7 +117,8 @@ def test_home_surface_exposes_projects_and_video_without_hiding_core_chat():
     assert 'data-v1-command="focus"' not in app
     for command in ("projects", "file", "image", "video"):
         assert app.count(f'data-v1-command="{command}"') == 1
-    assert app.count('class="v1-launch-card') == 4
+    assert app.count('class="v1-launch-card') == 5
+    assert app.count('data-home-document-entry') == 1
     assert "case 'projects':" in body and "openProduct('projects')" in body
     assert "case 'video':" in body and "openProduct('video')" in body
     saved_branch = body[body.index("case 'saved':"):body.index("case 'code':")]

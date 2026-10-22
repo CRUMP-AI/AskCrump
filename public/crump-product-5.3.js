@@ -18,7 +18,7 @@
     manuscriptProgress: null,
     manuscriptRun: null,
     manuscriptPollTimer: null,
-    manuscriptExportInFlight: false,
+    manuscriptOperations: new Map(),
     videoPollTimer: null,
     videoPollSequence: 0,
     videoStarting: false,
@@ -95,6 +95,112 @@
   const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
   })[character]);
+
+  function manuscriptExportDeliveryRuntime() {
+    if (window.CrumpManuscriptExportDelivery?.version === 1) {
+      return window.CrumpManuscriptExportDelivery;
+    }
+    const runKey = '__crumpManuscriptExportRun';
+    const sequenceKey = '__crumpManuscriptExportRunSequence';
+    const cleanupByRun = new WeakMap();
+    const abortError = () => {
+      const error = new Error('The manuscript export was cancelled after the account changed.');
+      error.name = 'AbortError';
+      return error;
+    };
+    const runtime = Object.freeze({
+      version: 1,
+      begin(surface, userId) {
+        const normalizedUserId = String(userId || '').trim();
+        const normalizedSurface = String(surface || '').trim();
+        if (!normalizedUserId || !normalizedSurface) return null;
+        const active = window[runKey];
+        if (active && !active.controller?.signal?.aborted) return null;
+        const token = Math.max(0, Number(window[sequenceKey]) || 0) + 1;
+        window[sequenceKey] = token;
+        const run = {
+          token,
+          controller: new AbortController(),
+          userId: normalizedUserId,
+          surface: normalizedSurface,
+        };
+        window[runKey] = run;
+        return run;
+      },
+      isCurrent(run, userId) {
+        return Boolean(
+          run
+          && window[runKey] === run
+          && !run.controller?.signal?.aborted
+          && run.userId === String(userId || '').trim()
+        );
+      },
+      finish(run) {
+        cleanupByRun.get(run)?.();
+        cleanupByRun.delete(run);
+        if (window[runKey] === run) window[runKey] = null;
+      },
+      attachCleanup(run, cleanup) {
+        if (!run || typeof cleanup !== 'function') return;
+        let complete = false;
+        cleanupByRun.set(run, () => {
+          if (complete) return;
+          complete = true;
+          cleanup();
+        });
+      },
+      abort() {
+        const run = window[runKey];
+        if (run?.controller && !run.controller.signal.aborted) run.controller.abort();
+        cleanupByRun.get(run)?.();
+        cleanupByRun.delete(run);
+        if (window[runKey] === run) window[runKey] = null;
+      },
+      async deliver(file, run, shouldProceed = () => true) {
+        const canProceed = () => this.isCurrent(run, run?.userId) && shouldProceed() !== false;
+        if (!canProceed()) throw abortError();
+        const fileId = String(file?.id || '').trim();
+        if (!fileId) {
+          throw new Error('Delivery could not be verified. Check Files before trying again.');
+        }
+        const canonicalFile = {...file, id: fileId, url: ''};
+        const canonicalOpen = window.CrumpFileTools?.open;
+        if (typeof canonicalOpen === 'function') {
+          try {
+            const opened = await Promise.resolve(canonicalOpen(canonicalFile, true, {
+              signal: run.controller.signal,
+              shouldProceed: canProceed,
+            }));
+            if (!canProceed()) throw abortError();
+            if (opened === true) return true;
+          } catch (error) {
+            if (!canProceed()) throw abortError();
+            // Web/PWA can recover through the authenticated owner-checked endpoint below.
+          }
+        }
+        if (!canProceed()) throw abortError();
+        if (window.CrumpAPI?.isNative) {
+          throw new Error('The manuscript is saved in Files, but private delivery could not start here. Retry from Files.');
+        }
+        const link = document.createElement('a');
+        link.href = `/api/files/${encodeURIComponent(fileId)}/content?download=1`;
+        link.download = String(file?.name || 'manuscript');
+        link.hidden = true;
+        document.body.appendChild(link);
+        if (!canProceed()) {
+          link.remove();
+          throw abortError();
+        }
+        link.click();
+        link.remove();
+        return true;
+      },
+    });
+    window.CrumpManuscriptExportDelivery = runtime;
+    return runtime;
+  }
+
+  const manuscriptExportDelivery = manuscriptExportDeliveryRuntime();
 
   function projectStorageKey(userId = currentVideoReferenceUserId()) {
     const normalized = String(userId || '').trim();
@@ -217,6 +323,56 @@
       && context.userId === currentVideoReferenceUserId()
       && context.userId === projectStateUserId
     );
+  }
+
+  function beginManuscriptOperation(key, {
+    projectId = state.activeProject?.id,
+    manuscriptId = state.activeManuscript?.id,
+    sectionId = state.activeSection?.id,
+  } = {}) {
+    const operation = projectOperationContext();
+    const normalizedKey = String(key || '').trim();
+    if (!operation.userId || !normalizedKey) return null;
+    const previous = state.manuscriptOperations.get(normalizedKey);
+    if (previous?.controller && !previous.controller.signal.aborted) previous.controller.abort();
+    const context = {
+      ...operation,
+      key: normalizedKey,
+      controller: new AbortController(),
+      projectId: String(projectId || '').trim(),
+      manuscriptId: String(manuscriptId || '').trim(),
+      sectionId: String(sectionId || '').trim(),
+    };
+    state.manuscriptOperations.set(normalizedKey, context);
+    return context;
+  }
+
+  function manuscriptOperationIsCurrent(context, {
+    requireManuscript = Boolean(context?.manuscriptId),
+    requireSection = Boolean(context?.sectionId),
+  } = {}) {
+    return Boolean(
+      context
+      && state.manuscriptOperations.get(context.key) === context
+      && !context.controller.signal.aborted
+      && projectOperationIsCurrent(context)
+      && context.projectId === String(state.activeProject?.id || '').trim()
+      && (!requireManuscript || context.manuscriptId === String(state.activeManuscript?.id || '').trim())
+      && (!requireSection || context.sectionId === String(state.activeSection?.id || '').trim())
+    );
+  }
+
+  function finishManuscriptOperation(context) {
+    if (context && state.manuscriptOperations.get(context.key) === context) {
+      state.manuscriptOperations.delete(context.key);
+    }
+  }
+
+  function abortManuscriptOperations() {
+    state.manuscriptOperations.forEach(context => {
+      if (!context.controller.signal.aborted) context.controller.abort();
+    });
+    state.manuscriptOperations.clear();
   }
 
   function notifyProjectTargetChanged() {
@@ -630,9 +786,56 @@
     setVideoGenerationBusy(false);
   }
 
+  function resetManuscriptAuthDom() {
+    setStatus('crump53ManuscriptStatus', '');
+    const manuscriptWorkspace = byId('crump53ManuscriptWorkspace');
+    if (manuscriptWorkspace) manuscriptWorkspace.hidden = true;
+    const manuscriptCreate = byId('crump53ManuscriptCreate');
+    if (manuscriptCreate) manuscriptCreate.hidden = false;
+    const manuscriptEditor = byId('crump53ManuscriptEditor');
+    if (manuscriptEditor) manuscriptEditor.hidden = true;
+    const sectionEditor = byId('crump53SectionEditor');
+    if (sectionEditor) sectionEditor.hidden = true;
+    const blueprint = byId('crump53BlueprintPanel');
+    if (blueprint) blueprint.hidden = false;
+    [
+      'crump53ManuscriptTitle',
+      'crump53ManuscriptAuthor',
+      'crump53ManuscriptPremise',
+      'crump53BlueprintBrief',
+      'crump53SectionTitle',
+      'crump53SectionContent',
+      'crump53DraftInstruction',
+    ].forEach(id => {
+      const input = byId(id);
+      if (input) input.value = '';
+    });
+    [
+      ['crump53TargetWords', '80000'],
+      ['crump53ChapterCount', '28'],
+      ['crump53Trim', '6x9'],
+      ['crump53BlueprintTarget', '80000'],
+      ['crump53BlueprintChapters', '28'],
+      ['crump53FullDraftFormat', 'docx'],
+    ].forEach(([id, value]) => {
+      const input = byId(id);
+      if (input) input.value = value;
+    });
+    const editorTitle = byId('crump53EditorTitle');
+    if (editorTitle) editorTitle.textContent = 'Manuscript';
+    ['crump53ManuscriptProgress', 'crump53SectionList'].forEach(id => byId(id)?.replaceChildren());
+    const manuscriptRun = byId('crump53ManuscriptRun');
+    if (manuscriptRun) {
+      manuscriptRun.hidden = true;
+      manuscriptRun.replaceChildren();
+    }
+  }
+
   function resetProjectAuthMemory() {
     projectAuthSequence += 1;
     conversationContextSequence += 1;
+    manuscriptExportDelivery.abort();
+    abortManuscriptOperations();
     if (state.manuscriptPollTimer) window.clearTimeout(state.manuscriptPollTimer);
     state.manuscriptPollTimer = null;
     state.projects = [];
@@ -713,6 +916,7 @@
     setStatus('crump53ProjectStatus', '');
     setStatus('crump53ContextStatus', '');
     setStatus('crump53LibraryStatus', '');
+    resetManuscriptAuthDom();
     renderVideoProjectDestination();
   }
 
@@ -2692,6 +2896,7 @@
 
   function clearActiveProject({announce = false} = {}) {
     const projectName = state.activeProject?.name || 'Project';
+    abortManuscriptOperations();
     state.activeProject = null;
     state.editingProject = null;
     storeProject('');
@@ -2714,13 +2919,22 @@
 
   async function refreshManuscripts() {
     renderManuscriptProjectState();
-    if (!state.activeProject?.id) return;
+    const projectId = String(state.activeProject?.id || '').trim();
+    if (!projectId) return false;
+    const operation = beginManuscriptOperation('list', {projectId, manuscriptId: '', sectionId: ''});
+    if (!operation) return false;
     try {
-      const data = await api(`/api/projects/${state.activeProject.id}/manuscripts`);
+      const data = await api(`/api/projects/${projectId}/manuscripts`, {signal: operation.controller.signal});
+      if (!manuscriptOperationIsCurrent(operation, {requireManuscript: false, requireSection: false})) return false;
       state.manuscripts = Array.isArray(data.manuscripts) ? data.manuscripts : [];
       renderManuscriptList();
+      return true;
     } catch (error) {
+      if (error?.name === 'AbortError' || !manuscriptOperationIsCurrent(operation, {requireManuscript: false, requireSection: false})) return false;
       setFeatureAccessStatus('crump53ManuscriptStatus', error);
+      return false;
+    } finally {
+      finishManuscriptOperation(operation);
     }
   }
 
@@ -2741,6 +2955,7 @@
   }
 
   function showManuscriptCreate() {
+    abortManuscriptOperations();
     byId('crump53ManuscriptCreate').hidden = false;
     byId('crump53ManuscriptEditor').hidden = true;
     state.activeManuscript = null;
@@ -2752,17 +2967,21 @@
   }
 
   async function createManuscript() {
-    if (!state.activeProject?.id) return;
+    const projectId = String(state.activeProject?.id || '').trim();
+    if (!projectId) return;
     const brief = byId('crump53ManuscriptPremise')?.value?.trim() || '';
     if (!brief) {
       setStatus('crump53ManuscriptStatus', 'Describe what the manuscript should become—or tell Crump to surprise you.', true);
       return;
     }
+    const operation = beginManuscriptOperation('create', {projectId, manuscriptId: '', sectionId: ''});
+    if (!operation) return;
     let manuscriptId = '';
     try {
       setStatus('crump53ManuscriptStatus', 'Creating…');
-      const data = await api(`/api/projects/${state.activeProject.id}/manuscripts`, {
+      const data = await api(`/api/projects/${projectId}/manuscripts`, {
         method: 'POST',
+        signal: operation.controller.signal,
         body: {
           title: byId('crump53ManuscriptTitle')?.value || '',
           authorName: byId('crump53ManuscriptAuthor')?.value || '',
@@ -2771,10 +2990,13 @@
           targetWords: Number(byId('crump53TargetWords')?.value || 80000),
         },
       });
-      manuscriptId = data.manuscript.id;
+      if (!manuscriptOperationIsCurrent(operation, {requireManuscript: false, requireSection: false})) return;
+      manuscriptId = String(data.manuscript?.id || '').trim();
+      if (!manuscriptId) throw new Error('Crump could not verify the new manuscript.');
       setStatus('crump53ManuscriptStatus', 'Queueing the complete manuscript plan…');
       await api(`/api/manuscripts/${manuscriptId}/runs`, {
         method: 'POST',
+        signal: operation.controller.signal,
         body: {
           brief,
           targetWords: Number(byId('crump53TargetWords')?.value || 80000),
@@ -2783,26 +3005,49 @@
           format: 'docx',
         },
       });
+      if (!manuscriptOperationIsCurrent(operation, {requireManuscript: false, requireSection: false})) return;
       await refreshManuscripts();
+      if (!manuscriptOperationIsCurrent(operation, {requireManuscript: false, requireSection: false})) return;
       await loadManuscript(manuscriptId);
+      if (!manuscriptOperationIsCurrent(operation, {requireManuscript: false, requireSection: false})) return;
       setStatus('crump53ManuscriptStatus', 'Blueprint queued. You can leave this screen and return when it is ready.');
     } catch (error) {
+      if (error?.name === 'AbortError' || !manuscriptOperationIsCurrent(operation, {requireManuscript: false, requireSection: false})) return;
       if (manuscriptId) {
         await refreshManuscripts();
+        if (!manuscriptOperationIsCurrent(operation, {requireManuscript: false, requireSection: false})) return;
         await loadManuscript(manuscriptId);
+        if (!manuscriptOperationIsCurrent(operation, {requireManuscript: false, requireSection: false})) return;
       }
       const message = error.data?.creditsRequired
         ? `${error.message} Current balance: ${error.data.creditBalance ?? 0}. The empty manuscript was saved.`
         : error.message;
       setFeatureAccessStatus('crump53ManuscriptStatus', error, message);
+    } finally {
+      finishManuscriptOperation(operation);
     }
   }
 
   async function loadManuscript(manuscriptId) {
+    const normalizedManuscriptId = String(manuscriptId || '').trim();
+    const projectId = String(state.activeProject?.id || '').trim();
+    if (!normalizedManuscriptId || !projectId) return false;
+    const operation = beginManuscriptOperation('load', {
+      projectId,
+      manuscriptId: normalizedManuscriptId,
+      sectionId: '',
+    });
+    if (!operation) return false;
     if (state.manuscriptPollTimer) window.clearTimeout(state.manuscriptPollTimer);
     state.manuscriptPollTimer = null;
+    const activePoll = state.manuscriptOperations.get('poll');
+    if (activePoll?.controller && !activePoll.controller.signal.aborted) activePoll.controller.abort();
     try {
-      const data = await api(`/api/manuscripts/${manuscriptId}`);
+      const data = await api(`/api/manuscripts/${normalizedManuscriptId}`, {signal: operation.controller.signal});
+      if (
+        !manuscriptOperationIsCurrent(operation, {requireManuscript: false, requireSection: false})
+        || String(data.manuscript?.id || '') !== normalizedManuscriptId
+      ) return false;
       state.activeManuscript = data.manuscript;
       state.activeManuscript.sections = Array.isArray(data.sections) ? data.sections : [];
       state.manuscriptProgress = data.progress || null;
@@ -2823,8 +3068,11 @@
       scheduleManuscriptPoll();
       return true;
     } catch (error) {
+      if (error?.name === 'AbortError' || !manuscriptOperationIsCurrent(operation, {requireManuscript: false, requireSection: false})) return false;
       setStatus('crump53ManuscriptStatus', error.message, true);
       return false;
+    } finally {
+      finishManuscriptOperation(operation);
     }
   }
 
@@ -2854,8 +3102,12 @@
     const stageLabels = {blueprint: 'Planning chapters', drafting: 'Writing full draft', export: 'Packaging export', complete: 'Complete'};
     const total = Number(run.totalSections || run.chapterCount || 0);
     const completed = Number(run.completedSections || 0);
-    const output = run.outputFile?.url
-      ? `<a class="crump53-button" href="${escapeHtml(run.outputFile.url)}?download=1">Download ${escapeHtml(String(run.preferredExportFormat || 'file').toUpperCase())}</a>`
+    const outputFileId = String(run.outputFile?.id || '').trim();
+    const output = outputFileId
+      ? `<button type="button" class="crump53-button" id="crump53DownloadManuscriptOutput" data-crump53-run-output>Download ${escapeHtml(String(run.preferredExportFormat || 'file').toUpperCase())}</button>`
+      : '';
+    const unverifiedOutputNotice = run.outputFile && !outputFileId
+      ? '<div class="crump53-status is-error">Delivery could not be verified. Check Files before trying again.</div>'
       : '';
     const outputRecovery = run.outputFileRecovery && typeof run.outputFileRecovery === 'object'
       ? run.outputFileRecovery
@@ -2881,25 +3133,79 @@
       resume.textContent = 'Resume';
     }
     node.hidden = false;
-    node.innerHTML = `<strong>${escapeHtml(stageLabels[run.stage] || 'Manuscript run')} · ${escapeHtml(run.status || '')}</strong><br><span>${completed} of ${total} chapters drafted. This job is saved and can resume after a timeout or browser close.</span>${error}${outputRecoveryNotice}${output || creditRecovery || outputRecoveryAction ? `<div class="crump53-actions" style="margin-top:8px">${creditRecovery}${outputRecoveryAction}${output}</div>` : ''}`;
+    node.innerHTML = `<strong>${escapeHtml(stageLabels[run.stage] || 'Manuscript run')} · ${escapeHtml(run.status || '')}</strong><br><span>${completed} of ${total} chapters drafted. This job is saved and can resume after a timeout or browser close.</span>${error}${outputRecoveryNotice}${unverifiedOutputNotice}${output || creditRecovery || outputRecoveryAction ? `<div class="crump53-actions" style="margin-top:8px">${creditRecovery}${outputRecoveryAction}${output}</div>` : ''}`;
     byId('crump53ManuscriptCredits')?.addEventListener('click', () => openFeatureAccessRecovery({
       data: {code: 'CREDITS_REQUIRED'},
     }));
     byId('crump53RetryManuscriptOutput')?.addEventListener('click', retryManuscriptOutputLookup);
+    byId('crump53DownloadManuscriptOutput')?.addEventListener('click', event => {
+      void deliverSavedManuscriptOutput(event.currentTarget);
+    });
+  }
+
+  async function deliverSavedManuscriptOutput(requestedButton = null) {
+    const operation = projectOperationContext();
+    const manuscriptId = String(state.activeManuscript?.id || '').trim();
+    const file = state.manuscriptRun?.outputFile && typeof state.manuscriptRun.outputFile === 'object'
+      ? {...state.manuscriptRun.outputFile}
+      : null;
+    const resourceIsCurrent = () => projectOperationIsCurrent(operation)
+      && String(state.activeManuscript?.id || '').trim() === manuscriptId;
+    if (!manuscriptId || !file) return false;
+    if (!operation.userId) {
+      setStatus('crump53ManuscriptStatus', 'Sign in again before downloading this manuscript.', true);
+      return false;
+    }
+    const run = manuscriptExportDelivery.begin('project-run-output', operation.userId);
+    if (!run) {
+      setStatus('crump53ManuscriptStatus', 'Another manuscript export is already in progress.');
+      return false;
+    }
+    const controlState = captureManuscriptExportControls();
+    manuscriptExportDelivery.attachCleanup(run, () => restoreManuscriptExportControls(controlState));
+    controlState.forEach(({button}) => {
+      button.disabled = true;
+      if (button === requestedButton) {
+        button.textContent = 'Preparing download…';
+        button.setAttribute('aria-busy', 'true');
+      }
+    });
+    try {
+      setStatus('crump53ManuscriptStatus', 'Preparing the saved manuscript download…');
+      await manuscriptExportDelivery.deliver(file, run, resourceIsCurrent);
+      if (
+        !manuscriptExportDelivery.isCurrent(run, operation.userId)
+        || !resourceIsCurrent()
+      ) return false;
+      setStatus('crump53ManuscriptStatus', 'Saved manuscript ready.');
+      return true;
+    } catch (error) {
+      if (error?.name === 'AbortError' || !resourceIsCurrent()) return false;
+      setFeatureAccessStatus(
+        'crump53ManuscriptStatus',
+        error,
+        error?.message || 'Crump could not deliver that saved manuscript.',
+      );
+      return false;
+    } finally {
+      manuscriptExportDelivery.finish(run);
+    }
   }
 
   async function retryManuscriptOutputLookup() {
-    const manuscriptId = state.activeManuscript?.id;
+    const manuscriptId = String(state.activeManuscript?.id || '').trim();
     const button = byId('crump53RetryManuscriptOutput');
     if (!manuscriptId || !state.manuscriptRun?.outputFileRecovery?.shouldRetry) return;
+    const operation = beginManuscriptOperation('retry-output', {manuscriptId, sectionId: ''});
+    if (!operation) return;
     if (button) button.disabled = true;
     setStatus('crump53ManuscriptStatus', 'Checking the saved export…');
     try {
-      const data = await api(`/api/manuscripts/${manuscriptId}/run`);
-      if (state.activeManuscript?.id !== manuscriptId) return;
+      const data = await api(`/api/manuscripts/${manuscriptId}/run`, {signal: operation.controller.signal});
+      if (!manuscriptOperationIsCurrent(operation)) return;
       state.manuscriptRun = data.run || null;
       renderManuscriptRun();
-      if (state.manuscriptRun?.outputFile?.url) {
+      if (String(state.manuscriptRun?.outputFile?.id || '').trim()) {
         setStatus('crump53ManuscriptStatus', 'Saved export ready.');
         return;
       }
@@ -2909,9 +3215,11 @@
         true,
       );
     } catch (error) {
-      if (state.activeManuscript?.id !== manuscriptId) return;
+      if (error?.name === 'AbortError' || !manuscriptOperationIsCurrent(operation)) return;
       setStatus('crump53ManuscriptStatus', error.message, true);
       renderManuscriptRun();
+    } finally {
+      finishManuscriptOperation(operation);
     }
   }
 
@@ -2923,10 +3231,13 @@
   }
 
   async function pollManuscriptRun() {
-    const manuscriptId = state.activeManuscript?.id;
+    const manuscriptId = String(state.activeManuscript?.id || '').trim();
     if (!manuscriptId) return;
+    const operation = beginManuscriptOperation('poll', {manuscriptId, sectionId: ''});
+    if (!operation) return;
     try {
-      const data = await api(`/api/manuscripts/${manuscriptId}/run`);
+      const data = await api(`/api/manuscripts/${manuscriptId}/run`, {signal: operation.controller.signal});
+      if (!manuscriptOperationIsCurrent(operation)) return;
       state.manuscriptRun = data.run || null;
       renderManuscriptRun();
       if (state.manuscriptRun && ['completed', 'failed', 'awaiting_credits'].includes(state.manuscriptRun.status)) {
@@ -2934,19 +3245,28 @@
         return;
       }
     } catch (error) {
+      if (error?.name === 'AbortError' || !manuscriptOperationIsCurrent(operation)) return;
       setStatus('crump53ManuscriptStatus', error.message, true);
+    } finally {
+      finishManuscriptOperation(operation);
     }
-    scheduleManuscriptPoll();
+    if (projectOperationIsCurrent(operation) && String(state.activeManuscript?.id || '') === manuscriptId) {
+      scheduleManuscriptPoll();
+    }
   }
 
   async function startFullManuscript() {
-    if (!state.activeManuscript?.id) return;
+    const manuscriptId = String(state.activeManuscript?.id || '').trim();
+    if (!manuscriptId) return;
+    const operation = beginManuscriptOperation('start-run', {manuscriptId, sectionId: ''});
+    if (!operation) return;
     const metadata = state.activeManuscript.metadata && typeof state.activeManuscript.metadata === 'object' ? state.activeManuscript.metadata : {};
     const brief = byId('crump53BlueprintBrief')?.value?.trim() || metadata.premise || '';
     try {
       setStatus('crump53ManuscriptStatus', 'Queueing the complete manuscript…');
-      const data = await api(`/api/manuscripts/${state.activeManuscript.id}/runs`, {
+      const data = await api(`/api/manuscripts/${manuscriptId}/runs`, {
         method: 'POST',
+        signal: operation.controller.signal,
         body: {
           brief,
           targetWords: Number(byId('crump53BlueprintTarget')?.value || metadata.targetWords || 80000),
@@ -2955,32 +3275,44 @@
           mode: 'autopilot',
         },
       });
+      if (!manuscriptOperationIsCurrent(operation)) return;
       state.manuscriptRun = data.run;
       renderManuscriptRun();
       scheduleManuscriptPoll();
       setStatus('crump53ManuscriptStatus', 'Full manuscript queued. It is safe to close this screen.');
     } catch (error) {
+      if (error?.name === 'AbortError' || !manuscriptOperationIsCurrent(operation)) return;
       const message = error.data?.creditsRequired
         ? `${error.message} Current balance: ${error.data.creditBalance ?? 0}.`
         : error.message;
       setFeatureAccessStatus('crump53ManuscriptStatus', error, message);
+    } finally {
+      finishManuscriptOperation(operation);
     }
   }
 
   async function controlManuscriptRun(action) {
     const runId = state.manuscriptRun?.id;
     if (!runId || !['pause', 'resume', 'cancel'].includes(action)) return;
+    const manuscriptId = String(state.activeManuscript?.id || '').trim();
+    const operation = beginManuscriptOperation('control-run', {manuscriptId, sectionId: ''});
+    if (!operation) return;
     try {
       const data = await api(`/api/manuscript-runs/${runId}/${action}`, {
         method: 'POST',
         body: {},
+        signal: operation.controller.signal,
       });
+      if (!manuscriptOperationIsCurrent(operation) || String(state.manuscriptRun?.id || '') !== String(runId)) return;
       state.manuscriptRun = data.run;
       renderManuscriptRun();
       scheduleManuscriptPoll();
       setStatus('crump53ManuscriptStatus', `Manuscript run ${action === 'cancel' ? 'cancelled' : `${action}d`}.`);
     } catch (error) {
+      if (error?.name === 'AbortError' || !manuscriptOperationIsCurrent(operation)) return;
       setFeatureAccessStatus('crump53ManuscriptStatus', error);
+    } finally {
+      finishManuscriptOperation(operation);
     }
   }
 
@@ -3029,17 +3361,21 @@
   }
 
   async function planManuscript() {
-    if (!state.activeManuscript?.id) return;
+    const manuscriptId = String(state.activeManuscript?.id || '').trim();
+    if (!manuscriptId) return;
     const brief = byId('crump53BlueprintBrief')?.value?.trim() || '';
     if (!brief) {
       setStatus('crump53ManuscriptStatus', 'Add the premise, audience, genre, or direction Crump should plan.', true);
       return;
     }
+    const operation = beginManuscriptOperation('plan', {manuscriptId, sectionId: ''});
+    if (!operation) return;
     try {
       setStatus('crump53ManuscriptStatus', 'Crump is building the complete chapter blueprint…');
       const hasOutlines = Boolean(state.activeManuscript.sections?.length);
-      const data = await api(`/api/manuscripts/${state.activeManuscript.id}/blueprint`, {
+      const data = await api(`/api/manuscripts/${manuscriptId}/blueprint`, {
         method: 'POST',
+        signal: operation.controller.signal,
         body: {
           brief,
           targetWords: Number(byId('crump53BlueprintTarget')?.value || 80000),
@@ -3047,6 +3383,7 @@
           replaceOutlines: hasOutlines,
         },
       });
+      if (!manuscriptOperationIsCurrent(operation)) return;
       state.activeManuscript = data.manuscript || state.activeManuscript;
       state.activeManuscript.sections = Array.isArray(data.sections) ? data.sections : [];
       state.manuscriptProgress = data.progress || null;
@@ -3056,10 +3393,13 @@
       renderManuscriptProgress();
       setStatus('crump53ManuscriptStatus', 'Blueprint ready. Every chapter now has a purpose and continuity burden.');
     } catch (error) {
+      if (error?.name === 'AbortError' || !manuscriptOperationIsCurrent(operation)) return;
       const message = error.data?.creditsRequired
         ? `${error.message} Current balance: ${error.data.creditBalance ?? 0}.`
         : error.message;
       setFeatureAccessStatus('crump53ManuscriptStatus', error, message);
+    } finally {
+      finishManuscriptOperation(operation);
     }
   }
 
@@ -3077,150 +3417,191 @@
   }
 
   async function addChapter() {
-    if (!state.activeManuscript?.id) return;
+    const manuscriptId = String(state.activeManuscript?.id || '').trim();
+    if (!manuscriptId) return;
     const number = (state.activeManuscript.sections?.length || 0) + 1;
+    const operation = beginManuscriptOperation('add-section', {manuscriptId, sectionId: ''});
+    if (!operation) return;
     try {
-      const data = await api(`/api/manuscripts/${state.activeManuscript.id}/sections`, {
-        method: 'POST', body: {title: `Chapter ${number}`, sectionType: 'chapter'},
+      const data = await api(`/api/manuscripts/${manuscriptId}/sections`, {
+        method: 'POST', body: {title: `Chapter ${number}`, sectionType: 'chapter'}, signal: operation.controller.signal,
       });
+      if (!manuscriptOperationIsCurrent(operation)) return;
       state.activeManuscript.sections = [...(state.activeManuscript.sections || []), data.section];
       state.manuscriptProgress = null;
       selectSection(data.section.id);
       renderManuscriptProgress();
     } catch (error) {
+      if (error?.name === 'AbortError' || !manuscriptOperationIsCurrent(operation)) return;
       setStatus('crump53ManuscriptStatus', error.message, true);
+    } finally {
+      finishManuscriptOperation(operation);
     }
   }
 
   async function saveSection() {
-    if (!state.activeManuscript?.id || !state.activeSection?.id) return;
+    const manuscriptId = String(state.activeManuscript?.id || '').trim();
+    const sectionId = String(state.activeSection?.id || '').trim();
+    if (!manuscriptId || !sectionId) return;
+    const operation = beginManuscriptOperation('save-section', {manuscriptId, sectionId});
+    if (!operation) return;
     try {
       setStatus('crump53ManuscriptStatus', 'Saving chapter…');
-      const data = await api(`/api/manuscripts/${state.activeManuscript.id}/sections/${state.activeSection.id}`, {
+      const data = await api(`/api/manuscripts/${manuscriptId}/sections/${sectionId}`, {
         method: 'PATCH',
+        signal: operation.controller.signal,
         body: {
           title: byId('crump53SectionTitle')?.value || '',
           content: byId('crump53SectionContent')?.value || '',
         },
       });
-      replaceSection(data.section);
+      if (!manuscriptOperationIsCurrent(operation)) return;
+      replaceSection(data.section, operation);
       state.manuscriptProgress = null;
       renderManuscriptProgress();
       setStatus('crump53ManuscriptStatus', 'Saved.');
     } catch (error) {
+      if (error?.name === 'AbortError' || !manuscriptOperationIsCurrent(operation)) return;
       setStatus('crump53ManuscriptStatus', error.message, true);
+    } finally {
+      finishManuscriptOperation(operation);
     }
   }
 
   async function draftSection() {
-    if (!state.activeManuscript?.id || !state.activeSection?.id) return;
+    const manuscriptId = String(state.activeManuscript?.id || '').trim();
+    const sectionId = String(state.activeSection?.id || '').trim();
+    if (!manuscriptId || !sectionId) return;
     const instruction = byId('crump53DraftInstruction')?.value || '';
+    const operation = beginManuscriptOperation('draft-section', {manuscriptId, sectionId});
+    if (!operation) return;
     try {
       setStatus('crump53ManuscriptStatus', 'Crump is drafting this section…');
-      const data = await api(`/api/manuscripts/${state.activeManuscript.id}/sections/${state.activeSection.id}/draft`, {
-        method: 'POST', body: {instruction},
+      const data = await api(`/api/manuscripts/${manuscriptId}/sections/${sectionId}/draft`, {
+        method: 'POST', body: {instruction}, signal: operation.controller.signal,
       });
-      replaceSection(data.section);
+      if (!manuscriptOperationIsCurrent(operation)) return;
+      replaceSection(data.section, operation);
       state.manuscriptProgress = data.progress || null;
       byId('crump53SectionContent').value = data.section.content || '';
       if (byId('crump53DraftInstruction')) byId('crump53DraftInstruction').value = '';
       setStatus('crump53ManuscriptStatus', 'Draft ready. Review and revise before publishing.');
       renderManuscriptProgress();
     } catch (error) {
+      if (error?.name === 'AbortError' || !manuscriptOperationIsCurrent(operation)) return;
       const message = error.data?.creditsRequired
         ? `${error.message} Current balance: ${error.data.creditBalance ?? 0}.`
         : error.message;
       setFeatureAccessStatus('crump53ManuscriptStatus', error, message);
+    } finally {
+      finishManuscriptOperation(operation);
     }
   }
 
   async function draftNextSection() {
-    if (!state.activeManuscript?.id) return;
+    const manuscriptId = String(state.activeManuscript?.id || '').trim();
+    if (!manuscriptId) return;
+    const operation = beginManuscriptOperation('draft-next', {manuscriptId, sectionId: ''});
+    if (!operation) return;
     try {
       setStatus('crump53ManuscriptStatus', 'Crump is drafting the next unfinished chapter…');
-      const data = await api(`/api/manuscripts/${state.activeManuscript.id}/draft-next`, {
+      const data = await api(`/api/manuscripts/${manuscriptId}/draft-next`, {
         method: 'POST',
         body: {instruction: ''},
+        signal: operation.controller.signal,
       });
-      replaceSection(data.section);
+      if (!manuscriptOperationIsCurrent(operation)) return;
+      replaceSection(data.section, operation);
       state.manuscriptProgress = data.progress || null;
       selectSection(data.section.id);
       byId('crump53SectionContent').value = data.section.content || '';
       renderManuscriptProgress();
       setStatus('crump53ManuscriptStatus', `${data.section.title || 'Next chapter'} drafted. Review it before continuing.`);
     } catch (error) {
+      if (error?.name === 'AbortError' || !manuscriptOperationIsCurrent(operation)) return;
       const message = error.data?.creditsRequired
         ? `${error.message} Current balance: ${error.data.creditBalance ?? 0}.`
         : error.message;
       setFeatureAccessStatus('crump53ManuscriptStatus', error, message);
+    } finally {
+      finishManuscriptOperation(operation);
     }
   }
 
-  function replaceSection(section) {
-    if (!state.activeManuscript) return;
+  function replaceSection(section, operation = null) {
+    if (!state.activeManuscript || (operation && !manuscriptOperationIsCurrent(operation))) return false;
     state.activeManuscript.sections = (state.activeManuscript.sections || []).map(item => item.id === section.id ? section : item);
     state.activeSection = section;
     renderSections();
     renderManuscriptProgress();
+    return true;
   }
 
   const MANUSCRIPT_EXPORT_FORMATS = new Set(['docx', 'pdf', 'epub']);
 
-  async function deliverManuscriptExport(file) {
-    const fileId = String(file?.id || '').trim();
-    const fileUrl = String(file?.url || '').trim();
-    if (!file || (!fileId && !fileUrl)) {
-      throw new Error('Crump built the manuscript but did not return a downloadable file.');
-    }
-    if (window.CrumpFileTools?.open) {
-      const opened = await Promise.resolve(window.CrumpFileTools.open(file, true));
-      if (opened === false) {
-        throw new Error('The manuscript is saved in Files, but the download could not start. Try again from Files.');
-      }
-      return true;
-    }
-    if (fileId) {
-      window.location.assign(`/api/files/${encodeURIComponent(fileId)}/content?download=1`);
-      return true;
-    }
-    throw new Error('The manuscript is saved in Files, but private download tools are still loading. Try again in a moment.');
+  function captureManuscriptExportControls() {
+    const controls = Array.from(document.querySelectorAll('[data-crump53-export], [data-crump53-run-output], [data-crump57-export-format]'));
+    return controls.map(button => ({
+      button,
+      disabled: button.disabled,
+      label: button.innerHTML,
+      ariaBusy: button.getAttribute('aria-busy'),
+    }));
+  }
+
+  function restoreManuscriptExportControls(controlState) {
+    controlState.forEach(({button, disabled, label, ariaBusy}) => {
+      button.disabled = disabled;
+      button.innerHTML = label;
+      if (ariaBusy == null) button.removeAttribute('aria-busy');
+      else button.setAttribute('aria-busy', ariaBusy);
+    });
   }
 
   async function exportManuscript(format, requestedButton = null) {
     const normalized = String(format || '').toLowerCase().trim();
-    if (!state.activeManuscript?.id) return false;
+    const manuscriptId = String(state.activeManuscript?.id || '').trim();
+    if (!manuscriptId) return false;
     if (!MANUSCRIPT_EXPORT_FORMATS.has(normalized)) {
       setStatus('crump53ManuscriptStatus', 'Choose DOCX, PDF, or EPUB.', true);
       return false;
     }
-    if (state.manuscriptExportInFlight) return false;
-    state.manuscriptExportInFlight = true;
-    const controls = Array.from(document.querySelectorAll('[data-crump53-export]'));
-    const controlState = controls.map(button => ({
-      button,
-      disabled: button.disabled,
-      label: button.textContent,
-      ariaBusy: button.getAttribute('aria-busy'),
-    }));
-    controls.forEach(button => {
+    const operation = projectOperationContext();
+    const resourceIsCurrent = () => projectOperationIsCurrent(operation)
+      && String(state.activeManuscript?.id || '').trim() === manuscriptId;
+    if (!operation.userId) {
+      setStatus('crump53ManuscriptStatus', 'Sign in again before exporting this manuscript.', true);
+      return false;
+    }
+    const run = manuscriptExportDelivery.begin('project', operation.userId);
+    if (!run) {
+      setStatus('crump53ManuscriptStatus', 'Another manuscript export is already in progress.');
+      return false;
+    }
+    const controlState = captureManuscriptExportControls();
+    manuscriptExportDelivery.attachCleanup(run, () => restoreManuscriptExportControls(controlState));
+    controlState.forEach(({button}) => {
       button.disabled = true;
-      if (button === requestedButton || button.dataset.crump53Export === normalized) {
+      if (button === requestedButton) {
         button.textContent = `Building ${normalized.toUpperCase()}…`;
         button.setAttribute('aria-busy', 'true');
       }
     });
     try {
       setStatus('crump53ManuscriptStatus', `Building ${normalized.toUpperCase()}…`);
-      const data = await api(`/api/manuscripts/${state.activeManuscript.id}/export`, {
-        method: 'POST', body: {format: normalized},
+      const data = await api(`/api/manuscripts/${manuscriptId}/export`, {
+        method: 'POST', body: {format: normalized}, signal: run.controller.signal,
       });
-      await deliverManuscriptExport(data.file);
+      if (!manuscriptExportDelivery.isCurrent(run, operation.userId) || !resourceIsCurrent()) return false;
+      await manuscriptExportDelivery.deliver(data.file, run, resourceIsCurrent);
+      if (!manuscriptExportDelivery.isCurrent(run, operation.userId) || !resourceIsCurrent()) return false;
       setStatus(
         'crump53ManuscriptStatus',
         `${normalized.toUpperCase()} ready · ${data.kdp?.wordCount?.toLocaleString?.() || 0} words · saved to Files.`,
       );
       return true;
     } catch (error) {
+      if (error?.name === 'AbortError' || !resourceIsCurrent()) return false;
       setFeatureAccessStatus(
         'crump53ManuscriptStatus',
         error,
@@ -3228,13 +3609,7 @@
       );
       return false;
     } finally {
-      state.manuscriptExportInFlight = false;
-      controlState.forEach(({button, disabled, label, ariaBusy}) => {
-        button.disabled = disabled;
-        button.textContent = label;
-        if (ariaBusy == null) button.removeAttribute('aria-busy');
-        else button.setAttribute('aria-busy', ariaBusy);
-      });
+      manuscriptExportDelivery.finish(run);
     }
   }
 
@@ -4212,12 +4587,14 @@
   async function openManuscriptWorkspace(workspace) {
     const projectId = String(workspace?.projectId || '');
     const manuscriptId = String(workspace?.manuscriptId || '');
+    const operation = projectOperationContext();
     openStudio('manuscripts');
-    if (!projectId || !manuscriptId) {
+    if (!operation.userId || !projectId || !manuscriptId) {
       setStatus('crump53ManuscriptStatus', 'This Library book is missing its manuscript workspace link.', true);
       return false;
     }
     await refreshProjects();
+    if (!projectOperationIsCurrent(operation)) return false;
     const project = state.projects.find(item => String(item.id) === projectId);
     if (!project) {
       setStatus('crump53ManuscriptStatus', 'That Project is no longer available.', true);
@@ -4225,8 +4602,9 @@
     }
     selectProject(projectId, {updateRoute: false, focus: false, reveal: false});
     await refreshManuscripts();
+    if (!projectOperationIsCurrent(operation) || String(state.activeProject?.id || '') !== projectId) return false;
     const opened = await loadManuscript(manuscriptId);
-    if (!opened) return false;
+    if (!opened || !projectOperationIsCurrent(operation) || String(state.activeProject?.id || '') !== projectId) return false;
 
     const editor = byId('crump53ManuscriptEditor');
     const target = byId('crump53EditorTitle') || editor;

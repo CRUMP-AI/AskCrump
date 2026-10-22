@@ -11,10 +11,15 @@ const newCacheName = 'ask-crump-new-body-v1-r265-manuscript-export-delivery-1';
 const oldUrls = Object.freeze([
   '/runtime-body-v1.js?v=5.9.76-account-storage-deletion-1',
   '/crump-5.0.js?v=5.9.76-project-save-offer-1',
+  '/crump-library-loader.js?v=5.9.76-library-first-run-1',
 ]);
 const newUrls = Object.freeze({
   runtime: '/runtime-body-v1.js?v=5.9.76-manuscript-export-delivery-1',
-  composer: '/crump-5.0.js?v=5.9.76-grounded-research-1',
+  composer: '/crump-5.0.js?v=5.9.76-manuscript-export-delivery-1',
+  productLoader: '/crump-product-loader.js?v=5.9.76-manuscript-export-delivery-1',
+  product: '/crump-product-5.3.js?v=5.9.76-manuscript-export-delivery-1',
+  libraryLoader: '/crump-library-loader.js?v=5.9.76-manuscript-export-delivery-1',
+  library: '/crump-library-5.7.js?v=5.9.76-manuscript-export-delivery-1',
 });
 const fixturePath = '/__document-delivery-cache-upgrade.html';
 const oldWorkerPath = '/__document-delivery-r249-sw.js';
@@ -144,15 +149,29 @@ async function startServer() {
       return {
         runtimeSource: await read(urls.runtime),
         composerSource: await read(urls.composer),
+        productLoaderSource: await read(urls.productLoader),
+        libraryLoaderSource: await read(urls.libraryLoader),
+        productSource: await fetch(urls.product).then(response => response.text()),
+        librarySource: await fetch(urls.library).then(response => response.text()),
         staleEntries: await Promise.all(previousUrls.map(url => caches.match(url).then(Boolean))),
       };
     }, {cacheName: newCacheName, previousUrls: oldUrls, urls: newUrls});
 
     assert.ok(result.runtimeSource.includes(newUrls.composer));
+    assert.ok(result.runtimeSource.includes(newUrls.productLoader));
+    assert.ok(result.runtimeSource.includes(newUrls.libraryLoader));
     assert.ok(result.composerSource.includes('data-artifact-open'));
     assert.ok(result.composerSource.includes('openFile(message.artifact)'));
     assert.ok(result.composerSource.includes("form.append('cacheControl', '0')"));
     assert.ok(result.composerSource.includes("['cacheControl', '0']"));
+    assert.ok(result.composerSource.includes('fileDeliveryMayProceed'));
+    assert.ok(result.composerSource.includes('signal: signal || undefined'));
+    assert.ok(result.productLoaderSource.includes(newUrls.product));
+    assert.ok(result.libraryLoaderSource.includes(newUrls.library));
+    assert.ok(result.productSource.includes("const runKey = '__crumpManuscriptExportRun'"));
+    assert.ok(result.librarySource.includes("const runKey = '__crumpManuscriptExportRun'"));
+    assert.ok(result.productSource.includes('shouldProceed: canProceed'));
+    assert.ok(result.librarySource.includes('shouldProceed: canProceed'));
     assert.deepEqual(result.staleEntries, oldUrls.map(() => false));
     assert.deepEqual(errors, []);
 

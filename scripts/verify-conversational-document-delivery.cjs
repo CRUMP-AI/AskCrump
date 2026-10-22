@@ -134,6 +134,7 @@ async function stopFixtureServer(child) {
   const browserErrors = [];
   const blockedRequests = [];
   const chatRequests = [];
+  const pageRequests = [];
 
   try {
     browser = await chromium.launch({
@@ -171,6 +172,7 @@ async function stopFixtureServer(child) {
     page.on('pageerror', error => browserErrors.push(error.message));
     page.on('request', request => {
       const requestUrl = new URL(request.url());
+      pageRequests.push({method: request.method(), pathname: requestUrl.pathname});
       if (requestUrl.protocol !== 'http:' || requestUrl.origin !== fixtureOrigin) {
         recordBlockedRequest(requestUrl);
       }
@@ -181,10 +183,34 @@ async function stopFixtureServer(child) {
 
     await page.goto(`${fixture.baseUrl}/fixture`, {waitUntil: 'networkidle'});
     await page.waitForFunction(() => typeof window.CrumpDocumentStudio?.open === 'function');
-    await page.getByRole('button', {name: 'Create document'}).click();
+    const preservedDraft = 'Keep this unsent document brief exactly as written.';
+    await page.locator('#userInput').fill(preservedDraft);
+    const fixtureStateBeforeOpenResponse = await context.request.get(`${fixture.baseUrl}/fixture-state`);
+    assert.equal(fixtureStateBeforeOpenResponse.status(), 200);
+    const fixtureStateBeforeOpen = await fixtureStateBeforeOpenResponse.json();
+    const pageRequestsBeforeOpen = pageRequests.length;
+    await page.getByRole('button', {name: 'Create a document', exact: true}).click();
     const wordChoice = page.locator('.crump50-format-grid button').filter({hasText: 'Word'});
     await wordChoice.waitFor({state: 'visible'});
+    await page.evaluate(() => new Promise(resolve => {
+      requestAnimationFrame(() => requestAnimationFrame(resolve));
+    }));
+    assert.equal(await page.locator('#userInput').inputValue(), preservedDraft);
+    assert.equal(pageRequests.length, pageRequestsBeforeOpen);
+    assert.equal(chatRequests.length, 0);
+    assert.equal(await page.locator('.crump-credit-modal, [data-credit-confirmation]').count(), 0);
+    assert.deepEqual(await page.evaluate(() => window.__fixture), {
+      analytics: [], syncPushes: 0, syncPulls: 0, downloadLinks: [],
+    });
+    const fixtureStateAfterOpenResponse = await context.request.get(`${fixture.baseUrl}/fixture-state`);
+    assert.equal(fixtureStateAfterOpenResponse.status(), 200);
+    const fixtureStateAfterOpen = await fixtureStateAfterOpenResponse.json();
+    assert.deepEqual(fixtureStateAfterOpen.files, fixtureStateBeforeOpen.files);
+    assert.equal(fixtureStateAfterOpen.jobs, fixtureStateBeforeOpen.jobs);
+    assert.deepEqual(fixtureStateAfterOpen.events, fixtureStateBeforeOpen.events);
     await wordChoice.click();
+    assert.equal(await page.locator('#userInput').inputValue(), preservedDraft);
+    assert.equal(await page.evaluate(() => document.activeElement?.id), 'userInput');
     await page.locator('#userInput').fill('Write a decision memo and deliver it as a Word document.');
 
     const chatResponsePromise = page.waitForResponse(response => {

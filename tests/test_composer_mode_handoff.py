@@ -59,6 +59,9 @@ def test_browser_fixture_is_credential_free_and_uses_the_real_handoff_sources():
 
     assert '<script src="/public/app.js"></script>' in fixture
     assert '<script src="/public/crump-v1-body.js"></script>' in fixture
+    assert '<script src="/public/home-document-entry.js"></script>' in fixture
+    assert 'data-home-document-entry' in fixture
+    assert "window.__documentStudioOpens += 1" in fixture
     assert 'data-v1-command="research"' in fixture
     assert 'data-v1-command="image"' in fixture
     assert 'data-v1-command="file"' in fixture
