@@ -1895,6 +1895,154 @@ if (rejectedNativeBillingIdentity.rejectedMessage !== 'Store billing could not c
   process.exit(1);
 }
 
+async function exerciseNativeBillingOperation({
+  operation,
+  purchaseError = null,
+  rejectCreditSync = false,
+} = {}) {
+  const calls = [];
+  const subscriptionPackage = {
+    identifier: '$rc_monthly',
+    product: {
+      identifier: 'askcrump_professional_monthly',
+      priceString: '$20.00',
+    },
+    presentedOfferingContext: {
+      offeringIdentifier: 'default',
+      placementIdentifier: null,
+      targetingContext: null,
+    },
+  };
+  const plugin = {
+    async configure(payload) { calls.push(['configure', payload.appUserID || null]); },
+    async getOfferings() {
+      calls.push(['offerings']);
+      return {current: {availablePackages: [subscriptionPackage]}};
+    },
+    async purchasePackage(payload) {
+      calls.push(['purchase', payload.aPackage]);
+      if (purchaseError) throw purchaseError;
+      return {customerInfo: {entitlements: {active: {professional: {}}}}};
+    },
+    async restorePurchases() {
+      calls.push(['restore']);
+      return {customerInfo: {entitlements: {active: {professional: {}}}}};
+    },
+  };
+  const fetch = async (input, options = {}) => {
+    const path = String(input);
+    calls.push(['fetch', path, String(options.method || 'GET').toUpperCase()]);
+    if (rejectCreditSync && path === '/api/billing/credits/revenuecat/sync') {
+      return {ok: false, async json() { return {success: false, error: 'fixture credit sync failed'}; }};
+    }
+    const payload = path === '/api/billing/status'
+      ? {success: true, user: {id: 'account-a', tier: 'professional'}}
+      : path === '/api/billing/credits/revenuecat/sync'
+        ? {success: true, credits: {balance: 0}}
+        : {success: true, user: {id: 'account-a', tier: 'professional'}};
+    return {ok: true, async json() { return payload; }};
+  };
+  const windowMock = {
+    CRUMP_CONFIG: {
+      revenueCatAppleApiKey: 'fixture-public-key',
+      revenueCatProfessionalProductId: 'askcrump_professional_monthly',
+    },
+    CrumpAPI: {isNative: true, ready: Promise.resolve()},
+    CrumpNative: {Capacitor: {getPlatform: () => 'ios'}, Purchases: plugin},
+    currentUser: {id: 'account-a'},
+    dispatchEvent(event) { calls.push(['event', event.type]); },
+    profileManager: {applyServerSubscription(user) { calls.push(['profile', user.tier]); }},
+  };
+  class FixtureCustomEvent {
+    constructor(type, options = {}) {
+      this.type = type;
+      this.detail = options.detail;
+    }
+  }
+  runInContext(billingManagerSource, createContext({
+    window: windowMock,
+    fetch,
+    URL,
+    CustomEvent: FixtureCustomEvent,
+  }));
+  let result;
+  let thrown;
+  try {
+    result = operation === 'restore'
+      ? await windowMock.BillingManager.restore()
+      : await windowMock.BillingManager.purchase('professional');
+  } catch (error) {
+    thrown = error;
+  }
+  return {calls, result, thrown, subscriptionPackage};
+}
+
+const purchaseCancellation = Object.assign(new Error('Purchase cancelled by user.'), {
+  code: '1',
+  data: {requestId: 'fixture-cancelled-request'},
+  userInfo: {NSLocalizedDescription: 'Purchase cancelled by user.'},
+  readableErrorCode: 'PURCHASE_CANCELLED_ERROR',
+  underlyingErrorMessage: 'fixture user cancelled',
+  userCancelled: true,
+});
+const cancelledNativePurchase = await exerciseNativeBillingOperation({
+  operation: 'purchase',
+  purchaseError: purchaseCancellation,
+});
+if (cancelledNativePurchase.thrown !== purchaseCancellation ||
+    cancelledNativePurchase.calls.filter(([name]) => name === 'purchase').length !== 1 ||
+    cancelledNativePurchase.calls.some(([name]) => name === 'fetch')) {
+  console.error('BillingManager must preserve cancellation errors and never sync an uncompleted native purchase.');
+  process.exit(1);
+}
+
+const nativePurchaseFailure = Object.assign(new Error('Store connection failed.'), {
+  code: '10',
+  data: {requestId: 'fixture-request'},
+  userInfo: {NSLocalizedDescription: 'Store connection failed.'},
+  readableErrorCode: 'NETWORK_ERROR',
+  underlyingErrorMessage: 'fixture transport unavailable',
+  userCancelled: false,
+});
+const failedNativePurchase = await exerciseNativeBillingOperation({
+  operation: 'purchase',
+  purchaseError: nativePurchaseFailure,
+});
+if (failedNativePurchase.thrown !== nativePurchaseFailure ||
+    failedNativePurchase.calls.some(([name]) => name === 'fetch')) {
+  console.error('BillingManager must preserve native purchase errors and fail before server reconciliation.');
+  process.exit(1);
+}
+
+const restoredNativePurchase = await exerciseNativeBillingOperation({operation: 'restore'});
+const restoredFetches = restoredNativePurchase.calls
+  .filter(([name]) => name === 'fetch')
+  .map(([, path, method]) => [path, method]);
+const expectedRestoreFetches = [
+  ['/api/billing/revenuecat/sync', 'POST'],
+  ['/api/billing/credits/revenuecat/sync', 'POST'],
+  ['/api/billing/status', 'GET'],
+];
+if (restoredNativePurchase.thrown ||
+    restoredNativePurchase.calls.filter(([name]) => name === 'restore').length !== 1 ||
+    JSON.stringify(restoredFetches) !== JSON.stringify(expectedRestoreFetches)) {
+  console.error('BillingManager restoration must reconcile subscriptions, credits, and the final account status in order.');
+  process.exit(1);
+}
+
+const restoredAfterCreditSyncFailure = await exerciseNativeBillingOperation({
+  operation: 'restore',
+  rejectCreditSync: true,
+});
+const restoreAfterCreditFailureFetches = restoredAfterCreditSyncFailure.calls
+  .filter(([name]) => name === 'fetch')
+  .map(([, path, method]) => [path, method]);
+if (restoredAfterCreditSyncFailure.thrown ||
+    JSON.stringify(restoreAfterCreditFailureFetches) !== JSON.stringify(expectedRestoreFetches)) {
+  console.error('BillingManager restoration must refresh final subscription status when optional credit reconciliation fails.');
+  process.exit(1);
+}
+
 async function exercisePersistedNativeBillingIdentity() {
   const calls = [];
   const plugin = {
