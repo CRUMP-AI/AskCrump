@@ -10,6 +10,7 @@
     <section id="v1Launchpad">
       <button id="focusStarter" type="button" data-v1-command="focus" aria-labelledby="focusTitle" aria-describedby="focusDescription"><strong id="focusTitle">Think with Crump</strong><small id="focusDescription">Talk through an idea, decision, or problem.</small><b aria-hidden="true">↗</b></button>
       <button id="researchStarter" type="button" data-v1-command="research" aria-labelledby="researchTitle" aria-describedby="researchDescription"><strong id="researchTitle">Research something</strong><small id="researchDescription">Work with current information and sources.</small><b aria-hidden="true">↗</b></button>
+      <button id="documentStarter" type="button" data-home-document-entry aria-labelledby="documentTitle" aria-describedby="documentDescription"><strong id="documentTitle">Create a document</strong><small id="documentDescription">Draft an editable Word, PDF, presentation, spreadsheet, or text file.</small><b aria-hidden="true">↗</b></button>
       <button id="imageStarter" type="button" data-v1-command="image" aria-labelledby="imageTitle" aria-describedby="imageDescription"><strong id="imageTitle">Create an image</strong><small id="imageDescription">Generate, edit, or build a visual concept.</small><b aria-hidden="true">↗</b></button>
       <button id="fileStarter" type="button" data-v1-command="file" aria-labelledby="fileTitle" aria-describedby="fileDescription"><strong id="fileTitle">Analyze a file</strong><small id="fileDescription">PDFs, documents, images, spreadsheets, and more.</small><b aria-hidden="true">↗</b></button>
       <div id="v1StarterChips">
@@ -34,6 +35,7 @@
       setItem(key, value) { localStorage.setItem(key, value); },
     };
     window.__filePickerClicks = 0;
+    window.__documentStudioOpens = 0;
     window.__imageStudioOpens = 0;
     window.__starterEvents = [];
     window.__starterChipInputEvents = 0;
@@ -46,6 +48,7 @@
       },
     };
     window.showToast = (message, tone) => { window.__lastToast = { message, tone }; };
+    window.CrumpDocumentStudio = { open() { window.__documentStudioOpens += 1; } };
     window.CrumpImageStudio = { open() { window.__imageStudioOpens += 1; } };
   </script>
   <script src="/public/app.js"></script>
@@ -58,6 +61,7 @@
     document.getElementById('attachBtn').addEventListener('click', () => document.getElementById('fileInput').click());
     document.getElementById('fileInput').addEventListener('click', () => { window.__filePickerClicks += 1; });
   </script>
+  <script src="/public/home-document-entry.js"></script>
   <script src="/public/crump-v1-body.js"></script>
 </body>
 </html>

@@ -62,6 +62,7 @@ def test_launchpad_actions_have_clean_names_and_described_purpose():
 
     actions = (
         ("Projects", "Open a Project"),
+        ("Document", "Create a document"),
         ("File", "Work with a file"),
         ("Image", "Create an image"),
         ("Video", "Create a video"),
@@ -72,18 +73,19 @@ def test_launchpad_actions_have_clean_names_and_described_purpose():
         assert f'id="v1Launch{suffix}Title">{label}</strong>' in shell
 
     launchpad = shell[shell.index('<div class="v1-launchpad-grid">'):shell.index('</section>', shell.index('<div class="v1-launchpad-grid">'))]
-    assert launchpad.count('<b aria-hidden="true">↗</b>') == 4
+    assert launchpad.count('<b aria-hidden="true">↗</b>') == 5
     assert '<span class="v1-launch-icon">✦</span>' not in launchpad
     assert 'data-v1-command="focus"' not in launchpad
     assert 'data-v1-command="research"' not in launchpad
 
 
-def test_first_action_browser_proof_is_credential_free_and_covers_all_six_choices():
+def test_first_action_browser_proof_is_credential_free_and_covers_all_seven_choices():
     verifier = (ROOT / "scripts" / "verify-first-action-browser.cjs").read_text(encoding="utf-8")
 
     for label in (
         "Think with Crump",
         "Research something",
+        "Create a document",
         "Analyze a file",
         "Create an image",
         "Start or open a Project",

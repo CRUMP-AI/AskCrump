@@ -50,6 +50,7 @@ const CORE = [
   '/crump-library-loader.js?v=5.9.76-library-first-run-1',
   '/crump-subscriptions-5.3.2.js?v=5.9.76-checkout-destination-label-1',
   '/runtime-body-v1.js?v=5.9.76-response-continuity-cleanup-1',
+  '/home-document-entry.js?v=5.9.76-home-document-entry-1',
   '/native-runtime.js',
   '/mobile-bridge.js',
   '/safe-storage.js',
@@ -124,6 +125,7 @@ function bootCritical(request, url) {
     url.pathname === '/appearance-controls.css' ||
     url.pathname === '/app.js' ||
     url.pathname === '/runtime-body-v1.js' ||
+    url.pathname === '/home-document-entry.js' ||
     url.pathname === '/crump-v1-body.js' ||
     url.pathname === '/crump-v1-body.css' ||
     url.pathname === '/lifecycle.css' ||
