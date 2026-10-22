@@ -21,7 +21,7 @@ const expectedFiles = new Set([
   'crump-vision-studios-1.0.js', 'crump-vision-you-1.0.js',
   'crump-vision-demo-1.0.js',
   'crump-activity-center-1.0.js',
-  'device-auth.js', 'install-prompt.js', 'landing.js', 'mobile-bridge.js', 'native-entry.js',
+  'device-auth.js', 'home-document-entry.js', 'install-prompt.js', 'landing.js', 'mobile-bridge.js', 'native-entry.js',
   'native-runtime.js', 'onboarding.js', 'presence-manager.js', 'profile-manager.js',
   'runtime-config.js', 'runtime-config-v1.js', 'runtime-body-v1.js', 'safe-storage.js',
   'scroll-manager.js', 'subscription-ui.js', 'sw.js', 'sync-manager.js', 'telemetry-config.js', 'ui-functions.js',
@@ -1037,6 +1037,7 @@ const cacheIntegrityVersion = `${releaseVersion}-friendly-workspace-1`;
 const shellNoTaglineVersion = `${releaseVersion}-shell-no-tagline-1`;
 const atelierWorkspaceVersion = `${releaseVersion}-atelier-workspace-1`;
 const responseContinuityCleanupVersion = `${releaseVersion}-response-continuity-cleanup-1`;
+const homeDocumentEntryVersion = `${releaseVersion}-home-document-entry-1`;
 const autonomousContinuityVersion = `${releaseVersion}-autonomous-continuity-1`;
 const runtimeBodyVersion = responseContinuityCleanupVersion;
 const appearanceChoiceVersion = `${releaseVersion}-appearance-choice-3`;
@@ -1344,6 +1345,7 @@ const requiredHtmlSignals = [
   '<h1>What can I help you get done?</h1>',
   '<p class="v1-launchpad-actions-label">Ways to begin</p>',
   'data-v1-command="projects"',
+  'data-home-document-entry',
   'data-v1-command="file"',
   'data-v1-command="image"',
   'data-v1-command="video"',
@@ -1382,8 +1384,8 @@ if (appHtml.includes('<span>Saved</span>')) {
 }
 if (appHtml.includes('class="v1-launchpad-foot"') ||
     appHtml.includes('data-v1-command="focus"') ||
-    (appHtml.match(/class="v1-launch-card(?:\s|\")/g) || []).length !== 4) {
-  console.error('The first screen must keep exactly four focused jump cards and no duplicate destination footer.');
+    (appHtml.match(/class="v1-launch-card(?:\s|\")/g) || []).length !== 5) {
+  console.error('The first screen must keep exactly five focused jump cards and no duplicate destination footer.');
   process.exit(1);
 }
 
@@ -1716,6 +1718,20 @@ for (const [label, source] of [
     process.exit(1);
   }
 }
+for (const [label, source] of [
+  ['app shell', appHtml],
+  ['service worker', serviceWorker],
+]) {
+  const pathname = '/home-document-entry.js';
+  const expectedUrl = `/home-document-entry.js?v=${homeDocumentEntryVersion}`;
+  const versionedOccurrences = source.split(`${pathname}?v=`).length - 1;
+  const exactOccurrences = [`'${expectedUrl}'`, `"${expectedUrl}"`, `\`${expectedUrl}\``]
+    .reduce((total, literal) => total + source.split(literal).length - 1, 0);
+  if (versionedOccurrences !== 1 || exactOccurrences !== 1) {
+    console.error(`${label} must contain exactly one current cache-addressable ${pathname}: ${expectedUrl}`);
+    process.exit(1);
+  }
+}
 if (!serviceWorker.includes('ask-crump-new-body-v1-r264-response-continuity-cleanup-1') ||
     !serviceWorker.includes(`'${shellBrandUrl}'`) ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
@@ -1725,6 +1741,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r264-response-continuity-clea
     !serviceWorker.includes(appearanceThemeUrl) ||
     !serviceWorker.includes(appearanceControlsUrl) ||
     !serviceWorker.includes(`/runtime-body-v1.js?v=${runtimeBodyVersion}`) ||
+    !serviceWorker.includes(`/home-document-entry.js?v=${homeDocumentEntryVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${museReleaseRepairVersion}`) ||
     !serviceWorker.includes(`/crump-design-pass.css?v=${uiReleaseAuditVersion}`) ||
     !serviceWorker.includes(`/crump-activity-center-1.0.css?v=${activityCenterVersion}`) ||

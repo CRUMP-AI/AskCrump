@@ -136,12 +136,13 @@ def test_projects_use_real_api_data_without_a_local_next_steps_store() -> None:
     assert "detail.dataset.cvpActiveProject !== selectionId" in projects
 
 
-def test_first_screen_has_four_clear_jumps_without_a_second_destination_map() -> None:
+def test_first_screen_has_five_clear_jumps_without_a_second_destination_map() -> None:
     app = read("public/app.html")
 
     assert "<h1>What can I help you get done?</h1>" in app
     assert '<p class="v1-launchpad-actions-label">Ways to begin</p>' in app
-    assert app.count('class="v1-launch-card') == 4
+    assert app.count('class="v1-launch-card') == 5
+    assert app.count('data-home-document-entry') == 1
     for command in ("projects", "file", "image", "video"):
         assert app.count(f'data-v1-command="{command}"') == 1
     assert 'data-v1-command="focus"' not in app
