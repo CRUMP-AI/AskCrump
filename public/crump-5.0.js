@@ -1896,7 +1896,16 @@
     return dismiss;
   }
 
-  async function resolvedFileUrl(file, {download = false} = {}) {
+  function fileDeliveryMayProceed({signal = null, shouldProceed = null} = {}) {
+    if (signal?.aborted) return false;
+    if (typeof shouldProceed !== 'function') return true;
+    try { return shouldProceed() === true; }
+    catch (_) { return false; }
+  }
+
+  async function resolvedFileUrl(file, {download = false, signal = null, shouldProceed = null} = {}) {
+    const deliveryOptions = {signal, shouldProceed};
+    if (!fileDeliveryMayProceed(deliveryOptions)) return '';
     if (!file?.id) return String(file?.url || '');
     const encodedId = encodeURIComponent(file.id);
     const contentUrl = `/api/files/${encodedId}/content${download ? '?download=1' : ''}`;
@@ -1905,26 +1914,31 @@
     const response = await fetch(`/api/files/${encodedId}/signed${download ? '?download=1' : ''}`, {
       credentials: 'include',
       cache: 'no-store',
+      signal: signal || undefined,
     });
+    if (!fileDeliveryMayProceed(deliveryOptions)) return '';
     let data = {};
     try { data = await response.json(); } catch (_) { data = {}; }
+    if (!fileDeliveryMayProceed(deliveryOptions)) return '';
     if (!response.ok || data.success === false || !data.url) {
       throw new Error(data.error || data.message || 'Crump could not prepare that private file.');
     }
     return String(data.url);
   }
 
-  async function showFileViewer(file) {
+  async function showFileViewer(file, deliveryOptions = {}) {
+    if (!fileDeliveryMayProceed(deliveryOptions)) return false;
     const type = String(file?.type || '').toLowerCase();
     const isPdf = type === 'application/pdf' || String(file?.name || '').toLowerCase().endsWith('.pdf');
     let url = '';
     if (type.startsWith('image/') || type.startsWith('video/') || isPdf) {
       try {
-        url = await resolvedFileUrl(file);
+        url = await resolvedFileUrl(file, deliveryOptions);
       } catch (error) {
         show(error?.message || 'Crump could not open that file.', 'error');
         return false;
       }
+      if (!fileDeliveryMayProceed(deliveryOptions)) return false;
       if (!url) return false;
     }
     if (type.startsWith('image/')) {
@@ -1991,33 +2005,41 @@
     }
 
     box.append(top, body);
+    if (!fileDeliveryMayProceed(deliveryOptions)) return false;
     mountLightbox(box, close);
     return true;
   }
 
-  async function openFile(file, download = false) {
-    if (!file?.id && !file?.url) return;
+  async function openFile(file, download = false, deliveryOptions = {}) {
+    if ((!file?.id && !file?.url) || !fileDeliveryMayProceed(deliveryOptions)) return false;
     const type = String(file?.type || '').toLowerCase();
     if (download && (type.startsWith('image/') || type.startsWith('video/')) && window.CrumpLibrary57?.saveMedia) {
       try {
         const handled = await window.CrumpLibrary57.saveMedia(file);
-        if (handled) return;
+        if (!fileDeliveryMayProceed(deliveryOptions)) return false;
+        if (handled) return true;
       } catch (error) {
         console.warn('Ask Crump media save failed; using file download fallback.', error);
       }
     }
-    if (!download) return showFileViewer(file);
+    if (!download) return showFileViewer(file, deliveryOptions);
     let url = '';
     try {
-      url = await resolvedFileUrl(file, {download: true});
+      url = await resolvedFileUrl(file, {download: true, ...deliveryOptions});
     } catch (error) {
+      if (!fileDeliveryMayProceed(deliveryOptions)) return false;
       show(error?.message || 'Crump could not prepare that download.', 'error');
       return false;
     }
-    if (!url) return false;
+    if (!url || !fileDeliveryMayProceed(deliveryOptions)) return false;
     const link = document.createElement('a'); link.href = url; link.target = window.CrumpAPI?.isNative ? '_blank' : '_self'; link.rel = 'noopener';
     if (download) link.download = file.name || 'download';
-    document.body.appendChild(link); link.click(); link.remove();
+    document.body.appendChild(link);
+    if (!fileDeliveryMayProceed(deliveryOptions)) {
+      link.remove();
+      return false;
+    }
+    link.click(); link.remove();
     return true;
   }
 
@@ -2464,7 +2486,7 @@
         show('Image added. Confirm its role in Image Studio before generating.', 'info');
       }
     },
-    open: (file, download = false) => openFile(file, download),
+    open: (file, download = false, options = {}) => openFile(file, download, options),
     upload: async file => {
       const authSequence = composerAuthSequence;
       const normalized = await normalizeInputFile(file);

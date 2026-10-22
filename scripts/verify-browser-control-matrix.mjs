@@ -38,6 +38,7 @@ const expectedVerifiers = Object.freeze([
   'verify-login-failure-classification.cjs',
   'verify-marketing-landing-browser.cjs',
   'verify-marketing-landing-preload.cjs',
+  'verify-manuscript-export-delivery.cjs',
   'verify-mobile-drawer-destinations.cjs',
   'verify-muse-release-cache-upgrade.cjs',
   'verify-outcome-issue-categories.cjs',

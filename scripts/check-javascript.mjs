@@ -1037,9 +1037,10 @@ const cacheIntegrityVersion = `${releaseVersion}-friendly-workspace-1`;
 const shellNoTaglineVersion = `${releaseVersion}-shell-no-tagline-1`;
 const atelierWorkspaceVersion = `${releaseVersion}-atelier-workspace-1`;
 const responseContinuityCleanupVersion = `${releaseVersion}-response-continuity-cleanup-1`;
+const manuscriptExportDeliveryVersion = `${releaseVersion}-manuscript-export-delivery-1`;
 const homeDocumentEntryVersion = `${releaseVersion}-home-document-entry-1`;
 const autonomousContinuityVersion = `${releaseVersion}-autonomous-continuity-1`;
-const runtimeBodyVersion = responseContinuityCleanupVersion;
+const runtimeBodyVersion = manuscriptExportDeliveryVersion;
 const appearanceChoiceVersion = `${releaseVersion}-appearance-choice-3`;
 const uiReleaseAuditVersion = `${releaseVersion}-ui-release-audit-2`;
 const activityCenterVersion = autonomousContinuityVersion;
@@ -1437,7 +1438,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/crump-v1-body.js?v=${atelierWorkspaceVersion}`) ||
     !runtime.includes(`/crump-v1-body.css?v=${cacheIntegrityVersion}`) ||
     !runtime.includes(`/crump-5.0.css?v=${referenceFidelityVersion}`) ||
-    !runtime.includes(`/crump-5.0.js?v=${groundedResearchVersion}`) ||
+    !runtime.includes(`/crump-5.0.js?v=${manuscriptExportDeliveryVersion}`) ||
     !runtime.includes(`/crump-precision-image-edit-loader.js?v=${referenceFidelityVersion}`) ||
     runtime.includes(`/crump-precision-image-edit.css?v=${precisionEditStudioVersion}`) ||
     runtime.includes(`/crump-precision-image-edit.js?v=${liveImagePreviewVersion}`) ||
@@ -1449,14 +1450,14 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/crump-4.4.css?v=${cacheIntegrityVersion}`) ||
     !runtime.includes(`/crump-4.4.js?v=${cacheIntegrityVersion}`) ||
     !runtime.includes(`/crump-v1-stability.js?v=${intelligenceArchitectureVersion}`) ||
-    !runtime.includes(`/crump-product-loader.js?v=${responseContinuityCleanupVersion}`) ||
+    !runtime.includes(`/crump-product-loader.js?v=${manuscriptExportDeliveryVersion}`) ||
     runtime.includes(`/crump-product-5.3.js?v=${studioActionLabelsVersion}`) ||
     runtime.includes(`/crump-product-5.3.css?v=${fileLibraryWindowVersion}`) ||
     !runtime.includes(`/crump-product-5.3.1.js?v=${conversationActionLabelsVersion}`) || !runtime.includes('/crump-product-5.3.1.css') ||
     !runtime.includes(`/crump-subscriptions-5.3.2.js?v=${checkoutDestinationLabelVersion}`) ||
     !runtime.includes(`/crump-polish-5.6.js?v=${cacheIntegrityVersion}`) || !runtime.includes('/crump-polish-5.6.css') ||
     !runtime.includes(`/crump-media-save.js?v=${libraryLazyLoadVersion}`) ||
-    !runtime.includes(`/crump-library-loader.js?v=${libraryFirstRunVersion}`) ||
+    !runtime.includes(`/crump-library-loader.js?v=${manuscriptExportDeliveryVersion}`) ||
     runtime.includes('/crump-library-5.7.js') || runtime.includes('/crump-library-5.7.css') ||
     !runtime.includes(`/crump-navigation-5.9.30.js?v=${atelierWorkspaceVersion}`) ||
     !runtime.includes(`/crump-navigation-5.9.30.css?v=${navFocusVisibilityVersion}`) ||
@@ -1551,10 +1552,13 @@ const product53 = await readFile(new URL('public/crump-product-5.3.js', repoRoot
 const precisionEditor = await readFile(new URL('public/crump-precision-image-edit.js', repoRoot), 'utf8');
 const precisionLoader = await readFile(new URL('public/crump-precision-image-edit-loader.js', repoRoot), 'utf8');
 const productLoader = await readFile(new URL('public/crump-product-loader.js', repoRoot), 'utf8');
+const libraryLoader = await readFile(new URL('public/crump-library-loader.js', repoRoot), 'utf8');
 if (!precisionLoader.includes(`/crump-precision-image-edit.css?v=${referenceFidelityVersion}`) ||
     !precisionLoader.includes(`/crump-precision-image-edit.js?v=${referenceFidelityVersion}`) ||
     !productLoader.includes(`/crump-product-5.3.css?v=${projectsEmptyStateVersion}`) ||
-    !productLoader.includes(`/crump-product-5.3.js?v=${responseContinuityCleanupVersion}`)) {
+    !productLoader.includes(`/crump-product-5.3.js?v=${manuscriptExportDeliveryVersion}`) ||
+    !libraryLoader.includes(`/crump-library-5.7.css?v=${libraryFirstRunVersion}`) ||
+    !libraryLoader.includes(`/crump-library-5.7.js?v=${manuscriptExportDeliveryVersion}`)) {
   console.error('Reference-fidelity lazy loaders must use the same atomic release token as the shell.');
   process.exit(1);
 }
@@ -1689,8 +1693,8 @@ const cacheAddressabilitySources = Object.freeze([
   ['service worker', serviceWorker],
 ]);
 for (const [pathname, expectedUrl] of [
-  ['/crump-product-loader.js', `/crump-product-loader.js?v=${responseContinuityCleanupVersion}`],
-  ['/crump-library-loader.js', `/crump-library-loader.js?v=${libraryFirstRunVersion}`],
+  ['/crump-product-loader.js', `/crump-product-loader.js?v=${manuscriptExportDeliveryVersion}`],
+  ['/crump-library-loader.js', `/crump-library-loader.js?v=${manuscriptExportDeliveryVersion}`],
   ['/crump-navigation-5.9.30.css', `/crump-navigation-5.9.30.css?v=${navFocusVisibilityVersion}`],
   ['/crump-v1-body.js', `/crump-v1-body.js?v=${atelierWorkspaceVersion}`],
 ]) {
@@ -1732,7 +1736,7 @@ for (const [label, source] of [
     process.exit(1);
   }
 }
-if (!serviceWorker.includes('ask-crump-new-body-v1-r264-response-continuity-cleanup-1') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r265-manuscript-export-delivery-1') ||
     !serviceWorker.includes(`'${shellBrandUrl}'`) ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||
@@ -1754,7 +1758,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r264-response-continuity-clea
     !serviceWorker.includes(`/account-manager.js?v=${accountDeletionStorageVersion}`) ||
     !serviceWorker.includes(`/crump-5.0.css?v=${referenceFidelityVersion}`) ||
     !serviceWorker.includes(`/scroll-manager.js?v=${museReleaseRepairVersion}`) ||
-    !serviceWorker.includes(`/crump-5.0.js?v=${groundedResearchVersion}`) ||
+    !serviceWorker.includes(`/crump-5.0.js?v=${manuscriptExportDeliveryVersion}`) ||
     !serviceWorker.includes(`/crump-precision-image-edit-loader.js?v=${referenceFidelityVersion}`) ||
     serviceWorker.includes(`/crump-precision-image-edit.css?v=${precisionEditStudioVersion}`) ||
     serviceWorker.includes(`/crump-precision-image-edit.js?v=${liveImagePreviewVersion}`) ||
@@ -1784,7 +1788,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r264-response-continuity-clea
     !serviceWorker.includes(`/crump-4.4.css?v=${cacheIntegrityVersion}`) ||
     !serviceWorker.includes(`/crump-4.4.js?v=${cacheIntegrityVersion}`) ||
     !serviceWorker.includes(`/crump-v1-stability.js?v=${intelligenceArchitectureVersion}`) ||
-    !serviceWorker.includes(`/crump-product-loader.js?v=${responseContinuityCleanupVersion}`) ||
+    !serviceWorker.includes(`/crump-product-loader.js?v=${manuscriptExportDeliveryVersion}`) ||
     !serviceWorker.includes(`/crump-product-5.3.1.js?v=${conversationActionLabelsVersion}`) ||
     serviceWorker.includes(`/crump-product-5.3.js?v=${studioActionLabelsVersion}`) ||
     serviceWorker.includes(`/crump-product-5.3.css?v=${fileLibraryWindowVersion}`) ||
@@ -1834,7 +1838,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r264-response-continuity-clea
     !serviceWorker.includes(`/crump-5.2.js?v=${planStatusLineVersion}`) ||
     !serviceWorker.includes(`/crump-subscriptions-5.3.2.js?v=${checkoutDestinationLabelVersion}`) ||
     !serviceWorker.includes(`/crump-media-save.js?v=${libraryLazyLoadVersion}`) ||
-    !serviceWorker.includes(`/crump-library-loader.js?v=${libraryFirstRunVersion}`) ||
+    !serviceWorker.includes(`/crump-library-loader.js?v=${manuscriptExportDeliveryVersion}`) ||
     serviceWorker.includes('/crump-library-5.7.js') ||
     serviceWorker.includes('/crump-library-5.7.css') ||
     !serviceWorker.includes("url.pathname === '/crump-media-save.js'") ||

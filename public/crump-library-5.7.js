@@ -39,13 +39,147 @@
     layout: preferences.layout,
     installed: false,
     modal: null,
+    modalReturnFocus: null,
     coverUrls: new Map(),
+    coverSignControllers: new Map(),
   };
 
   const byId = id => document.getElementById(id);
   const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, character => ({
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
   })[character]);
+
+  function manuscriptExportDeliveryRuntime() {
+    if (window.CrumpManuscriptExportDelivery?.version === 1) {
+      return window.CrumpManuscriptExportDelivery;
+    }
+    const runKey = '__crumpManuscriptExportRun';
+    const sequenceKey = '__crumpManuscriptExportRunSequence';
+    const cleanupByRun = new WeakMap();
+    const abortError = () => {
+      const error = new Error('The manuscript export was cancelled after the account changed.');
+      error.name = 'AbortError';
+      return error;
+    };
+    const runtime = Object.freeze({
+      version: 1,
+      begin(surface, userId) {
+        const normalizedUserId = String(userId || '').trim();
+        const normalizedSurface = String(surface || '').trim();
+        if (!normalizedUserId || !normalizedSurface) return null;
+        const active = window[runKey];
+        if (active && !active.controller?.signal?.aborted) return null;
+        const token = Math.max(0, Number(window[sequenceKey]) || 0) + 1;
+        window[sequenceKey] = token;
+        const run = {
+          token,
+          controller: new AbortController(),
+          userId: normalizedUserId,
+          surface: normalizedSurface,
+        };
+        window[runKey] = run;
+        return run;
+      },
+      isCurrent(run, userId) {
+        return Boolean(
+          run
+          && window[runKey] === run
+          && !run.controller?.signal?.aborted
+          && run.userId === String(userId || '').trim()
+        );
+      },
+      finish(run) {
+        cleanupByRun.get(run)?.();
+        cleanupByRun.delete(run);
+        if (window[runKey] === run) window[runKey] = null;
+      },
+      attachCleanup(run, cleanup) {
+        if (!run || typeof cleanup !== 'function') return;
+        let complete = false;
+        cleanupByRun.set(run, () => {
+          if (complete) return;
+          complete = true;
+          cleanup();
+        });
+      },
+      abort() {
+        const run = window[runKey];
+        if (run?.controller && !run.controller.signal.aborted) run.controller.abort();
+        cleanupByRun.get(run)?.();
+        cleanupByRun.delete(run);
+        if (window[runKey] === run) window[runKey] = null;
+      },
+      async deliver(file, run, shouldProceed = () => true) {
+        const canProceed = () => this.isCurrent(run, run?.userId) && shouldProceed() !== false;
+        if (!canProceed()) throw abortError();
+        const fileId = String(file?.id || '').trim();
+        if (!fileId) {
+          throw new Error('Delivery could not be verified. Check Files before trying again.');
+        }
+        const canonicalFile = {...file, id: fileId, url: ''};
+        const canonicalOpen = window.CrumpFileTools?.open;
+        if (typeof canonicalOpen === 'function') {
+          try {
+            const opened = await Promise.resolve(canonicalOpen(canonicalFile, true, {
+              signal: run.controller.signal,
+              shouldProceed: canProceed,
+            }));
+            if (!canProceed()) throw abortError();
+            if (opened === true) return true;
+          } catch (error) {
+            if (!canProceed()) throw abortError();
+            // Web/PWA can recover through the authenticated owner-checked endpoint below.
+          }
+        }
+        if (!canProceed()) throw abortError();
+        if (window.CrumpAPI?.isNative) {
+          throw new Error('The manuscript is saved in Files, but private delivery could not start here. Retry from Files.');
+        }
+        const link = document.createElement('a');
+        link.href = `/api/files/${encodeURIComponent(fileId)}/content?download=1`;
+        link.download = String(file?.name || 'manuscript');
+        link.hidden = true;
+        document.body.appendChild(link);
+        if (!canProceed()) {
+          link.remove();
+          throw abortError();
+        }
+        link.click();
+        link.remove();
+        return true;
+      },
+    });
+    window.CrumpManuscriptExportDelivery = runtime;
+    return runtime;
+  }
+
+  const manuscriptExportDelivery = manuscriptExportDeliveryRuntime();
+  let libraryAuthSequence = 0;
+  let libraryStateUserId = '';
+
+  function currentLibraryUserId() {
+    const currentUserId = String(window.currentUser?.id || '').trim();
+    if (!currentUserId) return '';
+    const authenticatedUserId = window.CrumpProductLoader?.authenticatedUserId;
+    if (typeof authenticatedUserId !== 'function') return currentUserId;
+    return String(authenticatedUserId() || '').trim() === currentUserId ? currentUserId : '';
+  }
+
+  function libraryOperationContext() {
+    const userId = currentLibraryUserId();
+    if (libraryStateUserId && libraryStateUserId !== userId) resetLibraryAuthMemory();
+    libraryStateUserId = userId;
+    return {userId, sequence: libraryAuthSequence};
+  }
+
+  function libraryOperationIsCurrent(context) {
+    return Boolean(
+      context?.userId
+      && context.sequence === libraryAuthSequence
+      && context.userId === libraryStateUserId
+      && context.userId === currentLibraryUserId()
+    );
+  }
 
   function show(message, type = 'success') {
     if (window.showToast) window.showToast(message, type);
@@ -90,9 +224,9 @@
     return type.startsWith('image/') || type.startsWith('video/');
   }
 
-  async function signedFile(file) {
+  async function signedFile(file, {signal = null} = {}) {
     if (!file?.id) throw new Error('That saved media item is missing its file ID.');
-    const data = await api(`/api/files/${encodeURIComponent(file.id)}/signed`);
+    const data = await api(`/api/files/${encodeURIComponent(file.id)}/signed`, {signal: signal || undefined});
     if (!data.url) throw new Error('Crump could not prepare that media file.');
     return data;
   }
@@ -174,11 +308,22 @@
 
   async function coverUrl(file, {force = false} = {}) {
     if (!file?.id) return '';
+    const operation = libraryOperationContext();
+    if (!operation.userId) return '';
     const cached = state.coverUrls.get(file.id);
     if (!force && cached?.url && cached.expiresAt > Date.now()) return cached.url;
     state.coverUrls.delete(file.id);
+    const previous = state.coverSignControllers.get(file.id);
+    if (previous && !previous.signal.aborted) previous.abort();
+    const controller = new AbortController();
+    state.coverSignControllers.set(file.id, controller);
     try {
-      const signed = await signedFile(file);
+      const signed = await signedFile(file, {signal: controller.signal});
+      if (
+        controller.signal.aborted
+        || state.coverSignControllers.get(file.id) !== controller
+        || !libraryOperationIsCurrent(operation)
+      ) return '';
       const url = signed.url || '';
       if (!url) return '';
       const providedTtl = Number(signed.expiresIn);
@@ -193,6 +338,10 @@
       return url;
     } catch (_) {
       return '';
+    } finally {
+      if (state.coverSignControllers.get(file.id) === controller) {
+        state.coverSignControllers.delete(file.id);
+      }
     }
   }
 
@@ -389,49 +538,90 @@
 
   const MANUSCRIPT_EXPORT_FORMATS = new Set(['docx', 'pdf', 'epub']);
 
-  async function exportCurrentManuscript(book, format, button = null) {
+  function captureManuscriptExportControls() {
+    const controls = Array.from(document.querySelectorAll('[data-crump53-export], [data-crump53-run-output], [data-crump57-export-format]'));
+    return controls.map(button => ({
+      button,
+      disabled: button.disabled,
+      label: button.innerHTML,
+      ariaBusy: button.getAttribute('aria-busy'),
+    }));
+  }
+
+  function restoreManuscriptExportControls(controlState) {
+    controlState.forEach(({button, disabled, label, ariaBusy}) => {
+      button.disabled = disabled;
+      button.innerHTML = label;
+      if (ariaBusy == null) button.removeAttribute('aria-busy');
+      else button.setAttribute('aria-busy', ariaBusy);
+    });
+  }
+
+  function setLibraryExportStatus(message, isError = false, status = byId('crump57ExportStatus')) {
+    if (!status) return;
+    status.textContent = message || '';
+    status.classList.toggle('is-error', Boolean(isError));
+  }
+
+  async function exportCurrentManuscript(book, format, button = null, originRoot = null) {
     const normalized = String(format || '').toLowerCase().trim();
+    const bookId = String(book?.id || '').trim();
     if (!MANUSCRIPT_EXPORT_FORMATS.has(normalized)) {
       show('Choose DOCX, PDF, or EPUB.', 'error');
       return false;
     }
-
-    const originalLabel = button?.textContent || '';
-    if (button) {
-      button.disabled = true;
-      button.textContent = `Building ${normalized.toUpperCase()}…`;
+    const operation = libraryOperationContext();
+    const exportRoot = originRoot || button?.closest?.('.crump57-overlay') || null;
+    const statusNode = exportRoot?.querySelector?.('#crump57ExportStatus') || null;
+    const resourceIsCurrent = () => libraryOperationIsCurrent(operation)
+      && Boolean(bookId)
+      && (!exportRoot || exportRoot.isConnected);
+    if (!operation.userId) {
+      show('Sign in again before exporting this manuscript.', 'error');
+      setLibraryExportStatus('Sign in again before exporting this manuscript.', true, statusNode);
+      return false;
     }
+    const run = manuscriptExportDelivery.begin('library', operation.userId);
+    if (!run) {
+      const message = 'Another manuscript export is already in progress.';
+      setLibraryExportStatus(message, false, statusNode);
+      show(message, 'info');
+      return false;
+    }
+    const controlState = captureManuscriptExportControls();
+    manuscriptExportDelivery.attachCleanup(run, () => restoreManuscriptExportControls(controlState));
+    controlState.forEach(({button: control}) => {
+      control.disabled = true;
+      if (control === button) {
+        control.textContent = `Building ${normalized.toUpperCase()}…`;
+        control.setAttribute('aria-busy', 'true');
+      }
+    });
 
     try {
-      const data = await api(`/api/manuscripts/${encodeURIComponent(book.id)}/export`, {
+      setLibraryExportStatus(`Building ${normalized.toUpperCase()}…`, false, statusNode);
+      const data = await api(`/api/manuscripts/${encodeURIComponent(bookId)}/export`, {
         method: 'POST',
         body: {format: normalized},
+        signal: run.controller.signal,
       });
-      const file = data.file;
-      if (!file || (!file.id && !file.url)) {
-        throw new Error('Crump built the manuscript but did not return a downloadable file.');
-      }
+      if (!manuscriptExportDelivery.isCurrent(run, operation.userId) || !resourceIsCurrent()) return false;
+      await manuscriptExportDelivery.deliver(data.file, run, resourceIsCurrent);
+      if (!manuscriptExportDelivery.isCurrent(run, operation.userId) || !resourceIsCurrent()) return false;
 
-      if (window.CrumpFileTools?.open) {
-        await Promise.resolve(window.CrumpFileTools.open(file, true));
-      } else if (file.url) {
-        const separator = String(file.url).includes('?') ? '&' : '?';
-        window.location.assign(`${file.url}${separator}download=1`);
-      } else {
-        throw new Error('The exported manuscript is missing its download link.');
-      }
-
-      show(`${normalized.toUpperCase()} ready · current manuscript exported and saved to Files.`, 'success');
+      const message = `${normalized.toUpperCase()} ready · current manuscript exported and saved to Files.`;
+      setLibraryExportStatus(message, false, statusNode);
+      show(message, 'success');
       return true;
     } catch (error) {
-      console.error('Ask Crump manuscript export failed:', error);
-      show(error?.message || 'Crump could not export that manuscript.', 'error');
+      if (error?.name === 'AbortError' || !resourceIsCurrent()) return false;
+      console.warn('Ask Crump manuscript export failed:', error);
+      const message = error?.message || 'Crump could not export that manuscript.';
+      setLibraryExportStatus(message, true, statusNode);
+      show(message, 'error');
       return false;
     } finally {
-      if (button) {
-        button.disabled = false;
-        button.textContent = originalLabel;
-      }
+      manuscriptExportDelivery.finish(run);
     }
   }
 
@@ -439,14 +629,21 @@
     root?.querySelectorAll?.('[data-crump57-export-format]').forEach(button => {
       button.addEventListener('click', async () => {
         const format = button.dataset.crump57ExportFormat || '';
-        const exported = await exportCurrentManuscript(book, format, button);
-        button.closest('details')?.removeAttribute('open');
+        const exported = await exportCurrentManuscript(book, format, button, root);
+        const details = button.closest('details');
+        if (exported && details) {
+          const summary = details.querySelector('summary');
+          details.removeAttribute('open');
+          summary?.focus({preventScroll: true});
+        } else if (!exported && button.isConnected && !button.disabled) {
+          button.focus({preventScroll: true});
+        }
         if (exported && closeAfter && state.modal === root) closeModal();
       });
     });
   }
 
-  function openBookDownload(book) {
+  function openBookDownload(book, returnFocus = null) {
     const overlay = mountModal(`
       <div class="crump57-overlay crump57-download-overlay" role="presentation">
         <section class="crump57-sheet crump57-download-sheet" role="dialog" aria-modal="true" aria-label="Download ${escapeHtml(book.title || 'manuscript')}">
@@ -474,9 +671,10 @@
                 <strong>eBook</strong><span>EPUB</span><small>Portable e-reader format.</small>
               </button>
             </div>
+            <p id="crump57ExportStatus" class="crump53-status" role="status" aria-live="polite"></p>
           </div>
         </section>
-      </div>`);
+      </div>`, {returnFocus});
     bindManuscriptExportButtons(overlay, book, true);
   }
 
@@ -670,8 +868,11 @@
       button.addEventListener('click', () => {
         const book = map.get(String(button.dataset.crump57Download));
         if (!book) return;
+        const returnFocus = button.closest('details')?.querySelector('summary')
+          || button.closest('[data-crump57-book]')?.querySelector('[data-crump57-open]')
+          || button;
         closeOtherMenus(null);
-        openBookDownload(book);
+        openBookDownload(book, returnFocus);
       });
     });
     grid.querySelectorAll('[data-crump57-workspace]').forEach(button => {
@@ -758,11 +959,14 @@
     void hydrateCovers(grid, books);
   }
 
-  async function refreshDeletedBooks() {
+  async function refreshDeletedBooks(operation = libraryOperationContext()) {
+    if (!operation.userId) return false;
     try {
       const data = await api('/api/library/books/deleted');
+      if (!libraryOperationIsCurrent(operation)) return false;
       state.deletedBooks = Array.isArray(data.books) ? data.books : [];
     } catch (_) {
+      if (!libraryOperationIsCurrent(operation)) return false;
       state.deletedBooks = [];
     }
     const button = byId('crump57Deleted');
@@ -770,9 +974,12 @@
       const count = state.deletedBooks.length;
       button.textContent = count ? `Recently Deleted · ${count}` : 'Recently Deleted';
     }
+    return true;
   }
 
   async function refreshBooks() {
+    const operation = libraryOperationContext();
+    if (!operation.userId) return false;
     const grid = byId('crump57Bookshelf');
     if (grid) {
       // Skeleton covers keep the bookshelf's shape while it loads, in the
@@ -783,27 +990,37 @@
     }
     try {
       const data = await api('/api/library/books');
+      if (!libraryOperationIsCurrent(operation)) return false;
       state.books = Array.isArray(data.books) ? data.books : [];
-      await refreshDeletedBooks();
+      await refreshDeletedBooks(operation);
+      if (!libraryOperationIsCurrent(operation)) return false;
       renderBooks();
+      return true;
     } catch (error) {
+      if (!libraryOperationIsCurrent(operation)) return false;
       if (grid) {
         grid.className = 'crump57-bookshelf';
         grid.removeAttribute('aria-busy');
         grid.innerHTML = `<div class="crump57-empty"><strong>Library could not load.</strong>${escapeHtml(error.message || 'Try again in a moment.')}</div>`;
       }
+      return false;
     }
   }
 
   async function refreshProjects() {
+    const operation = libraryOperationContext();
+    if (!operation.userId) return false;
     try {
       const data = await api('/api/projects');
+      if (!libraryOperationIsCurrent(operation)) return false;
       state.projects = Array.isArray(data.projects) ? data.projects : [];
       state.projectLimit = Number(data.limit ?? 0);
     } catch (_) {
+      if (!libraryOperationIsCurrent(operation)) return false;
       state.projects = [];
       state.projectLimit = -1;
     }
+    return true;
   }
 
   function projectOptions(selected = '') {
@@ -817,9 +1034,44 @@
     ].join('');
   }
 
-  function closeModal() {
+  function closeModal({restoreFocus = true} = {}) {
+    const returnFocus = state.modalReturnFocus;
     state.modal?.remove();
     state.modal = null;
+    state.modalReturnFocus = null;
+    if (restoreFocus && returnFocus?.isConnected) {
+      window.requestAnimationFrame(() => {
+        if (returnFocus.isConnected) returnFocus.focus({preventScroll: true});
+      });
+    }
+  }
+
+  function resetLibraryAuthMemory() {
+    libraryAuthSequence += 1;
+    manuscriptExportDelivery.abort();
+    libraryStateUserId = '';
+    state.books = [];
+    state.deletedBooks = [];
+    state.projects = [];
+    state.projectLimit = -1;
+    state.search = '';
+    state.status = 'all';
+    state.coverSignControllers.forEach(controller => controller.abort());
+    state.coverSignControllers.clear();
+    state.coverUrls.clear();
+    closeModal({restoreFocus: false});
+    const grid = byId('crump57Bookshelf');
+    if (grid) {
+      grid.className = 'crump57-bookshelf';
+      grid.removeAttribute('aria-busy');
+      grid.replaceChildren();
+    }
+    const search = byId('crump57Search');
+    if (search) search.value = '';
+    const status = byId('crump57Filter');
+    if (status) status.value = 'all';
+    const deleted = byId('crump57Deleted');
+    if (deleted) deleted.textContent = 'Recently Deleted';
   }
 
   function bindModalClose(overlay) {
@@ -830,14 +1082,22 @@
     return close;
   }
 
-  function mountModal(markup) {
-    closeModal();
+  function mountModal(markup, {returnFocus = null} = {}) {
+    const opener = returnFocus || (document.activeElement instanceof HTMLElement ? document.activeElement : null);
+    closeModal({restoreFocus: false});
     const wrapper = document.createElement('div');
     wrapper.innerHTML = markup;
     const overlay = wrapper.firstElementChild;
     document.body.appendChild(overlay);
     state.modal = overlay;
+    state.modalReturnFocus = opener?.isConnected ? opener : null;
     bindModalClose(overlay);
+    window.requestAnimationFrame(() => {
+      const focusTarget = overlay.classList.contains('crump57-download-overlay')
+        ? overlay.querySelector('[data-crump57-export-format]')
+        : overlay.querySelector('.crump57-close, button, input, select, textarea, [tabindex]');
+      focusTarget?.focus({preventScroll: true});
+    });
     return overlay;
   }
 
@@ -1360,7 +1620,13 @@
     saveMedia,
   });
 
+  if (window.CrumpAuthBoundary?.register) {
+    window.CrumpAuthBoundary.register('library57', resetLibraryAuthMemory);
+  } else {
+    window.addEventListener('crump:authentication-required', resetLibraryAuthMemory);
+  }
   window.addEventListener('crump:authenticated-ready', () => {
+    libraryOperationContext();
     if (!state.installed) installWhenReady();
   });
   document.addEventListener('click', event => {

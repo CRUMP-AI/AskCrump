@@ -103,7 +103,9 @@ def test_manuscript_output_retry_only_refetches_the_existing_run():
     retry = source[start:end]
 
     assert 'id="crump53RetryManuscriptOutput"' in source
-    assert "await api(`/api/manuscripts/${manuscriptId}/run`)" in retry
+    assert "beginManuscriptOperation('retry-output', {manuscriptId, sectionId: ''})" in retry
+    assert "await api(`/api/manuscripts/${manuscriptId}/run`, {signal: operation.controller.signal})" in retry
+    assert "manuscriptOperationIsCurrent(operation)" in retry
     assert "method: 'POST'" not in retry
     assert "/runs`" not in retry
     assert "outputFileRecovery?.shouldRetry" in retry
