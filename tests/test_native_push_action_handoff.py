@@ -85,13 +85,13 @@ def test_native_push_consumer_and_runtime_loader_are_cache_busted_together() -> 
     runtime = read("public/runtime-body-v1.js")
     checker = read("scripts/check-javascript.mjs")
 
-    runtime_url = "/runtime-body-v1.js?v=5.9.76-library-crud-privacy-1"
+    runtime_url = "/runtime-body-v1.js?v=5.9.76-library-reconciliation-1"
     presence_url = "/presence-manager.js?v=5.9.76-native-push-handoff-1"
-    cache_name = "ask-crump-new-body-v1-r267-library-crud-privacy-1"
+    cache_name = "ask-crump-new-body-v1-r268-library-reconciliation-1"
     assert runtime_url in shell
     assert runtime_url in worker
     assert presence_url in runtime
     assert presence_url in worker
     assert cache_name in worker
     assert cache_name in checker
-    assert "const runtimeBodyVersion = libraryCrudPrivacyVersion;" in checker
+    assert "const runtimeBodyVersion = libraryReconciliationVersion;" in checker

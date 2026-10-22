@@ -35,6 +35,26 @@
       let projects = [];
       let projectLimit = 10;
       let uploadPlan = 0;
+      const nativeSetTimeout = window.setTimeout.bind(window);
+      const nativeClearTimeout = window.clearTimeout.bind(window);
+      const reconciliationTimers = [];
+      let captureReconciliationTimers = false;
+
+      window.setTimeout = (callback, delay, ...args) => {
+        if (captureReconciliationTimers && Number(delay) === 1600) {
+          const timer = {callback, args, delay: Number(delay), cleared: false, fired: false, fixtureReconciliation: true};
+          reconciliationTimers.push(timer);
+          return timer;
+        }
+        return nativeSetTimeout(callback, delay, ...args);
+      };
+      window.clearTimeout = timer => {
+        if (timer?.fixtureReconciliation) {
+          timer.cleared = true;
+          return;
+        }
+        nativeClearTimeout(timer);
+      };
 
       const sourceFile = id => ({id: `source-${id}`, name: `${id}.docx`, type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
       const coverFile = (id, side = 'front') => ({id: `${side}-cover-${id}`, name: `${id}-${side}.png`, type: 'image/png'});
@@ -219,6 +239,21 @@
       window.fixtureProjects = {a: projectA, b: projectB};
       window.fixturePlan = (key, count = 1) => deferPlan.set(String(key), Math.max(0, Number(count) || 0));
       window.fixturePlanUpload = (count = 1) => { uploadPlan = Math.max(0, Number(count) || 0); };
+      window.fixtureCaptureReconciliationTimers = (enabled = true) => { captureReconciliationTimers = Boolean(enabled); };
+      window.fixtureReconciliationTimerEvidence = () => ({
+        scheduled: reconciliationTimers.length,
+        cleared: reconciliationTimers.filter(timer => timer.cleared).length,
+        fired: reconciliationTimers.filter(timer => timer.fired).length,
+        pending: reconciliationTimers.filter(timer => !timer.cleared && !timer.fired).length,
+        delays: reconciliationTimers.map(timer => timer.delay),
+      });
+      window.fixtureFireReconciliationTimers = (includeCleared = false) => {
+        reconciliationTimers.forEach(timer => {
+          if ((!includeCleared && timer.cleared) || timer.fired) return;
+          timer.fired = true;
+          timer.callback(...timer.args);
+        });
+      };
       window.fixtureDeferredCount = key => deferredList(String(key)).length;
       window.fixtureResolve = (key, index = 0, payload = null, status = 200) => {
         const item = deferredList(String(key))[Number(index) || 0];

@@ -23,10 +23,15 @@ def test_library_lifecycle_runtime_fences_account_modal_and_resource_effects():
         "function finishLibraryOperation(operation)",
         "function abortLibraryOverlayOperations(overlay)",
         "function abortAllLibraryOperations()",
-        "function beginLibraryRefresh(key, parentOperation = null)",
+        "function beginLibraryRefresh(key, parentOperation = null, {replaceExisting = true} = {})",
         "function libraryRefreshIsCurrent(refresh)",
         "function finishLibraryRefresh(refresh)",
         "function abortAllLibraryRefreshes()",
+        "const LIBRARY_MUTATION_RECONCILIATION_DELAY_MS = 1600;",
+        "function clearLibraryMutationReconciliation()",
+        "async function reconcileLibraryViews(context)",
+        "function scheduleLibraryMutationReconciliation(operation)",
+        "function libraryOverlayHasActiveOperations(overlay)",
     ):
         assert contract in library
 
@@ -39,6 +44,14 @@ def test_library_lifecycle_runtime_fences_account_modal_and_resource_effects():
     assert "libraryModalIdentity.get(operation.overlay) !== operation.modalIdentity" in library
     assert "libraryModalSequence !== closedSequence || state.modal" in library
     assert "state.modal !== overlay" in library
+    assert "const context = Object.freeze({" in library
+    assert "sequence: operation.authSequence" in library
+    assert "if (!libraryOperationIsCurrent(scheduledContext)) return;" in library
+    assert "includeDeleted: false" in library
+    assert "replaceExisting: false" in library
+    assert "libraryModalIdentity.get(overlay) !== modalIdentity" in library
+    assert "libraryOverlayHasActiveOperations(overlay)" in library
+    assert "clearLibraryMutationReconciliation();\n    libraryAuthSequence += 1;" in library
     assert "[data-crump57-object-url]" in library
     assert "URL.revokeObjectURL(previousUrl)" in library
 
@@ -86,6 +99,9 @@ def test_crud_privacy_browser_fixture_is_non_vacuous_and_registered():
     for marker in (
         "fixturePlan",
         "fixturePlanUpload",
+        "fixtureCaptureReconciliationTimers",
+        "fixtureReconciliationTimerEvidence",
+        "fixtureFireReconciliationTimers",
         "fixtureResolveUpload",
         "fixtureSwitchAccount",
         "fixtureRequestEvidence",
@@ -105,6 +121,11 @@ def test_crud_privacy_browser_fixture_is_non_vacuous_and_registered():
         "superseded deleted-books request was not aborted",
         "superseded Project request was not aborted",
         "same-account delete error did not permit retry",
+        "delayed reconciliation did not repair the stale shelf",
+        "uncertain mutations did not coalesce to one delayed reconciliation",
+        "auth reset did not cancel the delayed reconciliation",
+        "background reconciliation prevented Recently Deleted from opening",
+        "background reconciliation made the active restore stale",
     ):
         assert assertion in verifier
 
