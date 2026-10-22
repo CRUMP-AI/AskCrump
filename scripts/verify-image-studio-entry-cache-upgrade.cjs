@@ -8,14 +8,14 @@ const {chromium} = require(playwrightModule);
 const root = path.resolve(__dirname, '..');
 const publicDirectory = path.join(root, 'public');
 const oldCacheName = 'ask-crump-new-body-v1-r252';
-const newCacheName = 'ask-crump-new-body-v1-r264-response-continuity-cleanup-1';
+const newCacheName = 'ask-crump-new-body-v1-r267-library-crud-privacy-1';
 const oldUrls = Object.freeze([
   '/runtime-body-v1.js?v=5.9.76-reference-fidelity-hard-contract-1',
   '/crump-navigation-5.9.30.js?v=5.9.76-navigation-discovery-1',
   '/auth-controller.js?v=5.9.76-facebook-reel-attribution-1',
 ]);
 const newUrls = Object.freeze({
-  runtime: '/runtime-body-v1.js?v=5.9.76-response-continuity-cleanup-1',
+  runtime: '/runtime-body-v1.js?v=5.9.76-library-crud-privacy-1',
   navigation: '/crump-navigation-5.9.30.js?v=5.9.76-atelier-workspace-1',
   auth: '/auth-controller.js?v=5.9.76-image-studio-entry-1',
 });

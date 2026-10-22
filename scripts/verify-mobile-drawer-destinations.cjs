@@ -24,6 +24,7 @@ const {chromium} = require('playwright');
     document.documentElement.dataset.crumpNavigation5930 === 'ready'
     && document.getElementById('sidebar')?.classList.contains('active')
     && document.getElementById('sidebarOverlay')?.classList.contains('active')
+    && document.getElementById('cvMobileNav')
   ));
 
   const geometry = await page.evaluate(() => {

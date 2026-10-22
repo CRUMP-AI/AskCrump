@@ -1,0 +1,318 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Library lifecycle privacy fixture</title>
+  <link rel="icon" href="data:,">
+</head>
+<body>
+  <main>
+    <h1>Library lifecycle privacy fixture</h1>
+    <output id="fixtureReady">loading</output>
+    <output id="fixtureErrors" aria-label="Browser errors">0</output>
+    <div class="crump53-sheet">
+      <section data-crump53-panel="library"></section>
+      <section data-crump53-panel="manuscripts">
+        <div class="crump53-card">
+          <h3>Manuscripts</h3>
+          <p>Fixture</p>
+          <div id="crump53ManuscriptList"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+  <script>
+    (() => {
+      const USER_A = 'fixture-library-user-a';
+      const USER_B = 'fixture-library-user-b';
+      const authHandlers = new Map();
+      const deferredByKey = new Map();
+      const deferPlan = new Map();
+      let authenticatedUserId = USER_A;
+      let books = [];
+      let deletedBooks = [];
+      let projects = [];
+      let projectLimit = 10;
+      let uploadPlan = 0;
+
+      const sourceFile = id => ({id: `source-${id}`, name: `${id}.docx`, type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'});
+      const coverFile = (id, side = 'front') => ({id: `${side}-cover-${id}`, name: `${id}-${side}.png`, type: 'image/png'});
+      const makeBook = (id, title, {covered = false, deleted = false, marker = ''} = {}) => ({
+        id,
+        title,
+        subtitle: `${title} subtitle`,
+        authorName: 'Fixture Author',
+        status: 'draft',
+        wordCount: 321,
+        sectionCount: 1,
+        origin: 'imported',
+        projectId: `project-${id}`,
+        projectName: `Project ${title}`,
+        sourceFile: sourceFile(id),
+        frontCover: covered ? coverFile(id) : null,
+        backCover: null,
+        updatedAt: marker || '2026-10-22T10:00:00Z',
+        trashedAt: deleted ? '2026-10-22T10:01:00Z' : null,
+      });
+      const bookA = makeBook('book-a', 'Book A');
+      const bookB = makeBook('book-b', 'Book B');
+      const deletedA = makeBook('deleted-a', 'Deleted A', {deleted: true});
+      const deletedB = makeBook('deleted-b', 'Deleted B', {deleted: true});
+      const projectA = {id: 'project-a', name: 'Project A'};
+      const projectB = {id: 'project-b', name: 'Project B'};
+
+      window.currentUser = {id: USER_A};
+      window.CrumpAPI = {isNative: false};
+      window.CrumpAuthBoundary = Object.freeze({
+        register(name, handler) { authHandlers.set(String(name), handler); },
+        authenticatedUserId: () => authenticatedUserId,
+      });
+      window.CrumpProductLoader = Object.freeze({authenticatedUserId: () => authenticatedUserId});
+      window.matchMedia = () => ({matches: false});
+      window.fixtureEvidence = {
+        requests: [],
+        uploads: [],
+        toasts: [],
+        navigations: [],
+        overlayRemovals: [],
+      };
+      window.showToast = (message, type = 'info') => {
+        window.fixtureEvidence.toasts.push({message: String(message || ''), type: String(type || '')});
+      };
+      window.CrumpProduct53 = {
+        open() {},
+        async openManuscript(details) {
+          window.fixtureEvidence.navigations.push({...details});
+          return true;
+        },
+      };
+
+      const abortError = () => {
+        const error = new DOMException('Fixture operation aborted.', 'AbortError');
+        return error;
+      };
+      const deferredList = key => {
+        if (!deferredByKey.has(key)) deferredByKey.set(key, []);
+        return deferredByKey.get(key);
+      };
+      const shouldDefer = key => {
+        const remaining = Number(deferPlan.get(key) || 0);
+        if (remaining <= 0) return false;
+        deferPlan.set(key, remaining - 1);
+        return true;
+      };
+      const jsonResponse = (data, status = 200) => new Response(JSON.stringify(data), {
+        status,
+        headers: {'Content-Type': 'application/json'},
+      });
+      const parseBody = body => {
+        if (!body) return null;
+        try { return JSON.parse(body); } catch (_) { return String(body); }
+      };
+      const routeKey = (method, pathname) => {
+        if (method === 'GET' && pathname === '/api/library/books') return 'books';
+        if (method === 'GET' && pathname === '/api/library/books/deleted') return 'deleted';
+        if (method === 'GET' && pathname === '/api/projects') return 'projects';
+        if (method === 'POST' && pathname === '/api/library/books/import') return 'import';
+        let match = pathname.match(/^\/api\/manuscripts\/([^/]+)$/);
+        if (method === 'GET' && match) return `reader:${decodeURIComponent(match[1])}`;
+        match = pathname.match(/^\/api\/files\/([^/]+)\/signed$/);
+        if (method === 'GET' && match) return `signed:${decodeURIComponent(match[1])}`;
+        match = pathname.match(/^\/api\/library\/books\/([^/]+)\/trash$/);
+        if (method === 'POST' && match) return `trash:${decodeURIComponent(match[1])}`;
+        match = pathname.match(/^\/api\/library\/books\/([^/]+)\/restore$/);
+        if (method === 'POST' && match) return `restore:${decodeURIComponent(match[1])}`;
+        match = pathname.match(/^\/api\/library\/books\/([^/]+)$/);
+        if (method === 'PATCH' && match) return `edit:${decodeURIComponent(match[1])}`;
+        if (method === 'DELETE' && match) return `delete:${decodeURIComponent(match[1])}`;
+        return `${method} ${pathname}`;
+      };
+      const defaultPayload = key => {
+        if (key === 'books') return {success: true, books};
+        if (key === 'deleted') return {success: true, books: deletedBooks};
+        if (key === 'projects') return {success: true, projects, limit: projectLimit};
+        if (key.startsWith('reader:')) {
+          const id = key.slice('reader:'.length);
+          return {
+            success: true,
+            manuscript: {id, title: `Reader ${id}`, author_name: 'Fixture Author'},
+            sections: [{id: `section-${id}`, title: `Section ${id}`, content: `Private content for ${id}`, word_count: 4}],
+          };
+        }
+        if (key.startsWith('signed:')) return {
+          success: true,
+          url: 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=',
+          expiresIn: 120,
+        };
+        if (key === 'import') return {success: true, book: {id: 'imported-book', title: 'Imported fixture', projectId: 'project-imported'}};
+        if (key.startsWith('trash:')) return {success: true, sourceFileKept: false};
+        if (key.startsWith('delete:')) return {success: true, sourceCleanupPending: false};
+        return {success: true};
+      };
+
+      window.fetch = async (input, options = {}) => {
+        const url = new URL(typeof input === 'string' ? input : input.url, location.href);
+        const method = String(options.method || 'GET').toUpperCase();
+        const key = routeKey(method, url.pathname);
+        const request = {
+          key,
+          method,
+          path: url.pathname,
+          body: parseBody(options.body),
+          signal: options.signal || null,
+          hasSignal: options.signal instanceof AbortSignal,
+          aborted: Boolean(options.signal?.aborted),
+        };
+        request.signal?.addEventListener('abort', () => { request.aborted = true; }, {once: true});
+        window.fixtureEvidence.requests.push(request);
+        if (shouldDefer(key)) {
+          return new Promise((resolve, reject) => deferredList(key).push({request, resolve, reject}));
+        }
+        if (key === 'import') {
+          books = [
+            ...books,
+            {
+              ...makeBook('imported-book', 'Imported fixture'),
+              projectId: 'project-imported',
+            },
+          ];
+        }
+        return jsonResponse(defaultPayload(key));
+      };
+
+      window.CrumpFileTools = {
+        upload(file, options = {}) {
+          const record = {
+            fileName: String(file?.name || ''),
+            signal: options.signal || null,
+            hasSignal: options.signal instanceof AbortSignal,
+            aborted: Boolean(options.signal?.aborted),
+            hasGuard: typeof options.shouldProceed === 'function',
+            mayProceed: () => options.shouldProceed?.() === true,
+          };
+          record.initialMayProceed = record.mayProceed();
+          record.signal?.addEventListener('abort', () => { record.aborted = true; }, {once: true});
+          window.fixtureEvidence.uploads.push(record);
+          const result = {id: `uploaded-${record.fileName || 'file'}`, name: record.fileName};
+          if (uploadPlan > 0) {
+            uploadPlan -= 1;
+            return new Promise((resolve, reject) => deferredList('upload').push({request: record, resolve, reject, result}));
+          }
+          if (!record.mayProceed()) return Promise.reject(abortError());
+          return Promise.resolve(result);
+        },
+        async open() { return true; },
+      };
+
+      const removedObserver = new MutationObserver(records => {
+        records.forEach(record => record.removedNodes.forEach(node => {
+          if (node instanceof HTMLElement && node.classList.contains('crump57-overlay')) {
+            window.fixtureEvidence.overlayRemovals.push(node.querySelector('[role="dialog"]')?.getAttribute('aria-label') || 'overlay');
+          }
+        }));
+      });
+      removedObserver.observe(document.body, {childList: true});
+
+      window.fixtureUsers = {a: USER_A, b: USER_B};
+      window.fixtureBooks = {a: bookA, b: bookB, deletedA, deletedB};
+      window.fixtureProjects = {a: projectA, b: projectB};
+      window.fixturePlan = (key, count = 1) => deferPlan.set(String(key), Math.max(0, Number(count) || 0));
+      window.fixturePlanUpload = (count = 1) => { uploadPlan = Math.max(0, Number(count) || 0); };
+      window.fixtureDeferredCount = key => deferredList(String(key)).length;
+      window.fixtureResolve = (key, index = 0, payload = null, status = 200) => {
+        const item = deferredList(String(key))[Number(index) || 0];
+        if (!item) throw new Error(`Missing deferred fixture request: ${key}[${index}]`);
+        item.resolve(jsonResponse(payload || defaultPayload(String(key)), status));
+      };
+      window.fixtureReject = (key, index = 0, message = 'Fixture request failed.') => {
+        const item = deferredList(String(key))[Number(index) || 0];
+        if (!item) throw new Error(`Missing deferred fixture request: ${key}[${index}]`);
+        item.reject(new Error(message));
+      };
+      window.fixtureResolveUpload = (index = 0, result = null) => {
+        const item = deferredList('upload')[Number(index) || 0];
+        if (!item) throw new Error(`Missing deferred fixture upload: ${index}`);
+        item.resolve(result || item.result);
+      };
+      window.fixtureRejectUpload = (index = 0, message = 'Fixture upload failed.') => {
+        const item = deferredList('upload')[Number(index) || 0];
+        if (!item) throw new Error(`Missing deferred fixture upload: ${index}`);
+        item.reject(new Error(message));
+      };
+      window.fixtureSetBooks = next => { books = next.map(book => ({...book})); };
+      window.fixtureSetDeletedBooks = next => { deletedBooks = next.map(book => ({...book})); };
+      window.fixtureSetProjects = (next, limit = 10) => { projects = next.map(project => ({...project})); projectLimit = limit; };
+      window.fixtureCoveredBooks = () => [
+        makeBook('book-a', 'Book A', {covered: true}),
+        makeBook('book-b', 'Book B', {covered: true}),
+      ];
+      window.fixtureNamedBook = (id, title, marker = '') => makeBook(id, title, {marker});
+      window.fixtureSwitchAccount = nextUserId => {
+        authenticatedUserId = String(nextUserId || '');
+        window.currentUser = authenticatedUserId ? {id: authenticatedUserId} : null;
+        authHandlers.forEach(handler => handler());
+        window.dispatchEvent(new Event('crump:authenticated-ready'));
+      };
+      window.fixtureRefresh = () => window.CrumpLibrary57.refresh();
+      window.fixtureOpenImport = () => window.CrumpLibrary57.importManuscript();
+      window.fixtureOpenDeleted = () => window.CrumpLibrary57.recentlyDeleted();
+      window.fixtureClick = selector => {
+        const node = document.querySelector(selector);
+        if (!node) throw new Error(`Fixture control missing: ${selector}`);
+        node.click();
+      };
+      window.fixtureSnapshot = () => {
+        const overlay = document.querySelector('.crump57-overlay');
+        return {
+          overlayHtml: overlay?.outerHTML || '',
+          overlayLabel: overlay?.querySelector('[role="dialog"]')?.getAttribute('aria-label') || '',
+          bookshelfText: document.getElementById('crump57Bookshelf')?.textContent || '',
+          toasts: window.fixtureEvidence.toasts.map(item => ({...item})),
+          navigations: window.fixtureEvidence.navigations.map(item => ({...item})),
+          overlayRemovals: [...window.fixtureEvidence.overlayRemovals],
+        };
+      };
+      window.fixtureRequestEvidence = key => window.fixtureEvidence.requests
+        .filter(request => request.key === key)
+        .map(request => ({
+          key: request.key,
+          method: request.method,
+          path: request.path,
+          body: request.body,
+          hasSignal: request.hasSignal,
+          aborted: request.aborted,
+        }));
+      window.fixtureUploadEvidence = () => window.fixtureEvidence.uploads.map(upload => ({
+        fileName: upload.fileName,
+        hasSignal: upload.hasSignal,
+        aborted: upload.aborted,
+        hasGuard: upload.hasGuard,
+        initialMayProceed: upload.initialMayProceed,
+        mayProceed: upload.mayProceed(),
+      }));
+
+      const recordBrowserError = () => {
+        const output = document.getElementById('fixtureErrors');
+        output.textContent = String(Number(output.textContent || 0) + 1);
+      };
+      window.addEventListener('error', recordBrowserError);
+      window.addEventListener('unhandledrejection', recordBrowserError);
+    })();
+  </script>
+  <script src="/public/crump-library-5.7.js?v=library-crud-privacy-fixture-1"></script>
+  <script>
+    window.addEventListener('load', () => {
+      window.dispatchEvent(new Event('crump:authenticated-ready'));
+      const wait = () => {
+        if (window.CrumpLibrary57 && document.getElementById('crump57LibraryCard')) {
+          document.getElementById('fixtureReady').textContent = 'ready';
+          return;
+        }
+        window.setTimeout(wait, 10);
+      };
+      wait();
+    }, {once: true});
+  </script>
+</body>
+</html>

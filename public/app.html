@@ -392,21 +392,28 @@
               <span><strong id="v1LaunchProjectsTitle">Open a Project</strong><small id="v1LaunchProjectsDescription">Continue with its context, conversations, and files intact.</small></span>
               <b aria-hidden="true">↗</b>
             </button>
-            <button type="button" class="v1-launch-card" data-v1-command="file" data-v1-index="02" aria-labelledby="v1LaunchFileTitle" aria-describedby="v1LaunchFileDescription">
+            <button type="button" class="v1-launch-card" data-home-document-entry data-v1-index="02" aria-labelledby="v1LaunchDocumentTitle" aria-describedby="v1LaunchDocumentDescription">
+              <span class="v1-launch-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.25 3.75h6.35l3.9 3.9v12.6H7.25z"/><path d="M13.6 3.75v4.2h4.15"/><path d="M9.8 11.75h5.5M9.8 14.75h5.5M9.8 17.75h3.5"/></svg>
+              </span>
+              <span><strong id="v1LaunchDocumentTitle">Create a document</strong><small id="v1LaunchDocumentDescription">Draft an editable Word, PDF, presentation, spreadsheet, or text file.</small></span>
+              <b aria-hidden="true">↗</b>
+            </button>
+            <button type="button" class="v1-launch-card" data-v1-command="file" data-v1-index="03" aria-labelledby="v1LaunchFileTitle" aria-describedby="v1LaunchFileDescription">
               <span class="v1-launch-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.25 3.75h6.35l3.9 3.9v12.6H7.25z"/><path d="M13.6 3.75v4.2h4.15"/><path d="M9.8 12.25h5.5M9.8 15.25h4"/></svg>
               </span>
               <span><strong id="v1LaunchFileTitle">Work with a file</strong><small id="v1LaunchFileDescription">Analyze a PDF, document, image, spreadsheet, or presentation.</small></span>
               <b aria-hidden="true">↗</b>
             </button>
-            <button type="button" class="v1-launch-card" data-v1-command="image" data-v1-index="03" aria-labelledby="v1LaunchImageTitle" aria-describedby="v1LaunchImageDescription">
+            <button type="button" class="v1-launch-card" data-v1-command="image" data-v1-index="04" aria-labelledby="v1LaunchImageTitle" aria-describedby="v1LaunchImageDescription">
               <span class="v1-launch-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.75" y="4.75" width="16.5" height="14.5" rx="3"/><path d="m6.75 16 4.1-4.15 3.15 3.1 2.05-2.05 2.2 2.2"/><circle cx="9" cy="9" r="1.35"/></svg>
               </span>
               <span><strong id="v1LaunchImageTitle">Create an image</strong><small id="v1LaunchImageDescription">Generate, edit, or build a visual concept.</small></span>
               <b aria-hidden="true">↗</b>
             </button>
-            <button type="button" class="v1-launch-card" data-v1-command="video" data-v1-index="04" aria-labelledby="v1LaunchVideoTitle" aria-describedby="v1LaunchVideoDescription">
+            <button type="button" class="v1-launch-card" data-v1-command="video" data-v1-index="05" aria-labelledby="v1LaunchVideoTitle" aria-describedby="v1LaunchVideoDescription">
               <span class="v1-launch-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.75" y="5" width="16.5" height="14" rx="3"/><path d="m10 9 5 3-5 3z"/></svg>
               </span>
@@ -652,7 +659,8 @@
 
 <script defer src="/telemetry-config.js?v=5.9.76"></script>
 <script defer src="/crump-vision-demo-1.0.js?v=5.9.76-atelier-workspace-1"></script>
-<script defer src="/runtime-body-v1.js?v=5.9.76-response-continuity-cleanup-1"></script>
+<script defer src="/runtime-body-v1.js?v=5.9.76-library-crud-privacy-1"></script>
+<script defer src="/home-document-entry.js?v=5.9.76-home-document-entry-1"></script>
 <link rel="stylesheet" href="/crump-vision-shell-1.0.css?v=5.9.76-atelier-workspace-1" />
 <script defer src="/crump-vision-shell-1.0.js?v=5.9.76-atelier-workspace-1"></script>
 <link rel="stylesheet" href="/crump-vision-chats-1.0.css?v=5.9.76-atelier-workspace-1" />

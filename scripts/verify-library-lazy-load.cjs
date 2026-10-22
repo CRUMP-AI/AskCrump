@@ -35,8 +35,8 @@ function fixtureHtml() {
       document.getElementById('status').textContent = type === 'error' ? 'retry' : message;
     };
   </script>
-  <script src="${assetPaths.media}?v=5.9.76-library-lazy-load-1"></script>
-  <script src="${assetPaths.loader}?v=5.9.76-library-lazy-load-1"></script>
+  <script src="${assetPaths.media}?v=5.9.76-library-crud-privacy-1"></script>
+  <script src="${assetPaths.loader}?v=5.9.76-library-crud-privacy-1"></script>
   <script>
     document.getElementById('library').addEventListener('click', () => {
       window.libraryOpens += 1;

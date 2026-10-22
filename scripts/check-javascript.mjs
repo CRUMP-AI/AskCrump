@@ -21,7 +21,7 @@ const expectedFiles = new Set([
   'crump-vision-studios-1.0.js', 'crump-vision-you-1.0.js',
   'crump-vision-demo-1.0.js',
   'crump-activity-center-1.0.js',
-  'device-auth.js', 'install-prompt.js', 'landing.js', 'mobile-bridge.js', 'native-entry.js',
+  'device-auth.js', 'home-document-entry.js', 'install-prompt.js', 'landing.js', 'mobile-bridge.js', 'native-entry.js',
   'native-runtime.js', 'onboarding.js', 'presence-manager.js', 'profile-manager.js',
   'runtime-config.js', 'runtime-config-v1.js', 'runtime-body-v1.js', 'safe-storage.js',
   'scroll-manager.js', 'subscription-ui.js', 'sw.js', 'sync-manager.js', 'telemetry-config.js', 'ui-functions.js',
@@ -1037,8 +1037,11 @@ const cacheIntegrityVersion = `${releaseVersion}-friendly-workspace-1`;
 const shellNoTaglineVersion = `${releaseVersion}-shell-no-tagline-1`;
 const atelierWorkspaceVersion = `${releaseVersion}-atelier-workspace-1`;
 const responseContinuityCleanupVersion = `${releaseVersion}-response-continuity-cleanup-1`;
+const manuscriptExportDeliveryVersion = `${releaseVersion}-manuscript-export-delivery-1`;
+const libraryCrudPrivacyVersion = `${releaseVersion}-library-crud-privacy-1`;
+const homeDocumentEntryVersion = `${releaseVersion}-home-document-entry-1`;
 const autonomousContinuityVersion = `${releaseVersion}-autonomous-continuity-1`;
-const runtimeBodyVersion = responseContinuityCleanupVersion;
+const runtimeBodyVersion = libraryCrudPrivacyVersion;
 const appearanceChoiceVersion = `${releaseVersion}-appearance-choice-3`;
 const uiReleaseAuditVersion = `${releaseVersion}-ui-release-audit-2`;
 const activityCenterVersion = autonomousContinuityVersion;
@@ -1054,7 +1057,6 @@ const navFocusVisibilityVersion = `${releaseVersion}-nav-focus-visibility-1`;
 const destinationBackgroundGuardVersion = `${releaseVersion}-destination-background-guard-1`;
 const codeLazyLoadVersion = `${releaseVersion}-code-lazy-load-1`;
 const precisionLazyLoadVersion = `${releaseVersion}-precision-lazy-load-1`;
-const libraryLazyLoadVersion = `${releaseVersion}-library-lazy-load-1`;
 const libraryFirstRunVersion = `${releaseVersion}-library-first-run-1`;
 const conversationActionLabelsVersion = `${releaseVersion}-conversation-action-labels-2`;
 const lifecycleIdleSendVersion = `${releaseVersion}-lifecycle-idle-send-1`;
@@ -1344,6 +1346,7 @@ const requiredHtmlSignals = [
   '<h1>What can I help you get done?</h1>',
   '<p class="v1-launchpad-actions-label">Ways to begin</p>',
   'data-v1-command="projects"',
+  'data-home-document-entry',
   'data-v1-command="file"',
   'data-v1-command="image"',
   'data-v1-command="video"',
@@ -1382,8 +1385,8 @@ if (appHtml.includes('<span>Saved</span>')) {
 }
 if (appHtml.includes('class="v1-launchpad-foot"') ||
     appHtml.includes('data-v1-command="focus"') ||
-    (appHtml.match(/class="v1-launch-card(?:\s|\")/g) || []).length !== 4) {
-  console.error('The first screen must keep exactly four focused jump cards and no duplicate destination footer.');
+    (appHtml.match(/class="v1-launch-card(?:\s|\")/g) || []).length !== 5) {
+  console.error('The first screen must keep exactly five focused jump cards and no duplicate destination footer.');
   process.exit(1);
 }
 
@@ -1435,7 +1438,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/crump-v1-body.js?v=${atelierWorkspaceVersion}`) ||
     !runtime.includes(`/crump-v1-body.css?v=${cacheIntegrityVersion}`) ||
     !runtime.includes(`/crump-5.0.css?v=${referenceFidelityVersion}`) ||
-    !runtime.includes(`/crump-5.0.js?v=${groundedResearchVersion}`) ||
+    !runtime.includes(`/crump-5.0.js?v=${libraryCrudPrivacyVersion}`) ||
     !runtime.includes(`/crump-precision-image-edit-loader.js?v=${referenceFidelityVersion}`) ||
     runtime.includes(`/crump-precision-image-edit.css?v=${precisionEditStudioVersion}`) ||
     runtime.includes(`/crump-precision-image-edit.js?v=${liveImagePreviewVersion}`) ||
@@ -1447,14 +1450,14 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/crump-4.4.css?v=${cacheIntegrityVersion}`) ||
     !runtime.includes(`/crump-4.4.js?v=${cacheIntegrityVersion}`) ||
     !runtime.includes(`/crump-v1-stability.js?v=${intelligenceArchitectureVersion}`) ||
-    !runtime.includes(`/crump-product-loader.js?v=${responseContinuityCleanupVersion}`) ||
+    !runtime.includes(`/crump-product-loader.js?v=${manuscriptExportDeliveryVersion}`) ||
     runtime.includes(`/crump-product-5.3.js?v=${studioActionLabelsVersion}`) ||
     runtime.includes(`/crump-product-5.3.css?v=${fileLibraryWindowVersion}`) ||
     !runtime.includes(`/crump-product-5.3.1.js?v=${conversationActionLabelsVersion}`) || !runtime.includes('/crump-product-5.3.1.css') ||
     !runtime.includes(`/crump-subscriptions-5.3.2.js?v=${checkoutDestinationLabelVersion}`) ||
     !runtime.includes(`/crump-polish-5.6.js?v=${cacheIntegrityVersion}`) || !runtime.includes('/crump-polish-5.6.css') ||
-    !runtime.includes(`/crump-media-save.js?v=${libraryLazyLoadVersion}`) ||
-    !runtime.includes(`/crump-library-loader.js?v=${libraryFirstRunVersion}`) ||
+    !runtime.includes(`/crump-media-save.js?v=${libraryCrudPrivacyVersion}`) ||
+    !runtime.includes(`/crump-library-loader.js?v=${libraryCrudPrivacyVersion}`) ||
     runtime.includes('/crump-library-5.7.js') || runtime.includes('/crump-library-5.7.css') ||
     !runtime.includes(`/crump-navigation-5.9.30.js?v=${atelierWorkspaceVersion}`) ||
     !runtime.includes(`/crump-navigation-5.9.30.css?v=${navFocusVisibilityVersion}`) ||
@@ -1549,10 +1552,13 @@ const product53 = await readFile(new URL('public/crump-product-5.3.js', repoRoot
 const precisionEditor = await readFile(new URL('public/crump-precision-image-edit.js', repoRoot), 'utf8');
 const precisionLoader = await readFile(new URL('public/crump-precision-image-edit-loader.js', repoRoot), 'utf8');
 const productLoader = await readFile(new URL('public/crump-product-loader.js', repoRoot), 'utf8');
+const libraryLoader = await readFile(new URL('public/crump-library-loader.js', repoRoot), 'utf8');
 if (!precisionLoader.includes(`/crump-precision-image-edit.css?v=${referenceFidelityVersion}`) ||
     !precisionLoader.includes(`/crump-precision-image-edit.js?v=${referenceFidelityVersion}`) ||
     !productLoader.includes(`/crump-product-5.3.css?v=${projectsEmptyStateVersion}`) ||
-    !productLoader.includes(`/crump-product-5.3.js?v=${responseContinuityCleanupVersion}`)) {
+    !productLoader.includes(`/crump-product-5.3.js?v=${manuscriptExportDeliveryVersion}`) ||
+    !libraryLoader.includes(`/crump-library-5.7.css?v=${libraryFirstRunVersion}`) ||
+    !libraryLoader.includes(`/crump-library-5.7.js?v=${libraryCrudPrivacyVersion}`)) {
   console.error('Reference-fidelity lazy loaders must use the same atomic release token as the shell.');
   process.exit(1);
 }
@@ -1706,8 +1712,8 @@ const cacheAddressabilitySources = Object.freeze([
   ['service worker', serviceWorker],
 ]);
 for (const [pathname, expectedUrl] of [
-  ['/crump-product-loader.js', `/crump-product-loader.js?v=${responseContinuityCleanupVersion}`],
-  ['/crump-library-loader.js', `/crump-library-loader.js?v=${libraryFirstRunVersion}`],
+  ['/crump-product-loader.js', `/crump-product-loader.js?v=${manuscriptExportDeliveryVersion}`],
+  ['/crump-library-loader.js', `/crump-library-loader.js?v=${libraryCrudPrivacyVersion}`],
   ['/crump-navigation-5.9.30.css', `/crump-navigation-5.9.30.css?v=${navFocusVisibilityVersion}`],
   ['/crump-v1-body.js', `/crump-v1-body.js?v=${atelierWorkspaceVersion}`],
 ]) {
@@ -1735,7 +1741,21 @@ for (const [label, source] of [
     process.exit(1);
   }
 }
-if (!serviceWorker.includes('ask-crump-new-body-v1-r264-response-continuity-cleanup-1') ||
+for (const [label, source] of [
+  ['app shell', appHtml],
+  ['service worker', serviceWorker],
+]) {
+  const pathname = '/home-document-entry.js';
+  const expectedUrl = `/home-document-entry.js?v=${homeDocumentEntryVersion}`;
+  const versionedOccurrences = source.split(`${pathname}?v=`).length - 1;
+  const exactOccurrences = [`'${expectedUrl}'`, `"${expectedUrl}"`, `\`${expectedUrl}\``]
+    .reduce((total, literal) => total + source.split(literal).length - 1, 0);
+  if (versionedOccurrences !== 1 || exactOccurrences !== 1) {
+    console.error(`${label} must contain exactly one current cache-addressable ${pathname}: ${expectedUrl}`);
+    process.exit(1);
+  }
+}
+if (!serviceWorker.includes('ask-crump-new-body-v1-r267-library-crud-privacy-1') ||
     !serviceWorker.includes(`'${shellBrandUrl}'`) ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||
@@ -1744,6 +1764,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r264-response-continuity-clea
     !serviceWorker.includes(appearanceThemeUrl) ||
     !serviceWorker.includes(appearanceControlsUrl) ||
     !serviceWorker.includes(`/runtime-body-v1.js?v=${runtimeBodyVersion}`) ||
+    !serviceWorker.includes(`/home-document-entry.js?v=${homeDocumentEntryVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${museReleaseRepairVersion}`) ||
     !serviceWorker.includes(`/crump-design-pass.css?v=${uiReleaseAuditVersion}`) ||
     !serviceWorker.includes(`/crump-activity-center-1.0.css?v=${activityCenterVersion}`) ||
@@ -1756,7 +1777,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r264-response-continuity-clea
     !serviceWorker.includes(`/account-manager.js?v=${accountDeletionStorageVersion}`) ||
     !serviceWorker.includes(`/crump-5.0.css?v=${referenceFidelityVersion}`) ||
     !serviceWorker.includes(`/scroll-manager.js?v=${museReleaseRepairVersion}`) ||
-    !serviceWorker.includes(`/crump-5.0.js?v=${groundedResearchVersion}`) ||
+    !serviceWorker.includes(`/crump-5.0.js?v=${libraryCrudPrivacyVersion}`) ||
     !serviceWorker.includes(`/crump-precision-image-edit-loader.js?v=${referenceFidelityVersion}`) ||
     serviceWorker.includes(`/crump-precision-image-edit.css?v=${precisionEditStudioVersion}`) ||
     serviceWorker.includes(`/crump-precision-image-edit.js?v=${liveImagePreviewVersion}`) ||
@@ -1786,7 +1807,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r264-response-continuity-clea
     !serviceWorker.includes(`/crump-4.4.css?v=${cacheIntegrityVersion}`) ||
     !serviceWorker.includes(`/crump-4.4.js?v=${cacheIntegrityVersion}`) ||
     !serviceWorker.includes(`/crump-v1-stability.js?v=${intelligenceArchitectureVersion}`) ||
-    !serviceWorker.includes(`/crump-product-loader.js?v=${responseContinuityCleanupVersion}`) ||
+    !serviceWorker.includes(`/crump-product-loader.js?v=${manuscriptExportDeliveryVersion}`) ||
     !serviceWorker.includes(`/crump-product-5.3.1.js?v=${conversationActionLabelsVersion}`) ||
     serviceWorker.includes(`/crump-product-5.3.js?v=${studioActionLabelsVersion}`) ||
     serviceWorker.includes(`/crump-product-5.3.css?v=${fileLibraryWindowVersion}`) ||
@@ -1835,8 +1856,8 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r264-response-continuity-clea
     !serviceWorker.includes(`/crump-billing-5.1.js?v=${checkoutDestinationLabelVersion}`) ||
     !serviceWorker.includes(`/crump-5.2.js?v=${planStatusLineVersion}`) ||
     !serviceWorker.includes(`/crump-subscriptions-5.3.2.js?v=${checkoutDestinationLabelVersion}`) ||
-    !serviceWorker.includes(`/crump-media-save.js?v=${libraryLazyLoadVersion}`) ||
-    !serviceWorker.includes(`/crump-library-loader.js?v=${libraryFirstRunVersion}`) ||
+    !serviceWorker.includes(`/crump-media-save.js?v=${libraryCrudPrivacyVersion}`) ||
+    !serviceWorker.includes(`/crump-library-loader.js?v=${libraryCrudPrivacyVersion}`) ||
     serviceWorker.includes('/crump-library-5.7.js') ||
     serviceWorker.includes('/crump-library-5.7.css') ||
     !serviceWorker.includes("url.pathname === '/crump-media-save.js'") ||
@@ -1914,6 +1935,154 @@ if (rejectedNativeBillingIdentity.rejectedMessage !== 'Store billing could not c
   process.exit(1);
 }
 
+async function exerciseNativeBillingOperation({
+  operation,
+  purchaseError = null,
+  rejectCreditSync = false,
+} = {}) {
+  const calls = [];
+  const subscriptionPackage = {
+    identifier: '$rc_monthly',
+    product: {
+      identifier: 'askcrump_professional_monthly',
+      priceString: '$20.00',
+    },
+    presentedOfferingContext: {
+      offeringIdentifier: 'default',
+      placementIdentifier: null,
+      targetingContext: null,
+    },
+  };
+  const plugin = {
+    async configure(payload) { calls.push(['configure', payload.appUserID || null]); },
+    async getOfferings() {
+      calls.push(['offerings']);
+      return {current: {availablePackages: [subscriptionPackage]}};
+    },
+    async purchasePackage(payload) {
+      calls.push(['purchase', payload.aPackage]);
+      if (purchaseError) throw purchaseError;
+      return {customerInfo: {entitlements: {active: {professional: {}}}}};
+    },
+    async restorePurchases() {
+      calls.push(['restore']);
+      return {customerInfo: {entitlements: {active: {professional: {}}}}};
+    },
+  };
+  const fetch = async (input, options = {}) => {
+    const path = String(input);
+    calls.push(['fetch', path, String(options.method || 'GET').toUpperCase()]);
+    if (rejectCreditSync && path === '/api/billing/credits/revenuecat/sync') {
+      return {ok: false, async json() { return {success: false, error: 'fixture credit sync failed'}; }};
+    }
+    const payload = path === '/api/billing/status'
+      ? {success: true, user: {id: 'account-a', tier: 'professional'}}
+      : path === '/api/billing/credits/revenuecat/sync'
+        ? {success: true, credits: {balance: 0}}
+        : {success: true, user: {id: 'account-a', tier: 'professional'}};
+    return {ok: true, async json() { return payload; }};
+  };
+  const windowMock = {
+    CRUMP_CONFIG: {
+      revenueCatAppleApiKey: 'fixture-public-key',
+      revenueCatProfessionalProductId: 'askcrump_professional_monthly',
+    },
+    CrumpAPI: {isNative: true, ready: Promise.resolve()},
+    CrumpNative: {Capacitor: {getPlatform: () => 'ios'}, Purchases: plugin},
+    currentUser: {id: 'account-a'},
+    dispatchEvent(event) { calls.push(['event', event.type]); },
+    profileManager: {applyServerSubscription(user) { calls.push(['profile', user.tier]); }},
+  };
+  class FixtureCustomEvent {
+    constructor(type, options = {}) {
+      this.type = type;
+      this.detail = options.detail;
+    }
+  }
+  runInContext(billingManagerSource, createContext({
+    window: windowMock,
+    fetch,
+    URL,
+    CustomEvent: FixtureCustomEvent,
+  }));
+  let result;
+  let thrown;
+  try {
+    result = operation === 'restore'
+      ? await windowMock.BillingManager.restore()
+      : await windowMock.BillingManager.purchase('professional');
+  } catch (error) {
+    thrown = error;
+  }
+  return {calls, result, thrown, subscriptionPackage};
+}
+
+const purchaseCancellation = Object.assign(new Error('Purchase cancelled by user.'), {
+  code: '1',
+  data: {requestId: 'fixture-cancelled-request'},
+  userInfo: {NSLocalizedDescription: 'Purchase cancelled by user.'},
+  readableErrorCode: 'PURCHASE_CANCELLED_ERROR',
+  underlyingErrorMessage: 'fixture user cancelled',
+  userCancelled: true,
+});
+const cancelledNativePurchase = await exerciseNativeBillingOperation({
+  operation: 'purchase',
+  purchaseError: purchaseCancellation,
+});
+if (cancelledNativePurchase.thrown !== purchaseCancellation ||
+    cancelledNativePurchase.calls.filter(([name]) => name === 'purchase').length !== 1 ||
+    cancelledNativePurchase.calls.some(([name]) => name === 'fetch')) {
+  console.error('BillingManager must preserve cancellation errors and never sync an uncompleted native purchase.');
+  process.exit(1);
+}
+
+const nativePurchaseFailure = Object.assign(new Error('Store connection failed.'), {
+  code: '10',
+  data: {requestId: 'fixture-request'},
+  userInfo: {NSLocalizedDescription: 'Store connection failed.'},
+  readableErrorCode: 'NETWORK_ERROR',
+  underlyingErrorMessage: 'fixture transport unavailable',
+  userCancelled: false,
+});
+const failedNativePurchase = await exerciseNativeBillingOperation({
+  operation: 'purchase',
+  purchaseError: nativePurchaseFailure,
+});
+if (failedNativePurchase.thrown !== nativePurchaseFailure ||
+    failedNativePurchase.calls.some(([name]) => name === 'fetch')) {
+  console.error('BillingManager must preserve native purchase errors and fail before server reconciliation.');
+  process.exit(1);
+}
+
+const restoredNativePurchase = await exerciseNativeBillingOperation({operation: 'restore'});
+const restoredFetches = restoredNativePurchase.calls
+  .filter(([name]) => name === 'fetch')
+  .map(([, path, method]) => [path, method]);
+const expectedRestoreFetches = [
+  ['/api/billing/revenuecat/sync', 'POST'],
+  ['/api/billing/credits/revenuecat/sync', 'POST'],
+  ['/api/billing/status', 'GET'],
+];
+if (restoredNativePurchase.thrown ||
+    restoredNativePurchase.calls.filter(([name]) => name === 'restore').length !== 1 ||
+    JSON.stringify(restoredFetches) !== JSON.stringify(expectedRestoreFetches)) {
+  console.error('BillingManager restoration must reconcile subscriptions, credits, and the final account status in order.');
+  process.exit(1);
+}
+
+const restoredAfterCreditSyncFailure = await exerciseNativeBillingOperation({
+  operation: 'restore',
+  rejectCreditSync: true,
+});
+const restoreAfterCreditFailureFetches = restoredAfterCreditSyncFailure.calls
+  .filter(([name]) => name === 'fetch')
+  .map(([, path, method]) => [path, method]);
+if (restoredAfterCreditSyncFailure.thrown ||
+    JSON.stringify(restoreAfterCreditFailureFetches) !== JSON.stringify(expectedRestoreFetches)) {
+  console.error('BillingManager restoration must refresh final subscription status when optional credit reconciliation fails.');
+  process.exit(1);
+}
+
 async function exercisePersistedNativeBillingIdentity() {
   const calls = [];
   const plugin = {
@@ -1952,6 +2121,113 @@ if (JSON.stringify(persistedNativeBillingIdentity) !== JSON.stringify(expectedPe
 }
 
 const deviceAuthSource = await readFile(new URL('public/device-auth.js', repoRoot), 'utf8');
+const mobileBridgeSource = await readFile(new URL('public/mobile-bridge.js', repoRoot), 'utf8');
+
+async function exerciseNativeSecureStorageAuthLifecycle() {
+  const sessionKey = 'ask_crump_session_v4';
+  const storedValues = new Map([[sessionKey, 'persisted-token']]);
+  const storageCalls = [];
+  const transportCalls = [];
+  const fetchCalls = [];
+  const localValues = new Map();
+  const secureStorage = {
+    async get(key) {
+      storageCalls.push(['get', key]);
+      return {value: storedValues.get(key) ?? null};
+    },
+    async set(key, value) {
+      storageCalls.push(['set', key, value]);
+      storedValues.set(key, value);
+    },
+    async remove(key) {
+      storageCalls.push(['remove', key]);
+      storedValues.delete(key);
+    },
+  };
+  const localStorage = {
+    get length() { return localValues.size; },
+    getItem(key) { return localValues.get(key) ?? null; },
+    key(index) { return [...localValues.keys()][index] ?? null; },
+    removeItem(key) { localValues.delete(key); },
+    setItem(key, value) { localValues.set(key, String(value)); },
+  };
+  const windowMock = {
+    CRUMP_CONFIG: {apiBase: 'https://www.askcrump.com'},
+    CrumpNative: {
+      isNative: true,
+      Capacitor: {getPlatform: () => 'ios'},
+      SecureStorage: secureStorage,
+    },
+    addEventListener() {},
+    currentUser: null,
+    fetch: async (input, init = {}) => {
+      fetchCalls.push({input: String(input), headers: new Headers(init.headers)});
+      return new Response(null, {status: 401});
+    },
+  };
+  const context = createContext({
+    Headers,
+    Promise,
+    Response,
+    URL,
+    clearTimeout,
+    crypto: {
+      getRandomValues(target) {
+        target[0] = 123;
+        target[1] = 456;
+        return target;
+      },
+      randomUUID: () => 'fixture-installation-id',
+    },
+    localStorage,
+    navigator: {userAgent: 'Ask Crump native auth fixture'},
+    setTimeout,
+    window: windowMock,
+  });
+
+  runInContext(mobileBridgeSource, context);
+  await windowMock.CrumpAPI.ready;
+  if (windowMock.CrumpAPI.getSessionToken() !== 'persisted-token' ||
+      JSON.stringify(storageCalls[0]) !== JSON.stringify(['get', sessionKey])) {
+    throw new Error('The native bridge did not restore the persisted secure-storage session token.');
+  }
+
+  await windowMock.CrumpAPI.setSessionToken('fresh-token');
+  if (windowMock.CrumpAPI.getSessionToken() !== 'fresh-token' ||
+      storedValues.get(sessionKey) !== 'fresh-token' ||
+      !storageCalls.some(call => JSON.stringify(call) === JSON.stringify(['set', sessionKey, 'fresh-token']))) {
+    throw new Error('The native bridge did not persist the refreshed session token to secure storage.');
+  }
+
+  windowMock.CrumpAuthTransport = {
+    async request(path, init = {}) {
+      transportCalls.push([path, String(init.method || 'GET').toUpperCase()]);
+      return {response: {ok: true}, data: {success: true}};
+    },
+  };
+  windowMock.BillingManager = {async disconnect() { transportCalls.push(['billing-disconnect']); }};
+  runInContext(deviceAuthSource, context);
+  await windowMock.deviceAuth.logout();
+  if (windowMock.CrumpAPI.getSessionToken() !== null || storedValues.has(sessionKey) ||
+      !storageCalls.some(call => JSON.stringify(call) === JSON.stringify(['remove', sessionKey])) ||
+      !transportCalls.some(call => JSON.stringify(call) === JSON.stringify(['/api/auth/logout', 'POST']))) {
+    throw new Error('Native logout did not remove the secure-storage session token.');
+  }
+
+  await windowMock.CrumpAPI.setSessionToken('expired-token');
+  const unauthorized = await windowMock.fetch('/api/private-fixture');
+  const lastFetch = fetchCalls.at(-1);
+  if (unauthorized.status !== 401 ||
+      lastFetch?.input !== 'https://www.askcrump.com/api/private-fixture' ||
+      lastFetch?.headers.get('Authorization') !== 'Bearer expired-token' ||
+      windowMock.CrumpAPI.getSessionToken() !== null || storedValues.has(sessionKey) ||
+      storageCalls.filter(call => call[0] === 'remove' && call[1] === sessionKey).length !== 2) {
+    throw new Error('A native 401 did not clear the rejected secure-storage session token.');
+  }
+}
+
+await exerciseNativeSecureStorageAuthLifecycle();
+
 const nativeLogoutSource = deviceAuthSource.slice(
   deviceAuthSource.indexOf('  async logout('),
   deviceAuthSource.indexOf('\n  clearLocalState()', deviceAuthSource.indexOf('  async logout(')),

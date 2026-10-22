@@ -6,8 +6,11 @@ const {chromium} = require('playwright');
 
 const publicDirectory = path.resolve(process.cwd(), 'public');
 const cachedTargets = Object.freeze([
-  ['/runtime-body-v1.js', '/runtime-body-v1.js?v=5.9.76-response-continuity-cleanup-1'],
+  ['/runtime-body-v1.js', '/runtime-body-v1.js?v=5.9.76-library-crud-privacy-1'],
   ['/crump-v1-body.css', '/crump-v1-body.css?v=5.9.76-friendly-workspace-1'],
+  ['/home-document-entry.js', '/home-document-entry.js?v=5.9.76-home-document-entry-1'],
+  ['/crump-product-loader.js', '/crump-product-loader.js?v=5.9.76-manuscript-export-delivery-1'],
+  ['/crump-library-loader.js', '/crump-library-loader.js?v=5.9.76-library-crud-privacy-1'],
 ]);
 const fixturePath = '/__returning-load.html';
 const contentTypes = Object.freeze({
@@ -31,6 +34,7 @@ function fixtureHtml() {
 <body>
   <main>Returning workspace load proof</main>
   <script src="${cachedTargets[0][1]}"></script>
+  <script src="${cachedTargets[2][1]}"></script>
   <script>
     navigator.serviceWorker.register('/sw.js', {scope: '/'}).catch(error => {
       document.documentElement.dataset.registrationError = error.message;

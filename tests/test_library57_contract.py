@@ -30,9 +30,9 @@ def test_library57_frontend_and_runtime_contract():
     assert "/crump-library-5.7.js" not in worker
     assert "/crump-library-5.7.css" not in worker
     for shell in (runtime, build_native, worker):
-        assert "/crump-media-save.js?v=5.9.76-library-lazy-load-1" in shell
-        assert "/crump-library-loader.js?v=5.9.76-library-first-run-1" in shell
-    assert "/crump-library-5.7.js?v=5.9.76-library-first-run-1" in loader
+        assert "/crump-media-save.js?v=5.9.76-library-crud-privacy-1" in shell
+        assert "/crump-library-loader.js?v=5.9.76-library-crud-privacy-1" in shell
+    assert "/crump-library-5.7.js?v=5.9.76-library-crud-privacy-1" in loader
     assert "/crump-library-5.7.css?v=5.9.76-library-first-run-1" in loader
     assert "data-crump5930-destination=\"library\"" in loader
     assert "Opening Library…" in loader
@@ -60,9 +60,14 @@ def test_library571_mobile_layout_and_book_views_are_intentional():
     assert ">Edit manuscript</button>" in library_js
     assert "async function openBookWorkspace(book)" in library_js
     assert "Download manuscript" in library_js
-    assert "async function exportCurrentManuscript(book, format, button = null)" in library_js
-    assert "/api/manuscripts/${encodeURIComponent(book.id)}/export" in library_js
-    assert "window.CrumpFileTools.open(file, true)" in library_js
+    assert "async function exportCurrentManuscript(book, format, button = null, originRoot = null)" in library_js
+    assert "/api/manuscripts/${encodeURIComponent(bookId)}/export" in library_js
+    assert "manuscriptExportDelivery.begin('library', operation.userId)" in library_js
+    assert "await manuscriptExportDelivery.deliver(data.file, run, resourceIsCurrent)" in library_js
+    assert "signal: run.controller.signal" in library_js
+    assert "!exported && button.isConnected && !button.disabled" in library_js
+    assert "button.focus({preventScroll: true})" in library_js
+    assert "id=\"crump57ExportStatus\"" in library_js
     assert "data-crump57-export-format=\"docx\"" in library_js
     assert "data-crump57-export-format=\"pdf\"" in library_js
     assert "data-crump57-export-format=\"epub\"" in library_js
