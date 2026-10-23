@@ -563,6 +563,7 @@ async def _stripe_configured_product_id(tier: str, price_id: str | None) -> str:
             price = await stripe_get(f'prices/{quote(price_id, safe="")}')
         except StripeAPIError:
             logger.warning('Unable to resolve configured %s price for tier matching.', tier)
+            raise
         else:
             product = price.get('product')
             product_id = str(
@@ -586,7 +587,7 @@ async def _stripe_price_tier_by_product(
             'Unable to resolve unrecognized Stripe price id=%s during tier resolution.',
             price_id,
         )
-        return None
+        raise
     product = price.get('product')
     product_id = str(product.get('id') if isinstance(product, dict) else product or '')
     if not product_id:
@@ -709,10 +710,22 @@ async def reconcile_stripe_subscription_event(
         logger.warning('Ignoring mismatched Stripe subscription lookup event=%s', event_id)
         return False
 
-    values = await stripe_subscription_values(subscription, previous=user)
     if event_type == 'customer.subscription.deleted':
-        values['subscription_status'] = 'canceled'
-        values['subscription_tier'] = 'free'
+        # The signed deletion is authoritative for this still-current
+        # subscription. Do not make revocation depend on a legacy Price/Product
+        # still being available in Stripe's catalog.
+        values = {
+            'stripe_subscription_id': subscription_id,
+            'subscription_tier': 'free',
+            'subscription_status': 'canceled',
+            'subscription_provider': 'stripe',
+            'subscription_current_period_end': stripe_subscription_period_end(
+                subscription
+            ),
+            'updated_at': iso_now(),
+        }
+    else:
+        values = await stripe_subscription_values(subscription, previous=user)
     await db.update('users', values, filters={'id': eq(user['id'])})
     if event_id:
         await record_product_event(
