@@ -120,6 +120,69 @@ jobs:
           psql -X --set=ON_ERROR_STOP=1
           --file=tests/postgres/test_project_artifact_continuity_migration.sql
 
+  registration-growth-cohorts:
+    name: Registration growth cohorts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: askcrump_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d askcrump_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGDATABASE: askcrump_test
+      PGUSER: postgres
+      PGPASSWORD: postgres-ci-only
+
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+      - name: Prove ambiguous registration state fails closed
+        run: |
+          psql -X --set=ON_ERROR_STOP=1 --file=tests/postgres/registration_growth_cohort_baseline.sql
+          psql -X --set=ON_ERROR_STOP=1 --file=tests/postgres/registration_growth_cohort_ambiguous_fixture.sql
+          set +e
+          psql -X --set=ON_ERROR_STOP=1 --set=VERBOSITY=verbose \
+            --file=migrations/20261023191029_registration_submission_cohorts.sql \
+            > "$RUNNER_TEMP/registration-cohort-refusal.log" 2>&1
+          migration_status=$?
+          set -e
+          cat "$RUNNER_TEMP/registration-cohort-refusal.log"
+          if [ "$migration_status" -eq 0 ]; then
+            echo "Migration unexpectedly accepted ambiguous registration rows."
+            exit 1
+          fi
+          grep -F "55000" "$RUNNER_TEMP/registration-cohort-refusal.log"
+          grep -F "Found 2 ambiguous post-guest-launch account(s); refusing cohort migration." \
+            "$RUNNER_TEMP/registration-cohort-refusal.log"
+          psql -X --set=ON_ERROR_STOP=1 \
+            --file=tests/postgres/registration_growth_cohort_refusal_rollback.sql
+      - name: Apply registration cohort prerequisites and migration
+        run: |
+          psql -X --set=ON_ERROR_STOP=1 --file=migrations/20260908134343_durable_growth_measurement.sql
+          psql -X --set=ON_ERROR_STOP=1 --file=migrations/20260913192512_clarify_optional_profile_growth_metric.sql
+          psql -X --set=ON_ERROR_STOP=1 --file=migrations/20261001084000_project_artifact_continuity_aggregate.sql
+          psql -X --set=ON_ERROR_STOP=1 --file=migrations/20261023191029_registration_submission_cohorts.sql
+      - name: Exercise registration cohorts against PostgreSQL
+        run: >-
+          psql -X --set=ON_ERROR_STOP=1
+          --file=tests/postgres/test_registration_growth_cohort_migration.sql
+
   chat-claim-and-artifact-versioning:
     name: Chat claim and artifact versioning
     runs-on: ubuntu-latest

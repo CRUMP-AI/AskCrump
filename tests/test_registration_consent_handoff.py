@@ -47,15 +47,15 @@ async def test_current_registration_consent_is_saved_before_verification(monkeyp
     async def allow_rate_limit(*args, **kwargs):
         return None
 
-    async def accept_product_event(*args, **kwargs):
-        return True
+    async def reject_product_event(*args, **kwargs):
+        return False
 
     monkeypatch.setattr(auth_routes, 'db', fake_db)
     monkeypatch.setattr(auth_routes, 'email_service', SentVerificationEmail())
     monkeypatch.setattr(auth_routes, 'enforce_auth_rate_limit', allow_rate_limit)
     monkeypatch.setattr(auth_routes, 'hash_password', lambda password: 'hashed-password')
-    monkeypatch.setattr(auth_routes, 'record_account_created_event', accept_product_event)
-    monkeypatch.setattr(auth_routes, 'record_product_event', accept_product_event)
+    monkeypatch.setattr(auth_routes, 'record_account_created_event', reject_product_event)
+    monkeypatch.setattr(auth_routes, 'record_product_event', reject_product_event)
 
     response = await auth_routes.register(
         RegisterRequest(
@@ -76,6 +76,11 @@ async def test_current_registration_consent_is_saved_before_verification(monkeyp
     assert fake_db.inserted_user is not None
     assert fake_db.inserted_user['terms_version'] == CURRENT_TERMS_VERSION
     assert fake_db.inserted_user['terms_accepted_at']
+    assert (
+        fake_db.inserted_user['registration_submitted_at']
+        == fake_db.inserted_user['created_at']
+    )
+    assert fake_db.inserted_user['registration_environment'] == 'production'
 
 
 def test_legacy_registration_omission_keeps_the_authenticated_terms_fallback():
@@ -95,10 +100,12 @@ async def test_guest_registration_preserves_existing_settings_without_redundant_
         def __init__(self) -> None:
             self.user = {
                 'id': 'guest-user',
-                'email': 'guest-placeholder@guest.askcrump.local',
+                'email': 'guest-guest-user@guest.askcrump.local',
                 'is_guest': True,
                 'is_verified': False,
                 'full_name': None,
+                'created_at': '2026-10-23T18:00:00+00:00',
+                'registration_environment': 'production',
             }
             self.updated_user: dict | None = None
 
@@ -154,6 +161,9 @@ async def test_guest_registration_preserves_existing_settings_without_redundant_
     assert fake_db.updated_user is not None
     assert fake_db.updated_user['email'] == 'converted@example.com'
     assert fake_db.updated_user['is_guest'] is True
+    assert fake_db.updated_user['created_at'] == '2026-10-23T18:00:00+00:00'
+    assert fake_db.updated_user['registration_submitted_at']
+    assert fake_db.updated_user['registration_environment'] == 'production'
 
 
 def test_stale_legal_versions_are_rejected_by_both_consent_contracts():

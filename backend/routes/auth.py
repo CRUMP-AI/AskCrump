@@ -71,6 +71,13 @@ def _registration_terms_values(
     }
 
 
+def _is_guest_placeholder_email(value: object, user_id: object) -> bool:
+    """Identify the server-minted address that has never submitted registration."""
+    email = str(value or '').strip().lower()
+    expected = f'guest-{str(user_id or "").strip().lower()}@guest.askcrump.local'
+    return email == expected
+
+
 async def _guest_mode_enabled() -> bool:
     """Read the database kill switch and fail closed on any uncertainty."""
     return await guest_mode_enabled(db)
@@ -143,6 +150,7 @@ async def register(payload: RegisterRequest, request: Request):
     existing = await db.select_one('users', columns='*', filters={'email': eq(email)})
     verification_token = random_token(40)
     now = iso_now()
+    registration_environment = environment_for_request(request)
     terms_values = _registration_terms_values(payload, accepted_at=now)
     verification_values = {
         'verification_token_hash': token_hash(verification_token),
@@ -216,8 +224,28 @@ async def register(payload: RegisterRequest, request: Request):
                 'full_name': (payload.fullName or '').strip() or None,
                 **verification_values,
             }
-            await db.update('users', conversion_values, filters={'id': eq(guest_user['id'])})
-            user = {**guest_user, **conversion_values}
+            if _is_guest_placeholder_email(
+                guest_user.get('email'),
+                guest_user.get('id'),
+            ):
+                conversion_values.update({
+                    'registration_submitted_at': now,
+                    'registration_environment': registration_environment,
+                })
+            updated = await db.update(
+                'users',
+                conversion_values,
+                filters={'id': eq(guest_user['id'])},
+            )
+            returned_user = (
+                updated[0]
+                if isinstance(updated, list) and updated and isinstance(updated[0], dict)
+                else updated if isinstance(updated, dict) else {}
+            )
+            # Merge defensively because small test/fallback adapters may return
+            # only the changed columns. A full database representation still
+            # wins last, so trigger-preserved marker values remain authoritative.
+            user = {**guest_user, **conversion_values, **returned_user}
         else:
             user_payload = {
                 'id': new_uuid(),
@@ -229,7 +257,8 @@ async def register(payload: RegisterRequest, request: Request):
                 'verification_token_expires': verification_values['verification_token_expires'],
                 'subscription_tier': 'free',
                 'subscription_status': 'inactive',
-                'registration_environment': environment_for_request(request),
+                'registration_environment': registration_environment,
+                'registration_submitted_at': now,
                 'preferences': {},
                 'created_at': now,
                 'updated_at': now,
