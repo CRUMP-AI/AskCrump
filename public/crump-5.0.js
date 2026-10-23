@@ -661,7 +661,7 @@
     state.lightbox?.remove();
     state.lightbox = null;
     state.lightboxReturnFocus = null;
-    try { window.CrumpPrecisionImageEditor?.close?.(); } catch (_) {}
+    try { window.CrumpPrecisionImageEditor?.close?.({force: true}); } catch (_) {}
     renderAttachmentTray();
     clearToolMode();
   }

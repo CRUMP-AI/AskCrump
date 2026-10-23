@@ -74,6 +74,11 @@
     featherPercent: 0,
     featherValue: null,
     versionsList: null,
+    preparingAiEdit: false,
+    aiPreparationRevision: 0,
+    aiPreparationController: null,
+    overlayImportPending: false,
+    useAi: null,
   };
 
   const focusableSelector = 'button:not([disabled]), input:not([disabled]), textarea:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])';
@@ -96,7 +101,12 @@
     updateLocalControls();
   }
 
-  function close() {
+  function close(options = {}) {
+    if (state.preparingAiEdit && options?.force !== true) return;
+    if (state.preparingAiEdit) {
+      state.aiPreparationController?.abort?.();
+      state.aiPreparationRevision += 1;
+    }
     const modal = state.modal;
     if (!modal) return;
     const backdrop = modal.closest('.crump-precision-backdrop');
@@ -170,6 +180,10 @@
     state.featherPercent = 0;
     state.featherValue = null;
     state.versionsList = null;
+    state.preparingAiEdit = false;
+    state.aiPreparationController = null;
+    state.overlayImportPending = false;
+    state.useAi = null;
     document.body.classList.remove('crump-precision-open');
     const target = state.returnFocus;
     state.returnFocus = null;
@@ -582,9 +596,11 @@
   }
 
   function updateLocalControls() {
+    if (state.preparingAiEdit) return;
     if (state.saveLocal) {
-      state.saveLocal.disabled = !state.file?.id || !hasSavableLocalEdit();
+      state.saveLocal.disabled = state.overlayImportPending || !state.file?.id || !hasSavableLocalEdit();
     }
+    if (state.useAi && state.canvas) state.useAi.disabled = state.overlayImportPending;
     if (state.compare) state.compare.disabled = !localAdjustmentReady() && !hasDeterministicOverlay();
     if (state.resetGeometry) state.resetGeometry.disabled = !hasGeometryEdit();
   }
@@ -796,7 +812,7 @@
     }) || null;
   }
 
-  async function addImageOverlay(file) {
+  async function addImageOverlay(file, expectedModal = state.modal) {
     if (state.overlays.length >= MAX_OVERLAY_ITEMS) {
       throw new Error('Remove an overlay before adding another. Precision Edit supports up to 12 at once.');
     }
@@ -814,6 +830,7 @@
     } finally {
       URL.revokeObjectURL(objectUrl);
     }
+    if (state.modal !== expectedModal) return;
     if (!image.naturalWidth || !image.naturalHeight
       || image.naturalWidth * image.naturalHeight > MAX_OVERLAY_SOURCE_PIXELS) {
       throw new Error('Use an overlay image below 16 megapixels.');
@@ -862,13 +879,13 @@
     setStatus('Exact text added. Drag it into place, then adjust size, color, or opacity.');
   }
 
-  function overlayDataUrl() {
+  function overlayDataUrl(canvas = state.overlayCanvas, hasOverlay = hasDeterministicOverlay()) {
     return new Promise((resolve, reject) => {
-      if (!state.overlayCanvas || !hasDeterministicOverlay()) {
+      if (!canvas || !hasOverlay) {
         resolve('');
         return;
       }
-      state.overlayCanvas.toBlob(blob => {
+      canvas.toBlob(blob => {
         if (!blob) {
           reject(new Error('The exact overlay could not be prepared.'));
           return;
@@ -927,6 +944,10 @@
 
   function wireCanvas(canvas) {
     canvas.addEventListener('pointerdown', event => {
+      if (state.preparingAiEdit) {
+        event.preventDefault();
+        return;
+      }
       if (event.button !== undefined && event.button !== 0) return;
       event.preventDefault();
       canvas.setPointerCapture?.(event.pointerId);
@@ -977,6 +998,10 @@
       updateHistoryControls();
     });
     canvas.addEventListener('pointermove', event => {
+      if (state.preparingAiEdit) {
+        event.preventDefault();
+        return;
+      }
       if (state.cropStart) {
         event.preventDefault();
         state.cropDraft = cropFromPoints(state.cropStart, pointFor(event));
@@ -1017,6 +1042,10 @@
       state.selectionDirty = true;
     });
     const finish = event => {
+      if (state.preparingAiEdit) {
+        event?.preventDefault?.();
+        return;
+      }
       if (state.cropStart) {
         event?.preventDefault?.();
         if (event?.pointerId !== undefined) canvas.releasePointerCapture?.(event.pointerId);
@@ -1105,6 +1134,99 @@
     });
   }
 
+  function copyCanvas(source) {
+    if (!source) throw new Error('The current image composition could not be prepared.');
+    const copy = document.createElement('canvas');
+    copy.width = source.width;
+    copy.height = source.height;
+    const context = copy.getContext('2d', {alpha: true});
+    if (!context) throw new Error('The current image composition could not be prepared.');
+    context.drawImage(source, 0, 0);
+    return copy;
+  }
+
+  function captureAiPreparation() {
+    if (state.overlayImportPending) {
+      throw new Error('Wait for the exact overlay to finish loading before continuing.');
+    }
+    const preparedSelection = preparedSelectionCanvas();
+    const selectionCanvas = copyCanvas(preparedSelection);
+    const overlayPresent = hasDeterministicOverlay();
+    return {
+      sourceFile: {...state.file},
+      width: state.canvas.width,
+      height: state.canvas.height,
+      chatId: activeConversationId(),
+      instruction: String(state.instruction?.value || '').trim(),
+      selectionCanvas,
+      adjustmentMaskCanvas: localAdjustmentReady() ? selectionCanvas : null,
+      overlayCanvas: overlayPresent ? copyCanvas(state.overlayCanvas) : null,
+      overlayPresent,
+      adjustments: {...state.adjustments},
+      transformOperations: state.transformOperations.map(operation => ({...operation})),
+      shouldSaveLocalComposition: hasSavableLocalEdit(),
+    };
+  }
+
+  function requireSavedCompositionDimensions(savedFile, width, height) {
+    const expected = `${width}x${height}`;
+    const actual = String(savedFile?.metadata?.size || '').trim().toLowerCase();
+    if (actual !== expected) {
+      throw new Error('The saved private composition dimensions did not match the protected edit. Try again before continuing.');
+    }
+  }
+
+  function activeConversationId() {
+    return window.currentChatId || null;
+  }
+
+  function beginAiPreparation(modal, primaryAction, expectedChatId) {
+    if (state.preparingAiEdit) throw new Error('The protected edit is already being prepared.');
+    const disabledControls = [...modal.querySelectorAll('button, input, textarea, select')]
+      .map(control => [control, control.disabled]);
+    const revision = state.aiPreparationRevision + 1;
+    const controller = new AbortController();
+    state.aiPreparationRevision = revision;
+    state.aiPreparationController = controller;
+    state.preparingAiEdit = true;
+    modal.setAttribute('aria-busy', 'true');
+    primaryAction.setAttribute('aria-busy', 'true');
+    disabledControls.forEach(([control]) => {
+      control.disabled = !control.matches('.crump-precision-close, .crump-precision-cancel');
+    });
+    const cancellationControl = modal.querySelector('.crump-precision-cancel')
+      || modal.querySelector('.crump-precision-close');
+    cancellationControl?.focus({preventScroll: true});
+    let released = false;
+    return {
+      signal: controller.signal,
+      isCurrent: () => state.modal === modal
+        && state.preparingAiEdit
+        && state.aiPreparationRevision === revision,
+      hasMatchingConversation: () => activeConversationId() === expectedChatId,
+      release() {
+        if (released || state.aiPreparationRevision !== revision) return;
+        released = true;
+        state.preparingAiEdit = false;
+        state.aiPreparationController = null;
+        if (state.modal !== modal) return;
+        disabledControls.forEach(([control, disabled]) => {
+          if (control.isConnected) control.disabled = disabled;
+        });
+        modal.removeAttribute('aria-busy');
+        primaryAction.removeAttribute('aria-busy');
+      },
+    };
+  }
+
+  function requireCurrentAiPreparation(preparationLock) {
+    if (!preparationLock.isCurrent()) return false;
+    if (!preparationLock.hasMatchingConversation()) {
+      throw new Error('The conversation changed before this edit was staged. Reopen Precision Edit in the current conversation.');
+    }
+    return true;
+  }
+
   function localAdjustmentMaskDataUrl() {
     if (selectionHasVisiblePixels()) return maskDataUrl();
     const fullMask = document.createElement('canvas');
@@ -1140,7 +1262,7 @@
   function trapKeyboard(event) {
     if (event.key === 'Escape') {
       event.preventDefault();
-      close();
+      close({force: true});
       return;
     }
     if (event.key !== 'Tab' || !state.modal) return;
@@ -1157,19 +1279,29 @@
     }
   }
 
-  async function saveLocalVersion({reflect = true} = {}) {
-    const preparedMask = localAdjustmentReady() ? await localAdjustmentMaskDataUrl() : '';
-    const preparedOverlay = await overlayDataUrl();
-    const response = await fetch(`/api/files/${encodeURIComponent(state.file.id)}/image-adjust`, {
+  async function saveLocalVersion({reflect = true, composition = null, signal = null} = {}) {
+    const sourceFile = composition?.sourceFile || state.file;
+    const preparedMask = composition
+      ? composition.adjustmentMaskCanvas
+        ? await canvasDataUrl(composition.adjustmentMaskCanvas, 'The local adjustment boundary could not be prepared.')
+        : ''
+      : localAdjustmentReady() ? await localAdjustmentMaskDataUrl() : '';
+    const preparedOverlay = composition
+      ? await overlayDataUrl(composition.overlayCanvas, composition.overlayPresent)
+      : await overlayDataUrl();
+    const adjustments = composition?.adjustments || state.adjustments;
+    const transformOperations = composition?.transformOperations || state.transformOperations;
+    const response = await fetch(`/api/files/${encodeURIComponent(sourceFile.id)}/image-adjust`, {
       method: 'POST',
+      signal,
       credentials: 'same-origin',
       headers: {'Accept': 'application/json', 'Content-Type': 'application/json'},
       body: JSON.stringify({
         maskDataUrl: preparedMask,
-        adjustments: state.adjustments,
+        adjustments,
         overlayDataUrl: preparedOverlay,
-        transform: {operations: state.transformOperations},
-        chatId: window.currentChatId || null,
+        transform: {operations: transformOperations},
+        chatId: composition ? composition.chatId : activeConversationId(),
       }),
     });
     const data = await response.json().catch(() => ({}));
@@ -1178,7 +1310,7 @@
     let applyResult = false;
     if (reflect && state.onApplied) {
       try {
-        applyResult = await Promise.resolve(state.onApplied({file: savedFile, sourceFile: state.file}));
+        applyResult = await Promise.resolve(state.onApplied({file: savedFile, sourceFile}));
       } catch (_) {
         applyResult = false;
       }
@@ -1188,6 +1320,7 @@
 
   async function open({file, url = '', onApplied = null, entryMode = 'precision', returnFocus = null} = {}) {
     if (!file?.id && !url) throw new Error('This image is not available for Precision Edit.');
+    if (state.preparingAiEdit) throw new Error('Wait for the current protected edit to finish preparing.');
     close();
     const normalizedEntryMode = entryMode === 'overlay' ? 'overlay' : 'precision';
     state.returnFocus = returnFocus instanceof HTMLElement && returnFocus.isConnected
@@ -1207,10 +1340,11 @@
     state.overlays = [];
     state.activeOverlayId = '';
     state.overlayDrag = null;
+    state.overlayImportPending = false;
 
     const backdrop = document.createElement('div');
     backdrop.className = 'crump-precision-backdrop';
-    backdrop.addEventListener('mousedown', event => { if (event.target === backdrop) close(); });
+    backdrop.addEventListener('mousedown', event => { if (event.target === backdrop) close({force: true}); });
     const modal = document.createElement('section');
     modal.className = 'crump-precision-editor';
     modal.setAttribute('role', 'dialog');
@@ -1220,6 +1354,17 @@
     let userNavigatedDuringLoad = false;
     modal.addEventListener('keydown', () => { userNavigatedDuringLoad = true; }, {capture: true});
     modal.addEventListener('pointerdown', () => { userNavigatedDuringLoad = true; }, {capture: true});
+    const blockWhilePreparing = event => {
+      if (!state.preparingAiEdit) return;
+      if (event.type === 'keydown' && event.key === 'Escape') return;
+      if (event.target instanceof Element
+        && event.target.closest('.crump-precision-close, .crump-precision-cancel')) return;
+      event.preventDefault();
+      event.stopImmediatePropagation();
+    };
+    ['pointerdown', 'click', 'keydown', 'input', 'change'].forEach(type => {
+      modal.addEventListener(type, blockWhilePreparing, {capture: true});
+    });
     modal.addEventListener('keydown', trapKeyboard);
     state.modal = modal;
 
@@ -1233,7 +1378,7 @@
     closeButton.className = 'crump-precision-close';
     closeButton.setAttribute('aria-label', normalizedEntryMode === 'overlay' ? 'Close Exact Overlay' : 'Close Precision Edit');
     closeButton.textContent = '×';
-    closeButton.addEventListener('click', close);
+    closeButton.addEventListener('click', () => close({force: true}));
     header.append(heading, closeButton);
 
     const workspace = document.createElement('div');
@@ -1467,13 +1612,21 @@
       const file = overlayImageInput.files?.[0];
       overlayImageInput.value = '';
       if (!file) return;
+      const expectedModal = modal;
+      state.overlayImportPending = true;
       addOverlayImage.disabled = true;
+      updateLocalControls();
       try {
-        await addImageOverlay(file);
+        await addImageOverlay(file, expectedModal);
       } catch (error) {
-        setStatus(error?.message || 'The exact overlay could not be added.', 'error');
+        if (state.modal === expectedModal) {
+          setStatus(error?.message || 'The exact overlay could not be added.', 'error');
+        }
       } finally {
+        if (state.modal !== expectedModal) return;
+        state.overlayImportPending = false;
         addOverlayImage.disabled = false;
+        updateLocalControls();
       }
     });
     overlayActions.append(addOverlayImage, overlayImageInput);
@@ -1608,7 +1761,7 @@
     workspace.append(stage, controls);
 
     const footer = document.createElement('footer');
-    const cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'crump-precision-cancel'; cancel.textContent = 'Cancel'; cancel.addEventListener('click', close);
+    const cancel = document.createElement('button'); cancel.type = 'button'; cancel.className = 'crump-precision-cancel'; cancel.textContent = 'Cancel'; cancel.addEventListener('click', () => close({force: true}));
     const saveLocal = document.createElement('button'); saveLocal.type = 'button'; saveLocal.className = 'crump-precision-save-local'; saveLocal.textContent = 'Apply changes'; saveLocal.disabled = true;
     state.saveLocal = saveLocal;
     saveLocal.addEventListener('click', async () => {
@@ -1638,34 +1791,51 @@
       }
     });
     const use = document.createElement('button'); use.type = 'button'; use.className = 'crump-precision-use'; use.textContent = 'Continue with AI edit'; use.disabled = true;
+    state.useAi = use;
     use.addEventListener('click', async () => {
       if (!selectionHasVisiblePixels()) {
         setStatus('Brush or outline the specific area you want to change first.', 'error');
         return;
       }
-      use.disabled = true;
-      use.setAttribute('aria-busy', 'true');
-      setStatus('Preparing the protected edit boundary…');
+      let preparationLock = null;
       try {
-        const dataUrl = await maskDataUrl();
-        let sourceFile = state.file;
-        if (hasGeometryEdit()) {
-          setStatus('Saving the cropped or rotated source before the AI edit…');
-          const prepared = await saveLocalVersion({reflect: false});
+        const applyPrecisionSelection = window.CrumpImageStudio?.applyPrecisionSelection;
+        if (typeof applyPrecisionSelection !== 'function') {
+          throw new Error('The AI edit workspace is unavailable. Your composition remains open.');
+        }
+        const preparation = captureAiPreparation();
+        preparationLock = beginAiPreparation(modal, use, preparation.chatId);
+        setStatus('Preparing the protected edit boundary…');
+        const dataUrl = await canvasDataUrl(preparation.selectionCanvas, 'The selected area could not be prepared.');
+        if (!requireCurrentAiPreparation(preparationLock)) return;
+        let sourceFile = preparation.sourceFile;
+        if (preparation.shouldSaveLocalComposition) {
+          setStatus('Saving the current private composition before the AI edit…');
+          const prepared = await saveLocalVersion({
+            reflect: false,
+            composition: preparation,
+            signal: preparationLock.signal,
+          });
+          if (!requireCurrentAiPreparation(preparationLock)) return;
+          requireSavedCompositionDimensions(prepared.savedFile, preparation.width, preparation.height);
           sourceFile = prepared.savedFile;
         }
-        window.CrumpImageStudio?.applyPrecisionSelection?.({
+        if (!requireCurrentAiPreparation(preparationLock)) return;
+        applyPrecisionSelection.call(window.CrumpImageStudio, {
           file: sourceFile,
           maskDataUrl: dataUrl,
-          width: state.canvas.width,
-          height: state.canvas.height,
-          instruction: String(state.instruction?.value || '').trim(),
+          width: preparation.width,
+          height: preparation.height,
+          instruction: preparation.instruction,
         });
+        preparationLock.release();
         close();
       } catch (error) {
+        const stillCurrent = preparationLock ? preparationLock.isCurrent() : state.modal === modal;
+        preparationLock?.release();
+        if (!stillCurrent || state.modal !== modal) return;
         setStatus(error?.message || 'The selected area could not be prepared.', 'error');
-        use.disabled = false;
-        use.removeAttribute('aria-busy');
+        use.focus({preventScroll: true});
       }
     });
     footer.append(cancel, saveLocal, use);
@@ -1757,7 +1927,6 @@
       renderOverlays();
       scheduleLocalPreview();
       updateZoomControls();
-      use.disabled = false;
       updateLocalControls();
       if (normalizedEntryMode === 'overlay') {
         setMode('place', modeButtons);
@@ -1778,6 +1947,10 @@
       show(error?.message || 'Precision Edit could not open this image.', 'error');
     }
   }
+
+  window.addEventListener('crump:conversation-opened', () => {
+    if (state.modal) close({force: true});
+  });
 
   window.CrumpPrecisionImageEditor = Object.freeze({open, close});
 })();

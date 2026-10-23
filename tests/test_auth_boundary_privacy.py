@@ -92,7 +92,7 @@ def test_composer_scrub_releases_private_drafts_masks_previews_and_inflight_uplo
         "state.imageRecovery = null",
         "input.value = ''",
         "fileInput.value = ''",
-        "window.CrumpPrecisionImageEditor?.close?.()",
+        "window.CrumpPrecisionImageEditor?.close?.({force: true})",
         "state.lightbox?.remove()",
     ):
         assert contract in scrub

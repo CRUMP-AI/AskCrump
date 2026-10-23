@@ -85,7 +85,7 @@ def test_native_push_consumer_and_runtime_loader_are_cache_busted_together() -> 
     runtime = read("public/runtime-body-v1.js")
     checker = read("scripts/check-javascript.mjs")
 
-    runtime_url = "/runtime-body-v1.js?v=5.9.76-guest-free-contract-2"
+    runtime_url = "/runtime-body-v1.js?v=5.9.76-precision-ai-persistence-1"
     presence_url = "/presence-manager.js?v=5.9.76-native-push-handoff-1"
     cache_name = "ask-crump-new-body-v1-r269-guest-free-contract-2"
     assert runtime_url in shell
@@ -94,4 +94,4 @@ def test_native_push_consumer_and_runtime_loader_are_cache_busted_together() -> 
     assert presence_url in worker
     assert cache_name in worker
     assert cache_name in checker
-    assert "const runtimeBodyVersion = guestFreeContractVersion;" in checker
+    assert "const runtimeBodyVersion = precisionAiPersistenceVersion;" in checker

@@ -68,8 +68,8 @@ window.CRUMP_CONFIG = Object.freeze({
   const enhancementScripts = Object.freeze([
     ['/crump-4.3.js?v=5.9.76-atelier-workspace-1', 'crump43'],
     ['/crump-4.4.js?v=5.9.76-friendly-workspace-1', 'crump44'],
-    ['/crump-5.0.js?v=5.9.76-library-crud-privacy-1&workspaceRelease=guest-free-contract-2', 'crump50'],
-    ['/crump-precision-image-edit-loader.js?v=5.9.76-reference-fidelity-hard-contract-1', 'crumpprecisionloader'],
+    ['/crump-5.0.js?v=5.9.76-precision-ai-persistence-1&workspaceRelease=guest-free-contract-2', 'crump50'],
+    ['/crump-precision-image-edit-loader.js?v=5.9.76-precision-ai-persistence-1', 'crumpprecisionloader'],
     ['/crump-billing-5.1.js?v=5.9.76-checkout-destination-label-1&workspaceRelease=guest-free-contract-2', 'billing51'],
     ['/crump-5.2.js?v=5.9.76-plan-status-line-1&workspaceRelease=guest-free-contract-2', 'crump52'],
     ['/crump-5.2.2.js?v=5.9.76-muse-release-repair-1&workspaceRelease=guest-free-contract-2', 'crump522'],
