@@ -14,7 +14,7 @@ const assetPaths = Object.freeze({
 function fixtureHtml(mode) {
   const persisted = mode === 'persisted'
     ? "window.currentUser = {id: 'fixture-user'}; localStorage.setItem('askcrump.activeProject53', 'fixture-project');"
-    : "window.currentUser = null;";
+    : "window.currentUser = {id: 'fixture-user'};";
   return `<!doctype html>
 <html lang="en">
 <head><meta charset="utf-8"><link rel="icon" href="data:,"><title>Product Studio lazy-load proof</title></head>
@@ -26,6 +26,9 @@ function fixtureHtml(mode) {
   <output id="status">idle</output>
   <script>
     ${persisted}
+    window.CrumpAccess = Object.freeze({
+      requireOwnedWorkspace: () => Boolean(window.currentUser?.id),
+    });
     window.chats = [];
     window.productOpens = [];
     window.toasts = [];

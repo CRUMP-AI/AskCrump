@@ -20,6 +20,7 @@
     const fixtureChatId = '00000000-0000-4000-8000-000000000051';
     const fixtureSuccessfulSave = new URLSearchParams(location.search).get('save') === 'success';
     window.currentUser = {id: 'fixture-user'};
+    window.CrumpAccess = Object.freeze({requirePaidTool: () => true});
     window.currentChatId = fixtureChatId;
     window.chats = [{
       id: fixtureChatId,

@@ -55,6 +55,12 @@ def test_checkout_recovery_fixture_is_local_and_content_free():
 
     assert "/public/auth-controller.js" in fixture
     assert "/public/crump-5.2.2.js" in fixture
+    assert "creditPurchasesAllowed:window.__fixtureAccountTier === 'professional'" in fixture
+    assert "subscriptionTier:'free'" in fixture
+    assert "window.__setFixtureAccountTier = tier =>" in fixture
+    assert "tier:'professional', status:'active', provider:'stripe', manageable:true" in fixture
+    assert "tier:'free', status:'inactive', provider:null, manageable:false" in fixture
+    assert "window.__setFixtureAccountTier('free')" in verifier
     assert "window.__loadFixtureSubscriptions" in fixture
     assert "document.head.appendChild(script)" in fixture
     assert "code:'AUTH_REQUIRED'" in fixture

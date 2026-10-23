@@ -18,7 +18,7 @@ const viewports = [
       const browserErrors = [];
       page.on('console', message => { if (message.type() === 'error') browserErrors.push(message.text()); });
       page.on('pageerror', error => browserErrors.push(error.message));
-      await page.goto(`${baseUrl}/tests/fixtures/plan-center-clarity.html`, {waitUntil: 'load'});
+      await page.goto(`${baseUrl}/tests/fixtures/plan-center-clarity.html?creditEligible=1`, {waitUntil: 'load'});
       await page.waitForFunction(() => typeof window.showBillingCenter === 'function');
       await page.waitForTimeout(1400);
       await page.getByRole('button', {name: 'Plan & credits'}).click();

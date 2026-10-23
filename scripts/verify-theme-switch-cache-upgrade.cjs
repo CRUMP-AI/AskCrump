@@ -8,15 +8,12 @@ const {chromium} = require(playwrightModule);
 const root = path.resolve(__dirname, '..');
 const publicDirectory = path.join(root, 'public');
 const oldCacheName = 'ask-crump-new-body-v1-r259-product-polish-1';
-const newCacheName = 'ask-crump-new-body-v1-r268-library-reconciliation-1';
+let newCacheName = null;
 const oldUrls = Object.freeze([
   '/runtime-body-v1.js?v=5.9.76-product-polish-1',
   '/crump-motion-system.css?v=5.9.76-motion-system-1',
 ]);
-const newUrls = Object.freeze({
-  runtime: '/runtime-body-v1.js?v=5.9.76-library-reconciliation-1',
-  motion: '/crump-motion-system.css?v=5.9.76-motion-system-2',
-});
+let newUrls = null;
 const fixturePath = '/__theme-switch-cache-upgrade.html';
 const oldWorkerPath = '/__theme-switch-r259-sw.js';
 const contentTypes = Object.freeze({
@@ -28,6 +25,29 @@ const contentTypes = Object.freeze({
   '.svg': 'image/svg+xml',
   '.webp': 'image/webp',
 });
+
+// Keep the current cache and asset URLs coupled to the service worker/runtime
+// rather than freezing this upgrade proof to one later release identifier.
+async function loadCurrentRelease() {
+  const [workerSource, runtimeSource] = await Promise.all([
+    readFile(path.join(publicDirectory, 'sw.js'), 'utf8'),
+    readFile(path.join(publicDirectory, 'runtime-body-v1.js'), 'utf8'),
+  ]);
+  const cacheNameMatch = workerSource.match(/const CACHE_NAME = ['"]([^'"]+)['"]/);
+  assert.ok(cacheNameMatch, 'sw.js should declare the active cache name');
+  const pick = (source, pattern, label) => {
+    const match = source.match(pattern);
+    assert.ok(match, `${label} should reference a versioned asset URL`);
+    return match[0];
+  };
+  return {
+    cacheName: cacheNameMatch[1],
+    urls: Object.freeze({
+      runtime: pick(workerSource, /\/runtime-body-v1\.js\?v=[^'"\s)]+/, 'sw.js'),
+      motion: pick(runtimeSource, /\/crump-motion-system\.css\?v=[^'"\s)]+/, 'runtime-body-v1.js'),
+    }),
+  };
+}
 
 function oldWorkerSource() {
   return [
@@ -96,6 +116,9 @@ async function startServer() {
 }
 
 (async () => {
+  const currentRelease = await loadCurrentRelease();
+  newCacheName = currentRelease.cacheName;
+  newUrls = currentRelease.urls;
   const {server, port} = await startServer();
   const executablePath = process.env.ASKCRUMP_BROWSER_EXECUTABLE || undefined;
   const browser = await chromium.launch({

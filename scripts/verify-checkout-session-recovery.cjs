@@ -40,6 +40,9 @@ async function signIn(page) {
     assert.equal(await enterprisePlan.isEnabled(), true);
     assert.equal(Number(await page.locator('#checkoutFixtureRequests').textContent()), 0);
 
+    await page.getByRole('button', {name:'Close', exact:true}).click();
+    await page.evaluate(() => window.__setFixtureAccountTier('professional'));
+    await page.getByRole('button', {name:'Plan & credits'}).click();
     const credit = page.getByRole('button', {name:'Add 150 Crump Credits for $9.99', exact:true});
     await credit.waitFor({state:'visible'});
     await credit.click();
@@ -69,6 +72,7 @@ async function signIn(page) {
       /selected credit pack is ready to review.*Nothing has been purchased/i,
     );
 
+    await page.evaluate(() => window.__setFixtureAccountTier('free'));
     await page.getByRole('button', {name:'Close', exact:true}).click();
     await page.getByRole('button', {name:'Plan & credits'}).click();
     const plan = page.getByRole('button', {name:'Review Professional in Stripe', exact:true});
@@ -134,7 +138,10 @@ async function signIn(page) {
     assert.equal(destinationContract.deceptiveCheckout, null);
     assert.equal(destinationContract.deceptivePortal, null);
 
-    await page.evaluate(() => { window.__fixtureCheckoutMode = 'invalid'; });
+    await page.evaluate(() => {
+      window.__fixtureCheckoutMode = 'invalid';
+      window.__setFixtureAccountTier('professional');
+    });
     await page.getByRole('button', {name:'Close', exact:true}).click();
     await page.getByRole('button', {name:'Plan & credits'}).click();
     const unsafeCredit = page.getByRole('button', {name:'Add 50 Crump Credits for $4.99', exact:true});
@@ -145,6 +152,7 @@ async function signIn(page) {
     assert.equal(await unsafeCredit.isEnabled(), true);
     assert.match(page.url(), /checkout-session-recovery\.html$/);
 
+    await page.evaluate(() => window.__setFixtureAccountTier('free'));
     await page.getByRole('button', {name:'Close', exact:true}).click();
     await page.getByRole('button', {name:'Plan & credits'}).click();
     const unsafePlan = page.getByRole('button', {name:'Review Enterprise in Stripe', exact:true});

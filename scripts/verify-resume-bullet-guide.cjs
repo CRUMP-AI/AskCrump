@@ -4,7 +4,8 @@ const {chromium} = require('playwright');
 
 const baseUrl = process.argv[2] || 'http://127.0.0.1:8766';
 const route = '/guides/audit-ai-resume-bullets.html';
-const expectedHref = '/app?signup=1&source=resume-audit-start&plan=free&intent=resume&acquisition=direct';
+const expectedHref = '/app?signup=1&source=resume-audit-start&plan=professional&intent=resume&acquisition=direct';
+const expectedDisclosure = 'Résumé creation requires a paid plan · Account creation is free · Nothing is purchased until checkout is confirmed';
 const expectedCanonical = 'https://www.askcrump.com/guides/audit-ai-resume-bullets';
 
 function assert(condition, message) {
@@ -36,6 +37,8 @@ async function inspect(page, viewport, screenshotName) {
     bodyWidth: document.body.scrollWidth,
     primaryCount: document.querySelectorAll('.button.primary').length,
     primaryHref: document.querySelector('.button.primary')?.getAttribute('href') || '',
+    primaryText: document.querySelector('.button.primary')?.textContent?.trim() || '',
+    disclosure: document.querySelector('.guide-hero-foot')?.textContent?.trim() || '',
     auditRows: document.querySelectorAll('.guide-audit-table tbody tr').length,
     auditHeaders: [...document.querySelectorAll('.guide-audit-table th')].map(node => node.textContent.trim()),
     overflowers: [...document.querySelectorAll('body *')]
@@ -74,6 +77,8 @@ async function inspect(page, viewport, screenshotName) {
   assert(state.overflowers.length === 0, `unexpected viewport overflow: ${JSON.stringify(state.overflowers)}`);
   assert(state.primaryCount === 1, `expected one primary CTA, found ${state.primaryCount}`);
   assert(state.primaryHref === expectedHref, 'direct-safe primary CTA drifted');
+  assert(state.primaryText === 'Review Professional for résumé creation', 'paid-access CTA copy drifted');
+  assert(state.disclosure === expectedDisclosure, 'paid-access disclosure drifted');
   assert(state.auditRows === 6 && state.auditHeaders.length === 4, 'claim audit table drifted');
   assert(state.imageStates.filter(image => image.source === '/assets/examples/resume-product-operations.png').length === 2, 'authentic résumé evidence count drifted');
   for (const image of state.imageStates) {

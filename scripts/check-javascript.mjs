@@ -935,7 +935,7 @@ const wordPdfDirectStore = new Map();
 const wordPdfDirect = runLandingAttribution(
   'https://askcrump.com/guides/word-or-pdf-ai-document-output',
   wordPdfDirectStore,
-  '/app?signup=1&source=word-pdf-start&plan=free&intent=document&acquisition=direct',
+  '/app?signup=1&source=word-pdf-start&plan=professional&intent=document&acquisition=direct',
   '',
   {click: false},
 );
@@ -950,7 +950,7 @@ assertNoMarketingLanding(wordPdfDirect, 'Word/PDF direct guide entry');
 const wordPdfDirectDestination = new URL(wordPdfDirect.link.href, 'https://askcrump.com');
 if (wordPdfDirectDestination.pathname !== '/app' ||
     wordPdfDirectDestination.searchParams.get('signup') !== '1' ||
-    wordPdfDirectDestination.searchParams.get('plan') !== 'free' ||
+    wordPdfDirectDestination.searchParams.get('plan') !== 'professional' ||
     wordPdfDirectDestination.searchParams.get('source') !== 'word-pdf-start' ||
     wordPdfDirectDestination.searchParams.get('intent') !== 'document' ||
     wordPdfDirectDestination.searchParams.get('acquisition') !== 'direct' ||
@@ -965,7 +965,7 @@ const wordPdfSearchStore = new Map();
 const wordPdfSearch = runLandingAttribution(
   'https://askcrump.com/guides/word-or-pdf-ai-document-output',
   wordPdfSearchStore,
-  '/app?signup=1&source=word-pdf-start&plan=free&intent=document&acquisition=direct',
+  '/app?signup=1&source=word-pdf-start&plan=professional&intent=document&acquisition=direct',
   'https://www.google.com/search?q=word+or+pdf+ai+document',
   {click: false},
 );
@@ -977,7 +977,7 @@ assertMarketingLanding(wordPdfSearch, {
 const wordPdfGuideDestination = new URL(wordPdfSearch.link.href, 'https://askcrump.com');
 if (wordPdfGuideDestination.pathname !== '/app' ||
     wordPdfGuideDestination.searchParams.get('signup') !== '1' ||
-    wordPdfGuideDestination.searchParams.get('plan') !== 'free' ||
+    wordPdfGuideDestination.searchParams.get('plan') !== 'professional' ||
     wordPdfGuideDestination.searchParams.get('acquisition') !== 'organic-search' ||
     wordPdfGuideDestination.searchParams.get('source') !== 'workflow-guide' ||
     wordPdfGuideDestination.searchParams.get('campaign') !== 'word-or-pdf-decision' ||
@@ -1060,7 +1060,7 @@ const resumeAuditDirectStore = new Map();
 const resumeAuditDirect = runLandingAttribution(
   'https://askcrump.com/guides/audit-ai-resume-bullets',
   resumeAuditDirectStore,
-  '/app?signup=1&source=resume-audit-start&plan=free&intent=resume&acquisition=direct',
+  '/app?signup=1&source=resume-audit-start&plan=professional&intent=resume&acquisition=direct',
   '',
   {click: false},
 );
@@ -1075,7 +1075,7 @@ assertNoMarketingLanding(resumeAuditDirect, 'Résumé audit direct guide entry')
 const resumeAuditDirectDestination = new URL(resumeAuditDirect.link.href, 'https://askcrump.com');
 if (resumeAuditDirectDestination.pathname !== '/app' ||
     resumeAuditDirectDestination.searchParams.get('signup') !== '1' ||
-    resumeAuditDirectDestination.searchParams.get('plan') !== 'free' ||
+    resumeAuditDirectDestination.searchParams.get('plan') !== 'professional' ||
     resumeAuditDirectDestination.searchParams.get('source') !== 'resume-audit-start' ||
     resumeAuditDirectDestination.searchParams.get('intent') !== 'resume' ||
     resumeAuditDirectDestination.searchParams.get('acquisition') !== 'direct' ||
@@ -1090,7 +1090,7 @@ const resumeAuditSearchStore = new Map();
 const resumeAuditSearch = runLandingAttribution(
   'https://askcrump.com/guides/audit-ai-resume-bullets',
   resumeAuditSearchStore,
-  '/app?signup=1&source=resume-audit-start&plan=free&intent=resume&acquisition=direct',
+  '/app?signup=1&source=resume-audit-start&plan=professional&intent=resume&acquisition=direct',
   'https://www.google.com/search?q=fact+check+ai+resume+bullets',
   {click: false},
 );
@@ -1102,7 +1102,7 @@ assertMarketingLanding(resumeAuditSearch, {
 const resumeAuditGuideDestination = new URL(resumeAuditSearch.link.href, 'https://askcrump.com');
 if (resumeAuditGuideDestination.pathname !== '/app' ||
     resumeAuditGuideDestination.searchParams.get('signup') !== '1' ||
-    resumeAuditGuideDestination.searchParams.get('plan') !== 'free' ||
+    resumeAuditGuideDestination.searchParams.get('plan') !== 'professional' ||
     resumeAuditGuideDestination.searchParams.get('acquisition') !== 'organic-search' ||
     resumeAuditGuideDestination.searchParams.get('source') !== 'workflow-guide' ||
     resumeAuditGuideDestination.searchParams.get('campaign') !== 'resume-bullet-truth-audit' ||

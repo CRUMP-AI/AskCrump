@@ -17,7 +17,9 @@
   </main>
   <script>
     window.currentUser = {id: 'fixture-user'};
-    const fixtureNeedsBillingRecovery = new URLSearchParams(location.search).get('status') === 'past_due';
+    const fixtureParams = new URLSearchParams(location.search);
+    const fixtureNeedsBillingRecovery = fixtureParams.get('status') === 'past_due';
+    const fixtureCreditPurchasesAllowed = fixtureParams.get('creditEligible') === '1';
     window.CRUMP_CONFIG = {
       webProfessionalPriceLabel: '$20/month',
       webEnterprisePriceLabel: '$50/month',
@@ -75,6 +77,7 @@
       const responses = {
         '/api/billing/credits/status': {
           credits: {balance: 12},
+          creditPurchasesAllowed: fixtureCreditPurchasesAllowed,
           catalog: [
             {code: 'credits_50', credits: 50, price: '$4.99', available: true},
             {code: 'credits_150', credits: 150, price: '$9.99', available: true},
@@ -85,7 +88,9 @@
         '/api/usage/check': {daily: {limit: 25, used: 3, remaining: 22}},
         '/api/billing/status': fixtureNeedsBillingRecovery
           ? {tier: 'free', status: 'past_due', provider: 'stripe', manageable: true}
-          : {tier: 'free', status: 'inactive', provider: null, manageable: false},
+          : fixtureCreditPurchasesAllowed
+            ? {tier: 'professional', status: 'active', provider: 'stripe', manageable: true}
+            : {tier: 'free', status: 'inactive', provider: null, manageable: false},
       };
       return new Response(JSON.stringify(responses[pathname] || {}), {
         status: 200,

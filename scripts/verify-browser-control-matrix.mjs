@@ -29,6 +29,7 @@ const expectedVerifiers = Object.freeze([
   'verify-file-delivery.cjs',
   'verify-file-library-usability.cjs',
   'verify-first-action-browser.cjs',
+  'verify-guest-access-journey.cjs',
   'verify-image-safety-recovery-browser.cjs',
   'verify-image-scroll-stability.cjs',
   'verify-image-studio-entry-cache-upgrade.cjs',

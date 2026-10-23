@@ -11,18 +11,24 @@ const guides = [
     path: '/guides/rough-idea-six-week-launch-plan',
     key: 'rough-idea',
     intent: 'projects',
+    heroPlan: 'professional',
+    support: 'Free account creation preserves your chat · Projects require a paid plan',
     campaign: 'rough-idea-launch-plan',
   },
   {
     path: '/guides/what-ai-project-should-remember',
     key: 'project-memory',
     intent: 'projects',
+    heroPlan: 'professional',
+    support: 'Free account creation preserves your chat · Projects require a paid plan',
     campaign: 'project-memory-boundaries',
   },
   {
     path: '/guides/editable-ai-powerpoint-review',
     key: 'editable-powerpoint',
     intent: 'presentation',
+    heroPlan: 'professional',
+    support: 'Presentation creation requires a paid plan · Account creation is free · Nothing is purchased until checkout is confirmed',
     campaign: 'editable-powerpoint-review',
   },
 ];
@@ -71,12 +77,15 @@ async function destination(page, selector) {
       const heroSelector = `[data-cta="${guide.key}-hero"]`;
       assert(await direct.page.locator(navSelector).isVisible(), `${guide.key} nav start is hidden on phone width`);
       assert(await direct.page.locator(heroSelector).isVisible(), `${guide.key} hero start is hidden on phone width`);
+      assert((await direct.page.locator('.guide-hero-foot').textContent()).trim() === guide.support, `${guide.key} paid-access disclosure drifted`);
+      const overflow = await direct.page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      assert(overflow <= 1, `${guide.key} overflows the phone viewport by ${overflow}px`);
 
-      for (const selector of [navSelector, heroSelector]) {
+      for (const [selector, expectedPlan] of [[navSelector, 'free'], [heroSelector, guide.heroPlan]]) {
         const target = await destination(direct.page, selector);
         assert(target.pathname === '/app', `${guide.key} start misses /app`);
         assert(target.searchParams.get('signup') === '1', `${guide.key} start misses signup handoff`);
-        assert(target.searchParams.get('plan') === 'free', `${guide.key} start misses free-plan handoff`);
+        assert(target.searchParams.get('plan') === expectedPlan, `${guide.key} start misses ${expectedPlan}-plan handoff`);
         assert(target.searchParams.get('intent') === guide.intent, `${guide.key} start loses intent`);
         assert(target.searchParams.get('acquisition') === 'direct', `${guide.key} direct start changes acquisition`);
         assert(!target.searchParams.has('campaign'), `${guide.key} direct start invents a campaign`);
@@ -100,6 +109,7 @@ async function destination(page, selector) {
       assert(tracked.searchParams.get('campaign') === guide.campaign, `${guide.key} search start loses campaign`);
       assert(tracked.searchParams.get('creative') === 'search-article', `${guide.key} search start loses creative`);
       assert(tracked.searchParams.get('source') === 'workflow-guide', `${guide.key} search start loses placement`);
+      assert(tracked.searchParams.get('plan') === guide.heroPlan, `${guide.key} tracked start loses plan`);
       assert(tracked.searchParams.get('intent') === guide.intent, `${guide.key} tracked start loses intent`);
       assert(search.errors.length === 0, `${guide.key} search errors: ${search.errors.join(' | ')}`);
       await search.context.close();

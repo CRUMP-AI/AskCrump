@@ -5,11 +5,17 @@ const executablePath = process.env.ASK_CRUMP_BROWSER_PATH
   || 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
 
 const creationPages = new Map([
-  ['/ai-document-generator.html', 'document'],
-  ['/ai-presentation-maker.html', 'presentation'],
-  ['/ai-project-workspace.html', 'projects'],
-  ['/ai-resume-builder.html', 'resume'],
-  ['/ai-video-generator.html', 'video'],
+  ['/ai-document-generator.html', { intent: 'document', signupPlan: 'professional' }],
+  ['/ai-presentation-maker.html', { intent: 'presentation', signupPlan: 'professional' }],
+  ['/ai-project-workspace.html', { intent: 'projects', signupPlan: 'professional' }],
+  ['/ai-resume-builder.html', { intent: 'resume', signupPlan: 'professional' }],
+  ['/ai-video-generator.html', { intent: 'video', signupPlan: 'professional' }],
+]);
+
+const paidCreationDisclosures = new Map([
+  ['/ai-document-generator.html', 'Document creation requires a paid plan · Account creation is free · Nothing is purchased until checkout is confirmed'],
+  ['/ai-presentation-maker.html', 'Presentation creation requires a paid plan · Account creation is free · Nothing is purchased until checkout is confirmed'],
+  ['/ai-resume-builder.html', 'Résumé creation requires a paid plan · Account creation is free · Nothing is purchased until checkout is confirmed'],
 ]);
 
 function assert(condition, message) {
@@ -49,8 +55,22 @@ function pageErrors(page) {
     const page = await context.newPage();
     const errors = pageErrors(page);
 
-    for (const [path, expectedIntent] of creationPages) {
+    for (const [path, expected] of creationPages) {
       await page.goto(`${baseUrl}${path}`, { waitUntil: 'networkidle' });
+      const layout = await page.evaluate(() => {
+        const navCta = document.querySelector('nav .nav-cta');
+        const rect = navCta?.getBoundingClientRect();
+        return {
+          viewportWidth: window.innerWidth,
+          overflow: document.documentElement.scrollWidth - window.innerWidth,
+          navCtaVisible: Boolean(navCta && rect && rect.width > 0 && rect.height > 0),
+          navCtaLeft: rect?.left ?? -1,
+          navCtaRight: rect?.right ?? -1,
+        };
+      });
+      assert(layout.overflow <= 1, `${path} overflows the phone viewport by ${layout.overflow}px`);
+      assert(layout.navCtaVisible, `${path} hides its account-entry action on phone width`);
+      assert(layout.navCtaLeft >= 0 && layout.navCtaRight <= layout.viewportWidth, `${path} clips its account-entry action on phone width`);
       const ctas = await page.locator('[data-cta]').evaluateAll(nodes => nodes.map(node => ({
         name: node.dataset.cta,
         plan: node.dataset.plan,
@@ -60,13 +80,18 @@ function pageErrors(page) {
       for (const cta of ctas) {
         const destination = new URL(cta.href, baseUrl);
         assert(destination.pathname === '/app', `${path} ${cta.name} misses /app`);
-        assert(destination.searchParams.get('intent') === expectedIntent, `${path} ${cta.name} drops ${expectedIntent} intent`);
+        assert(destination.searchParams.get('intent') === expected.intent, `${path} ${cta.name} drops ${expected.intent} intent`);
         assert(destination.searchParams.get('plan') === cta.plan, `${path} ${cta.name} plan mismatch`);
         if (cta.name.includes('signin')) {
           assert(!destination.searchParams.has('signup'), `${path} ${cta.name} incorrectly opens registration`);
         } else {
+          assert(cta.plan === expected.signupPlan, `${path} ${cta.name} must review ${expected.signupPlan}`);
           assert(destination.searchParams.get('signup') === '1', `${path} ${cta.name} does not open registration`);
         }
+      }
+      if (paidCreationDisclosures.has(path)) {
+        const disclosure = (await page.locator('.hero-foot').textContent()).trim();
+        assert(disclosure === paidCreationDisclosures.get(path), `${path} paid-access disclosure drifted`);
       }
     }
 

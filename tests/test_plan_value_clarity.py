@@ -271,6 +271,9 @@ def test_browser_fixture_uses_the_production_plan_center_layers():
     assert 'id="billingFixturePortals"' in fixture
     assert "status') === 'past_due'" in fixture
     assert "status: 'past_due', provider: 'stripe', manageable: true" in fixture
+    assert "fixtureCreditPurchasesAllowed = fixtureParams.get('creditEligible') === '1'" in fixture
+    assert "creditPurchasesAllowed: fixtureCreditPurchasesAllowed" in fixture
+    assert "tier: 'professional', status: 'active', provider: 'stripe', manageable: true" in fixture
     assert 'aria-label="Browser errors"' in fixture
     assert "/api/stripe/create-checkout-session" in fixture
     assert "Fixture blocks checkout." in fixture
@@ -303,5 +306,6 @@ def test_credit_packs_expose_one_named_purchase_control_without_nested_button_ro
     assert ":focus-within" in stylesheet
     assert ":focus-visible" not in stylesheet
     assert "nestedInteractiveCards" in verifier
+    assert "plan-center-clarity.html?creditEligible=1" in verifier
     assert "Add 50 Crump Credits for $4.99" in verifier
     assert "Fixture blocks credit checkout." in fixture

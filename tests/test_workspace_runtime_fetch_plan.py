@@ -152,7 +152,7 @@ def test_muse_release_repair_replaces_the_immediate_r253_runtime_cache():
     matrix = read("scripts/verify-browser-control-matrix.mjs")
 
     assert "oldCacheName = 'ask-crump-new-body-v1-r253'" in verifier
-    assert "newCacheName = 'ask-crump-new-body-v1-r268-library-reconciliation-1'" in verifier
+    assert "newCacheName = cacheNameMatch[1]" in verifier
     assert "async function loadNewUrls()" in verifier
     assert "current versioned asset URLs" in verifier
     assert "atelier-workspace-N" in verifier
@@ -166,17 +166,15 @@ def test_theme_switch_contrast_replaces_the_immediate_r259_runtime_cache():
     matrix = read("scripts/verify-browser-control-matrix.mjs")
 
     assert "oldCacheName = 'ask-crump-new-body-v1-r259-product-polish-1'" in verifier
-    assert "newCacheName = 'ask-crump-new-body-v1-r268-library-reconciliation-1'" in verifier
+    assert "async function loadCurrentRelease()" in verifier
+    assert "cacheName: cacheNameMatch[1]" in verifier
     for old_url in (
         "/runtime-body-v1.js?v=5.9.76-product-polish-1",
         "/crump-motion-system.css?v=5.9.76-motion-system-1",
     ):
         assert old_url in verifier
-    for new_url in (
-        "/runtime-body-v1.js?v=5.9.76-library-reconciliation-1",
-        "/crump-motion-system.css?v=5.9.76-motion-system-2",
-    ):
-        assert new_url in verifier
+    assert "runtime-body-v1\\.js" in verifier
+    assert "crump-motion-system\\.css" in verifier
     assert "result.runtimeSource.includes(newUrls.motion)" in verifier
     assert "transition-property: border-color, box-shadow, opacity;" in verifier
     assert "result.staleEntries" in verifier

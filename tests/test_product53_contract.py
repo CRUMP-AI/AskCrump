@@ -59,6 +59,8 @@ def test_product_studio_loader_preserves_every_public_action_and_resume_boundary
     assert "fixture-project" in verifier
     assert "mode=retry" in verifier
     assert "mode=persisted" in verifier
+    assert "window.currentUser = {id: 'fixture-user'};" in verifier
+    assert "requireOwnedWorkspace: () => Boolean(window.currentUser?.id)" in verifier
     assert "password" not in verifier.lower()
     assert "askcrump.com" not in verifier.lower()
 

@@ -56,6 +56,10 @@
       document.getElementById('fixtureTarget').textContent = 'No selected Project';
     }
     window.currentUser = {id: 'fixture-user'};
+    window.CrumpAccess = Object.freeze({
+      requirePaidTool: () => true,
+      requireOwnedWorkspace: () => true,
+    });
     window.currentChatId = fixtureChatId;
     window.chats = [{
       id: fixtureChatId,

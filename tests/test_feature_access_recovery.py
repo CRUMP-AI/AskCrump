@@ -51,5 +51,15 @@ def test_browser_fixture_uses_real_runtimes_and_credential_free_boundary_respons
     assert "status:402" in fixture
     assert "window.showUpgradePrompt = options" in fixture
     assert "error.data?.creditsRequired" in fixture
+    assert "subscription_tier:'professional'" in fixture
+    assert "subscription_status:'active'" in fixture
+    assert "tier:'professional'" in fixture
+    assert "internalAccess:false" in fixture
+    assert "accessSource:'billing'" in fixture
+    assert "projectLimit:25" in fixture
+    assert "Your current plan supports up to 25 active projects." in fixture
+    assert "Professional supports up to 25 active Projects for $20/month." in fixture
+    assert "supports up to 2 active projects" not in fixture
+    assert "two Free Projects" not in fixture
     assert "password" not in fixture.lower()
     assert "askcrump.com" not in fixture.lower()

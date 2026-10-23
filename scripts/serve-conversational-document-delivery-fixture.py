@@ -345,7 +345,13 @@ def create_fixture_app() -> tuple[FastAPI, FixtureDB, FixtureFiles]:
         if owner not in {OWNER, OTHER_OWNER}:
             raise HTTPException(status_code=401, detail="Fixture authentication required")
         return SimpleNamespace(
-            user={"id": owner, "email": f"{owner}@example.test", "full_name": "Fixture", "subscription_tier": "free"},
+            user={
+                "id": owner,
+                "email": f"{owner}@example.test",
+                "full_name": "Fixture",
+                "subscription_tier": "professional",
+                "subscription_status": "active",
+            },
             session={"id": "fixture-session"},
             token="fixture-token",
         )
@@ -358,7 +364,7 @@ def create_fixture_app() -> tuple[FastAPI, FixtureDB, FixtureFiles]:
             verification_level="off",
             route="chat",
             creation_intent=None,
-            user_tier="free",
+            user_tier="professional",
         )
 
     async def verify_answer(*, result, **_kwargs):

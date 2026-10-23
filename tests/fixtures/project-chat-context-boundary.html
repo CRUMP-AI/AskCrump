@@ -54,6 +54,10 @@
       projectB: fixtureProjectB,
     };
     window.currentUser = fixtureInitialUser;
+    window.CrumpAccess = Object.freeze({
+      requirePaidTool: () => Boolean(window.currentUser?.id),
+      requireOwnedWorkspace: () => Boolean(window.currentUser?.id),
+    });
     let fixtureAuthenticatedUserId = fixtureInitialUser.id;
     const fixtureAuthScrubbers = new Map();
     window.CrumpAuthBoundary = Object.freeze({

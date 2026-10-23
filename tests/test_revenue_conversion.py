@@ -232,7 +232,11 @@ def test_use_case_pages_are_unique_crawlable_and_attribution_ready():
         assert graph[0]["@type"] == "WebPage"
         assert graph[0]["url"] == f"https://www.askcrump.com/{slug}"
         assert graph[1]["@type"] == "SoftwareApplication"
-        assert graph[1]["offers"]["price"] == "0"
+        if slug == "ai-video-generator":
+            assert graph[1]["offers"]["price"] == "0"
+            assert "video generation uses Crump Credits" in graph[1]["offers"]["name"]
+        else:
+            assert "offers" not in graph[1]
 
     assert len(titles) == 4
     assert len(descriptions) == 4

@@ -64,14 +64,14 @@ def test_homepage_preview_names_the_friendly_workspace_destinations_and_boundari
 
 def test_public_creation_ctas_preserve_the_exact_workspace_promise():
     expected_intents = {
-        "public/ai-document-generator.html": "document",
-        "public/ai-presentation-maker.html": "presentation",
-        "public/ai-project-workspace.html": "projects",
-        "public/ai-resume-builder.html": "resume",
-        "public/ai-video-generator.html": "video",
+        "public/ai-document-generator.html": ("document", "professional"),
+        "public/ai-presentation-maker.html": ("presentation", "professional"),
+        "public/ai-project-workspace.html": ("projects", "professional"),
+        "public/ai-resume-builder.html": ("resume", "professional"),
+        "public/ai-video-generator.html": ("video", "professional"),
     }
 
-    for relative, expected_intent in expected_intents.items():
+    for relative, (expected_intent, expected_signup_plan) in expected_intents.items():
         ctas = [link for link in links(relative) if link.get("data-cta")]
         assert ctas, f"{relative} must expose at least one account-entry action"
         for cta in ctas:
@@ -83,7 +83,16 @@ def test_public_creation_ctas_preserve_the_exact_workspace_promise():
             if "signin" in cta["data-cta"]:
                 assert "signup" not in query
             else:
+                assert cta["data-plan"] == expected_signup_plan
+                assert query.get("plan") == [expected_signup_plan]
                 assert query.get("signup") == ["1"]
+
+    for relative, disclosure in {
+        "public/ai-document-generator.html": "Document creation requires a paid plan · Account creation is free · Nothing is purchased until checkout is confirmed",
+        "public/ai-presentation-maker.html": "Presentation creation requires a paid plan · Account creation is free · Nothing is purchased until checkout is confirmed",
+        "public/ai-resume-builder.html": "Résumé creation requires a paid plan · Account creation is free · Nothing is purchased until checkout is confirmed",
+    }.items():
+        assert disclosure in read(relative)
 
 
 def test_homepage_video_button_opens_video_studio_after_account_entry():

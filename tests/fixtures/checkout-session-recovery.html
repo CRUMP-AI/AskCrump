@@ -45,6 +45,7 @@
       id:'fixture-user',
       email:'fixture@example.test',
       fullName:'Fixture User',
+      subscriptionTier:'free',
       termsAcceptedAt:'2026-09-09T00:00:00Z',
     };
     window.__fixtureToasts = [];
@@ -52,6 +53,12 @@
     window.__fixtureClearComplete = true;
     window.__fixtureCheckoutMode = 'auth';
     window.__fixtureTermsMode = 'fail';
+    window.__fixtureAccountTier = 'free';
+    window.__setFixtureAccountTier = tier => {
+      window.__fixtureAccountTier = tier === 'professional' ? 'professional' : 'free';
+      fixtureUser.subscriptionTier = window.__fixtureAccountTier;
+      if (window.currentUser) window.currentUser.subscriptionTier = window.__fixtureAccountTier;
+    };
     window.CRUMP_CONFIG = {
       webProfessionalPriceLabel:'$20/month',
       webEnterprisePriceLabel:'$50/month',
@@ -134,6 +141,7 @@
         '/api/billing/credits/status': {
           success:true,
           credits:{balance:12},
+          creditPurchasesAllowed:window.__fixtureAccountTier === 'professional',
           catalog:[
             {code:'credits_50', credits:50, price:'$4.99', available:true},
             {code:'credits_150', credits:150, price:'$9.99', available:true},
@@ -142,7 +150,9 @@
           history:[],
         },
         '/api/usage/check': {success:true, daily:{limit:25, used:3, remaining:22}},
-        '/api/billing/status': {success:true, tier:'free', status:'inactive', provider:null, manageable:false},
+        '/api/billing/status': window.__fixtureAccountTier === 'professional'
+          ? {success:true, tier:'professional', status:'active', provider:'stripe', manageable:true}
+          : {success:true, tier:'free', status:'inactive', provider:null, manageable:false},
         '/api/analytics/events': {success:true, recorded:true},
       };
       return new Response(JSON.stringify(responses[pathname] || {success:true}), {

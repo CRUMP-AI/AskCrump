@@ -2,7 +2,7 @@ const assert = require('node:assert/strict');
 const { chromium } = require('playwright');
 
 const CONTROL = 'Compare monthly plans below before creating another Project. Nothing changes until you choose and confirm.';
-const TREATMENT = 'Your two Free Projects stay available. Professional raises the active Project limit to 25 for $20/month. You can keep using Free or review the plan before deciding.';
+const TREATMENT = 'Projects require a paid plan. Professional supports up to 25 active Projects for $20/month. Review the plan before deciding; nothing changes until checkout is confirmed.';
 
 (async () => {
   const executablePath = process.env.CODEX_BROWSER_EXECUTABLE || undefined;

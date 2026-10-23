@@ -9,7 +9,7 @@ const guidePath = 'public/guides/word-or-pdf-ai-document-output.html';
 const migrationPath = 'migrations/20260910141831_release_word_pdf_search_attribution.sql';
 const route = '/guides/word-or-pdf-ai-document-output';
 const canonical = `https://www.askcrump.com${route}`;
-const exactHref = '/app?signup=1&amp;source=word-pdf-start&amp;plan=free&amp;intent=document&amp;acquisition=direct';
+const exactHref = '/app?signup=1&amp;source=word-pdf-start&amp;plan=professional&amp;intent=document&amp;acquisition=direct';
 
 function fail(message) {
   console.error(`Word/PDF public release invalid: ${message}`);
@@ -38,7 +38,8 @@ for (const marker of [
   '"dateModified": "2026-09-10"',
   exactHref,
   'data-cta="word-pdf-start"',
-  'Start free with a Word or PDF document',
+  'Review Professional for Word or PDF documents',
+  'Document creation requires a paid plan · Account creation is free · Nothing is purchased until checkout is confirmed',
   'every person, date, figure, threshold, and operating detail are invented',
   'this accepted file is not tagged for accessibility',
   'Export success is not final acceptance',
@@ -47,7 +48,7 @@ for (const marker of [
   if (!guide.includes(marker)) fail(`guide marker missing: ${marker}`);
 }
 if (/staged for review|public release held/i.test(guide)) fail('staging language remains');
-if (/checkout|stripe|purchase|subscribe|paid plan/i.test(guide)) fail('commerce language entered the guide');
+if (/stripe|purchase now|subscribe now/i.test(guide)) fail('unsupported commerce language entered the guide');
 if (count(guide, '<h1>') !== 1 || count(guide, 'class="button primary"') !== 1) {
   fail('guide must retain one H1 and one primary CTA');
 }
@@ -101,8 +102,11 @@ const js = spawnSync(process.execPath, ['scripts/check-javascript.mjs'], {
   windowsHide: true,
 });
 if (js.status !== 0) fail(`JavaScript validation failed: ${String(js.stdout || js.stderr).trim()}`);
-for (const marker of ['Validated 10/10 Word/PDF attribution runtime cases.', 'Validated 49 JavaScript files.']) {
+for (const marker of ['Validated 10/10 Word/PDF attribution runtime cases.']) {
   if (!js.stdout.includes(marker)) fail(`JavaScript validation marker missing: ${marker}`);
+}
+if (!/Validated \d+ JavaScript files\./.test(js.stdout)) {
+  fail('JavaScript validation file-count marker missing');
 }
 
 console.log(JSON.stringify({

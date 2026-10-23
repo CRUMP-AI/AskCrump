@@ -19,6 +19,7 @@
   <div id="sidebarOverlay"></div>
   <script>
     window.currentUser = {id: 'fixture-user'};
+    window.CrumpAccess = Object.freeze({requireOwnedWorkspace: () => true});
     window.__fileDelivery = {downloads: [], openedWindows: 0};
     window.open = () => { window.__fileDelivery.openedWindows += 1; };
     document.addEventListener('click', event => {

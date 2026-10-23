@@ -59,6 +59,10 @@
       window.setTimeout = (callback, delay, ...args) => nativeSetTimeout(callback, Number(delay) === 10000 ? 30 : delay, ...args);
 
       window.currentUser = {id: 'fixture-manuscript-export-user-a'};
+      window.CrumpAccess = Object.freeze({
+        requirePaidTool: () => Boolean(window.currentUser?.id),
+        requireOwnedWorkspace: () => Boolean(window.currentUser?.id),
+      });
       window.currentChatId = '';
       window.chats = [];
       window.CrumpAPI = {isNative: false};

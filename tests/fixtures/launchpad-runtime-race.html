@@ -22,6 +22,10 @@
     <textarea id="userInput"></textarea>
   </div>
   <script>
+    window.currentUser = {id: 'fixture-user'};
+    window.CrumpAccess = Object.freeze({
+      requireOwnedWorkspace: () => Boolean(window.currentUser?.id),
+    });
     window.__openedProductTabs = [];
     window.__starterEvents = [];
     window.CrumpAnalytics = {

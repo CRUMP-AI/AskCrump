@@ -27,6 +27,9 @@
     window.__fixtureUserA = {id: '00000000-0000-0000-0000-000000000001'};
     window.__fixtureUserB = {id: '00000000-0000-0000-0000-000000000002'};
     window.currentUser = null;
+    window.CrumpAccess = Object.freeze({
+      requirePaidTool: () => Boolean(window.currentUser?.id),
+    });
     window.__xhrAborts = 0;
     window.__xhrSends = 0;
     window.__directUploadRequests = [];
