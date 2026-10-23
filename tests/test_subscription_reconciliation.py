@@ -859,6 +859,24 @@ def reset_price_resolution_caches(monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_exact_configured_price_mapping_remains_provider_call_free(monkeypatch):
+    monkeypatch.setattr(billing_routes, 'settings', settings_stub())
+    reset_price_resolution_caches(monkeypatch)
+
+    async def unexpected_stripe_get(path):
+        raise AssertionError(f'exact configured price must not look up {path}')
+
+    monkeypatch.setattr(billing_routes, 'stripe_get', unexpected_stripe_get)
+
+    assert await billing_routes.stripe_price_tier('price_professional') == (
+        'professional'
+    )
+    assert await billing_routes.stripe_price_tier('price_enterprise') == 'enterprise'
+    assert billing_routes._STRIPE_PRICE_TIER_CACHE == {}
+    assert billing_routes._STRIPE_TIER_PRODUCT_CACHE == {}
+
+
+@pytest.mark.asyncio
 async def test_checkout_reconciliation_resolves_rotated_price_by_product(monkeypatch):
     """An entitled subscription on a rotated (legacy) price keeps its tier.
 
@@ -971,7 +989,11 @@ async def test_subscription_event_still_defaults_free_for_unentitled_unknown_pri
         if path == 'subscriptions/sub_paid':
             return stripe_subscription(status='incomplete_expired', price_id='price_mystery')
         if path == 'prices/price_mystery':
-            raise billing_routes.StripeAPIError('price lookup failed')
+            return {'id': 'price_mystery', 'product': 'prod_unknown'}
+        if path == 'prices/price_professional':
+            return {'id': 'price_professional', 'product': 'prod_pro'}
+        if path == 'prices/price_enterprise':
+            return {'id': 'price_enterprise', 'product': 'prod_ent'}
         raise AssertionError(f'unexpected Stripe lookup {path}')
 
     monkeypatch.setattr(billing_routes, 'stripe_get', stripe_get)
@@ -987,3 +1009,278 @@ async def test_subscription_event_still_defaults_free_for_unentitled_unknown_pri
     assert applied is True
     assert fake_db.updates[0][1]['subscription_tier'] == 'free'
     assert fake_db.updates[0][1]['subscription_status'] == 'incomplete_expired'
+
+
+@pytest.mark.asyncio
+async def test_transient_price_lookup_webhook_retries_and_recovers_in_warm_process(
+    monkeypatch,
+):
+    user = {
+        'id': 'user-1',
+        'stripe_customer_id': 'cus_owner',
+        'stripe_subscription_id': 'sub_paid',
+        'subscription_tier': 'free',
+        'subscription_status': 'inactive',
+    }
+    fake_db = BillingDB(user=user)
+    monkeypatch.setattr(billing_routes, 'db', fake_db)
+    monkeypatch.setattr(billing_routes, 'settings', settings_stub())
+    monkeypatch.setattr(billing_routes, 'verify_stripe_signature', lambda *_args: True)
+    reset_price_resolution_caches(monkeypatch)
+    rotated_attempts = 0
+
+    async def stripe_get(path):
+        nonlocal rotated_attempts
+        if path == 'subscriptions/sub_paid':
+            return stripe_subscription(
+                status='active',
+                price_id='price_rotated_professional',
+                subscription_id='sub_paid',
+            )
+        if path == 'prices/price_rotated_professional':
+            rotated_attempts += 1
+            if rotated_attempts == 1:
+                raise billing_routes.StripeAPIError('temporary price outage')
+            return {
+                'id': 'price_rotated_professional',
+                'product': 'prod_professional',
+            }
+        if path == 'prices/price_enterprise':
+            return {'id': 'price_enterprise', 'product': 'prod_enterprise'}
+        if path == 'prices/price_professional':
+            return {'id': 'price_professional', 'product': 'prod_professional'}
+        raise AssertionError(f'unexpected Stripe lookup {path}')
+
+    monkeypatch.setattr(billing_routes, 'stripe_get', stripe_get)
+    event = {
+        'id': 'evt_rotated_price',
+        'type': 'customer.subscription.updated',
+        'data': {
+            'object': stripe_subscription(
+                status='active',
+                price_id='price_rotated_professional',
+                subscription_id='sub_paid',
+            )
+        },
+    }
+
+    class Request:
+        headers = {'stripe-signature': 'verified'}
+        url = SimpleNamespace(hostname='askcrump.com')
+
+        async def body(self):
+            return json.dumps(event).encode('utf-8')
+
+    first = await billing_routes.stripe_webhook(Request())
+
+    assert first.status_code == 503
+    assert fake_db.updates == []
+    assert fake_db.events == []
+    assert billing_routes._STRIPE_PRICE_TIER_CACHE == {}
+
+    second = await billing_routes.stripe_webhook(Request())
+
+    assert second == {'received': True}
+    assert rotated_attempts == 2
+    assert fake_db.updates[0][1]['subscription_tier'] == 'professional'
+    assert fake_db.updates[0][1]['subscription_status'] == 'active'
+    assert fake_db.events[0]['p_event_key'] == 'evt_rotated_price'
+    assert billing_routes._STRIPE_PRICE_TIER_CACHE == {
+        'price_rotated_professional': 'professional'
+    }
+
+
+@pytest.mark.asyncio
+async def test_finalize_checkout_retries_nested_catalog_failure_in_warm_process(
+    monkeypatch,
+):
+    user = {
+        'id': 'user-1',
+        'stripe_customer_id': 'cus_owner',
+        'stripe_subscription_id': None,
+        'subscription_tier': 'free',
+        'subscription_status': 'inactive',
+        'subscription_provider': 'stripe',
+        'subscription_current_period_end': None,
+    }
+    fake_db = BillingDB(user=user)
+    monkeypatch.setattr(billing_routes, 'db', fake_db)
+    monkeypatch.setattr(billing_routes, 'settings', settings_stub())
+    reset_price_resolution_caches(monkeypatch)
+    rotated_attempts = 0
+
+    async def authenticate(*_args, **_kwargs):
+        return SimpleNamespace(user=user)
+
+    async def stripe_get(path):
+        nonlocal rotated_attempts
+        if path == 'checkout/sessions/cs_live_reconcile':
+            return checkout_session(subscription='sub_paid')
+        if path == 'subscriptions/sub_paid':
+            return stripe_subscription(
+                status='active',
+                price_id='price_rotated_professional',
+                subscription_id='sub_paid',
+            )
+        if path == 'prices/price_rotated_professional':
+            rotated_attempts += 1
+            if rotated_attempts == 1:
+                raise billing_routes.StripeAPIError('temporary price outage')
+            return {
+                'id': 'price_rotated_professional',
+                'product': 'prod_professional',
+            }
+        if path == 'prices/price_enterprise':
+            return {'id': 'price_enterprise', 'product': 'prod_enterprise'}
+        if path == 'prices/price_professional':
+            return {'id': 'price_professional', 'product': 'prod_professional'}
+        raise AssertionError(f'unexpected Stripe lookup {path}')
+
+    class Request:
+        headers = {}
+
+        async def json(self):
+            return {'sessionId': 'cs_live_reconcile'}
+
+    monkeypatch.setattr(billing_routes, 'authenticate_request', authenticate)
+    monkeypatch.setattr(billing_routes, 'stripe_get', stripe_get)
+
+    first = await billing_routes.finalize_checkout(Request())
+
+    assert first.status_code == 502
+    assert b'BILLING_PROVIDER_UNAVAILABLE' in first.body
+    assert fake_db.updates == []
+    assert fake_db.events == []
+    assert billing_routes._STRIPE_PRICE_TIER_CACHE == {}
+
+    second = await billing_routes.finalize_checkout(Request())
+
+    assert second['success'] is True
+    assert second['entitled'] is True
+    assert second['tier'] == 'professional'
+    assert rotated_attempts == 2
+    assert fake_db.updates[0][1]['subscription_tier'] == 'professional'
+    assert fake_db.events[0]['p_event_key'] == 'cs_live_reconcile'
+
+
+@pytest.mark.asyncio
+async def test_transient_configured_product_lookup_does_not_poison_warm_cache(monkeypatch):
+    monkeypatch.setattr(billing_routes, 'settings', settings_stub())
+    reset_price_resolution_caches(monkeypatch)
+    professional_attempts = 0
+
+    async def stripe_get(path):
+        nonlocal professional_attempts
+        if path == 'prices/price_rotated_professional':
+            return {
+                'id': 'price_rotated_professional',
+                'product': 'prod_professional',
+            }
+        if path == 'prices/price_enterprise':
+            return {'id': 'price_enterprise', 'product': 'prod_enterprise'}
+        if path == 'prices/price_professional':
+            professional_attempts += 1
+            if professional_attempts == 1:
+                raise billing_routes.StripeAPIError('temporary product outage')
+            return {'id': 'price_professional', 'product': 'prod_professional'}
+        raise AssertionError(f'unexpected Stripe lookup {path}')
+
+    monkeypatch.setattr(billing_routes, 'stripe_get', stripe_get)
+
+    with pytest.raises(billing_routes.StripeAPIError):
+        await billing_routes.stripe_price_tier('price_rotated_professional')
+
+    assert billing_routes._STRIPE_PRICE_TIER_CACHE == {}
+    assert billing_routes._STRIPE_TIER_PRODUCT_CACHE == {
+        'enterprise': 'prod_enterprise'
+    }
+
+    tier = await billing_routes.stripe_price_tier('price_rotated_professional')
+
+    assert tier == 'professional'
+    assert professional_attempts == 2
+    assert billing_routes._STRIPE_TIER_PRODUCT_CACHE['professional'] == (
+        'prod_professional'
+    )
+    cached_tier = await billing_routes.stripe_price_tier(
+        'price_rotated_professional'
+    )
+    assert cached_tier == 'professional'
+    assert professional_attempts == 2
+
+
+@pytest.mark.asyncio
+async def test_successful_unknown_price_still_uses_negative_cache(monkeypatch):
+    monkeypatch.setattr(billing_routes, 'settings', settings_stub())
+    reset_price_resolution_caches(monkeypatch)
+    paths = []
+
+    async def stripe_get(path):
+        paths.append(path)
+        products = {
+            'prices/price_unknown': 'prod_unknown',
+            'prices/price_enterprise': 'prod_enterprise',
+            'prices/price_professional': 'prod_professional',
+        }
+        if path in products:
+            return {'id': path.rsplit('/', 1)[-1], 'product': products[path]}
+        raise AssertionError(f'unexpected Stripe lookup {path}')
+
+    monkeypatch.setattr(billing_routes, 'stripe_get', stripe_get)
+
+    assert await billing_routes.stripe_price_tier('price_unknown') is None
+    first_paths = list(paths)
+    assert await billing_routes.stripe_price_tier('price_unknown') is None
+
+    assert paths == first_paths
+    assert billing_routes._STRIPE_PRICE_TIER_CACHE == {'price_unknown': None}
+
+
+@pytest.mark.asyncio
+async def test_deleted_subscription_resource_missing_bypasses_catalog_lookup(monkeypatch):
+    user = {
+        'id': 'user-1',
+        'stripe_customer_id': 'cus_owner',
+        'stripe_subscription_id': 'sub_paid',
+        'subscription_tier': 'professional',
+        'subscription_status': 'active',
+        'subscription_provider': 'stripe',
+    }
+    fake_db = BillingDB(user=user)
+    monkeypatch.setattr(billing_routes, 'db', fake_db)
+    monkeypatch.setattr(billing_routes, 'settings', settings_stub())
+    reset_price_resolution_caches(monkeypatch)
+    paths = []
+
+    async def stripe_get(path):
+        paths.append(path)
+        if path == 'subscriptions/sub_paid':
+            raise billing_routes.StripeAPIError(
+                'subscription was deleted',
+                status_code=404,
+                code='resource_missing',
+                param='subscription',
+            )
+        raise AssertionError(f'deletion must not require catalog lookup: {path}')
+
+    monkeypatch.setattr(billing_routes, 'stripe_get', stripe_get)
+
+    applied = await billing_routes.reconcile_stripe_subscription_event(
+        event_object=stripe_subscription(
+            status='canceled',
+            price_id='price_legacy_professional',
+            subscription_id='sub_paid',
+        ),
+        event_id='evt_deleted_current',
+        event_type='customer.subscription.deleted',
+        request=request_stub(),
+    )
+
+    assert applied is True
+    assert paths == ['subscriptions/sub_paid']
+    assert fake_db.updates[0][1]['subscription_status'] == 'canceled'
+    assert fake_db.updates[0][1]['subscription_tier'] == 'free'
+    assert fake_db.events[0]['p_event_key'] == 'evt_deleted_current'
+    assert fake_db.events[0]['p_plan'] is None
+    assert billing_routes._STRIPE_PRICE_TIER_CACHE == {}
+    assert billing_routes._STRIPE_TIER_PRODUCT_CACHE == {}
