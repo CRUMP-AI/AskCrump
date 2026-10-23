@@ -10,6 +10,7 @@
     loading: false,
     lastBalanceFetchAt: 0,
     balanceRequest: null,
+    creditPurchasesAllowed: false,
     trigger: null,
     background: [],
   };
@@ -18,7 +19,7 @@
   const BILLING_REQUEST_TIMEOUT_MS = 15_000;
   const PROJECT_LIMIT_EXPERIMENT = 'project-limit-plan-copy';
   const PROJECT_LIMIT_CONTROL_DETAIL = 'Compare monthly plans below before creating another Project. Nothing changes until you choose and confirm.';
-  const PROJECT_LIMIT_TREATMENT_DETAIL = 'Your two Free Projects stay available. Professional raises the active Project limit to 25 for $20/month. You can keep using Free or review the plan before deciding.';
+  const PROJECT_LIMIT_TREATMENT_DETAIL = 'Projects require a paid plan. Professional supports up to 25 active Projects for $20/month. Review the plan before deciding; nothing changes until checkout is confirmed.';
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const native = () => Boolean(window.BillingManager?.isNative?.());
@@ -301,6 +302,10 @@
   }
 
   async function buyCredits(pack, button) {
+    if (!state.creditPurchasesAllowed) {
+      window.showToast?.('Subscribe to Professional or Enterprise before adding Crump Credits.', 'info');
+      return;
+    }
     setBusy(button, true, native() ? 'Opening store…' : 'Opening checkout…');
     try {
       if (native()) {
@@ -446,7 +451,7 @@
     });
   }
 
-  function packCard(pack, nativeProduct) {
+  function packCard(pack, nativeProduct, purchasesAllowed) {
     const article = document.createElement('article');
     article.className = 'billing51-pack';
     const amount = document.createElement('strong');
@@ -462,12 +467,17 @@
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'billing51-buy';
-    const available = native() ? Boolean(nativeProduct?.package) : pack.available !== false;
+    const providerAvailable = native() ? Boolean(nativeProduct?.package) : pack.available !== false;
+    const available = purchasesAllowed && providerAvailable;
     button.disabled = !available;
-    button.textContent = available ? 'Add credits' : 'Not configured';
+    button.textContent = purchasesAllowed
+      ? (providerAvailable ? 'Add credits' : 'Not configured')
+      : 'Subscribe first';
     button.setAttribute(
       'aria-label',
-      available
+      !purchasesAllowed
+        ? `Subscribe to Professional or Enterprise before adding ${pack.credits} Crump Credits`
+        : available
         ? `Add ${pack.credits} Crump Credits for ${displayPrice}`
         : `${pack.credits} Crump Credits are not available`,
     );
@@ -545,10 +555,18 @@
       const allowance = $('#billing51Allowance', modal);
       if (allowance) allowance.innerHTML = progressMarkup(usageData.daily);
 
+      state.creditPurchasesAllowed = creditData.creditPurchasesAllowed === true;
+      const purchaseNotice = $('#billing51CreditPurchaseNotice', modal);
+      if (purchaseNotice) {
+        purchaseNotice.textContent = state.creditPurchasesAllowed
+          ? 'Credit packs are available with your paid creation access.'
+          : 'Subscribe to Professional or Enterprise before adding credits. Your current balance and credit history stay available.';
+      }
+
       const packsHost = $('#billing51Packs', modal);
       packsHost?.replaceChildren();
       (creditData.catalog || []).forEach(pack => {
-        packsHost?.appendChild(packCard(pack, nativeCredits?.[pack.code]));
+        packsHost?.appendChild(packCard(pack, nativeCredits?.[pack.code], state.creditPurchasesAllowed));
       });
 
       const plans = [
@@ -643,7 +661,7 @@
         <section class="billing51-section">
           <div class="billing51-section-head">
             <div><span>KEEP GOING</span><h3>Add Crump Credits</h3></div>
-            <p>Credit use varies by feature. Ask Crump shows the exact charge before a paid action. Purchased credits never expire.</p>
+            <p id="billing51CreditPurchaseNotice">Checking whether credit packs are available for this account…</p>
           </div>
           <p class="billing51-rate-note"><strong>Current overflow rates, after any included allowance:</strong> messages 1; live research 1; Crump Voice or visual analysis 2; manuscript planning 4; image generation 6; manuscript chapter 8; image editing 10; Crump Code 12; video generation 60, extend or continue 80, HD 90, or 10-second cinematic 120 credits. The exact total always appears before a paid action.</p>
           <div class="billing51-packs" id="billing51Packs">

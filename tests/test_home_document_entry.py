@@ -87,7 +87,7 @@ def test_document_home_asset_is_atomic_for_web_and_pwa_updates() -> None:
 
     assert app.count(expected) == 1
     assert worker.count(expected) == 1
-    assert "ask-crump-new-body-v1-r268-library-reconciliation-1" in worker
+    assert "ask-crump-new-body-v1-r269-guest-free-contract-2" in worker
     assert "url.pathname === '/home-document-entry.js'" in worker
     assert "home-document-entry.js" in checker
     assert "homeDocumentEntryVersion" in checker
@@ -97,6 +97,7 @@ def test_document_home_asset_is_atomic_for_web_and_pwa_updates() -> None:
 def test_browser_proofs_cover_side_effect_payload_and_responsive_contracts() -> None:
     first_action = read("scripts/verify-first-action-browser.cjs")
     delivery = read("scripts/verify-conversational-document-delivery.cjs")
+    delivery_server = read("scripts/serve-conversational-document-delivery-fixture.py")
 
     assert "Create a document" in first_action
     assert "window.__documentStudioOpens" in first_action
@@ -113,3 +114,6 @@ def test_browser_proofs_cover_side_effect_payload_and_responsive_contracts() -> 
     assert "preservedDraft" in delivery
     assert "fixtureStateBeforeOpen" in delivery
     assert "pageRequestsBeforeOpen" in delivery
+    assert '"subscription_tier": "professional"' in delivery_server
+    assert '"subscription_status": "active"' in delivery_server
+    assert 'user_tier="professional"' in delivery_server

@@ -41,6 +41,7 @@
     window.__starterChipInputEvents = 0;
     window.__sendClicks = 0;
     window.__lastToast = null;
+    window.CrumpAccess = Object.freeze({requirePaidTool: () => true});
     window.CrumpAnalytics = {
       track(name, detail) {
         window.__starterEvents.push({name, detail});

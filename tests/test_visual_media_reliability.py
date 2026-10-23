@@ -1152,8 +1152,13 @@ async def test_local_image_adjustment_route_uses_authenticated_owner_and_zero_pr
                 "chatId": "22222222-2222-4222-8222-222222222222",
             }
 
-    async def authenticate(_request, _db, _settings):
-        return SimpleNamespace(user={"id": "user-one"})
+    async def authenticate(_request, _db, _settings, *, require_account=False):
+        assert require_account is True
+        return SimpleNamespace(user={
+            "id": "user-one",
+            "subscription_tier": "professional",
+            "subscription_status": "active",
+        })
 
     async def save(**kwargs):
         captured.update(kwargs)
@@ -1214,7 +1219,8 @@ async def test_image_version_history_is_owner_scoped_connected_and_content_free(
             captured.update({"table": table, **kwargs})
             return rows
 
-    async def authenticate(_request, _db, _settings):
+    async def authenticate(_request, _db, _settings, *, require_account=False):
+        assert require_account is True
         return SimpleNamespace(user={"id": "user-one"})
 
     monkeypatch.setattr(file_routes, "authenticate_request", authenticate)

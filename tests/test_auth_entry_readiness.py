@@ -64,7 +64,8 @@ def test_bootstrap_exposes_a_truthful_surface_before_the_bounded_session_probe()
     assert "function hasReturningDeviceHint()" in controller
     assert "const returningDeviceHint = hasReturningDeviceHint();" in bootstrap
     assert "const bootstrapAuthFlowRevision = authFlowRevision;" in bootstrap
-    assert "if (signupRequested && !returningDeviceHint)" in bootstrap
+    assert "if (signupRequested)" in bootstrap
+    assert "if (!signupRequested && !accountOnDevice" in bootstrap
     assert bootstrap.index("showAuth('register')") < bootstrap.index("await window.CrumpAPI?.ready")
     assert bootstrap.index("showReturningVisitorGate()") < bootstrap.index("await window.CrumpAPI?.ready")
     assert bootstrap.index("await window.CrumpAPI?.ready") < bootstrap.index("window.deviceAuth.checkSession()")

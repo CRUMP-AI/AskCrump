@@ -34,7 +34,7 @@ def _privacy_unavailable() -> JSONResponse:
 
 @router.get("/status")
 async def intelligence_status(request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     status = await intelligence.status(auth.user["id"])
     status["entitlements"] = {
         "thinkLonger": features.entitled(auth.user, "think_longer"),
@@ -45,7 +45,7 @@ async def intelligence_status(request: Request):
 
 @router.get("/preferences")
 async def get_preferences(request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     preferences = await intelligence.get_preferences(auth.user["id"])
     think_longer_entitled = features.entitled(auth.user, "think_longer")
     intelligence_mode = preferences["intelligence_mode"]
@@ -72,7 +72,7 @@ async def get_preferences(request: Request):
 
 @router.patch("/preferences")
 async def update_preferences(request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     try:
         payload = await request.json()
     except (ValueError, UnicodeDecodeError):
@@ -136,14 +136,14 @@ async def update_preferences(request: Request):
 
 @router.get("/memories")
 async def list_memories(request: Request, limit: int = 50):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     memories = await intelligence.list_memories(auth.user["id"], limit=max(1, min(100, limit)))
     return {"success": True, "memories": memories, "count": len(memories)}
 
 
 @router.delete("/memories/{memory_id}")
 async def delete_memory(memory_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     try:
         normalized_id = normalize_chat_id(memory_id)
     except Exception:
@@ -162,14 +162,14 @@ async def delete_memory(memory_id: str, request: Request):
 
 @router.delete("/memories")
 async def clear_memories(request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     count = await intelligence.clear_memories(auth.user["id"])
     return {"success": True, "deleted": count}
 
 
 @router.get("/conversations/{chat_id}/privacy")
 async def get_conversation_privacy(chat_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     try:
         normalized_id = normalize_chat_id(chat_id)
     except Exception:
@@ -188,7 +188,7 @@ async def get_conversation_privacy(chat_id: str, request: Request):
 
 @router.patch("/conversations/{chat_id}/privacy")
 async def update_conversation_privacy(chat_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     try:
         normalized_id = normalize_chat_id(chat_id)
     except Exception:

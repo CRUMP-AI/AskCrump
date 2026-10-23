@@ -55,6 +55,12 @@ def test_checkout_recovery_fixture_is_local_and_content_free():
 
     assert "/public/auth-controller.js" in fixture
     assert "/public/crump-5.2.2.js" in fixture
+    assert "creditPurchasesAllowed:window.__fixtureAccountTier === 'professional'" in fixture
+    assert "subscriptionTier:'free'" in fixture
+    assert "window.__setFixtureAccountTier = tier =>" in fixture
+    assert "tier:'professional', status:'active', provider:'stripe', manageable:true" in fixture
+    assert "tier:'free', status:'inactive', provider:null, manageable:false" in fixture
+    assert "window.__setFixtureAccountTier('free')" in verifier
     assert "window.__loadFixtureSubscriptions" in fixture
     assert "document.head.appendChild(script)" in fixture
     assert "code:'AUTH_REQUIRED'" in fixture
@@ -75,10 +81,10 @@ def test_checkout_recovery_fixture_is_local_and_content_free():
 
 
 def test_checkout_recovery_assets_are_cache_addressable_on_web_pwa_and_native():
-    integrity_version = "5.9.76-stripe-destination-integrity-1"
+    billing_version = "5.9.76-credit-entitlement-sync-1"
     label_version = "5.9.76-checkout-destination-label-1"
-    runtime_version = "5.9.76-library-reconciliation-1"
-    auth_version = "5.9.76-image-studio-entry-1"
+    runtime_version = "5.9.76-guest-free-contract-2"
+    auth_version = "5.9.76-auth-verification-session-1"
     shell = read_public("app.html")
     runtime = read_public("runtime-body-v1.js")
     worker = read_public("sw.js")
@@ -87,8 +93,8 @@ def test_checkout_recovery_assets_are_cache_addressable_on_web_pwa_and_native():
     assert f"/runtime-body-v1.js?v={runtime_version}" in shell
     assert f"/auth-controller.js?v={auth_version}" in shell
     for asset, version in (
-        ("billing-manager.js", integrity_version),
-        ("crump-5.2.2.js", "5.9.76-muse-release-repair-1"),
+        ("billing-manager.js", billing_version),
+        ("crump-5.2.2.js", "5.9.76-muse-release-repair-1&workspaceRelease=guest-free-contract-2"),
     ):
         versioned = f"/{asset}?v={version}"
         assert versioned in runtime
@@ -100,4 +106,4 @@ def test_checkout_recovery_assets_are_cache_addressable_on_web_pwa_and_native():
         assert versioned in worker
         assert versioned in native
     assert f"/auth-controller.js?v={auth_version}" in worker
-    assert "ask-crump-new-body-v1-r268-library-reconciliation-1" in worker
+    assert "ask-crump-new-body-v1-r269-guest-free-contract-2" in worker

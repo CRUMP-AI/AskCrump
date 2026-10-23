@@ -43,6 +43,7 @@
   <script>
     window.fetch = async () => new Response('{}', {status:200, headers:{'Content-Type':'application/json'}});
     window.showToast = () => {};
+    window.CrumpAccess = Object.freeze({requirePaidTool: () => true});
     document.getElementById('simulateProjectConversation').addEventListener('click', () => {
       document.querySelector('.crump53-active-project')?.remove();
       const context = document.createElement('div');

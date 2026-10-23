@@ -60,7 +60,7 @@ def test_creation_intent_survives_auth_without_storing_user_content():
     assert "new Set(['document', 'presentation', 'resume', 'image', 'video', 'projects'])" in controller
     assert "image: {href: '/#use-cases', label: 'See Image Studio details first'}" in controller
     assert "title: 'Open your Image Studio.'" in controller
-    assert "'Create account & open Image Studio'" in controller
+    assert "'Create account & review Image Studio access'" in controller
     assert "captureCreationIntent();" in controller
     assert "dispatchPendingCreationIntent();" in controller
     assert "crump:body-runtime-ready" in intent_slice
@@ -141,7 +141,7 @@ def test_image_auth_handoff_has_same_tab_cross_device_and_fail_closed_browser_pr
     assert "signup=1&source=image&plan=professional&intent=image" in verifier
     assert "verification=success&intent=private-prompt" in verifier
     assert "verification=success&intent=image&plan=professional&imageRuntime=0" in verifier
-    assert "Create account & open Image Studio" in verifier
+    assert "Create account & review Image Studio access" in verifier
     assert "See Image Studio details first" in verifier
     assert "assert.deepEqual(delivered.calls, [{tool: 'image', action: 'open'}])" in verifier
     assert "assert.deepEqual(result.forbidden, [])" in verifier
@@ -170,6 +170,9 @@ def test_campaign_attribution_fixture_uses_real_runtime_without_production_write
     assert 'data-cta="presentation-hero"' in fixture
     assert 'data-cta="resume-hero"' in fixture
     assert 'data-cta="resume-nav-signin"' in fixture
+    assert 'source=presentation-hero&amp;plan=professional&amp;intent=presentation' in fixture
+    assert 'source=resume-hero&amp;plan=professional&amp;intent=resume' in fixture
+    assert 'source=resume-nav-signin&amp;plan=free&amp;intent=resume' in fixture
     assert "askcrump.acquisition-source" in fixture
     assert "window.__fixture.events" in fixture
     assert "MarketingCTA" not in fixture

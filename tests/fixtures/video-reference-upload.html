@@ -12,6 +12,10 @@
   <script>
     window.__fixtureUser = {id: '00000000-0000-0000-0000-000000000001'};
     window.currentUser = null;
+    window.CrumpAccess = Object.freeze({
+      requirePaidTool: () => Boolean(window.currentUser?.id),
+      requireOwnedWorkspace: () => Boolean(window.currentUser?.id),
+    });
     window.chats = [];
     window.__videoRequest = null;
     window.__videoProviderStarts = Number(localStorage.getItem('askcrump.fixtureVideoProviderStarts') || 0);

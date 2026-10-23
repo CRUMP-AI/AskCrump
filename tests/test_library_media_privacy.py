@@ -93,7 +93,8 @@ def test_privacy_browser_fixture_is_non_vacuous_and_registered():
 def test_changed_assets_are_versioned_across_web_pwa_and_native():
     privacy_token = "5.9.76-library-crud-privacy-1"
     reconciliation_token = "5.9.76-library-reconciliation-1"
-    cache_name = "ask-crump-new-body-v1-r268-library-reconciliation-1"
+    runtime_token = "5.9.76-guest-free-contract-2"
+    cache_name = "ask-crump-new-body-v1-r269-guest-free-contract-2"
     shell = read("public/app.html")
     runtime = read("public/runtime-body-v1.js")
     runtime_config = read("public/runtime-config.js")
@@ -103,7 +104,7 @@ def test_changed_assets_are_versioned_across_web_pwa_and_native():
     checker = read("scripts/check-javascript.mjs")
     library_loader = read("public/crump-library-loader.js")
 
-    assert f"/runtime-body-v1.js?v={reconciliation_token}" in shell
+    assert f"/runtime-body-v1.js?v={runtime_token}" in shell
     for source in (runtime, worker, native):
         assert f"/crump-5.0.js?v={privacy_token}" in source
         assert f"/crump-media-save.js?v={privacy_token}" in source
@@ -111,6 +112,6 @@ def test_changed_assets_are_versioned_across_web_pwa_and_native():
     for source in (runtime_config, runtime_config_v1):
         assert f"/crump-5.0.js?v={privacy_token}" in source
     assert f"/crump-library-5.7.js?v={reconciliation_token}" in library_loader
-    assert f"/runtime-body-v1.js?v={reconciliation_token}" in worker
+    assert f"/runtime-body-v1.js?v={runtime_token}" in worker
     assert cache_name in worker
     assert cache_name in checker

@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+import json
 
 import pytest
 
@@ -38,6 +39,94 @@ async def test_pull_cursor_is_captured_before_the_database_read(monkeypatch):
         ('read', 'user-1', '2026-09-09T11:59:00.000Z'),
     ]
     assert result['serverTime'] == '2026-09-09T12:00:00.000Z'
+
+
+@pytest.mark.asyncio
+async def test_settings_only_stale_guest_push_stays_queued_after_verification(monkeypatch):
+    class Request:
+        async def json(self):
+            return {'settings': {'assistant_name': 'Stale guest value'}}
+
+    async def fake_authenticate_request(_request, _db, _settings):
+        return type(
+            'AuthResult',
+            (),
+            {'user': {'id': 'guest-1', 'is_guest': True}},
+        )()
+
+    async def fake_enforce_user_rate_limit(*_args, **_kwargs):
+        return None
+
+    async def fake_push_sync(_db, user_id, payload, *, is_guest=False):
+        assert user_id == 'guest-1'
+        assert payload == {'settings': {'assistant_name': 'Stale guest value'}}
+        assert is_guest is True
+        return {
+            'accepted': [],
+            'ignored': [],
+            'rejected': [{'scope': 'settings', 'reason': 'not_guest'}],
+        }
+
+    monkeypatch.setattr(sync_routes, 'authenticate_request', fake_authenticate_request)
+    monkeypatch.setattr(sync_routes, 'enforce_user_rate_limit', fake_enforce_user_rate_limit)
+    monkeypatch.setattr(sync_routes, 'push_sync', fake_push_sync)
+
+    response = await sync_routes.sync_push(Request())
+    body = json.loads(response.body)
+
+    assert response.status_code == 409
+    assert body['success'] is False
+    assert body['code'] == 'GUEST_SETTINGS_AUTHORITY_CHANGED'
+    assert body['queued'] is True
+    assert body['retryable'] is True
+    assert 'account changed' in body['error']
+    assert 'retry after sign-in finishes' in body['error']
+    assert body['rejected'] == [{'scope': 'settings', 'reason': 'not_guest'}]
+
+
+@pytest.mark.asyncio
+async def test_mixed_stale_guest_push_reports_retryable_authority_change(monkeypatch):
+    class Request:
+        async def json(self):
+            return {
+                'chats': [{'id': 'chat-1'}],
+                'settings': {'assistant_name': 'Stale guest value'},
+            }
+
+    async def fake_authenticate_request(_request, _db, _settings):
+        return type(
+            'AuthResult',
+            (),
+            {'user': {'id': 'guest-1', 'is_guest': True}},
+        )()
+
+    async def fake_enforce_user_rate_limit(*_args, **_kwargs):
+        return None
+
+    async def fake_push_sync(_db, _user_id, _payload, *, is_guest=False):
+        assert is_guest is True
+        return {
+            'accepted': [],
+            'ignored': [],
+            'rejected': [
+                {'chatId': 'chat-1', 'reason': 'not_guest'},
+                {'scope': 'settings', 'reason': 'not_guest'},
+            ],
+        }
+
+    monkeypatch.setattr(sync_routes, 'authenticate_request', fake_authenticate_request)
+    monkeypatch.setattr(sync_routes, 'enforce_user_rate_limit', fake_enforce_user_rate_limit)
+    monkeypatch.setattr(sync_routes, 'push_sync', fake_push_sync)
+
+    response = await sync_routes.sync_push(Request())
+    body = json.loads(response.body)
+
+    assert response.status_code == 409
+    assert body['code'] == 'GUEST_SYNC_AUTHORITY_CHANGED'
+    assert body['queued'] is True
+    assert body['retryable'] is True
+    assert 'account changed' in body['error']
+    assert 'work is still queued' in body['error']
 
 
 class FakeDB:
@@ -106,6 +195,66 @@ def test_message_and_setting_sanitization():
         'work_mode': True,
         'work_start': 23,
     }
+
+
+def test_preference_string_size_includes_jsonb_structural_spaces_at_boundary():
+    empty_preferences = {'a': '', 'b': ''}
+    jsonb_text_overhead = len(
+        json.dumps(empty_preferences, ensure_ascii=False, separators=(', ', ': ')).encode(
+            'utf-8'
+        )
+    )
+    exact_preferences = {
+        'a': '',
+        'b': 'x' * (32_000 - jsonb_text_overhead),
+    }
+
+    assert len(
+        json.dumps(exact_preferences, ensure_ascii=False, separators=(', ', ': ')).encode(
+            'utf-8'
+        )
+    ) == 32_000
+    assert sanitize_settings({'preferences': exact_preferences}) == {
+        'preferences': exact_preferences,
+    }
+
+
+def test_preference_string_size_rejects_first_byte_past_jsonb_text_limit():
+    empty_preferences = {'a': '', 'b': ''}
+    jsonb_text_overhead = len(
+        json.dumps(empty_preferences, ensure_ascii=False, separators=(', ', ': ')).encode(
+            'utf-8'
+        )
+    )
+    oversized_preferences = {
+        'a': '',
+        'b': 'x' * (32_001 - jsonb_text_overhead),
+    }
+
+    assert len(
+        json.dumps(oversized_preferences, ensure_ascii=False, separators=(', ', ': ')).encode(
+            'utf-8'
+        )
+    ) == 32_001
+    # The old compact measurement was three bytes shorter for this object and
+    # would have incorrectly admitted it before PostgreSQL rejected the RPC.
+    assert len(
+        json.dumps(oversized_preferences, ensure_ascii=False, separators=(',', ':')).encode(
+            'utf-8'
+        )
+    ) <= 32_000
+    assert sanitize_settings({'preferences': oversized_preferences}) == {}
+
+
+@pytest.mark.parametrize(
+    'preferences',
+    (
+        {'not_json': float('nan')},
+        {'not_utf8': '\ud800'},
+    ),
+)
+def test_preference_sanitization_rejects_non_json_or_non_utf8_values(preferences):
+    assert sanitize_settings({'preferences': preferences}) == {}
 
 
 @pytest.mark.asyncio

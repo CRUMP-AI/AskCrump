@@ -18,8 +18,8 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
     assert styles == [
         '/styles.css',
         '/install-prompt.css?v=5.9.76',
-        '/auth-styles.css',
-        '/crump-v1-body.css?v=5.9.76-friendly-workspace-1',
+        '/auth-styles.css?v=5.9.76-guest-free-contract-2',
+        '/crump-v1-body.css?v=5.9.76-owned-workspace-access-1',
         '/appearance-controls.css?v=5.9.76-appearance-choice-3',
         # The preview entry and authenticated shell share these presentation
         # assets. Retired Home/Studios/You view scripts no longer ship.
@@ -32,7 +32,7 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
     assert scripts == [
         '/telemetry-config.js?v=5.9.76',
         '/crump-vision-demo-1.0.js?v=5.9.76-atelier-workspace-1',
-        '/runtime-body-v1.js?v=5.9.76-library-reconciliation-1',
+        '/runtime-body-v1.js?v=5.9.76-guest-free-contract-2',
         '/home-document-entry.js?v=5.9.76-home-document-entry-1',
         '/crump-vision-shell-1.0.js?v=5.9.76-atelier-workspace-1',
         '/crump-vision-chats-1.0.js?v=5.9.76-atelier-workspace-1',
@@ -44,7 +44,7 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
         '/install-prompt.js?v=5.9.76-update-work-guard-1',
         '/auth-resilience.js?v=5.9.76',
         '/device-auth.js?v=5.9.76-native-billing-identity-1',
-        '/auth-controller.js?v=5.9.76-image-studio-entry-1',
+        '/auth-controller.js?v=5.9.76-auth-verification-session-1',
         '/_vercel/insights/script.js',
         '/_vercel/speed-insights/script.js',
     ]
@@ -62,7 +62,7 @@ def test_workspace_runtime_is_complete_idempotent_and_authentication_gated():
         '/onboarding.js?v=5.9.76-friendly-workspace-1',
         '/scroll-manager.js?v=5.9.76-muse-release-repair-1',
         '/profile-manager.js',
-        '/billing-manager.js?v=5.9.76-stripe-destination-integrity-1',
+        '/billing-manager.js?v=5.9.76-credit-entitlement-sync-1',
         '/subscription-ui.js?v=5.9.76-commerce-recovery-1',
         '/credit-confirmation.js?v=5.9.76-credit-confirmation-1',
         '/chat-resilience.js?v=5.9.76-credit-confirmation-1',
@@ -73,8 +73,8 @@ def test_workspace_runtime_is_complete_idempotent_and_authentication_gated():
         '/crump-ui-guardrails.css?v=5.9.76-ui-guardrails-1',
         '/crump-motion-system.css?v=5.9.76-motion-system-2',
         '/crump-activity-center-1.0.js?v=5.9.76-autonomous-continuity-1',
-        '/sync-manager.js?v=5.9.76-sync-cursor-1',
-        '/chat-sync.js?v=5.9.76-settings-sync-1',
+        '/sync-manager.js?v=5.9.76-sync-batch-1',
+        '/chat-sync.js?v=5.9.76-sync-batch-1',
         '/account-manager.js?v=5.9.76-account-storage-deletion-1',
         '/app.js?v=5.9.76-grounded-research-1',
         '/product-analytics.js?v=5.9.76-navigation-discovery-1',
@@ -92,9 +92,9 @@ def test_workspace_runtime_is_complete_idempotent_and_authentication_gated():
     assert "document.addEventListener('DOMContentLoaded', () => { void boot();" not in runtime
 
     assert 'async function prepareAuthenticatedWorkspace()' in controller
-    assert controller.count('await prepareAuthenticatedWorkspace();') == 2
+    assert controller.count('await prepareAuthenticatedWorkspace();') == 3
     bootstrap = controller[controller.index('  async function bootstrap()'):controller.index('  function wireNavigation()')]
-    assert bootstrap.index('await prepareAuthenticatedWorkspace();') < bootstrap.index('activeUser = session.data.user;')
+    assert bootstrap.rindex('await prepareAuthenticatedWorkspace();') < bootstrap.rindex('activeUser = session.data.user;')
     login = controller[controller.index('  function wireLogin()'):controller.index('  function wireRegistration()')]
     assert login.index('await prepareAuthenticatedWorkspace();') < login.index('activeUser = result.data.user;')
     bootstrap_catch = controller[controller.rindex("bootstrap().catch(error =>") :]

@@ -64,6 +64,7 @@
       messages: [failedMessage],
     }];
     window.__fixture = {ensureUsageCalls: 0, sendCalls: 0, sentBody: null, fileInputClicks: 0};
+    window.CrumpAccess = Object.freeze({requirePaidTool: () => true});
     window.saveChats = () => {};
     window.renderChatsList = () => {};
     window.ensureCurrentChat = () => window.chats[0];

@@ -91,7 +91,7 @@ async function verifySameTab(browser) {
   assert.equal(JSON.parse(signedOut.pendingPlan).plan, 'professional');
   assert.equal(signedOut.registration.title, 'Open your Image Studio.');
   assert.match(signedOut.registration.description, /Professional includes Advanced Intelligence/);
-  assert.equal(signedOut.registration.button, 'Create account & open Image Studio');
+  assert.equal(signedOut.registration.button, 'Create account & review Image Studio access');
   assert.match(signedOut.registration.assurance, /does not start billing/);
   assert.equal(signedOut.registration.explore, '/#use-cases');
   assert.equal(signedOut.registration.exploreLabel, 'See Image Studio details first');

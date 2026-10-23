@@ -83,7 +83,11 @@ def install_services(monkeypatch, services):
     monkeypatch.setattr(
         media_routes,
         "authenticate_request",
-        AsyncMock(return_value=SimpleNamespace(user={"id": USER_ID})),
+        AsyncMock(return_value=SimpleNamespace(user={
+            "id": USER_ID,
+            "subscription_tier": "professional",
+            "subscription_status": "active",
+        })),
     )
     monkeypatch.setattr(media_routes, "_existing_job", services["existing"])
     monkeypatch.setattr(media_routes, "features", services["features"])

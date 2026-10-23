@@ -232,7 +232,11 @@ def test_use_case_pages_are_unique_crawlable_and_attribution_ready():
         assert graph[0]["@type"] == "WebPage"
         assert graph[0]["url"] == f"https://www.askcrump.com/{slug}"
         assert graph[1]["@type"] == "SoftwareApplication"
-        assert graph[1]["offers"]["price"] == "0"
+        if slug == "ai-video-generator":
+            assert graph[1]["offers"]["price"] == "0"
+            assert "video generation uses Crump Credits" in graph[1]["offers"]["name"]
+        else:
+            assert "offers" not in graph[1]
 
     assert len(titles) == 4
     assert len(descriptions) == 4
@@ -433,7 +437,7 @@ def test_signup_deep_link_opens_registration_and_tracks_the_funnel():
 
     assert '/_vercel/insights/script.js' in app
     assert "params.get('signup') === '1'" in controller
-    assert "if (signupRequested && !returningDeviceHint) {\n      showAuth('register');" in controller
+    assert "if (signupRequested) {\n      showAuth('register');" in controller
     assert "if (signupRequested) {\n        showAuth('register');" in controller
     assert controller.index("showAuth('register');", controller.index("async function bootstrap")) < controller.index("await window.CrumpAPI?.ready")
     assert "function trackSignupIntent(locationName)" in controller
@@ -513,7 +517,7 @@ def test_release_version_and_cache_advance_together():
 
     assert '"version": "5.9.76"' in package
     assert "__version__ = '5.9.76'" in backend
-    assert "ask-crump-new-body-v1-r268-library-reconciliation-1" in worker
+    assert "ask-crump-new-body-v1-r269-guest-free-contract-2" in worker
     assert "/landing-5.6.css?v=5.9.76-accessibility-1" in worker
     assert "/use-case.css?v=5.9.76" in worker
     assert "/landing.js?v=5.9.76-facebook-reel-attribution-1" in worker
@@ -525,9 +529,9 @@ def test_changed_activation_assets_are_release_versioned():
     worker = read("public/sw.js")
 
     for asset in (
-        "/crump-v1-body.css?v=5.9.76-friendly-workspace-1",
+        "/crump-v1-body.css?v=5.9.76-owned-workspace-access-1",
         "/device-auth.js?v=5.9.76-native-billing-identity-1",
-        "/auth-controller.js?v=5.9.76-image-studio-entry-1",
+        "/auth-controller.js?v=5.9.76-auth-verification-session-1",
     ):
         assert asset in shell
         assert asset in worker

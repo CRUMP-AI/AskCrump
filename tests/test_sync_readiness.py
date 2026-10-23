@@ -26,15 +26,15 @@ def test_changed_sync_manager_is_release_versioned_and_network_first():
     worker = (PUBLIC / "sw.js").read_text(encoding="utf-8")
 
     assert '"version": "5.9.76"' in package
-    assert '<script defer src="/sync-manager.js?v=5.9.76-sync-cursor-1"></script>' not in shell
-    assert "['/sync-manager.js?v=5.9.76-sync-cursor-1', 'workspacesync']" in runtime
-    assert "'/sync-manager.js?v=5.9.76-sync-cursor-1'" in worker
+    assert '<script defer src="/sync-manager.js?v=5.9.76-sync-batch-1"></script>' not in shell
+    assert "['/sync-manager.js?v=5.9.76-sync-batch-1', 'workspacesync']" in runtime
+    assert "'/sync-manager.js?v=5.9.76-sync-batch-1'" in worker
     assert '<script defer src="/presence-manager.js?v=5.9.76-native-push-handoff-1"></script>' not in shell
     assert "['/presence-manager.js?v=5.9.76-native-push-handoff-1', 'workspacepresence']" in runtime
     assert "'/presence-manager.js?v=5.9.76-native-push-handoff-1'" in worker
-    assert '<script defer src="/chat-sync.js?v=5.9.76-settings-sync-1"></script>' not in shell
-    assert "['/chat-sync.js?v=5.9.76-settings-sync-1', 'workspacechatsync']" in runtime
-    assert "'/chat-sync.js?v=5.9.76-settings-sync-1'" in worker
+    assert '<script defer src="/chat-sync.js?v=5.9.76-sync-batch-1"></script>' not in shell
+    assert "['/chat-sync.js?v=5.9.76-sync-batch-1', 'workspacechatsync']" in runtime
+    assert "'/chat-sync.js?v=5.9.76-sync-batch-1'" in worker
     assert "url.pathname === '/sync-manager.js'" in worker
 
 
@@ -128,9 +128,59 @@ def test_offline_changes_queue_before_the_network_flush_and_flush_is_single_flig
     assert "let flushPromise = null" in manager
     assert "let flushPromiseKey = null" in manager
     assert "flushPromise && flushPromiseKey === key" in manager
-    assert push.index("write(key, queue.slice(-100))") < push.index("return flush()")
+    assert "MAX_CHATS_PER_PUSH = 20" in manager
+    assert "MAX_TOMBSTONES_PER_PUSH = 20" in manager
+    assert "queue.slice(-100)" not in push
+    assert push.index("boundedQueueEntries(merged, baseId, at)") < push.index("return flush()")
     assert "navigator.onLine" not in push_local
     assert "window.SyncManager.push(null, payload)" in push_local
+
+
+def test_rejected_guest_sync_is_not_acknowledged_or_removed_from_the_queue():
+    manager = (PUBLIC / "sync-manager.js").read_text(encoding="utf-8")
+    sync = (PUBLIC / "chat-sync.js").read_text(encoding="utf-8")
+    route = (ROOT / "backend" / "routes" / "sync.py").read_text(encoding="utf-8")
+    service = (ROOT / "backend" / "sync_service.py").read_text(encoding="utf-8")
+
+    flush = manager[manager.index("async function flushQueued") : manager.index("async function flush()")]
+    push_local = sync[sync.index("async function pushLocal") : sync.index("async function synchronize")]
+    assert flush.index("if (!response.ok || !data.success)") < flush.index("write(key, remaining)")
+    assert "if (result?.success) writeDeleted([])" not in push_local
+    assert "const acknowledged = new Set(tombstoneSnapshot.map(stableTombstoneSignature))" in push_local
+    assert "writeDeleted(readDeleted().filter" in push_local
+    assert "'code': 'GUEST_SYNC_BATCH_TOO_LARGE'" in route
+    assert "status_code=413" in route
+    assert "'rejectionCode': 'GUEST_SYNC_BATCH_TOO_LARGE'" in service
+    assert service.index("if is_guest and (len(incoming) > incoming_limit") < service.index(
+        "for item in incoming[:incoming_limit]"
+    )
+    assert "'code': 'GUEST_SYNC_NOT_SAVED'" in route
+    assert "'GUEST_SETTINGS_AUTHORITY_CHANGED'" in route
+    assert "'GUEST_SYNC_AUTHORITY_CHANGED'" in route
+    assert "retry after sign-in finishes." in route
+    assert "status_code=409" in route
+    assert "'queued': True" in route
+    assert "rejected.append({'chatId': chat['chat_id'], 'reason': outcome})" in service
+    assert "'apply_guest_user_settings_v1'" in service
+    assert "'scope': 'settings'" in service
+    assert service.index("if is_guest:", service.index("settings = sanitize_settings")) < service.index(
+        "'apply_guest_user_settings_v1'"
+    )
+    assert service.index("'apply_guest_user_settings_v1'") < service.index(
+        "await db.upsert(", service.index("settings = sanitize_settings")
+    )
+
+
+def test_real_runtime_merges_stale_concurrent_tabs_and_keeps_tombstones_authoritative():
+    manager = (PUBLIC / "sync-manager.js").read_text(encoding="utf-8")
+    checker = (ROOT / "scripts" / "check-javascript.mjs").read_text(encoding="utf-8")
+
+    assert "chats.set(id, mergeChat(chats.get(id), chat))" in manager
+    assert "for (const id of deleted.keys()) chats.delete(id)" in manager
+    assert "function exerciseConcurrentSyncSnapshotMerge()" in checker
+    assert "mergedChat?.messages?.[0]?.metadata?.secondTab !== true" in checker
+    assert "A stale concurrent snapshot displaced or resurrected a queued tombstone." in checker
+    assert "Merged snapshots or concurrent tombstones did not retain batch acknowledgement semantics." in checker
 
 
 def test_only_a_completed_pull_advances_the_incremental_read_watermark():

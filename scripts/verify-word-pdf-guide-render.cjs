@@ -4,7 +4,8 @@ const {chromium} = require('playwright');
 
 const baseUrl = process.argv[2] || 'http://127.0.0.1:8766';
 const route = '/guides/word-or-pdf-ai-document-output.html';
-const expectedHref = '/app?signup=1&source=word-pdf-start&plan=free&intent=document&acquisition=direct';
+const expectedHref = '/app?signup=1&source=word-pdf-start&plan=professional&intent=document&acquisition=direct';
+const expectedDisclosure = 'Document creation requires a paid plan · Account creation is free · Nothing is purchased until checkout is confirmed';
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -30,6 +31,8 @@ async function inspect(page, viewport, screenshotName) {
     bodyWidth: document.body.scrollWidth,
     primaryCount: document.querySelectorAll('.button.primary').length,
     primaryHref: document.querySelector('.button.primary')?.getAttribute('href') || '',
+    primaryText: document.querySelector('.button.primary')?.textContent?.trim() || '',
+    disclosure: document.querySelector('.guide-hero-foot')?.textContent?.trim() || '',
     overflowers: [...document.querySelectorAll('body *')]
       .map(element => {
         const rect = element.getBoundingClientRect();
@@ -68,6 +71,8 @@ async function inspect(page, viewport, screenshotName) {
   );
   assert(state.primaryCount === 1, `expected one primary CTA, found ${state.primaryCount}`);
   assert(state.primaryHref === expectedHref, 'direct-safe primary CTA drifted');
+  assert(state.primaryText === 'Review Professional for Word or PDF documents', 'paid-access CTA copy drifted');
+  assert(state.disclosure === expectedDisclosure, 'paid-access disclosure drifted');
   assert(state.imageStates.length === 4, `expected four authentic images, found ${state.imageStates.length}`);
   for (const image of state.imageStates) {
     assert(

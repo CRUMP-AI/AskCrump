@@ -21,7 +21,8 @@ def test_product53_runtime_is_lazy_loaded_and_cache_addressable():
     assert "/crump-product-5.3.css?v=5.9.76-projects-empty-state-1" in loader
     assert "/crump-product-5.3.js?v=5.9.76-manuscript-export-delivery-1" in loader
     assert runtime.index("/crump-navigation-5.2.5.js") < runtime.index("/crump-product-loader.js")
-    assert "ask-crump-new-body-v1-r268-library-reconciliation-1" in worker
+    assert "ask-crump-new-body-v1-r269-guest-free-contract-2" in worker
+    assert "/crump-product-5.3.js?v=5.9.76-manuscript-export-delivery-1&workspaceRelease=guest-free-contract-2" in loader
     assert "crump-product-5.3.js" in checker
     assert "crump-product-loader.js" in checker
 
@@ -58,6 +59,8 @@ def test_product_studio_loader_preserves_every_public_action_and_resume_boundary
     assert "fixture-project" in verifier
     assert "mode=retry" in verifier
     assert "mode=persisted" in verifier
+    assert "window.currentUser = {id: 'fixture-user'};" in verifier
+    assert "requireOwnedWorkspace: () => Boolean(window.currentUser?.id)" in verifier
     assert "password" not in verifier.lower()
     assert "askcrump.com" not in verifier.lower()
 
@@ -330,17 +333,18 @@ def test_feature_policy_has_explicit_expensive_tool_gates():
     assert '"video_hd"' in policy and '90' in policy
     assert '"manuscript_draft"' in policy and '8' in policy
     assert '"manuscript_blueprint"' in policy and '4' in policy
-    assert '"kdp_export"' in policy and '{"free": -1' in policy
-    assert 'PROJECT_LIMITS = {"free": 2, "professional": 25, "enterprise": 200}' in policy
+    assert '"kdp_export"' in policy and '{"free": 0' in policy
+    assert 'PROJECT_LIMITS = {"free": 0, "professional": 25, "enterprise": 200}' in policy
 
 
-def test_projects_ui_exposes_isolated_canon_and_video_copy_matches_cost_policy():
+def test_projects_ui_exposes_isolated_canon_and_paid_manuscript_video_copy():
     js = read("public/crump-product-5.3.js")
     assert "Canon & project notes" in js
     assert "/context`" in js
     assert "720p · 60 credits" in js
     assert "every generation spends crump credits" in js.lower()
-    assert "Planning costs 4 credits and drafting costs 8 on Free" in js
+    assert "Manuscript Studio requires Professional or Enterprise" in js
+    assert "Planning costs 4 credits and drafting costs 8 on Free" not in js
     assert "Enterprise includes one" not in js
 
 

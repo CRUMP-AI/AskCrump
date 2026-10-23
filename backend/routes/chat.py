@@ -11,7 +11,17 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from ..ai_service import AIServiceError
-from ..auth_service import authenticate_request
+from ..auth_service import (
+    GUEST_STRIPPED_PAYLOAD_KEYS,
+    authenticate_request,
+    free_text_limit_response,
+    free_text_message_fingerprint,
+    guest_blocked_signal,
+    is_free_text_user,
+    is_guest_user,
+    paid_feature_required_response,
+    reserve_free_text_message,
+)
 from ..checkin_service import mark_check_in_responded
 from ..db import eq
 from ..feature_service import FeatureAccessError
@@ -268,7 +278,7 @@ async def chat_status(message_id: str, request: Request):
 
 @router.post('/artifacts/{message_id}/retry')
 async def retry_chat_artifact(message_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     try:
         normalized_message_id = normalize_chat_id(message_id)
     except Exception:
@@ -738,6 +748,12 @@ async def _chat_impl(request: Request):
     explicit_mode = str(request_payload.get('intelligenceMode') or '').strip().lower()
     explicit_verification = str(request_payload.get('verificationMode') or '').strip().lower()
     premium_intelligence_requested = explicit_mode == 'deep' or explicit_verification == 'strict'
+    if premium_intelligence_requested and is_free_text_user(auth.user):
+        feature_label = 'Think longer' if explicit_mode == 'deep' else 'Always review'
+        return paid_feature_required_response(
+            feature_label,
+            auth.user,
+        )
     if premium_intelligence_requested and not think_longer_entitled:
         try:
             await features.require_tier(auth.user, 'think_longer')
@@ -884,6 +900,59 @@ async def _chat_impl(request: Request):
                 'cached': True,
                 'reconciled': True,
             }
+
+    if is_free_text_user(auth.user):
+        # Enforce the shared guest + registered-Free allowance only now —
+        # after the claim block has
+        # resolved — so a retry of an already-completed message returns its
+        # cached reply instead of the wall, and only genuinely fresh
+        # messages consume allowance. The reservation is an atomic
+        # compare-and-swap keyed to this claim, so concurrent fresh
+        # messages cannot both take the last free slot.
+        # Free capability allowlist, enforced server-side before any file
+        # resolution, preparation, or provider work: explicit signals for
+        # account-only capabilities are refused (without consuming
+        # allowance — the message never runs), and client-supplied
+        # creation/tool markers are stripped so nothing downstream can
+        # pick them up. Semantic intent is constrained inside prepare
+        # (guest_preview) and by the downgrade of text-detected artifact
+        # intent further below.
+        blocked_signal = guest_blocked_signal(
+            request_payload,
+            image_requested=media.is_image_request(
+                str(request_payload.get('message') or ''), None,
+            ),
+        )
+        if blocked_signal is not None:
+            released = await release_owned_chat_claim('SUBSCRIPTION_REQUIRED')
+            if not released:
+                logger.warning('Free capability claim release was not confirmed.')
+            return paid_feature_required_response(blocked_signal, auth.user)
+        for marker in GUEST_STRIPPED_PAYLOAD_KEYS:
+            request_payload.pop(marker, None)
+        if not (chat_id and message_id):
+            return JSONResponse(
+                status_code=400,
+                content={
+                    'success': False,
+                    'error': 'Free messages require a conversation and message ID.',
+                    'message': 'Free messages require a conversation and message ID.',
+                    'code': 'FREE_MESSAGE_ID_REQUIRED',
+                },
+            )
+        usage = await reserve_free_text_message(
+            db,
+            auth.user,
+            message_id=message_id,
+            fingerprint=free_text_message_fingerprint(chat_id, original_message),
+        )
+        if hasattr(request.state, 'chat_job_claim'):
+            request.state.chat_job_claim['usage_event_id'] = usage.get('eventId')
+        if not usage.get('allowed'):
+            released = await release_owned_chat_claim('FREE_TEXT_LIMIT_REACHED')
+            if not released:
+                logger.warning('Free allowance claim release was not confirmed.')
+            return free_text_limit_response(auth.user, usage)
 
     try:
         current_file_rows = await files.resolve_many(user_id=auth.user['id'], file_ids=_file_ids(request_payload), limit=10)
@@ -1090,11 +1159,18 @@ async def _chat_impl(request: Request):
         history=request_payload.get('history'),
     )
     legacy_long_form = artifacts.is_long_form_request(str(request_payload.get('message') or ''))
+    if is_free_text_user(auth.user):
+        # Text-detected document/manuscript intent is downgraded to plain
+        # chat for the Free tier: the answer arrives as text, never as a
+        # packaged file or manuscript workspace.
+        legacy_artifact = None
+        legacy_long_form = False
     prepared = await intelligence.prepare(
         auth.user['id'],
         request_payload,
         allow_think_longer=think_longer_entitled,
         user_tier=effective_user_tier,
+        guest_preview=is_free_text_user(auth.user),
     )
     prepared_creation_kind = str((prepared.creation_intent or {}).get('kind') or '')
     manuscript_epub = bool(
@@ -1267,7 +1343,10 @@ async def _chat_impl(request: Request):
             draft_planned_steps = chapter_count_from_prompt(execution_brief)
             components['manuscript_blueprint'] = 1
             components['manuscript_draft'] = draft_planned_steps
-        elif not semantic_chat_only:
+        elif not semantic_chat_only and not is_free_text_user(auth.user):
+            # The Free tier is never authorized feature components (research,
+            # images, visual analysis): the rolling reservation above is its
+            # only meter, and its lookup policy is already off.
             feature_code, feature_metadata = feature_for_request(
                 payload=request_payload,
                 file_rows=file_rows,
@@ -1290,53 +1369,55 @@ async def _chat_impl(request: Request):
                 if key != 'creditConfirmation'
             },
         }
-        authorization = await features.authorize(
-            auth.user,
-            components,
-            confirmation,
-            message_limit=message_limit,
-            scope=authorization_scope,
-            usage_instance_keys={
-                **(
-                    {'messages': str(message_id)}
-                    if message_id
-                    else {}
-                ),
-                **(
-                    {feature_code: f'{message_id}:{feature_code}'}
-                    if message_id and feature_code
-                    else {}
-                ),
-            },
-        )
-        usage = await features.consume_message(
-            auth.user,
-            message_limit=message_limit,
-            metadata={'route': 'chat', 'messageId': message_id},
-            authorization=authorization,
-            instance_key=str(message_id or request_id),
-            usage_idempotency_key=str(message_id) if message_id else None,
-            scope=authorization_scope,
-        )
-        if hasattr(request.state, 'chat_job_claim'):
-            request.state.chat_job_claim['usage_event_id'] = usage.get('eventId')
-        if feature_code:
-            feature_usage = await features.consume(
+        authorization = None
+        if not is_free_text_user(auth.user):
+            authorization = await features.authorize(
                 auth.user,
-                feature_code,
-                feature_metadata,
+                components,
+                confirmation,
+                message_limit=message_limit,
+                scope=authorization_scope,
+                usage_instance_keys={
+                    **(
+                        {'messages': str(message_id)}
+                        if message_id
+                        else {}
+                    ),
+                    **(
+                        {feature_code: f'{message_id}:{feature_code}'}
+                        if message_id and feature_code
+                        else {}
+                    ),
+                },
+            )
+            usage = await features.consume_message(
+                auth.user,
+                message_limit=message_limit,
+                metadata={'route': 'chat', 'messageId': message_id},
                 authorization=authorization,
-                instance_key=f"{message_id or request_id}:{feature_code}",
-                usage_idempotency_key=(
-                    f"{message_id}:{feature_code}" if message_id else None
-                ),
+                instance_key=str(message_id or request_id),
+                usage_idempotency_key=str(message_id) if message_id else None,
                 scope=authorization_scope,
             )
             if hasattr(request.state, 'chat_job_claim'):
-                request.state.chat_job_claim['feature_usage'] = feature_usage
-        draft_credit_limit = int(
-            authorization.max_by_code.get('manuscript_draft', 0)
-        )
+                request.state.chat_job_claim['usage_event_id'] = usage.get('eventId')
+            if feature_code:
+                feature_usage = await features.consume(
+                    auth.user,
+                    feature_code,
+                    feature_metadata,
+                    authorization=authorization,
+                    instance_key=f"{message_id or request_id}:{feature_code}",
+                    usage_idempotency_key=(
+                        f"{message_id}:{feature_code}" if message_id else None
+                    ),
+                    scope=authorization_scope,
+                )
+                if hasattr(request.state, 'chat_job_claim'):
+                    request.state.chat_job_claim['feature_usage'] = feature_usage
+            draft_credit_limit = int(
+                authorization.max_by_code.get('manuscript_draft', 0)
+            )
         await mark_check_in_responded(
             db,
             auth.user['id'],
@@ -1645,8 +1726,13 @@ async def _chat_impl(request: Request):
 
         request.state.chat_job_claim['release_safe'] = False
         try:
+            persistence_rpc = (
+                'persist_guest_chat_reply_v1'
+                if is_guest_user(auth.user)
+                else 'persist_chat_reply'
+            )
             persisted = await db.rpc(
-                'persist_chat_reply',
+                persistence_rpc,
                 {
                     'p_user_id': auth.user['id'],
                     'p_chat_id': chat_id,
@@ -1657,8 +1743,20 @@ async def _chat_impl(request: Request):
             )
             result['assistantMessage'] = assistant_message
             if isinstance(persisted, list) and persisted:
-                result['conversationRevision'] = persisted[0].get('resulting_revision')
-                result['conversationUpdatedAt'] = persisted[0].get('resulting_updated_at')
+                persistence_row = persisted[0]
+                if persistence_rpc == 'persist_guest_chat_reply_v1' and not persistence_row.get('accepted'):
+                    result['conversationPersistence'] = {
+                        'status': 'queued_locally',
+                        'reason': str(persistence_row.get('outcome') or 'guest_storage_limit'),
+                        'message': (
+                            'This reply is available on this device, but the guest preview storage limit '
+                            'prevented cloud sync. Create your account to keep syncing this conversation.'
+                        ),
+                        'accountRequired': True,
+                    }
+                else:
+                    result['conversationRevision'] = persistence_row.get('resulting_revision')
+                    result['conversationUpdatedAt'] = persistence_row.get('resulting_updated_at')
         except Exception:
             try:
                 durable_reply = await _durable_reply_for_job(
@@ -1873,6 +1971,10 @@ async def _chat_impl(request: Request):
 
     if feature_usage:
         result['featureUsage'] = feature_usage
+
+    # Cache the authoritative post-reservation allowance with the completed
+    # job so a recovered/replayed response cannot show an older Free count.
+    result['dailyUsage'] = usage
 
     if message_id:
         try:

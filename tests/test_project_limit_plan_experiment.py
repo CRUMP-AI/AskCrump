@@ -15,6 +15,7 @@ from backend.project_limit_plan_experiment import (
     record_project_limit_plan_message_shown,
     session_hash,
 )
+from backend.feature_service import PROJECT_LIMITS
 from backend.schemas import ProjectLimitPlanShownRequest
 from backend.routes import projects as project_routes
 
@@ -50,19 +51,24 @@ class ProjectRequest:
         return self.payload
 
 
-class ProjectsAtLimit:
+class ProfessionalProjectsAtLimit:
     async def count(self, _user_id: str):
-        return 2
+        return 25
 
 
-class FeaturesAtFreeLimit:
+class FeaturesAtProfessionalLimit:
     def project_limit(self, _user: dict):
-        return 2
+        return 25
 
 
-async def authenticated(*_args):
+async def authenticated(_request, _database, _settings, *, require_account=False):
+    assert require_account is True
     return SimpleNamespace(
-        user={"id": "external-user", "subscription_tier": "free"},
+        user={
+            "id": "external-user",
+            "subscription_tier": "professional",
+            "subscription_status": "active",
+        },
         session={"id": "session-one"},
     )
 
@@ -86,8 +92,8 @@ async def test_project_limit_response_is_exact_control_when_candidate_is_off(mon
     database = Database({"eligible": True, "variant": "value-specific", "decisionId": "ignored"})
     monkeypatch.setattr(project_routes, "authenticate_request", authenticated)
     monkeypatch.setattr(project_routes, "db", database)
-    monkeypatch.setattr(project_routes, "projects", ProjectsAtLimit())
-    monkeypatch.setattr(project_routes, "features", FeaturesAtFreeLimit())
+    monkeypatch.setattr(project_routes, "projects", ProfessionalProjectsAtLimit())
+    monkeypatch.setattr(project_routes, "features", FeaturesAtProfessionalLimit())
     monkeypatch.setattr(
         project_routes,
         "settings",
@@ -98,7 +104,7 @@ async def test_project_limit_response_is_exact_control_when_candidate_is_off(mon
     assert response.status_code == 403
     assert payload == {
         "success": False,
-        "error": "Your current plan supports up to 2 active projects.",
+        "error": "Your current plan supports up to 25 active projects.",
         "code": "PROJECT_LIMIT_REACHED",
     }
     assert database.calls == []
@@ -113,8 +119,8 @@ async def test_enabled_isolated_route_returns_only_server_claimed_treatment(monk
     })
     monkeypatch.setattr(project_routes, "authenticate_request", authenticated)
     monkeypatch.setattr(project_routes, "db", database)
-    monkeypatch.setattr(project_routes, "projects", ProjectsAtLimit())
-    monkeypatch.setattr(project_routes, "features", FeaturesAtFreeLimit())
+    monkeypatch.setattr(project_routes, "projects", ProfessionalProjectsAtLimit())
+    monkeypatch.setattr(project_routes, "features", FeaturesAtProfessionalLimit())
     monkeypatch.setattr(
         project_routes,
         "settings",
@@ -253,6 +259,7 @@ def test_session_assignment_key_is_stable_per_session_and_distinct_across_device
 
 def test_migration_encodes_every_account_and_project_eligibility_boundary():
     sql = MIGRATION.read_text(encoding="utf-8").lower()
+    assert PROJECT_LIMITS == {"free": 0, "professional": 25, "enterprise": 200}
     required = [
         "coalesce(p_project_limit_code, '') <> 'project_limit_reached'",
         "coalesce(p_environment, '') <> 'production'",
@@ -274,6 +281,10 @@ def test_migration_encodes_every_account_and_project_eligibility_boundary():
     ]
     for clause in required:
         assert clause in sql
+    assert sql.count("coalesce(v_user.subscription_tier, 'free') <> 'free'") == 2
+    assert sql.count("coalesce(v_user.subscription_status, 'inactive') <> 'inactive'") == 2
+    assert sql.count("if v_project_count <> 2") == 2
+    assert "values ('project-limit-plan-copy', false)" in sql
 
 
 def test_durable_random_assignment_is_account_level_and_not_identity_derived():
@@ -310,8 +321,8 @@ def test_control_and_treatment_change_only_the_detail_sentence():
         "Nothing changes until you choose and confirm."
     )
     assert TREATMENT_DETAIL == (
-        "Your two Free Projects stay available. Professional raises the active Project limit "
-        "to 25 for $20/month. You can keep using Free or review the plan before deciding."
+        "Projects require a paid plan. Professional supports up to 25 active Projects for "
+        "$20/month. Review the plan before deciding; nothing changes until checkout is confirmed."
     )
     for asset in ("crump-billing-5.1.js", "crump-5.2.js"):
         source = (ROOT / "public" / asset).read_text(encoding="utf-8")

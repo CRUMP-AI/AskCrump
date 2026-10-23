@@ -96,6 +96,13 @@
     '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
   })[character]);
 
+  function requirePaidMutation(label) {
+    const guard = window.CrumpAccess?.requirePaidTool;
+    if (typeof guard === 'function') return guard(label);
+    window.showToast?.(`${label} is unavailable until account access finishes loading.`, 'info');
+    return false;
+  }
+
   function manuscriptExportDeliveryRuntime() {
     if (window.CrumpManuscriptExportDelivery?.version === 1) {
       return window.CrumpManuscriptExportDelivery;
@@ -1548,7 +1555,7 @@
                 <div class="crump53-card">
                   <h3>Manuscripts</h3>
                   <p>Plan the whole work, draft chapter by chapter, and return tomorrow without rebuilding context.</p>
-                  <div class="crump53-note">Everyone can create and export manuscripts. Planning costs 4 credits and drafting costs 8 on Free; Professional and Enterprise include daily planning and drafting allowances.</div>
+                  <div class="crump53-note">Manuscript Studio requires Professional or Enterprise. Review the included allowances and any Crump Credit confirmation shown before AI planning or drafting.</div>
                   <div id="crump53ManuscriptList" class="crump53-list"></div>
                   <div class="crump53-actions" style="margin-top:10px">
                     <button type="button" class="crump53-button is-primary" id="crump53NewManuscript">New manuscript</button>
@@ -1800,6 +1807,11 @@
   function openStudio(tab = 'projects', {preserveProjectRoute = false} = {}) {
     const studio = byId('crump53Studio');
     if (!studio) return;
+    const labels = {
+      projects: 'Projects', library: 'The Library', images: 'Image Studio',
+      video: 'Video Studio', manuscripts: 'Manuscripts', research: 'Research',
+    };
+    if (!window.CrumpAccess?.requireOwnedWorkspace?.(labels[tab] || 'Studios')) return;
     const section = configureStudioSection(tab);
     if (section === 'video') restoreVideoReferenceDraft();
     studio.hidden = false;
@@ -1825,6 +1837,7 @@
   }
 
   async function openProject(projectId) {
+    if (!window.CrumpAccess?.requireOwnedWorkspace?.('Projects')) return false;
     const operation = projectOperationContext();
     if (!operation.userId) return false;
     const normalizedProjectId = String(projectId || '').trim();
@@ -2002,6 +2015,7 @@
     const incoming = [...(input?.files || [])];
     if (input) input.value = '';
     if (!incoming.length || state.videoReferenceUploading) return;
+    if (!requirePaidMutation('Video reference uploads')) return;
     if (!videoReferenceInteractionIsCurrent()) {
       setStatus('crump53VideoStatus', 'Your account changed before this reference could be added. Open Video Studio again and reattach it.', true);
       return;
@@ -2338,6 +2352,7 @@
   }
 
   async function keepConversation(options = {}) {
+    if (!window.CrumpAccess?.requirePaidTool?.('Projects')) return {success: false, cancelled: true};
     const operation = projectOperationContext();
     if (!operation.userId) return {success: false, cancelled: true};
     const chat = currentConversation();
@@ -2397,6 +2412,7 @@
   }
 
   async function keepArtifact(file, options = {}) {
+    if (!window.CrumpAccess?.requirePaidTool?.('Projects')) return {success: false, cancelled: true};
     const fileId = String(file?.id || '').trim();
     if (!fileId) throw new Error('This file is not ready to add to a Project yet.');
     const operation = projectOperationContext();
@@ -2562,6 +2578,7 @@
   }
 
   function openProjectFiles() {
+    if (!window.CrumpAccess?.requireOwnedWorkspace?.('Files')) return false;
     const studio = byId('crump53Studio');
     if (!studio) return false;
     state.libraryQuery = '';
@@ -2616,6 +2633,7 @@
   }
 
   function resetProjectForm() {
+    if (!requirePaidMutation('Project creation')) return;
     byId('crump53ProjectName').value = '';
     byId('crump53ProjectDescription').value = '';
     byId('crump53ProjectInstructions').value = '';
@@ -2720,6 +2738,7 @@
 
   async function saveProject(event) {
     event.preventDefault();
+    if (!requirePaidMutation(state.editingProject?.id ? 'Project changes' : 'Project creation')) return;
     const operation = projectOperationContext();
     if (!operation.userId) return;
     const payload = {
@@ -2788,6 +2807,7 @@
   }
 
   async function addProjectContext() {
+    if (!requirePaidMutation('Project changes')) return;
     if (!state.activeProject?.id) {
       setStatus('crump53ContextStatus', 'Choose or save a Project first.', true);
       return;
@@ -2817,6 +2837,7 @@
   }
 
   function activateSelectedProject() {
+    if (!requirePaidMutation('Project context')) return;
     const project = currentProjectTarget();
     if (!project?.id || !state.activeProject?.id) {
       setStatus('crump53ProjectStatus', 'Choose or save a project first.', true);
@@ -2828,6 +2849,7 @@
   }
 
   function startProjectConversation() {
+    if (!requirePaidMutation('Project conversations')) return;
     const target = currentProjectTarget();
     if (!target?.id || !state.activeProject?.id) {
       setStatus('crump53ProjectStatus', 'Choose or save a Project first.', true);
@@ -2955,6 +2977,7 @@
   }
 
   function showManuscriptCreate() {
+    if (!requirePaidMutation('Manuscript creation')) return;
     abortManuscriptOperations();
     byId('crump53ManuscriptCreate').hidden = false;
     byId('crump53ManuscriptEditor').hidden = true;
@@ -2967,6 +2990,7 @@
   }
 
   async function createManuscript() {
+    if (!requirePaidMutation('Manuscript creation')) return;
     const projectId = String(state.activeProject?.id || '').trim();
     if (!projectId) return;
     const brief = byId('crump53ManuscriptPremise')?.value?.trim() || '';
@@ -3256,6 +3280,7 @@
   }
 
   async function startFullManuscript() {
+    if (!requirePaidMutation('Manuscript generation')) return;
     const manuscriptId = String(state.activeManuscript?.id || '').trim();
     if (!manuscriptId) return;
     const operation = beginManuscriptOperation('start-run', {manuscriptId, sectionId: ''});
@@ -3294,6 +3319,7 @@
   async function controlManuscriptRun(action) {
     const runId = state.manuscriptRun?.id;
     if (!runId || !['pause', 'resume', 'cancel'].includes(action)) return;
+    if (action === 'resume' && !requirePaidMutation('Manuscript generation')) return;
     const manuscriptId = String(state.activeManuscript?.id || '').trim();
     const operation = beginManuscriptOperation('control-run', {manuscriptId, sectionId: ''});
     if (!operation) return;
@@ -3361,6 +3387,7 @@
   }
 
   async function planManuscript() {
+    if (!requirePaidMutation('Manuscript planning')) return;
     const manuscriptId = String(state.activeManuscript?.id || '').trim();
     if (!manuscriptId) return;
     const brief = byId('crump53BlueprintBrief')?.value?.trim() || '';
@@ -3417,6 +3444,7 @@
   }
 
   async function addChapter() {
+    if (!requirePaidMutation('Manuscript editing')) return;
     const manuscriptId = String(state.activeManuscript?.id || '').trim();
     if (!manuscriptId) return;
     const number = (state.activeManuscript.sections?.length || 0) + 1;
@@ -3440,6 +3468,7 @@
   }
 
   async function saveSection() {
+    if (!requirePaidMutation('Manuscript editing')) return;
     const manuscriptId = String(state.activeManuscript?.id || '').trim();
     const sectionId = String(state.activeSection?.id || '').trim();
     if (!manuscriptId || !sectionId) return;
@@ -3469,6 +3498,7 @@
   }
 
   async function draftSection() {
+    if (!requirePaidMutation('Manuscript generation')) return;
     const manuscriptId = String(state.activeManuscript?.id || '').trim();
     const sectionId = String(state.activeSection?.id || '').trim();
     if (!manuscriptId || !sectionId) return;
@@ -3499,6 +3529,7 @@
   }
 
   async function draftNextSection() {
+    if (!requirePaidMutation('Manuscript generation')) return;
     const manuscriptId = String(state.activeManuscript?.id || '').trim();
     if (!manuscriptId) return;
     const operation = beginManuscriptOperation('draft-next', {manuscriptId, sectionId: ''});
@@ -3559,6 +3590,7 @@
   }
 
   async function exportManuscript(format, requestedButton = null) {
+    if (!requirePaidMutation('Manuscript export')) return false;
     const normalized = String(format || '').toLowerCase().trim();
     const manuscriptId = String(state.activeManuscript?.id || '').trim();
     if (!manuscriptId) return false;
@@ -3952,6 +3984,7 @@
 
   async function startVideo(event, overrides = {}) {
     event?.preventDefault?.();
+    if (!requirePaidMutation('Video generation')) return;
     if (!videoReferenceInteractionIsCurrent()) {
       setStatus('crump53VideoStatus', 'Your account changed before this video could start. Reopen Video Studio and review the current account\'s references.', true);
       return;
@@ -4101,6 +4134,7 @@
   }
 
   async function retryVideoProjectAttachment(job) {
+    if (!requirePaidMutation('Project changes')) return;
     if (!videoReferenceInteractionIsCurrent()) return;
     const ownerUserId = currentVideoReferenceUserId();
     const authSequence = videoReferenceAuthSequence;
@@ -4338,6 +4372,7 @@
   }
 
   async function continueVideoScene(parentJob) {
+    if (!requirePaidMutation('Video generation')) return;
     if (!videoReferenceInteractionIsCurrent()) return;
     const ownerUserId = currentVideoReferenceUserId();
     const authSequence = videoReferenceAuthSequence;
@@ -4585,6 +4620,7 @@
   }
 
   async function openManuscriptWorkspace(workspace) {
+    if (!window.CrumpAccess?.requireOwnedWorkspace?.('Manuscripts')) return false;
     const projectId = String(workspace?.projectId || '');
     const manuscriptId = String(workspace?.manuscriptId || '');
     const operation = projectOperationContext();
@@ -4663,6 +4699,7 @@
   }
 
   async function openVideoCreationHandoff(handoff, {start = false} = {}) {
+    if (!window.CrumpAccess?.requirePaidTool?.('Video Studio')) return false;
     if (!videoReferenceInteractionIsCurrent()) return false;
     const brief = String(handoff?.brief || '').trim();
     openStudio('video');

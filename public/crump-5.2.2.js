@@ -106,6 +106,14 @@
     }
 
     try {
+      if (window.BillingManager?.isNative?.()) {
+        await window.BillingManager.purchaseCredits(code);
+        state.checkoutOpening = false;
+        card?.removeAttribute('aria-busy');
+        show('Crump Credits added.', 'success');
+        window.showBillingCenter?.({source: 'settings'});
+        return;
+      }
       const attemptId = window.BillingManager?.creditCheckoutAttempt?.(code);
       const data = await jsonFetch('/api/billing/credits/checkout', {
         method: 'POST',

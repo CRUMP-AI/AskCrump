@@ -3,6 +3,8 @@
   const PENDING_KEY = 'crump_sync_queue_v4';
   const SYNC_KEY = 'crump_last_sync_v4';
   const SYNC_REQUEST_TIMEOUT_MS = 12_000;
+  const MAX_CHATS_PER_PUSH = 20;
+  const MAX_TOMBSTONES_PER_PUSH = 20;
   let flushPromise = null;
   let flushPromiseKey = null;
 
@@ -10,7 +12,12 @@
     try { return JSON.parse(localStorage.getItem(key)) ?? fallback; } catch (_) { return fallback; }
   };
   const write = (key, value) => {
-    try { localStorage.setItem(key, JSON.stringify(value)); } catch (_) {}
+    try {
+      localStorage.setItem(key, JSON.stringify(value));
+      return true;
+    } catch (_) {
+      return false;
+    }
   };
   const userKey = key => `${key}:${window.currentUser?.id || 'anonymous'}`;
 
@@ -52,6 +59,127 @@
     return data;
   }
 
+  const isRecord = value => Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+  const parsedTime = value => {
+    const parsed = Date.parse(String(value || ''));
+    return Number.isFinite(parsed) ? parsed : null;
+  };
+  const stableValue = value => {
+    if (Array.isArray(value)) return value.map(stableValue);
+    if (!isRecord(value)) return value;
+    return Object.fromEntries(
+      Object.keys(value).sort().map(key => [key, stableValue(value[key])]),
+    );
+  };
+  const stableSignature = value => JSON.stringify(stableValue(value));
+
+  function mergeRecord(older, newer) {
+    const merged = {...(isRecord(older) ? older : {})};
+    for (const [key, value] of Object.entries(isRecord(newer) ? newer : {})) {
+      if (isRecord(merged[key]) && isRecord(value)) {
+        merged[key] = mergeRecord(merged[key], value);
+      } else if (value !== undefined) {
+        merged[key] = value;
+      }
+    }
+    return merged;
+  }
+
+  function versionOrder(left, right, timeFields) {
+    const leftTime = timeFields.map(field => parsedTime(left?.[field])).find(value => value !== null) ?? 0;
+    const rightTime = timeFields.map(field => parsedTime(right?.[field])).find(value => value !== null) ?? 0;
+    if (leftTime !== rightTime) return leftTime - rightTime;
+    const leftRevision = Number(left?.revision || 0);
+    const rightRevision = Number(right?.revision || 0);
+    if (leftRevision !== rightRevision) return leftRevision - rightRevision;
+    return stableSignature(left).localeCompare(stableSignature(right));
+  }
+
+  function messageKey(message) {
+    const inReplyTo = message?.inReplyTo || message?.in_reply_to;
+    if (message?.role === 'assistant' && inReplyTo) return `reply:${inReplyTo}`;
+    if (message?.id) return `id:${message.id}`;
+    return `legacy:${stableSignature({
+      role: message?.role || '',
+      timestamp: message?.timestamp || '',
+      content: message?.content || '',
+      imageUrl: message?.imageUrl || message?.image_url || '',
+      files: message?.files || [],
+    })}`;
+  }
+
+  const deliveryRank = status => ({sending: 1, queued: 2, failed: 2, delivered: 3, seen: 4}[status] || 0);
+  const replyRank = status => ({pending: 1, failed: 2, processing: 3, replied: 4}[status] || 0);
+
+  function mergeMessage(older, newer) {
+    const merged = mergeRecord(older, newer);
+    const olderDelivery = older?.deliveryStatus || older?.delivery_status;
+    const newerDelivery = newer?.deliveryStatus || newer?.delivery_status;
+    const olderReply = older?.replyStatus || older?.reply_status;
+    const newerReply = newer?.replyStatus || newer?.reply_status;
+    if (deliveryRank(olderDelivery) > deliveryRank(newerDelivery)) {
+      merged.deliveryStatus = olderDelivery;
+    }
+    if (replyRank(olderReply) > replyRank(newerReply)) merged.replyStatus = olderReply;
+    return merged;
+  }
+
+  function mergeMessages(leftMessages, rightMessages, rightIsNewer) {
+    const olderMessages = rightIsNewer ? leftMessages : rightMessages;
+    const newerMessages = rightIsNewer ? rightMessages : leftMessages;
+    const messages = new Map();
+    for (const message of Array.isArray(olderMessages) ? olderMessages : []) {
+      if (!isRecord(message)) continue;
+      messages.set(messageKey(message), {...message});
+    }
+    for (const message of Array.isArray(newerMessages) ? newerMessages : []) {
+      if (!isRecord(message)) continue;
+      const key = messageKey(message);
+      messages.set(key, mergeMessage(messages.get(key), message));
+    }
+    return [...messages.entries()]
+      .sort(([leftKey, left], [rightKey, right]) => {
+        const leftTime = parsedTime(left?.timestamp);
+        const rightTime = parsedTime(right?.timestamp);
+        if (leftTime !== null && rightTime !== null && leftTime !== rightTime) {
+          return leftTime - rightTime;
+        }
+        if (leftTime !== null && rightTime === null) return -1;
+        if (leftTime === null && rightTime !== null) return 1;
+        return leftKey.localeCompare(rightKey);
+      })
+      .map(([, message]) => message);
+  }
+
+  function mergeChat(left, right) {
+    if (!isRecord(left)) return isRecord(right) ? {...right} : {};
+    if (!isRecord(right)) return {...left};
+    const rightIsNewer = versionOrder(
+      left,
+      right,
+      ['updated_at', 'updatedAt', 'created_at', 'createdAt'],
+    ) <= 0;
+    const older = rightIsNewer ? left : right;
+    const newer = rightIsNewer ? right : left;
+    const merged = mergeRecord(older, newer);
+    merged.messages = mergeMessages(left.messages, right.messages, rightIsNewer);
+    merged.revision = Math.max(Number(left.revision || 0), Number(right.revision || 0), 1);
+
+    const id = newer.chat_id || newer.id || older.chat_id || older.id;
+    if (id) merged.chat_id = id;
+    const created = [left.created_at, left.createdAt, right.created_at, right.createdAt]
+      .map(value => ({value, time: parsedTime(value)}))
+      .filter(item => item.time !== null)
+      .sort((a, b) => a.time - b.time)[0]?.value;
+    const updated = [left.updated_at, left.updatedAt, right.updated_at, right.updatedAt]
+      .map(value => ({value, time: parsedTime(value)}))
+      .filter(item => item.time !== null)
+      .sort((a, b) => b.time - a.time)[0]?.value;
+    if (created) merged.created_at = created;
+    if (updated) merged.updated_at = updated;
+    return merged;
+  }
+
   function mergeQueue(queue) {
     const chats = new Map();
     const deleted = new Map();
@@ -61,21 +189,85 @@
       for (const chat of payload.chats || []) {
         const id = chat?.chat_id || chat?.id;
         if (!id) continue;
-        chats.set(id, chat);
+        chats.set(id, mergeChat(chats.get(id), chat));
       }
       for (const tombstone of payload.deletedChats || []) {
         const value = typeof tombstone === 'string' ? { id: tombstone } : tombstone;
         const id = value?.chat_id || value?.id;
         if (!id) continue;
-        deleted.set(id, value);
+        const previous = deleted.get(id);
+        const valueIsNewer = !previous || versionOrder(
+          previous,
+          value,
+          ['deleted_at', 'deletedAt', 'updated_at', 'updatedAt'],
+        ) <= 0;
+        deleted.set(id, mergeRecord(valueIsNewer ? previous : value, valueIsNewer ? value : previous));
         chats.delete(id);
       }
-      if (payload.settings && typeof payload.settings === 'object') settings = payload.settings;
+      if (payload.settings && typeof payload.settings === 'object') {
+        settings = mergeRecord(settings, payload.settings);
+      }
     }
+    // A queued deletion always wins over a stale snapshot from another tab.
+    // Re-creating a conversation uses a new ID, so retaining the tombstone is
+    // the only lossless and non-resurrecting choice for this queue.
+    for (const id of deleted.keys()) chats.delete(id);
     return { chats: [...chats.values()], deletedChats: [...deleted.values()], settings };
   }
 
   const queueEntryId = (entry, index) => entry?.id || `legacy:${entry?.at || ''}:${index}`;
+
+  function splitPayload(payload) {
+    const chats = Array.isArray(payload?.chats) ? payload.chats : [];
+    const deletedChats = Array.isArray(payload?.deletedChats)
+      ? payload.deletedChats
+      : Array.isArray(payload?.deleted_chats) ? payload.deleted_chats : [];
+    const settings = payload?.settings && typeof payload.settings === 'object'
+      ? payload.settings
+      : null;
+    const batchCount = Math.max(
+      1,
+      Math.ceil(chats.length / MAX_CHATS_PER_PUSH),
+      Math.ceil(deletedChats.length / MAX_TOMBSTONES_PER_PUSH),
+    );
+    return Array.from({length: batchCount}, (_, index) => ({
+      chats: chats.slice(index * MAX_CHATS_PER_PUSH, (index + 1) * MAX_CHATS_PER_PUSH),
+      deletedChats: deletedChats.slice(
+        index * MAX_TOMBSTONES_PER_PUSH,
+        (index + 1) * MAX_TOMBSTONES_PER_PUSH,
+      ),
+      settings: index === 0 ? settings : null,
+    }));
+  }
+
+  function boundedQueueEntries(payload, baseId, at) {
+    const batches = splitPayload(payload);
+    return batches.map((batch, index) => ({
+      id: batches.length === 1 ? baseId : `${baseId}:batch:${index}`,
+      at,
+      payload: batch,
+    }));
+  }
+
+  function normalizeQueuedEntries(queue) {
+    const entries = Array.isArray(queue) ? queue : [];
+    return entries.flatMap((entry, index) => boundedQueueEntries(
+      entry?.payload || {},
+      queueEntryId(entry, index),
+      entry?.at || new Date().toISOString(),
+    ));
+  }
+
+  function queueStorageFailure(flushed = false) {
+    return {
+      success: false,
+      code: 'SYNC_QUEUE_STORAGE_FAILED',
+      queued: true,
+      retryable: true,
+      flushed,
+      error: 'Synchronization could not update its local queue. Your work remains on this device.',
+    };
+  }
 
   async function flushQueued() {
     if (!window.currentUser) return { success: false, queued: true, flushed: false };
@@ -84,11 +276,14 @@
     let lastResult = { success: true, flushed: false };
 
     while (true) {
-      const queue = read(key, []);
+      const storedQueue = read(key, []);
+      const queue = normalizeQueuedEntries(Array.isArray(storedQueue) ? storedQueue : []);
       if (!queue.length) return {...lastResult, flushed};
       if (!navigator.onLine) return { success: false, queued: true, flushed };
+      if (!write(key, queue)) return queueStorageFailure(flushed);
 
-      const batchIds = new Set(queue.map(queueEntryId));
+      const batch = queue[0];
+      const batchId = queueEntryId(batch, 0);
       let response;
       let data;
       try {
@@ -97,7 +292,7 @@
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(mergeQueue(queue)),
+            body: JSON.stringify(batch.payload),
           },
           'Invalid sync response.',
         ));
@@ -112,8 +307,9 @@
       }
       if (!response.ok || !data.success) return {...data, queued: true, flushed};
 
-      const remaining = read(key, []).filter((entry, index) => !batchIds.has(queueEntryId(entry, index)));
-      write(key, remaining);
+      const remaining = normalizeQueuedEntries(read(key, []))
+        .filter((entry, index) => queueEntryId(entry, index) !== batchId);
+      if (!write(key, remaining)) return queueStorageFailure(true);
       // A push confirms only that our write was accepted. It does not prove
       // that this device read concurrent changes, so it must never advance the
       // incremental-pull watermark.
@@ -145,12 +341,14 @@
   async function push(_legacyDeviceId, payload) {
     const key = userKey(PENDING_KEY);
     const queue = read(key, []);
-    queue.push({
-      id: crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      at: new Date().toISOString(),
-      payload,
-    });
-    write(key, queue.slice(-100));
+    const at = new Date().toISOString();
+    const baseId = crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    const merged = mergeQueue([
+      ...(Array.isArray(queue) ? queue : []),
+      {id: baseId, at, payload},
+    ]);
+    const bounded = boundedQueueEntries(merged, baseId, at);
+    if (!write(key, bounded)) return queueStorageFailure(false);
     return flush();
   }
 

@@ -16,9 +16,9 @@ def test_public_plan_comparison_matches_server_enforced_allowances():
     landing = read_public("ask-crump.html")
     config = (ROOT / "backend" / "config.py").read_text(encoding="utf-8")
 
-    assert PROJECT_LIMITS == {"free": 2, "professional": 25, "enterprise": 200}
+    assert PROJECT_LIMITS == {"free": 0, "professional": 25, "enterprise": 200}
     assert POLICIES["research"].included_daily == {
-        "free": 1,
+        "free": 0,
         "professional": 20,
         "enterprise": 50,
     }
@@ -36,9 +36,9 @@ def test_public_plan_comparison_matches_server_enforced_allowances():
     assert "enterprise_daily_messages=int(os.getenv('ENTERPRISE_DAILY_MESSAGES', '5000'))" in config
 
     for expected in (
-        "25 included messages each day",
-        "2 private Projects",
-        "1 live research request each day",
+        "5 free text messages per rolling 24 hours",
+        "Your conversation carries into signup",
+        "Advanced tools available on paid plans",
         "500 included messages each day",
         "25 private Projects",
         "20 research, 1 image, and 20 visual analyses each day",
@@ -235,7 +235,7 @@ def test_plan_center_containment_assets_are_versioned_everywhere():
     versioned_billing = "/crump-billing-5.1.js?v=5.9.76-checkout-destination-label-1"
     versioned_final = "/crump-5.2.js?v=5.9.76-plan-status-line-1"
     versioned_billing_css = "/crump-billing-5.1.css?v=5.9.76-credit-truth-1"
-    versioned_credit_contract = "/crump-5.2.2.js?v=5.9.76-muse-release-repair-1"
+    versioned_credit_contract = "/crump-5.2.2.js?v=5.9.76-muse-release-repair-1&workspaceRelease=guest-free-contract-2"
     sources = (
         read_public("runtime-body-v1.js"),
         read_public("sw.js"),
@@ -249,8 +249,8 @@ def test_plan_center_containment_assets_are_versioned_everywhere():
         assert versioned_final in source
         assert versioned_billing_css in source
         assert versioned_credit_contract in source
-    assert "ask-crump-new-body-v1-r268-library-reconciliation-1" in read_public("sw.js")
-    assert "/runtime-body-v1.js?v=5.9.76-library-reconciliation-1" in read_public("app.html")
+    assert "ask-crump-new-body-v1-r269-guest-free-contract-2" in read_public("sw.js")
+    assert "/runtime-body-v1.js?v=5.9.76-guest-free-contract-2" in read_public("app.html")
 
 
 def test_browser_fixture_uses_the_production_plan_center_layers():
@@ -271,6 +271,9 @@ def test_browser_fixture_uses_the_production_plan_center_layers():
     assert 'id="billingFixturePortals"' in fixture
     assert "status') === 'past_due'" in fixture
     assert "status: 'past_due', provider: 'stripe', manageable: true" in fixture
+    assert "fixtureCreditPurchasesAllowed = fixtureParams.get('creditEligible') === '1'" in fixture
+    assert "creditPurchasesAllowed: fixtureCreditPurchasesAllowed" in fixture
+    assert "tier: 'professional', status: 'active', provider: 'stripe', manageable: true" in fixture
     assert 'aria-label="Browser errors"' in fixture
     assert "/api/stripe/create-checkout-session" in fixture
     assert "Fixture blocks checkout." in fixture
@@ -303,5 +306,6 @@ def test_credit_packs_expose_one_named_purchase_control_without_nested_button_ro
     assert ":focus-within" in stylesheet
     assert ":focus-visible" not in stylesheet
     assert "nestedInteractiveCards" in verifier
+    assert "plan-center-clarity.html?creditEligible=1" in verifier
     assert "Add 50 Crump Credits for $4.99" in verifier
     assert "Fixture blocks credit checkout." in fixture

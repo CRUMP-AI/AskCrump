@@ -13,6 +13,7 @@ from fastapi.responses import JSONResponse
 from ..auth_service import authenticate_request
 from ..db import eq
 from ..feature_service import FeatureAccessError
+from ..paid_tool_access import paid_tool_required
 from ..project_service import ProjectNotFoundError
 from ..runtime import db, features, projects, settings, video
 from ..security import normalize_chat_id
@@ -318,7 +319,9 @@ async def _attach_ready_video_to_project(*, user_id: str, row: dict) -> dict | N
 
 @router.post("/video")
 async def create_video(request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
+    if blocked := paid_tool_required(auth.user, label="Video generation"):
+        return blocked
     payload = await request.json()
     if not isinstance(payload, dict):
         return _video_error(
@@ -552,7 +555,9 @@ async def create_video(request: Request):
 
 @router.post("/video/{job_id}/continue")
 async def continue_video(job_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
+    if blocked := paid_tool_required(auth.user, label="Video generation"):
+        return blocked
     payload = await request.json()
     if not isinstance(payload, dict):
         return _video_error(
@@ -738,7 +743,7 @@ async def continue_video(job_id: str, request: Request):
 
 @router.get("/video")
 async def recent_videos(request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     rows = await video.list_recent(user_id=auth.user["id"], limit=12)
     jobs = [
         await video.public_job(user_id=auth.user["id"], row=row)
@@ -749,7 +754,7 @@ async def recent_videos(request: Request):
 
 @router.get("/video/request-status")
 async def video_request_status(request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     idempotency_key = _idempotency_key(request, {})
     if not idempotency_key:
         return _idempotency_required_error()
@@ -782,7 +787,7 @@ async def video_request_status(request: Request):
 
 @router.get("/video/{job_id}")
 async def video_status(job_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     try:
         row = await video.poll(user_id=auth.user["id"], job_id=job_id)
         project_attachment = await _attach_ready_video_to_project(user_id=auth.user["id"], row=row)
@@ -796,7 +801,7 @@ async def video_status(job_id: str, request: Request):
 
 @router.delete("/video/{job_id}")
 async def delete_video(job_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     try:
         result = await video.delete_job(user_id=auth.user["id"], job_id=job_id)
     except VideoServiceError as exc:

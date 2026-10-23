@@ -60,19 +60,19 @@ DYNAMIC_BUTTON_INVENTORY = {
     "public/ui-functions.js": 16,
 }
 INDIRECT_DYNAMIC_BUTTON_OWNERS = {
-    "public/crump-5.0.js:1977:close": (
+    "public/crump-5.0.js:2003:close": (
         "mountLightbox(box, close);",
         "closeButton.addEventListener('click', dismiss)",
     ),
-    "public/crump-5.0.js:2070:close": (
+    "public/crump-5.0.js:2096:close": (
         "mountLightbox(box, close);",
         "closeButton.addEventListener('click', dismiss)",
     ),
-    "public/crump-5.0.js:2447:project": (
+    "public/crump-5.0.js:2473:project": (
         "wireOutputProjectAction(project, {",
         "button.addEventListener('click', async () => {",
     ),
-    "public/crump-5.2.js:654:buy": (
+    "public/crump-5.2.js:669:buy": (
         "buy.dataset.crumpPack =",
         "modal.addEventListener('click', event => {",
         "event.target.closest?.('[data-crump-pack]')",
@@ -651,7 +651,7 @@ def test_browser_control_matrix_is_fail_closed_and_one_command() -> None:
     workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     verifier_names = sorted(path.name for path in (ROOT / "scripts").glob("verify-*.cjs"))
 
-    assert len(verifier_names) == 59
+    assert len(verifier_names) == 60
     for name in verifier_names:
         assert f"'{name}'" in runner
     assert "Browser verifier inventory drifted." in runner
@@ -677,6 +677,42 @@ def test_browser_control_matrix_is_fail_closed_and_one_command() -> None:
     assert "npm run test:browser-controls" in workflow
 
 
+def test_guarded_browser_fixtures_declare_their_synthetic_access_context() -> None:
+    fixture_methods = {
+        "attach-creation-routing.html": ("requirePaidTool",),
+        "composer-mode-handoff.html": ("requirePaidTool",),
+        "conversational-document-delivery.html": ("requirePaidTool",),
+        "creation-sheet-containment.html": ("requirePaidTool",),
+        "feature-access-recovery.html": ("requirePaidTool", "requireOwnedWorkspace"),
+        "file-library-usability.html": ("requireOwnedWorkspace",),
+        "image-safety-recovery.html": ("requirePaidTool",),
+        "image-upload-preview-stability.html": ("requirePaidTool",),
+        "launchpad-runtime-race.html": ("requireOwnedWorkspace",),
+        "manuscript-export-delivery.html": ("requirePaidTool", "requireOwnedWorkspace"),
+        "project-chat-context-boundary.html": ("requirePaidTool", "requireOwnedWorkspace"),
+        "project-open-navigation.html": ("requirePaidTool", "requireOwnedWorkspace"),
+        "project-save-stall.html": ("requirePaidTool",),
+        "project-target-disclosure.html": ("requirePaidTool", "requireOwnedWorkspace"),
+        "video-reference-upload.html": ("requirePaidTool", "requireOwnedWorkspace"),
+    }
+
+    for name, methods in fixture_methods.items():
+        fixture = (ROOT / "tests" / "fixtures" / name).read_text(encoding="utf-8")
+        assert "window.CrumpAccess = Object.freeze" in fixture
+        for method in methods:
+            assert method in fixture
+
+    for name in (
+        "image-upload-preview-stability.html",
+        "launchpad-runtime-race.html",
+        "manuscript-export-delivery.html",
+        "project-chat-context-boundary.html",
+        "video-reference-upload.html",
+    ):
+        fixture = (ROOT / "tests" / "fixtures" / name).read_text(encoding="utf-8")
+        assert "Boolean(window.currentUser?.id)" in fixture
+
+
 def test_public_accessibility_matrix_covers_supported_viewport_classes() -> None:
     verifier = (ROOT / "scripts" / "verify-public-accessibility.mjs").read_text(encoding="utf-8")
 
@@ -691,6 +727,7 @@ def test_add_menu_browser_fixture_exercises_both_authoritative_studios() -> None
 
     assert '<script src="/public/crump-5.0.js?v=attach-creation-routing-fixture-1"></script>' in fixture
     assert '<script src="/public/crump-5.2.js?v=attach-creation-routing-fixture-1"></script>' in fixture
+    assert "window.CrumpAccess = Object.freeze({requirePaidTool: () => true});" in fixture
     assert "Create image Generate or edit an image" in verifier
     assert "Create document DOCX" in verifier
     assert "dataset.crump52CreativeTool" in verifier

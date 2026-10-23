@@ -155,6 +155,13 @@ const COMPOSER_SCAFFOLDS = Object.freeze({
     research: 'Search the web for ',
 });
 const USAGE_PREFLIGHT_TIMEOUT_MS = 10_000;
+
+function requirePaidToolAccess(label) {
+    const guard = window.CrumpAccess?.requirePaidTool;
+    if (typeof guard === 'function') return guard(label);
+    window.showToast?.(`${label} is unavailable until account access finishes loading.`, 'info');
+    return false;
+}
 const SETTINGS_EDITABLE_IDS = Object.freeze([
     'settingsName',
     'assistantName',
@@ -323,8 +330,18 @@ function setupEventListeners() {
 
     // File attachment
     if (attachBtn && fileInput) {
-        attachBtn.addEventListener('click', () => fileInput.click());
-        fileInput.addEventListener('change', handleFileSelect);
+        attachBtn.addEventListener('click', () => {
+            if (!requirePaidToolAccess('File attachments')) return;
+            fileInput.click();
+        });
+        fileInput.addEventListener('change', event => {
+            if (!requirePaidToolAccess('File attachments')) {
+                event.currentTarget.value = '';
+                selectedFiles = [];
+                return;
+            }
+            handleFileSelect(event);
+        });
     } else {
         if (!attachBtn) console.warn('[UI] attachBtn not found - file attach disabled on this page');
         if (!fileInput) console.warn('[UI] fileInput not found - file attach disabled on this page');
@@ -795,6 +812,7 @@ async function processUserMessage(chat, userMessage, attachment = null) {
 
     const data = await transport.send(requestBody);
     applyCompletedReplySafely(chat, userMessage, data);
+    window.CrumpAccess?.applyServerAllowance?.(data);
 }
 
 async function sendMessage() {
@@ -802,6 +820,7 @@ async function sendMessage() {
     const userInput = document.getElementById('userInput');
     const message = userInput?.value.trim() || '';
     if (!message && selectedFiles.length === 0) return;
+    if (selectedFiles.length && !requirePaidToolAccess('File attachments')) return;
     const incompleteScaffold = Object.entries(COMPOSER_SCAFFOLDS)
         .find(([, scaffold]) => message.toLowerCase() === scaffold.trim().toLowerCase());
     if (incompleteScaffold) {
@@ -853,6 +872,7 @@ async function sendMessage() {
         await processUserMessage(chat, userMessage, attachment);
     } catch (error) {
         console.error('[Chat]', error);
+        window.CrumpAccess?.onChatError?.(error);
         window.CrumpPresence?.stop?.();
         if (userMessage) {
             if (error.quiet) {
@@ -903,6 +923,7 @@ window.retryMessage = async function retryMessage(id) {
         await processUserMessage(chat, message, null);
     } catch (error) {
         console.error('[Chat retry]', error);
+        window.CrumpAccess?.onChatError?.(error);
         window.CrumpPresence?.stop?.();
         if (error.quiet) {
             updateMessageState(chat, message, {
@@ -1214,10 +1235,12 @@ function primeComposer(scaffold) {
 }
 
 window.triggerImageGeneration = function() {
+    if (!window.CrumpAccess?.requirePaidTool?.('Image Studio')) return false;
     return primeComposer(COMPOSER_SCAFFOLDS.image);
 };
 
 window.triggerWebSearch = function() {
+    if (!window.CrumpAccess?.requirePaidTool?.('Research')) return false;
     window.dispatchEvent(new CustomEvent('crump:requested-tool', {
         detail: { tool: 'web' },
     }));

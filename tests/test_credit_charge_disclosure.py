@@ -200,12 +200,12 @@ class CreditDB:
     ("code", "expected", "tier", "message_limit"),
     [
         ("messages", 1, "free", 1),
-        ("research", 1, "free", None),
+        ("research", 1, "professional", None),
         ("premium_voice", 2, "professional", None),
         ("visual_analysis", 2, "professional", None),
-        ("manuscript_blueprint", 4, "free", None),
+        ("manuscript_blueprint", 4, "professional", None),
         ("image", 6, "professional", None),
-        ("manuscript_draft", 8, "free", None),
+        ("manuscript_draft", 8, "professional", None),
         ("image_edit", 10, "professional", None),
         ("code_workspace", 12, "professional", None),
         ("video", 60, "professional", None),
@@ -251,10 +251,11 @@ async def test_server_quotes_every_current_credit_amount(
 async def test_included_action_quotes_zero_and_needs_no_confirmation():
     db = CreditDB()
     service = FeatureService(db)
-    quote = await service.quote(user(), {"research": 1})
-    authorization = await service.authorize(user(), {"research": 1})
+    account = user("professional")
+    quote = await service.quote(account, {"research": 1})
+    authorization = await service.authorize(account, {"research": 1})
     receipt = await service.consume(
-        user(),
+        account,
         "research",
         authorization=authorization,
         instance_key="included-action",
@@ -271,7 +272,7 @@ async def test_included_action_quotes_zero_and_needs_no_confirmation():
 async def test_included_action_replay_stays_included_after_allowance_is_full():
     db = CreditDB()
     service = FeatureService(db)
-    account = user()
+    account = user("professional")
     instance_key = "same-included-action"
 
     first_authorization = await service.authorize(
@@ -405,7 +406,7 @@ async def test_keyed_included_commit_then_transport_retry_returns_duplicate_owne
 
     db = CommitThenTransportDB()
     service = FeatureService(db)
-    account = user()
+    account = user("professional")
     usage_key = "commit-then-drop:included"
     authorization = await service.authorize(
         account,
@@ -645,14 +646,15 @@ async def test_insufficient_balance_returns_exact_state_without_deduction():
 @pytest.mark.asyncio
 async def test_stale_lower_quote_can_only_charge_the_lower_current_amount():
     db = CreditDB()
-    db.usage["feature:research"] = 1
+    account = user("professional")
+    db.usage["feature:research"] = 20
     service = FeatureService(db)
-    quote = await service.quote(user(), {"research": 2}, scope=SCOPE)
+    quote = await service.quote(account, {"research": 2}, scope=SCOPE)
     assert quote["creditsRequired"] == 2
 
-    db.usage["feature:research"] = 0
+    db.usage["feature:research"] = 19
     authorization = await service.authorize(
-        user(),
+        account,
         {"research": 2},
         {
             "quoteToken": quote["token"],
@@ -661,13 +663,13 @@ async def test_stale_lower_quote_can_only_charge_the_lower_current_amount():
         scope=SCOPE,
     )
     included = await service.consume(
-        user(),
+        account,
         "research",
         authorization=authorization,
         instance_key="step-1",
     )
     charged = await service.consume(
-        user(),
+        account,
         "research",
         authorization=authorization,
         instance_key="step-2",
@@ -682,13 +684,15 @@ async def test_stale_lower_quote_can_only_charge_the_lower_current_amount():
 async def test_stale_higher_quote_requires_a_new_confirmation():
     db = CreditDB()
     service = FeatureService(db)
-    quote = await service.quote(user(), {"research": 2}, scope=SCOPE)
+    account = user("professional")
+    db.usage["feature:research"] = 19
+    quote = await service.quote(account, {"research": 2}, scope=SCOPE)
     assert quote["creditsRequired"] == 1
-    db.usage["feature:research"] = 1
+    db.usage["feature:research"] = 20
 
     with pytest.raises(FeatureAccessError) as refreshed:
         await service.authorize(
-            user(),
+            account,
             {"research": 2},
             {
                 "quoteToken": quote["token"],
@@ -877,13 +881,13 @@ async def test_confirmed_maximum_cannot_be_replayed_across_components():
 async def test_allowance_race_requotes_with_the_original_action_scope():
     db = CreditDB()
     service = FeatureService(db)
-    account = user()
+    account = user("professional")
     authorization = await service.authorize(
         account,
         {"research": 1},
         scope=SCOPE,
     )
-    db.usage["feature:research"] = 1
+    db.usage["feature:research"] = 20
 
     with pytest.raises(FeatureAccessError) as refreshed:
         await service.consume(

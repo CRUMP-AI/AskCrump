@@ -127,20 +127,23 @@ def test_search_guides_expose_early_attribution_preserving_start_paths():
         "rough-idea-six-week-launch-plan": {
             "key": "rough-idea",
             "intent": "projects",
-            "label": "Start free with your rough idea",
-            "support": "Start free with 2 private Projects · No card required",
+            "plan": "professional",
+            "label": "Review Project access for your idea",
+            "support": "Free account creation preserves your chat · Projects require a paid plan",
         },
         "what-ai-project-should-remember": {
             "key": "project-memory",
             "intent": "projects",
-            "label": "Start free with a Project",
-            "support": "Start free with 2 private Projects · No card required",
+            "plan": "professional",
+            "label": "Review Project access",
+            "support": "Free account creation preserves your chat · Projects require a paid plan",
         },
         "editable-ai-powerpoint-review": {
             "key": "editable-powerpoint",
             "intent": "presentation",
-            "label": "Start an editable presentation",
-            "support": "Start free · No card required",
+            "plan": "professional",
+            "label": "Review Professional for presentations",
+            "support": "Presentation creation requires a paid plan · Account creation is free · Nothing is purchased until checkout is confirmed",
         },
     }
 
@@ -149,8 +152,8 @@ def test_search_guides_expose_early_attribution_preserving_start_paths():
         hero = page.split('<header class="guide-hero">', 1)[1].split("</header>", 1)[0]
         nav = page.split('<nav class="navbar"', 1)[1].split("</nav>", 1)[0]
         hero_cta = (
-            f'<a class="button primary" data-cta="{expected["key"]}-hero" data-plan="free" '
-            f'href="/app?signup=1&amp;source={expected["key"]}-hero&amp;plan=free&amp;'
+            f'<a class="button primary" data-cta="{expected["key"]}-hero" data-plan="{expected["plan"]}" '
+            f'href="/app?signup=1&amp;source={expected["key"]}-hero&amp;plan={expected["plan"]}&amp;'
             f'intent={expected["intent"]}&amp;acquisition=direct">{expected["label"]}</a>'
         )
         nav_cta = (
@@ -187,6 +190,7 @@ def test_search_guides_expose_early_attribution_preserving_start_paths():
     for slug, expected in early_starts.items():
         assert f"path: '/guides/{slug}'" in verifier
         assert f"key: '{expected['key']}'" in verifier
+        assert f"heroPlan: '{expected['plan']}'" in verifier
 
 
 def test_search_guide_assets_are_the_approved_authentic_evidence():
@@ -334,11 +338,12 @@ def test_public_word_pdf_guide_has_exact_search_release_contract():
     assert page.count("<h1>") == 1
     assert page.count('class="button primary"') == 1
     assert (
-        'data-cta="word-pdf-start" data-plan="free" '
-        'href="/app?signup=1&amp;source=word-pdf-start&amp;plan=free&amp;'
+        'data-cta="word-pdf-start" data-plan="professional" '
+        'href="/app?signup=1&amp;source=word-pdf-start&amp;plan=professional&amp;'
         'intent=document&amp;acquisition=direct"'
     ) in page
-    assert "Start free with a Word or PDF document" in page
+    assert "Review Professional for Word or PDF documents" in page
+    assert "Document creation requires a paid plan · Account creation is free · Nothing is purchased until checkout is confirmed" in page
     assert "staged for review" not in page.lower()
     assert 'href="/guides/editable-ai-powerpoint-review"' in page
     assert 'class="guide-page-grid"' in page
@@ -428,11 +433,12 @@ def test_public_resume_bullet_guide_has_exact_search_release_contract():
     assert page.count("<h1>") == 1
     assert page.count('class="button primary"') == 1
     assert (
-        'data-cta="resume-audit-start" data-plan="free" '
-        'href="/app?signup=1&amp;source=resume-audit-start&amp;plan=free&amp;'
+        'data-cta="resume-audit-start" data-plan="professional" '
+        'href="/app?signup=1&amp;source=resume-audit-start&amp;plan=professional&amp;'
         'intent=resume&amp;acquisition=direct"'
     ) in page
-    assert page.count("Start free with your verified experience") == 1
+    assert page.count("Review Professional for résumé creation") == 1
+    assert "Résumé creation requires a paid plan · Account creation is free · Nothing is purchased until checkout is confirmed" in page
     assert "frozen internal quality fixture" in page
     assert "No applicant or customer is represented" in page
     assert "does not claim that a live Ask Crump conversation generated" in page
@@ -440,7 +446,7 @@ def test_public_resume_bullet_guide_has_exact_search_release_contract():
     assert ".docx" in page and "applicant tracking system" in page
     assert 'class="guide-audit-table"' in page
     assert page.count("<tbody>") == 1 and page.count("<tr>") == 7
-    assert "checkout" not in page.lower() and "paid plan" not in page.lower()
+    assert "stripe" not in page.lower() and "subscribe now" not in page.lower()
     assert "AI VIRTUAL ASSISTANT" not in page
     assert "FAQPage" not in page and '"@type": "HowTo"' not in page
 

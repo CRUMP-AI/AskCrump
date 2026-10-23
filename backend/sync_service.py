@@ -21,6 +21,12 @@ MAX_MESSAGES_PER_CHAT = 1000
 MAX_MESSAGE_CHARS = 100_000
 MAX_CHAT_TEXT_CHARS = 1_500_000
 MAX_IMAGE_DATA_URI_CHARS = 2_500_000
+# Guest request-count bounds keep one sync request cheap. Durable guest
+# storage limits are fixed and enforced only by apply_guest_chat_sync_v2,
+# after the database has applied/merged the candidate and measured the stored
+# jsonb in UTF-8 bytes. Python must not estimate or pass those limits.
+GUEST_MAX_CHATS_PER_PUSH = 20
+GUEST_MAX_TOMBSTONES_PER_PUSH = 20
 CONTROL_CHARS = re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]')
 
 
@@ -227,10 +233,18 @@ def sanitize_settings(value: Any) -> dict[str, Any]:
     preferences = value.get('preferences')
     if isinstance(preferences, dict):
         try:
-            encoded = json.dumps(preferences, ensure_ascii=False, separators=(',', ':'))
+            # PostgreSQL's jsonb::text representation includes these
+            # structural spaces. Matching them closes the string/object
+            # boundary gap without changing the persisted preference value.
+            encoded = json.dumps(
+                preferences,
+                ensure_ascii=False,
+                allow_nan=False,
+                separators=(', ', ': '),
+            )
             if len(encoded.encode('utf-8')) <= 32_000:
                 result['preferences'] = preferences
-        except (TypeError, ValueError):
+        except (TypeError, UnicodeEncodeError, ValueError):
             pass
     return result
 
@@ -274,7 +288,7 @@ async def pull_sync(db: SupabaseDB, user_id: str, since: str | None = None) -> d
     }
 
 
-async def push_sync(db: SupabaseDB, user_id: str, payload: dict[str, Any]) -> dict[str, Any]:
+async def push_sync(db: SupabaseDB, user_id: str, payload: dict[str, Any], *, is_guest: bool = False) -> dict[str, Any]:
     incoming = payload.get('chats') or []
     deleted = payload.get('deletedChats') or payload.get('deleted_chats') or []
     if not isinstance(incoming, list):
@@ -283,9 +297,33 @@ async def push_sync(db: SupabaseDB, user_id: str, payload: dict[str, Any]) -> di
         deleted = []
     accepted: list[str] = []
     ignored: list[str] = []
+    rejected: list[dict[str, str]] = []
+
+    incoming_limit = GUEST_MAX_CHATS_PER_PUSH if is_guest else 500
+    deleted_limit = GUEST_MAX_TOMBSTONES_PER_PUSH if is_guest else 500
+    if is_guest and (len(incoming) > incoming_limit or len(deleted) > deleted_limit):
+        # Never truncate a guest payload and then report success. The browser
+        # retains this whole request when it receives the stable overflow code,
+        # and current clients split local work into bounded FIFO batches before
+        # sending. This check runs before any RPC or settings write, so a direct
+        # or outdated client receives an unambiguous all-or-nothing rejection.
+        return {
+            'accepted': [],
+            'ignored': [],
+            'rejected': [],
+            'rejectionCode': 'GUEST_SYNC_BATCH_TOO_LARGE',
+            'limits': {
+                'chats': incoming_limit,
+                'deletedChats': deleted_limit,
+            },
+            'received': {
+                'chats': len(incoming),
+                'deletedChats': len(deleted),
+            },
+        }
 
     normalized: list[dict[str, Any]] = []
-    for item in incoming[:500]:
+    for item in incoming[:incoming_limit]:
         if not isinstance(item, dict):
             continue
         chat_id = normalize_chat_id(str(item.get('chat_id') or item.get('id') or ''))
@@ -303,7 +341,7 @@ async def push_sync(db: SupabaseDB, user_id: str, payload: dict[str, Any]) -> di
             'revision': safe_int(item.get('revision')),
         })
 
-    for item in deleted[:500]:
+    for item in deleted[:deleted_limit]:
         if isinstance(item, str):
             item = {'id': item}
         if not isinstance(item, dict):
@@ -325,9 +363,14 @@ async def push_sync(db: SupabaseDB, user_id: str, payload: dict[str, Any]) -> di
     # devices from racing between a SELECT and a later UPSERT. Replaying the same
     # payload after a transient gateway failure is safe: an already-applied
     # revision is returned as ignored instead of duplicating the conversation.
+    # Guests use a distinct all-in-one RPC: it serializes on the user row,
+    # applies inside an inner subtransaction, measures the resulting stored
+    # bytes, and rolls the candidate back on quota failure. Registered sync
+    # continues through the existing compare-and-apply RPC unchanged.
+    sync_rpc = 'apply_guest_chat_sync_v2' if is_guest else 'apply_chat_sync'
     for chat in normalized:
         result = await db.rpc(
-            'apply_chat_sync',
+            sync_rpc,
             {
                 'p_user_id': user_id,
                 'p_chat_id': chat['chat_id'],
@@ -344,16 +387,61 @@ async def push_sync(db: SupabaseDB, user_id: str, payload: dict[str, Any]) -> di
         if row.get('accepted'):
             accepted.append(chat['chat_id'])
         else:
-            ignored.append(chat['chat_id'])
+            outcome = str(row.get('outcome') or 'rejected')
+            if not is_guest or outcome in {'stale', 'unknown_tombstone'}:
+                # A stale write or an unknown tombstone has no pending durable
+                # mutation: the server already owns a newer row or no row.
+                ignored.append(chat['chat_id'])
+            else:
+                # Quota and authority rejections are not acknowledgements. The
+                # route returns a failed envelope so the browser keeps the
+                # entire merged queue; already-applied siblings safely replay
+                # as stale on the next attempt.
+                rejected.append({'chatId': chat['chat_id'], 'reason': outcome})
 
     settings = sanitize_settings(payload.get('settings'))
     if settings:
-        settings.update({'user_id': user_id, 'updated_at': iso_now()})
-        await db.upsert(
-            'user_settings',
-            settings,
-            on_conflict='user_id',
-            retry_transient=True,
-        )
+        settings_updated_at = iso_now()
+        if is_guest:
+            # The route's guest decision is request authority, not merely a
+            # hint about the user's current row. Keep that authority attached
+            # to the settings mutation so verification cannot turn an
+            # already-admitted guest request into a registered-account write.
+            # The RPC owns the control -> user lock order and either commits
+            # before conversion or observes the registered identity and
+            # persists nothing.
+            applied_settings = await db.rpc(
+                'apply_guest_user_settings_v1',
+                {
+                    'p_user_id': user_id,
+                    'p_settings': settings,
+                    'p_updated_at': settings_updated_at,
+                },
+                retry_transient=True,
+            )
+            settings_row = (
+                applied_settings[0]
+                if isinstance(applied_settings, list) and applied_settings
+                else (applied_settings or {})
+            )
+            if not settings_row.get('accepted'):
+                rejected.append({
+                    'scope': 'settings',
+                    'reason': str(settings_row.get('outcome') or 'authority_rejected'),
+                })
+        else:
+            await db.upsert(
+                'user_settings',
+                {
+                    **settings,
+                    'user_id': user_id,
+                    'updated_at': settings_updated_at,
+                },
+                on_conflict='user_id',
+                retry_transient=True,
+            )
 
-    return {'accepted': accepted, 'ignored': ignored}
+    result = {'accepted': accepted, 'ignored': ignored}
+    if rejected:
+        result['rejected'] = rejected
+    return result

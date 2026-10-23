@@ -173,6 +173,7 @@
   }
 
   async function open(options = {}) {
+    if (!window.CrumpAccess?.requirePaidTool?.('Autonomous Crump')) return false;
     if (!window.CrumpCodeWorkspace && !(await refreshAvailability())) {
       window.showToast?.('Autonomous Crump is not available for this account.', 'info');
       return false;

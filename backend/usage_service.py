@@ -1,10 +1,14 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from .config import Settings
-from .db import SupabaseDB, eq, gte
+from .db import SupabaseDB, eq, gt, gte
+
+
+FREE_TEXT_MESSAGE_LIMIT = 5
+FREE_TEXT_WINDOW_SECONDS = 24 * 60 * 60
 
 
 class UsageLimitError(RuntimeError):
@@ -37,6 +41,12 @@ def tier_name(user: dict[str, Any]) -> str:
     the future; terminal/inactive states always fall back to free. Founder and
     staff QA access is stored separately so it cannot be confused with revenue.
     """
+    # Guest state is the dominant trust boundary. A stale or malformed guest
+    # row must never escape the shared five-message preview because it also
+    # happens to carry paid-looking billing or internal-access fields.
+    if bool(user.get('is_guest')):
+        return 'free'
+
     internal_tier = str(user.get('internal_tier') or '').lower()
     if internal_tier in {'professional', 'enterprise'}:
         return internal_tier
@@ -62,7 +72,10 @@ def has_internal_access(user: dict[str, Any]) -> bool:
     removes Ask Crump's own test quotas without claiming a paid subscription or
     hiding the provider usage that the account owner still funds.
     """
-    return str(user.get('internal_tier') or '').lower() in {'professional', 'enterprise'}
+    return not bool(user.get('is_guest')) and str(user.get('internal_tier') or '').lower() in {
+        'professional',
+        'enterprise',
+    }
 
 
 def limit_for(settings: Settings, tier: str, usage_type: str) -> int:
@@ -78,6 +91,43 @@ def limit_for(settings: Settings, tier: str, usage_type: str) -> int:
 def day_start_iso() -> str:
     now = datetime.now(timezone.utc)
     return now.replace(hour=0, minute=0, second=0, microsecond=0).isoformat()
+
+
+def rolling_window_start_iso(*, now: datetime | None = None) -> str:
+    current = now or datetime.now(timezone.utc)
+    if current.tzinfo is None:
+        current = current.replace(tzinfo=timezone.utc)
+    return (current.astimezone(timezone.utc) - timedelta(seconds=FREE_TEXT_WINDOW_SECONDS)).isoformat()
+
+
+def _next_free_message_at(
+    rows: list[dict[str, Any]],
+    *,
+    limit: int = FREE_TEXT_MESSAGE_LIMIT,
+) -> str | None:
+    timestamps: list[datetime] = []
+    for row in rows:
+        raw = row.get('created_at')
+        if not raw:
+            continue
+        try:
+            parsed = datetime.fromisoformat(str(raw).replace('Z', '+00:00'))
+        except (TypeError, ValueError):
+            continue
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        timestamps.append(parsed.astimezone(timezone.utc))
+    if len(timestamps) < limit:
+        return None
+    timestamps.sort()
+    # If legacy or recently-downgraded activity leaves more than ``limit``
+    # events in the rolling window, expiring the oldest event is not enough to
+    # create a slot. The first true slot opens when only ``limit - 1`` events
+    # remain: the (used - limit + 1)th oldest event must expire.
+    boundary_index = len(timestamps) - limit
+    return (
+        timestamps[boundary_index] + timedelta(seconds=FREE_TEXT_WINDOW_SECONDS)
+    ).isoformat()
 
 
 async def credit_status(db: SupabaseDB, user_id: str) -> dict[str, int]:
@@ -102,20 +152,49 @@ async def current_usage(
     usage_type: str = 'messages',
 ) -> dict[str, Any]:
     internal_access = has_internal_access(user)
+    tier = tier_name(user)
+    free_text = tier == 'free' and usage_type == 'messages'
     rows = await db.select(
         'usage_events',
-        columns='id',
+        columns='id,created_at',
         filters={
             'user_id': eq(user['id']),
             'event_type': eq(usage_type),
-            'created_at': gte(day_start_iso()),
+            'created_at': (
+                gt(rolling_window_start_iso())
+                if free_text
+                else gte(day_start_iso())
+            ),
         },
+        order='created_at.asc',
         limit=10000,
     )
     used = len(rows)
-    tier = tier_name(user)
-    limit = -1 if internal_access else limit_for(settings, tier, usage_type)
+    limit = (
+        FREE_TEXT_MESSAGE_LIMIT
+        if free_text
+        else -1
+        if internal_access
+        else limit_for(settings, tier, usage_type)
+    )
     credits = await credit_status(db, user['id'])
+    next_available_at = (
+        _next_free_message_at(rows)
+        if free_text and used >= FREE_TEXT_MESSAGE_LIMIT
+        else None
+    )
+    free_allowance = (
+        {
+            'limit': FREE_TEXT_MESSAGE_LIMIT,
+            'used': used,
+            'remaining': max(0, FREE_TEXT_MESSAGE_LIMIT - used),
+            'windowKind': 'rolling_24h',
+            'windowSeconds': FREE_TEXT_WINDOW_SECONDS,
+            'nextAvailableAt': next_available_at,
+        }
+        if free_text
+        else None
+    )
     return {
         'tier': tier,
         'used': used,
@@ -124,6 +203,9 @@ async def current_usage(
         'credits': credits,
         'internalAccess': internal_access,
         'accessSource': 'internal' if internal_access else 'billing',
+        'freeMessageAllowance': free_allowance,
+        'messageWindowKind': 'rolling_24h' if free_text else 'utc_day',
+        'nextAvailableAt': next_available_at,
     }
 
 

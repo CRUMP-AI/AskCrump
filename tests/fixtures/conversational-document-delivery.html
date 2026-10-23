@@ -67,6 +67,9 @@
     window.renderMessages(window.chats[0].messages);
   </script>
   <script src="/public/chat-resilience.js?v=conversational-document-delivery-browser-1"></script>
+  <script>
+    window.CrumpAccess = Object.freeze({requirePaidTool: () => true});
+  </script>
   <script src="/public/crump-5.0.js?v=conversational-document-delivery-browser-1"></script>
   <script src="/public/home-document-entry.js?v=conversational-document-delivery-browser-1"></script>
 </body>

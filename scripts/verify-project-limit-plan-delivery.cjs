@@ -18,6 +18,7 @@ const { chromium } = require('playwright');
   await recoveryButton.click();
   await page.waitForFunction(() => window.__fixture.recoveries.length === 1);
   const result = await page.evaluate(() => ({
+    status: document.getElementById('crump53ProjectStatus')?.textContent || '',
     requests: window.__fixture.requests,
     recovery: window.__fixture.recoveries[0],
   }));
@@ -25,9 +26,18 @@ const { chromium } = require('playwright');
   const shownIndex = result.requests.findIndex(item => item.path === '/api/projects/limit-plan-message/shown' && item.method === 'POST');
   assert.ok(createIndex >= 0);
   assert.ok(shownIndex > createIndex);
+  assert.match(result.status, /supports up to 25 active projects/i);
+  assert.equal(result.status.includes('supports up to 2 active projects'), false);
+  assert.equal(result.recovery.accessCode, 'PROJECT_LIMIT_REACHED');
+  assert.equal(result.recovery.source, 'feature_recovery');
   assert.equal(result.recovery.projectLimitPlan.eventName, 'ProjectLimitPlanMessageShown');
+  assert.equal(result.recovery.projectLimitPlan.eventKey, 'project-limit-plan-message-shown');
   assert.equal(result.recovery.projectLimitPlan.variant, 'value-specific');
   assert.equal(result.recovery.projectLimitPlan.source, 'recovery_project');
+  assert.equal(result.recovery.projectLimitPlan.plan, 'professional');
+  assert.equal(result.recovery.projectLimitPlan.detail, 'Projects require a paid plan. Professional supports up to 25 active Projects for $20/month. Review the plan before deciding; nothing changes until checkout is confirmed.');
+  assert.equal(result.requests.filter(item => item.path === '/api/projects' && item.method === 'POST').length, 1);
+  assert.equal(result.requests.filter(item => item.path === '/api/projects/limit-plan-message/shown' && item.method === 'POST').length, 1);
   assert.equal(result.requests.some(item => item.path.includes('checkout')), false);
   assert.deepEqual(errors, []);
   await browser.close();

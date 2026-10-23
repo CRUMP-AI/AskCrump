@@ -2744,6 +2744,27 @@ body.crump-v1-body .v1-workspace-body {
   grid-row: 2;
 }
 
+/* The workspace rows are grid items: without an explicit floor of zero
+   they cannot shrink below their content's minimum size, which pushed
+   every row past narrow viewports (the composer row binds first, around
+   350px). The composer field yields before its action buttons do. */
+body.crump-v1-body .v1-workspace-header,
+body.crump-v1-body .v1-workspace-body,
+body.crump-v1-body .v1-command-dock {
+  min-width: 0;
+}
+body.crump-v1-body .input-container .message-input {
+  min-width: 0;
+}
+/* Both grids relied on a single implicit column sized by their content,
+   which cannot shrink: give them an explicit track that follows the
+   container, so their content is laid out inside the viewport instead of
+   sizing the layout from the widest natural content width. */
+body.crump-v1-body .v1-launchpad,
+body.crump-v1-body .v1-command-dock {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 body.crump-v1-body .v1-command-dock {
   position: relative;
   right: auto;

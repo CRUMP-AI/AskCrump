@@ -51,9 +51,9 @@ POLICIES: dict[str, FeaturePolicy] = {
     "research": FeaturePolicy(
         "research",
         "Live research & current data",
-        "free",
+        "professional",
         1,
-        {"free": 1, "professional": 20, "enterprise": 50},
+        {"free": 0, "professional": 20, "enterprise": 50},
         "BRAVE_API_KEY",
     ),
     "image": FeaturePolicy(
@@ -131,7 +131,7 @@ POLICIES: dict[str, FeaturePolicy] = {
     "manuscript_draft": FeaturePolicy(
         "manuscript_draft",
         "Long-form manuscript drafting",
-        "free",
+        "professional",
         8,
         {"free": 0, "professional": 2, "enterprise": 4},
         "ANTHROPIC_API_KEY",
@@ -139,7 +139,7 @@ POLICIES: dict[str, FeaturePolicy] = {
     "manuscript_blueprint": FeaturePolicy(
         "manuscript_blueprint",
         "Manuscript planning",
-        "free",
+        "professional",
         4,
         {"free": 0, "professional": 1, "enterprise": 2},
         "ANTHROPIC_API_KEY",
@@ -147,9 +147,9 @@ POLICIES: dict[str, FeaturePolicy] = {
     "kdp_export": FeaturePolicy(
         "kdp_export",
         "KDP manuscript export",
-        "free",
+        "professional",
         0,
-        {"free": -1, "professional": -1, "enterprise": -1},
+        {"free": 0, "professional": -1, "enterprise": -1},
         None,
     ),
     "code_workspace": FeaturePolicy(
@@ -170,7 +170,7 @@ POLICIES: dict[str, FeaturePolicy] = {
     ),
 }
 
-PROJECT_LIMITS = {"free": 2, "professional": 25, "enterprise": 200}
+PROJECT_LIMITS = {"free": 0, "professional": 25, "enterprise": 200}
 MESSAGE_CODE = "messages"
 QUOTE_TTL_SECONDS = 5 * 60
 

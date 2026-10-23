@@ -14,7 +14,7 @@ PUBLIC = ROOT / "public"
 PUBLIC_SUFFIXES = frozenset({".html", ".js"})
 API_STRING = re.compile(r"(?P<quote>['\"`])(?P<value>/api/.*?)(?P=quote)")
 TEMPLATE_EXPRESSION = re.compile(r"\$\{[^{}]*\}")
-EXPECTED_RAW_REFERENCES = 105
+EXPECTED_RAW_REFERENCES = 107
 EXPECTED_SOURCE_FILES = 33
 OWNER_FENCED_MEDIA_REFERENCES = {
     "/api/files/${encodeURIComponent(operation.fileId)}/signed": frozenset({"public/crump-media-save.js"}),

@@ -38,7 +38,15 @@
   <div id="sidebarOverlay"></div>
 
   <script>
-    window.currentUser = {id:'fixture-user'};
+    window.currentUser = {
+      id:'fixture-user',
+      subscription_tier:'professional',
+      subscription_status:'active',
+    };
+    window.CrumpAccess = Object.freeze({
+      requirePaidTool: () => true,
+      requireOwnedWorkspace: () => true,
+    });
     window.__fixture = {requests:[], recoveries:[]};
     const renderFixture = () => {
       document.getElementById('fixtureRecoveryResult').textContent = JSON.stringify(window.__fixture.recoveries);
@@ -63,6 +71,10 @@
       if (path === '/api/features') {
         return new Response(JSON.stringify({
           success:true,
+          tier:'professional',
+          internalAccess:false,
+          accessSource:'billing',
+          projectLimit:25,
           creditBalance:0,
           features:{video:{configured:true, entitled:true, minimumTier:'professional'}},
         }), {status:200, headers:{'Content-Type':'application/json'}});
@@ -88,8 +100,9 @@
       if (path === '/api/projects' && method === 'POST') {
         return new Response(JSON.stringify({
           success:false,
-          error:'Your current plan supports up to 2 active projects.',
+          error:'Your current plan supports up to 25 active projects.',
           code:'PROJECT_LIMIT_REACHED',
+          // Isolated synthetic delivery metadata for the dormant copy experiment.
           projectLimitPlan:{
             eligible:true,
             experiment:'project-limit-plan-copy',
@@ -108,7 +121,7 @@
           eventKey:'project-limit-plan-message-shown',
           decisionId:'3c36e8bf-c631-46d6-b82d-af4eb08f06d4',
           variant:'value-specific',
-          detail:'Your two Free Projects stay available. Professional raises the active Project limit to 25 for $20/month. You can keep using Free or review the plan before deciding.',
+          detail:'Projects require a paid plan. Professional supports up to 25 active Projects for $20/month. Review the plan before deciding; nothing changes until checkout is confirmed.',
           source:'recovery_project',
           plan:'professional',
         }), {status:200, headers:{'Content-Type':'application/json'}});

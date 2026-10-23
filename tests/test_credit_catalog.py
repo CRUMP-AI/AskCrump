@@ -16,6 +16,14 @@ from backend.routes import credits as credit_routes
 ROOT = Path(__file__).parents[1]
 
 
+def _paid_user(user_id: str = 'user-1') -> dict[str, str]:
+    return {
+        'id': user_id,
+        'subscription_tier': 'professional',
+        'subscription_status': 'active',
+    }
+
+
 def test_credit_catalog_is_stable():
     values = packs()
     assert [item.credits for item in values] == [50, 150, 400]
@@ -137,7 +145,7 @@ async def test_credit_checkout_records_only_the_server_session_and_fixed_pack(mo
     pack = SimpleNamespace(code='credits_150', credits=150, stripe_price_id='price_credits_150')
 
     async def authenticate(*_args, **_kwargs):
-        return SimpleNamespace(user={'id': 'user-1'})
+        return SimpleNamespace(user=_paid_user())
 
     async def ensure_customer(_user):
         return 'cus_owner'
@@ -253,7 +261,7 @@ async def test_credit_checkout_rejects_invalid_client_retry_identity(monkeypatch
     pack = SimpleNamespace(code='credits_50', credits=50, stripe_price_id='price_credits_50')
 
     async def authenticate(*_args, **_kwargs):
-        return SimpleNamespace(user={'id': 'user-1'})
+        return SimpleNamespace(user=_paid_user())
 
     async def unexpected_customer(*_args, **_kwargs):
         raise AssertionError('invalid attempts must stop before provider work')
@@ -276,7 +284,7 @@ async def test_credit_checkout_rejects_invalid_provider_destination_without_even
     pack = SimpleNamespace(code='credits_50', credits=50, stripe_price_id='price_credits_50')
 
     async def authenticate(*_args, **_kwargs):
-        return SimpleNamespace(user={'id': 'user-1'})
+        return SimpleNamespace(user=_paid_user())
 
     async def ensure_customer(_user):
         return 'cus_owner'

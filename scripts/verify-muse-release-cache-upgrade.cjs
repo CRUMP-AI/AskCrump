@@ -8,7 +8,7 @@ const {chromium} = require(playwrightModule);
 const root = path.resolve(__dirname, '..');
 const publicDirectory = path.join(root, 'public');
 const oldCacheName = 'ask-crump-new-body-v1-r253';
-const newCacheName = 'ask-crump-new-body-v1-r268-library-reconciliation-1';
+let newCacheName = null;
 const oldUrls = Object.freeze([
   '/runtime-body-v1.js?v=5.9.76-image-studio-entry-1',
   '/conversation.css?v=5.9.76-continuity-handoff-1',
@@ -28,6 +28,9 @@ const oldUrls = Object.freeze([
 async function loadNewUrls() {
   const runtimeSource = await readFile(path.join(publicDirectory, 'runtime-body-v1.js'), 'utf8');
   const workerSource = await readFile(path.join(publicDirectory, 'sw.js'), 'utf8');
+  const cacheNameMatch = workerSource.match(/const CACHE_NAME = ['"]([^'"]+)['"]/);
+  assert.ok(cacheNameMatch, 'sw.js should declare the active cache name');
+  newCacheName = cacheNameMatch[1];
   const pick = (source, filePattern, label) => {
     const match = source.match(new RegExp(`/${filePattern}\\?v=[^'"\\s)]+`));
     assert.ok(match, `${label} should reference a versioned asset URL`);

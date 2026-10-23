@@ -22,6 +22,62 @@ permissions:
   contents: read
 
 jobs:
+  guest-free-access-contract:
+    name: Guest and Free access contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: askcrump_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d askcrump_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGDATABASE: askcrump_test
+      PGUSER: postgres
+      PGPASSWORD: postgres-ci-only
+
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+      - name: Apply guest and Free prerequisites and migrations
+        run: |
+          psql -X --set=ON_ERROR_STOP=1 --single-transaction --file=tests/postgres/guest_sync_admission_baseline.sql
+          psql -X --set=ON_ERROR_STOP=1 --single-transaction --file=migrations/002_server_authoritative_chat_sync.sql
+          psql -X --set=ON_ERROR_STOP=1 --single-transaction --file=migrations/20261021003000_guest_mode.sql
+          psql -X --set=ON_ERROR_STOP=1 --single-transaction --file=migrations/20261021020000_guest_message_receipts.sql
+          psql -X --set=ON_ERROR_STOP=1 --single-transaction --file=migrations/20261021030000_guest_sync_admission.sql
+      - name: Exercise shared rolling allowance
+        run: >-
+          psql -X --set=ON_ERROR_STOP=1
+          --file=tests/postgres/test_free_message_reservation_migration.sql
+      - name: Exercise guest sync and reply storage boundaries
+        run: >-
+          psql -X --set=ON_ERROR_STOP=1
+          --file=tests/postgres/test_guest_sync_admission_migration.sql
+      - name: Apply fail-closed guest-mode control
+        run: >-
+          psql -X --set=ON_ERROR_STOP=1 --single-transaction
+          --file=migrations/20261021040000_guest_mode_control.sql
+      - name: Exercise guest-mode release and rollback control
+        run: >-
+          psql -X --set=ON_ERROR_STOP=1
+          --file=tests/postgres/test_guest_mode_control_migration.sql
+
   project-artifact-continuity:
     name: Project artifact continuity aggregate
     runs-on: ubuntu-latest

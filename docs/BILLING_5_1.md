@@ -53,7 +53,9 @@ Subscription entitlement and product identifiers, and consumable product identif
 exactly; package-name guessing is intentionally rejected. Run the native release verifier after
 supplying any overrides so a build cannot ship with a stale catalog.
 
-After the SDK purchase succeeds, Ask Crump calls the server. The server queries RevenueCat's customer record and reconciles each non-subscription transaction ID into the local credit ledger exactly once.
+After the SDK purchase succeeds, Ask Crump calls the server. The server queries RevenueCat's customer record and reconciles each non-subscription transaction ID into the local credit ledger exactly once. The native purchase sheet still requires a current paid Ask Crump entitlement before it opens. Settlement and crash/restore recovery do not rely on that current local status: they require the RevenueCat-verified consumable `purchase_date` to fall inside a RevenueCat-verified paid subscription/entitlement interval for an exact catalog product.
+
+This recovery is deliberately fail-closed. The RevenueCat subscriber payload must expose both `purchase_date` and `expires_date` for the matching paid subscription or entitlement. Ask Crump does not stretch `original_purchase_date` across possible billing gaps, infer a period from local account state, or accept missing, timezone-free, malformed, or inverted dates. Consequently, a legitimate older consumable cannot be recovered from a later RevenueCat snapshot if that snapshot no longer contains the exact paid interval that covered it; provider history containing that interval (or a separately provider-verified transaction-period join) is required before those credits can be granted.
 
 Consumable purchases are not treated as subscription entitlements. The Ask Crump account ledger is what preserves already-delivered credits across devices.
 
