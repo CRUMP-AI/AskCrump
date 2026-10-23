@@ -60,7 +60,7 @@ def test_creation_intent_survives_auth_without_storing_user_content():
     assert "new Set(['document', 'presentation', 'resume', 'image', 'video', 'projects'])" in controller
     assert "image: {href: '/#use-cases', label: 'See Image Studio details first'}" in controller
     assert "title: 'Open your Image Studio.'" in controller
-    assert "'Create account & open Image Studio'" in controller
+    assert "'Create account & review Image Studio access'" in controller
     assert "captureCreationIntent();" in controller
     assert "dispatchPendingCreationIntent();" in controller
     assert "crump:body-runtime-ready" in intent_slice

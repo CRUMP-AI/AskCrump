@@ -316,7 +316,7 @@ async def create_checkout(payload: CheckoutRequest, request: Request):
                 'code': 'NATIVE_BILLING_REQUIRED',
             },
         )
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     tier = payload.tier.lower()
     price_id = subscription_price_id(tier)
 
@@ -437,7 +437,7 @@ async def customer_portal(request: Request):
                 'code': 'NATIVE_BILLING_REQUIRED',
             },
         )
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     customer_id = auth.user.get('stripe_customer_id')
     if not customer_id:
         return JSONResponse(
@@ -797,7 +797,7 @@ async def reconcile_stripe_checkout_session(
 
 @router.post('/api/stripe/finalize-checkout')
 async def finalize_checkout(request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     try:
         payload = await request.json()
     except (TypeError, ValueError):
@@ -1028,7 +1028,7 @@ async def sync_revenuecat_customer(user_id: str) -> dict[str, Any] | None:
 
 @router.post('/api/billing/revenuecat/sync')
 async def revenuecat_sync(request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     values = await sync_revenuecat_customer(auth.user['id'])
     if values is None:
         return JSONResponse(
@@ -1045,7 +1045,7 @@ async def revenuecat_sync(request: Request):
 
 @router.get('/api/billing/status')
 async def billing_status(request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     internal_access = bool(auth.user.get('internal_tier'))
     provider = (
         'internal'

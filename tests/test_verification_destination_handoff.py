@@ -1,11 +1,11 @@
 from __future__ import annotations
 
 from pathlib import Path
-from types import SimpleNamespace
 from urllib.parse import parse_qs, urlparse
 
 import pytest
 from pydantic import ValidationError
+from starlette.requests import Request
 
 from backend.routes import auth as auth_routes
 from backend.schemas import RegisterRequest, ResendVerificationRequest
@@ -48,6 +48,18 @@ def test_verification_handoff_urls_carry_only_allowlisted_content_free_destinati
         "https://www.askcrump.com/app?verification=success"
         "&intent=image&plan=professional"
     )
+    assert verified_workspace_url(
+        "https://www.askcrump.com",
+        intent="video",
+        result="already_verified",
+    ) == (
+        "https://www.askcrump.com/app?verification=already_verified"
+        "&intent=video"
+    )
+    assert verified_workspace_url(
+        "https://www.askcrump.com",
+        result="untrusted-result",
+    ) == "https://www.askcrump.com/app?verification=success"
 
     invalid = verification_email_url(
         "https://www.askcrump.com",
@@ -132,11 +144,11 @@ async def test_registration_and_resend_preserve_the_promised_destination(
     monkeypatch.setattr(auth_routes, "record_product_event", ignore_event)
     monkeypatch.setattr(auth_routes, "hash_password", lambda _password: "hashed")
 
-    request = SimpleNamespace(
-        headers={},
-        client=SimpleNamespace(host="127.0.0.1"),
-        url=SimpleNamespace(hostname="www.askcrump.com"),
-    )
+    request = Request({
+        "type": "http", "method": "POST", "path": "/api/auth/register",
+        "scheme": "https", "server": ("www.askcrump.com", 443),
+        "client": ("127.0.0.1", 12345), "headers": [],
+    })
     result = await auth_routes.register(
         RegisterRequest(
             email="new-user@example.com",

@@ -331,6 +331,21 @@
 
   async function purchaseCredits(packCode) {
     if (!native()) throw new Error('Use secure web checkout to purchase credits on the web.');
+    const eligibilityResponse = await fetch('/api/billing/credits/purchase-eligibility', {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({pack: packCode}),
+    });
+    const eligibility = await eligibilityResponse.json().catch(() => ({}));
+    if (!eligibilityResponse.ok || eligibility.success === false || eligibility.creditPurchasesAllowed !== true) {
+      const error = new Error(
+        eligibility.error
+        || 'Subscribe to Professional or Enterprise before adding Crump Credits.',
+      );
+      error.code = eligibility.code || 'CREDIT_PURCHASE_REQUIRES_SUBSCRIPTION';
+      throw error;
+    }
     if (!(await configure())) {
       throw new Error('App Store billing is not configured yet.');
     }
@@ -372,7 +387,16 @@
     const response = await fetch('/api/billing/credits/revenuecat/sync', { method: 'POST' });
     const data = await response.json().catch(() => ({}));
     if (!response.ok || !data.success) {
-      throw new Error(data.error || 'Your purchase completed, but credit verification is still processing.');
+      const error = new Error(data.error || 'Your purchase completed, but credit verification is still processing.');
+      error.code = data.code || 'CREDIT_VERIFICATION_PENDING';
+      throw error;
+    }
+    if (Number(data.rejectedTransactions || 0) > 0) {
+      const error = new Error(
+        'RevenueCat could not prove that this credit purchase occurred during a paid subscription period. No unverified credits were added.',
+      );
+      error.code = data.settlementCode || 'REVENUECAT_PAID_INTERVAL_NOT_PROVEN';
+      throw error;
     }
     window.dispatchEvent(new CustomEvent('crump:credits-updated', { detail: data.credits || {} }));
     return data;

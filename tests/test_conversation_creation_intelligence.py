@@ -259,9 +259,9 @@ def test_crump_voice_avoids_generic_assistant_form_language():
 def test_conversation_intelligence_advances_shell_cache():
     sw = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
-    assert "ask-crump-new-body-v1-r268-library-reconciliation-1" in sw
+    assert "ask-crump-new-body-v1-r269-guest-free-contract-2" in sw
     assert "CACHE_NAME = 'ask-crump-new-body-v1-r229'" not in sw
-    assert "ask-crump-new-body-v1-r268-library-reconciliation-1" in checker
+    assert "ask-crump-new-body-v1-r269-guest-free-contract-2" in checker
 
 
 def test_reload_opens_a_clean_conversation_without_discarding_history():
@@ -284,8 +284,9 @@ def test_reload_opens_a_clean_conversation_without_discarding_history():
     assert "chats = []" not in fresh_start
     assert "recordChatDeletion" not in fresh_start
     assert 'src="/app.js?v=5.9.76-intelligence-receipt-1"' not in shell
-    assert "['/app.js?v=5.9.76-grounded-research-1', 'workspaceapp']" in runtime
-    assert "'/app.js?v=5.9.76-grounded-research-1'" in worker
+    released_app = "/app.js?v=5.9.76-grounded-research-1&workspaceRelease=guest-free-contract-2"
+    assert f"['{released_app}', 'workspaceapp']" in runtime
+    assert f"'{released_app}'" in worker
 
 def test_runtime_document_extraction_patch_accepts_project_pdf_keyword():
     compatibility = read("backend/crump52_patches.py")

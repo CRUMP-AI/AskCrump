@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Request
+from fastapi.responses import JSONResponse
 
-from ..auth_service import authenticate_request
+from ..auth_service import authenticate_request, is_guest_user
+from ..rate_limit import enforce_user_rate_limit
 from ..runtime import db, settings
 from ..security import iso_now
 from ..sync_service import pull_sync, push_sync
@@ -27,8 +29,109 @@ async def sync_pull(request: Request, since: str | None = None):
 @router.post('/sync/push')
 async def sync_push(request: Request):
     auth = await authenticate_request(request, db, settings)
+    guest = is_guest_user(auth.user)
+    if guest:
+        # Sync stays open to guests (their conversation must survive to
+        # signup), but push frequency is bounded on top of the payload
+        # limits push_sync enforces for guests.
+        await enforce_user_rate_limit(
+            db,
+            user_id=auth.user['id'],
+            action='guest_sync_push',
+            limit=30,
+            window_seconds=3600,
+        )
     payload = await request.json()
-    result = await push_sync(db, auth.user['id'], payload if isinstance(payload, dict) else {})
+    result = await push_sync(db, auth.user['id'], payload if isinstance(payload, dict) else {}, is_guest=guest)
+    if result.get('rejectionCode') == 'GUEST_SYNC_BATCH_TOO_LARGE':
+        return JSONResponse(
+            status_code=413,
+            content={
+                'success': False,
+                'code': 'GUEST_SYNC_BATCH_TOO_LARGE',
+                'error': 'This guest sync batch is too large. Your work is still queued and will be sent in smaller batches.',
+                'queued': True,
+                'retryable': False,
+                'serverTime': iso_now(),
+                'limits': result.get('limits'),
+                'received': result.get('received'),
+            },
+        )
+    rejected = result.get('rejected')
+    if rejected:
+        settings_rejections = [
+            item
+            for item in rejected
+            if isinstance(item, dict) and item.get('scope') == 'settings'
+        ]
+        authority_changed = all(
+            isinstance(item, dict) and item.get('reason') == 'not_guest'
+            for item in rejected
+        )
+        if authority_changed:
+            settings_only = len(settings_rejections) == len(rejected)
+            return JSONResponse(
+                status_code=409,
+                content={
+                    'success': False,
+                    'code': (
+                        'GUEST_SETTINGS_AUTHORITY_CHANGED'
+                        if settings_only
+                        else 'GUEST_SYNC_AUTHORITY_CHANGED'
+                    ),
+                    'error': (
+                        'Your account changed while these settings were syncing. '
+                        'They are still queued; retry after sign-in finishes.'
+                        if settings_only
+                        else 'Your account changed while this guest sync was finishing. '
+                        'Your work is still queued; retry after sign-in finishes.'
+                    ),
+                    'queued': True,
+                    'retryable': True,
+                    'serverTime': iso_now(),
+                    **result,
+                },
+            )
+        if settings_rejections and len(settings_rejections) == len(rejected):
+            settings_reason = str(settings_rejections[0].get('reason') or '')
+            if settings_reason == 'guest_mode_disabled':
+                code = 'GUEST_MODE_DISABLED'
+                error = (
+                    'Guest access is temporarily unavailable. '
+                    'Your settings are still queued on this device.'
+                )
+                retryable = False
+            else:
+                code = 'GUEST_SETTINGS_NOT_SAVED'
+                error = (
+                    'These guest settings could not be saved. '
+                    'They are still queued on this device.'
+                )
+                retryable = False
+            return JSONResponse(
+                status_code=409,
+                content={
+                    'success': False,
+                    'code': code,
+                    'error': error,
+                    'queued': True,
+                    'retryable': retryable,
+                    'serverTime': iso_now(),
+                    **result,
+                },
+            )
+        return JSONResponse(
+            status_code=409,
+            content={
+                'success': False,
+                'code': 'GUEST_SYNC_NOT_SAVED',
+                'error': 'This guest sync could not be saved under the current preview access or storage limits.',
+                'queued': True,
+                'retryable': False,
+                'serverTime': iso_now(),
+                **result,
+            },
+        )
     return {'success': True, 'serverTime': iso_now(), **result}
 
 
@@ -39,11 +142,19 @@ async def usage_check(request: Request):
     credits = status.get('credits') or {'balance': 0}
     balance = max(0, int(credits.get('balance') or 0))
     daily_limit = int(status['limit'])
+    free_allowance = status.get('freeMessageAllowance')
+    free_text = isinstance(free_allowance, dict)
     # Older clients compare usage.messages >= limits.messages before sending.
-    # Extend the effective ceiling by the durable credit balance so 5.0 and
-    # earlier shells continue seamlessly until both included usage and credits
-    # are exhausted.
-    effective_limit = -1 if daily_limit < 0 else daily_limit + balance
+    # Free accounts are intentionally subscription-gated at five rolling-24h
+    # text messages: credits cannot extend this ceiling. Paid plans retain the
+    # existing included-plus-credit compatibility behavior.
+    effective_limit = (
+        daily_limit
+        if free_text
+        else -1
+        if daily_limit < 0
+        else daily_limit + balance
+    )
     included_remaining = int(status['remaining'])
     return {
         'success': True,
@@ -56,11 +167,20 @@ async def usage_check(request: Request):
             'limit': daily_limit,
             'remaining': included_remaining,
         },
+        'freeMessageAllowance': free_allowance,
         'credits': credits,
-        'requiresPurchase': daily_limit >= 0 and included_remaining <= 0 and balance <= 0,
+        'requiresPurchase': (
+            included_remaining <= 0
+            if free_text
+            else daily_limit >= 0 and included_remaining <= 0 and balance <= 0
+        ),
+        'upgradeRequired': free_text and included_remaining <= 0,
+        'requiredTier': 'professional' if free_text and included_remaining <= 0 else None,
         'nextRequestSource': (
             'included'
             if daily_limit < 0 or included_remaining > 0
+            else 'subscription'
+            if free_text
             else 'credits'
             if balance > 0
             else 'purchase'

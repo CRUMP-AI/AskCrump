@@ -153,7 +153,12 @@ def delivery(monkeypatch):
         if owner not in {OWNER, OTHER_OWNER}:
             raise HTTPException(status_code=401, detail="Fixture authentication required")
         return SimpleNamespace(
-            user={"id": owner, "email": f"{owner}@example.test", "full_name": "Fixture"},
+            user={
+                "id": owner,
+                "email": f"{owner}@example.test",
+                "full_name": "Fixture",
+                "internal_tier": "professional",
+            },
             session={"id": "fixture-session"},
             token="fixture-token",
         )
@@ -172,7 +177,8 @@ def delivery(monkeypatch):
             }
         return PreparedRequest(
             payload=dict(payload), requested_mode="auto", effective_mode="balanced",
-            verification_level="off", route="chat", creation_intent=creation_intent, user_tier="free",
+            verification_level="off", route="chat", creation_intent=creation_intent,
+            user_tier="professional",
         )
 
     async def verify_answer(*, result, **_kwargs):

@@ -7,6 +7,7 @@ from types import SimpleNamespace
 
 import httpx
 import pytest
+from starlette.requests import Request
 
 from backend.auth_service import create_session
 from backend.config import _canonical_app_name, _support_email
@@ -148,7 +149,11 @@ async def test_registration_email_failure_returns_recoverable_pending_account(mo
         fullName='New User',
         source='instagram',
     )
-    request = SimpleNamespace()
+    request = Request({
+        "type": "http", "method": "POST", "path": "/api/auth/register",
+        "scheme": "https", "server": ("www.askcrump.com", 443),
+        "client": ("127.0.0.1", 12345), "headers": [],
+    })
     response = await auth_routes.register(payload, request)
     body = json.loads(response.body)
 

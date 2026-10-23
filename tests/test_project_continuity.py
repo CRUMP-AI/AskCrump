@@ -557,7 +557,11 @@ async def test_project_file_attach_preserves_missing_and_retryable_failure_seman
     file_id = "00000000-0000-0000-0000-000000000099"
 
     async def authenticate(*_args, **_kwargs):
-        return type("Auth", (), {"user": {"id": USER_ID}})()
+        return type("Auth", (), {"user": {
+            "id": USER_ID,
+            "subscription_tier": "professional",
+            "subscription_status": "active",
+        }})()
 
     class Projects:
         async def get(self, _user_id, _project_id):
@@ -1058,7 +1062,11 @@ async def test_generated_output_project_save_is_measured_only_after_file_attach(
     analytics = []
 
     async def authenticate(*_args, **_kwargs):
-        return type("Auth", (), {"user": {"id": USER_ID}})()
+        return type("Auth", (), {"user": {
+            "id": USER_ID,
+            "subscription_tier": "professional",
+            "subscription_status": "active",
+        }})()
 
     class Projects:
         async def get(self, _user_id, _project_id):
@@ -1109,7 +1117,11 @@ async def test_generated_output_project_save_is_measured_only_after_file_attach(
 @pytest.mark.asyncio
 async def test_generated_output_project_save_rejects_an_invented_source(monkeypatch):
     async def authenticate(*_args, **_kwargs):
-        return type("Auth", (), {"user": {"id": USER_ID}})()
+        return type("Auth", (), {"user": {
+            "id": USER_ID,
+            "subscription_tier": "professional",
+            "subscription_status": "active",
+        }})()
 
     monkeypatch.setattr(projects_routes, "authenticate_request", authenticate)
     response = await projects_routes.attach_project_file(

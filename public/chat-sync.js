@@ -122,6 +122,10 @@
     return JSON.stringify(stableValue(messages));
   }
 
+  function stableTombstoneSignature(tombstone) {
+    return JSON.stringify(stableValue(tombstone));
+  }
+
   function applySynchronizedSettings(settings) {
     if (!settings || typeof settings !== 'object') return false;
     const mappings = [
@@ -264,6 +268,7 @@
     let local = [];
     try { local = JSON.parse(SafeStorage.getItem(STORAGE_KEYS.CHATS) || '[]'); } catch (_) {}
 
+    const tombstoneSnapshot = readDeleted();
     const payload = {
       chats: local.filter(chat => !isPristineChat(chat)).map(chat => ({
         chat_id: chat.chat_id || chat.id,
@@ -273,12 +278,15 @@
         updated_at: iso(chat.updatedAt || chat.updated_at),
         revision: Number(chat.revision || 1),
       })),
-      deletedChats: readDeleted(),
+      deletedChats: tombstoneSnapshot,
     };
 
     if (!payload.chats.length && !payload.deletedChats.length) return { success: true, skipped: true };
     const result = await window.SyncManager.push(null, payload);
-    if (result?.success) writeDeleted([]);
+    if (result?.success) {
+      const acknowledged = new Set(tombstoneSnapshot.map(stableTombstoneSignature));
+      writeDeleted(readDeleted().filter(item => !acknowledged.has(stableTombstoneSignature(item))));
+    }
     return result;
   }
 

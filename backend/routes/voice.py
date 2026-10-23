@@ -41,7 +41,7 @@ def _voice_error(exc: VoiceServiceError) -> JSONResponse:
 @router.post("/synthesize")
 async def synthesize(request: Request):
     """Create ephemeral audio only after a signed-in user explicitly requests it."""
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     if not voice.configured:
         return _voice_error(VoiceServiceError(
             "Premium voice is not configured yet.", 503, "VOICE_NOT_CONFIGURED"

@@ -346,7 +346,9 @@ def get_settings() -> Settings:
         max_request_bytes=int(os.getenv('MAX_REQUEST_BYTES', str(5 * 1024 * 1024))),
         max_history_messages=int(os.getenv('MAX_HISTORY_MESSAGES', '120')),
         max_history_chars=int(os.getenv('MAX_HISTORY_CHARS', '450000')),
-        free_daily_messages=int(os.getenv('FREE_DAILY_MESSAGES', '25')),
+        # Compatibility setting for older callers. The Free text contract is
+        # server-fixed at five messages per rolling 24 hours.
+        free_daily_messages=int(os.getenv('FREE_DAILY_MESSAGES', '5')),
         professional_daily_messages=int(os.getenv('PROFESSIONAL_DAILY_MESSAGES', '500')),
         enterprise_daily_messages=int(os.getenv('ENTERPRISE_DAILY_MESSAGES', '5000')),
     )

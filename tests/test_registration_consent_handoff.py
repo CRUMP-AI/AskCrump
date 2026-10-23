@@ -4,6 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 from pydantic import ValidationError
+from starlette.requests import Request
 
 from backend.routes import auth as auth_routes
 from backend.schemas import (
@@ -64,7 +65,11 @@ async def test_current_registration_consent_is_saved_before_verification(monkeyp
             termsAccepted=True,
             termsVersion=CURRENT_TERMS_VERSION,
         ),
-        SimpleNamespace(),
+        Request({
+            "type": "http", "method": "POST", "path": "/api/auth/register",
+            "scheme": "https", "server": ("www.askcrump.com", 443),
+            "client": ("127.0.0.1", 12345), "headers": [],
+        }),
     )
 
     assert response['success'] is True
@@ -82,6 +87,73 @@ def test_legacy_registration_omission_keeps_the_authenticated_terms_fallback():
     assert payload.termsAccepted is False
     assert payload.termsVersion is None
     assert auth_routes._registration_terms_values(payload, accepted_at='2026-08-29T00:00:00Z') == {}
+
+
+@pytest.mark.asyncio
+async def test_guest_registration_preserves_existing_settings_without_redundant_upsert(monkeypatch):
+    class GuestRegistrationDB:
+        def __init__(self) -> None:
+            self.user = {
+                'id': 'guest-user',
+                'email': 'guest-placeholder@guest.askcrump.local',
+                'is_guest': True,
+                'is_verified': False,
+                'full_name': None,
+            }
+            self.updated_user: dict | None = None
+
+        async def select_one(self, table, **kwargs):
+            assert table == 'users'
+            return None
+
+        async def update(self, table, payload, *, filters):
+            assert table == 'users'
+            assert filters == {'id': 'eq.guest-user'}
+            self.user.update(payload)
+            self.updated_user = dict(self.user)
+            return [dict(self.user)]
+
+        async def upsert(self, *_args, **_kwargs):
+            raise AssertionError('guest conversion must preserve its existing settings row')
+
+    fake_db = GuestRegistrationDB()
+
+    async def allow_rate_limit(*_args, **_kwargs):
+        return None
+
+    async def guest_identity(*_args, **_kwargs):
+        return SimpleNamespace(user=dict(fake_db.user))
+
+    async def accept_product_event(*_args, **_kwargs):
+        return True
+
+    monkeypatch.setattr(auth_routes, 'db', fake_db)
+    monkeypatch.setattr(auth_routes, 'email_service', SentVerificationEmail())
+    monkeypatch.setattr(auth_routes, 'enforce_auth_rate_limit', allow_rate_limit)
+    monkeypatch.setattr(auth_routes, 'authenticate_guest_for_registration', guest_identity)
+    monkeypatch.setattr(auth_routes, 'hash_password', lambda _password: 'hashed-password')
+    monkeypatch.setattr(auth_routes, 'record_account_created_event', accept_product_event)
+    monkeypatch.setattr(auth_routes, 'record_product_event', accept_product_event)
+
+    response = await auth_routes.register(
+        RegisterRequest(
+            email='converted@example.com',
+            password='StrongPass1',
+            termsAccepted=True,
+            termsVersion=CURRENT_TERMS_VERSION,
+        ),
+        Request({
+            'type': 'http', 'method': 'POST', 'path': '/api/auth/register',
+            'scheme': 'https', 'server': ('www.askcrump.com', 443),
+            'client': ('127.0.0.1', 12345), 'headers': [],
+        }),
+    )
+
+    assert response['success'] is True
+    assert response['emailSent'] is True
+    assert fake_db.updated_user is not None
+    assert fake_db.updated_user['email'] == 'converted@example.com'
+    assert fake_db.updated_user['is_guest'] is True
 
 
 def test_stale_legal_versions_are_rejected_by_both_consent_contracts():

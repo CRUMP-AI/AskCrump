@@ -13,6 +13,20 @@
   const $$ = (selector, root = document) => [...root.querySelectorAll(selector)];
   const byId = id => document.getElementById(id);
 
+  function requirePaidTool(label) {
+    const guard = window.CrumpAccess?.requirePaidTool;
+    if (typeof guard === 'function') return guard(label);
+    window.showToast?.(`${label} is unavailable until account access finishes loading.`, 'info');
+    return false;
+  }
+
+  function requireOwnedWorkspace(label) {
+    const guard = window.CrumpAccess?.requireOwnedWorkspace;
+    if (typeof guard === 'function') return guard(label);
+    window.showToast?.(`${label} is unavailable until account access finishes loading.`, 'info');
+    return false;
+  }
+
   function makeImage(src, className, alt = 'Ask Crump', critical = false) {
     const img = document.createElement('img');
     img.src = src;
@@ -348,10 +362,12 @@
         forwardClick('upgradeBtnSidebar');
         break;
       case 'research':
+        if (!requirePaidTool('Research')) break;
         window.triggerWebSearch?.();
         requestAnimationFrame(() => focusComposer('What should Crump research?'));
         break;
       case 'image':
+        if (!requirePaidTool('Image Studio')) break;
         if (window.CrumpImageStudio?.open) window.CrumpImageStudio.open();
         else {
           window.triggerImageGeneration?.();
@@ -359,15 +375,19 @@
         }
         break;
       case 'file':
+        if (!requirePaidTool('Files')) break;
         forwardClick('attachBtn');
         break;
       case 'projects':
+        if (!requireOwnedWorkspace('Projects')) break;
         openProduct('projects');
         break;
       case 'video':
+        if (!requireOwnedWorkspace('Video Studio')) break;
         openProduct('video');
         break;
       case 'saved':
+        if (!requireOwnedWorkspace('Files')) break;
         if (typeof window.CrumpProduct53?.openFiles === 'function') {
           window.CrumpProduct53.openFiles();
         } else {
@@ -375,6 +395,7 @@
         }
         break;
       case 'code':
+        if (!requirePaidTool('Autonomous Crump')) break;
         window.CrumpCodeWorkspace?.open?.();
         break;
       case 'focus':

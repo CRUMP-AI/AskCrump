@@ -125,7 +125,7 @@ def test_chat_api_rejects_a_browser_attempt_to_unlock_always_review(monkeypatch)
     assert response.status_code == 403
     assert response.json()["code"] == "SUBSCRIPTION_REQUIRED"
     assert response.json()["requiredTier"] == "professional"
-    assert response.json()["message"] == "Always review requires a Professional plan."
+    assert response.json()["message"] == "Always review requires a verified Professional plan."
 
 
 @pytest.mark.asyncio

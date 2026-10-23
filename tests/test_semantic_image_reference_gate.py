@@ -125,7 +125,7 @@ def _install_route_doubles(monkeypatch, creation_intent, *, historical: bool = F
                 "id": "reference-user",
                 "email": "owner@example.com",
                 "full_name": "Owner",
-                "subscription_tier": "free",
+                "internal_tier": "professional",
             },
             session={"id": "reference-session"},
             token="test-token",
@@ -139,7 +139,7 @@ def _install_route_doubles(monkeypatch, creation_intent, *, historical: bool = F
             verification_level="off",
             route="chat",
             creation_intent=creation_intent,
-            user_tier="free",
+            user_tier="professional",
         )
 
     intelligence = SimpleNamespace(

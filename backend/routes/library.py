@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 
 from ..auth_service import authenticate_request
 from ..library_service import LibraryError, LibraryService
+from ..paid_tool_access import paid_tool_required
 from ..runtime import db, features, files, manuscripts, projects, settings
 
 router = APIRouter(prefix="/api/library", tags=["library"])
@@ -21,14 +22,16 @@ def failure(exc: LibraryError) -> JSONResponse:
 
 @router.get("/books")
 async def list_books(request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     items = await library.list_books(user_id=auth.user["id"])
     return {"success": True, "books": items}
 
 
 @router.post("/books/import")
 async def import_book(request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
+    if blocked := paid_tool_required(auth.user, label="Book imports"):
+        return blocked
     payload = await request.json()
     if not isinstance(payload, dict):
         return JSONResponse(
@@ -64,7 +67,9 @@ async def import_book(request: Request):
 
 @router.patch("/books/{manuscript_id}")
 async def update_book(manuscript_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
+    if blocked := paid_tool_required(auth.user, label="Library editing"):
+        return blocked
     payload = await request.json()
     if not isinstance(payload, dict):
         return JSONResponse(
@@ -83,14 +88,14 @@ async def update_book(manuscript_id: str, request: Request):
 
 @router.get("/books/deleted")
 async def list_deleted_books(request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     items = await library.list_books(user_id=auth.user["id"], deleted=True)
     return {"success": True, "books": items}
 
 
 @router.post("/books/{manuscript_id}/trash")
 async def trash_book(manuscript_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     try:
         payload = await request.json()
     except Exception:
@@ -110,7 +115,7 @@ async def trash_book(manuscript_id: str, request: Request):
 
 @router.post("/books/{manuscript_id}/restore")
 async def restore_book(manuscript_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     try:
         item = await library.restore_book(user_id=auth.user["id"], manuscript_id=manuscript_id)
         return {"success": True, "book": item}
@@ -120,7 +125,7 @@ async def restore_book(manuscript_id: str, request: Request):
 
 @router.delete("/books/{manuscript_id}")
 async def delete_book_permanently(manuscript_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     try:
         result = await library.delete_book_permanently(
             user_id=auth.user["id"],

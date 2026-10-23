@@ -144,6 +144,218 @@ async function exerciseSyncCursorRace() {
 
 await exerciseSyncCursorRace();
 
+async function exerciseSyncBatchDrain() {
+  const values = new Map();
+  const requests = [];
+  const localStorage = {
+    getItem(key) { return values.has(key) ? values.get(key) : null; },
+    setItem(key, value) { values.set(key, String(value)); },
+  };
+  const syncWindow = {
+    currentUser: {id: 'batch-fixture-user', isGuest: true},
+    addEventListener() {},
+    setTimeout,
+    clearTimeout,
+  };
+  const fixtureFetch = async (_input, options = {}) => {
+    const body = JSON.parse(String(options.body || '{}'));
+    requests.push(body);
+    if (requests.length === 2) {
+      return new Response(JSON.stringify({
+        success: false,
+        code: 'DATABASE_ERROR',
+        error: 'Temporary fixture failure.',
+      }), {status: 503, headers: {'Content-Type': 'application/json'}});
+    }
+    return new Response(JSON.stringify({
+      success: true,
+      serverTime: '2026-10-22T22:00:00.000Z',
+      accepted: (body.chats || []).map(chat => chat.chat_id),
+      ignored: (body.deletedChats || []).map(tombstone => tombstone.id),
+    }), {status: 200, headers: {'Content-Type': 'application/json'}});
+  };
+  runInContext(syncManagerRuntimeSource, createContext({
+    AbortController,
+    Date,
+    JSON,
+    Math,
+    Promise,
+    Response,
+    crypto: {randomUUID: () => 'batch-fixture-entry'},
+    fetch: fixtureFetch,
+    localStorage,
+    navigator: {onLine: true},
+    window: syncWindow,
+  }));
+
+  const chats = Array.from({length: 45}, (_, index) => ({chat_id: `chat-${index}`}));
+  const deletedChats = Array.from({length: 23}, (_, index) => ({id: `deleted-${index}`}));
+  const firstResult = await syncWindow.SyncManager.push(null, {
+    chats,
+    deletedChats,
+    settings: {assistant_name: 'Crump'},
+  });
+  const queuedAfterFailure = JSON.parse(
+    localStorage.getItem('crump_sync_queue_v4:batch-fixture-user') || '[]',
+  );
+  const result = await syncWindow.SyncManager.flush();
+  const remaining = JSON.parse(
+    localStorage.getItem('crump_sync_queue_v4:batch-fixture-user') || '[]',
+  );
+  if (firstResult.success !== false || firstResult.flushed !== true ||
+      queuedAfterFailure.length !== 2 || !result.success || requests.length !== 4 ||
+      remaining.length !== 0) {
+    throw new Error('Bounded sync batches did not drain the complete local queue.');
+  }
+  if (requests.some(request => request.chats.length > 20 || request.deletedChats.length > 20)) {
+    throw new Error('A sync request exceeded the server-authoritative guest batch bounds.');
+  }
+  if (JSON.stringify(requests[1]) !== JSON.stringify(requests[2])) {
+    throw new Error('A failed bounded sync batch was not retained exactly for retry.');
+  }
+  const successfulRequests = [requests[0], requests[2], requests[3]];
+  const sentChats = successfulRequests.flatMap(request => request.chats).map(chat => chat.chat_id);
+  const sentTombstones = successfulRequests.flatMap(request => request.deletedChats).map(item => item.id);
+  if (JSON.stringify(sentChats) !== JSON.stringify(chats.map(chat => chat.chat_id)) ||
+      JSON.stringify(sentTombstones) !== JSON.stringify(deletedChats.map(item => item.id))) {
+    throw new Error('A queued chat or tombstone was lost while draining bounded batches.');
+  }
+  if (successfulRequests[0].settings?.assistant_name !== 'Crump' ||
+      successfulRequests.slice(1).some(request => request.settings !== null)) {
+    throw new Error('Settings were not attached exactly once to the bounded sync sequence.');
+  }
+}
+
+await exerciseSyncBatchDrain();
+
+async function exerciseConcurrentSyncSnapshotMerge() {
+  const values = new Map();
+  const requests = [];
+  const network = {onLine: false};
+  const localStorage = {
+    getItem(key) { return values.has(key) ? values.get(key) : null; },
+    setItem(key, value) { values.set(key, String(value)); },
+  };
+  const fixtureFetch = async (_input, options = {}) => {
+    const body = JSON.parse(String(options.body || '{}'));
+    requests.push(body);
+    return new Response(JSON.stringify({
+      success: true,
+      accepted: (body.chats || []).map(chat => chat.chat_id),
+      ignored: (body.deletedChats || []).map(item => item.id),
+    }), {status: 200, headers: {'Content-Type': 'application/json'}});
+  };
+  const createTab = id => {
+    const syncWindow = {
+      currentUser: {id: 'concurrent-fixture-user'},
+      addEventListener() {},
+      setTimeout,
+      clearTimeout,
+    };
+    runInContext(syncManagerRuntimeSource, createContext({
+      AbortController,
+      Date,
+      JSON,
+      Math,
+      Number,
+      Promise,
+      Response,
+      crypto: {randomUUID: () => `concurrent-entry-${id}`},
+      fetch: fixtureFetch,
+      localStorage,
+      navigator: network,
+      window: syncWindow,
+    }));
+    return syncWindow;
+  };
+  const firstTab = createTab('first');
+  const secondTab = createTab('second');
+  const chatId = '00000000-0000-4000-8000-000000000091';
+
+  await firstTab.SyncManager.push(null, {
+    chats: [{
+      chat_id: chatId,
+      title: 'Current title',
+      messages: [
+        {id: 'message-1', role: 'user', content: 'first', timestamp: '2026-10-22T20:00:00Z', metadata: {first: true}},
+        {id: 'message-2', role: 'assistant', content: 'second', timestamp: '2026-10-22T20:00:01Z'},
+      ],
+      metadata: {firstTab: true},
+      revision: 8,
+      created_at: '2026-10-22T19:00:00Z',
+      updated_at: '2026-10-22T20:00:02Z',
+    }],
+    deletedChats: [],
+    settings: {preferences: {firstTab: true}},
+  });
+  await secondTab.SyncManager.push(null, {
+    chats: [{
+      chat_id: chatId,
+      title: 'Stale title',
+      messages: [
+        {id: 'message-1', role: 'user', content: 'first', timestamp: '2026-10-22T20:00:00Z', metadata: {secondTab: true}},
+        {id: 'message-3', role: 'user', content: 'parallel', timestamp: '2026-10-22T20:00:01.500Z'},
+      ],
+      metadata: {secondTab: true},
+      revision: 7,
+      created_at: '2026-10-22T19:00:00Z',
+      updated_at: '2026-10-22T19:59:59Z',
+    }],
+    deletedChats: [],
+    settings: {preferences: {secondTab: true}},
+  });
+
+  const mergedQueue = JSON.parse(
+    localStorage.getItem('crump_sync_queue_v4:concurrent-fixture-user') || '[]',
+  );
+  const mergedChat = mergedQueue[0]?.payload?.chats?.[0];
+  const messageIds = (mergedChat?.messages || []).map(message => message.id);
+  if (mergedQueue.length !== 1 || mergedChat?.title !== 'Current title' ||
+      mergedChat?.revision !== 8 || JSON.stringify(messageIds) !== JSON.stringify([
+        'message-1', 'message-2', 'message-3',
+      ]) || mergedChat?.metadata?.firstTab !== true || mergedChat?.metadata?.secondTab !== true ||
+      mergedChat?.messages?.[0]?.metadata?.first !== true ||
+      mergedChat?.messages?.[0]?.metadata?.secondTab !== true ||
+      mergedQueue[0]?.payload?.settings?.preferences?.firstTab !== true ||
+      mergedQueue[0]?.payload?.settings?.preferences?.secondTab !== true) {
+    throw new Error('Concurrent stale same-chat snapshots were not merged without loss or duplicate IDs.');
+  }
+
+  network.onLine = true;
+  await secondTab.SyncManager.flush();
+  network.onLine = false;
+  await firstTab.SyncManager.push(null, {
+    chats: [],
+    deletedChats: [{id: chatId, revision: 9, deleted_at: '2026-10-22T20:01:00Z'}],
+  });
+  await secondTab.SyncManager.push(null, {
+    chats: [{
+      chat_id: chatId,
+      title: 'Stale resurrection',
+      messages: [{id: 'message-4', role: 'user', content: 'late stale copy'}],
+      revision: 7,
+      updated_at: '2026-10-22T19:59:58Z',
+    }],
+    deletedChats: [],
+  });
+  const tombstoneQueue = JSON.parse(
+    localStorage.getItem('crump_sync_queue_v4:concurrent-fixture-user') || '[]',
+  );
+  if (tombstoneQueue[0]?.payload?.chats?.length !== 0 ||
+      tombstoneQueue[0]?.payload?.deletedChats?.[0]?.id !== chatId) {
+    throw new Error('A stale concurrent snapshot displaced or resurrected a queued tombstone.');
+  }
+  network.onLine = true;
+  await firstTab.SyncManager.flush();
+  if (requests.length !== 2 || requests[0]?.chats?.[0]?.messages?.length !== 3 ||
+      requests[1]?.chats?.length !== 0 || requests[1]?.deletedChats?.[0]?.id !== chatId ||
+      JSON.parse(localStorage.getItem('crump_sync_queue_v4:concurrent-fixture-user') || '[]').length !== 0) {
+    throw new Error('Merged snapshots or concurrent tombstones did not retain batch acknowledgement semantics.');
+  }
+}
+
+await exerciseConcurrentSyncSnapshotMerge();
+
 const landingRuntimeSource = await readFile(new URL('landing.js', publicDirectory), 'utf8');
 
 function runLandingAttribution(
@@ -996,7 +1208,7 @@ const landingVersion = `${releaseVersion}-facebook-reel-attribution-1`;
 const planRendererVersion = `${releaseVersion}-credit-pack-accessibility-1`;
 const commerceRecoveryVersion = `${releaseVersion}-commerce-recovery-1`;
 const nativeBillingIdentityVersion = `${releaseVersion}-native-billing-identity-1`;
-const stripeDestinationIntegrityVersion = `${releaseVersion}-stripe-destination-integrity-1`;
+const creditEntitlementSyncVersion = `${releaseVersion}-credit-entitlement-sync-1`;
 const planStatusLineVersion = `${releaseVersion}-plan-status-line-1`;
 const checkoutDestinationLabelVersion = `${releaseVersion}-checkout-destination-label-1`;
 const creditPackTruthVersion = `${releaseVersion}-credit-pack-truth-1`;
@@ -1009,7 +1221,10 @@ const outputProjectActionVersion = `${releaseVersion}-output-project-action-1`;
 const studioActionLabelsVersion = `${releaseVersion}-studio-action-labels-1`;
 const productStudioLazyLoadVersion = `${releaseVersion}-product-studio-lazy-load-2`;
 const visibleWorkspaceReturnVersion = `${releaseVersion}-visible-workspace-return-1`;
-const authControllerVersion = `${releaseVersion}-image-studio-entry-1`;
+const guestFreeContractVersion = `${releaseVersion}-guest-free-contract-2`;
+const guestFreeWorkspaceRelease = 'workspaceRelease=guest-free-contract-2';
+const releasedWorkspaceAsset = url => `${url}&${guestFreeWorkspaceRelease}`;
+const authControllerVersion = `${releaseVersion}-auth-verification-session-1`;
 const continuityHandoffVersion = `${releaseVersion}-continuity-handoff-1`;
 const composerModeResetVersion = `${releaseVersion}-composer-mode-reset-1`;
 const accountDeletionStorageVersion = `${releaseVersion}-account-storage-deletion-1`;
@@ -1022,8 +1237,8 @@ const precisionEditGuideLoaderVersion = `${releaseVersion}-live-image-preview-lo
 const fileLibraryWindowVersion = `${releaseVersion}-file-library-window-1`;
 const imageReferenceRecoveryVersion = `${releaseVersion}-image-reference-recovery-1`;
 const liveImagePreviewVersion = `${releaseVersion}-precision-studio-1`;
-const settingsSyncVersion = `${releaseVersion}-settings-sync-1`;
-const syncCursorVersion = `${releaseVersion}-sync-cursor-1`;
+const chatSyncVersion = `${releaseVersion}-sync-batch-1`;
+const syncQueueVersion = `${releaseVersion}-sync-batch-1`;
 const imageNodeStabilityVersion = `${releaseVersion}-image-node-stability-1`;
 const uploadedImageNodeStabilityVersion = `${releaseVersion}-uploaded-image-node-stability-1`;
 const projectSaveMeasurementVersion = `${releaseVersion}-project-save-measurement-1`;
@@ -1034,6 +1249,7 @@ const imageStudioEntryVersion = `${releaseVersion}-image-studio-entry-1`;
 const museReleaseRepairVersion = `${releaseVersion}-muse-release-repair-1`;
 const nativePushHandoffVersion = `${releaseVersion}-native-push-handoff-1`;
 const cacheIntegrityVersion = `${releaseVersion}-friendly-workspace-1`;
+const ownedWorkspaceAccessVersion = `${releaseVersion}-owned-workspace-access-1`;
 const shellNoTaglineVersion = `${releaseVersion}-shell-no-tagline-1`;
 const atelierWorkspaceVersion = `${releaseVersion}-atelier-workspace-1`;
 const responseContinuityCleanupVersion = `${releaseVersion}-response-continuity-cleanup-1`;
@@ -1042,7 +1258,7 @@ const libraryCrudPrivacyVersion = `${releaseVersion}-library-crud-privacy-1`;
 const libraryReconciliationVersion = `${releaseVersion}-library-reconciliation-1`;
 const homeDocumentEntryVersion = `${releaseVersion}-home-document-entry-1`;
 const autonomousContinuityVersion = `${releaseVersion}-autonomous-continuity-1`;
-const runtimeBodyVersion = libraryReconciliationVersion;
+const runtimeBodyVersion = guestFreeContractVersion;
 const appearanceChoiceVersion = `${releaseVersion}-appearance-choice-3`;
 const uiReleaseAuditVersion = `${releaseVersion}-ui-release-audit-2`;
 const activityCenterVersion = autonomousContinuityVersion;
@@ -1326,6 +1542,7 @@ if (!referringAcquisitionSource ||
   process.exit(1);
 }
 const requiredHtmlSignals = [
+  `/auth-styles.css?v=${guestFreeContractVersion}`,
   `/runtime-body-v1.js?v=${runtimeBodyVersion}`,
   `/auth-controller.js?v=${authControllerVersion}`,
   `/telemetry-config.js?v=${releaseVersion}`,
@@ -1414,7 +1631,7 @@ for (const source of [runtime, nativeBuildSource]) {
   }
 }
 if (!runtime.includes('/billing.css') ||
-    !runtime.includes(`/billing-manager.js?v=${stripeDestinationIntegrityVersion}`) ||
+    !runtime.includes(`/billing-manager.js?v=${creditEntitlementSyncVersion}`) ||
     !runtime.includes(`/onboarding.css?v=${cacheIntegrityVersion}`) ||
     !runtime.includes(`/onboarding.js?v=${cacheIntegrityVersion}`) ||
     !runtime.includes(`/conversation.css?v=${museReleaseRepairVersion}`) ||
@@ -1433,11 +1650,11 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-1`) ||
     !runtime.includes(`/lifecycle-share.js?v=${settingsInviteVersion}`) ||
     !runtime.includes(`/lifecycle-manager.js?v=${lifecycleIdleSendVersion}`) ||
-    !runtime.includes(`/chat-sync.js?v=${settingsSyncVersion}`) ||
+    !runtime.includes(`/chat-sync.js?v=${chatSyncVersion}`) ||
     !runtime.includes(`/product-analytics.js?v=${navigationDiscoveryVersion}`) ||
     !runtime.includes(`/app.js?v=${groundedResearchVersion}`) ||
     !runtime.includes(`/crump-v1-body.js?v=${atelierWorkspaceVersion}`) ||
-    !runtime.includes(`/crump-v1-body.css?v=${cacheIntegrityVersion}`) ||
+    !runtime.includes(`/crump-v1-body.css?v=${ownedWorkspaceAccessVersion}`) ||
     !runtime.includes(`/crump-5.0.css?v=${referenceFidelityVersion}`) ||
     !runtime.includes(`/crump-5.0.js?v=${libraryCrudPrivacyVersion}`) ||
     !runtime.includes(`/crump-precision-image-edit-loader.js?v=${referenceFidelityVersion}`) ||
@@ -1446,7 +1663,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/crump-billing-5.1.js?v=${checkoutDestinationLabelVersion}`) ||
     !runtime.includes(`/crump-5.2.js?v=${planStatusLineVersion}`) ||
     !runtime.includes(`/crump-5.2.2.css?v=${newResponseCueVersion}`) ||
-    !runtime.includes(`/crump-5.2.2.js?v=${museReleaseRepairVersion}`) ||
+    !runtime.includes(`/crump-5.2.2.js?v=${museReleaseRepairVersion}&${guestFreeWorkspaceRelease}`) ||
     !runtime.includes(`/crump-4.3.js?v=${atelierWorkspaceVersion}`) ||
     !runtime.includes(`/crump-4.4.css?v=${cacheIntegrityVersion}`) ||
     !runtime.includes(`/crump-4.4.js?v=${cacheIntegrityVersion}`) ||
@@ -1467,6 +1684,22 @@ if (!runtime.includes('/billing.css') ||
     runtime.includes(`/crump-code-5.9.35.css?v=${intelligenceArchitectureVersion}`)) {
   console.error('New-body runtime is missing the canonical shell.');
   process.exit(1);
+}
+const guestFreeRuntimeAssets = [
+  `/chat-resilience.js?v=${creditConfirmationVersion}`,
+  `/app.js?v=${groundedResearchVersion}`,
+  `/crump-5.0.js?v=${libraryCrudPrivacyVersion}`,
+  `/crump-billing-5.1.js?v=${checkoutDestinationLabelVersion}`,
+  `/crump-5.2.js?v=${planStatusLineVersion}`,
+  `/crump-v1-body.js?v=${atelierWorkspaceVersion}`,
+  `/crump-product-loader.js?v=${manuscriptExportDeliveryVersion}`,
+  `/crump-code-loader.js?v=${autonomousContinuityVersion}`,
+].map(releasedWorkspaceAsset);
+for (const source of [runtime, nativeBuildSource]) {
+  if (guestFreeRuntimeAssets.some(asset => !source.includes(asset))) {
+    console.error('Guest/Free frontend assets must advance atomically in web and native runtime plans.');
+    process.exit(1);
+  }
 }
 if (runtime.includes('/crump-5.2.4.js') || runtime.includes('/crump-5.2.4.css')) {
   console.error('Retired 5.2.4 branding must not load inside the new-body runtime.');
@@ -1539,8 +1772,8 @@ if (runtimeDocument.documentElement.dataset.crumpBodyRuntime !== 'ready' ||
     loadedRuntimeScripts.length !== 35 ||
     !loadedRuntimeScripts.every(asset => preloadedRuntimeScripts.includes(asset)) ||
     loadedRuntimeStyles.at(-1) !== expectedFinalStyles.at(-1) ||
-    loadedRuntimeScripts.indexOf(`/credit-confirmation.js?v=${creditConfirmationVersion}`) > loadedRuntimeScripts.indexOf(`/app.js?v=${groundedResearchVersion}`) ||
-    loadedRuntimeScripts.indexOf(`/app.js?v=${groundedResearchVersion}`) > loadedRuntimeScripts.indexOf(`/crump-4.3.js?v=${atelierWorkspaceVersion}`) ||
+    loadedRuntimeScripts.indexOf(`/credit-confirmation.js?v=${creditConfirmationVersion}`) > loadedRuntimeScripts.indexOf(releasedWorkspaceAsset(`/app.js?v=${groundedResearchVersion}`)) ||
+    loadedRuntimeScripts.indexOf(releasedWorkspaceAsset(`/app.js?v=${groundedResearchVersion}`)) > loadedRuntimeScripts.indexOf(`/crump-4.3.js?v=${atelierWorkspaceVersion}`) ||
     loadedRuntimeScripts.at(-1) !== `/crump-activity-center-1.0.js?v=${activityCenterVersion}`) {
   console.error('Authenticated workspace runtime load order or completion contract failed.');
   process.exit(1);
@@ -1557,7 +1790,7 @@ const libraryLoader = await readFile(new URL('public/crump-library-loader.js', r
 if (!precisionLoader.includes(`/crump-precision-image-edit.css?v=${referenceFidelityVersion}`) ||
     !precisionLoader.includes(`/crump-precision-image-edit.js?v=${referenceFidelityVersion}`) ||
     !productLoader.includes(`/crump-product-5.3.css?v=${projectsEmptyStateVersion}`) ||
-    !productLoader.includes(`/crump-product-5.3.js?v=${manuscriptExportDeliveryVersion}`) ||
+    !productLoader.includes(releasedWorkspaceAsset(`/crump-product-5.3.js?v=${manuscriptExportDeliveryVersion}`)) ||
     !libraryLoader.includes(`/crump-library-5.7.css?v=${libraryFirstRunVersion}`) ||
     !libraryLoader.includes(`/crump-library-5.7.js?v=${libraryReconciliationVersion}`)) {
   console.error('Reference-fidelity lazy loaders must use the same atomic release token as the shell.');
@@ -1713,10 +1946,10 @@ const cacheAddressabilitySources = Object.freeze([
   ['service worker', serviceWorker],
 ]);
 for (const [pathname, expectedUrl] of [
-  ['/crump-product-loader.js', `/crump-product-loader.js?v=${manuscriptExportDeliveryVersion}`],
+  ['/crump-product-loader.js', releasedWorkspaceAsset(`/crump-product-loader.js?v=${manuscriptExportDeliveryVersion}`)],
   ['/crump-library-loader.js', `/crump-library-loader.js?v=${libraryReconciliationVersion}`],
   ['/crump-navigation-5.9.30.css', `/crump-navigation-5.9.30.css?v=${navFocusVisibilityVersion}`],
-  ['/crump-v1-body.js', `/crump-v1-body.js?v=${atelierWorkspaceVersion}`],
+  ['/crump-v1-body.js', releasedWorkspaceAsset(`/crump-v1-body.js?v=${atelierWorkspaceVersion}`)],
 ]) {
   for (const [label, source] of cacheAddressabilitySources) {
     const versionedOccurrences = source.split(`${pathname}?v=`).length - 1;
@@ -1756,7 +1989,7 @@ for (const [label, source] of [
     process.exit(1);
   }
 }
-if (!serviceWorker.includes('ask-crump-new-body-v1-r268-library-reconciliation-1') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r269-guest-free-contract-2') ||
     !serviceWorker.includes(`'${shellBrandUrl}'`) ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||
@@ -1786,7 +2019,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r268-library-reconciliation-1
     !serviceWorker.includes(`/presence-manager.js?v=${nativePushHandoffVersion}`) ||
     !serviceWorker.includes(`/app.js?v=${groundedResearchVersion}`) ||
     !serviceWorker.includes(`/crump-5.2.2.css?v=${newResponseCueVersion}`) ||
-    !serviceWorker.includes(`/crump-5.2.2.js?v=${museReleaseRepairVersion}`) ||
+    !serviceWorker.includes(`/crump-5.2.2.js?v=${museReleaseRepairVersion}&${guestFreeWorkspaceRelease}`) ||
     !serviceWorker.includes(`/onboarding.css?v=${cacheIntegrityVersion}`) ||
     !serviceWorker.includes(`/onboarding.js?v=${cacheIntegrityVersion}`) ||
     !serviceWorker.includes(`/crump-polish-5.6.js?v=${cacheIntegrityVersion}`) ||
@@ -1799,11 +2032,11 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r268-library-reconciliation-1
     !serviceWorker.includes(`/install-prompt.js?v=${authUpdateGuardVersion}`) ||
     !serviceWorker.includes(`/install-prompt.css?v=${releaseVersion}`) ||
     !serviceWorker.includes(`/device-auth.js?v=${nativeBillingIdentityVersion}`) ||
-    !serviceWorker.includes(`/sync-manager.js?v=${syncCursorVersion}`) ||
-    !serviceWorker.includes(`/chat-sync.js?v=${settingsSyncVersion}`) ||
+    !serviceWorker.includes(`/sync-manager.js?v=${syncQueueVersion}`) ||
+    !serviceWorker.includes(`/chat-sync.js?v=${chatSyncVersion}`) ||
     !serviceWorker.includes(`/product-analytics.js?v=${navigationDiscoveryVersion}`) ||
     !serviceWorker.includes(`/auth-controller.js?v=${authControllerVersion}`) ||
-    !serviceWorker.includes(`/crump-v1-body.css?v=${cacheIntegrityVersion}`) ||
+    !serviceWorker.includes(`/crump-v1-body.css?v=${ownedWorkspaceAccessVersion}`) ||
     !serviceWorker.includes(`/crump-4.3.js?v=${atelierWorkspaceVersion}`) ||
     !serviceWorker.includes(`/crump-4.4.css?v=${cacheIntegrityVersion}`) ||
     !serviceWorker.includes(`/crump-4.4.js?v=${cacheIntegrityVersion}`) ||
@@ -1851,7 +2084,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r268-library-reconciliation-1
     !serviceWorker.includes("url.pathname === '/crump-product-loader.js'") ||
     serviceWorker.includes("url.pathname === '/crump-product-5.3.js'") ||
     serviceWorker.includes("url.pathname === '/crump-product-5.3.css'") ||
-    !serviceWorker.includes(`/billing-manager.js?v=${stripeDestinationIntegrityVersion}`) ||
+    !serviceWorker.includes(`/billing-manager.js?v=${creditEntitlementSyncVersion}`) ||
     !serviceWorker.includes(`/subscription-ui.js?v=${commerceRecoveryVersion}`) ||
     !serviceWorker.includes(`/crump-billing-5.1.css?v=${creditTruthVersion}`) ||
     !serviceWorker.includes(`/crump-billing-5.1.js?v=${checkoutDestinationLabelVersion}`) ||
@@ -1864,6 +2097,16 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r268-library-reconciliation-1
     !serviceWorker.includes("url.pathname === '/crump-media-save.js'") ||
     !serviceWorker.includes("url.pathname === '/crump-library-loader.js'")) {
   console.error('New-body service-worker contract is incomplete.');
+  process.exit(1);
+}
+const guestFreeServiceWorkerAssets = [
+  `/auth-styles.css?v=${guestFreeContractVersion}`,
+  `/runtime-body-v1.js?v=${runtimeBodyVersion}`,
+  `/auth-controller.js?v=${authControllerVersion}`,
+  ...guestFreeRuntimeAssets,
+];
+if (guestFreeServiceWorkerAssets.some(asset => !serviceWorker.includes(asset))) {
+  console.error('Service worker must precache one coherent Guest/Free frontend release.');
   process.exit(1);
 }
 

@@ -23,8 +23,8 @@ CONTROL_DETAIL = (
     "Nothing changes until you choose and confirm."
 )
 TREATMENT_DETAIL = (
-    "Your two Free Projects stay available. Professional raises the active Project "
-    "limit to 25 for $20/month. You can keep using Free or review the plan before deciding."
+    "Projects require a paid plan. Professional supports up to 25 active Projects for "
+    "$20/month. Review the plan before deciding; nothing changes until checkout is confirmed."
 )
 
 

@@ -41,6 +41,11 @@ function pageErrors(page) {
       contentType: 'application/json',
       body: JSON.stringify({ authenticated: false }),
     }));
+    await context.route('**/api/auth/guest*', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: false }),
+    }));
     const page = await context.newPage();
     const errors = pageErrors(page);
 
@@ -115,6 +120,11 @@ function pageErrors(page) {
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({ authenticated: false }),
+    }));
+    await socialContext.route('**/api/auth/guest*', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: false }),
     }));
     const socialPage = await socialContext.newPage();
     const socialErrors = pageErrors(socialPage);

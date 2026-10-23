@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en" data-theme="light" data-crump-body-runtime="ready">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Ask Crump guest access journey fixture</title>
+  <!--
+    The styles below are a synthetic fixture shell that exposes the DOM contract
+    needed by the production client scripts. They are not production Ask Crump
+    styles and must not be used as visual-regression evidence.
+  -->
+  <style>
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; font: 16px/1.45 system-ui, sans-serif; color: #181816; background: #f6f4ee; }
+    button, input, textarea { font: inherit; }
+    button { cursor: pointer; }
+    [hidden] { display: none !important; }
+    .auth-container, .app-container { min-height: 100vh; width: 100%; }
+    .auth-container { align-items: center; justify-content: center; padding: 24px; }
+    .auth-form { width: min(100%, 520px); padding: 24px; border: 1px solid #d8d3c7; border-radius: 20px; background: #fff; }
+    .auth-form-content, .form-group { display: grid; gap: 10px; }
+    .auth-form-content { gap: 16px; }
+    .form-input, textarea { width: 100%; padding: 12px; border: 1px solid #aaa; border-radius: 10px; }
+    .btn, .tool-button { min-height: 44px; padding: 10px 16px; border: 1px solid #8c835f; border-radius: 999px; background: #fff; }
+    .btn-primary { color: #fff; background: #20211e; }
+    .guest-wall-note { padding: 12px; border-radius: 10px; background: #f1ead3; }
+    .v1-shell { display: grid; grid-template-columns: 230px minmax(0, 1fr); width: 100%; min-height: 100vh; }
+    #sidebar { padding: 18px; border-right: 1px solid #dedbd2; background: #fff; }
+    .workspace { display: grid; grid-template-rows: auto auto minmax(240px, 1fr) auto; min-width: 0; min-height: 100vh; }
+    .v1-workspace-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-width: 0; padding: 16px; border-bottom: 1px solid #dedbd2; }
+    .free-text-allowance-pill { display: flex; flex-wrap: wrap; gap: 6px 10px; max-width: 100%; padding: 8px 12px; border: 1px solid #c9bd8b; border-radius: 999px; }
+    #v1Launchpad { display: flex; flex-wrap: wrap; gap: 10px; padding: 16px; }
+    #chatContainer { min-width: 0; padding: 18px; overflow: auto; }
+    .message { max-width: 720px; margin: 0 auto 14px; padding: 12px; border-radius: 14px; background: #fff; }
+    .user-message { background: #e9e4d7; }
+    .message-actions { display: flex; gap: 6px; margin-top: 8px; }
+    .message-action-btn { border: 0; background: transparent; color: #4b4b47; }
+    .input-container { position: sticky; bottom: 0; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; padding: 16px; background: #f6f4ee; }
+    #filePreview { grid-column: 1 / -1; }
+    #toastContainer { position: fixed; right: 16px; bottom: 16px; max-width: min(360px, calc(100vw - 32px)); }
+    .toast { margin-top: 8px; padding: 10px; border-radius: 10px; background: #20211e; color: #fff; }
+    .v1-visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+    @media (max-width: 700px) {
+      .v1-shell { display: block; }
+      #sidebar { display: none; }
+      .workspace { min-height: 100dvh; }
+      .v1-workspace-header { align-items: flex-start; flex-direction: column; }
+      .free-text-allowance-pill { border-radius: 14px; }
+      .input-container { padding: 10px; }
+      .auth-container { padding: 12px; }
+    }
+  </style>
+  <script>
+    document.documentElement.dataset.crumpBodyRuntime = 'ready';
+    window.__fixture = {
+      analytics: [],
+      imageOpens: 0,
+      productOpens: [],
+      upgradePrompts: [],
+      workspaceLoads: 0,
+      storageRemovals: [],
+    };
+    const fixtureStorageRemoveItem = Storage.prototype.removeItem;
+    Storage.prototype.removeItem = function fixtureRemoveItem(key) {
+      window.__fixture.storageRemovals.push(String(key));
+      return fixtureStorageRemoveItem.call(this, key);
+    };
+    window.CrumpAPI = Object.freeze({
+      ready: Promise.resolve(),
+      isNative: false,
+      installationId: () => 'fixture-web',
+    });
+    window.CrumpWorkspaceRuntime = Object.freeze({
+      load: async () => { window.__fixture.workspaceLoads += 1; },
+    });
+    window.CrumpAnalytics = Object.freeze({
+      track: async (name, detail) => {
+        window.__fixture.analytics.push({name, detail});
+        return true;
+      },
+    });
+    window.CrumpPresence = {
+      online: true,
+      applyPreferencesToForm() {},
+      haptic() {},
+      indicator: () => null,
+      loadPreferences() {},
+      registerToken() {},
+      start() {},
+      stop() {},
+    };
+    window.CrumpLifecycle = Object.freeze({
+      suppressActiveWork() {},
+      evaluate: async () => true,
+    });
+    window.CrumpImageStudio = Object.freeze({
+      open: () => { window.__fixture.imageOpens += 1; },
+    });
+    window.CrumpProduct53 = Object.freeze({
+      open: value => { window.__fixture.productOpens.push(value); },
+    });
+    window.showUpgradePrompt = detail => { window.__fixture.upgradePrompts.push(detail || null); };
+    window.tutorial = Object.freeze({autoStart() {}});
+  </script>
+</head>
+<body data-fixture-shell="true">
+  <div id="authContainer" class="auth-container" style="display:none">
+    <div id="loginForm" class="auth-form">
+      <h1>Sign in</h1>
+      <form id="loginFormElement" class="auth-form-content">
+        <label>Email <input id="loginEmail" class="form-input" type="email" required></label>
+        <label>Password <input id="loginPassword" class="form-input" type="password" required></label>
+        <button class="btn btn-primary" type="submit">Sign in</button>
+      </form>
+      <a id="showRegisterLink" href="#">Create account</a>
+      <a id="showForgotPasswordLink" href="#">Forgot password?</a>
+      <div id="loginError" role="alert" style="display:none"></div>
+      <div id="loginSuccess" role="status" style="display:none"></div>
+      <div id="verificationNeeded" style="display:none">
+        <button id="resendVerificationBtn" type="button">Resend verification</button>
+      </div>
+    </div>
+
+    <div id="registerForm" class="auth-form" style="display:none">
+      <div id="registerEntry">
+        <h1 id="registrationTitle">Create your workspace.</h1>
+        <p id="registrationDescription">Free to start—no card required.</p>
+        <p id="guestWallNote" class="guest-wall-note" role="status" hidden></p>
+        <form id="registerFormElement" class="auth-form-content">
+          <label>Email <input id="registerEmail" class="form-input" type="email" required autocomplete="email"></label>
+          <div class="form-group">
+            <label for="registerPassword">Password</label>
+            <input id="registerPassword" class="form-input" type="password" required minlength="10" maxlength="256" autocomplete="new-password" aria-describedby="registerPasswordHint">
+            <div id="registerPasswordHint">
+              <span data-password-rule="length"><i>○</i>10+ characters</span>
+              <span data-password-rule="letter"><i>○</i>One letter</span>
+              <span data-password-rule="number"><i>○</i>One number</span>
+            </div>
+            <span id="registerPasswordStatus" class="v1-visually-hidden" aria-live="polite"></span>
+          </div>
+          <label><input id="registerTerms" type="checkbox" required> I agree to the Terms and Privacy Policy.</label>
+          <button id="registrationSubmitBtn" class="btn btn-primary" type="submit">Create free account</button>
+          <p id="registrationAssurance">Free includes up to 5 text messages in any rolling 24-hour window.</p>
+          <a id="registrationExploreLink" href="/">Explore Ask Crump first</a>
+          <a id="showLoginLink" href="#">Sign in</a>
+        </form>
+        <div id="registerError" role="alert" style="display:none"></div>
+        <div id="registerSuccess" role="status" style="display:none"></div>
+      </div>
+      <section id="registrationPending" style="display:none" tabindex="-1" aria-labelledby="registrationPendingTitle">
+        <h2 id="registrationPendingTitle">Check your inbox.</h2>
+        <p>Verification sent to <strong id="registrationPendingEmail"></strong>.</p>
+        <div id="registrationPendingSuccess" role="status" style="display:none"></div>
+        <div id="registrationPendingError" role="alert" style="display:none"></div>
+        <button id="registrationPendingSigninBtn" type="button">Already verified? Sign in</button>
+        <button id="registrationPendingResendBtn" type="button">Resend verification</button>
+      </section>
+    </div>
+
+    <div id="forgotPasswordForm" class="auth-form" style="display:none">
+      <input id="forgotPasswordEmail" type="email">
+      <a id="showLoginFromForgot" href="#">Sign in</a>
+    </div>
+    <div id="resetPasswordForm" class="auth-form" style="display:none">
+      <input id="newPassword" type="password">
+      <input id="confirmNewPassword" type="password">
+      <a id="showLoginFromReset" href="#">Sign in</a>
+    </div>
+  </div>
+
+  <div id="tosModal" style="display:none">
+    <input id="tosAccept" type="checkbox">
+    <button id="tosAcceptBtn" type="button" disabled>Continue</button>
+  </div>
+  <div id="onboardingModal" style="display:none">
+    <input id="onboardingName" type="text">
+    <div id="onboardingError" role="alert" style="display:none"></div>
+    <button id="onboardingContinueBtn" type="button">Save name</button>
+    <button id="onboardingSkipBtn" type="button">Not now</button>
+  </div>
+
+  <div id="appContainer" class="app-container" style="display:none">
+    <div id="v1RuntimeGate" hidden></div>
+    <div class="v1-shell">
+      <aside id="sidebar" aria-hidden="false">
+        <button id="closeSidebarBtn" type="button">Close</button>
+        <button id="newChatBtn" type="button">New conversation</button>
+        <div id="chatsList"></div>
+      </aside>
+      <div id="sidebarOverlay"></div>
+      <main class="workspace">
+        <header class="v1-workspace-header">
+          <button id="menuBtn" type="button" data-v1-command="library" aria-expanded="false">Chats</button>
+          <strong id="v1WorkspaceTitle">New conversation</strong>
+        </header>
+        <section id="v1Launchpad">
+          <button id="focusTool" class="tool-button" type="button" data-v1-command="focus">Ask Crump</button>
+          <button id="imageTool" class="tool-button" type="button" data-v1-command="image">Image Studio</button>
+          <button id="projectTool" class="tool-button" type="button" data-v1-command="projects">Projects</button>
+        </section>
+        <section id="chatContainer" aria-live="polite"></section>
+        <div class="input-container">
+          <button id="attachBtn" type="button">Attach</button>
+          <textarea id="userInput" class="message-input" rows="1" maxlength="20000" aria-label="Message Crump" placeholder="Message Crump"></textarea>
+          <button id="sendButton" type="button" aria-label="Send message" aria-disabled="true" disabled>Send</button>
+          <div id="filePreview" hidden></div>
+        </div>
+      </main>
+    </div>
+  </div>
+  <div id="v1ProfileNudge" hidden><button id="v1ProfileNudgeAdd"></button><button id="v1ProfileNudgeDismiss"></button></div>
+  <div id="toastContainer"></div>
+  <input id="fileInput" type="file" hidden>
+
+  <script defer src="/safe-storage.js"></script>
+  <script defer src="/auth-resilience.js"></script>
+  <script defer src="/device-auth.js"></script>
+  <script defer src="/chat-resilience.js"></script>
+  <script defer src="/ui-functions.js"></script>
+  <script defer src="/app.js"></script>
+  <script defer src="/crump-4.3.js"></script>
+  <script defer src="/crump-5.0.js"></script>
+  <script defer src="/crump-v1-body.js"></script>
+  <script defer src="/auth-controller.js"></script>
+</body>
+</html>

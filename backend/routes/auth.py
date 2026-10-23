@@ -9,10 +9,14 @@ from fastapi.responses import JSONResponse, RedirectResponse
 
 from ..auth_service import (
     AuthenticationError,
+    authenticate_guest_for_registration,
     authenticate_request,
     create_session,
+    guest_mode_enabled,
+    is_guest_user,
     public_user,
     revoke_current_session,
+    verify_guest_and_create_session,
 )
 from ..db import eq, gt
 from ..email_service import EmailDeliveryError
@@ -35,11 +39,13 @@ from ..schemas import (
 )
 from ..verification_handoff import verified_workspace_url
 from ..security import (
+    client_ip,
     expiry_iso,
     hash_password,
     iso_now,
     new_uuid,
     normalize_email,
+    origin_allowed,
     password_hash_needs_upgrade,
     random_token,
     token_hash,
@@ -63,6 +69,11 @@ def _registration_terms_values(
         'terms_accepted_at': accepted_at,
         'terms_version': CURRENT_TERMS_VERSION,
     }
+
+
+async def _guest_mode_enabled() -> bool:
+    """Read the database kill switch and fail closed on any uncertainty."""
+    return await guest_mode_enabled(db)
 
 
 def _auth_client_kind(request: Request) -> str:
@@ -146,34 +157,99 @@ async def register(payload: RegisterRequest, request: Request):
             content={'success': False, 'error': 'An account with that email already exists.'},
         )
 
-    pending_account = bool(existing)
-    if existing:
+    # Resolve only the guest identity registration is allowed to preserve.
+    # This narrow path accepts a database control-revoked token so rollback
+    # cannot strand the conversation/allowance, but it never reopens ordinary
+    # guest access and never accepts a normal logout/revocation.
+    session_guest = None
+    try:
+        session_auth = await authenticate_guest_for_registration(request, db, settings)
+        session_guest = session_auth.user
+    except AuthenticationError:
+        session_guest = None
+
+    own_guest_row = bool(
+        session_guest and existing and existing['id'] == session_guest['id']
+    )
+    if existing and session_guest and not own_guest_row:
+        # The submitted email belongs to a different, still-unverified
+        # registration. The guest has not proven they own that inbox, so
+        # the pending row is left completely untouched — no token rotation,
+        # no merge — and the guest session and its conversation stay as
+        # they are. The path forward is the pending account's own inbox.
+        return JSONResponse(
+            status_code=409,
+            content={
+                'success': False,
+                'error': (
+                    'That email already has a registration waiting for verification. '
+                    'Check your inbox for the verification email to finish creating '
+                    'that account. Your guest conversation is still here — nothing '
+                    'was changed.'
+                ),
+                'message': (
+                    'That email already has a registration waiting for verification. '
+                    'Check your inbox for the verification email to finish creating '
+                    'that account. Your guest conversation is still here — nothing '
+                    'was changed.'
+                ),
+                'code': 'PENDING_ACCOUNT_RECOVERY',
+                'guestPreserved': True,
+            },
+        )
+
+    pending_account = bool(existing) and not own_guest_row
+    if existing and not own_guest_row:
         await db.update('users', verification_values, filters={'id': eq(existing['id'])})
         user = {**existing, **verification_values}
     else:
-        user_payload = {
-            'id': new_uuid(),
-            'email': email,
-            'password_hash': hash_password(payload.password),
-            'full_name': (payload.fullName or '').strip() or None,
-            'is_verified': False,
-            'verification_token_hash': verification_values['verification_token_hash'],
-            'verification_token_expires': verification_values['verification_token_expires'],
-            'subscription_tier': 'free',
-            'subscription_status': 'inactive',
-            'registration_environment': environment_for_request(request),
-            'preferences': {},
-            'created_at': now,
-            'updated_at': now,
-            **terms_values,
-        }
-        inserted = await db.insert('users', user_payload)
-        user = inserted[0] if isinstance(inserted, list) and inserted else user_payload
-        await db.upsert(
-            'user_settings',
-            {'user_id': user['id'], 'updated_at': now},
-            on_conflict='user_id',
-        )
+        guest_user = session_guest
+        if guest_user:
+            # Conversion: the guest's own row becomes the account, so their
+            # conversations and history carry over instead of starting over.
+            # is_guest stays set until the email is verified (see
+            # verify_email) — registration alone must not unlock a full
+            # account behind an unverified address.
+            conversion_values = {
+                'email': email,
+                'password_hash': hash_password(payload.password),
+                'full_name': (payload.fullName or '').strip() or None,
+                **verification_values,
+            }
+            await db.update('users', conversion_values, filters={'id': eq(guest_user['id'])})
+            user = {**guest_user, **conversion_values}
+        else:
+            user_payload = {
+                'id': new_uuid(),
+                'email': email,
+                'password_hash': hash_password(payload.password),
+                'full_name': (payload.fullName or '').strip() or None,
+                'is_verified': False,
+                'verification_token_hash': verification_values['verification_token_hash'],
+                'verification_token_expires': verification_values['verification_token_expires'],
+                'subscription_tier': 'free',
+                'subscription_status': 'inactive',
+                'registration_environment': environment_for_request(request),
+                'preferences': {},
+                'created_at': now,
+                'updated_at': now,
+                **terms_values,
+            }
+            inserted = await db.insert('users', user_payload)
+            user = inserted[0] if isinstance(inserted, list) and inserted else user_payload
+        if not guest_user:
+            # A guest receives this row when the preview session is created.
+            # Re-upserting it during registration is redundant, and—after an
+            # emergency guest-mode disable—would correctly hit the database
+            # guest-write barrier after the identity update had already
+            # committed. Preserve the existing row so rollback registration
+            # can still deliver its verification email without leaving a
+            # half-converted account.
+            await db.upsert(
+                'user_settings',
+                {'user_id': user['id'], 'updated_at': now},
+                on_conflict='user_id',
+            )
         await record_account_created_event(
             db,
             user_id=user['id'],
@@ -213,6 +289,109 @@ async def register(payload: RegisterRequest, request: Request):
     else:
         message = 'Email delivery is not configured; an administrator must enable RESEND_API_KEY.'
     return {'success': True, 'message': message, 'emailSent': sent}
+
+
+@router.post('/guest')
+async def start_guest_session(request: Request, response: Response):
+    # A browser that already holds any valid session keeps it; guest sessions
+    # are minted only for genuinely signed-out visitors.
+    try:
+        current = await authenticate_request(request, db, settings, touch=False)
+        return {
+            'success': True,
+            'data': {
+                'user': public_user(current.user),
+                'guest': is_guest_user(current.user),
+            },
+        }
+    except AuthenticationError:
+        pass
+
+    # Minting sets a session cookie, and CORS does not stop a cross-site
+    # form POST from planting one in a visitor's browser. Refuse mints
+    # that are not same-site before any rate budget or row is spent.
+    if not origin_allowed(dict(request.headers), settings.allowed_origins):
+        return JSONResponse(
+            status_code=403,
+            content={
+                'success': False,
+                'error': 'Guest sessions can only start from Ask Crump.',
+                'code': 'ORIGIN_NOT_ALLOWED',
+            },
+        )
+
+    # The database control is the rollback authority. It defaults off, and its
+    # session/user triggers close races with an operator disabling guest mode.
+    # Read it before consuming rate-limit budget or writing any guest data.
+    if not await _guest_mode_enabled():
+        return JSONResponse(
+            status_code=503,
+            content={
+                'success': False,
+                'error': (
+                    'Guest preview is temporarily unavailable. '
+                    'Sign in or create an account.'
+                ),
+                'code': 'GUEST_MODE_DISABLED',
+            },
+        )
+
+    ip = client_ip(
+        dict(request.headers),
+        request.client.host if request.client else None,
+    ) or 'unknown'
+    await enforce_auth_rate_limit(
+        db,
+        request,
+        action='guest',
+        identity=ip,
+        identity_limit=3,
+        ip_limit=3,
+        window_seconds=86400,
+    )
+    now = iso_now()
+    guest_id = new_uuid()
+    user_payload = {
+        'id': guest_id,
+        # Placeholder address: never mailed, never shown as the visitor's
+        # identity, and replaced by the real email when the guest registers.
+        # It keeps the row valid under the existing email constraints.
+        'email': f'guest-{guest_id}@guest.askcrump.local',
+        # users.password_hash is NOT NULL. A guest has no password, so store
+        # a real hash of an unguessable random token whose plaintext exists
+        # nowhere: password login for a guest can never succeed, and the
+        # value is replaced when the guest registers with a real password.
+        'password_hash': hash_password(random_token(48)),
+        'full_name': None,
+        'is_verified': False,
+        'is_guest': True,
+        'subscription_tier': 'free',
+        'subscription_status': 'inactive',
+        'registration_environment': environment_for_request(request),
+        'preferences': {},
+        'created_at': now,
+        'updated_at': now,
+    }
+    inserted = await db.insert('users', user_payload)
+    user = inserted[0] if isinstance(inserted, list) and inserted else user_payload
+    await db.upsert(
+        'user_settings',
+        {'user_id': user['id'], 'updated_at': now},
+        on_conflict='user_id',
+    )
+    raw_token, session = await create_session(db, settings, user, request)
+    set_session_cookie(response, raw_token, request)
+    logger.info('Auth guest outcome=session_issued client=%s', _auth_client_kind(request))
+    return {
+        'success': True,
+        'message': 'Guest session started.',
+        'data': {
+            'user': public_user(user),
+            'guest': True,
+            'expiresAt': session.get('expires_at'),
+            **native_token_payload(request, raw_token),
+        },
+    }
 
 
 @router.post('/login')
@@ -509,6 +688,10 @@ async def reset_password(payload: ResetPasswordRequest, request: Request):
             # account inbox. Complete email verification as part of recovery
             # so an unverified account does not require a second email loop.
             'is_verified': True,
+            # A guest converted to an email/password account must leave guest
+            # mode on every inbox-control proof path. Otherwise password reset
+            # can create a verified login that remains permanently guest-gated.
+            'is_guest': False,
             'verification_token_hash': None,
             'verification_token_expires': None,
             'password_reset_token_hash': None,
@@ -576,11 +759,12 @@ async def verify_email(
     intent: str | None = None,
     plan: str | None = None,
 ):
+    verification_token_hash = token_hash(token)
     user = await db.select_one(
         'users',
         columns='*',
         filters={
-            'verification_token_hash': eq(token_hash(token)),
+            'verification_token_hash': eq(verification_token_hash),
             'verification_token_expires': gt(iso_now()),
         },
     )
@@ -590,33 +774,141 @@ async def verify_email(
             status_code=303,
         )
 
+    if user.get('is_verified'):
+        logger.info(
+            'Auth verification outcome=already_verified client=%s',
+            _auth_client_kind(request),
+        )
+        return RedirectResponse(
+            verified_workspace_url(
+                settings.app_url,
+                intent=intent,
+                plan=plan,
+                result='already_verified',
+            ),
+            status_code=303,
+        )
+
     # Possession of the verification link proves control of the inbox. Issue the
     # first session here so a successful signup does not require another password
-    # entry. Keep the hashed token usable for a short period after first use: mail
-    # security scanners can otherwise consume a one-time GET before the person
-    # opens it. The first real click shrinks the original 24-hour verification
-    # window to 15 minutes; password login remains available after that window.
+    # entry. Keep the hash recognizable for 15 minutes so a repeated link can
+    # report an accurate, non-authenticating result. Only the transaction that
+    # changes is_verified from false to true may mint or set a session.
+    raw_token = None
+    if not user.get('is_verified') and is_guest_user(user):
+        atomic_result = await verify_guest_and_create_session(
+            db,
+            settings,
+            user,
+            request,
+            verification_token_hash=verification_token_hash,
+            device_name='Verified email link',
+            platform='web',
+        )
+        if atomic_result:
+            raw_token, user, _ = atomic_result
+        else:
+            # A concurrent click may have completed the locked conversion while
+            # this request waited. Re-read before taking the ordinary verified
+            # replay path; never fall back to a non-atomic guest conversion.
+            user = await db.select_one(
+                'users',
+                columns='*',
+                filters={
+                    'id': eq(user['id']),
+                    'verification_token_hash': eq(verification_token_hash),
+                    'verification_token_expires': gt(iso_now()),
+                },
+            )
+            if not user:
+                return RedirectResponse(
+                    f'{settings.app_url}/app?verification=failed',
+                    status_code=303,
+                )
+            if not user.get('is_verified'):
+                raise RuntimeError('Guest verification did not complete atomically.')
+
+            logger.info(
+                'Auth verification outcome=already_verified client=%s',
+                _auth_client_kind(request),
+            )
+            return RedirectResponse(
+                verified_workspace_url(
+                    settings.app_url,
+                    intent=intent,
+                    plan=plan,
+                    result='already_verified',
+                ),
+                status_code=303,
+            )
+
     if not user.get('is_verified'):
+        transition_time = iso_now()
         verification_values = {
             'is_verified': True,
             'verification_token_expires': expiry_iso(minutes=15),
-            'updated_at': iso_now(),
+            'updated_at': transition_time,
         }
-        await db.update(
+        transitioned = await db.update(
             'users',
             verification_values,
-            filters={'id': eq(user['id'])},
+            filters={
+                'id': eq(user['id']),
+                'verification_token_hash': eq(verification_token_hash),
+                'verification_token_expires': gt(transition_time),
+                'is_verified': eq(False),
+            },
         )
-        user = {**user, **verification_values}
+        transitioned_user = (
+            transitioned[0]
+            if isinstance(transitioned, list) and transitioned
+            else None
+        )
+        if transitioned_user:
+            user = transitioned_user
+        else:
+            # A concurrent request may have won the conditional transition.
+            # Re-read by account and token before reporting a replay; never use
+            # installation, IP, or user-agent data as proof of identity.
+            user = await db.select_one(
+                'users',
+                columns='*',
+                filters={
+                    'id': eq(user['id']),
+                    'verification_token_hash': eq(verification_token_hash),
+                    'verification_token_expires': gt(iso_now()),
+                },
+            )
+            if not user:
+                return RedirectResponse(
+                    f'{settings.app_url}/app?verification=failed',
+                    status_code=303,
+                )
+            if not user.get('is_verified'):
+                raise RuntimeError('Email verification transition did not complete.')
+            logger.info(
+                'Auth verification outcome=already_verified client=%s',
+                _auth_client_kind(request),
+            )
+            return RedirectResponse(
+                verified_workspace_url(
+                    settings.app_url,
+                    intent=intent,
+                    plan=plan,
+                    result='already_verified',
+                ),
+                status_code=303,
+            )
 
-    raw_token, _ = await create_session(
-        db,
-        settings,
-        user,
-        request,
-        device_name='Verified email link',
-        platform='web',
-    )
+    if raw_token is None:
+        raw_token, _ = await create_session(
+            db,
+            settings,
+            user,
+            request,
+            device_name='Verified email link',
+            platform='web',
+        )
     response = RedirectResponse(
         verified_workspace_url(settings.app_url, intent=intent, plan=plan),
         status_code=303,

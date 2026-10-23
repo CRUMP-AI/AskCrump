@@ -22,7 +22,7 @@
   const ACQUISITION_KEY = 'askcrump.acquisition-source';
   const ACQUISITION_PLACEMENT_KEY = 'askcrump.acquisition-placement';
   const FIRST_TOUCH_KEY = 'askcrump.first-touch-attribution';
-  const FREE_REGISTRATION_ASSURANCE = 'Free includes 25 messages each day and 2 private Projects. We’ll email a secure verification link; no card required.';
+  const FREE_REGISTRATION_ASSURANCE = 'Free includes up to 5 text messages in any rolling 24-hour window. Advanced tools require a paid plan. We’ll email a secure verification link; no card required.';
   const PAID_REGISTRATION_ASSURANCE = 'We’ll email a secure verification link. Creating your account does not start billing; checkout remains a separate confirmation.';
   const PLAN_INTENT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
   const PLAN_INTENT_DELIVERY_INTERVAL_MS = 500;
@@ -42,27 +42,27 @@
   const REGISTRATION_CREATION_HANDOFFS = Object.freeze({
     document: {
       title: 'Create your document workspace.',
-      description: 'After verification, Ask Crump opens the document workspace so you can turn a request, notes, or source material into an editable Word draft or PDF.',
+      description: 'After verification, Ask Crump preserves your request and opens plan options. Document creation requires a paid plan.',
     },
     presentation: {
       title: 'Create your presentation workspace.',
-      description: 'After verification, Ask Crump opens the presentation workspace so you can turn a topic, outline, or source material into an editable PowerPoint draft.',
+      description: 'After verification, Ask Crump preserves your request and opens plan options. Presentation creation requires a paid plan.',
     },
     resume: {
       title: 'Build your résumé workspace.',
-      description: 'After verification, Ask Crump opens the résumé workspace so you can shape your real experience into an editable Word résumé without invented credentials.',
+      description: 'After verification, Ask Crump preserves your request and opens plan options. Résumé creation requires a paid plan.',
     },
     image: {
       title: 'Open your Image Studio.',
-      description: 'After verification, Ask Crump opens Image Studio so you can review the setup and optional ordered references before anything generates or uses Crump Credits.',
+      description: 'After verification, Ask Crump preserves your request and opens plan options. Image Studio requires a paid plan.',
     },
     video: {
       title: 'Open your Video Studio.',
-      description: 'After verification, Ask Crump opens Video Studio so you can choose a generation mode, see its Crump Credit cost, and find completed clips in Files.',
+      description: 'After verification, Ask Crump preserves your request and opens plan options. Video Studio requires a paid plan. After upgrading, choose a generation mode, see its Crump Credit cost, and find completed clips in Files.',
     },
     projects: {
       title: 'Open your private Project workspace.',
-      description: 'After verification, Ask Crump opens Projects so you can keep instructions, files, conversations, and durable context together before you continue the work.',
+      description: 'After verification, Ask Crump preserves your conversation and opens plan options. Projects require a paid plan.',
     },
   });
   const REGISTRATION_PLAN_HANDOFFS = Object.freeze({
@@ -404,7 +404,7 @@
     if (plan) description.textContent += ` ${plan.disclosure}`;
     else if (creation) description.textContent += ' Free to start—no card required.';
     button.textContent = creationKind === 'image'
-      ? 'Create account & open Image Studio'
+      ? 'Create account & review Image Studio access'
       : (plan?.button || (creation ? 'Create account & continue' : 'Create free account'));
     if (assurance) assurance.textContent = plan
       ? PAID_REGISTRATION_ASSURANCE
@@ -763,6 +763,9 @@
     setTimeout(() => window.tutorial?.autoStart?.(), 450);
     const creationKind = dispatchPendingCreationIntent();
     if (creationKind !== 'image') dispatchPendingPlanIntent();
+    applyServerAllowance(activeUser);
+    renderFreeAllowancePill();
+    void refreshFreeAllowanceFromServer();
   }
 
   function profileNudgeKey() {
@@ -776,6 +779,10 @@
   function maybeOfferProfileSetup() {
     const nudge = byId('v1ProfileNudge');
     if (!nudge) return;
+    if (isGuestUser(window.currentUser || activeUser)) {
+      nudge.hidden = true;
+      return;
+    }
     nudge.hidden = Boolean(window.currentUser?.fullName || activeUser?.fullName) || profileNudgeDismissed();
   }
 
@@ -812,6 +819,307 @@
     startApp();
     if (!user.fullName) maybeOfferProfileSetup();
   }
+
+  // ---- Free text access -----------------------------------------------
+  // Guest and registered-Free users share one server-authoritative rolling
+  // allowance. Registration converts the same account, so neither the chat
+  // nor its remaining allowance resets. The browser only renders values the
+  // server returned; it never predicts or decrements usage locally.
+  const FREE_TEXT_MESSAGE_LIMIT = 5;
+  const PAID_TIERS = new Set(['professional', 'enterprise']);
+  let freeAllowanceState = null;
+
+  function isGuestUser(user) {
+    return Boolean(user?.isGuest);
+  }
+
+  function effectiveTier(user = window.currentUser || activeUser) {
+    return String(user?.subscriptionTier || user?.tier || '').trim().toLowerCase();
+  }
+
+  function hasPaidToolAccess(user = window.currentUser || activeUser) {
+    return Boolean(user?.internalAccess) || PAID_TIERS.has(effectiveTier(user));
+  }
+
+  function isFreeTextUser(user = window.currentUser || activeUser) {
+    return isGuestUser(user) || effectiveTier(user) === 'free';
+  }
+
+  function finiteNumber(...values) {
+    for (const value of values) {
+      if (value === null || value === undefined || value === '') continue;
+      const number = Number(value);
+      if (Number.isFinite(number)) return number;
+    }
+    return null;
+  }
+
+  function allowanceObject(payload) {
+    if (!payload || typeof payload !== 'object') return null;
+    const candidates = [
+      payload.freeMessageAllowance,
+      payload.dailyUsage?.freeMessageAllowance,
+      payload.usage?.freeMessageAllowance,
+      payload.user?.freeMessageAllowance,
+      payload.data?.freeMessageAllowance,
+      payload.data?.user?.freeMessageAllowance,
+    ];
+    return candidates.find(candidate => candidate && typeof candidate === 'object') || null;
+  }
+
+  function parseServerAllowance(payload) {
+    if (!payload || typeof payload !== 'object') return null;
+    const allowance = allowanceObject(payload) || {};
+    const limit = finiteNumber(
+      allowance.limit,
+      payload.freeMessageLimit,
+      payload.user?.freeMessageLimit,
+      payload.data?.freeMessageLimit,
+      payload.data?.user?.freeMessageLimit,
+    );
+    const used = finiteNumber(
+      allowance.used,
+      payload.freeMessagesUsed,
+      payload.user?.freeMessagesUsed,
+      payload.data?.freeMessagesUsed,
+      payload.data?.user?.freeMessagesUsed,
+    );
+    const remaining = finiteNumber(
+      allowance.remaining,
+      payload.freeMessagesRemaining,
+      payload.user?.freeMessagesRemaining,
+      payload.data?.freeMessagesRemaining,
+      payload.data?.user?.freeMessagesRemaining,
+    );
+    // A limit by itself is product configuration, not an authoritative usage
+    // snapshot. Keep the neutral checking state until the server supplies at
+    // least one observed count.
+    if (used === null && remaining === null) return null;
+    const normalizedLimit = Math.max(1, Math.floor(limit ?? FREE_TEXT_MESSAGE_LIMIT));
+    const normalizedUsed = Math.max(0, Math.min(normalizedLimit, Math.floor(
+      used ?? Math.max(0, normalizedLimit - (remaining ?? normalizedLimit)),
+    )));
+    const normalizedRemaining = Math.max(0, Math.min(normalizedLimit, Math.floor(
+      remaining ?? Math.max(0, normalizedLimit - normalizedUsed),
+    )));
+    return {
+      limit: normalizedLimit,
+      used: normalizedUsed,
+      remaining: normalizedRemaining,
+      windowKind: String(allowance.windowKind || payload.freeMessageWindowKind || 'rolling_24h'),
+      windowSeconds: Math.max(1, Math.floor(finiteNumber(allowance.windowSeconds, payload.freeMessageWindowSeconds) ?? 86400)),
+      nextAvailableAt: allowance.nextAvailableAt
+        || payload.freeMessageNextAvailableAt
+        || payload.user?.freeMessageNextAvailableAt
+        || payload.data?.freeMessageNextAvailableAt
+        || payload.data?.user?.freeMessageNextAvailableAt
+        || null,
+    };
+  }
+
+  function applyServerAllowance(payload) {
+    const allowance = parseServerAllowance(payload);
+    if (!allowance) return false;
+    const user = window.currentUser || activeUser;
+    freeAllowanceState = {...allowance, ownerId: String(user?.id || '')};
+    if (user) {
+      user.freeMessageAllowance = {...allowance};
+      user.freeMessageLimit = allowance.limit;
+      user.freeMessagesUsed = allowance.used;
+      user.freeMessagesRemaining = allowance.remaining;
+      user.freeMessageNextAvailableAt = allowance.nextAvailableAt;
+    }
+    renderFreeAllowancePill();
+    window.dispatchEvent(new CustomEvent('crump:free-message-allowance', {detail: {...allowance}}));
+    return true;
+  }
+
+  async function refreshFreeAllowanceFromServer() {
+    const user = window.currentUser || activeUser;
+    if (!isFreeTextUser(user) || hasPaidToolAccess(user)) return false;
+    try {
+      const {response, data} = await authRequest(
+        '/api/usage/check',
+        {method: 'GET', cache: 'no-store'},
+        'Checking your free message allowance took too long.',
+      );
+      if (!response.ok) {
+        applyServerAllowance(data);
+        return false;
+      }
+      return applyServerAllowance(data);
+    } catch (_) {
+      // Keep the neutral "checking" state. A send always performs the same
+      // server-authoritative preflight before accepting a message.
+      return false;
+    }
+  }
+
+  function nextFreeMessageCopy(allowance = freeAllowanceState) {
+    const timestamp = Date.parse(String(allowance?.nextAvailableAt || ''));
+    if (!Number.isFinite(timestamp)) return 'A message becomes available when the oldest message leaves the rolling 24-hour window.';
+    const formatted = new Intl.DateTimeFormat(undefined, {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+    }).format(new Date(timestamp));
+    return `Your next free text message becomes available ${formatted}.`;
+  }
+
+  function renderFreeAllowancePill() {
+    const user = window.currentUser || activeUser;
+    const existing = byId('freeTextAllowancePill') || byId('guestPreviewPill');
+    const ownerId = String(user?.id || '');
+    if (freeAllowanceState?.ownerId && freeAllowanceState.ownerId !== ownerId) freeAllowanceState = null;
+    if (!isFreeTextUser(user) || hasPaidToolAccess(user)) {
+      freeAllowanceState = null;
+      document.body.classList.remove('free-allowance-active');
+      document.body.classList.remove('guest-active');
+      existing?.remove();
+      return;
+    }
+    document.body.classList.add('free-allowance-active');
+    document.body.classList.toggle('guest-active', isGuestUser(user));
+    if (!freeAllowanceState) {
+      const initial = parseServerAllowance(user);
+      if (initial) freeAllowanceState = {...initial, ownerId};
+    }
+    let pill = existing;
+    if (!pill) {
+      pill = document.createElement('div');
+      pill.id = 'freeTextAllowancePill';
+      pill.className = 'free-text-allowance-pill';
+      pill.setAttribute('role', 'region');
+      pill.setAttribute('aria-label', 'Free text message allowance');
+      const copy = document.createElement('span');
+      copy.className = 'free-text-allowance-copy';
+      const link = document.createElement('a');
+      link.href = '#';
+      link.className = 'free-text-allowance-link';
+      link.addEventListener('click', event => {
+        event.preventDefault();
+        if (isGuestUser(window.currentUser || activeUser)) showGuestWall();
+        else showPaidToolPrompt('More messages');
+      });
+      pill.append(copy, link);
+      document.querySelector('.v1-workspace-header')?.append(pill);
+    }
+    const guest = isGuestUser(user);
+    const copy = pill.querySelector('.free-text-allowance-copy');
+    const link = pill.querySelector('.free-text-allowance-link');
+    if (copy) {
+      copy.textContent = freeAllowanceState
+        ? `${guest ? 'Guest' : 'Free'} · ${freeAllowanceState.remaining} of ${freeAllowanceState.limit} free text messages left`
+        : `${guest ? 'Guest' : 'Free'} · checking text allowance…`;
+      copy.title = freeAllowanceState
+        ? `${freeAllowanceState.remaining} of ${freeAllowanceState.limit} free text messages left in the last 24 hours.${freeAllowanceState.remaining === 0 ? ` ${nextFreeMessageCopy()}` : ''}`
+        : 'Ask Crump is checking the server-authoritative rolling 24-hour allowance.';
+    }
+    if (link) link.textContent = guest ? 'Save conversation' : 'Compare plans';
+  }
+
+  function showGuestNote(text) {
+    const note = byId('guestWallNote');
+    if (!note) return;
+    note.textContent = text;
+    note.hidden = false;
+  }
+
+  function showGuestWall() {
+    showAuth('register');
+    const reset = freeAllowanceState?.remaining === 0 ? ` ${nextFreeMessageCopy()}` : '';
+    showGuestNote(`Create a free account to preserve this conversation and your remaining allowance. Signing up does not add another five messages. More messages and advanced tools require a paid plan.${reset}`);
+  }
+
+  function showPaidToolPrompt(featureLabel = 'That tool') {
+    const user = window.currentUser || activeUser;
+    if (hasPaidToolAccess(user)) return true;
+    if (isGuestUser(user)) {
+      showAuth('register');
+      showGuestNote(`${featureLabel} requires a paid plan. Create a free account to preserve this conversation and its remaining allowance; signing up does not add another five messages. You can review a paid plan after verification.`);
+      return false;
+    }
+    window.showUpgradePrompt?.({
+      accessCode: 'SUBSCRIPTION_REQUIRED',
+      plan: 'professional',
+      source: 'advanced_tool_guard',
+    });
+    window.showToast?.(`${featureLabel} requires a paid plan.`, 'info');
+    return false;
+  }
+
+  function requireOwnedWorkspace(featureLabel = 'That workspace') {
+    const user = window.currentUser || activeUser;
+    if (!user?.id) {
+      window.showToast?.(`${featureLabel} is unavailable until account access finishes loading.`, 'info');
+      return false;
+    }
+    if (isGuestUser(user)) {
+      showAuth('register');
+      showGuestNote(`Create a free account to keep and revisit your private ${featureLabel.toLowerCase()}. Creating or changing premium work still requires a paid plan.`);
+      return false;
+    }
+    return true;
+  }
+
+  function handleGuestChatError(error) {
+    const code = String(error?.code || '').toUpperCase();
+    applyServerAllowance(error?.data || error);
+    if (code === 'FREE_TEXT_LIMIT_REACHED' || code === 'GUEST_LIMIT_REACHED') {
+      if (isGuestUser(window.currentUser || activeUser)) showGuestWall();
+      else {
+        showPaidToolPrompt('More messages');
+        window.showToast?.(nextFreeMessageCopy(), 'info');
+      }
+    } else if (code === 'GUEST_ACCOUNT_REQUIRED') {
+      const match = /to use (.+?) —/.exec(String(error?.message || ''));
+      const feature = match ? match[1].charAt(0).toUpperCase() + match[1].slice(1) : 'That feature';
+      showPaidToolPrompt(feature);
+    }
+  }
+
+  async function enterAsGuest() {
+    try {
+      const {response, data} = await authRequest(
+        '/api/auth/guest',
+        {method: 'POST'},
+        'Starting a guest preview took too long. Try again.',
+      );
+      if (!response.ok || !data?.success) return false;
+      const session = await window.deviceAuth.checkSession();
+      if (!session.authenticated || !session.data?.user?.isGuest) return false;
+      await prepareAuthenticatedWorkspace();
+      activeUser = session.data.user;
+      window.currentUser = activeUser;
+      window.configureUserStorage?.(activeUser.id);
+      applyServerSettings(session.data.settings);
+      if (new URLSearchParams(location.search).get('signup') === '1') trackSignupIntent('deep-link');
+      routeAuthenticatedUser(activeUser);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  window.CrumpAccess = Object.freeze({
+    isGuest: () => isGuestUser(window.currentUser || activeUser),
+    isFree: () => isFreeTextUser(window.currentUser || activeUser) && !hasPaidToolAccess(window.currentUser || activeUser),
+    hasPaidToolAccess: () => hasPaidToolAccess(window.currentUser || activeUser),
+    applyServerAllowance,
+    requireOwnedWorkspace,
+    requirePaidTool: showPaidToolPrompt,
+    onChatError: handleGuestChatError,
+    refreshAllowance: refreshFreeAllowanceFromServer,
+  });
+
+  // Compatibility for modules loaded from an older PWA cache. This alias no
+  // longer mutates usage: only a server response may update the allowance.
+  window.CrumpGuest = Object.freeze({
+    isGuest: window.CrumpAccess.isGuest,
+    noteMessageSent: applyServerAllowance,
+    onChatError: handleGuestChatError,
+    showAccountPrompt: showPaidToolPrompt,
+    refreshPill: renderFreeAllowancePill,
+  });
 
   function focusAuthView(view) {
     const fieldId = AUTH_VIEWS[view]?.fieldId;
@@ -900,7 +1208,7 @@
   function showVerificationResult(value) {
     const messages = {
       success: 'Email verified. Your workspace is ready.',
-      already_verified: 'This email is already verified.',
+      already_verified: 'This email is already verified. Sign in to continue.',
       failed: 'That verification link is invalid, expired, or already used. Enter your email below to resend verification, or sign in if verification already completed.',
     };
     if (!messages[value]) return;
@@ -919,6 +1227,7 @@
     configureRegistrationHandoff();
     const params = new URLSearchParams(location.search);
     const signupRequested = params.get('signup') === '1';
+    const signInRequested = (params.get('source') || '').toLowerCase().includes('signin');
     const returningDeviceHint = hasReturningDeviceHint();
     const resetToken = params.get('token');
     if (resetToken) {
@@ -933,7 +1242,7 @@
       history.replaceState({}, document.title, location.pathname);
     }
 
-    if (signupRequested && !returningDeviceHint) {
+    if (signupRequested) {
       showAuth('register');
     } else {
       showReturningVisitorGate();
@@ -944,7 +1253,7 @@
     const session = await window.deviceAuth.checkSession();
     if (authFlowRevision !== bootstrapAuthFlowRevision) return;
     if (session.unavailable) {
-      if (!signupRequested || returningDeviceHint) {
+      if (!signupRequested) {
         showAuth('login');
         setText(
           'loginError',
@@ -955,6 +1264,15 @@
       return;
     }
     if (!session.authenticated || !session.data?.user) {
+      // Guest preview: a genuinely new visitor starts chatting right away
+      // in a bounded guest session. A device holding an account keeps the
+      // classic sign-in path, a pending email verification always
+      // finishes on the auth screens, and an explicit Sign in link
+      // (source=*signin*) always lands on the login form it promised.
+      const cachedHintUser = window.deviceAuth?.cachedUser?.() || null;
+      const accountOnDevice = returningDeviceHint && !cachedHintUser?.isGuest;
+      if (!signupRequested && !accountOnDevice && !verification && !signInRequested && await enterAsGuest()) return;
+      if (authFlowRevision !== bootstrapAuthFlowRevision) return;
       if (signupRequested) {
         showAuth('register');
         trackSignupIntent('deep-link');
@@ -962,6 +1280,15 @@
         showAuth('login');
       }
       if (verification) showVerificationResult(verification);
+      return;
+    }
+    if (signupRequested && isGuestUser(session.data.user)) {
+      activeUser = session.data.user;
+      window.currentUser = activeUser;
+      window.configureUserStorage?.(activeUser.id);
+      applyServerSettings(session.data.settings);
+      showAuth('register');
+      trackSignupIntent('deep-link');
       return;
     }
     await prepareAuthenticatedWorkspace();

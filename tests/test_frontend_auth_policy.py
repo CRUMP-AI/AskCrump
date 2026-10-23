@@ -141,11 +141,10 @@ def test_cold_signup_entry_keeps_product_value_and_assurance_readable():
 def test_registration_offer_matches_enforced_free_limits_and_canonical_product_map():
     app = (PUBLIC / 'app.html').read_text(encoding='utf-8')
     controller = (PUBLIC / 'auth-controller.js').read_text(encoding='utf-8')
-    config = (ROOT / 'backend' / 'config.py').read_text(encoding='utf-8')
-    features = (ROOT / 'backend' / 'feature_service.py').read_text(encoding='utf-8')
     brand = app[app.index('class="v1-auth-brand"'):app.index('class="v1-auth-stage"')]
     assurance = (
-        'Free includes 25 messages each day and 2 private Projects. '
+        'Free includes up to 5 text messages in any rolling 24-hour window. '
+        'Advanced tools require a paid plan. '
         'We’ll email a secure verification link; no card required.'
     )
 
@@ -166,8 +165,8 @@ def test_registration_offer_matches_enforced_free_limits_and_canonical_product_m
     assert assurance in controller
     assert 'Creating your account does not start billing; checkout remains a separate confirmation.' in controller
     assert "if (assurance) assurance.textContent = plan" in controller
-    assert "free_daily_messages=int(os.getenv('FREE_DAILY_MESSAGES', '25'))" in config
-    assert 'PROJECT_LIMITS = {"free": 2' in features
+    assert '25 messages each day' not in app + controller
+    assert '2 private Projects' not in app + controller
 
 
 def test_registration_preserves_allowlisted_creation_and_paid_plan_promises():
@@ -179,19 +178,18 @@ def test_registration_preserves_allowlisted_creation_and_paid_plan_promises():
     assert 'id="registrationSubmitBtn"' in app
     assert 'const REGISTRATION_CREATION_HANDOFFS = Object.freeze({' in controller
     assert "title: 'Create your presentation workspace.'" in controller
-    assert 'editable PowerPoint draft' in controller
+    assert 'Presentation creation requires a paid plan.' in controller
     assert "title: 'Build your résumé workspace.'" in controller
-    assert 'without invented credentials' in controller
+    assert 'Résumé creation requires a paid plan.' in controller
     assert "title: 'Open your Video Studio.'" in controller
-    assert 'see its Crump Credit cost' in controller
-    assert 'find completed clips in Files' in controller
+    assert 'Video Studio requires a paid plan.' in controller
     assert 'keep completed clips in your private Library' not in controller
     assert 'const REGISTRATION_PLAN_HANDOFFS = Object.freeze({' in controller
     assert 'Professional includes Advanced Intelligence at $20/month and remains unpurchased until you review and confirm checkout' in controller
     assert 'Enterprise includes Advanced Intelligence at $50/month and remains unpurchased until you review and confirm checkout' in controller
     assert 'function configureRegistrationHandoff()' in controller
     assert "button.textContent = creationKind === 'image'" in controller
-    assert "? 'Create account & open Image Studio'" in controller
+    assert "? 'Create account & review Image Studio access'" in controller
     assert ": (plan?.button || (creation ? 'Create account & continue' : 'Create free account'));" in controller
     assert 'configureRegistrationHandoff();' in controller
 

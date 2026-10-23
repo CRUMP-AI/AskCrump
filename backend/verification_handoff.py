@@ -14,6 +14,7 @@ CREATION_INTENTS = frozenset({
     "projects",
 })
 PAID_PLAN_INTENTS = frozenset({"professional", "enterprise"})
+VERIFICATION_RESULTS = frozenset({"success", "already_verified"})
 
 
 def creation_intent(value: str | None) -> str | None:
@@ -49,9 +50,13 @@ def verified_workspace_url(
     *,
     intent: str | None = None,
     plan: str | None = None,
+    result: str = "success",
 ) -> str:
     """Return the post-verification workspace URL without granting an entitlement."""
-    query: list[tuple[str, str]] = [("verification", "success")]
+    safe_result = str(result or "").strip().lower()
+    if safe_result not in VERIFICATION_RESULTS:
+        safe_result = "success"
+    query: list[tuple[str, str]] = [("verification", safe_result)]
     safe_intent = creation_intent(intent)
     safe_plan = paid_plan_intent(plan)
     if safe_intent:

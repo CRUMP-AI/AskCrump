@@ -21,10 +21,11 @@ import httpx
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
-from ..auth_service import authenticate_request
+from ..auth_service import authenticate_request, paid_tools_entitled
 from ..credits_catalog import by_code, by_native_product, public_catalog
 from ..db import eq
 from ..product_analytics import record_product_event
+from ..revenuecat_catalog import entitlement_id, subscription_tier
 from ..runtime import db, settings
 from ..security import iso_now
 from ..stripe_security import (
@@ -38,6 +39,11 @@ router = APIRouter(prefix='/api/billing/credits', tags=['billing'])
 logger = logging.getLogger('askcrump.credits')
 STRIPE_API_VERSION = '2026-07-29.dahlia'
 CHECKOUT_ATTEMPT_PATTERN = re.compile(r'^[A-Za-z0-9][A-Za-z0-9:._-]{15,99}$')
+CREDIT_PURCHASE_PLAN_MESSAGE = (
+    'Crump Credits are used by paid creation tools. Subscribe to Professional '
+    'or Enterprise before adding credits. Your existing balance and credit '
+    'history remain available in Plan & credits.'
+)
 
 
 class StripeRequestError(RuntimeError):
@@ -59,6 +65,20 @@ class StripeRequestError(RuntimeError):
 
 def _is_native(request: Request) -> bool:
     return request.headers.get('x-crump-client', '').lower() == 'native'
+
+
+def _credit_purchase_plan_response() -> JSONResponse:
+    return JSONResponse(
+        status_code=403,
+        content={
+            'success': False,
+            'error': CREDIT_PURCHASE_PLAN_MESSAGE,
+            'message': CREDIT_PURCHASE_PLAN_MESSAGE,
+            'code': 'CREDIT_PURCHASE_REQUIRES_SUBSCRIPTION',
+            'upgradeRequired': True,
+            'requiredTier': 'professional',
+        },
+    )
 
 
 def _stripe_error(response: httpx.Response, fallback: str) -> StripeRequestError:
@@ -279,7 +299,8 @@ async def _finalize_stripe_session(
 
 @router.get('/status')
 async def status(request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
+    purchases_allowed = paid_tools_entitled(auth.user)
     wallet = await credit_status(db, auth.user['id'])
     history = await db.select(
         'credit_ledger',
@@ -305,6 +326,12 @@ async def status(request: Request):
             for row in history
         ],
         'creditsNeverExpire': True,
+        'creditPurchasesAllowed': purchases_allowed,
+        'creditPurchaseRequirement': None if purchases_allowed else {
+            'code': 'CREDIT_PURCHASE_REQUIRES_SUBSCRIPTION',
+            'requiredTier': 'professional',
+            'message': CREDIT_PURCHASE_PLAN_MESSAGE,
+        },
     }
 
 
@@ -379,7 +406,9 @@ async def checkout(request: Request):
             },
         )
 
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
+    if not paid_tools_entitled(auth.user):
+        return _credit_purchase_plan_response()
     payload = await request.json()
     pack = by_code(str((payload or {}).get('pack') or '')) if isinstance(payload, dict) else None
 
@@ -501,9 +530,30 @@ async def checkout(request: Request):
     }
 
 
+@router.post('/purchase-eligibility')
+async def purchase_eligibility(request: Request):
+    """Authorize a native credit sheet before any store purchase is opened."""
+    auth = await authenticate_request(request, db, settings, require_account=True)
+    if not paid_tools_entitled(auth.user):
+        return _credit_purchase_plan_response()
+
+    payload = await request.json()
+    pack = by_code(str((payload or {}).get('pack') or '')) if isinstance(payload, dict) else None
+    if not pack:
+        return JSONResponse(
+            status_code=400,
+            content={
+                'success': False,
+                'error': 'Unknown credit pack.',
+                'code': 'UNKNOWN_CREDIT_PACK',
+            },
+        )
+    return {'success': True, 'pack': pack.code, 'creditPurchasesAllowed': True}
+
+
 @router.post('/finalize')
 async def finalize(request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     payload = await request.json()
     session_id = str((payload or {}).get('sessionId') or '').strip() if isinstance(payload, dict) else ''
     if not session_id.startswith('cs_'):
@@ -587,9 +637,64 @@ async def _revenuecat_customer(user_id: str) -> dict[str, Any] | None:
     return response.json().get('subscriber') or {}
 
 
+def _revenuecat_datetime(value: Any) -> datetime | None:
+    """Parse an explicit provider timestamp without inventing a timezone."""
+    if not isinstance(value, str) or not value.strip():
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.strip().replace('Z', '+00:00'))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        return None
+    return parsed.astimezone(timezone.utc)
+
+
+def _revenuecat_paid_intervals(
+    subscriber: dict[str, Any],
+) -> list[tuple[datetime, datetime]]:
+    """Return only exact-catalog paid periods explicitly dated by RevenueCat."""
+    intervals: set[tuple[datetime, datetime]] = set()
+
+    def add_interval(entitlement: str, product_id: str, record: Any) -> None:
+        if not isinstance(record, dict):
+            return
+        if not subscription_tier(entitlement, product_id):
+            return
+        starts_at = _revenuecat_datetime(record.get('purchase_date'))
+        ends_at = _revenuecat_datetime(record.get('expires_date'))
+        if starts_at is None or ends_at is None or starts_at > ends_at:
+            return
+        intervals.add((starts_at, ends_at))
+
+    entitlements = subscriber.get('entitlements')
+    if isinstance(entitlements, dict):
+        for provider_entitlement, record in entitlements.items():
+            product_id = str(record.get('product_identifier') or '').strip() if isinstance(record, dict) else ''
+            add_interval(str(provider_entitlement or '').strip(), product_id, record)
+
+    subscriptions = subscriber.get('subscriptions')
+    if isinstance(subscriptions, dict):
+        expected_entitlement = entitlement_id()
+        for product_id, record in subscriptions.items():
+            add_interval(expected_entitlement, str(product_id or '').strip(), record)
+
+    return sorted(intervals)
+
+
+def _revenuecat_transaction_is_paid(
+    transaction: dict[str, Any],
+    paid_intervals: list[tuple[datetime, datetime]],
+) -> bool:
+    purchased_at = _revenuecat_datetime(transaction.get('purchase_date'))
+    if purchased_at is None:
+        return False
+    return any(starts_at <= purchased_at <= ends_at for starts_at, ends_at in paid_intervals)
+
+
 @router.post('/revenuecat/sync')
 async def revenuecat_sync(request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     subscriber = await _revenuecat_customer(auth.user['id'])
     if subscriber is None:
         return JSONResponse(
@@ -602,6 +707,9 @@ async def revenuecat_sync(request: Request):
         )
 
     granted = 0
+    rejected_transactions = 0
+    seen_transactions: set[str] = set()
+    paid_intervals = _revenuecat_paid_intervals(subscriber)
     purchases = subscriber.get('non_subscriptions') or {}
     if isinstance(purchases, dict):
         for product_id, transactions in purchases.items():
@@ -613,6 +721,12 @@ async def revenuecat_sync(request: Request):
                     continue
                 transaction_id = str(transaction.get('id') or '').strip()
                 if not transaction_id:
+                    continue
+                if transaction_id in seen_transactions:
+                    continue
+                seen_transactions.add(transaction_id)
+                if not _revenuecat_transaction_is_paid(transaction, paid_intervals):
+                    rejected_transactions += 1
                     continue
                 grant = await _grant(
                     user_id=auth.user['id'],
@@ -639,9 +753,16 @@ async def revenuecat_sync(request: Request):
                     granted += pack.credits
 
     wallet = await credit_status(db, auth.user['id'])
-    return {
+    result = {
         'success': True,
         'granted': granted,
         'credits': wallet,
         'catalog': public_catalog(native=True),
     }
+    if rejected_transactions:
+        result.update({
+            'rejectedTransactions': rejected_transactions,
+            'settlementLimited': True,
+            'settlementCode': 'REVENUECAT_PAID_INTERVAL_NOT_PROVEN',
+        })
+    return result

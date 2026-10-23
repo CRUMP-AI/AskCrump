@@ -35,6 +35,7 @@
   }
 
   function apiError(response, data, fallback) {
+    applyServerAllowance(data);
     const error = new Error(data?.message || data?.error || fallback || `Request failed (${response.status})`);
     error.code = data?.code;
     error.shouldRetry = Boolean(data?.shouldRetry);
@@ -43,6 +44,10 @@
     error.data = data;
     error.recovery = safeImageRecovery(data?.recovery);
     return error;
+  }
+
+  function applyServerAllowance(data) {
+    window.CrumpAccess?.applyServerAllowance?.(data);
   }
 
   function offerPlanRecovery(data) {
@@ -103,7 +108,23 @@
     if (!response.ok) {
       throw apiError(response, data, 'Crump could not check message availability. Try again.');
     }
+    applyServerAllowance(data);
     notifyCreditBalance(data);
+    const freeAllowance = data?.freeMessageAllowance
+      || data?.dailyUsage?.freeMessageAllowance
+      || data?.usage?.freeMessageAllowance;
+    if (
+      window.CrumpAccess?.isFree?.()
+      && freeAllowance
+      && Number(freeAllowance.remaining) <= 0
+    ) {
+      const error = apiError(
+        response,
+        {...data, code: 'FREE_TEXT_LIMIT_REACHED'},
+        'Your five free text messages in the rolling 24-hour window have been used.',
+      );
+      throw error;
+    }
     if (data.limits?.messages !== -1 && data.usage?.messages >= data.limits?.messages) {
       window.showUpgradePrompt?.({
         accessCode: 'USAGE_LIMIT',
@@ -165,6 +186,7 @@
         lastTransportError = error;
       }
       if (job?.state === 'completed') {
+        applyServerAllowance(job.data);
         notifyCreditBalance(job.data);
         return job.data;
       }
@@ -205,6 +227,7 @@
       }
 
       if (response.ok) {
+        applyServerAllowance(data);
         notifyCreditBalance(data);
         return data;
       }

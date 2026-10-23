@@ -24,14 +24,17 @@ async def presence_preferences(request: Request):
 
 @router.patch('/presence/preferences')
 async def update_presence_preferences(payload: PresencePreferencesRequest, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    # Enrolling in proactive check-ins is an account capability: a guest's
+    # stored preference would otherwise be honored by the check-in worker
+    # even though guest chat itself is capped and text-only.
+    auth = await authenticate_request(request, db, settings, require_account=True)
     preferences = await save_preferences(db, auth.user['id'], payload.model_dump())
     return {'success': True, 'preferences': preferences}
 
 
 @router.post('/notifications/register')
 async def register_push_token(payload: PushTokenRequest, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, require_account=True)
     platform = payload.platform.lower()
     if platform not in {'ios', 'android'}:
         return JSONResponse(status_code=400, content={'success': False, 'error': 'Push notifications are available only in the iOS and Android apps.'})

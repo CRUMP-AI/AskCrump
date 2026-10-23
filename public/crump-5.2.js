@@ -29,7 +29,7 @@
   ].join(',');
   const PROJECT_LIMIT_EXPERIMENT = 'project-limit-plan-copy';
   const PROJECT_LIMIT_CONTROL_DETAIL = 'Compare monthly plans below before creating another Project. Nothing changes until you choose and confirm.';
-  const PROJECT_LIMIT_TREATMENT_DETAIL = 'Your two Free Projects stay available. Professional raises the active Project limit to 25 for $20/month. You can keep using Free or review the plan before deciding.';
+  const PROJECT_LIMIT_TREATMENT_DETAIL = 'Projects require a paid plan. Professional supports up to 25 active Projects for $20/month. Review the plan before deciding; nothing changes until checkout is confirmed.';
   const state = {
     menu: null,
     billing: null,
@@ -37,6 +37,7 @@
     legacyFileCache: new Map(),
     legacyFileLoading: new Set(),
     checkoutOpening: false,
+    creditPurchasesAllowed: false,
     billingTrigger: null,
     billingBackground: [],
   };
@@ -414,8 +415,16 @@
     state.menu = null;
   }
 
+  function requirePaidTool52(label) {
+    const guard = window.CrumpAccess?.requirePaidTool;
+    if (typeof guard === 'function') return guard(label);
+    window.showToast?.(`${label} is unavailable until account access finishes loading.`, 'info');
+    return false;
+  }
+
   function launchExistingPicker(accept, { multiple = true, capture = null } = {}) {
     closeAttachMenu();
+    if (!requirePaidTool52('File attachments')) return;
     const input = $('#fileInput');
     if (!input) {
       window.showToast?.('The attachment picker is still loading.', 'warning');
@@ -458,6 +467,7 @@
     event?.preventDefault?.();
     event?.stopPropagation?.();
     closeAttachMenu();
+    if (!requirePaidTool52('Attachments and creation tools')) return;
 
     const overlay = document.createElement('div');
     overlay.className = 'crump52-attach-overlay';
@@ -608,6 +618,10 @@
 
   async function openCreditCheckout(packCode, trigger) {
     if (!packCode || state.checkoutOpening) return;
+    if (!state.creditPurchasesAllowed) {
+      window.showToast?.('Subscribe to Professional or Enterprise before adding Crump Credits.', 'info');
+      return;
+    }
     state.checkoutOpening = true;
     const button = trigger?.closest?.('.billing51-buy') || trigger;
     const prior = button?.textContent || 'Add credits';
@@ -638,10 +652,11 @@
     }
   }
 
-  function creditPackCard(pack) {
+  function creditPackCard(pack, purchasesAllowed) {
     const article = document.createElement('article');
     article.className = 'billing51-pack';
-    article.dataset.crumpPack = String(pack.code || '');
+    if (purchasesAllowed) article.dataset.crumpPack = String(pack.code || '');
+    else article.dataset.creditPurchaseLocked = 'true';
     const amount = document.createElement('strong');
     amount.className = 'billing51-pack-amount';
     amount.textContent = String(pack.credits);
@@ -654,12 +669,17 @@
     const buy = document.createElement('button');
     buy.type = 'button';
     buy.className = 'billing51-buy';
-    buy.dataset.crumpPack = String(pack.code || '');
-    buy.disabled = pack.available === false;
-    buy.textContent = pack.available === false ? 'Not configured' : 'Add credits';
-    const accessibleLabel = pack.available === false
-      ? `${Number(pack.credits) || 0} Crump Credits are not available`
-      : `Add ${Number(pack.credits) || 0} Crump Credits for ${String(pack.price || '').trim()}`;
+    if (purchasesAllowed) buy.dataset.crumpPack = String(pack.code || '');
+    const providerAvailable = pack.available !== false;
+    buy.disabled = !purchasesAllowed || !providerAvailable;
+    buy.textContent = purchasesAllowed
+      ? (providerAvailable ? 'Add credits' : 'Not configured')
+      : 'Subscribe first';
+    const accessibleLabel = !purchasesAllowed
+      ? `Subscribe to Professional or Enterprise before adding ${Number(pack.credits) || 0} Crump Credits`
+      : providerAvailable
+        ? `Add ${Number(pack.credits) || 0} Crump Credits for ${String(pack.price || '').trim()}`
+        : `${Number(pack.credits) || 0} Crump Credits are not available`;
     buy.setAttribute('aria-label', accessibleLabel);
     article.append(amount, label, price, buy);
     return article;
@@ -738,6 +758,13 @@
       if (!modal.isConnected || state.billing !== modal) return;
       if (balance) balance.textContent = String(Math.max(0, Number(creditData.credits?.balance || 0)));
       if (allowance) renderAllowance(allowance, usageData.daily || {});
+      state.creditPurchasesAllowed = creditData.creditPurchasesAllowed === true;
+      const purchaseNotice = $('#billing52CreditPurchaseNotice', modal);
+      if (purchaseNotice) {
+        purchaseNotice.textContent = state.creditPurchasesAllowed
+          ? 'Credit packs are available with your paid creation access.'
+          : 'Subscribe to Professional or Enterprise before adding credits. Your current balance and credit history stay available.';
+      }
       const planStatus = $('#billing52PlanStatus', modal);
       if (planStatus) {
         planStatus.textContent = planStatusLine52(billingStatus);
@@ -752,7 +779,7 @@
               {code:'credits_150', credits:150, price:'$9.99', available:false},
               {code:'credits_400', credits:400, price:'$19.99', available:false},
             ];
-        catalog.forEach(pack => packs.appendChild(creditPackCard(pack)));
+        catalog.forEach(pack => packs.appendChild(creditPackCard(pack, state.creditPurchasesAllowed)));
       }
       if (history) renderBillingHistory(history, creditData.history || []);
       const sidebarBadge = document.querySelector('#upgradeBtnSidebar .billing51-sidebar-balance');
@@ -790,7 +817,7 @@
           <div id="billing52Allowance"><div class="billing51-allowance"><div><span>Included today</span><strong>Loading…</strong></div><div class="billing51-progress"><i style="width:25%"></i></div></div></div>
         </div>
         <section class="billing51-section">
-          <div class="billing51-section-head"><div><span>KEEP GOING</span><h3>Add Crump Credits</h3></div><p>Credit use varies by feature. Ask Crump shows the exact charge before a paid action. Purchased credits never expire.</p></div>
+          <div class="billing51-section-head"><div><span>KEEP GOING</span><h3>Add Crump Credits</h3></div><p id="billing52CreditPurchaseNotice">Checking whether credit packs are available for this account…</p></div>
           <p class="billing51-rate-note"><strong>Current overflow rates, after any included allowance:</strong> messages 1; live research 1; Crump Voice or visual analysis 2; manuscript planning 4; image generation 6; manuscript chapter 8; image editing 10; Crump Code 12; video generation 60, extend or continue 80, HD 90, or 10-second cinematic 120 credits. The exact total always appears before a paid action.</p>
           <div class="billing51-packs" id="billing52Packs">
             ${[50,150,400].map((credits, index) => `<article class="billing51-pack"><strong class="billing51-pack-amount">${credits}</strong><span class="billing51-pack-label">Crump Credits</span><div class="billing51-pack-price">${['$4.99','$9.99','$19.99'][index]}</div><button type="button" class="billing51-buy" aria-label="Loading availability for ${credits} Crump Credits" disabled>Loading…</button></article>`).join('')}

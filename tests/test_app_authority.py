@@ -80,7 +80,7 @@ def test_chat_identity_and_settings_are_server_authoritative(monkeypatch):
 
     async def fake_authenticate(*_args, **_kwargs):
         return SimpleNamespace(
-            user={'id': 'user-1', 'email': 'owner@example.com', 'full_name': 'Owner'},
+            user={'id': 'user-1', 'email': 'owner@example.com', 'full_name': 'Owner', 'internal_tier': 'professional'},
             session={'id': 'session-1'},
             token='token',
         )
@@ -105,7 +105,7 @@ def test_chat_identity_and_settings_are_server_authoritative(monkeypatch):
         'email': 'owner@example.com',
         'name': 'Owner',
     }
-    assert fake_ai.payload['_userTier'] == 'free'
+    assert fake_ai.payload['_userTier'] == 'professional'
 
 
 def test_chat_packages_contextual_download_follow_up_when_semantic_router_is_unavailable(monkeypatch):
@@ -116,7 +116,7 @@ def test_chat_packages_contextual_download_follow_up_when_semantic_router_is_una
 
     async def fake_authenticate(*_args, **_kwargs):
         return SimpleNamespace(
-            user={'id': 'user-1', 'email': 'owner@example.com', 'full_name': 'Owner'},
+            user={'id': 'user-1', 'email': 'owner@example.com', 'full_name': 'Owner', 'internal_tier': 'professional'},
             session={'id': 'session-1'},
             token='token',
         )
@@ -129,7 +129,7 @@ def test_chat_packages_contextual_download_follow_up_when_semantic_router_is_una
             verification_level='off',
             route='chat',
             creation_intent=None,
-            user_tier='free',
+            user_tier='professional',
         )
 
     async def fake_create(_self, **kwargs):
@@ -209,7 +209,7 @@ def test_chat_routes_intentional_manuscript_epub_through_real_endpoint(monkeypat
 
     async def fake_authenticate(*_args, **_kwargs):
         return SimpleNamespace(
-            user={'id': 'user-1', 'email': 'owner@example.com', 'full_name': 'Owner'},
+            user={'id': 'user-1', 'email': 'owner@example.com', 'full_name': 'Owner', 'internal_tier': 'professional'},
             session={'id': 'session-1'},
             token='token',
         )
@@ -229,7 +229,7 @@ def test_chat_routes_intentional_manuscript_epub_through_real_endpoint(monkeypat
                 'question': '',
                 'format': '',
             },
-            user_tier='free',
+            user_tier='professional',
         )
 
     async def fake_begin_long_form(_self, **kwargs):
@@ -317,7 +317,7 @@ def test_invalid_file_releases_exact_reply_claim_for_immediate_same_message_retr
 
     async def fake_authenticate(*_args, **_kwargs):
         return SimpleNamespace(
-            user={'id': 'user-1', 'email': 'owner@example.com', 'full_name': 'Owner'},
+            user={'id': 'user-1', 'email': 'owner@example.com', 'full_name': 'Owner', 'internal_tier': 'professional'},
             session={'id': 'session-1'},
             token='token',
         )
@@ -382,7 +382,7 @@ def test_unexpected_pre_persistence_failure_releases_claim_for_immediate_retry(m
 
     async def fake_authenticate(*_args, **_kwargs):
         return SimpleNamespace(
-            user={'id': 'user-1', 'email': 'owner@example.com', 'full_name': 'Owner'},
+            user={'id': 'user-1', 'email': 'owner@example.com', 'full_name': 'Owner', 'internal_tier': 'professional'},
             session={'id': 'session-1'},
             token='token',
         )
@@ -434,7 +434,7 @@ def test_unexpected_post_consumption_failure_refunds_before_releasing_claim(monk
 
     async def fake_authenticate(*_args, **_kwargs):
         return SimpleNamespace(
-            user={'id': 'user-1', 'email': 'owner@example.com', 'full_name': 'Owner'},
+            user={'id': 'user-1', 'email': 'owner@example.com', 'full_name': 'Owner', 'internal_tier': 'professional'},
             session={'id': 'session-1'},
             token='token',
         )
@@ -447,7 +447,7 @@ def test_unexpected_post_consumption_failure_refunds_before_releasing_claim(monk
             verification_level='off',
             route='chat',
             creation_intent=None,
-            user_tier='free',
+            user_tier='professional',
         )
 
     database = PostConsumptionFailureDB()
@@ -546,14 +546,14 @@ def _paid_artifact_persistence_cleanup_failure(
 
     async def authenticate(*_args, **_kwargs):
         return SimpleNamespace(
-            user={'id': 'user-1', 'email': 'owner@example.com', 'full_name': 'Owner'},
+            user={'id': 'user-1', 'email': 'owner@example.com', 'full_name': 'Owner', 'internal_tier': 'professional'},
             session={'id': 'session-1'}, token='token',
         )
 
     async def prepare(_user_id, payload, **_kwargs):
         return PreparedRequest(
             payload=dict(payload), requested_mode='auto', effective_mode='balanced',
-            verification_level='off', route='chat', creation_intent=None, user_tier='free',
+            verification_level='off', route='chat', creation_intent=None, user_tier='professional',
         )
 
     async def create(_self, **kwargs):
@@ -729,7 +729,7 @@ def test_preserved_manuscript_handoff_retries_from_cache_without_duplicate_works
 
     async def authenticate(*_args, **_kwargs):
         return SimpleNamespace(
-            user={'id': 'user-1', 'email': 'owner@example.com', 'full_name': 'Owner'},
+            user={'id': 'user-1', 'email': 'owner@example.com', 'full_name': 'Owner', 'internal_tier': 'professional'},
             session={'id': 'session-1'}, token='token',
         )
 
@@ -741,7 +741,7 @@ def test_preserved_manuscript_handoff_retries_from_cache_without_duplicate_works
                 'kind': 'manuscript', 'stage': 'execute', 'confidence': 0.99,
                 'brief': message, 'question': '', 'format': 'docx',
             },
-            user_tier='free',
+            user_tier='professional',
         )
 
     begin_long_form = AsyncMock(return_value={
@@ -842,7 +842,7 @@ def test_unconfirmed_atomic_manuscript_handoff_keeps_charge_and_claim_fenced(mon
 
     async def authenticate(*_args, **_kwargs):
         return SimpleNamespace(
-            user={'id': 'user-1', 'email': 'owner@example.com', 'full_name': 'Owner'},
+            user={'id': 'user-1', 'email': 'owner@example.com', 'full_name': 'Owner', 'internal_tier': 'professional'},
             session={'id': 'session-1'}, token='token',
         )
 
@@ -854,7 +854,7 @@ def test_unconfirmed_atomic_manuscript_handoff_keeps_charge_and_claim_fenced(mon
                 'kind': 'manuscript', 'stage': 'execute', 'confidence': 0.99,
                 'brief': message, 'question': '', 'format': 'docx',
             },
-            user_tier='free',
+            user_tier='professional',
         )
 
     database = AmbiguousHandoffDB()
@@ -948,7 +948,7 @@ def test_durable_document_reply_survives_chat_job_cache_finalization_failure(mon
 
     async def fake_authenticate(*_args, **_kwargs):
         return SimpleNamespace(
-            user={'id': 'user-1', 'email': 'owner@example.com', 'full_name': 'Owner'},
+            user={'id': 'user-1', 'email': 'owner@example.com', 'full_name': 'Owner', 'internal_tier': 'professional'},
             session={'id': 'session-1'},
             token='token',
         )
@@ -961,7 +961,7 @@ def test_durable_document_reply_survives_chat_job_cache_finalization_failure(mon
             verification_level='off',
             route='chat',
             creation_intent=None,
-            user_tier='free',
+            user_tier='professional',
         )
 
     async def fake_create(_self, **kwargs):

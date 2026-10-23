@@ -64,6 +64,13 @@
     window.showToast?.(message, tone);
   }
 
+  function requirePaidTool(label) {
+    const guard = window.CrumpAccess?.requirePaidTool;
+    if (typeof guard === 'function') return guard(label);
+    show(`${label} is unavailable until account access finishes loading.`, 'info');
+    return false;
+  }
+
   function formatBytes(bytes) {
     const value = Number(bytes || 0);
     if (value >= 1024 ** 2) return `${(value / (1024 ** 2)).toFixed(value >= 10 * 1024 ** 2 ? 0 : 1)} MB`;
@@ -290,6 +297,7 @@
   }
 
   async function addFiles(fileList, {imageReference = false} = {}) {
+    if (!requirePaidTool(imageReference ? 'Image Studio' : 'Files')) return;
     const authSequence = composerAuthSequence;
     const incoming = [...(fileList || [])];
     if (!incoming.length) return;
@@ -801,6 +809,7 @@
   }
 
   function showAttachMenu() {
+    if (!requirePaidTool('Files and creative tools')) return;
     const returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     closeMenu();
     const sheet = document.createElement('section');
@@ -991,6 +1000,7 @@
   }
 
   async function openPrecisionImageEdit(file, url, options = {}) {
+    if (!requirePaidTool('Image Studio')) return false;
     const authSequence = composerAuthSequence;
     const overlayEntry = options.entryMode === 'overlay';
     const requestedReturnFocus = options.returnFocus instanceof HTMLElement && options.returnFocus.isConnected
@@ -1097,6 +1107,7 @@
   }
 
   function showImageOptions() {
+    if (!requirePaidTool('Image Studio')) return;
     const returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     closeMenu();
     const sheet = document.createElement('section');
@@ -1293,6 +1304,7 @@
   }
 
   function showDocumentOptions() {
+    if (!requirePaidTool('Document Studio')) return;
     const returnFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     closeMenu();
     const sheet = document.createElement('section');
@@ -1491,6 +1503,15 @@
     const input = $('#userInput');
     const text = String(input?.value || '').trim();
     if (!text && !state.attachments.length) return;
+    if (state.tool || state.attachments.length) {
+      const labels = {
+        web: 'Research',
+        code: 'Autonomous Crump',
+        image: 'Image Studio',
+        document: 'Document Studio',
+      };
+      if (!requirePaidTool(labels[state.tool] || 'Files')) return;
+    }
     const draftReferences = state.attachments.filter(isImageAttachment);
     const referenceImageAction = state.tool === 'image' || looksLikeReferenceImageAction(text);
     if (referenceImageAction && draftReferences.length > IMAGE_REFERENCE_LIMIT) {
@@ -1609,8 +1630,10 @@
       const data = await window.CrumpChatTransport.send(body);
       if (authSequence !== composerAuthSequence) throw composerBoundaryAbortError();
       await applyCompletedReplySafely(fresh, userMessage, data);
+      window.CrumpAccess?.applyServerAllowance?.(data);
     } catch (error) {
       if (authSequence !== composerAuthSequence) return;
+      window.CrumpAccess?.onChatError?.(error);
       window.CrumpPresence?.stop?.();
       const fresh = currentChat();
       const target = fresh?.messages?.find(item => item.id === userMessage?.id);
@@ -1726,8 +1749,10 @@
       const data = await window.CrumpChatTransport.send(body);
       if (!retryIsCurrent()) return;
       await applyCompletedReplySafely(chat, message, data);
+      window.CrumpAccess?.applyServerAllowance?.(data);
     } catch (error) {
       if (!retryIsCurrent()) return;
+      window.CrumpAccess?.onChatError?.(error);
       window.CrumpPresence?.stop?.();
       chat=retryChat(); message=chat?.messages?.find(item => item.id===id) || message;
       if (message) {
@@ -1756,6 +1781,7 @@
 
   function reviseImageMessage(id) {
     if (state.sending) return;
+    if (!requirePaidTool('Image Studio')) return;
     const chat = currentChat();
     const message = chat?.messages?.find(item => item.id === id && item.role === 'user');
     if (!message || !IMAGE_REVISION_CODES.has(message.replyErrorCode)) return;
@@ -2540,12 +2566,14 @@
   window.CrumpDocumentStudio = Object.freeze({
     open: showDocumentOptions,
     select: (format = 'docx', placeholder = '', purpose = '') => {
+      if (!requirePaidTool('Document Studio')) return false;
       state.tool = 'document';
       state.documentFormat = String(format || 'docx').toLowerCase();
       state.documentPurpose = String(purpose || '').toLowerCase() === 'resume' ? 'resume' : null;
       closeMenu();
       renderToolChip();
       focusComposer(placeholder || `Describe the ${state.documentFormat.toUpperCase()} document you want…`);
+      return true;
     },
   });
   window.CrumpImageStudio = Object.freeze({
@@ -2561,6 +2589,7 @@
   }
   window.addEventListener('crump:requested-tool', event => {
     if (String(event?.detail?.tool || '').toLowerCase() !== 'web') return;
+    if (!requirePaidTool('Research')) return;
     state.tool = 'web';
     closeMenu();
     renderToolChip();
