@@ -22,6 +22,54 @@ def test_vercel_build_runs_release_preflight_before_bundle():
     assert "scripts/check-javascript.mjs" in preflight
     assert "'-m', 'compileall', '-q', 'app.py', 'backend'" in preflight
     assert "process.env.VERCEL" in preflight
+    assert "./runtime-security-floor.mjs" in preflight
+    assert "supportsVercelNodeVersion(process.versions.node)" in preflight
+    assert "Vercel Node.js 22.23.4 or newer on the 22.x line" in preflight
+    assert preflight.index("assertVercelNodeVersion();") < preflight.index("runJavaScriptContract();")
+
+
+def test_github_workflows_pin_the_reviewed_node_security_floor():
+    for relative in (
+        ".github/workflows/ci.yml",
+        ".github/workflows/android-store-verify.yml",
+        ".github/workflows/ios-store-verify.yml",
+        ".github/workflows/public-destination-health.yml",
+    ):
+        workflow = read(relative)
+        assert 'node-version: "22.23.4"' in workflow
+        assert 'node-version: "22"' not in workflow
+
+
+def test_vercel_node_security_floor_accepts_only_patched_node_22():
+    node = os.environ.get("ASKCRUMP_NODE_EXECUTABLE") or shutil.which("node")
+    if not node:
+        pytest.skip("Node.js is required to execute the runtime security floor test.")
+
+    script = """
+      import { supportsVercelNodeVersion } from './scripts/runtime-security-floor.mjs';
+      const cases = new Map([
+        ['22.23.3', false],
+        ['22.23.4', true],
+        ['22.24.0', true],
+        ['22.22.99', false],
+        ['23.0.0', false],
+        ['24.19.0', false],
+        ['22.23.4-rc.1', false],
+        ['not-a-version', false],
+      ]);
+      for (const [version, expected] of cases) {
+        if (supportsVercelNodeVersion(version) !== expected) process.exit(1);
+      }
+    """
+    result = subprocess.run(
+        [node, "--input-type=module", "--eval", script],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
 
 
 def test_client_artifact_secret_scan_is_a_fail_closed_build_gate():

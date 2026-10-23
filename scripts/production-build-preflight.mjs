@@ -1,7 +1,19 @@
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { supportsVercelNodeVersion } from './runtime-security-floor.mjs';
 
 const repoRoot = fileURLToPath(new URL('../', import.meta.url));
+
+function assertVercelNodeVersion() {
+  if (!process.env.VERCEL) return;
+
+  if (!supportsVercelNodeVersion(process.versions.node)) {
+    console.error(
+      `Production builds require Vercel Node.js 22.23.4 or newer on the 22.x line; found ${process.versions.node}.`,
+    );
+    process.exit(1);
+  }
+}
 
 function run(command, args, options = {}) {
   const result = spawnSync(command, args, {
@@ -60,6 +72,7 @@ function runPythonCompileGuard() {
   }
 }
 
+assertVercelNodeVersion();
 runJavaScriptContract();
 runPythonCompileGuard();
 

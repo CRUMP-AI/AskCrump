@@ -92,7 +92,7 @@ def test_live_public_destination_health_workflow_is_daily_manual_and_read_only()
     assert "timeout-minutes: 10" in workflow
     assert "actions/checkout@v7" in workflow
     assert "actions/setup-node@v7" in workflow
-    assert 'node-version: "22"' in workflow
+    assert 'node-version: "22.23.4"' in workflow
     assert "node scripts/verify-live-public-destinations.mjs" in workflow
     assert "ASKCRUMP_PUBLIC_ORIGIN: https://www.askcrump.com" in workflow
     assert "secrets." not in workflow

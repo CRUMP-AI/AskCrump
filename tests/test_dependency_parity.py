@@ -24,6 +24,14 @@ def test_requirements_txt_matches_pyproject_runtime_dependencies():
     )
 
 
+def test_certifi_security_baseline_is_a_direct_runtime_dependency():
+    expected = 'certifi==2026.10.23'
+    pyproject = tomllib.loads((ROOT / 'pyproject.toml').read_text(encoding='utf-8'))
+
+    assert expected in pyproject['project']['dependencies']
+    assert expected in normalized_requirements(ROOT / 'requirements.txt')
+
+
 def test_pyjwt_security_baseline_is_synced_across_tracked_manifests():
     expected = 'PyJWT[crypto]==2.15.0'
     root = tomllib.loads((ROOT / 'pyproject.toml').read_text(encoding='utf-8'))
