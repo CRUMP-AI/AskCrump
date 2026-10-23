@@ -493,6 +493,309 @@ async def test_superseded_subscription_event_cannot_roll_back_current_subscripti
 
 
 @pytest.mark.asyncio
+async def test_superseded_checkout_session_cannot_roll_back_current_subscription(monkeypatch):
+    user = {
+        'id': 'user-1',
+        'stripe_customer_id': 'cus_owner',
+        'stripe_subscription_id': 'sub_current',
+        'subscription_tier': 'enterprise',
+        'subscription_status': 'active',
+        'subscription_provider': 'stripe',
+        'subscription_current_period_end': '2027-01-15T08:00:00+00:00',
+    }
+    fake_db = BillingDB(user=user)
+    monkeypatch.setattr(billing_routes, 'db', fake_db)
+    monkeypatch.setattr(billing_routes, 'settings', settings_stub())
+    provider_paths = []
+
+    async def stripe_get(path):
+        provider_paths.append(path)
+        if path == 'subscriptions/sub_current':
+            return stripe_subscription(
+                status='active',
+                price_id='price_enterprise',
+                subscription_id='sub_current',
+            )
+        raise AssertionError(f'superseded checkout must not look up {path}')
+
+    monkeypatch.setattr(billing_routes, 'stripe_get', stripe_get)
+
+    reconciled = await billing_routes.reconcile_stripe_checkout_session(
+        user=user,
+        session=checkout_session(subscription='sub_previous'),
+        request=request_stub(),
+    )
+
+    assert reconciled['entitled'] is True
+    assert reconciled['tier'] == 'enterprise'
+    assert reconciled['status'] == 'active'
+    assert fake_db.updates == []
+    assert fake_db.events == []
+    assert provider_paths == []
+
+    applied = await billing_routes.reconcile_stripe_subscription_event(
+        event_object=stripe_subscription(
+            status='active',
+            price_id='price_enterprise',
+            subscription_id='sub_current',
+        ),
+        event_id='evt_current_update',
+        event_type='customer.subscription.updated',
+        request=request_stub(),
+    )
+
+    assert applied is True
+    assert provider_paths == ['subscriptions/sub_current']
+    assert fake_db.updates[0][1]['stripe_subscription_id'] == 'sub_current'
+    assert fake_db.events[0]['p_event_key'] == 'evt_current_update'
+
+
+@pytest.mark.asyncio
+async def test_webhook_ignores_superseded_completed_checkout_session(monkeypatch):
+    user = {
+        'id': 'user-1',
+        'stripe_customer_id': 'cus_owner',
+        'stripe_subscription_id': 'sub_current',
+        'subscription_tier': 'professional',
+        'subscription_status': 'active',
+        'subscription_provider': 'stripe',
+    }
+    fake_db = BillingDB(user=user)
+    monkeypatch.setattr(billing_routes, 'db', fake_db)
+    monkeypatch.setattr(billing_routes, 'settings', settings_stub())
+    monkeypatch.setattr(billing_routes, 'verify_stripe_signature', lambda *_args: True)
+
+    async def unexpected_stripe_get(path):
+        raise AssertionError(f'superseded webhook must not look up {path}')
+
+    monkeypatch.setattr(billing_routes, 'stripe_get', unexpected_stripe_get)
+    event = {
+        'id': 'evt_old_checkout_delivery',
+        'type': 'checkout.session.completed',
+        'data': {'object': checkout_session(subscription='sub_previous')},
+    }
+
+    class Request:
+        headers = {'stripe-signature': 'verified'}
+        url = SimpleNamespace(hostname='askcrump.com')
+
+        async def body(self):
+            return json.dumps(event).encode('utf-8')
+
+    response = await billing_routes.stripe_webhook(Request())
+
+    assert response == {'received': True}
+    assert fake_db.updates == []
+    assert fake_db.events == []
+
+
+@pytest.mark.asyncio
+async def test_checkout_reconciliation_allows_resubscription_after_terminal_state(monkeypatch):
+    user = {
+        'id': 'user-1',
+        'stripe_customer_id': 'cus_owner',
+        'stripe_subscription_id': 'sub_previous',
+        'subscription_tier': 'free',
+        'subscription_status': 'canceled',
+        'subscription_provider': 'stripe',
+    }
+    fake_db = BillingDB(user=user)
+    monkeypatch.setattr(billing_routes, 'db', fake_db)
+    monkeypatch.setattr(billing_routes, 'settings', settings_stub())
+
+    async def stripe_get(path):
+        assert path == 'subscriptions/sub_current'
+        return stripe_subscription(
+            status='active',
+            price_id='price_professional',
+            subscription_id='sub_current',
+        )
+
+    monkeypatch.setattr(billing_routes, 'stripe_get', stripe_get)
+
+    reconciled = await billing_routes.reconcile_stripe_checkout_session(
+        user=user,
+        session=checkout_session(subscription='sub_current'),
+        request=request_stub(),
+    )
+
+    assert reconciled['entitled'] is True
+    assert reconciled['tier'] == 'professional'
+    assert fake_db.updates[0][1]['stripe_subscription_id'] == 'sub_current'
+    assert fake_db.updates[0][2] == {
+        'id': 'eq.user-1',
+        'stripe_customer_id': 'eq.cus_owner',
+        'stripe_subscription_id': 'eq.sub_previous',
+        'subscription_tier': 'eq.free',
+        'subscription_status': 'eq.canceled',
+        'subscription_provider': 'eq.stripe',
+        'subscription_current_period_end': 'is.null',
+    }
+    assert fake_db.events[0]['p_event_name'] == 'SubscriptionCheckoutCompleted'
+
+
+@pytest.mark.asyncio
+async def test_checkout_reconciliation_cas_loss_preserves_newer_subscription(monkeypatch):
+    original_user = {
+        'id': 'user-1',
+        'stripe_customer_id': 'cus_owner',
+        'stripe_subscription_id': 'sub_previous',
+        'subscription_tier': 'free',
+        'subscription_status': 'canceled',
+        'subscription_provider': 'stripe',
+    }
+    winning_user = {
+        **original_user,
+        'stripe_subscription_id': 'sub_newer',
+        'subscription_tier': 'enterprise',
+        'subscription_status': 'active',
+        'subscription_current_period_end': '2027-02-01T08:00:00+00:00',
+    }
+
+    class RacingBillingDB(BillingDB):
+        async def update(self, table, payload, *, filters):
+            self.updates.append((table, dict(payload), dict(filters)))
+            self.user = winning_user
+            return []
+
+    fake_db = RacingBillingDB(user=original_user)
+    monkeypatch.setattr(billing_routes, 'db', fake_db)
+    monkeypatch.setattr(billing_routes, 'settings', settings_stub())
+
+    async def stripe_get(path):
+        assert path == 'subscriptions/sub_candidate'
+        return stripe_subscription(
+            status='active',
+            price_id='price_professional',
+            subscription_id='sub_candidate',
+        )
+
+    monkeypatch.setattr(billing_routes, 'stripe_get', stripe_get)
+
+    reconciled = await billing_routes.reconcile_stripe_checkout_session(
+        user=original_user,
+        session=checkout_session(subscription='sub_candidate'),
+        request=request_stub(),
+    )
+
+    assert reconciled['entitled'] is True
+    assert reconciled['tier'] == 'enterprise'
+    assert reconciled['status'] == 'active'
+    assert fake_db.updates[0][2]['stripe_subscription_id'] == 'eq.sub_previous'
+    assert fake_db.events == []
+
+
+@pytest.mark.asyncio
+async def test_checkout_reconciliation_cas_loss_preserves_same_subscription_lifecycle(
+    monkeypatch,
+):
+    original_user = {
+        'id': 'user-1',
+        'stripe_customer_id': 'cus_owner',
+        'stripe_subscription_id': 'sub_current',
+        'subscription_tier': 'professional',
+        'subscription_status': 'active',
+        'subscription_provider': 'stripe',
+        'subscription_current_period_end': '2027-01-15T08:00:00+00:00',
+    }
+    winning_user = {
+        **original_user,
+        'subscription_tier': 'free',
+        'subscription_status': 'canceled',
+        'subscription_current_period_end': '2026-12-01T08:00:00+00:00',
+    }
+
+    class RacingBillingDB(BillingDB):
+        async def update(self, table, payload, *, filters):
+            self.updates.append((table, dict(payload), dict(filters)))
+            self.user = winning_user
+            return []
+
+    fake_db = RacingBillingDB(user=original_user)
+    monkeypatch.setattr(billing_routes, 'db', fake_db)
+    monkeypatch.setattr(billing_routes, 'settings', settings_stub())
+
+    async def stripe_get(path):
+        assert path == 'subscriptions/sub_current'
+        return stripe_subscription(
+            status='active',
+            price_id='price_professional',
+            subscription_id='sub_current',
+        )
+
+    monkeypatch.setattr(billing_routes, 'stripe_get', stripe_get)
+
+    reconciled = await billing_routes.reconcile_stripe_checkout_session(
+        user=original_user,
+        session=checkout_session(subscription='sub_current'),
+        request=request_stub(),
+    )
+
+    assert reconciled['entitled'] is False
+    assert reconciled['tier'] == 'free'
+    assert reconciled['status'] == 'canceled'
+    assert fake_db.updates[0][2]['subscription_status'] == 'eq.active'
+    assert fake_db.updates[0][2]['subscription_tier'] == 'eq.professional'
+    assert fake_db.events == []
+
+
+@pytest.mark.asyncio
+async def test_checkout_reconciliation_cas_loss_records_exact_winning_subscription(
+    monkeypatch,
+):
+    original_user = {
+        'id': 'user-1',
+        'stripe_customer_id': 'cus_owner',
+        'stripe_subscription_id': 'sub_previous',
+        'subscription_tier': 'free',
+        'subscription_status': 'canceled',
+        'subscription_provider': 'stripe',
+        'subscription_current_period_end': None,
+    }
+    winning_user = {
+        **original_user,
+        'stripe_subscription_id': 'sub_current',
+        'subscription_tier': 'professional',
+        'subscription_status': 'active',
+        'subscription_current_period_end': '2027-01-15T08:00:00+00:00',
+    }
+
+    class RacingBillingDB(BillingDB):
+        async def update(self, table, payload, *, filters):
+            self.updates.append((table, dict(payload), dict(filters)))
+            self.user = winning_user
+            return []
+
+    fake_db = RacingBillingDB(user=original_user)
+    monkeypatch.setattr(billing_routes, 'db', fake_db)
+    monkeypatch.setattr(billing_routes, 'settings', settings_stub())
+
+    async def stripe_get(path):
+        assert path == 'subscriptions/sub_current'
+        return stripe_subscription(
+            status='active',
+            price_id='price_professional',
+            subscription_id='sub_current',
+        )
+
+    monkeypatch.setattr(billing_routes, 'stripe_get', stripe_get)
+
+    reconciled = await billing_routes.reconcile_stripe_checkout_session(
+        user=original_user,
+        session=checkout_session(subscription='sub_current'),
+        request=request_stub(),
+    )
+
+    assert reconciled['entitled'] is True
+    assert reconciled['tier'] == 'professional'
+    assert reconciled['status'] == 'active'
+    assert len(fake_db.events) == 1
+    assert fake_db.events[0]['p_event_name'] == 'SubscriptionCheckoutCompleted'
+    assert fake_db.events[0]['p_event_key'] == 'cs_live_reconcile'
+    assert fake_db.events[0]['p_plan'] == 'professional'
+
+
+@pytest.mark.asyncio
 async def test_billing_status_exposes_recovery_for_non_entitled_stripe_subscription(monkeypatch):
     user = {
         'id': 'user-1',

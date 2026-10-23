@@ -33,6 +33,7 @@ router = APIRouter(tags=["billing"])
 logger = logging.getLogger("askcrump.billing")
 
 STRIPE_ENTITLED_STATUSES = {'active', 'trialing'}
+STRIPE_TERMINAL_STATUSES = {'inactive', 'canceled', 'expired', 'incomplete_expired'}
 STRIPE_API_VERSION = '2026-07-29.dahlia'
 REVENUECAT_PROVIDER_STATE_EVENTS = {
     'PURCHASE_REDEEMED',
@@ -337,13 +338,13 @@ async def create_checkout(payload: CheckoutRequest, request: Request):
         existing_provider in {None, 'stripe'}
         and bool(auth.user.get('stripe_customer_id'))
         and existing_subscription_id.startswith('sub_')
-        and existing_status not in {'inactive', 'canceled', 'expired', 'incomplete_expired'}
+        and existing_status not in STRIPE_TERMINAL_STATUSES
     )
     if (
         has_open_stripe_subscription
         or (
             existing_tier in {'professional', 'enterprise'}
-            and existing_status not in {'inactive', 'canceled', 'expired', 'incomplete_expired'}
+            and existing_status not in STRIPE_TERMINAL_STATUSES
         )
     ):
         return JSONResponse(
@@ -754,6 +755,23 @@ async def reconcile_stripe_checkout_session(
     subscription_id = str(session.get('subscription') or '')
     if not subscription_id.startswith('sub_'):
         raise RuntimeError('Stripe has not attached a subscription yet.')
+
+    stored_subscription_id = str(user.get('stripe_subscription_id') or '')
+    stored_status = str(user.get('subscription_status') or 'inactive').lower()
+    if (
+        stored_subscription_id
+        and stored_subscription_id != subscription_id
+        and stored_status not in STRIPE_TERMINAL_STATUSES
+    ):
+        logger.info(
+            'Ignoring completed Checkout session for superseded subscription '
+            'session=%s subscription=%s current_subscription=%s',
+            str(session.get('id') or ''),
+            subscription_id,
+            stored_subscription_id,
+        )
+        return stripe_user_subscription_result(user)
+
     subscription = await stripe_get(f'subscriptions/{quote(subscription_id, safe="")}')
     if str(subscription.get('id') or '') != subscription_id:
         raise ValueError('Stripe returned an unexpected subscription.')
@@ -764,7 +782,59 @@ async def reconcile_stripe_checkout_session(
         'stripe_customer_id': customer_id,
         **(await stripe_subscription_values(subscription, previous=user)),
     }
-    await db.update('users', values, filters={'id': eq(user_id)})
+    updated = await db.update(
+        'users',
+        values,
+        filters={
+            'id': eq(user_id),
+            'stripe_customer_id': eq(customer_id),
+            'stripe_subscription_id': eq(user.get('stripe_subscription_id')),
+            # Guard the subscription lifecycle snapshot as well as its ID. A
+            # cancellation or past-due webhook can race this Checkout lookup
+            # without changing the subscription ID; matching only the ID would
+            # let the older Checkout response restore stale entitlement.
+            'subscription_tier': eq(user.get('subscription_tier')),
+            'subscription_status': eq(user.get('subscription_status')),
+            'subscription_provider': eq(user.get('subscription_provider')),
+            'subscription_current_period_end': eq(
+                user.get('subscription_current_period_end')
+            ),
+        },
+    )
+    if not updated:
+        current_user = await db.select_one(
+            'users',
+            columns='*',
+            filters={'id': eq(user_id), 'stripe_customer_id': eq(customer_id)},
+        )
+        if not current_user:
+            raise RuntimeError('The billing account changed while checkout was processing.')
+        logger.info(
+            'Checkout reconciliation lost subscription compare-and-swap '
+            'session=%s subscription=%s current_subscription=%s',
+            str(session.get('id') or ''),
+            subscription_id,
+            str(current_user.get('stripe_subscription_id') or ''),
+        )
+        current = stripe_user_subscription_result(current_user)
+        session_id = str(session.get('id') or '')
+        if (
+            str(current_user.get('stripe_subscription_id') or '') == subscription_id
+            and current['entitled']
+            and session_id
+        ):
+            # The browser return and webhook may race on the same completed
+            # session. Preserve its idempotent conversion event only when the
+            # winning row still belongs to that exact subscription.
+            await record_product_event(
+                db,
+                user_id=user_id,
+                event_name='SubscriptionCheckoutCompleted',
+                event_key=session_id,
+                request=request,
+                plan=str(current['tier']),
+            )
+        return current
     user.update(values)
 
     session_id = str(session.get('id') or '')
@@ -791,6 +861,24 @@ async def reconcile_stripe_checkout_session(
         'status': status,
         'provider': 'stripe',
         'periodEnd': values['subscription_current_period_end'],
+        'user': public_user(user),
+    }
+
+
+def stripe_user_subscription_result(user: dict[str, Any]) -> dict[str, Any]:
+    """Project the stored subscription without mutating provider or database state."""
+    tier = str(user.get('subscription_tier') or 'free').lower()
+    status = str(user.get('subscription_status') or 'inactive').lower()
+    entitled = (
+        status in STRIPE_ENTITLED_STATUSES
+        and tier in {'professional', 'enterprise'}
+    )
+    return {
+        'entitled': entitled,
+        'tier': tier,
+        'status': status,
+        'provider': str(user.get('subscription_provider') or 'stripe'),
+        'periodEnd': user.get('subscription_current_period_end'),
         'user': public_user(user),
     }
 
