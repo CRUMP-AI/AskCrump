@@ -629,6 +629,7 @@ def test_guest_creation_stores_unusable_password_sentinel(monkeypatch):
     assert verify_password('Password123', sentinel) is False
     assert verify_password('', sentinel) is False
     assert created[0]['is_guest'] is True
+    assert 'registration_submitted_at' not in created[0]
 
 
 @pytest.mark.parametrize(
@@ -775,7 +776,7 @@ def test_register_guest_with_pending_email_never_mutates_pending_row(monkeypatch
 def test_register_converts_the_same_guest_row_without_resetting_usage(monkeypatch):
     guest = {
         **guest_user(0),
-        'email': 'guest-a@guest.askcrump.local',
+        'email': f'guest-{USER_ID}@guest.askcrump.local',
         'is_verified': False,
     }
     guest_session = {
@@ -805,6 +806,9 @@ def test_register_converts_the_same_guest_row_without_resetting_usage(monkeypatc
     assert filters['id'] == f'eq.{guest["id"]}'
     assert values['email'] == 'person@example.com'
     assert 'is_guest' not in values  # remains guest until inbox verification
+    assert 'created_at' not in values
+    assert values['registration_submitted_at']
+    assert values['registration_environment'] == 'development'
     assert 'guest_message_count' not in values
     assert all(table != 'usage_events' for table, _payload in db.inserted)
 
@@ -812,7 +816,7 @@ def test_register_converts_the_same_guest_row_without_resetting_usage(monkeypatc
 def test_register_preserves_control_revoked_guest_row_and_allowance(monkeypatch):
     guest = {
         **guest_user(4),
-        'email': 'guest-disabled@guest.askcrump.local',
+        'email': f'guest-{USER_ID}@guest.askcrump.local',
         'is_verified': False,
     }
     revoked_at = '2026-10-22T20:00:00+00:00'
@@ -915,6 +919,8 @@ def test_password_reset_verification_clears_converted_guest_state(monkeypatch):
     user_update = next(payload for table, payload, _filters in db.updates if table == 'users')
     assert user_update['is_verified'] is True
     assert user_update['is_guest'] is False
+    assert 'registration_submitted_at' not in user_update
+    assert 'registration_environment' not in user_update
     assert db.user['is_guest'] is False
     assert any(table == 'sessions' for table, _payload, _filters in db.updates)
 
