@@ -22,6 +22,99 @@ permissions:
   contents: read
 
 jobs:
+  legacy-account-deletion-security:
+    name: Legacy account deletion security
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: askcrump_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d askcrump_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGDATABASE: askcrump_test
+      PGUSER: postgres
+      PGPASSWORD: postgres-ci-only
+
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+      - name: Prove installations without the legacy function are unchanged
+        run: |
+          psql -X --set=ON_ERROR_STOP=1 --single-transaction \
+            --file=migrations/20261024001624_harden_legacy_delete_own_account.sql
+          psql -X --set=ON_ERROR_STOP=1 \
+            --file=tests/postgres/test_legacy_delete_own_account_absent.sql
+      - name: Apply the legacy fixture and hardening migration
+        run: |
+          psql -X --set=ON_ERROR_STOP=1 \
+            --file=tests/postgres/legacy_delete_own_account_baseline.sql
+          psql -X --set=ON_ERROR_STOP=1 --single-transaction \
+            --file=migrations/20261024001624_harden_legacy_delete_own_account.sql
+          psql -X --set=ON_ERROR_STOP=1 --single-transaction \
+            --file=migrations/20261024001624_harden_legacy_delete_own_account.sql
+      - name: Exercise legacy self-delete security boundaries
+        run: >-
+          psql -X --set=ON_ERROR_STOP=1
+          --file=tests/postgres/test_legacy_delete_own_account_migration.sql
+      - name: Prove unexpected definition drift fails closed
+        run: |
+          psql -X --set=ON_ERROR_STOP=1 \
+            --file=tests/postgres/legacy_delete_own_account_drift_fixture.sql
+          set +e
+          psql -X --set=ON_ERROR_STOP=1 --set=VERBOSITY=verbose \
+            --single-transaction \
+            --file=migrations/20261024001624_harden_legacy_delete_own_account.sql \
+            > "$RUNNER_TEMP/legacy-delete-drift-refusal.log" 2>&1
+          migration_status=$?
+          set -e
+          cat "$RUNNER_TEMP/legacy-delete-drift-refusal.log"
+          if [ "$migration_status" -eq 0 ]; then
+            echo "Migration unexpectedly accepted legacy function definition drift."
+            exit 1
+          fi
+          grep -F "55000" "$RUNNER_TEMP/legacy-delete-drift-refusal.log"
+          grep -F "Unexpected public.delete_own_account() definition; refusing hardening." \
+            "$RUNNER_TEMP/legacy-delete-drift-refusal.log"
+          psql -X --set=ON_ERROR_STOP=1 \
+            --file=tests/postgres/test_legacy_delete_own_account_drift_refusal.sql
+      - name: Prove unexpected executor ACL drift fails closed
+        run: |
+          psql -X --set=ON_ERROR_STOP=1 \
+            --file=tests/postgres/legacy_delete_own_account_acl_drift_fixture.sql
+          set +e
+          psql -X --set=ON_ERROR_STOP=1 --set=VERBOSITY=verbose \
+            --single-transaction \
+            --file=migrations/20261024001624_harden_legacy_delete_own_account.sql \
+            > "$RUNNER_TEMP/legacy-delete-acl-refusal.log" 2>&1
+          migration_status=$?
+          set -e
+          cat "$RUNNER_TEMP/legacy-delete-acl-refusal.log"
+          if [ "$migration_status" -eq 0 ]; then
+            echo "Migration unexpectedly accepted legacy function ACL drift."
+            exit 1
+          fi
+          grep -F "55000" "$RUNNER_TEMP/legacy-delete-acl-refusal.log"
+          grep -F "Unexpected public.delete_own_account() ACL; refusing hardening." \
+            "$RUNNER_TEMP/legacy-delete-acl-refusal.log"
+          psql -X --set=ON_ERROR_STOP=1 \
+            --file=tests/postgres/test_legacy_delete_own_account_acl_drift_refusal.sql
+
   guest-free-access-contract:
     name: Guest and Free access contract
     runs-on: ubuntu-latest
