@@ -30,7 +30,7 @@ from ..product_analytics import (
     record_product_event,
 )
 from ..rate_limit import enforce_auth_rate_limit, enforce_guest_admission_rate_limit
-from ..runtime import db, email_service, settings
+from ..runtime import db, email_service, settings, verification_emails
 from ..schemas import (
     CURRENT_TERMS_VERSION,
     EmailRequest,
@@ -46,6 +46,7 @@ from ..verification_tokens import (
     parse_resend_verification_alias,
     resend_verification_alias_matches,
 )
+from ..verification_email_queue import VerificationEmailQueueUnavailable
 from ..security import (
     client_ip,
     expiry_iso,
@@ -148,7 +149,13 @@ def verification_delivery_failure(
 
 _GENERIC_RESEND_RESULT = {
     'success': True,
-    'message': 'If verification is needed, a new email has been sent.',
+    'message': 'If verification is needed, an email will be sent.',
+}
+
+_GENERIC_RESEND_UNAVAILABLE = {
+    'success': False,
+    'error': 'Verification email requests are temporarily unavailable. Please try again shortly.',
+    'code': 'VERIFICATION_EMAIL_QUEUE_UNAVAILABLE',
 }
 
 
@@ -946,43 +953,23 @@ async def resend_verification(payload: ResendVerificationRequest, request: Reque
         ip_limit=20,
         window_seconds=3600,
     )
-    user = await db.select_one('users', columns='*', filters={'email': eq(email)})
-    if not user or user.get('is_verified'):
-        return dict(_GENERIC_RESEND_RESULT)
     try:
-        resend_token = await _prepare_resend_verification_alias(user)
-    except DatabaseError as exc:
-        logger.warning(
-            'Verification resend preparation unavailable status=%s retryable=%s',
-            exc.status_code,
-            exc.retryable,
-        )
-        return dict(_GENERIC_RESEND_RESULT)
-    except (RuntimeError, ValueError):
-        logger.warning('Verification resend signing unavailable.')
-        return dict(_GENERIC_RESEND_RESULT)
-    if not resend_token:
-        return dict(_GENERIC_RESEND_RESULT)
-    try:
-        sent = await email_service.send_verification(
-            email,
-            user.get('full_name'),
-            resend_token,
+        await verification_emails.enqueue_resend(
+            email=email,
             intent=payload.intent,
             plan=payload.plan,
         )
-    except EmailDeliveryError as exc:
-        logger.warning(
-            'Verification resend delivery unavailable status=%s retryable=%s',
-            exc.status_code,
-            exc.retryable,
+    except (VerificationEmailQueueUnavailable, RuntimeError, ValueError):
+        logger.warning('Verification resend durable enqueue unavailable.')
+        return JSONResponse(
+            status_code=503,
+            content=dict(_GENERIC_RESEND_UNAVAILABLE),
         )
-        return dict(_GENERIC_RESEND_RESULT)
-    logger.info(
-        'Verification resend delivery outcome=%s',
-        'sent' if sent else 'not_configured',
+    logger.info('Verification resend outcome=durably_accepted')
+    return JSONResponse(
+        status_code=202,
+        content=dict(_GENERIC_RESEND_RESULT),
     )
-    return dict(_GENERIC_RESEND_RESULT)
 
 
 @router.get('/verify-email')

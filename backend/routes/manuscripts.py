@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import hmac
 import logging
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
@@ -13,10 +14,33 @@ from ..file_service import FileServiceError
 from ..manuscript_service import ManuscriptError, chapter_count_from_prompt
 from ..paid_tool_access import paid_tool_required
 from ..project_service import ProjectNotFoundError
-from ..runtime import account_deletions, code_worker, db, features, files, manuscripts, projects, settings
+from ..runtime import (
+    account_deletions,
+    code_worker,
+    db,
+    features,
+    files,
+    manuscripts,
+    projects,
+    settings,
+    verification_emails,
+)
 
 router = APIRouter(tags=["manuscripts"])
 logger = logging.getLogger(__name__)
+
+_CRON_LANES = (
+    "account-storage-deletion",
+    "verification-email",
+    "code",
+    "manuscripts",
+)
+
+
+def _cron_lane_order(now: datetime | None = None) -> tuple[str, ...]:
+    current = now or datetime.now(timezone.utc)
+    start = int(current.timestamp() // 60) % len(_CRON_LANES)
+    return _CRON_LANES[start:] + _CRON_LANES[:start]
 
 
 def _feature_error(exc: FeatureAccessError) -> JSONResponse:
@@ -366,18 +390,24 @@ async def manuscript_cron(request: Request):
     oidc_token = str(
         request.headers.get("x-vercel-oidc-token") or settings.vercel_oidc_token or ""
     ).strip()
-    deletion_summary = await account_deletions.process_next()
-    if deletion_summary.get("handled"):
-        return {
-            "success": True,
-            "worker": "account-storage-deletion",
-            **deletion_summary,
-        }
-    code_summary = await code_worker.process_next(oidc_token=oidc_token)
-    if code_summary.get("handled"):
-        return {"success": True, "worker": "code", **code_summary}
-    summary = await manuscripts.process_next_run()
-    return {"success": True, "worker": "manuscripts", **summary}
+    # Rotate the first lane by UTC minute so a continuously busy queue cannot
+    # starve the others. Each cron turn still claims at most one durable job.
+    for lane in _cron_lane_order():
+        if lane == "account-storage-deletion":
+            summary = await account_deletions.process_next()
+            handled = bool(summary.get("handled"))
+        elif lane == "verification-email":
+            summary = await verification_emails.process_next()
+            handled = bool(summary.get("handled"))
+        elif lane == "code":
+            summary = await code_worker.process_next(oidc_token=oidc_token)
+            handled = bool(summary.get("handled"))
+        else:
+            summary = await manuscripts.process_next_run()
+            handled = bool(summary.get("claimed"))
+        if handled:
+            return {"success": True, "worker": lane, **summary}
+    return {"success": True, "worker": "idle", "handled": False}
 
 
 @router.post("/api/manuscripts/{manuscript_id}/blueprint")

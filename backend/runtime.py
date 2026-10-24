@@ -17,6 +17,7 @@ from .manuscript_service import ManuscriptService
 from .media_service import MediaService
 from .project_service import ProjectService
 from .video_service import VideoService
+from .verification_email_queue import VerificationEmailQueueService
 from .voice_service import ElevenLabsVoiceService
 from .push_service import PushService
 
@@ -37,4 +38,5 @@ manuscripts = ManuscriptService(db, ai, projects, features, files)
 artifacts = ArtifactService(files)
 intelligence = IntelligenceService(db=db, ai=ai, settings=settings)
 email_service = EmailService(settings)
+verification_emails = VerificationEmailQueueService(settings, db, email_service)
 push_service = PushService(settings)

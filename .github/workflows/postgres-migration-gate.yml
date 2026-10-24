@@ -22,6 +22,73 @@ permissions:
   contents: read
 
 jobs:
+  durable-verification-email-queue:
+    name: Durable verification-email queue
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: askcrump_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d askcrump_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGDATABASE: askcrump_test
+      PGUSER: postgres
+      PGPASSWORD: postgres-ci-only
+
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+      - name: Apply queue baseline
+        run: |
+          psql -X --set=ON_ERROR_STOP=1 \
+            --file=tests/postgres/verification_email_queue_baseline.sql
+      - name: Prove first-apply search-path, index, and ACL boundaries
+        run: bash tests/postgres/test_verification_email_queue_first_apply_guards.sh
+      - name: Apply queue migration twice
+        run: |
+          psql -X --set=ON_ERROR_STOP=1 --single-transaction \
+            --file=migrations/20261024144202_durable_verification_email_jobs.sql
+          psql -X --set=ON_ERROR_STOP=1 --single-transaction \
+            --command='set search_path=pg_catalog' \
+            --file=migrations/20261024144202_durable_verification_email_jobs.sql
+      - name: Exercise privacy, ACL, replay, lifecycle, and deletion boundaries
+        run: >-
+          psql -X --set=ON_ERROR_STOP=1
+          --file=tests/postgres/test_verification_email_queue_migration.sql
+      - name: Exercise concurrent enqueue, claims, and lease fencing
+        run: bash tests/postgres/test_verification_email_queue_concurrency.sh
+      - name: Prove transactional rollback leaves no queue objects
+        run: |
+          createdb verification_queue_rollback
+          psql -X --set=ON_ERROR_STOP=1 --dbname=verification_queue_rollback \
+            --file=tests/postgres/verification_email_queue_baseline.sql
+          psql -X --set=ON_ERROR_STOP=1 --dbname=verification_queue_rollback \
+            --command=begin \
+            --file=migrations/20261024144202_durable_verification_email_jobs.sql \
+            --command=rollback
+          psql -X --set=ON_ERROR_STOP=1 --tuples-only --no-align \
+            --dbname=verification_queue_rollback \
+            --command="select to_regclass('public.verification_email_jobs') is null and to_regprocedure('public.enqueue_verification_email_job_v1(uuid,text,text,text,timestamp with time zone,text,text,text,text,text,text,text,text,text)') is null" \
+            | grep -Fx 't'
+      - name: Prove schema, ACL, index, and source drift fail closed
+        run: bash tests/postgres/test_verification_email_queue_drift.sh
+
   atomic-push-registration:
     name: Atomic push-registration ownership
     runs-on: ubuntu-latest

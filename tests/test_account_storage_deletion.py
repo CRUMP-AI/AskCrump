@@ -349,6 +349,11 @@ def test_existing_minute_cron_prioritizes_one_account_storage_purge(monkeypatch)
     monkeypatch.setattr(manuscript_routes, 'manuscripts', manuscript_worker)
     monkeypatch.setattr(
         manuscript_routes,
+        '_cron_lane_order',
+        lambda: ('account-storage-deletion', 'verification-email', 'code', 'manuscripts'),
+    )
+    monkeypatch.setattr(
+        manuscript_routes,
         'settings',
         SimpleNamespace(cron_secret='cron-secret', vercel_oidc_token=None),
     )
@@ -376,6 +381,11 @@ def test_idle_account_storage_queue_preserves_existing_code_worker(monkeypatch):
     monkeypatch.setattr(manuscript_routes, 'account_deletions', deletion_worker)
     monkeypatch.setattr(manuscript_routes, 'code_worker', code_worker)
     monkeypatch.setattr(manuscript_routes, 'manuscripts', manuscript_worker)
+    monkeypatch.setattr(
+        manuscript_routes,
+        '_cron_lane_order',
+        lambda: ('account-storage-deletion', 'code', 'verification-email', 'manuscripts'),
+    )
     monkeypatch.setattr(
         manuscript_routes,
         'settings',

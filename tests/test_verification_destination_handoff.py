@@ -122,6 +122,14 @@ class _VerificationEmailCapture:
         return True
 
 
+class _VerificationQueueCapture:
+    def __init__(self) -> None:
+        self.calls: list[dict] = []
+
+    async def enqueue_resend(self, **kwargs):
+        self.calls.append(dict(kwargs))
+
+
 @pytest.mark.asyncio
 @pytest.mark.parametrize("intent", ["presentation", "image"])
 async def test_registration_and_resend_preserve_the_promised_destination(
@@ -130,6 +138,7 @@ async def test_registration_and_resend_preserve_the_promised_destination(
 ) -> None:
     database = _RegistrationDB()
     email = _VerificationEmailCapture()
+    queue = _VerificationQueueCapture()
 
     async def allow_rate_limit(*_args, **_kwargs):
         return None
@@ -139,6 +148,7 @@ async def test_registration_and_resend_preserve_the_promised_destination(
 
     monkeypatch.setattr(auth_routes, "db", database)
     monkeypatch.setattr(auth_routes, "email_service", email)
+    monkeypatch.setattr(auth_routes, "verification_emails", queue)
     monkeypatch.setattr(auth_routes, "enforce_auth_rate_limit", allow_rate_limit)
     monkeypatch.setattr(auth_routes, "record_account_created_event", ignore_event)
     monkeypatch.setattr(auth_routes, "record_product_event", ignore_event)
@@ -171,9 +181,12 @@ async def test_registration_and_resend_preserve_the_promised_destination(
         ),
         request,
     )
-    assert len(email.calls) == 2
-    assert email.calls[1]["intent"] == intent
-    assert email.calls[1]["plan"] == "professional"
+    assert len(email.calls) == 1
+    assert queue.calls == [{
+        "email": "new-user@example.com",
+        "intent": intent,
+        "plan": "professional",
+    }]
 
 
 def test_browser_contract_sends_destination_context_without_customer_content() -> None:
@@ -191,7 +204,7 @@ def test_browser_contract_sends_destination_context_without_customer_content() -
     register = register_flow[register_flow.index("body: JSON.stringify") :]
     resend = resend_flow[
         resend_flow.index("body: JSON.stringify") :
-        resend_flow.index("}, 'Sending the verification email")
+        resend_flow.index("}, 'Submitting the verification email request")
     ]
 
     assert "const creationIntent = pendingCreationIntent();" in register_flow
