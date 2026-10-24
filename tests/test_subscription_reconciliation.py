@@ -512,6 +512,65 @@ async def test_delayed_subscription_checkout_does_not_mutate_before_payment(
 
 
 @pytest.mark.asyncio
+async def test_async_subscription_success_retries_transient_database_failure(monkeypatch):
+    user = {
+        'id': 'user-1',
+        'email': 'owner@example.com',
+        'stripe_customer_id': 'cus_owner',
+        'subscription_tier': 'free',
+        'subscription_status': 'inactive',
+    }
+
+    class FlakyBillingDB(BillingDB):
+        def __init__(self):
+            super().__init__(user=user)
+            self.update_attempts = 0
+
+        async def update(self, table, payload, *, filters):
+            self.update_attempts += 1
+            if self.update_attempts == 1:
+                raise billing_routes.DatabaseError(
+                    'temporary database failure',
+                    status_code=503,
+                    retryable=True,
+                )
+            return await super().update(table, payload, filters=filters)
+
+    fake_db = FlakyBillingDB()
+    monkeypatch.setattr(billing_routes, 'db', fake_db)
+    monkeypatch.setattr(billing_routes, 'settings', settings_stub())
+    monkeypatch.setattr(billing_routes, 'verify_stripe_signature', lambda *_args: True)
+
+    async def stripe_get(path):
+        assert path == 'subscriptions/sub_paid'
+        return stripe_subscription(price_id='price_professional')
+
+    monkeypatch.setattr(billing_routes, 'stripe_get', stripe_get)
+    event = {
+        'id': 'evt_async_subscription_retry',
+        'type': 'checkout.session.async_payment_succeeded',
+        'data': {'object': checkout_session(payment_status='paid')},
+    }
+
+    class Request:
+        headers = {'stripe-signature': 'verified'}
+        url = SimpleNamespace(hostname='askcrump.com')
+
+        async def body(self):
+            return json.dumps(event).encode('utf-8')
+
+    first = await billing_routes.stripe_webhook(Request())
+    second = await billing_routes.stripe_webhook(Request())
+
+    assert first.status_code == 503
+    assert second == {'received': True}
+    assert fake_db.update_attempts == 2
+    assert len(fake_db.updates) == 1
+    assert len(fake_db.events) == 1
+    assert fake_db.events[0]['p_event_key'] == 'cs_live_reconcile'
+
+
+@pytest.mark.asyncio
 async def test_finalize_checkout_reports_unpaid_session_as_pending(monkeypatch):
     user = {
         'id': 'user-1',

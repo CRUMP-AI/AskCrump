@@ -15,7 +15,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from ..auth_service import authenticate_request, public_user
-from ..db import eq
+from ..db import DatabaseError, eq
 from ..product_analytics import record_product_event
 from ..revenuecat_catalog import event_subscription_tier, subscription_tier
 from ..runtime import db, settings
@@ -1050,6 +1050,11 @@ async def stripe_webhook(request: Request):
         except StripeAPIError:
             logger.exception('Stripe subscription reconciliation failed')
             # Retry provider/network failures. The reconciliation is idempotent.
+            return JSONResponse(status_code=503, content={'success': False})
+        except DatabaseError:
+            logger.exception('Subscription Checkout database reconciliation failed')
+            # Stripe retries non-2xx deliveries. Never acknowledge a transient
+            # database failure that may have prevented entitlement persistence.
             return JSONResponse(status_code=503, content={'success': False})
         except (PermissionError, ValueError, RuntimeError) as exc:
             # Invalid ownership or an incomplete subscription must never grant

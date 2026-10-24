@@ -44,6 +44,7 @@ CREDIT_CHECKOUT_FULFILLMENT_EVENTS = {
     'checkout.session.async_payment_succeeded',
 }
 CREDIT_CHECKOUT_FAILURE_EVENT = 'checkout.session.async_payment_failed'
+CREDIT_CHECKOUT_SETTLED_PAYMENT_STATUSES = {'paid', 'no_payment_required'}
 CREDIT_PURCHASE_PLAN_MESSAGE = (
     'Crump Credits are used by paid creation tools. Subscribe to Professional '
     'or Enterprise before adding credits. Your existing balance and credit '
@@ -267,7 +268,10 @@ async def _finalize_stripe_session(
         raise ValueError('This checkout session is not a credit purchase.')
     if str(metadata.get('user_id') or '') != str(user_id):
         raise PermissionError('This credit purchase belongs to another account.')
-    if str(session.get('payment_status') or '').lower() != 'paid':
+    if (
+        str(session.get('payment_status') or '').lower()
+        not in CREDIT_CHECKOUT_SETTLED_PAYMENT_STATUSES
+    ):
         raise RuntimeError('The payment has not completed yet.')
 
     pack = by_code(str(metadata.get('pack') or ''))
@@ -619,7 +623,10 @@ async def stripe_webhook(request: Request):
             str(session.get('id') or ''),
         )
         return {'received': True}
-    if str(session.get('payment_status') or '').lower() != 'paid':
+    if (
+        str(session.get('payment_status') or '').lower()
+        not in CREDIT_CHECKOUT_SETTLED_PAYMENT_STATUSES
+    ):
         # Delayed methods emit checkout.session.completed while payment is still
         # processing. Acknowledge without granting; the signed async success
         # event will safely retry the session-idempotent ledger grant.
