@@ -11,7 +11,8 @@ from backend.security import token_hash
 class VerificationDB:
     def __init__(self, user):
         self.user = dict(user) if user else None
-        self.updates = []
+        self.rpc_calls = []
+        self.sessions = []
 
     async def select_one(self, table, **kwargs):
         assert table == 'users'
@@ -22,17 +23,32 @@ class VerificationDB:
             return None
         return dict(self.user)
 
-    async def update(self, table, values, *, filters):
-        assert table == 'users'
-        assert filters['id'] == f"eq.{self.user['id']}"
-        assert filters['verification_token_hash'] == f"eq.{self.user['verification_token_hash']}"
-        assert filters['verification_token_expires'].startswith('gt.')
-        assert filters['is_verified'] == 'eq.false'
+    async def rpc(self, name, payload):
+        assert name == 'verify_registered_and_create_session_v1'
+        self.rpc_calls.append((name, dict(payload)))
+        assert payload['p_user_id'] == self.user['id']
+        assert payload['p_verification_token_hash'] == self.user['verification_token_hash']
         if self.user.get('is_verified'):
-            return []
-        self.updates.append(dict(values))
-        self.user.update(values)
-        return [dict(self.user)]
+            return [{'verification_applied': False}]
+        self.user.update({
+            'is_verified': True,
+            'verification_token_expires': '2099-01-01T00:15:00+00:00',
+        })
+        session = {
+            'id': payload['p_session_id'],
+            'user_id': self.user['id'],
+            'token_hash': payload['p_session_token_hash'],
+            'device_id': payload['p_device_id'],
+            'expires_at': payload['p_session_expires_at'],
+            'revoked_at': None,
+        }
+        self.sessions.append(session)
+        return [{
+            'verification_applied': True,
+            'user_data': dict(self.user),
+            'session_data': dict(session),
+            'pruned_sessions': 0,
+        }]
 
 
 @pytest.mark.asyncio
@@ -45,15 +61,10 @@ async def test_verification_issues_only_one_session_and_replay_never_overwrites_
         'verification_token_hash': token_hash('verification-token'),
         'verification_token_expires': '2099-01-01T00:00:00+00:00',
     })
-    session_users = []
     cookies = []
 
-    async def fake_create_session(db, settings, user, request, **kwargs):
-        assert db is database
-        assert user['is_verified'] is True
-        assert kwargs == {'device_name': 'Verified email link', 'platform': 'web'}
-        session_users.append(dict(user))
-        return f'session-token-{len(session_users)}', {'id': f'session-{len(session_users)}'}
+    async def fail_create_session(*_args, **_kwargs):
+        raise AssertionError('registered verification must not use split session writes')
 
     def fake_set_session_cookie(response, raw_token, request):
         cookies.append(raw_token)
@@ -62,15 +73,12 @@ async def test_verification_issues_only_one_session_and_replay_never_overwrites_
     monkeypatch.setattr(
         auth_routes,
         'settings',
-        SimpleNamespace(app_url='https://www.askcrump.com'),
+        SimpleNamespace(app_url='https://www.askcrump.com', session_days=365),
     )
-    monkeypatch.setattr(auth_routes, 'create_session', fake_create_session)
+    monkeypatch.setattr(auth_routes, 'create_session', fail_create_session)
+    monkeypatch.setattr(auth_service, 'random_token', lambda _size: 'session-token-1')
+    monkeypatch.setattr(auth_service, 'new_uuid', lambda: 'session-1')
     monkeypatch.setattr(auth_routes, 'set_session_cookie', fake_set_session_cookie)
-    monkeypatch.setattr(
-        auth_routes,
-        'expiry_iso',
-        lambda **kwargs: '2099-01-01T00:15:00+00:00' if kwargs == {'minutes': 15} else '',
-    )
     request = SimpleNamespace(
         headers={},
         cookies={'ask_crump_session': 'another-account-session'},
@@ -100,11 +108,10 @@ async def test_verification_issues_only_one_session_and_replay_never_overwrites_
         'https://www.askcrump.com/app?verification=already_verified'
         '&intent=presentation&plan=professional'
     )
-    assert database.updates[0]['is_verified'] is True
-    assert database.updates[0]['verification_token_expires'] == '2099-01-01T00:15:00+00:00'
-    assert 'verification_token_hash' not in database.updates[0]
-    assert len(database.updates) == 1
-    assert len(session_users) == 1
+    assert database.user['is_verified'] is True
+    assert database.user['verification_token_expires'] == '2099-01-01T00:15:00+00:00'
+    assert len(database.rpc_calls) == 1
+    assert len(database.sessions) == 1
     assert cookies == ['session-token-1']
 
 
@@ -299,7 +306,7 @@ async def test_guest_verification_atomically_invalidates_original_token(monkeypa
 
 
 @pytest.mark.asyncio
-async def test_normal_account_verification_keeps_the_existing_session_path(monkeypatch):
+async def test_normal_account_verification_uses_atomic_session_path(monkeypatch):
     database = VerificationDB({
         'id': 'user-2',
         'email': 'normal@example.com',
@@ -308,25 +315,19 @@ async def test_normal_account_verification_keeps_the_existing_session_path(monke
         'verification_token_hash': token_hash('verification-token'),
         'verification_token_expires': '2099-01-01T00:00:00+00:00',
     })
-    issued = []
-
-    async def fake_create_session(_db, _settings, user, _request, **_kwargs):
-        issued.append(dict(user))
-        return 'normal-account-token', {'id': 'normal-account-session'}
+    async def fail_create_session(*_args, **_kwargs):
+        raise AssertionError('normal verification must not use create_session')
 
     monkeypatch.setattr(auth_routes, 'db', database)
     monkeypatch.setattr(
         auth_routes,
         'settings',
-        SimpleNamespace(app_url='https://www.askcrump.com'),
+        SimpleNamespace(app_url='https://www.askcrump.com', session_days=365),
     )
-    monkeypatch.setattr(auth_routes, 'create_session', fake_create_session)
+    monkeypatch.setattr(auth_routes, 'create_session', fail_create_session)
+    monkeypatch.setattr(auth_service, 'random_token', lambda _size: 'normal-account-token')
+    monkeypatch.setattr(auth_service, 'new_uuid', lambda: 'normal-account-session')
     monkeypatch.setattr(auth_routes, 'set_session_cookie', lambda *_args: None)
-    monkeypatch.setattr(
-        auth_routes,
-        'expiry_iso',
-        lambda **_kwargs: '2099-01-01T00:15:00+00:00',
-    )
 
     response = await auth_routes.verify_email(
         'verification-token',
@@ -336,17 +337,21 @@ async def test_normal_account_verification_keeps_the_existing_session_path(monke
     assert response.status_code == 303
     assert database.user['is_verified'] is True
     assert database.user['is_guest'] is False
-    assert len(issued) == 1
+    assert len(database.rpc_calls) == 1
+    assert len(database.sessions) == 1
 
 
 @pytest.mark.asyncio
 async def test_concurrent_ordinary_verification_loser_rereads_and_never_mints(monkeypatch):
     class ConcurrentWinnerDB(VerificationDB):
-        async def update(self, table, values, *, filters):
-            assert table == 'users'
-            assert filters['is_verified'] == 'eq.false'
-            self.user.update(values)
-            return []
+        async def rpc(self, name, payload):
+            assert name == 'verify_registered_and_create_session_v1'
+            self.rpc_calls.append((name, dict(payload)))
+            self.user.update({
+                'is_verified': True,
+                'verification_token_expires': '2099-01-01T00:15:00+00:00',
+            })
+            return [{'verification_applied': False}]
 
     database = ConcurrentWinnerDB({
         'id': 'user-race',
@@ -365,18 +370,13 @@ async def test_concurrent_ordinary_verification_loser_rereads_and_never_mints(mo
     monkeypatch.setattr(
         auth_routes,
         'settings',
-        SimpleNamespace(app_url='https://www.askcrump.com'),
+        SimpleNamespace(app_url='https://www.askcrump.com', session_days=365),
     )
     monkeypatch.setattr(auth_routes, 'create_session', fail_create_session)
     monkeypatch.setattr(
         auth_routes,
         'set_session_cookie',
         lambda *_args, **_kwargs: cookies.append('unexpected'),
-    )
-    monkeypatch.setattr(
-        auth_routes,
-        'expiry_iso',
-        lambda **_kwargs: '2099-01-01T00:15:00+00:00',
     )
 
     response = await auth_routes.verify_email(
@@ -391,6 +391,47 @@ async def test_concurrent_ordinary_verification_loser_rereads_and_never_mints(mo
     assert response.status_code == 303
     assert response.headers['location'] == (
         'https://www.askcrump.com/app?verification=already_verified'
+    )
+    assert cookies == []
+
+
+@pytest.mark.asyncio
+async def test_registered_verification_db_clock_refusal_redirects_failed(monkeypatch):
+    class ExpiredAtDatabaseDB(VerificationDB):
+        async def rpc(self, name, payload):
+            assert name == 'verify_registered_and_create_session_v1'
+            self.rpc_calls.append((name, dict(payload)))
+            return [{'verification_applied': False}]
+
+    database = ExpiredAtDatabaseDB({
+        'id': 'user-expiry-race',
+        'email': 'expiry-race@example.com',
+        'is_guest': False,
+        'is_verified': False,
+        'verification_token_hash': token_hash('verification-token'),
+        'verification_token_expires': '2099-01-01T00:00:00+00:00',
+    })
+    cookies = []
+    monkeypatch.setattr(auth_routes, 'db', database)
+    monkeypatch.setattr(
+        auth_routes,
+        'settings',
+        SimpleNamespace(app_url='https://www.askcrump.com', session_days=365),
+    )
+    monkeypatch.setattr(
+        auth_routes,
+        'set_session_cookie',
+        lambda *_args, **_kwargs: cookies.append('unexpected'),
+    )
+
+    response = await auth_routes.verify_email(
+        'verification-token',
+        SimpleNamespace(headers={}, client=SimpleNamespace(host='127.0.0.1')),
+    )
+
+    assert response.status_code == 303
+    assert response.headers['location'] == (
+        'https://www.askcrump.com/app?verification=failed'
     )
     assert cookies == []
 

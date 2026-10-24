@@ -346,6 +346,116 @@ jobs:
         run: >-
           psql -X --set=ON_ERROR_STOP=1
           --file=tests/postgres/test_email_verification_measurement_migration.sql
+      - name: Prove duplicate reset-token state fails closed
+        run: |
+          psql -X --set=ON_ERROR_STOP=1 \
+            --file=tests/postgres/atomic_password_reset_duplicate_fixture.sql
+          set +e
+          psql -X --set=ON_ERROR_STOP=1 --set=VERBOSITY=verbose \
+            --single-transaction \
+            --file=migrations/20261024051228_atomic_password_reset.sql \
+            > "$RUNNER_TEMP/atomic-password-reset-refusal.log" 2>&1
+          migration_status=$?
+          set -e
+          cat "$RUNNER_TEMP/atomic-password-reset-refusal.log"
+          if [ "$migration_status" -eq 0 ]; then
+            echo "Migration unexpectedly accepted duplicate reset tokens."
+            exit 1
+          fi
+          grep -F "55000" "$RUNNER_TEMP/atomic-password-reset-refusal.log"
+          grep -F "Found duplicate password-reset token hashes; refusing migration." \
+            "$RUNNER_TEMP/atomic-password-reset-refusal.log"
+          psql -X --set=ON_ERROR_STOP=1 \
+            --file=tests/postgres/atomic_password_reset_refusal_rollback.sql
+      - name: Apply atomic password-reset migration
+        run: |
+          psql -X --set=ON_ERROR_STOP=1 --single-transaction \
+            --file=migrations/20261024051228_atomic_password_reset.sql
+          psql -X --set=ON_ERROR_STOP=1 --single-transaction \
+            --file=migrations/20261024051228_atomic_password_reset.sql
+      - name: Exercise atomic password reset against PostgreSQL
+        run: >-
+          psql -X --set=ON_ERROR_STOP=1
+          --file=tests/postgres/test_atomic_password_reset_migration.sql
+      - name: Exercise atomic password login against PostgreSQL
+        run: >-
+          psql -X --set=ON_ERROR_STOP=1
+          --file=tests/postgres/test_atomic_password_login_migration.sql
+      - name: Exercise atomic registered verification against PostgreSQL
+        run: >-
+          psql -X --set=ON_ERROR_STOP=1
+          --file=tests/postgres/test_atomic_registered_verification_migration.sql
+      - name: Exercise reset and stale-login concurrency boundaries
+        run: bash tests/postgres/test_atomic_password_reset_concurrency.sh
+      - name: Prove unexpected password-reset ACL drift fails closed
+        run: |
+          psql -X --set=ON_ERROR_STOP=1 \
+            --file=tests/postgres/atomic_password_reset_acl_drift_fixture.sql
+          set +e
+          psql -X --set=ON_ERROR_STOP=1 --set=VERBOSITY=verbose \
+            --single-transaction \
+            --file=migrations/20261024051228_atomic_password_reset.sql \
+            > "$RUNNER_TEMP/atomic-password-reset-acl-refusal.log" 2>&1
+          migration_status=$?
+          set -e
+          cat "$RUNNER_TEMP/atomic-password-reset-acl-refusal.log"
+          if [ "$migration_status" -eq 0 ]; then
+            echo "Migration unexpectedly accepted password-reset ACL drift."
+            exit 1
+          fi
+          grep -F "55000" "$RUNNER_TEMP/atomic-password-reset-acl-refusal.log"
+          grep -F "Unexpected consume_password_reset_v1 owner or ACL; refusing replacement." \
+            "$RUNNER_TEMP/atomic-password-reset-acl-refusal.log"
+          psql -X --set=ON_ERROR_STOP=1 \
+            --file=tests/postgres/atomic_password_reset_acl_drift_cleanup.sql
+          psql -X --set=ON_ERROR_STOP=1 --single-transaction \
+            --file=migrations/20261024051228_atomic_password_reset.sql
+      - name: Prove unexpected password-login ACL drift fails closed
+        run: |
+          psql -X --set=ON_ERROR_STOP=1 \
+            --file=tests/postgres/atomic_password_login_acl_drift_fixture.sql
+          set +e
+          psql -X --set=ON_ERROR_STOP=1 --set=VERBOSITY=verbose \
+            --single-transaction \
+            --file=migrations/20261024051228_atomic_password_reset.sql \
+            > "$RUNNER_TEMP/atomic-password-login-acl-refusal.log" 2>&1
+          migration_status=$?
+          set -e
+          cat "$RUNNER_TEMP/atomic-password-login-acl-refusal.log"
+          if [ "$migration_status" -eq 0 ]; then
+            echo "Migration unexpectedly accepted password-login ACL drift."
+            exit 1
+          fi
+          grep -F "55000" "$RUNNER_TEMP/atomic-password-login-acl-refusal.log"
+          grep -F "Unexpected finalize_password_login_v1 owner or ACL; refusing replacement." \
+            "$RUNNER_TEMP/atomic-password-login-acl-refusal.log"
+          psql -X --set=ON_ERROR_STOP=1 \
+            --file=tests/postgres/atomic_password_login_acl_drift_cleanup.sql
+          psql -X --set=ON_ERROR_STOP=1 --single-transaction \
+            --file=migrations/20261024051228_atomic_password_reset.sql
+      - name: Prove unexpected registered-verification ACL drift fails closed
+        run: |
+          psql -X --set=ON_ERROR_STOP=1 \
+            --file=tests/postgres/atomic_registered_verification_acl_drift_fixture.sql
+          set +e
+          psql -X --set=ON_ERROR_STOP=1 --set=VERBOSITY=verbose \
+            --single-transaction \
+            --file=migrations/20261024051228_atomic_password_reset.sql \
+            > "$RUNNER_TEMP/atomic-registered-verification-acl-refusal.log" 2>&1
+          migration_status=$?
+          set -e
+          cat "$RUNNER_TEMP/atomic-registered-verification-acl-refusal.log"
+          if [ "$migration_status" -eq 0 ]; then
+            echo "Migration unexpectedly accepted registered-verification ACL drift."
+            exit 1
+          fi
+          grep -F "55000" "$RUNNER_TEMP/atomic-registered-verification-acl-refusal.log"
+          grep -F "Unexpected verify_registered_and_create_session_v1 owner or ACL; refusing replacement." \
+            "$RUNNER_TEMP/atomic-registered-verification-acl-refusal.log"
+          psql -X --set=ON_ERROR_STOP=1 \
+            --file=tests/postgres/atomic_registered_verification_acl_drift_cleanup.sql
+          psql -X --set=ON_ERROR_STOP=1 --single-transaction \
+            --file=migrations/20261024051228_atomic_password_reset.sql
 
   chat-claim-and-artifact-versioning:
     name: Chat claim and artifact versioning

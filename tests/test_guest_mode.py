@@ -935,17 +935,22 @@ class GuestPasswordResetDb:
             'password_reset_token_hash': token_hash('reset-token-with-enough-entropy'),
             'password_reset_expires': '2099-01-01T00:00:00+00:00',
         }
-        self.updates = []
+        self.rpc_calls = []
 
-    async def select_one(self, table, columns='*', filters=None):
-        assert table == 'users'
-        return dict(self.user)
-
-    async def update(self, table, payload, filters=None, **kwargs):
-        self.updates.append((table, payload, filters or {}))
-        if table == 'users':
-            self.user.update(payload)
-        return [payload]
+    async def rpc(self, name, payload, **kwargs):
+        self.rpc_calls.append((name, payload, kwargs))
+        assert name == 'consume_password_reset_v1'
+        assert payload['p_token_hash'] == self.user['password_reset_token_hash']
+        self.user.update({
+            'password_hash': payload['p_password_hash'],
+            'is_verified': True,
+            'is_guest': False,
+            'verification_token_hash': None,
+            'verification_token_expires': None,
+            'password_reset_token_hash': None,
+            'password_reset_expires': None,
+        })
+        return [{'reset_applied': True}]
 
 
 def test_password_reset_verification_clears_converted_guest_state(monkeypatch):
@@ -959,13 +964,11 @@ def test_password_reset_verification_clears_converted_guest_state(monkeypatch):
     ))
 
     assert result['success'] is True
-    user_update = next(payload for table, payload, _filters in db.updates if table == 'users')
-    assert user_update['is_verified'] is True
-    assert user_update['is_guest'] is False
-    assert 'registration_submitted_at' not in user_update
-    assert 'registration_environment' not in user_update
     assert db.user['is_guest'] is False
-    assert any(table == 'sessions' for table, _payload, _filters in db.updates)
+    assert db.user['is_verified'] is True
+    assert db.user['password_reset_token_hash'] is None
+    assert db.rpc_calls[0][0] == 'consume_password_reset_v1'
+    assert db.rpc_calls[0][2] == {}
 
 
 # --- Check-in worker fails closed for guests ---------------------------------

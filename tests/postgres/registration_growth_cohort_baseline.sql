@@ -24,11 +24,22 @@ grant usage on schema public to service_role;
 create table public.users (
   id uuid primary key,
   email text,
+  password_hash text not null default '$argon2id$fixture-password-hash',
+  full_name text,
   is_verified boolean not null default false,
   is_guest boolean not null default false,
+  verification_token_hash text,
+  verification_token_expires timestamptz,
+  password_reset_token_hash text,
+  password_reset_expires timestamptz,
+  terms_accepted_at timestamptz,
+  terms_version text,
+  preferences jsonb not null default '{}'::jsonb,
+  guest_message_count integer not null default 0,
   subscription_tier text not null default 'free',
   subscription_status text not null default 'inactive',
   subscription_provider text,
+  last_login timestamptz,
   created_at timestamptz not null,
   updated_at timestamptz not null default now(),
   registration_environment text,
@@ -39,6 +50,27 @@ create table public.users (
     or registration_environment in ('production', 'preview', 'development')
   )
 );
+
+create table public.sessions (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.users(id) on delete cascade,
+  token_hash text not null unique,
+  device_id text,
+  device_name text,
+  platform text,
+  device_info jsonb not null default '{}'::jsonb,
+  ip_address text,
+  user_agent text,
+  created_at timestamptz not null default now(),
+  last_activity timestamptz not null default now(),
+  expires_at timestamptz not null,
+  revoked_at timestamptz
+);
+
+create unique index sessions_device_id_unique
+  on public.sessions(device_id);
+create unique index sessions_token_hash_unique
+  on public.sessions(token_hash);
 
 create table public.product_events (
   id uuid primary key default gen_random_uuid(),
