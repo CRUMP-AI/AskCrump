@@ -288,6 +288,47 @@
   }
 
   const reportedMessageIds = new Set();
+  const activeReportDialogs = new Set();
+  let reportBoundaryUnregister = null;
+
+  function captureReportAuthBoundary() {
+    const boundary = window.CrumpAuthBoundary;
+    const revision = Number(boundary?.revision?.() || 0);
+    return Object.freeze({
+      ownerId: String(boundary?.authenticatedUserId?.() || window.currentUser?.id || '').trim(),
+      revision: Number.isFinite(revision) ? revision : 0,
+    });
+  }
+
+  function reportAuthBoundaryIsCurrent(snapshot) {
+    if (!snapshot?.ownerId) return false;
+    const current = captureReportAuthBoundary();
+    return current.ownerId === snapshot.ownerId && current.revision === snapshot.revision;
+  }
+
+  function scrubReportDialogs() {
+    reportedMessageIds.clear();
+    for (const entry of activeReportDialogs) {
+      entry.controller?.abort?.();
+      entry.dialog.querySelectorAll('textarea, input, select').forEach(field => {
+        if ('value' in field) field.value = '';
+      });
+      entry.dialog.replaceChildren();
+      entry.dialog.remove();
+    }
+    activeReportDialogs.clear();
+  }
+
+  function ensureReportBoundaryRegistration() {
+    if (reportBoundaryUnregister || typeof window.CrumpAuthBoundary?.register !== 'function') return;
+    reportBoundaryUnregister = window.CrumpAuthBoundary.register(
+      'safety-report-private-dialog',
+      scrubReportDialogs,
+    );
+  }
+
+  ensureReportBoundaryRegistration();
+  window.addEventListener?.('crump:body-runtime-ready', ensureReportBoundaryRegistration, {once: true});
   const reportCategories = Object.freeze([
     ['hate_or_harassment', 'Hate or harassment'],
     ['sexual_content', 'Sexual content'],
@@ -300,6 +341,8 @@
   ]);
 
   async function reportMessage(message, trigger) {
+    const authBoundary = captureReportAuthBoundary();
+    if (!reportAuthBoundaryIsCurrent(authBoundary)) return;
     const dialog = document.createElement('dialog');
     dialog.className = 'content-report-dialog';
     dialog.setAttribute('aria-labelledby', 'content-report-title');
@@ -364,13 +407,16 @@
     form.append(eyebrow, title, description, reasonLabel, reason, commentLabel, comment, actions);
     dialog.appendChild(form);
     document.body.appendChild(dialog);
+    const reportEntry = {dialog, controller: null};
+    activeReportDialogs.add(reportEntry);
 
     let submitting = false;
-    const close = () => {
+    const close = ({restoreFocus = true} = {}) => {
       if (submitting) return;
       dialog.close?.();
       dialog.remove();
-      trigger?.focus?.();
+      activeReportDialogs.delete(reportEntry);
+      if (restoreFocus && reportAuthBoundaryIsCurrent(authBoundary)) trigger?.focus?.();
     };
     cancel.addEventListener('click', close);
     dialog.addEventListener('cancel', event => {
@@ -387,10 +433,15 @@
       cancel.disabled = true;
       submit.disabled = true;
       submit.textContent = 'Sending…';
+      const controller = new AbortController();
+      reportEntry.controller = controller;
       try {
         const response = await fetch('/api/safety/reports', {
           method: 'POST',
-          headers: {'Content-Type': 'application/json'},
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Ask-Crump-Expected-Owner': authBoundary.ownerId,
+          },
           body: JSON.stringify({
             chatId: window.currentChatId,
             messageId: message?.id || null,
@@ -398,8 +449,10 @@
             comment: comment.value,
             response: String(message?.content || '').slice(0, 30000),
           }),
+          signal: controller.signal,
         });
         const data = await response.json().catch(() => ({}));
+        if (!reportAuthBoundaryIsCurrent(authBoundary)) return;
         if (!response.ok || !data.success) throw new Error(data.error || 'The report could not be sent.');
         const messageKey = String(message?.id || '');
         if (messageKey) reportedMessageIds.add(messageKey);
@@ -412,11 +465,14 @@
         window.showToast?.('Thanks — this response was sent for safety review.', 'success');
         close();
       } catch (error) {
+        if (!reportAuthBoundaryIsCurrent(authBoundary)) return;
         submitting = false;
         cancel.disabled = false;
         submit.disabled = false;
         submit.textContent = 'Send report';
         window.showToast?.(error.message || 'The report could not be sent.', 'error');
+      } finally {
+        if (reportEntry.controller === controller) reportEntry.controller = null;
       }
     });
 

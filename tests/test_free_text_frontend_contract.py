@@ -149,7 +149,7 @@ def test_guest_and_registered_free_receive_distinct_upgrade_actions():
 def test_guest_free_contract_auth_asset_is_cache_refreshable():
     app = read_public("app.html")
     worker = read_public("sw.js")
-    asset = "/auth-controller.js?v=5.9.76-guest-admission-1"
+    asset = "/auth-controller.js?v=5.9.76-account-owner-boundary-1"
 
     assert asset in app
     assert asset in worker
@@ -166,19 +166,19 @@ def test_guest_free_frontend_release_is_atomic_across_web_native_and_pwa():
 
     assert "/auth-styles.css?v=5.9.76-guest-free-contract-2" in app
     assert "/auth-styles.css?v=5.9.76-guest-free-contract-2" in worker
-    assert "/runtime-body-v1.js?v=5.9.76-precision-ai-persistence-1" in app
-    assert "/runtime-body-v1.js?v=5.9.76-precision-ai-persistence-1" in worker
-    assert "ask-crump-new-body-v1-r270-guest-admission-1" in worker
+    assert "/runtime-body-v1.js?v=5.9.76-account-owner-boundary-1" in app
+    assert "/runtime-body-v1.js?v=5.9.76-account-owner-boundary-1" in worker
+    assert "ask-crump-new-body-v1-r273-account-owner-boundary-1" in worker
 
     released_assets = (
-        "/chat-resilience.js?v=5.9.76-credit-confirmation-1&workspaceRelease=guest-free-contract-2",
-        "/app.js?v=5.9.76-grounded-research-1&workspaceRelease=guest-free-contract-2",
-        "/crump-5.0.js?v=5.9.76-precision-ai-persistence-1&workspaceRelease=guest-free-contract-2",
-        "/crump-billing-5.1.js?v=5.9.76-checkout-destination-label-1&workspaceRelease=guest-free-contract-2",
-        "/crump-5.2.js?v=5.9.76-plan-status-line-1&workspaceRelease=guest-free-contract-2",
+        "/chat-resilience.js?v=5.9.76-chat-owner-boundary-1&workspaceRelease=guest-free-contract-2",
+        "/app.js?v=5.9.76-account-owner-boundary-1&workspaceRelease=guest-free-contract-2",
+        "/crump-5.0.js?v=5.9.76-chat-owner-boundary-1&workspaceRelease=guest-free-contract-2",
+        "/crump-billing-5.1.js?v=5.9.76-private-owner-boundary-1&workspaceRelease=guest-free-contract-2",
+        "/crump-5.2.js?v=5.9.76-private-owner-boundary-1&workspaceRelease=guest-free-contract-2",
         "/crump-v1-body.js?v=5.9.76-atelier-workspace-1&workspaceRelease=guest-free-contract-2",
-        "/crump-product-loader.js?v=5.9.76-manuscript-export-delivery-1&workspaceRelease=guest-free-contract-2",
-        "/crump-code-loader.js?v=5.9.76-autonomous-continuity-1&workspaceRelease=guest-free-contract-2",
+        "/crump-product-loader.js?v=5.9.76-account-owner-boundary-1&workspaceRelease=guest-free-contract-2",
+        "/crump-code-loader.js?v=5.9.76-account-owner-boundary-1&workspaceRelease=guest-free-contract-2",
     )
     for asset in released_assets:
         assert asset in runtime
@@ -189,7 +189,7 @@ def test_guest_free_frontend_release_is_atomic_across_web_native_and_pwa():
         assert asset in legacy_runtime
         assert asset in v1_runtime
 
-    assert "/crump-product-5.3.js?v=5.9.76-manuscript-export-delivery-1&workspaceRelease=guest-free-contract-2" in loader
+    assert "/crump-product-5.3.js?v=5.9.76-account-owner-boundary-1&workspaceRelease=guest-free-contract-2" in loader
 
 
 def test_explicit_signup_intent_never_bootstraps_or_routes_a_guest_into_the_workspace():

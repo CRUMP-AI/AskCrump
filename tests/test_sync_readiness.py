@@ -26,15 +26,15 @@ def test_changed_sync_manager_is_release_versioned_and_network_first():
     worker = (PUBLIC / "sw.js").read_text(encoding="utf-8")
 
     assert '"version": "5.9.76"' in package
-    assert '<script defer src="/sync-manager.js?v=5.9.76-sync-batch-1"></script>' not in shell
-    assert "['/sync-manager.js?v=5.9.76-sync-batch-1', 'workspacesync']" in runtime
-    assert "'/sync-manager.js?v=5.9.76-sync-batch-1'" in worker
-    assert '<script defer src="/presence-manager.js?v=5.9.76-native-push-handoff-1"></script>' not in shell
-    assert "['/presence-manager.js?v=5.9.76-native-push-handoff-1', 'workspacepresence']" in runtime
-    assert "'/presence-manager.js?v=5.9.76-native-push-handoff-1'" in worker
-    assert '<script defer src="/chat-sync.js?v=5.9.76-sync-batch-1"></script>' not in shell
-    assert "['/chat-sync.js?v=5.9.76-sync-batch-1', 'workspacechatsync']" in runtime
-    assert "'/chat-sync.js?v=5.9.76-sync-batch-1'" in worker
+    assert '<script defer src="/sync-manager.js?v=5.9.76-auth-boundary-sync-1"></script>' not in shell
+    assert "['/sync-manager.js?v=5.9.76-auth-boundary-sync-1', 'workspacesync']" in runtime
+    assert "'/sync-manager.js?v=5.9.76-auth-boundary-sync-1'" in worker
+    assert '<script defer src="/presence-manager.js?v=5.9.76-account-owner-boundary-1"></script>' not in shell
+    assert "['/presence-manager.js?v=5.9.76-account-owner-boundary-1', 'workspacepresence']" in runtime
+    assert "'/presence-manager.js?v=5.9.76-account-owner-boundary-1'" in worker
+    assert '<script defer src="/chat-sync.js?v=5.9.76-auth-boundary-sync-1"></script>' not in shell
+    assert "['/chat-sync.js?v=5.9.76-auth-boundary-sync-1', 'workspacechatsync']" in runtime
+    assert "'/chat-sync.js?v=5.9.76-auth-boundary-sync-1'" in worker
     assert "url.pathname === '/sync-manager.js'" in worker
 
 
@@ -59,14 +59,14 @@ def test_idle_sync_is_incremental_visible_only_and_never_blindly_pushes_state():
     scheduler = sync[sync.index("window.startAutoSync") :]
 
     assert "AUTO_SYNC_INTERVAL_MS = 60_000" in sync
-    assert "window.SyncManager.flush?.()" in synchronize
-    assert synchronize.count("pushLocal()") == 1
+    assert "window.SyncManager.flush?.({authBoundary})" in synchronize
+    assert synchronize.count("pushLocal(authBoundary)") == 1
     assert "if (reconcileLocal)" in synchronize
     assert "document.hidden" in scheduler
     assert "synchronize(null, { full: false })" in scheduler
     assert "window.__crumpSyncData = null" in sync
     assert "initialReconciliationPending" in sync
-    assert "full: true, reconcileLocal" in sync
+    assert "full: true, reconcileLocal, authBoundary" in sync
     assert "stableMessageSignature(previousActive.messages)" in sync
     assert "window.replaceChats(merged, {preserveActiveRender})" in sync
 
@@ -131,9 +131,11 @@ def test_offline_changes_queue_before_the_network_flush_and_flush_is_single_flig
     assert "MAX_CHATS_PER_PUSH = 20" in manager
     assert "MAX_TOMBSTONES_PER_PUSH = 20" in manager
     assert "queue.slice(-100)" not in push
-    assert push.index("boundedQueueEntries(merged, baseId, at)") < push.index("return flush()")
+    assert push.index("boundedQueueEntries(merged, baseId, at)") < push.index(
+        "return flush({authBoundary})"
+    )
     assert "navigator.onLine" not in push_local
-    assert "window.SyncManager.push(null, payload)" in push_local
+    assert "window.SyncManager.push(null, payload, {authBoundary})" in push_local
 
 
 def test_rejected_guest_sync_is_not_acknowledged_or_removed_from_the_queue():
@@ -142,12 +144,14 @@ def test_rejected_guest_sync_is_not_acknowledged_or_removed_from_the_queue():
     route = (ROOT / "backend" / "routes" / "sync.py").read_text(encoding="utf-8")
     service = (ROOT / "backend" / "sync_service.py").read_text(encoding="utf-8")
 
-    flush = manager[manager.index("async function flushQueued") : manager.index("async function flush()")]
+    flush = manager[
+        manager.index("async function flushQueued") : manager.index("async function flush(options")
+    ]
     push_local = sync[sync.index("async function pushLocal") : sync.index("async function synchronize")]
     assert flush.index("if (!response.ok || !data.success)") < flush.index("write(key, remaining)")
     assert "if (result?.success) writeDeleted([])" not in push_local
     assert "const acknowledged = new Set(tombstoneSnapshot.map(stableTombstoneSignature))" in push_local
-    assert "writeDeleted(readDeleted().filter" in push_local
+    assert "readDeleted(authBoundary.userId)" in push_local
     assert "'code': 'GUEST_SYNC_BATCH_TOO_LARGE'" in route
     assert "status_code=413" in route
     assert "'rejectionCode': 'GUEST_SYNC_BATCH_TOO_LARGE'" in service
@@ -187,10 +191,91 @@ def test_only_a_completed_pull_advances_the_incremental_read_watermark():
     manager = (PUBLIC / "sync-manager.js").read_text(encoding="utf-8")
 
     pull = manager[manager.index("async function pull") : manager.index("function mergeQueue")]
-    flush = manager[manager.index("async function flushQueued") : manager.index("async function flush()")]
+    flush = manager[
+        manager.index("async function flushQueued") : manager.index("async function flush(options")
+    ]
 
-    assert "write(userKey(SYNC_KEY), data.serverTime" in pull
-    assert "write(userKey(SYNC_KEY), data.serverTime" not in flush
+    assert "write(syncKey, data.serverTime" in pull
+    assert "write(syncKey, data.serverTime" not in flush
+
+
+def test_sync_results_are_bound_to_one_authenticated_owner_and_revision():
+    manager = (PUBLIC / "sync-manager.js").read_text(encoding="utf-8")
+    sync = (PUBLIC / "chat-sync.js").read_text(encoding="utf-8")
+    fixture = (ROOT / "tests" / "fixtures" / "project-resume-auth-boundary.html").read_text(
+        encoding="utf-8"
+    )
+
+    for source in (manager, sync):
+        assert "captureAuthBoundary" in source
+        assert "authBoundaryIsCurrent" in source
+        assert "SYNC_AUTH_BOUNDARY_CHANGED" in source
+        assert "boundary.revision()" in source
+    assert "userKey(SYNC_KEY, authBoundary.userId)" in manager
+    assert "userKey(PENDING_KEY, authBoundary.userId)" in manager
+    assert "window.SyncManager.pull(null, { full, authBoundary })" in sync
+    assert "projectsViewIsCurrent" in (PUBLIC / "crump-vision-projects-1.0.js").read_text(
+        encoding="utf-8"
+    )
+    assert "/public/sync-manager.js?v=project-resume-auth-fixture-1" in fixture
+    assert "/public/chat-sync.js?v=project-resume-auth-fixture-1" in fixture
+    assert "owner-a-private-content" in fixture
+    assert "password" not in fixture.lower()
+    assert "askcrump.com" not in fixture.lower()
+
+
+def test_sync_owner_fence_scrubs_real_app_state_and_binds_both_network_directions():
+    manager = (PUBLIC / "sync-manager.js").read_text(encoding="utf-8")
+    sync = (PUBLIC / "chat-sync.js").read_text(encoding="utf-8")
+    app = (PUBLIC / "app.js").read_text(encoding="utf-8")
+    route = (ROOT / "backend" / "routes" / "sync.py").read_text(encoding="utf-8")
+    application = (ROOT / "backend" / "application.py").read_text(encoding="utf-8")
+    verifier = (ROOT / "scripts" / "verify-project-vision-resume.cjs").read_text(
+        encoding="utf-8"
+    )
+    real_state_fixture = (
+        ROOT / "tests" / "fixtures" / "project-resume-real-state-boundary.html"
+    ).read_text(encoding="utf-8")
+    owner_header_fixture = (
+        ROOT / "tests" / "fixtures" / "sync-owner-header-boundary.html"
+    ).read_text(encoding="utf-8")
+
+    assert "const SYNC_OWNER_HEADER = 'X-Ask-Crump-Sync-Owner'" in manager
+    assert "headers: {[SYNC_OWNER_HEADER]: authBoundary.userId}" in manager
+    assert "[SYNC_OWNER_HEADER]: authBoundary.userId" in manager[
+        manager.index("async function flushQueued") :
+    ]
+    assert "authenticate_request(request, db, settings, touch=False)" in route
+    assert route.count("await touch_authenticated_session(db, settings, auth)") == 2
+    for route_name in ("sync_pull", "sync_push"):
+        route_section = route[route.index(f"async def {route_name}") :]
+        assert route_section.index("touch=False") < route_section.index("_sync_owner_mismatch")
+        assert route_section.index("_sync_owner_mismatch") < route_section.index(
+            "touch_authenticated_session"
+        )
+    assert "expected_bytes = UUID(expected_owner).bytes" in route
+    assert "hmac.compare_digest(expected_bytes, actual_bytes)" in route
+    assert "'X-Ask-Crump-Sync-Owner'" in application
+
+    assert "window.CrumpConversationState" in app
+    assert "window.__crumpSyncData = null" in app
+    assert "document.getElementById('chatsList')?.replaceChildren()" in app
+    assert "document.getElementById('chatContainer')?.replaceChildren()" in app
+    assert "let activeSynchronization = null" in sync
+    assert "return activeSynchronization.promise" in sync
+    assert "deferred: true" not in sync
+
+    assert "project-resume-real-state-boundary.html" in verifier
+    assert "sync-owner-header-boundary.html" in verifier
+    assert "staleOwnerHeaders.requests.map" in verifier
+    assert "freshOwnerHeaders.requests.slice(2)" in verifier
+    assert "SYNC_OWNER_MISMATCH" in verifier
+    assert "window.__crumpSyncData" in real_state_fixture
+    assert "X-Ask-Crump-Sync-Owner" in real_state_fixture
+    assert "X-Ask-Crump-Sync-Owner" in owner_header_fixture
+    for fixture in (real_state_fixture, owner_header_fixture):
+        assert "password" not in fixture.lower()
+        assert "askcrump.com" not in fixture.lower()
 
 
 def test_pull_route_captures_its_safe_watermark_before_the_database_read():

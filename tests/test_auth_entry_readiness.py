@@ -73,7 +73,7 @@ def test_bootstrap_exposes_a_truthful_surface_before_the_bounded_session_probe()
     assert "if (mayStartGuest && await enterAsGuest()) return;" in bootstrap
     assert bootstrap.index("showAuth('register')") < bootstrap.index("await window.CrumpAPI?.ready")
     assert bootstrap.index("showReturningVisitorGate()") < bootstrap.index("await window.CrumpAPI?.ready")
-    assert bootstrap.index("await window.CrumpAPI?.ready") < bootstrap.index("window.deviceAuth.checkSession()")
+    assert bootstrap.index("await window.CrumpAPI?.ready") < bootstrap.index("window.deviceAuth.checkSession({commit: false})")
     assert "if (authFlowRevision !== bootstrapAuthFlowRevision) return;" in bootstrap
     assert "authFlowRevision += 1;" in controller
 

@@ -85,8 +85,26 @@ async function status(page, pattern) {
         assert.equal(await page.evaluate(() => window.__creditFixture.deductions), 0);
       }
 
+      await openFixture(page);
+      await page.locator('[data-case="positive"]').click();
+      await page.getByRole('dialog', {name: 'Review before Crump starts'}).waitFor({state: 'visible'});
+      await page.evaluate(() => window.__creditAuthFixture.switchOwner());
+      await page.locator('.crump-credit-confirmation').waitFor({state: 'detached'});
+      await page.locator('#fixtureStatus').filter({hasText: 'Nothing was charged'}).waitFor({state: 'visible'});
+      assert.equal(await page.evaluate(() => window.__creditFixture.deductions), 0);
+      assert.match(
+        await page.locator('#fixtureStatus').textContent(),
+        /signed-in account changed.*Nothing was charged/i,
+      );
+
       assert.deepEqual(browserErrors, []);
-      results.push({viewport: viewport.name, cases: 6, dismissals: 4, browserErrors: 0});
+      results.push({
+        viewport: viewport.name,
+        cases: 6,
+        dismissals: 4,
+        ownerSwitches: 1,
+        browserErrors: 0,
+      });
       await context.close();
     }
   } finally {

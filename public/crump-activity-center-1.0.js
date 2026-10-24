@@ -486,10 +486,16 @@
             method: 'GET',
             credentials: 'same-origin',
             cache: 'no-store',
-            headers: {'Accept': 'application/json'},
+            headers: {
+              'Accept': 'application/json',
+              'X-Ask-Crump-Expected-Owner': ownerUserId,
+            },
             signal: controller.signal,
           });
           const data = await response.json().catch(() => ({}));
+          if (state.userId !== ownerUserId || currentUserId() !== ownerUserId) {
+            throw new Error('AUTH_OWNER_MISMATCH');
+          }
           if (!response.ok) throw new Error('ACCOUNT_ACTIVITY_UNAVAILABLE');
           return data;
         };

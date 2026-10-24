@@ -1134,7 +1134,10 @@ def test_account_deletion_uses_atomic_database_rpc(monkeypatch):
 
     assert response.status_code == 202
     assert response.json()['deletionStatus'] == 'scheduled'
-    assert 'Max-Age=0' in response.headers.get('set-cookie', '')
+    # A delayed deletion response must not clear a newer account's shared cookie.
+    # The atomic RPC revokes the deleted account's sessions, so the old cookie is
+    # already invalid and the next login can safely replace it.
+    assert 'set-cookie' not in response.headers
     assert fake_db.rpc_calls == [
         (
             'delete_user_account',

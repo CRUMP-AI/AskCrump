@@ -281,6 +281,13 @@
 
 .cvp-chat-title { font-size: 14px; color: var(--cvp-text); }
 .cvp-chat-date { font-size: 12px; color: var(--cvp-muted); }
+.cvp-chat-continue {
+  align-self: flex-start;
+  min-height: 44px;
+  margin-top: 1px;
+  padding: 8px 0;
+}
+.cvp-chat-continue[aria-busy="true"] { cursor: wait; opacity: 0.72; }
 
 .cvp-keepsake {
   display: flex;

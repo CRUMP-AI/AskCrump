@@ -17,13 +17,12 @@ from ..auth_service import (
     guest_mode_enabled,
     is_guest_user,
     public_user,
-    revoke_current_session,
     verify_guest_and_create_session,
     verify_registered_and_create_session,
 )
 from ..db import eq, gt
 from ..email_service import EmailDeliveryError
-from ..http import clear_session_cookie, native_token_payload, set_session_cookie
+from ..http import native_token_payload, set_session_cookie
 from ..product_analytics import (
     environment_for_request,
     record_account_created_event,
@@ -539,13 +538,18 @@ async def login(payload: LoginRequest, request: Request, response: Response):
 async def check_session(request: Request, response: Response):
     try:
         auth = await authenticate_request(request, db, settings)
-    except AuthenticationError:
+    except AuthenticationError as exc:
+        # A stale browser tab must not translate an explicit owner mismatch
+        # into an ordinary signed-out answer.  Preserve the 409 so the client
+        # can scrub the previous account's private UI and reload against the
+        # authoritative HttpOnly-cookie owner.
+        if exc.code == 'AUTH_OWNER_MISMATCH':
+            raise
         logger.info(
             'Auth session outcome=unauthenticated client=%s',
             _auth_client_kind(request),
         )
         return {'success': True, 'authenticated': False}
-    set_session_cookie(response, auth.token, request)
     logger.info(
         'Auth session outcome=authenticated client=%s',
         _auth_client_kind(request),
@@ -568,7 +572,9 @@ async def check_session(request: Request, response: Response):
 @router.post('/refresh')
 async def refresh_session(request: Request, response: Response):
     auth = await authenticate_request(request, db, settings)
-    set_session_cookie(response, auth.token, request)
+    # Do not re-emit an old credential from a delayed response. Login and
+    # verification are the credential-issuing boundaries; this endpoint only
+    # renews the server-side session lifetime.
     return {
         'success': True,
         'user': public_user(auth.user),
@@ -579,51 +585,57 @@ async def refresh_session(request: Request, response: Response):
 @router.post('/logout')
 async def logout(request: Request, response: Response):
     try:
-        auth = await authenticate_request(request, db, settings, touch=False)
-        device_id = str(
-            auth.session.get('device_id') or request.headers.get('x-installation-id') or ''
-        )[:200]
+        auth = await authenticate_request(
+            request,
+            db,
+            settings,
+            touch=False,
+            require_expected_owner_header=True,
+        )
         await db.update(
             'sessions',
             {'revoked_at': iso_now()},
-            filters={'id': eq(auth.session['id']), 'user_id': eq(auth.user['id'])},
+            filters={
+                'id': eq(auth.session['id']),
+                'user_id': eq(auth.user['id']),
+                'token_hash': eq(auth.session['token_hash']),
+                'revoked_at': 'is.null',
+            },
         )
-        if device_id:
-            await db.update(
-                'push_tokens',
-                {'enabled': False, 'updated_at': iso_now()},
-                filters={
-                    'user_id': eq(auth.user['id']),
-                    'installation_id': eq(device_id),
-                },
-            )
-    except AuthenticationError:
-        await revoke_current_session(request, db, settings)
-    clear_session_cookie(response)
+    except AuthenticationError as exc:
+        if exc.code == 'AUTH_OWNER_MISMATCH':
+            raise
+        # An already-expired/revoked credential is already signed out. Do not
+        # revoke a different cookie candidate or emit a late cookie deletion.
+        pass
     return {'success': True, 'message': 'Signed out.'}
 
 
 @router.post('/logout-all')
 async def logout_all(request: Request, response: Response):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(
+        request,
+        db,
+        settings,
+        require_expected_owner_header=True,
+    )
     now = iso_now()
     await db.update(
         'sessions',
         {'revoked_at': now},
         filters={'user_id': eq(auth.user['id']), 'revoked_at': 'is.null'},
     )
-    await db.update(
-        'push_tokens',
-        {'enabled': False, 'updated_at': now},
-        filters={'user_id': eq(auth.user['id']), 'enabled': eq(True)},
-    )
-    clear_session_cookie(response)
     return {'success': True, 'message': 'Signed out on every device.'}
 
 
 @router.get('/devices')
 async def list_devices(request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(
+        request,
+        db,
+        settings,
+        require_expected_owner_header=True,
+    )
     sessions = await db.select(
         'sessions',
         columns='id,device_name,platform,created_at,last_activity,expires_at,ip_address,user_agent',
@@ -645,28 +657,28 @@ async def list_devices(request: Request):
 
 @router.post('/revoke-device')
 async def revoke_device(payload: RevokeDeviceRequest, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(
+        request,
+        db,
+        settings,
+        require_expected_owner_header=True,
+    )
     session = await db.select_one(
         'sessions',
-        columns='id,device_id',
+        columns='id,device_id,token_hash',
         filters={'id': eq(payload.sessionId), 'user_id': eq(auth.user['id'])},
     )
     now = iso_now()
     await db.update(
         'sessions',
         {'revoked_at': now},
-        filters={'id': eq(payload.sessionId), 'user_id': eq(auth.user['id'])},
+        filters={
+            'id': eq(payload.sessionId),
+            'user_id': eq(auth.user['id']),
+            'token_hash': eq((session or {}).get('token_hash')),
+            'revoked_at': 'is.null',
+        },
     )
-    device_id = str((session or {}).get('device_id') or '')
-    if device_id:
-        await db.update(
-            'push_tokens',
-            {'enabled': False, 'updated_at': now},
-            filters={
-                'user_id': eq(auth.user['id']),
-                'installation_id': eq(device_id),
-            },
-        )
     return {'success': True}
 
 

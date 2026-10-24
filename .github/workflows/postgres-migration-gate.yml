@@ -22,6 +22,147 @@ permissions:
   contents: read
 
 jobs:
+  atomic-push-registration:
+    name: Atomic push-registration ownership
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: askcrump_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d askcrump_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGDATABASE: askcrump_test
+      PGUSER: postgres
+      PGPASSWORD: postgres-ci-only
+
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+      - name: Apply baseline and atomic migration twice
+        run: |
+          psql -X --set=ON_ERROR_STOP=1 \
+            --file=tests/postgres/atomic_push_registration_baseline.sql
+          psql -X --set=ON_ERROR_STOP=1 --single-transaction \
+            --file=migrations/20261024063000_atomic_push_registration.sql
+          psql -X --set=ON_ERROR_STOP=1 --single-transaction \
+            --file=migrations/20261024063000_atomic_push_registration.sql
+      - name: Exercise owner, session, ACL, and reordering boundaries
+        run: >-
+          psql -X --set=ON_ERROR_STOP=1
+          --file=tests/postgres/test_atomic_push_registration_migration.sql
+      - name: Exercise same-installation and absent-token concurrency
+        run: bash tests/postgres/test_atomic_push_registration_concurrency.sh
+      - name: Prove installation lookup index drift fails closed
+        run: |
+          psql -X --set=ON_ERROR_STOP=1 \
+            --file=tests/postgres/atomic_push_registration_index_drift_fixture.sql
+          set +e
+          psql -X --set=ON_ERROR_STOP=1 --set=VERBOSITY=verbose \
+            --single-transaction \
+            --file=migrations/20261024063000_atomic_push_registration.sql \
+            > "$RUNNER_TEMP/atomic-push-registration-index-refusal.log" 2>&1
+          migration_status=$?
+          set -e
+          cat "$RUNNER_TEMP/atomic-push-registration-index-refusal.log"
+          if [ "$migration_status" -eq 0 ]; then
+            echo "Migration unexpectedly accepted push-token installation index drift."
+            exit 1
+          fi
+          grep -F "55000" "$RUNNER_TEMP/atomic-push-registration-index-refusal.log"
+          grep -F "Push-token installation index drifted; refusing replacement." \
+            "$RUNNER_TEMP/atomic-push-registration-index-refusal.log"
+          psql -X --set=ON_ERROR_STOP=1 \
+            --command="drop index public.push_tokens_installation_id_idx"
+          psql -X --set=ON_ERROR_STOP=1 --single-transaction \
+            --file=migrations/20261024063000_atomic_push_registration.sql
+      - name: Prove wrong-parent installation index drift fails closed
+        run: |
+          psql -X --set=ON_ERROR_STOP=1 \
+            --file=tests/postgres/atomic_push_registration_index_parent_drift_fixture.sql
+          set +e
+          psql -X --set=ON_ERROR_STOP=1 --set=VERBOSITY=verbose \
+            --single-transaction \
+            --file=migrations/20261024063000_atomic_push_registration.sql \
+            > "$RUNNER_TEMP/atomic-push-registration-index-parent-refusal.log" 2>&1
+          migration_status=$?
+          set -e
+          cat "$RUNNER_TEMP/atomic-push-registration-index-parent-refusal.log"
+          if [ "$migration_status" -eq 0 ]; then
+            echo "Migration unexpectedly accepted a same-named index on another table."
+            exit 1
+          fi
+          grep -F "55000" "$RUNNER_TEMP/atomic-push-registration-index-parent-refusal.log"
+          grep -F "Push-token installation index drifted; refusing replacement." \
+            "$RUNNER_TEMP/atomic-push-registration-index-parent-refusal.log"
+          psql -X --set=ON_ERROR_STOP=1 \
+            --command="drop index public.push_tokens_installation_id_idx"
+          psql -X --set=ON_ERROR_STOP=1 \
+            --command="drop table public.push_token_index_decoy"
+          psql -X --set=ON_ERROR_STOP=1 --single-transaction \
+            --file=migrations/20261024063000_atomic_push_registration.sql
+      - name: Prove unexpected executor ACL drift fails closed
+        run: |
+          psql -X --set=ON_ERROR_STOP=1 \
+            --file=tests/postgres/atomic_push_registration_acl_drift_fixture.sql
+          set +e
+          psql -X --set=ON_ERROR_STOP=1 --set=VERBOSITY=verbose \
+            --single-transaction \
+            --file=migrations/20261024063000_atomic_push_registration.sql \
+            > "$RUNNER_TEMP/atomic-push-registration-acl-refusal.log" 2>&1
+          migration_status=$?
+          set -e
+          cat "$RUNNER_TEMP/atomic-push-registration-acl-refusal.log"
+          if [ "$migration_status" -eq 0 ]; then
+            echo "Migration unexpectedly accepted push-registration ACL drift."
+            exit 1
+          fi
+          grep -F "55000" "$RUNNER_TEMP/atomic-push-registration-acl-refusal.log"
+          grep -F "Existing push-registration RPC drifted; refusing replacement." \
+            "$RUNNER_TEMP/atomic-push-registration-acl-refusal.log"
+          psql -X --set=ON_ERROR_STOP=1 --command="revoke execute on function public.mutate_push_registration_v1(uuid,uuid,text,text,text,text,boolean,timestamptz) from anon"
+          psql -X --set=ON_ERROR_STOP=1 --single-transaction \
+            --file=migrations/20261024063000_atomic_push_registration.sql
+      - name: Prove unexpected RPC source drift fails closed
+        run: |
+          psql -X --set=ON_ERROR_STOP=1 \
+            --file=tests/postgres/atomic_push_registration_source_drift_fixture.sql
+          set +e
+          psql -X --set=ON_ERROR_STOP=1 --set=VERBOSITY=verbose \
+            --single-transaction \
+            --file=migrations/20261024063000_atomic_push_registration.sql \
+            > "$RUNNER_TEMP/atomic-push-registration-source-refusal.log" 2>&1
+          migration_status=$?
+          set -e
+          cat "$RUNNER_TEMP/atomic-push-registration-source-refusal.log"
+          if [ "$migration_status" -eq 0 ]; then
+            echo "Migration unexpectedly accepted push-registration source drift."
+            exit 1
+          fi
+          grep -F "55000" "$RUNNER_TEMP/atomic-push-registration-source-refusal.log"
+          grep -F "Existing push-registration RPC drifted; refusing replacement." \
+            "$RUNNER_TEMP/atomic-push-registration-source-refusal.log"
+          psql -X --set=ON_ERROR_STOP=1 --command="drop function public.mutate_push_registration_v1(uuid,uuid,text,text,text,text,boolean,timestamptz)"
+          psql -X --set=ON_ERROR_STOP=1 --single-transaction \
+            --file=migrations/20261024063000_atomic_push_registration.sql
+          psql -X --set=ON_ERROR_STOP=1 --single-transaction \
+            --file=migrations/20261024063000_atomic_push_registration.sql
+
   atomic-guest-admission-rate-limit:
     name: Atomic guest admission rate limit
     runs-on: ubuntu-latest

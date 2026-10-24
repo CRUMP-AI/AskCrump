@@ -54,7 +54,8 @@ def test_protected_product_modules_hydrate_only_after_an_intentional_open():
     assert "await loadWorkspace(data, context);" in code_loader
     assert 'if (!(await refreshAvailability()))' in code
     assert 'if (window.currentUser) refreshBalance();' in billing
-    assert "window.addEventListener('crump:authenticated-ready', () => refreshBalance())" in billing
+    assert "window.addEventListener('crump:authenticated-ready', () => {" in billing
+    assert "refreshBalance({force: true});" in billing
 
 
 def test_signed_out_initializers_do_not_directly_hydrate_protected_data():

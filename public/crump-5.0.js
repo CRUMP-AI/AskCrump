@@ -104,10 +104,16 @@
   }
 
   async function api(path, options = {}) {
+    const {expectedOwnerId: requestedOwnerId, ...requestOptions} = options;
+    const expectedOwnerId = String(requestedOwnerId ?? currentComposerOwnerId()).trim();
     const response = await fetch(path, {
       credentials: 'same-origin',
-      ...options,
-      headers: {'Content-Type': 'application/json', ...(options.headers || {})},
+      ...requestOptions,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(expectedOwnerId ? {'X-Ask-Crump-Expected-Owner': expectedOwnerId} : {}),
+        ...(requestOptions.headers || {}),
+      },
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
@@ -141,6 +147,7 @@
       controller: null,
       authController: new AbortController(),
       authSequence: composerAuthSequence,
+      ownerId: currentComposerOwnerId(),
       previewUrl: file.type?.startsWith('image/') ? URL.createObjectURL(file) : null,
       promise: null,
     };
@@ -161,6 +168,8 @@
 
   function composerUploadIsCurrent(item, sequence = item?.authSequence) {
     return Number(sequence) === composerAuthSequence
+      && !!item?.ownerId
+      && item.ownerId === currentComposerOwnerId()
       && !item?.authController?.signal?.aborted
       && uploadCallerMayProceed(item);
   }
@@ -339,6 +348,7 @@
       const signed = await api('/api/files/sign-upload', {
         method: 'POST',
         signal: item.authController.signal,
+        expectedOwnerId: item.ownerId,
         body: JSON.stringify({
           name: item.name, type: item.type, size: item.size,
           chatId: window.currentChatId || null,
@@ -371,6 +381,7 @@
       const completed = await api(`/api/files/${encodeURIComponent(item.server.id)}/complete`, {
         method: 'POST',
         signal: item.authController.signal,
+        expectedOwnerId: item.ownerId,
         body: '{}',
       });
       assertComposerUploadCurrent(item, authSequence);
@@ -1412,9 +1423,18 @@
     return body;
   }
 
-  async function ensureUsage() {
+  function currentComposerOwnerId() {
+    const boundary = window.CrumpAuthBoundary;
+    return String(
+      typeof boundary?.authenticatedUserId === 'function'
+        ? boundary.authenticatedUserId()
+        : window.currentUser?.id || ''
+    ).trim();
+  }
+
+  async function ensureUsage(expectedOwnerId = currentComposerOwnerId()) {
     if (!window.CrumpChatTransport) throw new Error('Message delivery is still loading. Try again.');
-    return window.CrumpChatTransport.ensureUsage();
+    return window.CrumpChatTransport.ensureUsage({expectedOwnerId});
   }
 
   function syncCompletedReplyInBackground() {
@@ -1500,6 +1520,8 @@
   async function studioSendMessage() {
     if (state.sending) return;
     const authSequence = composerAuthSequence;
+    const expectedOwnerId = currentComposerOwnerId();
+    if (!expectedOwnerId) return;
     const input = $('#userInput');
     const text = String(input?.value || '').trim();
     if (!text && !state.attachments.length) return;
@@ -1561,7 +1583,7 @@
         );
         return;
       }
-      await ensureUsage();
+      await ensureUsage(expectedOwnerId);
       if (authSequence !== composerAuthSequence) throw composerBoundaryAbortError();
       let fresh = currentChat() || window.ensureCurrentChat?.();
       if (!fresh) throw new Error('Crump could not start a new conversation. Try again.');
@@ -1617,7 +1639,7 @@
       const ack = await window.CrumpChatTransport.acknowledge({
         chatId: fresh.id || fresh.chat_id, messageId: userMessage.id, message: text,
         fileTypes: ready.map(item => item.server.type),
-      });
+      }, {expectedOwnerId});
       if (authSequence !== composerAuthSequence) throw composerBoundaryAbortError();
       fresh = currentChat() || fresh;
       const acknowledged = fresh.messages.find(item => item.id === userMessage.id) || liveUser;
@@ -1627,7 +1649,7 @@
       saveAndRender(fresh);
       window.CrumpPresence?.start?.(sentTool === 'image' ? 'creating' : ready.length ? 'reading' : ack.activity || 'thinking');
 
-      const data = await window.CrumpChatTransport.send(body);
+      const data = await window.CrumpChatTransport.send(body, {expectedOwnerId});
       if (authSequence !== composerAuthSequence) throw composerBoundaryAbortError();
       await applyCompletedReplySafely(fresh, userMessage, data);
       window.CrumpAccess?.applyServerAllowance?.(data);
@@ -1701,6 +1723,8 @@
   async function retryMessage(id) {
     if (state.sending) return;
     const authSequence = composerAuthSequence;
+    const expectedOwnerId = currentComposerOwnerId();
+    if (!expectedOwnerId) return;
     let chat = currentChat();
     let message = chat?.messages?.find(item => item.id === id && item.role === 'user');
     if (!chat || !message) return;
@@ -1720,14 +1744,14 @@
     document.body.classList.add('crump50-sending');
     try {
       window.CrumpPresence?.start?.('thinking');
-      const recovered = await window.CrumpChatTransport?.recover?.(id);
+      const recovered = await window.CrumpChatTransport?.recover?.(id, {expectedOwnerId});
       if (!retryIsCurrent()) return;
       if (recovered) {
         await applyCompletedReplySafely(chat, message, recovered);
         return;
       }
       window.CrumpPresence?.stop?.();
-      await ensureUsage();
+      await ensureUsage(expectedOwnerId);
       if (!retryIsCurrent()) return;
       const ready = (message.files || []).filter(file => file?.id).map(file => ({status:'ready', server:file, name:file.name, type:file.type, size:file.size}));
       message.deliveryStatus = 'sending'; message.replyStatus = 'pending'; message.replyError = null;
@@ -1740,13 +1764,13 @@
       message = chat.messages.find(item => item.id === id) || message;
       const ack = await window.CrumpChatTransport.acknowledge({
         chatId:chat.id || chat.chat_id, messageId:id, message:message.content || '', fileTypes:ready.map(item => item.server.type),
-      });
+      }, {expectedOwnerId});
       if (!retryIsCurrent()) return;
       Object.assign(message, {deliveryStatus:'seen', deliveredAt:ack.deliveredAt, seenAt:ack.seenAt, replyStatus:'processing'});
       saveAndRender(chat);
       window.CrumpPresence?.start?.(ready.length ? 'reading' : ack.activity || 'thinking');
       const body = buildRequestBody(chat, message, ready);
-      const data = await window.CrumpChatTransport.send(body);
+      const data = await window.CrumpChatTransport.send(body, {expectedOwnerId});
       if (!retryIsCurrent()) return;
       await applyCompletedReplySafely(chat, message, data);
       window.CrumpAccess?.applyServerAllowance?.(data);
@@ -2420,12 +2444,21 @@
         const retry = $('[data-artifact-retry]', recovery);
         retry.textContent = packaged ? 'Retry saved file link' : 'Retry file packaging';
         retry.addEventListener('click', async () => {
+          const authSequence = composerAuthSequence;
+          const expectedOwnerId = currentComposerOwnerId();
+          const retryIsCurrent = () => (
+            !!expectedOwnerId
+            && authSequence === composerAuthSequence
+            && expectedOwnerId === currentComposerOwnerId()
+          );
+          if (!retryIsCurrent()) return;
           retry.disabled = true;
           retry.setAttribute('aria-busy', 'true');
           try {
             const data = await api(`/api/chat/artifacts/${encodeURIComponent(message.inReplyTo)}/retry`, {
-              method: 'POST', body: '{}', timeoutMs: 45_000,
+              method: 'POST', body: '{}', timeoutMs: 45_000, expectedOwnerId,
             });
+            if (!retryIsCurrent()) return;
             const recovered = data.assistantMessage && typeof data.assistantMessage === 'object'
               ? data.assistantMessage
               : {};
@@ -2450,10 +2483,11 @@
               data.conversationSaved === false ? 'info' : 'success',
             );
           } catch (error) {
+            if (!retryIsCurrent()) return;
             window.showToast?.(error.message || 'The saved answer is safe, but its file still needs packaging.', 'error');
             retry.disabled = false;
           } finally {
-            retry.removeAttribute('aria-busy');
+            if (retryIsCurrent()) retry.removeAttribute('aria-busy');
           }
         });
         wrapper.appendChild(recovery);

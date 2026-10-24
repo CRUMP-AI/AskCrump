@@ -36,7 +36,12 @@ def _server_context(messages: Any, message_id: str | None) -> tuple[str, str]:
 
 @router.post("/reports", status_code=201)
 async def report_ai_content(payload: AIContentReportRequest, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(
+        request,
+        db,
+        settings,
+        require_expected_owner_header=True,
+    )
     await enforce_user_rate_limit(
         db,
         user_id=auth.user["id"],

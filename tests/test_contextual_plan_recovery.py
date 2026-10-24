@@ -61,11 +61,11 @@ def test_recovery_summary_is_responsive_and_does_not_create_checkout():
 
 
 def test_contextual_recovery_assets_are_registered_for_web_pwa_and_native():
-    credit_truth_version = "5.9.76-checkout-destination-label-1"
+    credit_truth_version = "5.9.76-private-owner-boundary-1"
     credit_truth_css_version = "5.9.76-credit-truth-1"
-    attach_creation_version = "5.9.76-plan-status-line-1"
-    confirmation_version = "5.9.76-credit-confirmation-1"
-    project_wrapper_version = "5.9.76-manuscript-export-delivery-1"
+    attach_creation_version = "5.9.76-private-owner-boundary-1"
+    chat_owner_boundary_version = "5.9.76-chat-owner-boundary-1"
+    project_wrapper_version = "5.9.76-account-owner-boundary-1"
     runtime = read("public/runtime-body-v1.js")
     worker = read("public/sw.js")
     native = read("scripts/build-native.mjs")
@@ -81,10 +81,10 @@ def test_contextual_recovery_assets_are_registered_for_web_pwa_and_native():
     assert css in runtime
     assert css in worker
     assert css in native
-    assert f"/chat-resilience.js?v={confirmation_version}" in runtime
-    assert f"/chat-resilience.js?v={confirmation_version}" in worker
+    assert f"/chat-resilience.js?v={chat_owner_boundary_version}" in runtime
+    assert f"/chat-resilience.js?v={chat_owner_boundary_version}" in worker
     loader = read("public/crump-product-loader.js")
     assert f"/crump-product-5.3.js?v={project_wrapper_version}" in loader
     assert f"/crump-product-5.3.js?v={project_wrapper_version}" not in runtime
     assert f"/crump-product-5.3.js?v={project_wrapper_version}" not in worker
-    assert "ask-crump-new-body-v1-r270-guest-admission-1" in worker
+    assert "ask-crump-new-body-v1-r273-account-owner-boundary-1" in worker

@@ -16,9 +16,17 @@ from backend.sync_service import (
 @pytest.mark.asyncio
 async def test_pull_cursor_is_captured_before_the_database_read(monkeypatch):
     events = []
+    owner_id = '11111111-1111-4111-8111-111111111111'
 
-    async def fake_authenticate_request(_request, _db, _settings):
-        return type('AuthResult', (), {'user': {'id': 'user-1'}})()
+    class Request:
+        headers = {'x-ask-crump-sync-owner': owner_id}
+
+    async def fake_authenticate_request(_request, _db, _settings, *, touch=True):
+        assert touch is False
+        return type('AuthResult', (), {'user': {'id': owner_id}})()
+
+    async def fake_touch_authenticated_session(_db, _settings, _auth):
+        events.append(('touch',))
 
     async def fake_pull_sync(_db, user_id, since):
         events.append(('read', user_id, since))
@@ -29,36 +37,158 @@ async def test_pull_cursor_is_captured_before_the_database_read(monkeypatch):
         return '2026-09-09T12:00:00.000Z'
 
     monkeypatch.setattr(sync_routes, 'authenticate_request', fake_authenticate_request)
+    monkeypatch.setattr(sync_routes, 'touch_authenticated_session', fake_touch_authenticated_session)
     monkeypatch.setattr(sync_routes, 'pull_sync', fake_pull_sync)
     monkeypatch.setattr(sync_routes, 'iso_now', fake_iso_now)
 
-    result = await sync_routes.sync_pull(object(), since='2026-09-09T11:59:00.000Z')
+    result = await sync_routes.sync_pull(Request(), since='2026-09-09T11:59:00.000Z')
 
     assert events == [
+        ('touch',),
         ('watermark',),
-        ('read', 'user-1', '2026-09-09T11:59:00.000Z'),
+        ('read', owner_id, '2026-09-09T11:59:00.000Z'),
     ]
     assert result['serverTime'] == '2026-09-09T12:00:00.000Z'
 
 
 @pytest.mark.asyncio
-async def test_settings_only_stale_guest_push_stays_queued_after_verification(monkeypatch):
-    class Request:
-        async def json(self):
-            return {'settings': {'assistant_name': 'Stale guest value'}}
+async def test_pull_rejects_stale_owner_claim_before_session_touch_or_read(monkeypatch):
+    calls = []
 
-    async def fake_authenticate_request(_request, _db, _settings):
+    class Request:
+        headers = {'x-ask-crump-sync-owner': '11111111-1111-4111-8111-111111111111'}
+
+    async def fake_authenticate_request(_request, _db, _settings, *, touch=True):
+        calls.append(('authenticate', touch))
+        return type('AuthResult', (), {'user': {'id': '22222222-2222-4222-8222-222222222222'}})()
+
+    async def forbidden_async(*_args, **_kwargs):
+        raise AssertionError('Owner mismatch must fail before any sync database action.')
+
+    def forbidden_now():
+        raise AssertionError('Owner mismatch must fail before a pull watermark is created.')
+
+    monkeypatch.setattr(sync_routes, 'authenticate_request', fake_authenticate_request)
+    monkeypatch.setattr(sync_routes, 'touch_authenticated_session', forbidden_async)
+    monkeypatch.setattr(sync_routes, 'pull_sync', forbidden_async)
+    monkeypatch.setattr(sync_routes, 'iso_now', forbidden_now)
+
+    response = await sync_routes.sync_pull(Request())
+    body = json.loads(response.body)
+
+    assert calls == [('authenticate', False)]
+    assert response.status_code == 409
+    assert body == {
+        'success': False,
+        'code': 'SYNC_OWNER_MISMATCH',
+        'staleAuth': True,
+        'error': 'The signed-in account changed before synchronization began. Retry under the current account.',
+        'queued': True,
+        'retryable': True,
+    }
+
+
+@pytest.mark.asyncio
+async def test_push_rejects_stale_owner_claim_before_touch_body_or_write(monkeypatch):
+    calls = []
+
+    class Request:
+        headers = {'x-ask-crump-sync-owner': '11111111-1111-4111-8111-111111111111'}
+
+        async def json(self):
+            raise AssertionError('Owner mismatch must fail before reading the queued payload.')
+
+    async def fake_authenticate_request(_request, _db, _settings, *, touch=True):
+        calls.append(('authenticate', touch))
         return type(
             'AuthResult',
             (),
-            {'user': {'id': 'guest-1', 'is_guest': True}},
+            {'user': {'id': '22222222-2222-4222-8222-222222222222', 'is_guest': True}},
+        )()
+
+    async def forbidden_async(*_args, **_kwargs):
+        raise AssertionError('Owner mismatch must fail before any sync database action.')
+
+    monkeypatch.setattr(sync_routes, 'authenticate_request', fake_authenticate_request)
+    monkeypatch.setattr(sync_routes, 'touch_authenticated_session', forbidden_async)
+    monkeypatch.setattr(sync_routes, 'enforce_user_rate_limit', forbidden_async)
+    monkeypatch.setattr(sync_routes, 'push_sync', forbidden_async)
+
+    response = await sync_routes.sync_push(Request())
+    body = json.loads(response.body)
+
+    assert calls == [('authenticate', False)]
+    assert response.status_code == 409
+    assert body['code'] == 'SYNC_OWNER_MISMATCH'
+    assert body['staleAuth'] is True
+    assert body['queued'] is True
+    assert body['retryable'] is True
+
+
+@pytest.mark.parametrize(
+    'headers',
+    (
+        {},
+        {'x-ask-crump-sync-owner': 'not-a-uuid'},
+        {'x-ask-crump-sync-owner': 'é' * 24},
+    ),
+)
+@pytest.mark.asyncio
+async def test_pull_rejects_missing_or_malformed_owner_claim_without_mutation(monkeypatch, headers):
+    class Request:
+        pass
+
+    Request.headers = headers
+
+    async def fake_authenticate_request(_request, _db, _settings, *, touch=True):
+        assert touch is False
+        return type(
+            'AuthResult',
+            (),
+            {'user': {'id': '22222222-2222-4222-8222-222222222222'}},
+        )()
+
+    async def forbidden_async(*_args, **_kwargs):
+        raise AssertionError('Malformed owner claims must fail before a database mutation.')
+
+    monkeypatch.setattr(sync_routes, 'authenticate_request', fake_authenticate_request)
+    monkeypatch.setattr(sync_routes, 'touch_authenticated_session', forbidden_async)
+    monkeypatch.setattr(sync_routes, 'pull_sync', forbidden_async)
+
+    response = await sync_routes.sync_pull(Request())
+    body = json.loads(response.body)
+
+    assert response.status_code == 409
+    assert body['code'] == 'SYNC_OWNER_MISMATCH'
+    assert body['staleAuth'] is True
+
+
+@pytest.mark.asyncio
+async def test_settings_only_stale_guest_push_stays_queued_after_verification(monkeypatch):
+    guest_id = '33333333-3333-4333-8333-333333333333'
+
+    class Request:
+        headers = {'x-ask-crump-sync-owner': guest_id}
+
+        async def json(self):
+            return {'settings': {'assistant_name': 'Stale guest value'}}
+
+    async def fake_authenticate_request(_request, _db, _settings, *, touch=True):
+        assert touch is False
+        return type(
+            'AuthResult',
+            (),
+            {'user': {'id': guest_id, 'is_guest': True}},
         )()
 
     async def fake_enforce_user_rate_limit(*_args, **_kwargs):
         return None
 
+    async def fake_touch_authenticated_session(*_args, **_kwargs):
+        return None
+
     async def fake_push_sync(_db, user_id, payload, *, is_guest=False):
-        assert user_id == 'guest-1'
+        assert user_id == guest_id
         assert payload == {'settings': {'assistant_name': 'Stale guest value'}}
         assert is_guest is True
         return {
@@ -68,6 +198,7 @@ async def test_settings_only_stale_guest_push_stays_queued_after_verification(mo
         }
 
     monkeypatch.setattr(sync_routes, 'authenticate_request', fake_authenticate_request)
+    monkeypatch.setattr(sync_routes, 'touch_authenticated_session', fake_touch_authenticated_session)
     monkeypatch.setattr(sync_routes, 'enforce_user_rate_limit', fake_enforce_user_rate_limit)
     monkeypatch.setattr(sync_routes, 'push_sync', fake_push_sync)
 
@@ -86,21 +217,29 @@ async def test_settings_only_stale_guest_push_stays_queued_after_verification(mo
 
 @pytest.mark.asyncio
 async def test_mixed_stale_guest_push_reports_retryable_authority_change(monkeypatch):
+    guest_id = '33333333-3333-4333-8333-333333333333'
+
     class Request:
+        headers = {'x-ask-crump-sync-owner': guest_id}
+
         async def json(self):
             return {
                 'chats': [{'id': 'chat-1'}],
                 'settings': {'assistant_name': 'Stale guest value'},
             }
 
-    async def fake_authenticate_request(_request, _db, _settings):
+    async def fake_authenticate_request(_request, _db, _settings, *, touch=True):
+        assert touch is False
         return type(
             'AuthResult',
             (),
-            {'user': {'id': 'guest-1', 'is_guest': True}},
+            {'user': {'id': guest_id, 'is_guest': True}},
         )()
 
     async def fake_enforce_user_rate_limit(*_args, **_kwargs):
+        return None
+
+    async def fake_touch_authenticated_session(*_args, **_kwargs):
         return None
 
     async def fake_push_sync(_db, _user_id, _payload, *, is_guest=False):
@@ -115,6 +254,7 @@ async def test_mixed_stale_guest_push_reports_retryable_authority_change(monkeyp
         }
 
     monkeypatch.setattr(sync_routes, 'authenticate_request', fake_authenticate_request)
+    monkeypatch.setattr(sync_routes, 'touch_authenticated_session', fake_touch_authenticated_session)
     monkeypatch.setattr(sync_routes, 'enforce_user_rate_limit', fake_enforce_user_rate_limit)
     monkeypatch.setattr(sync_routes, 'push_sync', fake_push_sync)
 

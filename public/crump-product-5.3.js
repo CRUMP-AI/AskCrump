@@ -934,8 +934,14 @@
   }
 
   function clearProductAuthState() {
+    // Feature entitlements and balances are private account state. Neutralize
+    // them before clearing/re-rendering the rest of the studio so an
+    // abort-uncooperative response from the previous owner cannot remain
+    // visible during the next account's hydration.
+    state.features = null;
     clearVideoReferenceAuthState();
     resetProjectAuthMemory();
+    updateVideoStudio();
   }
 
   function persistVideoReferenceDraft() {
@@ -1111,6 +1117,32 @@
     }
     const signal = controller?.signal || callerSignal;
     const headers = {...(requestOptions.headers || {})};
+    const authBoundary = window.CrumpAuthBoundary;
+    const expectedOwnerId = String(authBoundary?.authenticatedUserId?.()
+      || window.CrumpProductLoader?.authenticatedUserId?.()
+      || window.currentUser?.id
+      || '').trim();
+    const expectedRevision = Number(authBoundary?.revision?.() || 0);
+    const ownerIsCurrent = () => {
+      const currentOwnerId = String(authBoundary?.authenticatedUserId?.()
+        || window.CrumpProductLoader?.authenticatedUserId?.()
+        || window.currentUser?.id
+        || '').trim();
+      const currentRevision = Number(authBoundary?.revision?.() || 0);
+      return Boolean(expectedOwnerId)
+        && currentOwnerId === expectedOwnerId
+        && currentRevision === expectedRevision;
+    };
+    const assertOwnerCurrent = () => {
+      if (ownerIsCurrent()) return;
+      const error = new Error('Your account changed before this studio request finished.');
+      error.name = 'AbortError';
+      error.code = 'AUTH_OWNER_CHANGED';
+      error.quiet = true;
+      throw error;
+    };
+    assertOwnerCurrent();
+    if (expectedOwnerId) headers['X-Ask-Crump-Expected-Owner'] = expectedOwnerId;
     if (requestOptions.body && typeof requestOptions.body !== 'string') {
       headers['Content-Type'] = 'application/json';
       requestOptions.body = JSON.stringify(requestOptions.body);
@@ -1129,6 +1161,7 @@
         if (controller?.signal.aborted || callerSignal?.aborted) throw error;
         data = {};
       }
+      assertOwnerCurrent();
       if (!response.ok || data.success === false) {
         const error = new Error(data.error || `Request failed (${response.status})`);
         error.data = data;

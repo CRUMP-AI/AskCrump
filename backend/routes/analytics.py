@@ -88,7 +88,12 @@ async def create_product_event(payload: ProductEventRequest, request: Request):
     if payload.eventName == "NavigationDestinationSelected":
         server_day = datetime.now(timezone.utc).date().isoformat()
         event_key = f"navigation-destination-selected:{payload.source}:{server_day}"
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(
+        request,
+        db,
+        settings,
+        require_expected_owner_header=True,
+    )
     await enforce_user_rate_limit(
         db,
         user_id=auth.user["id"],

@@ -14,6 +14,12 @@
   <label for="userInput">Follow-up</label>
   <textarea id="userInput">Keep this unfinished draft</textarea>
   <script>
+    window.currentUser = {id: 'fixture-owner'};
+    window.CrumpAuthBoundary = Object.freeze({
+      authenticatedUserId: () => window.currentUser?.id || '',
+      revision: () => 0,
+      register: () => () => {},
+    });
     window.currentChatId = '00000000-0000-4000-8000-000000000091';
     window.chats = [{id: window.currentChatId, messages: []}];
     window.__fixture = {

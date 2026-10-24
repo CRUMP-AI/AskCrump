@@ -30,7 +30,12 @@ def _feature_error(exc: FeatureAccessError) -> JSONResponse:
 
 @router.get("")
 async def feature_status(request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(
+        request,
+        db,
+        settings,
+        require_expected_owner_header=True,
+    )
     status = await features.status(auth.user)
     engines = video.engine_status
     sandbox_configured = bool(

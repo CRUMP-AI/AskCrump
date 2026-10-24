@@ -3,6 +3,7 @@
   const PENDING_KEY = 'crump_sync_queue_v4';
   const SYNC_KEY = 'crump_last_sync_v4';
   const SYNC_REQUEST_TIMEOUT_MS = 12_000;
+  const SYNC_OWNER_HEADER = 'X-Ask-Crump-Sync-Owner';
   const MAX_CHATS_PER_PUSH = 20;
   const MAX_TOMBSTONES_PER_PUSH = 20;
   let flushPromise = null;
@@ -19,7 +20,40 @@
       return false;
     }
   };
-  const userKey = key => `${key}:${window.currentUser?.id || 'anonymous'}`;
+  function captureAuthBoundary() {
+    const boundary = window.CrumpAuthBoundary;
+    const userId = String(
+      typeof boundary?.authenticatedUserId === 'function'
+        ? boundary.authenticatedUserId()
+        : window.currentUser?.id || '',
+    ).trim();
+    const rawRevision = typeof boundary?.revision === 'function' ? boundary.revision() : 0;
+    const revision = Number(rawRevision);
+    return Object.freeze({
+      userId,
+      revision: Number.isFinite(revision) ? revision : 0,
+    });
+  }
+
+  function authBoundaryIsCurrent(snapshot) {
+    if (!snapshot?.userId) return false;
+    const current = captureAuthBoundary();
+    return current.userId === snapshot.userId && current.revision === snapshot.revision;
+  }
+
+  function authBoundaryChanged(flushed = false) {
+    return {
+      success: false,
+      code: 'SYNC_AUTH_BOUNDARY_CHANGED',
+      staleAuth: true,
+      queued: true,
+      retryable: true,
+      flushed,
+      error: 'The signed-in account changed before synchronization completed.',
+    };
+  }
+
+  const userKey = (key, userId = captureAuthBoundary().userId) => `${key}:${userId || 'anonymous'}`;
 
   async function requestJson(url, options, invalidResponseError) {
     const controller = new AbortController();
@@ -42,20 +76,27 @@
   }
 
   async function pull(_legacyDeviceId, options = {}) {
+    const authBoundary = options.authBoundary || captureAuthBoundary();
+    if (!authBoundaryIsCurrent(authBoundary)) return authBoundaryChanged(false);
     const full = options.full !== false;
     const peek = options.peek === true;
-    const since = full ? null : read(userKey(SYNC_KEY), null);
+    const syncKey = userKey(SYNC_KEY, authBoundary.userId);
+    const since = full ? null : read(syncKey, null);
     const url = since ? `/api/sync/pull?since=${encodeURIComponent(since)}` : '/api/sync/pull';
     const {response, data} = await requestJson(
       url,
-      {method: 'GET'},
+      {
+        method: 'GET',
+        headers: {[SYNC_OWNER_HEADER]: authBoundary.userId},
+      },
       'Invalid sync response.',
     );
+    if (!authBoundaryIsCurrent(authBoundary)) return authBoundaryChanged(false);
     // A peek is a non-mutating verification read: it must never advance the
     // incremental-pull watermark, or rows it observed but did not apply would
     // be skipped by the next incremental pull. Never save/restore the cursor
     // around a peek either — that could clobber a concurrent advancement.
-    if (!peek && response.ok && data.success) write(userKey(SYNC_KEY), data.serverTime || new Date().toISOString());
+    if (!peek && response.ok && data.success) write(syncKey, data.serverTime || new Date().toISOString());
     return data;
   }
 
@@ -269,13 +310,14 @@
     };
   }
 
-  async function flushQueued() {
-    if (!window.currentUser) return { success: false, queued: true, flushed: false };
-    const key = userKey(PENDING_KEY);
+  async function flushQueued(authBoundary = captureAuthBoundary()) {
+    if (!authBoundaryIsCurrent(authBoundary)) return authBoundaryChanged(false);
+    const key = userKey(PENDING_KEY, authBoundary.userId);
     let flushed = false;
     let lastResult = { success: true, flushed: false };
 
     while (true) {
+      if (!authBoundaryIsCurrent(authBoundary)) return authBoundaryChanged(flushed);
       const storedQueue = read(key, []);
       const queue = normalizeQueuedEntries(Array.isArray(storedQueue) ? storedQueue : []);
       if (!queue.length) return {...lastResult, flushed};
@@ -291,12 +333,16 @@
           '/api/sync/push',
           {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers: {
+              'Content-Type': 'application/json',
+              [SYNC_OWNER_HEADER]: authBoundary.userId,
+            },
             body: JSON.stringify(batch.payload),
           },
           'Invalid sync response.',
         ));
       } catch (error) {
+        if (!authBoundaryIsCurrent(authBoundary)) return authBoundaryChanged(flushed);
         return {
           success: false,
           queued: true,
@@ -305,6 +351,7 @@
           error: error?.message || 'Synchronization is temporarily unavailable. Your work is still queued.',
         };
       }
+      if (!authBoundaryIsCurrent(authBoundary)) return authBoundaryChanged(flushed);
       if (!response.ok || !data.success) return {...data, queued: true, flushed};
 
       const remaining = normalizeQueuedEntries(read(key, []))
@@ -318,14 +365,18 @@
     }
   }
 
-  async function flush() {
-    const key = userKey(PENDING_KEY);
+  async function flush(options = {}) {
+    const authBoundary = options.authBoundary || captureAuthBoundary();
+    if (!authBoundaryIsCurrent(authBoundary)) return authBoundaryChanged(false);
+    const queueKey = userKey(PENDING_KEY, authBoundary.userId);
+    const key = `${queueKey}@${authBoundary.revision}`;
     if (flushPromise && flushPromiseKey === key) return flushPromise;
     if (flushPromise) {
       try { await flushPromise; } catch (_) {}
+      if (!authBoundaryIsCurrent(authBoundary)) return authBoundaryChanged(false);
       if (flushPromise && flushPromiseKey === key) return flushPromise;
     }
-    const activePromise = flushQueued();
+    const activePromise = flushQueued(authBoundary);
     flushPromise = activePromise;
     flushPromiseKey = key;
     try {
@@ -338,8 +389,10 @@
     }
   }
 
-  async function push(_legacyDeviceId, payload) {
-    const key = userKey(PENDING_KEY);
+  async function push(_legacyDeviceId, payload, options = {}) {
+    const authBoundary = options.authBoundary || captureAuthBoundary();
+    if (!authBoundaryIsCurrent(authBoundary)) return authBoundaryChanged(false);
+    const key = userKey(PENDING_KEY, authBoundary.userId);
     const queue = read(key, []);
     const at = new Date().toISOString();
     const baseId = crypto.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2)}`;
@@ -348,8 +401,9 @@
       {id: baseId, at, payload},
     ]);
     const bounded = boundedQueueEntries(merged, baseId, at);
+    if (!authBoundaryIsCurrent(authBoundary)) return authBoundaryChanged(false);
     if (!write(key, bounded)) return queueStorageFailure(false);
-    return flush();
+    return flush({authBoundary});
   }
 
   window.addEventListener('online', () => flush().catch(console.warn));

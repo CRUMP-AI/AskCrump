@@ -5,7 +5,7 @@
   window.__crumpCodeLoaderLoaded = true;
 
   const STYLE_URL = '/crump-code-5.9.35.css?v=5.9.76-autonomous-continuity-1';
-  const SCRIPT_URL = '/crump-code-5.9.35.js?v=5.9.76-autonomous-continuity-1';
+  const SCRIPT_URL = '/crump-code-5.9.35.js?v=5.9.76-account-owner-boundary-1';
   const DESTINATION_SELECTOR = '[data-crump-code-destination], [data-cv-destination="autonomous"]';
   let featureStatus = null;
   let availabilityPromise = null;
@@ -145,7 +145,10 @@
       try {
         const response = await fetch('/api/features', {
           credentials: 'same-origin',
-          headers: {Accept: 'application/json'},
+          headers: {
+            Accept: 'application/json',
+            'X-Ask-Crump-Expected-Owner': context.ownerId,
+          },
         });
         const data = response.ok ? await response.json() : null;
         if (!availabilityIsCurrent(context)) return false;

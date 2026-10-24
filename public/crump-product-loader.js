@@ -5,7 +5,7 @@
   window.__crumpProductLoaderLoaded = true;
 
   const STYLE_URL = '/crump-product-5.3.css?v=5.9.76-projects-empty-state-1';
-  const SCRIPT_URL = '/crump-product-5.3.js?v=5.9.76-manuscript-export-delivery-1&workspaceRelease=guest-free-contract-2';
+  const SCRIPT_URL = '/crump-product-5.3.js?v=5.9.76-account-owner-boundary-1&workspaceRelease=guest-free-contract-2';
   const ACTIVE_PROJECT_KEY = 'askcrump.activeProject53';
   const VIDEO_JOB_KEY = 'askcrump.videoJob53';
   const VIDEO_REQUEST_KEY = 'askcrump.videoRequest53';

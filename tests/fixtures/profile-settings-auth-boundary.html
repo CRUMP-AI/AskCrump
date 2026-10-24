@@ -1,0 +1,482 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Profile and settings authentication-boundary fixture</title>
+  <link rel="icon" href="data:,">
+</head>
+<body>
+  <section id="authContainer">
+    <div id="loginForm">
+      <form id="loginFormElement">
+        <label>Email <input id="loginEmail" type="email" required></label>
+        <label>Password <input id="loginPassword" type="password" required></label>
+        <button type="submit">Sign in</button>
+      </form>
+      <p id="loginError"></p>
+      <p id="loginSuccess"></p>
+      <div id="verificationNeeded" hidden></div>
+    </div>
+  </section>
+  <div id="appContainer">
+  <main id="workspaceRoot">
+    <span class="assistant-name">Alice Assistant</span>
+    <p id="v1Greeting">Good evening, Alice.</p>
+    <aside id="chatsList"></aside>
+    <section id="chatContainer"></section>
+    <textarea id="userInput" aria-label="Message Alice Assistant"></textarea>
+    <button id="sendButton" type="button">Send</button>
+    <button id="newChatBtn" type="button">New</button>
+    <button id="attachBtn" type="button">Attach</button>
+    <input id="fileInput" type="file">
+    <div id="filePreview"></div>
+  </main>
+  </div>
+  <div id="onboardingModal" style="display:none">
+    <label>Name <input id="onboardingName" type="text"></label>
+    <p id="onboardingError"></p>
+    <button id="onboardingContinueBtn" type="button">Save name</button>
+    <button id="onboardingSkipBtn" type="button">Not now</button>
+  </div>
+  <div id="toastContainer"></div>
+  <div id="settingsModal" style="display:none" aria-hidden="true">
+    <section role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+      <h1 id="settingsTitle" tabindex="-1">Settings</h1>
+      <button id="closeSettingsBtn" type="button">Close</button>
+      <button id="saveSettingsBtn" type="button" disabled aria-disabled="true">Save changes</button>
+      <nav>
+        <button id="settingsNavProfile" type="button" class="is-active" data-v1-settings-tab="profile" aria-current="page">Profile</button>
+        <button id="settingsNavBehavior" type="button" data-v1-settings-tab="behavior">Behavior</button>
+        <button id="settingsNavAccount" type="button" data-v1-settings-tab="account">Account</button>
+      </nav>
+      <section data-v1-settings-panel="profile" class="is-active">
+        <input id="settingsName" type="text">
+        <input id="settingsEmail" type="email" readonly>
+        <input id="assistantName" type="text">
+      </section>
+      <section data-v1-settings-panel="behavior" hidden>
+        <input id="workMode" type="checkbox">
+        <div id="workHoursGroup"><select id="workStart"></select><select id="workEnd"></select></div>
+        <input id="crumpCheckIns" type="checkbox">
+        <div id="checkInDetails">
+          <select id="checkInFrequency"><option value="balanced">Balanced</option></select>
+          <select id="quietStart"><option value="21">9 PM</option></select>
+          <select id="quietEnd"><option value="8">8 AM</option></select>
+          <input id="crumpNotifications" type="checkbox">
+          <input id="crumpHaptics" type="checkbox">
+          <input id="checkInFollowups" type="checkbox">
+          <input id="checkInReminders" type="checkbox">
+          <input id="checkInGoals" type="checkbox">
+          <input id="checkInEncouragement" type="checkbox">
+        </div>
+      </section>
+      <section data-v1-settings-panel="account" hidden></section>
+    </section>
+  </div>
+  <script>
+    (() => {
+      'use strict';
+      const ownerA = '11111111-1111-4111-8111-111111111111';
+      const ownerB = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+      const pending = {};
+      const fetchCalls = [];
+      const refusedRequests = [];
+      const serverMutations = [];
+      const abortedRequests = {};
+      const storageWrites = [];
+      const sessionResolvers = [];
+      let serverOwner = ownerA;
+      let loginResolve = null;
+      let loginStartedResolve = null;
+      let delayPresenceSave = true;
+      let delayNativeDelete = false;
+      let nativeSessionToken = null;
+      const originalSetItem = Storage.prototype.setItem;
+      Storage.prototype.setItem = function(key, value) {
+        storageWrites.push({key: String(key), value: String(value)});
+        return originalSetItem.call(this, key, value);
+      };
+
+      localStorage.clear();
+      localStorage.setItem(`crump_user_profile_v4:${ownerA}`, JSON.stringify({
+        name: 'Alice Private', email: '', initial: 'A', tier: 'free', subscriptionStatus: 'inactive',
+      }));
+      localStorage.setItem(`crump_user_profile_v4:${ownerB}`, JSON.stringify({
+        name: 'Bob Cached', email: 'bob@example.test', initial: 'B', tier: 'free', subscriptionStatus: 'inactive',
+      }));
+      localStorage.setItem(`crump_assistant_name:${ownerA}`, 'Alice Assistant');
+      localStorage.setItem(`crump_assistant_name:${ownerB}`, 'Bravo');
+      localStorage.setItem('crump_user_cache_v4', JSON.stringify({
+        id: ownerA, email: 'alice@example.test', fullName: 'Alice Session Cache',
+      }));
+      storageWrites.length = 0;
+
+      window.currentUser = {id: ownerA};
+      window.STORAGE_KEYS = {};
+      window.configureUserStorage = userId => {
+        const suffix = String(userId || '');
+        window.STORAGE_KEYS = {
+          CHATS: `crump_chats:${suffix}`,
+          CURRENT_CHAT: `crump_current_chat:${suffix}`,
+          USER_PROFILE: `crump_user_profile:${suffix}`,
+          USER_INITIAL: `crump_user_initial:${suffix}`,
+          ASSISTANT_NAME: `crump_assistant_name:${suffix}`,
+          WORK_MODE: `crump_work_mode:${suffix}`,
+          WORK_START: `crump_work_start:${suffix}`,
+          WORK_END: `crump_work_end:${suffix}`,
+          HAS_ONBOARDED: `crump_has_onboarded:${suffix}`,
+          ACTIVATION_RECORDED: `crump_activation_recorded:${suffix}`,
+          PROFILE_NUDGE_DISMISSED: `crump_profile_nudge_dismissed:${suffix}`,
+        };
+      };
+      window.configureUserStorage(ownerA);
+      window.SafeStorage = {
+        getItem: key => localStorage.getItem(key),
+        setItem: (key, value) => localStorage.setItem(key, value),
+        removeItem: key => localStorage.removeItem(key),
+      };
+      window.showToast = (message, type) => window.__fixture.toasts.push({message, type});
+      window.renderMessages = () => {};
+      window.syncChatsFromServer = () => Promise.resolve({success: true});
+      window.startAutoSync = () => {};
+      window.setupTokenRefresh = () => {};
+      window.SyncManager = {push: () => new Promise(resolve => { pending.sync = resolve; })};
+      window.CrumpAPI = {
+        isNative: false,
+        getSessionToken: () => nativeSessionToken,
+        setFixtureSessionToken: value => { nativeSessionToken = value || null; },
+        clearSessionToken: function(expected) {
+          if (arguments.length > 0 && nativeSessionToken !== expected) return Promise.resolve(false);
+          nativeSessionToken = null;
+          return Promise.resolve(true);
+        },
+      };
+      window.CrumpNative = {};
+      window.CrumpWorkspaceRuntime = {load: () => Promise.resolve()};
+      window.CrumpAnalytics = {track: (...args) => { window.__fixture.analytics.push(args); return Promise.resolve(); }};
+
+      function delayedResponse(name, signal, {ignoreAbort = false} = {}) {
+        return new Promise((resolve, reject) => {
+          pending[name] = body => resolve(new Response(JSON.stringify(body), {
+            status: 200,
+            headers: {'Content-Type': 'application/json'},
+          }));
+          signal?.addEventListener('abort', () => {
+            abortedRequests[name] = true;
+            if (!ignoreAbort) reject(new DOMException('Aborted', 'AbortError'));
+          }, {once: true});
+        });
+      }
+
+      function jsonResponse(body, status = 200) {
+        return Promise.resolve(new Response(JSON.stringify(body), {
+          status,
+          headers: {'Content-Type': 'application/json'},
+        }));
+      }
+
+      window.CrumpAuthTransport = {
+        SESSION_TIMEOUT_MS: 10_000,
+        LOGIN_TIMEOUT_MS: 10_000,
+        request: async (path, options = {}) => {
+          if (path === '/api/auth/check-session') {
+            return new Promise(resolve => {
+              sessionResolvers.push(body => resolve({
+                response: new Response(JSON.stringify(body), {
+                  status: 200,
+                  headers: {'Content-Type': 'application/json'},
+                }),
+                data: body,
+              }));
+            });
+          }
+          const response = await window.fetch(path, options);
+          const data = await response.json();
+          return {response, data};
+        },
+      };
+
+      window.fetch = (input, options = {}) => {
+        const path = new URL(String(input), window.location.href).pathname;
+        const method = String(options.method || 'GET').toUpperCase();
+        const ownerClaim = new Headers(options.headers || {}).get('X-Ask-Crump-Expected-Owner') || '';
+        let payload = {};
+        try { payload = JSON.parse(String(options.body || '{}')); } catch (_) {}
+        const protectedPath = path === '/api/account/profile'
+          || path === '/api/auth/check-session'
+          || path === '/api/auth/devices'
+          || path === '/api/auth/revoke-device'
+          || path === '/api/account'
+          || path === '/api/presence/preferences';
+        const call = {path, method, ownerClaim, serverOwner, fullName: String(payload.fullName || '')};
+        fetchCalls.push(call);
+        if (protectedPath && ownerClaim !== serverOwner) {
+          call.refused = true;
+          refusedRequests.push(call);
+          return jsonResponse({
+            success: false,
+            authenticated: false,
+            code: 'AUTH_OWNER_MISMATCH',
+            staleAuth: true,
+            retryable: true,
+            error: 'The signed-in account changed before this request began.',
+          }, 409);
+        }
+        if (path === '/api/account/profile' && call.fullName === 'Alice Onboarding Pending') {
+          return delayedResponse('onboardingProfile', options.signal, {ignoreAbort: true});
+        }
+        if (path === '/api/account/profile') return delayedResponse('profile', options.signal);
+        if (path === '/api/auth/devices') return delayedResponse('devices', options.signal);
+        if (path === '/api/account' && method === 'DELETE') {
+          window.__fixture.deleteCalls += 1;
+          serverMutations.push({path, method, ownerClaim});
+          if (delayNativeDelete) return delayedResponse('nativeDelete', options.signal, {ignoreAbort: true});
+          return jsonResponse({success: true});
+        }
+        if (path === '/api/presence/preferences') {
+          if (method === 'PATCH' && delayPresenceSave) {
+            delayPresenceSave = false;
+            return delayedResponse('presence', options.signal);
+          }
+          if (method === 'PATCH') serverMutations.push({path, method, ownerClaim});
+          return jsonResponse({success: true, preferences: {}});
+        }
+        return jsonResponse({success: true, allowance: {limit: 5, used: 0, remaining: 5}});
+      };
+
+      window.__fixture = {
+        ownerA,
+        ownerB,
+        fetchCalls,
+        refusedRequests,
+        serverMutations,
+        abortedRequests,
+        storageWrites,
+        toasts: [],
+        analytics: [],
+        serverOwner,
+        loginStarted: false,
+        deleteCalls: 0,
+        clearLocalStateCalls: 0,
+        installDeviceAuth: () => {
+          const deviceAuth = window.deviceAuth;
+          deviceAuth.session = {
+            user: {id: ownerA, email: 'alice@example.test', fullName: 'Alice Session Cache'},
+          };
+          const clearLocalState = deviceAuth.clearLocalState.bind(deviceAuth);
+          deviceAuth.clearLocalState = expectedOwnerId => {
+            window.__fixture.clearLocalStateCalls += 1;
+            return clearLocalState(expectedOwnerId);
+          };
+          deviceAuth.login = () => {
+            serverOwner = ownerB;
+            window.__fixture.serverOwner = serverOwner;
+            window.__fixture.loginStarted = true;
+            loginStartedResolve?.();
+            return new Promise(resolve => {
+              loginResolve = () => {
+                const result = {
+                  success: true,
+                  data: {
+                    user: {
+                      id: ownerB,
+                      email: 'bob@example.test',
+                      fullName: '',
+                      subscriptionTier: 'free',
+                      termsAcceptedAt: '2026-10-24T00:00:00Z',
+                    },
+                    settings: {},
+                  },
+                };
+                deviceAuth.acceptSession(result.data);
+                resolve(result);
+              };
+            });
+          };
+        },
+        waitForLoginStart: () => new Promise(resolve => {
+          if (window.__fixture.loginStarted) resolve();
+          else loginStartedResolve = resolve;
+        }),
+        releaseLogin: () => loginResolve?.(),
+        pendingIdentityCount: () => sessionResolvers.length,
+        identityResolve: body => sessionResolvers.splice(0).forEach(resolve => resolve(body)),
+        resolveProfile: body => pending.profile?.(body),
+        resolveOnboardingProfile: body => pending.onboardingProfile?.(body),
+        resolveDevices: body => pending.devices?.(body),
+        resolvePresence: body => pending.presence?.(body),
+        resolveNativeDelete: body => pending.nativeDelete?.(body),
+        hasPendingNativeDelete: () => typeof pending.nativeDelete === 'function',
+        setDelayNativeDelete: value => { delayNativeDelete = Boolean(value); },
+        setServerOwner: value => {
+          serverOwner = String(value || '');
+          window.__fixture.serverOwner = serverOwner;
+        },
+      };
+    })();
+  </script>
+  <script src="/public/device-auth.js?v=profile-settings-boundary-fixture-1"></script>
+  <script>window.__fixture.installDeviceAuth();</script>
+  <script src="/public/profile-manager.js?v=profile-settings-boundary-fixture-1"></script>
+  <script src="/public/presence-manager.js?v=profile-settings-boundary-fixture-1"></script>
+  <script src="/public/account-manager.js?v=profile-settings-boundary-fixture-1"></script>
+  <script src="/public/app.js?v=profile-settings-boundary-fixture-1"></script>
+  <script>
+    (() => {
+      const fixture = window.__fixture;
+      const manager = new window.ProfileManager(fixture.ownerA);
+      window.profileManager = manager;
+      window.currentProfile = manager;
+      window.CrumpProfileState.bindAuthenticatedUser({id: fixture.ownerA});
+      window.initializeApp = () => { fixture.initializeAppCalls += 1; };
+      fixture.initializeAppCalls = 0;
+      fixture.scrubWriteStart = 0;
+      fixture.scrubWrites = [];
+      window.CrumpAuthBoundary.register('fixture-scrub-observer', () => {
+        fixture.scrubWrites = fixture.storageWrites.slice(fixture.scrubWriteStart);
+      });
+
+      fixture.begin = async () => {
+        window.openSettings();
+        await new Promise(resolve => requestAnimationFrame(() => resolve()));
+        fixture.stalePresencePromise = window.CrumpPresence.savePreferences({
+          ownerId: fixture.ownerA,
+          revision: window.CrumpAuthBoundary.revision(),
+        }).catch(error => {
+          fixture.stalePresenceError = error?.name || error?.message || String(error);
+        });
+        document.getElementById('settingsName').value = 'Alice Dirty Draft';
+        document.getElementById('assistantName').value = 'Alice Draft Assistant';
+        document.getElementById('settingsName').dispatchEvent(new Event('input', {bubbles: true}));
+        const savePromise = window.saveSettings();
+        const onboardingModal = document.getElementById('onboardingModal');
+        onboardingModal.style.display = 'flex';
+        document.getElementById('onboardingName').value = 'Alice Onboarding Pending';
+        fixture.onboardingPromise = window.completeOnboarding();
+        window.openDevices();
+        window.openDeleteAccountDialog();
+        const staleDeleteButton = document.querySelector('#deleteAccountModal .account-danger-button');
+        document.getElementById('deleteAccountPassword').value = 'fixture-secret-never-sent';
+        document.getElementById('deleteAccountConfirmation').value = 'DELETE';
+        fixture.staleDeleteButton = staleDeleteButton;
+        fixture.savePromise = savePromise;
+        return true;
+      };
+
+      fixture.switchToOwnerB = async () => {
+        const ready = new Promise(resolve => {
+          const handler = () => {
+            if (window.currentUser?.id !== fixture.ownerB) return;
+            window.removeEventListener('crump:authenticated-ready', handler);
+            resolve();
+          };
+          window.addEventListener('crump:authenticated-ready', handler);
+        });
+        document.getElementById('loginEmail').value = 'bob@example.test';
+        document.getElementById('loginPassword').value = 'fixture-password-123';
+        document.getElementById('loginFormElement').requestSubmit();
+        await fixture.waitForLoginStart();
+
+        // The authoritative HttpOnly cookie is now B while this same-document
+        // UI still has A. Every protected request must carry A's captured claim
+        // and fail closed before a server mutation.
+        fixture.staleDeleteButton?.click();
+        fixture.cookieSkewPresencePromise = window.CrumpPresence.savePreferences().catch(error => {
+          fixture.cookieSkewPresenceError = error?.message || String(error);
+        });
+        window.openDevices();
+        await new Promise(resolve => setTimeout(resolve, 20));
+
+        fixture.scrubWriteStart = fixture.storageWrites.length;
+        fixture.releaseLogin();
+        await ready;
+        return true;
+      };
+
+      fixture.releaseStaleWork = async () => {
+        fixture.identityResolve({
+          authenticated: true,
+          data: {user: {id: fixture.ownerA, email: 'alice@example.test', fullName: 'Alice Returned'}},
+        });
+        fixture.resolveProfile({
+          success: true,
+          user: {id: fixture.ownerA, email: 'alice@example.test', fullName: 'Alice Returned'},
+        });
+        fixture.resolveOnboardingProfile({
+          success: true,
+          user: {id: fixture.ownerA, email: 'alice@example.test', fullName: 'Alice Onboarding Pending'},
+        });
+        fixture.resolveDevices({
+          success: true,
+          devices: [{id: 'a-device', device_name: 'Alice Phone', platform: 'ios'}],
+        });
+        fixture.resolvePresence({
+          success: true,
+          preferences: {enabled: true, frequency: 'frequent'},
+        });
+        await Promise.resolve();
+        await new Promise(resolve => setTimeout(resolve, 25));
+        return true;
+      };
+
+      fixture.exerciseMissedStorageHealthMismatch = async () => {
+        window.CrumpAuthBoundary.observe({id: fixture.ownerA});
+        window.configureUserStorage(fixture.ownerA);
+        document.getElementById('chatContainer').textContent = 'Alice private message';
+        window.chats = [{id: 'alice-private', messages: [{content: 'Alice private message'}]}];
+        window.currentChatId = 'alice-private';
+        localStorage.setItem('crump_user_cache_v4', JSON.stringify({
+          id: fixture.ownerB,
+          email: 'bob@example.test',
+          fullName: 'Bob Cache Must Survive',
+        }));
+        fixture.setServerOwner(fixture.ownerB);
+        fixture.healthReloads = 0;
+        const result = await window.CrumpConversationState.checkSessionHealth({
+          reload: () => { fixture.healthReloads += 1; },
+        });
+        return {
+          result,
+          currentUser: window.currentUser,
+          chats: window.chats,
+          currentChatId: window.currentChatId,
+          chatText: document.getElementById('chatContainer').textContent,
+          identityCache: localStorage.getItem('crump_user_cache_v4'),
+          clearLocalStateCalls: fixture.clearLocalStateCalls,
+          reloads: fixture.healthReloads,
+          healthCall: fixture.fetchCalls.at(-1),
+        };
+      };
+
+      fixture.exerciseNativeDeleteTokenCas = async () => {
+        window.currentUser = {id: fixture.ownerA, email: 'alice@example.test'};
+        window.deviceAuth.acceptSession({user: window.currentUser});
+        window.CrumpAuthBoundary.observe({id: fixture.ownerA});
+        window.configureUserStorage(fixture.ownerA);
+        fixture.setServerOwner(fixture.ownerA);
+        window.CrumpAPI.isNative = true;
+        window.CrumpAPI.setFixtureSessionToken('owner-a-native-token');
+        fixture.setDelayNativeDelete(true);
+        const clearCallsBefore = fixture.clearLocalStateCalls;
+        window.openDeleteAccountDialog();
+        document.getElementById('deleteAccountPassword').value = 'fixture-password';
+        document.getElementById('deleteAccountConfirmation').value = 'DELETE';
+        document.querySelector('#deleteAccountModal .account-danger-button').click();
+        while (!fixture.hasPendingNativeDelete()) await new Promise(resolve => setTimeout(resolve, 0));
+        window.CrumpAPI.setFixtureSessionToken('owner-b-native-token');
+        fixture.resolveNativeDelete({success: true});
+        await new Promise(resolve => setTimeout(resolve, 20));
+        fixture.setDelayNativeDelete(false);
+        return {
+          token: window.CrumpAPI.getSessionToken(),
+          clearLocalStateDelta: fixture.clearLocalStateCalls - clearCallsBefore,
+          currentUser: window.currentUser,
+          path: window.location.pathname,
+        };
+      };
+    })();
+  </script>
+  <script src="/public/auth-controller.js?v=profile-settings-boundary-fixture-1"></script>
+</body>
+</html>

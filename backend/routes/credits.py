@@ -299,7 +299,13 @@ async def _finalize_stripe_session(
 
 @router.get('/status')
 async def status(request: Request):
-    auth = await authenticate_request(request, db, settings, require_account=True)
+    auth = await authenticate_request(
+        request,
+        db,
+        settings,
+        require_account=True,
+        require_expected_owner_header=True,
+    )
     purchases_allowed = paid_tools_entitled(auth.user)
     wallet = await credit_status(db, auth.user['id'])
     history = await db.select(
@@ -406,7 +412,13 @@ async def checkout(request: Request):
             },
         )
 
-    auth = await authenticate_request(request, db, settings, require_account=True)
+    auth = await authenticate_request(
+        request,
+        db,
+        settings,
+        require_account=True,
+        require_expected_owner_header=True,
+    )
     if not paid_tools_entitled(auth.user):
         return _credit_purchase_plan_response()
     payload = await request.json()
@@ -533,7 +545,13 @@ async def checkout(request: Request):
 @router.post('/purchase-eligibility')
 async def purchase_eligibility(request: Request):
     """Authorize a native credit sheet before any store purchase is opened."""
-    auth = await authenticate_request(request, db, settings, require_account=True)
+    auth = await authenticate_request(
+        request,
+        db,
+        settings,
+        require_account=True,
+        require_expected_owner_header=True,
+    )
     if not paid_tools_entitled(auth.user):
         return _credit_purchase_plan_response()
 
@@ -553,7 +571,13 @@ async def purchase_eligibility(request: Request):
 
 @router.post('/finalize')
 async def finalize(request: Request):
-    auth = await authenticate_request(request, db, settings, require_account=True)
+    auth = await authenticate_request(
+        request,
+        db,
+        settings,
+        require_account=True,
+        require_expected_owner_header=True,
+    )
     payload = await request.json()
     session_id = str((payload or {}).get('sessionId') or '').strip() if isinstance(payload, dict) else ''
     if not session_id.startswith('cs_'):
@@ -694,7 +718,13 @@ def _revenuecat_transaction_is_paid(
 
 @router.post('/revenuecat/sync')
 async def revenuecat_sync(request: Request):
-    auth = await authenticate_request(request, db, settings, require_account=True)
+    auth = await authenticate_request(
+        request,
+        db,
+        settings,
+        require_account=True,
+        require_expected_owner_header=True,
+    )
     subscriber = await _revenuecat_customer(auth.user['id'])
     if subscriber is None:
         return JSONResponse(

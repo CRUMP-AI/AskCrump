@@ -123,10 +123,10 @@ def test_projects_use_real_api_data_without_a_local_next_steps_store() -> None:
 
     assert "localStorage" not in projects
     assert "Next Steps" not in projects
-    assert "api('/api/projects')" in projects
-    assert "api('/api/projects/' + encodeURIComponent(project.id))" in projects
-    assert "api('/api/projects/' + encodeURIComponent(project.id) + '/chats')" in projects
-    assert "api('/api/library/books')" in projects
+    assert "api('/api/projects', authBoundary)" in projects
+    assert "api('/api/projects/' + encodeURIComponent(project.id), authBoundary)" in projects
+    assert "api('/api/projects/' + encodeURIComponent(project.id) + '/chats', authBoundary)" in projects
+    assert "api('/api/library/books', authBoundary)" in projects
     assert "new URL(window.location.href).searchParams.get('project')" in projects
     assert 'role="tablist" aria-label="Your projects"' in projects
     assert 'role="tab"' in projects
@@ -134,6 +134,28 @@ def test_projects_use_real_api_data_without_a_local_next_steps_store() -> None:
     assert "detail.setAttribute('role', 'tabpanel')" in projects
     assert "detail.dataset.cvpActiveProject = selectionId" in projects
     assert "detail.dataset.cvpActiveProject !== selectionId" in projects
+
+
+def test_primary_projects_view_restores_the_owned_conversation_resume_contract() -> None:
+    projects = read("public/crump-vision-projects-1.0.js")
+
+    assert 'data-cvp-chat="' in projects
+    assert 'aria-label="Continue “' in projects
+    assert "await window.syncChatsFromServer()" in projects
+    assert "if (!localConversation(chatId))" in projects
+    assert "await Promise.resolve(window.loadChat(chatId))" in projects
+    assert "String(window.currentChatId || '').trim() !== chatId" in projects
+    assert "resumeActionIsCurrent(button, projectId, authBoundary)" in projects
+    assert "captureProjectsAuthBoundary()" in projects
+    assert "projectsViewIsCurrent(detail.closest('.cvp-root'), authBoundary)" in projects
+    assert "boundary.register('vision-projects', scrubProjectsPrivateView)" in projects
+    assert "button.dataset.cvpOpening === 'true'" in projects
+    assert "openAsk()" in projects
+    assert "track('RecentWorkResumed'" in projects
+    assert "eventKey: 'recent-work-resumed'" in projects
+    assert "source: 'project'" in projects
+    assert projects.index("window.loadChat(chatId)") < projects.index("if (!openAsk())")
+    assert projects.index("if (!openAsk())") < projects.index("recordProjectResume();")
 
 
 def test_first_screen_has_five_clear_jumps_without_a_second_destination_map() -> None:

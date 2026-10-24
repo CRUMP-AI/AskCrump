@@ -27,20 +27,43 @@
     window.showToast?.(message, tone);
   }
 
+  function captureBillingBoundary522() {
+    const boundary = window.CrumpAuthBoundary;
+    return Object.freeze({
+      ownerId: String(boundary?.authenticatedUserId?.() || window.currentUser?.id || '').trim(),
+      revision: Number(boundary?.revision?.() || 0),
+    });
+  }
+
+  function billingBoundary522IsCurrent(snapshot) {
+    const current = captureBillingBoundary522();
+    return !!snapshot?.ownerId
+      && current.ownerId === snapshot.ownerId
+      && current.revision === snapshot.revision;
+  }
+
   async function jsonFetch(url, options = {}) {
+    const {authBoundary: suppliedBoundary, ...requestOptions} = options;
+    const authBoundary = suppliedBoundary || captureBillingBoundary522();
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), BILLING_REQUEST_TIMEOUT_MS);
     try {
       const response = await fetch(url, {
         credentials: 'same-origin',
-        ...options,
+        ...requestOptions,
         signal: controller.signal,
         headers: {
-          ...(options.body ? {'Content-Type': 'application/json'} : {}),
-          ...(options.headers || {}),
+          ...(requestOptions.body ? {'Content-Type': 'application/json'} : {}),
+          ...(authBoundary.ownerId ? {'X-Ask-Crump-Expected-Owner': authBoundary.ownerId} : {}),
+          ...(requestOptions.headers || {}),
         },
       });
       const data = await response.json().catch(() => ({}));
+      if (!billingBoundary522IsCurrent(authBoundary)) {
+        const error = new Error('Your account changed. Reopen billing and try again.');
+        error.code = 'AUTH_OWNER_CHANGED';
+        throw error;
+      }
       if (!response.ok || data.success === false) {
         const error = new Error(data.error || data.message || `Checkout could not start (${response.status}).`);
         error.code = data.code;

@@ -743,7 +743,13 @@ async def continue_video(job_id: str, request: Request):
 
 @router.get("/video")
 async def recent_videos(request: Request):
-    auth = await authenticate_request(request, db, settings, require_account=True)
+    auth = await authenticate_request(
+        request,
+        db,
+        settings,
+        require_account=True,
+        require_expected_owner_header=True,
+    )
     rows = await video.list_recent(user_id=auth.user["id"], limit=12)
     jobs = [
         await video.public_job(user_id=auth.user["id"], row=row)

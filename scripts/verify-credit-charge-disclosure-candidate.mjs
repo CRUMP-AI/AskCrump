@@ -213,7 +213,7 @@ const native = fs.readFileSync(path.join(repoRoot, 'scripts', 'build-native.mjs'
 for (const marker of [
   '/credit-confirmation.css?v=5.9.76-credit-confirmation-1',
   '/credit-confirmation.js?v=5.9.76-credit-confirmation-1',
-  '/chat-resilience.js?v=5.9.76-credit-confirmation-1',
+  '/chat-resilience.js?v=5.9.76-chat-owner-boundary-1',
   '/app.js?v=5.9.76-settings-save-isolation-1',
   '/crump-product-5.3.js?v=5.9.76-credit-confirmation-1',
   '/crump-code-5.9.35.js?v=5.9.76-credit-confirmation-1',

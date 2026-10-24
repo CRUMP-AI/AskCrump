@@ -62,7 +62,13 @@ def _configured(request: Request) -> bool:
 
 @router.get("/api/code/activity")
 async def list_code_activity(request: Request):
-    auth = await authenticate_request(request, db, settings, require_account=True)
+    auth = await authenticate_request(
+        request,
+        db,
+        settings,
+        require_account=True,
+        require_expected_owner_header=True,
+    )
     activity = await code_tasks.list_activity(user_id=auth.user["id"])
     return {"success": True, "activity": activity}
 

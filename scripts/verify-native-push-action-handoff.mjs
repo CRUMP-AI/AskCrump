@@ -74,6 +74,7 @@ function createHarness({ queue, storage, chats = [], sync, runtimeReady = false 
   };
   const documentTarget = eventTarget();
   const context = {
+    AbortController,
     window: windowObject,
     document: {
       ...documentTarget,

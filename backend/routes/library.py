@@ -22,7 +22,13 @@ def failure(exc: LibraryError) -> JSONResponse:
 
 @router.get("/books")
 async def list_books(request: Request):
-    auth = await authenticate_request(request, db, settings, require_account=True)
+    auth = await authenticate_request(
+        request,
+        db,
+        settings,
+        require_account=True,
+        require_expected_owner_header=True,
+    )
     items = await library.list_books(user_id=auth.user["id"])
     return {"success": True, "books": items}
 

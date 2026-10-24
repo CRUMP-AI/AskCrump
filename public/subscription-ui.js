@@ -5,16 +5,37 @@
     { id: 'professional', name: 'Professional', fallbackPrice: '$20/month', detail: '500 included messages daily, 25 private Projects, and broader research and creation access.' },
     { id: 'enterprise', name: 'Enterprise', fallbackPrice: '$50/month', detail: '5,000 included messages daily, 200 private Projects, and the highest current limits for demanding individual workflows.' },
   ];
+  let promptBoundary = null;
+  let boundaryUnregister = null;
+
+  function captureBillingBoundary() {
+    const boundary = window.CrumpAuthBoundary;
+    return Object.freeze({
+      ownerId: String(boundary?.authenticatedUserId?.() || window.currentUser?.id || '').trim(),
+      revision: Number(boundary?.revision?.() || 0),
+    });
+  }
+
+  function billingBoundaryIsCurrent(snapshot) {
+    const current = captureBillingBoundary();
+    return !!snapshot?.ownerId
+      && current.ownerId === snapshot.ownerId
+      && current.revision === snapshot.revision;
+  }
 
   function closeUpgradePrompt() {
     document.querySelector('.upgrade-modal')?.remove();
+    promptBoundary = null;
   }
 
-  async function upgradePlan(tier, button = null) {
+  async function upgradePlan(tier, button = null, suppliedBoundary = null) {
+    const authBoundary = suppliedBoundary || promptBoundary || captureBillingBoundary();
+    if (!billingBoundaryIsCurrent(authBoundary)) return;
     if (button) { button.disabled = true; button.textContent = 'Opening…'; }
     try {
       if (window.BillingManager?.isNative?.()) {
-        await window.BillingManager.purchase(tier);
+        await window.BillingManager.purchase(tier, authBoundary);
+        if (!billingBoundaryIsCurrent(authBoundary)) return;
         window.showToast?.('Subscription activated', 'success');
         closeUpgradePrompt();
         return;
@@ -22,32 +43,42 @@
       const attemptId = window.BillingManager?.subscriptionCheckoutAttempt?.(tier);
       const response = await fetch('/api/stripe/create-checkout-session', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Ask-Crump-Expected-Owner': authBoundary.ownerId,
+        },
         body: JSON.stringify({ tier, attemptId }),
       });
       const data = await response.json().catch(() => ({}));
+      if (!billingBoundaryIsCurrent(authBoundary)) return;
       if (!response.ok || !data.url) throw new Error(data.error || 'Unable to open checkout.');
       window.location.assign(data.url);
       window.BillingManager?.completeSubscriptionCheckoutAttempt?.(tier, attemptId);
     } catch (error) {
+      if (!billingBoundaryIsCurrent(authBoundary)) return;
       window.showToast?.(error.message || 'Billing could not be opened.', 'error');
       if (button) { button.disabled = false; button.textContent = 'Choose plan'; }
     }
   }
 
-  async function restorePurchases() {
+  async function restorePurchases(suppliedBoundary = null) {
+    const authBoundary = suppliedBoundary || promptBoundary || captureBillingBoundary();
+    if (!billingBoundaryIsCurrent(authBoundary)) return;
     try {
-      await window.BillingManager.restore();
+      await window.BillingManager.restore(authBoundary);
+      if (!billingBoundaryIsCurrent(authBoundary)) return;
       window.showToast?.('Purchases restored', 'success');
       closeUpgradePrompt();
     } catch (error) {
+      if (!billingBoundaryIsCurrent(authBoundary)) return;
       window.showToast?.(error.message || 'No purchases were restored.', 'error');
     }
   }
 
-  async function hydratePrices(modal, native) {
+  async function hydratePrices(modal, native, authBoundary) {
     try {
       const products = await window.BillingManager?.getProducts?.();
+      if (!billingBoundaryIsCurrent(authBoundary) || !modal.isConnected) return;
       plans.forEach(plan => {
         const price = products?.[plan.id]?.price || (native ? 'View store price' : plan.fallbackPrice);
         const node = modal.querySelector(`[data-plan-price="${plan.id}"]`);
@@ -60,6 +91,9 @@
 
   function showUpgradePrompt() {
     closeUpgradePrompt();
+    const authBoundary = captureBillingBoundary();
+    if (!billingBoundaryIsCurrent(authBoundary)) return null;
+    promptBoundary = authBoundary;
     const native = window.BillingManager?.isNative?.();
     const modal = document.createElement('div');
     modal.className = 'upgrade-modal active';
@@ -82,11 +116,27 @@
         <p class="upgrade-footer">Subscriptions renew automatically each month until canceled through the billing provider. The final localized price and terms are shown before purchase. <a href="/legal.html#terms">Terms</a> · <a href="/legal.html#privacy">Privacy</a></p>
       </section>`;
     modal.querySelectorAll('[data-close-upgrade]').forEach(node => node.addEventListener('click', closeUpgradePrompt));
-    modal.querySelectorAll('[data-tier]').forEach(node => node.addEventListener('click', () => upgradePlan(node.dataset.tier, node)));
-    modal.querySelector('#restorePurchasesBtn')?.addEventListener('click', restorePurchases);
+    modal.querySelectorAll('[data-tier]').forEach(node => node.addEventListener('click', () => upgradePlan(node.dataset.tier, node, authBoundary)));
+    modal.querySelector('#restorePurchasesBtn')?.addEventListener('click', () => restorePurchases(authBoundary));
     document.body.appendChild(modal);
-    hydratePrices(modal, native);
+    hydratePrices(modal, native, authBoundary);
+    return modal;
   }
+
+  function scrubBillingBoundary() {
+    closeUpgradePrompt();
+  }
+
+  function ensureBoundaryRegistration() {
+    if (boundaryUnregister || typeof window.CrumpAuthBoundary?.register !== 'function') return;
+    boundaryUnregister = window.CrumpAuthBoundary.register(
+      'subscription-upgrade-private-dialog',
+      scrubBillingBoundary,
+    );
+  }
+
+  ensureBoundaryRegistration();
+  window.addEventListener('crump:body-runtime-ready', ensureBoundaryRegistration, {once: true});
 
   window.showUpgradePrompt = showUpgradePrompt;
   window.upgradePlan = upgradePlan;

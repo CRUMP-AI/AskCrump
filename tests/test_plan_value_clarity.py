@@ -123,7 +123,7 @@ def test_quick_upgrade_prompt_matches_truthful_current_capabilities():
 
 
 def test_quick_upgrade_asset_is_versioned_for_web_pwa_and_native():
-    versioned = "/subscription-ui.js?v=5.9.76-commerce-recovery-1"
+    versioned = "/subscription-ui.js?v=5.9.76-private-owner-boundary-1"
     sources = (
         read_public("runtime-body-v1.js"),
         read_public("sw.js"),
@@ -180,14 +180,14 @@ def test_plan_center_measurement_is_daily_content_free_and_fail_open():
     assert "PlanCenterViewed" in analytics
     assert "eventKey: 'plan-center-viewed'" in billing
     assert "window.CrumpAnalytics?.track?.('PlanCenterViewed'" in billing
-    assert "void recordPlanCenterView(options);" in billing
+    assert "void recordPlanCenterView(options, authBoundary);" in billing
     assert "eventName: 'PlanCenterViewed'" in billing
     assert "eventKey: 'plan-center-viewed'" in billing
     assert "dataset.crumpPlanCenterEvent" in billing
     final_billing = read_public("crump-5.2.js")
     assert "function showBillingCenter52(options = {})" in final_billing
     assert "window.CrumpAnalytics?.track?.('PlanCenterViewed'" in final_billing
-    assert "void recordPlanCenterView(options);" in final_billing
+    assert "void recordPlanCenterView(options, authBoundary);" in final_billing
     assert "eventName: 'PlanCenterViewed'" in final_billing
     assert "eventKey: 'plan-center-viewed'" in final_billing
     assert "dataset.crumpPlanCenterEvent" in final_billing
@@ -232,10 +232,10 @@ def test_both_plan_center_owners_contain_and_restore_modal_focus():
 
 
 def test_plan_center_containment_assets_are_versioned_everywhere():
-    versioned_billing = "/crump-billing-5.1.js?v=5.9.76-checkout-destination-label-1"
-    versioned_final = "/crump-5.2.js?v=5.9.76-plan-status-line-1"
+    versioned_billing = "/crump-billing-5.1.js?v=5.9.76-private-owner-boundary-1"
+    versioned_final = "/crump-5.2.js?v=5.9.76-private-owner-boundary-1"
     versioned_billing_css = "/crump-billing-5.1.css?v=5.9.76-credit-truth-1"
-    versioned_credit_contract = "/crump-5.2.2.js?v=5.9.76-muse-release-repair-1&workspaceRelease=guest-free-contract-2"
+    versioned_credit_contract = "/crump-5.2.2.js?v=5.9.76-private-owner-boundary-1&workspaceRelease=guest-free-contract-2"
     sources = (
         read_public("runtime-body-v1.js"),
         read_public("sw.js"),
@@ -249,8 +249,8 @@ def test_plan_center_containment_assets_are_versioned_everywhere():
         assert versioned_final in source
         assert versioned_billing_css in source
         assert versioned_credit_contract in source
-    assert "ask-crump-new-body-v1-r270-guest-admission-1" in read_public("sw.js")
-    assert "/runtime-body-v1.js?v=5.9.76-precision-ai-persistence-1" in read_public("app.html")
+    assert "ask-crump-new-body-v1-r273-account-owner-boundary-1" in read_public("sw.js")
+    assert "/runtime-body-v1.js?v=5.9.76-account-owner-boundary-1" in read_public("app.html")
 
 
 def test_browser_fixture_uses_the_production_plan_center_layers():

@@ -12,10 +12,17 @@ from typing import Any
 import httpx
 
 from .config import Settings
-from .db import SupabaseDB, eq
+from .db import SupabaseDB, eq, gt
 from .security import iso_now
 
 logger = logging.getLogger('askcrump.push')
+
+# Push delivery necessarily has a final provider-side race: an installation can
+# change owners after the database generation check but before APNs/FCM accepts
+# the request. Keep the lock-screen payload content-free. The authenticated app
+# fetches the actual check-in after it opens under the current owner.
+SAFE_PUSH_TITLE = 'Ask Crump'
+SAFE_PUSH_BODY = 'Open Ask Crump to view your new check-in.'
 
 
 @dataclass(slots=True)
@@ -203,7 +210,10 @@ class PushService:
     ) -> PushResult:
         rows = await db.select(
             'push_tokens',
-            columns='id,token,platform,enabled',
+            columns=(
+                'id,user_id,installation_id,token,platform,enabled,'
+                'registration_session_id,registration_session_token_hash'
+            ),
             filters={'user_id': eq(user_id), 'enabled': eq(True)},
             limit=50,
         )
@@ -212,6 +222,44 @@ class PushService:
         for row in rows:
             token = str(row.get('token') or '').strip()
             platform = str(row.get('platform') or '').lower()
+            installation_id = str(row.get('installation_id') or '').strip()
+            session_id = str(row.get('registration_session_id') or '').strip()
+            session_token_hash = str(
+                row.get('registration_session_token_hash') or ''
+            ).strip()
+            generation_filters = {
+                'id': eq(row.get('id')),
+                'user_id': eq(user_id),
+                'installation_id': eq(installation_id),
+                'token': eq(token),
+                'registration_session_id': eq(row.get('registration_session_id')),
+                'registration_session_token_hash': eq(
+                    row.get('registration_session_token_hash')
+                ),
+                'enabled': eq(True),
+            }
+            active_session = None
+            if installation_id and session_id and session_token_hash:
+                active_session = await db.select_one(
+                    'sessions',
+                    columns='id',
+                    filters={
+                        'id': eq(session_id),
+                        'user_id': eq(user_id),
+                        'device_id': eq(installation_id),
+                        'token_hash': eq(session_token_hash),
+                        'revoked_at': 'is.null',
+                        'expires_at': gt(iso_now()),
+                    },
+                )
+            if not active_session:
+                result.disabled += 1
+                await db.update(
+                    'push_tokens',
+                    {'enabled': False, 'updated_at': iso_now()},
+                    filters=generation_filters,
+                )
+                continue
             if not token:
                 continue
             if platform not in {'ios', 'android'}:
@@ -219,13 +267,31 @@ class PushService:
                 continue
             result.attempted += 1
             if platform == 'ios':
-                delivered, stale = await self._send_ios(token, title, body, safe_data)
+                delivered, stale = await self._send_ios(
+                    token,
+                    SAFE_PUSH_TITLE,
+                    SAFE_PUSH_BODY,
+                    safe_data,
+                )
             else:
-                delivered, stale = await self._send_android(token, title, body, safe_data)
+                delivered, stale = await self._send_android(
+                    token,
+                    SAFE_PUSH_TITLE,
+                    SAFE_PUSH_BODY,
+                    safe_data,
+                )
             if delivered:
                 result.delivered += 1
-                await db.update('push_tokens', {'last_used_at': iso_now(), 'updated_at': iso_now()}, filters={'id': eq(row['id'])})
+                await db.update(
+                    'push_tokens',
+                    {'last_used_at': iso_now(), 'updated_at': iso_now()},
+                    filters=generation_filters,
+                )
             elif stale:
                 result.disabled += 1
-                await db.update('push_tokens', {'enabled': False, 'updated_at': iso_now()}, filters={'id': eq(row['id'])})
+                await db.update(
+                    'push_tokens',
+                    {'enabled': False, 'updated_at': iso_now()},
+                    filters=generation_filters,
+                )
         return result

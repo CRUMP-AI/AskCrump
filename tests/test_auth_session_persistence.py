@@ -6,7 +6,14 @@ from starlette.requests import Request
 from starlette.responses import Response
 
 from backend import http
-from backend.auth_service import authenticate_request, session_tokens_from_request
+from backend.routes import auth as auth_routes
+from backend.auth_service import (
+    AuthenticationError,
+    AuthenticatedUser,
+    authenticate_request,
+    session_tokens_from_request,
+    touch_authenticated_session,
+)
 from backend.db import eq
 from backend.security import token_hash
 
@@ -28,8 +35,8 @@ def test_same_page_login_is_serialized_and_confirmed():
     assert "code !== 'AUTH_REQUEST_TIMEOUT'" in source
     assert 'for (let attempt = 0; attempt < 2; attempt += 1)' not in source
     assert "code: 'SESSION_ESTABLISHMENT_FAILED'" in source
-    assert 'src="/device-auth.js?v=5.9.76-native-billing-identity-1"' in shell
-    assert "'/device-auth.js?v=5.9.76-native-billing-identity-1'" in worker
+    assert 'src="/device-auth.js?v=5.9.76-account-owner-boundary-1"' in shell
+    assert "'/device-auth.js?v=5.9.76-account-owner-boundary-1'" in worker
     assert "url.pathname === '/device-auth.js'" in worker
 
 
@@ -123,6 +130,166 @@ class DuplicateCookieDB:
         return None
 
 
+class ExpectedOwnerDB:
+    owner_id = '22222222-2222-4222-8222-222222222222'
+
+    def __init__(self):
+        self.updates = []
+        self.selects = []
+
+    async def select_one(self, table, *, columns='*', filters=None):
+        self.selects.append(table)
+        if table == 'sessions':
+            return {
+                'id': 'session-owner-boundary',
+                'user_id': self.owner_id,
+                'last_activity': None,
+                'expires_at': '2099-01-01T00:00:00+00:00',
+            }
+        if table == 'users':
+            return {'id': self.owner_id, 'email': 'owner@example.test', 'deleted_at': None}
+        return None
+
+    async def update(self, table, payload, *, filters):
+        self.updates.append((table, dict(payload), dict(filters)))
+        return []
+
+
+def owner_request(*, expected_owner=None, bearer=False):
+    headers = []
+    if bearer:
+        headers.append((b'authorization', b'Bearer owner-token'))
+    else:
+        headers.append((b'cookie', b'crump_session=owner-token'))
+    if expected_owner is not None:
+        headers.append((b'x-ask-crump-expected-owner', str(expected_owner).encode('utf-8')))
+    return Request({
+        'type': 'http',
+        'method': 'PATCH',
+        'path': '/api/account/profile',
+        'headers': headers,
+        'client': ('127.0.0.1', 12345),
+    })
+
+
+@pytest.mark.asyncio
+async def test_cookie_owner_precondition_matches_before_normal_session_touch():
+    db = ExpectedOwnerDB()
+    settings = SimpleNamespace(session_cookie_name='crump_session', session_days=365)
+
+    auth = await authenticate_request(
+        owner_request(expected_owner=db.owner_id),
+        db,
+        settings,
+        require_expected_owner_header=True,
+    )
+
+    assert auth.user['id'] == db.owner_id
+    assert [call[0] for call in db.updates] == ['sessions']
+
+
+@pytest.mark.parametrize(
+    'expected_owner',
+    ('11111111-1111-4111-8111-111111111111', 'not-a-uuid', 'é' * 24),
+)
+@pytest.mark.asyncio
+async def test_cookie_owner_precondition_rejects_before_any_session_touch(expected_owner):
+    db = ExpectedOwnerDB()
+    settings = SimpleNamespace(session_cookie_name='crump_session', session_days=365)
+
+    with pytest.raises(AuthenticationError) as captured:
+        await authenticate_request(
+            owner_request(expected_owner=expected_owner),
+            db,
+            settings,
+            require_expected_owner_header=True,
+        )
+
+    assert captured.value.status_code == 409
+    assert captured.value.code == 'AUTH_OWNER_MISMATCH'
+    assert captured.value.details == {'staleAuth': True, 'retryable': True}
+    assert db.updates == []
+    assert db.selects == ['sessions']
+
+
+@pytest.mark.asyncio
+async def test_legacy_cookie_without_owner_claim_remains_compatible_during_rollout():
+    db = ExpectedOwnerDB()
+    settings = SimpleNamespace(session_cookie_name='crump_session', session_days=365)
+
+    auth = await authenticate_request(
+        owner_request(),
+        db,
+        settings,
+        require_expected_owner_header=True,
+    )
+
+    assert auth.user['id'] == db.owner_id
+    assert db.selects == ['sessions', 'users']
+    assert [call[0] for call in db.updates] == ['sessions']
+
+
+@pytest.mark.asyncio
+async def test_supplied_owner_precondition_is_enforced_on_legacy_unflagged_routes():
+    db = ExpectedOwnerDB()
+    settings = SimpleNamespace(session_cookie_name='crump_session', session_days=365)
+
+    with pytest.raises(AuthenticationError) as captured:
+        await authenticate_request(
+            owner_request(expected_owner='11111111-1111-4111-8111-111111111111'),
+            db,
+            settings,
+        )
+
+    assert captured.value.status_code == 409
+    assert captured.value.code == 'AUTH_OWNER_MISMATCH'
+    assert db.updates == []
+    assert db.selects == ['sessions']
+
+
+@pytest.mark.asyncio
+async def test_legacy_native_bearer_without_owner_claim_remains_compatible():
+    db = ExpectedOwnerDB()
+    settings = SimpleNamespace(session_cookie_name='crump_session', session_days=365)
+
+    auth = await authenticate_request(
+        owner_request(bearer=True),
+        db,
+        settings,
+        require_expected_owner_header=True,
+    )
+
+    assert auth.user['id'] == db.owner_id
+    assert [call[0] for call in db.updates] == ['sessions']
+
+
+@pytest.mark.asyncio
+async def test_session_health_preserves_owner_mismatch_for_private_ui_scrub(monkeypatch):
+    async def reject_owner_mismatch(*_args, **_kwargs):
+        raise AuthenticationError(
+            'The signed-in account changed.',
+            status_code=409,
+            code='AUTH_OWNER_MISMATCH',
+            details={'staleAuth': True, 'retryable': True},
+        )
+
+    monkeypatch.setattr(auth_routes, 'authenticate_request', reject_owner_mismatch)
+    request = Request({
+        'type': 'http',
+        'method': 'GET',
+        'path': '/api/auth/check-session',
+        'headers': [(b'x-ask-crump-expected-owner', ExpectedOwnerDB.owner_id.encode())],
+        'client': ('127.0.0.1', 12345),
+    })
+
+    with pytest.raises(AuthenticationError) as captured:
+        await auth_routes.check_session(request, Response())
+
+    assert captured.value.status_code == 409
+    assert captured.value.code == 'AUTH_OWNER_MISMATCH'
+    assert captured.value.details == {'staleAuth': True, 'retryable': True}
+
+
 @pytest.mark.asyncio
 async def test_duplicate_session_cookies_use_the_valid_candidate():
     request = Request({
@@ -142,6 +309,41 @@ async def test_duplicate_session_cookies_use_the_valid_candidate():
 
     assert authenticated.token == 'fresh-token'
     assert db.session_hashes == [eq(token_hash('stale-token')), eq(token_hash('fresh-token'))]
+
+
+@pytest.mark.asyncio
+async def test_deferred_session_touch_preserves_the_ordinary_renewal_contract():
+    class TouchDB:
+        def __init__(self):
+            self.updates = []
+
+        async def update(self, table, payload, *, filters):
+            self.updates.append((table, dict(payload), dict(filters)))
+            return []
+
+    db = TouchDB()
+    settings = SimpleNamespace(session_days=365)
+    auth = AuthenticatedUser(
+        user={'id': 'user-1'},
+        session={'id': 'session-1', 'last_activity': None, 'expires_at': 'old'},
+        token='token',
+    )
+
+    await touch_authenticated_session(
+        db,
+        settings,
+        auth,
+        now='2026-10-24T06:30:00+00:00',
+    )
+
+    assert len(db.updates) == 1
+    table, payload, filters = db.updates[0]
+    assert table == 'sessions'
+    assert filters == {'id': eq('session-1')}
+    assert payload['last_activity'] == '2026-10-24T06:30:00+00:00'
+    assert payload['expires_at'] != 'old'
+    assert auth.session['last_activity'] == payload['last_activity']
+    assert auth.session['expires_at'] == payload['expires_at']
 
 
 def test_explicit_bearer_token_does_not_fall_back_to_browser_cookies():
@@ -193,7 +395,7 @@ def test_transient_session_check_does_not_clear_persisted_identity():
     assert 'if (!response.ok)' in source
     assert 'return this.sessionUnavailable' in source
     assert 'A definitive successful response saying "not authenticated" is the only' in source
-    assert 'this.clearLocalState();' in source
+    assert 'commit && this.clearLocalState(expectedOwnerId || null) === false' in source
 
 
 def test_bootstrap_surfaces_unavailable_without_claiming_logout():
@@ -204,5 +406,105 @@ def test_bootstrap_surfaces_unavailable_without_claiming_logout():
 
 def test_explicit_logout_still_clears_native_and_local_state():
     source = (PUBLIC / 'device-auth.js').read_text(encoding='utf-8')
-    assert 'await window.CrumpAPI?.clearSessionToken?.();' in source
-    assert 'this.clearLocalState();' in source
+    assert 'await window.CrumpAPI?.clearSessionToken?.(nativeToken);' in source
+    assert 'if (window.CrumpAPI?.isNative && cleared === false) return {stale: true};' in source
+    assert 'if (this.clearLocalState(ownerId || null) === false)' in source
+
+
+class RecordingSessionRevocationDB:
+    def __init__(self):
+        self.updates = []
+        self.selected = []
+
+    async def update(self, table, payload, *, filters, **_kwargs):
+        self.updates.append((table, dict(payload), dict(filters)))
+        return []
+
+    async def select_one(self, table, *, columns='*', filters=None):
+        self.selected.append((table, columns, dict(filters or {})))
+        return {
+            'id': 'session-a',
+            'device_id': 'installation-a',
+            'token_hash': 'hash-a',
+        }
+
+
+def auth_request(path: str) -> Request:
+    return Request({
+        'type': 'http',
+        'method': 'POST',
+        'path': path,
+        'headers': [],
+        'query_string': b'',
+    })
+
+
+@pytest.mark.asyncio
+async def test_logout_and_device_revoke_use_session_generation_cas(monkeypatch):
+    database = RecordingSessionRevocationDB()
+    authenticated = AuthenticatedUser(
+        user={'id': 'owner-a'},
+        session={
+            'id': 'session-a',
+            'token_hash': 'hash-a',
+            'device_id': 'installation-a',
+        },
+        token='raw-a',
+    )
+
+    async def authenticate(*_args, **_kwargs):
+        return authenticated
+
+    monkeypatch.setattr(auth_routes, 'db', database)
+    monkeypatch.setattr(auth_routes, 'authenticate_request', authenticate)
+
+    await auth_routes.logout(auth_request('/api/auth/logout'), Response())
+    assert database.updates == [(
+        'sessions',
+        {'revoked_at': database.updates[0][1]['revoked_at']},
+        {
+            'id': 'eq.session-a',
+            'user_id': 'eq.owner-a',
+            'token_hash': 'eq.hash-a',
+            'revoked_at': 'is.null',
+        },
+    )]
+
+    database.updates.clear()
+    await auth_routes.revoke_device(
+        auth_routes.RevokeDeviceRequest(sessionId='session-a'),
+        auth_request('/api/auth/revoke-device'),
+    )
+    assert database.selected[0][1] == 'id,device_id,token_hash'
+    assert database.updates[0][0] == 'sessions'
+    assert database.updates[0][2] == {
+        'id': 'eq.session-a',
+        'user_id': 'eq.owner-a',
+        'token_hash': 'eq.hash-a',
+        'revoked_at': 'is.null',
+    }
+    assert all(table != 'push_tokens' for table, _payload, _filters in database.updates)
+
+
+@pytest.mark.asyncio
+async def test_logout_all_relies_on_generation_trigger_not_broad_push_update(monkeypatch):
+    database = RecordingSessionRevocationDB()
+    authenticated = AuthenticatedUser(
+        user={'id': 'owner-a'},
+        session={'id': 'session-a', 'token_hash': 'hash-a'},
+        token='raw-a',
+    )
+
+    async def authenticate(*_args, **_kwargs):
+        return authenticated
+
+    monkeypatch.setattr(auth_routes, 'db', database)
+    monkeypatch.setattr(auth_routes, 'authenticate_request', authenticate)
+    await auth_routes.logout_all(auth_request('/api/auth/logout-all'), Response())
+
+    assert len(database.updates) == 1
+    assert database.updates[0][0] == 'sessions'
+    assert database.updates[0][2] == {
+        'user_id': 'eq.owner-a',
+        'revoked_at': 'is.null',
+    }

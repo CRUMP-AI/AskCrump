@@ -1674,7 +1674,7 @@ def test_generic_image_attachment_action_requires_plan_before_usage_check() -> N
     assert "Remove ${excess} image${excess === 1 ? '' : 's'} before generating." in sender
     assert "state.tool = 'image'" in sender
     assert "Confirm what each reference controls before Crump uses credits." in sender
-    assert sender.index("showImageOptions();") < sender.index("await ensureUsage();")
+    assert sender.index("showImageOptions();") < sender.index("await ensureUsage(expectedOwnerId);")
 
 
 def test_blocked_image_request_has_revision_instead_of_exact_retry_contract() -> None:

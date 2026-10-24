@@ -19,12 +19,30 @@
     return Boolean(window.BillingManager?.isNative?.());
   }
 
+  function captureBillingBoundary() {
+    const boundary = window.CrumpAuthBoundary;
+    return Object.freeze({
+      ownerId: String(boundary?.authenticatedUserId?.() || window.currentUser?.id || '').trim(),
+      revision: Number(boundary?.revision?.() || 0),
+    });
+  }
+
+  function billingBoundaryIsCurrent(snapshot) {
+    if (native() && !snapshot?.ownerId) return true;
+    const current = captureBillingBoundary();
+    return !!snapshot?.ownerId
+      && current.ownerId === snapshot.ownerId
+      && current.revision === snapshot.revision;
+  }
+
   async function jsonFetch(url, options = {}) {
     const {
       timeoutMs = BILLING_REQUEST_TIMEOUT_MS,
       signal: upstreamSignal,
+      authBoundary: suppliedBoundary,
       ...requestOptions
     } = options;
+    const authBoundary = suppliedBoundary || captureBillingBoundary();
     const controller = new AbortController();
     const abortFromUpstream = () => controller.abort();
     if (upstreamSignal?.aborted) controller.abort();
@@ -40,10 +58,16 @@
         signal: controller.signal,
         headers: {
           ...(requestOptions.body ? {'Content-Type': 'application/json'} : {}),
+          ...(authBoundary.ownerId ? {'X-Ask-Crump-Expected-Owner': authBoundary.ownerId} : {}),
           ...(requestOptions.headers || {}),
         },
       });
       const data = await response.json().catch(() => ({}));
+      if (!billingBoundaryIsCurrent(authBoundary)) {
+        const error = new Error('Your account changed. Reopen billing and try again.');
+        error.code = 'AUTH_OWNER_CHANGED';
+        throw error;
+      }
       if (!response.ok || data.success === false) {
         const error = new Error(data.error || 'Billing could not complete that request.');
         error.code = data.code;
@@ -92,12 +116,13 @@
     }
 
     setBusy(button, true, 'Opening…');
+    const authBoundary = captureBillingBoundary();
     try {
       if (native()) {
         await window.BillingManager?.manageSubscription?.();
         return;
       }
-      const result = await jsonFetch('/api/stripe/customer-portal', {method: 'POST'});
+      const result = await jsonFetch('/api/stripe/customer-portal', {method: 'POST', authBoundary});
       const url = window.BillingManager?.requireStripeDestination?.(result.url, 'portal');
       if (!url) throw new Error('Subscription management did not return a secure destination.');
       window.location.assign(url);
@@ -112,6 +137,7 @@
 
   async function openCheckout(tier, button) {
     setBusy(button, true, native() ? 'Opening store…' : 'Opening checkout…');
+    const authBoundary = captureBillingBoundary();
     try {
       if (native()) {
         if (!window.BillingManager?.purchase) {
@@ -127,6 +153,7 @@
       const result = await jsonFetch('/api/stripe/create-checkout-session', {
         method: 'POST',
         body: JSON.stringify({tier, attemptId}),
+        authBoundary,
       });
       const url = window.BillingManager?.requireStripeDestination?.(result.url, 'checkout');
       if (!url) throw new Error('Stripe did not return a secure checkout destination.');

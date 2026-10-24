@@ -1,4 +1,9 @@
+import os
 from pathlib import Path
+import shutil
+import subprocess
+
+import pytest
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -10,6 +15,23 @@ def read(relative: str) -> str:
 
 def between(source: str, start: str, end: str) -> str:
     return source[source.index(start):source.index(end, source.index(start))]
+
+
+def test_native_push_reregistration_is_bound_to_current_authenticated_owner() -> None:
+    node = os.environ.get("ASKCRUMP_NODE_EXECUTABLE") or shutil.which("node")
+    if not node:
+        pytest.skip("Node.js is required for the push auth-boundary fixture.")
+    result = subprocess.run(
+        [node, "scripts/verify-presence-push-auth-boundary.cjs"],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert '"staleOwnerIgnored":true' in result.stdout
+    assert '"currentOwnerReregistered":true' in result.stdout
 
 
 def test_private_ui_uses_one_idempotent_auth_boundary_for_logout_and_user_changes() -> None:
@@ -28,6 +50,140 @@ def test_private_ui_uses_one_idempotent_auth_boundary_for_logout_and_user_change
     assert "runScrubbers('authenticated-user-changed', nextUserId)" in app
     assert "window.CrumpAuthBoundary?.register?.('main-composer', scrubComposerAuthBoundary)" in composer
     assert "window.CrumpAuthBoundary.register('product-studio', clearProductAuthState)" in product
+
+
+def test_profile_settings_devices_and_delete_dialog_are_account_bound() -> None:
+    app = read("public/app.js")
+    profile = read("public/profile-manager.js")
+    presence = read("public/presence-manager.js")
+    account = read("public/account-manager.js")
+    auth_controller = read("public/auth-controller.js")
+    device_auth = read("public/device-auth.js")
+    fixture = read("tests/fixtures/profile-settings-auth-boundary.html")
+    verifier = read("scripts/verify-profile-settings-auth-boundary.cjs")
+    matrix = read("scripts/verify-browser-control-matrix.mjs")
+
+    assert "bindOwner(nextOwnerId)" in profile
+    assert "scrubOwner()" in profile
+    assert "this.bindOwner(activeOwnerId)" in profile
+    assert "settingsSaveController?.abort?.()" in app
+    assert "sameSessionOwner ? { ...sessionUser, ...activeUser } : { ...activeUser }" in app
+    assert "appAuthBoundaryIsCurrent(authBoundary)" in app
+    assert "checkSession?.({commit: false})" in app
+    assert "{authBoundary: syncAuthBoundary}" in app
+    assert "window.CrumpPresence?.scrubAuthBoundary?.()" in app
+    assert "window.CrumpAccountBoundary?.scrubAuthBoundary?.()" in app
+    assert "preferencesOwnerId" in presence
+    assert "window.CrumpAuthBoundary.register(" in presence
+    assert "'presence-preferences'" in presence
+    assert "accountRequests.forEach(controller => controller.abort())" in account
+    assert "!root.isConnected" in account
+    assert "window.CrumpAccountBoundary = Object.freeze({scrubAuthBoundary})" in account
+    assert "async checkSession({commit = true} = {})" in device_auth
+    assert "if (commit) this.acceptSession(data.data)" in device_auth
+    assert (
+        "if (commit && this.clearLocalState(expectedOwnerId || null) === false)"
+        in device_auth
+    )
+    assert "checkSession({commit: false})" in auth_controller
+    assert "window.deviceAuth.acceptSession?.(session.data)" in auth_controller
+    assert "captureOnboardingAuthBoundary(generation)" in auth_controller
+    assert "onboardingAuthBoundaryIsCurrent(authBoundary)" in auth_controller
+    assert "'auth-onboarding-profile'" in auth_controller
+    assert "onboardingProfileController?.abort?.()" in auth_controller
+    assert "signal: controller.signal" in auth_controller
+    assert "'auth-terms-acceptance'" in auth_controller
+    assert "X-Ask-Crump-Expected-Owner': authBoundary.ownerId" in auth_controller
+    assert "expectedOwnerBoundaryIsCurrent(authBoundary, termsAcceptanceGeneration)" in auth_controller
+    assert "profile-settings-auth-boundary.html" in verifier
+    assert "fixture.staleDeleteButton?.click()" in fixture
+    assert "fixture.scrubWrites" in verifier
+    assert "staleIdentityIgnored" in verifier
+    assert "staleOnboardingIgnored" in verifier
+    assert "staleIdentityCacheIgnored" in verifier
+    assert "verify-profile-settings-auth-boundary.cjs" in matrix
+    for source in (fixture, verifier):
+        assert "askcrump.com" not in source.lower()
+
+
+def test_cookie_authenticated_private_reads_and_writes_require_the_captured_owner() -> None:
+    auth = read("backend/auth_service.py")
+    application = read("backend/application.py")
+    account_routes = read("backend/routes/account.py")
+    presence_routes = read("backend/routes/presence.py")
+    auth_routes = read("backend/routes/auth.py")
+    project_routes = read("backend/routes/projects.py")
+    library_routes = read("backend/routes/library.py")
+    clients = (
+        read("public/app.js"),
+        read("public/account-manager.js"),
+        read("public/presence-manager.js"),
+        read("public/crump-vision-home-1.0.js"),
+        read("public/crump-vision-projects-1.0.js"),
+        read("public/crump-vision-library-1.0.js"),
+        read("public/crump-product-5.3.js"),
+        read("public/crump-library-5.7.js"),
+        read("public/crump-code-5.9.35.js"),
+    )
+
+    assert "EXPECTED_OWNER_HEADER = 'x-ask-crump-expected-owner'" in auth
+    assert "expected = UUID(raw_expected).bytes" in auth
+    assert "hmac.compare_digest(expected, actual)" in auth
+    assert "authorization.lower().startswith('bearer ')" in auth
+    assert "ALLOW_LEGACY_MISSING_EXPECTED_OWNER = True" in auth
+    expected_owner_call = auth.index("require_expected_owner(request, session['user_id'])")
+    user_lookup = auth.index("user = await db.select_one('users'", expected_owner_call)
+    deleted_account_branch = auth.index("if not user or user.get('deleted_at')", expected_owner_call)
+    session_touch = auth.index("await touch_authenticated_session", expected_owner_call)
+    assert expected_owner_call < user_lookup
+    assert expected_owner_call < deleted_account_branch
+    assert expected_owner_call < session_touch
+    assert "if owner_claim_supplied:" in auth
+    assert "require_expected_owner_header and not ALLOW_LEGACY_MISSING_EXPECTED_OWNER" in auth
+    assert "X-Ask-Crump-Expected-Owner" in application
+
+    assert account_routes.count("require_expected_owner_header=True") >= 2
+    assert presence_routes.count("require_expected_owner_header=True") >= 2
+    assert auth_routes.count("require_expected_owner_header=True") >= 2
+    assert project_routes.count("require_expected_owner_header=True") >= 3
+    assert library_routes.count("require_expected_owner_header=True") >= 1
+    for source in clients:
+        assert "X-Ask-Crump-Expected-Owner" in source
+
+    chat_transport = read("public/chat-resilience.js")
+    composer = read("public/crump-5.0.js")
+    assert "assertOwnerCurrent(expectedOwnerId)" in chat_transport
+    assert "'X-Ask-Crump-Expected-Owner': expectedOwnerId" in chat_transport
+    assert "{expectedOwnerId: authBoundary.ownerId}" in clients[0]
+    assert "{expectedOwnerId}" in composer
+    assert "require_expected_owner_header=True" in between(
+        account_routes,
+        "async def accept_terms",
+        "@router.delete('')",
+    )
+
+    home = clients[3]
+    projects = clients[4]
+    library = clients[5]
+    assert "authBoundaryIsCurrent(authBoundary)" in home
+    assert "projectsViewIsCurrent(root, authBoundary)" in projects
+    assert "authBoundaryIsCurrent(authBoundary)" in library
+    assert "openReader(book, authBoundary)" in library
+    assert "api('/api/manuscripts/' + encodeURIComponent(book.id), null, authBoundary)" in library
+
+
+def test_chat_transport_owner_boundary_has_real_browser_regression_coverage() -> None:
+    fixture = read("tests/fixtures/chat-owner-boundary.html")
+    verifier = read("scripts/verify-chat-owner-boundary.cjs")
+    matrix = read("scripts/verify-browser-control-matrix.mjs")
+
+    assert "X-Ask-Crump-Expected-Owner" in fixture
+    assert "AUTH_OWNER_MISMATCH" in fixture
+    assert "AUTH_OWNER_CHANGED" in verifier
+    assert "delayedOwnerCompletionIgnored" in verifier
+    assert "verify-chat-owner-boundary.cjs" in matrix
+    for source in (fixture, verifier):
+        assert "askcrump.com" not in source.lower()
 
 
 def test_project_target_state_and_storage_are_account_bound_at_auth_transitions() -> None:

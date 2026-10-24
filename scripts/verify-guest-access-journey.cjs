@@ -703,6 +703,57 @@ async function waitForGuestEntryFailure(page) {
   });
 }
 
+async function waitForRegistrationPending(harness, fixture, phase) {
+  try {
+    await harness.page.locator('#registrationPending').waitFor({state: 'visible'});
+  } catch (error) {
+    const pageState = await harness.page.evaluate(() => {
+      const view = id => {
+        const node = document.getElementById(id);
+        return node ? {
+          display: getComputedStyle(node).display,
+          hidden: node.hidden,
+          ariaHidden: node.getAttribute('aria-hidden'),
+          text: node.textContent?.trim() || '',
+        } : null;
+      };
+      const form = document.getElementById('registerFormElement');
+      const email = document.getElementById('registerEmail');
+      const password = document.getElementById('registerPassword');
+      const terms = document.getElementById('registerTerms');
+      const submit = document.getElementById('registrationSubmitBtn');
+      return {
+        auth: view('authContainer'),
+        register: view('registerForm'),
+        entry: view('registerEntry'),
+        pending: view('registrationPending'),
+        error: view('registerError'),
+        success: view('registerSuccess'),
+        formValid: form?.checkValidity(),
+        email: {value: email?.value, valid: email?.validity?.valid},
+        password: {length: password?.value?.length, valid: password?.validity?.valid},
+        terms: {checked: terms?.checked, valid: terms?.validity?.valid},
+        submit: {disabled: submit?.disabled, text: submit?.textContent?.trim() || ''},
+        currentUserId: window.currentUser?.id || null,
+        boundaryOwnerId: window.CrumpAuthBoundary?.authenticatedUserId?.() || null,
+        boundaryRevision: window.CrumpAuthBoundary?.revision?.() ?? null,
+      };
+    });
+    const fixtureState = {
+      registrations: fixture.records.registrations.filter(row => row.caseName === harness.caseName),
+      requests: fixture.records.requests.filter(row => row.caseName === harness.caseName).slice(-25),
+      browserRequests: harness.requests.slice(-25),
+      blockedRequests: harness.blocked,
+      pageErrors: harness.pageErrors,
+      consoleErrors: harness.consoleErrors,
+    };
+    throw new Error(
+      `Registration pending failed during ${phase}: ${JSON.stringify({page: pageState, fixture: fixtureState})}`,
+      {cause: error},
+    );
+  }
+}
+
 async function sendText(harness, fixture, text, expectedMessages, expectedRemaining) {
   const {page} = harness;
   let phase = 'fill-draft';
@@ -851,7 +902,7 @@ async function desktopJourney(browser, fixture) {
     await harness.page.locator('#registerPassword').fill('FixturePass123!');
     await harness.page.locator('#registerTerms').check();
     await harness.page.locator('#registrationSubmitBtn').click();
-    await harness.page.locator('#registrationPending').waitFor({state: 'visible'});
+    await waitForRegistrationPending(harness, fixture, 'desktop guest conversion');
     assert.equal(fixture.records.registrations.filter(row => row.caseName === caseName).length, 1);
     const registration = fixture.records.registrations.find(row => row.caseName === caseName);
     assert.equal(registration.sessionId, originalSessionId);
@@ -1148,11 +1199,16 @@ async function controlRevokedRegistrationRecovery(browser, fixture) {
 
     await harness.page.locator('#imageTool').click();
     await harness.page.locator('#registerForm').waitFor({state: 'visible'});
+    // showAuth('register') deliberately moves focus to the email field on the
+    // next animation frame for keyboard and screen-reader users. Let that
+    // accessibility handoff finish before Playwright focuses/fills password;
+    // otherwise the queued focus can steal the password fill back into email.
+    await harness.page.waitForFunction(() => document.activeElement?.id === 'registerEmail');
     await harness.page.locator('#registerEmail').fill('rollback-owner@fixture.invalid');
     await harness.page.locator('#registerPassword').fill('FixturePass123!');
     await harness.page.locator('#registerTerms').check();
     await harness.page.locator('#registrationSubmitBtn').click();
-    await harness.page.locator('#registrationPending').waitFor({state: 'visible'});
+    await waitForRegistrationPending(harness, fixture, 'control-revoked guest recovery');
 
     const registration = fixture.records.registrations.find(row => row.caseName === caseName);
     assert.ok(registration, 'control-revoked registration did not reach the recovery endpoint');

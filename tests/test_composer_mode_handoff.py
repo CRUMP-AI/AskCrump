@@ -39,7 +39,7 @@ def test_bare_scaffolds_are_stopped_before_usage_or_chat_mutation():
     assert "Add what you want Crump to research." in send
     assert "Add what you want Crump to create." in send
     assert "Add what you want Crump to help build or debug." not in send
-    assert send.index("if (incompleteScaffold)") < send.index("await ensureUsageAvailable()")
+    assert send.index("if (incompleteScaffold)") < send.index("await ensureUsageAvailable(authBoundary)")
     assert send.index("if (incompleteScaffold)") < send.index("chat.messages.push(userMessage)")
 
 
