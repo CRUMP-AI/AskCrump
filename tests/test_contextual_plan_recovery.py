@@ -63,7 +63,7 @@ def test_recovery_summary_is_responsive_and_does_not_create_checkout():
 def test_contextual_recovery_assets_are_registered_for_web_pwa_and_native():
     credit_truth_version = "5.9.76-private-owner-boundary-1"
     credit_truth_css_version = "5.9.76-credit-truth-1"
-    attach_creation_version = "5.9.76-private-owner-boundary-1"
+    attach_creation_version = "5.9.76-legacy-attachment-owner-fence-1"
     chat_owner_boundary_version = "5.9.76-chat-owner-boundary-1"
     project_wrapper_version = "5.9.76-account-owner-boundary-1"
     runtime = read("public/runtime-body-v1.js")
