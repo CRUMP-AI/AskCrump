@@ -144,7 +144,7 @@ class EmailService:
         safe_name = html.escape(name or 'there')
         content = f"""<p>Hi {safe_name},</p><p>Confirm your email and open your Ask Crump workspace.</p>
 <p><a href="{html.escape(url)}" style="display:inline-block;background:#c9b892;color:#101419;text-decoration:none;padding:13px 20px;border-radius:10px;font-weight:700">Verify &amp; open Ask Crump</a></p>
-<p style="color:#9aa4ad">This secure link expires in 24 hours. Its first successful use verifies your account and signs that browser in; later uses only confirm that the address is already verified. If you did not create this account, ignore this message.</p>"""
+<p style="color:#9aa4ad">This secure link is time-limited. If it has expired, request a fresh verification email. Its first successful use verifies your account and signs that browser in; later uses only confirm that the address is already verified. If you did not create this account, ignore this message.</p>"""
         return await self._send(
             email,
             f'Verify your {self.settings.app_name} account',

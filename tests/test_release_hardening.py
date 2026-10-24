@@ -62,6 +62,30 @@ async def test_email_401_is_controlled_and_not_retried():
 
 
 @pytest.mark.asyncio
+async def test_verification_email_does_not_overpromise_resend_lifetime():
+    calls = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(200, json={'id': 'email_123'})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        service = EmailService(email_settings(), client=client)
+        sent = await service.send_verification(
+            'user@example.com',
+            'User',
+            'token-value',
+        )
+
+    assert sent is True
+    assert len(calls) == 1
+    body = json.loads(calls[0].content)['html']
+    assert 'This secure link is time-limited.' in body
+    assert 'If it has expired, request a fresh verification email.' in body
+    assert 'expires in 24 hours' not in body
+
+
+@pytest.mark.asyncio
 async def test_email_503_retries_with_the_same_idempotency_key():
     calls = []
     sleeps = []

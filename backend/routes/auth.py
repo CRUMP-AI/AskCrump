@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
+from datetime import datetime, timezone
 
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -20,7 +21,7 @@ from ..auth_service import (
     verify_guest_and_create_session,
     verify_registered_and_create_session,
 )
-from ..db import eq, gt
+from ..db import DatabaseError, eq, gt
 from ..email_service import EmailDeliveryError
 from ..http import native_token_payload, set_session_cookie
 from ..product_analytics import (
@@ -40,6 +41,11 @@ from ..schemas import (
     RevokeDeviceRequest,
 )
 from ..verification_handoff import verified_workspace_url
+from ..verification_tokens import (
+    create_resend_verification_alias,
+    parse_resend_verification_alias,
+    resend_verification_alias_matches,
+)
 from ..security import (
     client_ip,
     expiry_iso,
@@ -140,6 +146,161 @@ def verification_delivery_failure(
     )
 
 
+_GENERIC_RESEND_RESULT = {
+    'success': True,
+    'message': 'If verification is needed, a new email has been sent.',
+}
+
+
+def _verification_alias_signing_keys() -> dict[str, str]:
+    configured = dict(getattr(settings, 'verification_link_signing_keys', ()) or ())
+    if configured:
+        return configured
+    environment = str(getattr(settings, 'environment', 'development')).lower()
+    if environment in {'production', 'preview'}:
+        raise RuntimeError('Verification-link signing keys are unavailable.')
+    return {
+        'local': 'ask-crump-local-verification-alias-tests-key-000000000000',
+    }
+
+
+def _timestamp_after(value: object, boundary_value: str) -> bool:
+    try:
+        candidate = datetime.fromisoformat(str(value).replace('Z', '+00:00'))
+        boundary = datetime.fromisoformat(boundary_value.replace('Z', '+00:00'))
+    except (TypeError, ValueError):
+        return False
+    if candidate.tzinfo is None:
+        candidate = candidate.replace(tzinfo=timezone.utc)
+    if boundary.tzinfo is None:
+        boundary = boundary.replace(tzinfo=timezone.utc)
+    return candidate > boundary
+
+
+def _timestamp_epoch(value: object) -> int | None:
+    try:
+        candidate = datetime.fromisoformat(str(value).replace('Z', '+00:00'))
+    except (TypeError, ValueError):
+        return None
+    if candidate.tzinfo is None:
+        candidate = candidate.replace(tzinfo=timezone.utc)
+    return int(candidate.timestamp())
+
+
+def _updated_user(current: dict, updated: object) -> dict | None:
+    row = (
+        updated[0]
+        if isinstance(updated, list) and updated and isinstance(updated[0], dict)
+        else updated if isinstance(updated, dict) else None
+    )
+    return {**current, **row} if row is not None else None
+
+
+async def _prepare_resend_verification_alias(user: dict) -> str | None:
+    """Sign a live anchor or atomically replace one that is already expired."""
+    user_id = str(user.get('id') or '')
+    if not user_id or user.get('is_verified'):
+        return None
+
+    current = dict(user)
+    for _attempt in range(4):
+        if current.get('is_verified'):
+            return None
+        anchor = str(current.get('verification_token_hash') or '').strip().lower()
+        previous_expiry = current.get('verification_token_expires')
+        if (
+            re.fullmatch(r'[0-9a-f]{64}', anchor)
+            and _timestamp_after(previous_expiry, iso_now())
+        ):
+            signing_keys = _verification_alias_signing_keys()
+            key_id, signing_secret = next(iter(signing_keys.items()))
+            return create_resend_verification_alias(
+                signing_secret,
+                key_id=key_id,
+                user_id=user_id,
+                verification_token_hash=anchor,
+                expires_at=previous_expiry,
+            )
+
+        # Never extend an existing generation: doing so would revive every
+        # expired bearer derived from it. Once the generation is expired (or
+        # incomplete), replace its anchor and expiry together under a CAS. A
+        # concurrent winner is adopted on readback, so every sender uses the
+        # one current generation and the expired one stays permanently dead.
+        replacement_anchor = token_hash(random_token(40))
+        replacement_expiry = expiry_iso(hours=24)
+        try:
+            updated = await db.update(
+                'users',
+                {
+                    'verification_token_hash': replacement_anchor,
+                    'verification_token_expires': replacement_expiry,
+                    'updated_at': iso_now(),
+                },
+                filters={
+                    'id': eq(user_id),
+                    'is_verified': eq(False),
+                    'verification_token_hash': eq(anchor or None),
+                    'verification_token_expires': eq(previous_expiry),
+                },
+            )
+        except DatabaseError:
+            updated = None
+        confirmed = _updated_user(current, updated)
+        if confirmed is not None:
+            current = confirmed
+        else:
+            current = await db.select_one(
+                'users',
+                columns='*',
+                filters={'id': eq(user_id)},
+            ) or {}
+    return None
+
+
+async def _verification_user_and_anchor(token: str) -> tuple[dict | None, str]:
+    if token.startswith('v2.'):
+        alias = parse_resend_verification_alias(token)
+        now = iso_now()
+        now_epoch = _timestamp_epoch(now)
+        if alias is None or now_epoch is None or alias.expires_at <= now_epoch:
+            return None, ''
+        user = await db.select_one(
+            'users',
+            columns='*',
+            filters={
+                'id': eq(alias.user_id),
+                'verification_token_expires': gt(now),
+            },
+        )
+        anchor = str((user or {}).get('verification_token_hash') or '').strip().lower()
+        row_expiry = _timestamp_epoch((user or {}).get('verification_token_expires'))
+        if (
+            not user
+            or user.get('deleted_at') is not None
+            or row_expiry is None
+            or (not user.get('is_verified') and alias.expires_at > row_expiry)
+            or not resend_verification_alias_matches(
+                alias,
+                _verification_alias_signing_keys(),
+                verification_token_hash=anchor,
+            )
+        ):
+            return None, ''
+        return user, anchor
+
+    anchor = token_hash(token)
+    user = await db.select_one(
+        'users',
+        columns='*',
+        filters={
+            'verification_token_hash': eq(anchor),
+            'verification_token_expires': gt(iso_now()),
+        },
+    )
+    return user, anchor
+
+
 @router.post('/register')
 async def register(payload: RegisterRequest, request: Request):
     email = normalize_email(str(payload.email))
@@ -225,8 +386,17 @@ async def register(payload: RegisterRequest, request: Request):
 
     pending_account = bool(existing) and not own_guest_row
     if existing and not own_guest_row:
-        await db.update('users', verification_values, filters={'id': eq(existing['id'])})
-        user = {**existing, **verification_values}
+        user = existing
+        try:
+            verification_token = await _prepare_resend_verification_alias(user)
+        except (DatabaseError, RuntimeError, ValueError):
+            logger.warning('Pending verification recovery preparation unavailable.')
+            verification_token = None
+        if not verification_token:
+            return {
+                **_GENERIC_RESEND_RESULT,
+                'emailSent': False,
+            }
     else:
         guest_user = session_guest
         if guest_user:
@@ -778,34 +948,41 @@ async def resend_verification(payload: ResendVerificationRequest, request: Reque
     )
     user = await db.select_one('users', columns='*', filters={'email': eq(email)})
     if not user or user.get('is_verified'):
-        return {
-            'success': True,
-            'message': 'If verification is needed, a new email has been sent.',
-        }
-    raw_token = random_token(40)
-    await db.update(
-        'users',
-        {
-            'verification_token_hash': token_hash(raw_token),
-            'verification_token_expires': expiry_iso(hours=24),
-            'updated_at': iso_now(),
-        },
-        filters={'id': eq(user['id'])},
-    )
+        return dict(_GENERIC_RESEND_RESULT)
+    try:
+        resend_token = await _prepare_resend_verification_alias(user)
+    except DatabaseError as exc:
+        logger.warning(
+            'Verification resend preparation unavailable status=%s retryable=%s',
+            exc.status_code,
+            exc.retryable,
+        )
+        return dict(_GENERIC_RESEND_RESULT)
+    except (RuntimeError, ValueError):
+        logger.warning('Verification resend signing unavailable.')
+        return dict(_GENERIC_RESEND_RESULT)
+    if not resend_token:
+        return dict(_GENERIC_RESEND_RESULT)
     try:
         sent = await email_service.send_verification(
             email,
             user.get('full_name'),
-            raw_token,
+            resend_token,
             intent=payload.intent,
             plan=payload.plan,
         )
     except EmailDeliveryError as exc:
-        return verification_delivery_failure(exc, account_created=False)
-    return {
-        'success': True,
-        'message': 'Verification email sent.' if sent else 'Email delivery is not configured.',
-    }
+        logger.warning(
+            'Verification resend delivery unavailable status=%s retryable=%s',
+            exc.status_code,
+            exc.retryable,
+        )
+        return dict(_GENERIC_RESEND_RESULT)
+    logger.info(
+        'Verification resend delivery outcome=%s',
+        'sent' if sent else 'not_configured',
+    )
+    return dict(_GENERIC_RESEND_RESULT)
 
 
 @router.get('/verify-email')
@@ -815,15 +992,7 @@ async def verify_email(
     intent: str | None = None,
     plan: str | None = None,
 ):
-    verification_token_hash = token_hash(token)
-    user = await db.select_one(
-        'users',
-        columns='*',
-        filters={
-            'verification_token_hash': eq(verification_token_hash),
-            'verification_token_expires': gt(iso_now()),
-        },
-    )
+    user, verification_token_hash = await _verification_user_and_anchor(token)
     if not user:
         return RedirectResponse(
             f'{settings.app_url}/app?verification=failed',
