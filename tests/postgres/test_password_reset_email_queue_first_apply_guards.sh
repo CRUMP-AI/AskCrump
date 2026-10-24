@@ -168,7 +168,10 @@ if [ "$status" -eq 0 ]; then
   exit 1
 fi
 grep -F '55000' "$result_dir/inherited-execute.log"
-grep -F 'password-reset-email queue RPC postflight failed:' "$result_dir/inherited-execute.log"
+# The existing atomic reset consumer is service-role-only too, so inherited
+# service_role membership must be rejected by the prerequisite preflight
+# before any queue object is created.
+grep -F 'atomic password-reset consumer drifted; refusing queue migration.' "$result_dir/inherited-execute.log"
 assert_absent
 psql -X --set=ON_ERROR_STOP=1 --command='revoke service_role from anon'
 
