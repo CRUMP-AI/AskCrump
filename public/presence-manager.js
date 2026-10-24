@@ -2,6 +2,11 @@
   'use strict';
 
   const EXPECTED_OWNER_HEADER = 'X-Ask-Crump-Expected-Owner';
+  const LEGACY_PENDING_CHAT_KEY = 'crump_pending_chat';
+  const PUSH_ACTION_CONSUMED = 'consumed';
+  const PUSH_ACTION_DROP = 'drop';
+  const PUSH_ACTION_DEFER = 'defer';
+  const PUSH_ACTION_RETRY = 'retry';
   const DEFAULTS = Object.freeze({
     enabled: false,
     frequency: 'balanced',
@@ -36,7 +41,6 @@
   let pushConsumerReady = document.documentElement?.dataset?.crumpBodyRuntime === 'ready';
   let pushRetryTimer = null;
   let pushRetryDelay = 750;
-  let legacyPushInFlight = false;
   let pushDrainPromise = null;
 
   const currentChat = () => (window.chats || []).find(chat => chat.id === window.currentChatId || chat.chat_id === window.currentChatId);
@@ -70,6 +74,28 @@
     return current.ownerId === snapshot.ownerId && current.revision === snapshot.revision;
   }
 
+  function pushActionOwnerId(detail) {
+    const action = detail?.action || detail || {};
+    const values = [
+      detail?.ownerId,
+      action?.notification?.data?.ownerId,
+      action?.data?.ownerId,
+    ].map(value => String(value || '').trim().toLowerCase()).filter(Boolean);
+    if (!values.length || values.some(value => value !== values[0])) return '';
+    return values[0];
+  }
+
+  function authBoundaryDisposition(snapshot) {
+    const current = captureAuthBoundary();
+    if (!current.ownerId) return PUSH_ACTION_DEFER;
+    if (current.ownerId !== snapshot?.ownerId) return PUSH_ACTION_DROP;
+    return authBoundaryIsCurrent(snapshot) ? '' : PUSH_ACTION_RETRY;
+  }
+
+  function clearLegacyPendingChat() {
+    try { sessionStorage.removeItem(LEGACY_PENDING_CHAT_KEY); } catch (_) {}
+  }
+
   function newPreferenceRequest() {
     const controller = new AbortController();
     preferenceRequests.add(controller);
@@ -88,6 +114,15 @@
     pendingNotificationBoundary = null;
     preferenceRequests.forEach(controller => controller.abort());
     preferenceRequests.clear();
+    if (pushRetryTimer) clearTimeout(pushRetryTimer);
+    pushRetryTimer = null;
+    pushRetryDelay = 750;
+    // Let the next owner start a fresh drain. Any earlier async drain retains
+    // its captured boundary and can only retry/drop after it resumes.
+    pushDrainPromise = null;
+    handledPushActionIds.clear();
+    inFlightPushActionIds.clear();
+    clearLegacyPendingChat();
     preferencesOwnerId = '';
     preferences = { ...DEFAULTS };
   }
@@ -435,37 +470,53 @@
     }
   }
 
-  async function openNotification(detail) {
-    const notificationData = detail?.notification?.data || {};
-    const actionData = detail?.data || {};
+  async function openNotification(detail, authBoundary) {
+    const action = detail?.action || detail || {};
+    if (!authBoundary?.ownerId || pushActionOwnerId(detail) !== authBoundary.ownerId) {
+      return PUSH_ACTION_DROP;
+    }
+    const initialDisposition = authBoundaryDisposition(authBoundary);
+    if (initialDisposition) return initialDisposition;
+    const notificationData = action?.notification?.data || {};
+    const actionData = action?.data || {};
     const chatId = String(
       notificationData.chatId || notificationData.chat_id
       || actionData.chatId || actionData.chat_id
       || '',
     ).trim();
-    if (!chatId) return true;
-    try { sessionStorage.setItem('crump_pending_chat', chatId); } catch (_) {}
+    if (!chatId) return PUSH_ACTION_CONSUMED;
     const findChat = () => (window.chats || []).find(chat =>
       String(chat?.id || chat?.chat_id || '') === chatId
     );
     let target = findChat();
     if (!target) {
-      if (typeof window.syncChatsFromServer !== 'function') return false;
+      if (typeof window.syncChatsFromServer !== 'function') return PUSH_ACTION_RETRY;
       const result = await window.syncChatsFromServer();
-      if (result?.success !== true || result?.deferred) return false;
+      const postSyncDisposition = authBoundaryDisposition(authBoundary);
+      if (postSyncDisposition) return postSyncDisposition;
+      if (result?.success !== true || result?.deferred) return PUSH_ACTION_RETRY;
       target = findChat();
     }
     if (!target) {
-      try { sessionStorage.removeItem('crump_pending_chat'); } catch (_) {}
+      const missingDisposition = authBoundaryDisposition(authBoundary);
+      if (missingDisposition) return missingDisposition;
       window.showToast?.('This conversation is no longer available.', 'info');
-      return true;
+      return PUSH_ACTION_CONSUMED;
     }
-    if (typeof window.loadChat !== 'function') return false;
+    if (typeof window.loadChat !== 'function') return PUSH_ACTION_RETRY;
+    const preLoadDisposition = authBoundaryDisposition(authBoundary);
+    if (preLoadDisposition) return preLoadDisposition;
     const targetId = String(target.id || target.chat_id || chatId);
-    await Promise.resolve(window.loadChat(targetId));
-    if (String(window.currentChatId || '') !== targetId) return false;
-    try { sessionStorage.removeItem('crump_pending_chat'); } catch (_) {}
-    return true;
+    const loaded = await Promise.resolve(window.loadChat(targetId, {
+      ownerId: authBoundary.ownerId,
+      revision: authBoundary.revision,
+    }));
+    const postLoadDisposition = authBoundaryDisposition(authBoundary);
+    if (postLoadDisposition) return postLoadDisposition;
+    if (loaded === false || String(window.currentChatId || '') !== targetId) {
+      return PUSH_ACTION_RETRY;
+    }
+    return PUSH_ACTION_CONSUMED;
   }
 
   function pendingPushActions() {
@@ -474,13 +525,13 @@
   }
 
   function schedulePushActionRetry() {
-    let legacyPendingChat = '';
-    try { legacyPendingChat = sessionStorage.getItem('crump_pending_chat') || ''; } catch (_) {}
-    if (pushRetryTimer || (!pendingPushActions().length && !legacyPendingChat)) return;
+    if (pushRetryTimer || !pendingPushActions().length || !captureAuthBoundary().ownerId) return;
     const delay = pushRetryDelay;
+    const retryGeneration = presenceBoundaryGeneration;
     pushRetryDelay = Math.min(pushRetryDelay * 2, 30000);
     pushRetryTimer = setTimeout(() => {
       pushRetryTimer = null;
+      if (retryGeneration !== presenceBoundaryGeneration) return;
       void consumeAllPushActions();
     }, delay);
   }
@@ -488,8 +539,18 @@
   async function consumePushAction(detail) {
     if (!pushConsumerReady) return false;
     const queueId = String(detail?.queueId || '');
-    const durableIdentity = queueId && !String(detail?.dedupKey || '').startsWith('navigation:');
-    const action = detail?.action || detail;
+    const durableIdentity = queueId && !String(detail?.dedupKey || '').includes('|navigation:');
+    const actionOwnerId = pushActionOwnerId(detail);
+    if (!actionOwnerId) {
+      if (queueId) window.CrumpNative?.acknowledgePushAction?.(queueId);
+      return true;
+    }
+    const authBoundary = captureAuthBoundary();
+    if (!authBoundary.ownerId) return false;
+    if (actionOwnerId !== authBoundary.ownerId) {
+      if (queueId) window.CrumpNative?.acknowledgePushAction?.(queueId);
+      return true;
+    }
     if (durableIdentity && handledPushActionIds.has(queueId)) {
       window.CrumpNative?.acknowledgePushAction?.(queueId);
       return true;
@@ -497,11 +558,14 @@
     if (queueId && inFlightPushActionIds.has(queueId)) return false;
     if (queueId) inFlightPushActionIds.add(queueId);
     try {
-      const consumed = await openNotification(action);
-      if (!consumed) {
+      const outcome = await openNotification(detail, authBoundary);
+      if (outcome === PUSH_ACTION_DEFER) return false;
+      if (outcome === PUSH_ACTION_RETRY) {
         schedulePushActionRetry();
         return false;
       }
+      const consumed = outcome === PUSH_ACTION_CONSUMED || outcome === PUSH_ACTION_DROP;
+      if (!consumed) return false;
       if (queueId) {
         if (durableIdentity) {
           handledPushActionIds.add(queueId);
@@ -532,44 +596,31 @@
     return false;
   }
 
-  async function consumeLegacyPendingChat() {
-    if (!pushConsumerReady || legacyPushInFlight || pendingPushActions().length) return;
-    let pendingChat = '';
-    try { pendingChat = sessionStorage.getItem('crump_pending_chat') || ''; } catch (_) {}
-    if (!pendingChat) return;
-    legacyPushInFlight = true;
-    try {
-      const consumed = await openNotification({ data: { chatId: pendingChat } });
-      if (!consumed) {
-        schedulePushActionRetry();
-        return;
-      }
-      pushRetryDelay = 750;
-    } catch (error) {
-      console.warn('[Push] Legacy notification handoff will retry:', error);
-      schedulePushActionRetry();
-    } finally {
-      legacyPushInFlight = false;
-    }
-  }
-
   async function consumeAllPushActions() {
     if (!pushConsumerReady) return;
     if (pushDrainPromise) return pushDrainPromise;
-    pushDrainPromise = (async () => {
-      while (true) {
+    const drainGeneration = presenceBoundaryGeneration;
+    const activeDrain = (async () => {
+      while (drainGeneration === presenceBoundaryGeneration) {
         const queueDrained = await consumePendingPushActions();
         if (!queueDrained) break;
-        await consumeLegacyPendingChat();
         if (!pendingPushActions().length) break;
       }
-    })().finally(() => {
-      pushDrainPromise = null;
-    });
-    return pushDrainPromise;
+    })();
+    pushDrainPromise = activeDrain;
+    try {
+      return await activeDrain;
+    } finally {
+      if (pushDrainPromise === activeDrain) pushDrainPromise = null;
+      if (
+        drainGeneration !== presenceBoundaryGeneration
+        && captureAuthBoundary().ownerId
+      ) queueMicrotask(() => { void consumeAllPushActions(); });
+    }
   }
 
   function startPushConsumer() {
+    clearLegacyPendingChat();
     pushConsumerReady = true;
     void consumeAllPushActions();
   }
@@ -623,9 +674,11 @@
 
   window.addEventListener('crump:authenticated-ready', () => {
     void refreshAuthenticatedPresence();
+    void consumeAllPushActions();
   });
   window.addEventListener('crump:authentication-required', scrubAuthBoundary);
   ensureAuthBoundaryRegistration();
+  clearLegacyPendingChat();
   if (captureAuthBoundary().ownerId) queueMicrotask(() => { void refreshAuthenticatedPresence(); });
   renderConnectionState();
 })();

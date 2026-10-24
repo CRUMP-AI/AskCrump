@@ -10,7 +10,7 @@ def test_fresh_start_is_ephemeral_until_the_first_real_message():
 
     fresh = app[
         app.index("function beginFreshConversation") :
-        app.index("function loadChat(chatId)")
+        app.index("function loadChat(chatId, expectedBoundary = null)")
     ]
     send = app[
         app.index("async function sendMessage()") :

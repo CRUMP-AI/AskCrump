@@ -34,8 +34,8 @@ def test_native_push_action_queue_is_wired_before_the_consumer_peek() -> None:
     assert presence.index(listener) < presence.index(startup)
     assert "handledPushActionIds.has(queueId)" in presence
     assert "inFlightPushActionIds.has(queueId)" in presence
-    assert "const consumed = await openNotification(action)" in presence
-    consumed = presence.index("const consumed = await openNotification(action)")
+    assert "const outcome = await openNotification(detail, authBoundary)" in presence
+    consumed = presence.index("const outcome = await openNotification(detail, authBoundary)")
     assert consumed < presence.index("acknowledgePushAction?.(queueId)", consumed)
     assert "result?.success !== true || result?.deferred" in presence
     assert "This conversation is no longer available." in presence
@@ -68,8 +68,11 @@ def test_native_push_queue_persists_only_navigation_data_until_acknowledged() ->
 
     assert "globalThis.sessionStorage" in queue
     assert "safeNavigationData" in queue
-    assert "['chatId', 'chat_id', 'checkInId', 'check_in_id']" in queue
-    assert "check-in:${checkInId}|action:${actionId}" in queue
+    assert "['ownerId', 'chatId', 'chat_id', 'checkInId', 'check_in_id']" in queue
+    assert "owner:${ownerId}|check-in:${checkInId}|action:${actionId}" in queue
+    assert "crump_native_push_actions_v2" in queue
+    assert "if (!ownerId) return null" in queue
+    assert "safeOwnerId(entry.ownerId) !== ownerId" in queue
     assert "DEFAULT_FALLBACK_DEDUP_WINDOW_MS" in queue
     assert "recentNavigation" in queue
     assert "notification.title" not in queue
@@ -85,13 +88,13 @@ def test_native_push_consumer_and_runtime_loader_are_cache_busted_together() -> 
     runtime = read("public/runtime-body-v1.js")
     checker = read("scripts/check-javascript.mjs")
 
-    runtime_url = "/runtime-body-v1.js?v=5.9.76-legacy-attachment-owner-fence-1"
-    presence_url = "/presence-manager.js?v=5.9.76-account-owner-boundary-1"
-    cache_name = "ask-crump-new-body-v1-r274-legacy-attachment-owner-fence-1"
+    runtime_url = "/runtime-body-v1.js?v=5.9.76-native-push-owner-fence-1"
+    presence_url = "/presence-manager.js?v=5.9.76-native-push-owner-fence-1"
+    cache_name = "ask-crump-new-body-v1-r275-native-push-owner-fence-1"
     assert runtime_url in shell
     assert runtime_url in worker
     assert presence_url in runtime
     assert presence_url in worker
     assert cache_name in worker
     assert cache_name in checker
-    assert "const runtimeBodyVersion = legacyAttachmentOwnerBoundaryVersion;" in checker
+    assert "const runtimeBodyVersion = nativePushOwnerFenceVersion;" in checker

@@ -1271,6 +1271,7 @@ const navigationDiscoveryVersion = `${releaseVersion}-navigation-discovery-1`;
 const imageStudioEntryVersion = `${releaseVersion}-image-studio-entry-1`;
 const museReleaseRepairVersion = `${releaseVersion}-muse-release-repair-1`;
 const nativePushHandoffVersion = `${releaseVersion}-native-push-handoff-1`;
+const nativePushOwnerFenceVersion = `${releaseVersion}-native-push-owner-fence-1`;
 const cacheIntegrityVersion = `${releaseVersion}-friendly-workspace-1`;
 const ownedWorkspaceAccessVersion = `${releaseVersion}-owned-workspace-access-1`;
 const shellNoTaglineVersion = `${releaseVersion}-shell-no-tagline-1`;
@@ -1284,7 +1285,7 @@ const libraryReconciliationVersion = `${releaseVersion}-library-reconciliation-1
 const homeDocumentEntryVersion = `${releaseVersion}-home-document-entry-1`;
 const autonomousContinuityVersion = `${releaseVersion}-autonomous-continuity-1`;
 const precisionAiPersistenceVersion = `${releaseVersion}-precision-ai-persistence-1`;
-const runtimeBodyVersion = legacyAttachmentOwnerBoundaryVersion;
+const runtimeBodyVersion = nativePushOwnerFenceVersion;
 const appearanceChoiceVersion = `${releaseVersion}-appearance-choice-3`;
 const uiReleaseAuditVersion = `${releaseVersion}-ui-release-audit-2`;
 const activityCenterVersion = autonomousContinuityVersion;
@@ -1309,7 +1310,8 @@ const precisionEditStudioVersion = `${releaseVersion}-precision-studio-1`;
 const creationSheetContainmentVersion = `${releaseVersion}-creation-sheet-containment-1`;
 const referenceFidelityVersion = `${releaseVersion}-reference-fidelity-hard-contract-1`;
 const groundedResearchVersion = `${releaseVersion}-grounded-research-1`;
-const appOwnerBoundaryVersion = accountOwnerBoundaryVersion;
+const appOwnerBoundaryVersion = nativePushOwnerFenceVersion;
+const presenceManagerVersion = nativePushOwnerFenceVersion;
 const productOwnerBoundaryVersion = accountOwnerBoundaryVersion;
 const libraryOwnerBoundaryVersion = accountOwnerBoundaryVersion;
 const codeOwnerBoundaryVersion = accountOwnerBoundaryVersion;
@@ -1677,7 +1679,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/account-manager.js?v=${profileSettingsBoundaryVersion}`) ||
     !runtime.includes(`/scroll-manager.js?v=${museReleaseRepairVersion}`) ||
     !runtime.includes(`/ui-functions.js?v=${privateOwnerBoundaryVersion}`) ||
-    !runtime.includes(`/presence-manager.js?v=${profileSettingsBoundaryVersion}`) ||
+    !runtime.includes(`/presence-manager.js?v=${presenceManagerVersion}`) ||
     !runtime.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-1`) ||
     !runtime.includes(`/lifecycle-share.js?v=${settingsInviteVersion}`) ||
     !runtime.includes(`/lifecycle-manager.js?v=${lifecycleIdleSendVersion}`) ||
@@ -2083,7 +2085,7 @@ for (const [pathname, expectedVersion] of [
     }
   }
 }
-if (!serviceWorker.includes('ask-crump-new-body-v1-r274-legacy-attachment-owner-fence-1') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r275-native-push-owner-fence-1') ||
     !serviceWorker.includes(`'${shellBrandUrl}'`) ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||
@@ -2110,7 +2112,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r274-legacy-attachment-owner-
     serviceWorker.includes(`/crump-precision-image-edit.css?v=${precisionEditStudioVersion}`) ||
     serviceWorker.includes(`/crump-precision-image-edit.js?v=${liveImagePreviewVersion}`) ||
     !serviceWorker.includes(`/ui-functions.js?v=${privateOwnerBoundaryVersion}`) ||
-    !serviceWorker.includes(`/presence-manager.js?v=${profileSettingsBoundaryVersion}`) ||
+    !serviceWorker.includes(`/presence-manager.js?v=${presenceManagerVersion}`) ||
     !serviceWorker.includes(`/app.js?v=${appOwnerBoundaryVersion}`) ||
     !serviceWorker.includes(`/crump-5.2.2.css?v=${newResponseCueVersion}`) ||
     !serviceWorker.includes(`/crump-5.2.2.js?v=${privateOwnerBoundaryVersion}&${guestFreeWorkspaceRelease}`) ||
