@@ -57,11 +57,11 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/credit-confirmation.js?v=5.9.76-private-owner-boundary-1', 'workspacecreditconfirmation'],
     ['/chat-resilience.js?v=5.9.76-chat-owner-boundary-1&workspaceRelease=guest-free-contract-2', 'workspacechatresilience'],
     ['/ui-functions.js?v=5.9.76-private-owner-boundary-1', 'workspaceui'],
-    ['/presence-manager.js?v=5.9.76-account-owner-boundary-1', 'workspacepresence'],
+    ['/presence-manager.js?v=5.9.76-native-push-owner-fence-1', 'workspacepresence'],
     ['/sync-manager.js?v=5.9.76-auth-boundary-sync-1', 'workspacesync'],
     ['/chat-sync.js?v=5.9.76-auth-boundary-sync-1', 'workspacechatsync'],
     ['/account-manager.js?v=5.9.76-account-owner-boundary-1', 'workspaceaccount'],
-    ['/app.js?v=5.9.76-account-owner-boundary-1&workspaceRelease=guest-free-contract-2', 'workspaceapp'],
+    ['/app.js?v=5.9.76-native-push-owner-fence-1&workspaceRelease=guest-free-contract-2', 'workspaceapp'],
     ['/product-analytics.js?v=5.9.76-private-owner-boundary-1', 'workspaceanalytics'],
   ]);
 

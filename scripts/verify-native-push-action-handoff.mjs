@@ -4,6 +4,9 @@ import vm from 'node:vm';
 
 import { createNativePushActionQueue } from './native-push-action-queue.mjs';
 
+const OWNER_A = '11111111-1111-4111-8111-111111111111';
+const OWNER_B = '22222222-2222-4222-8222-222222222222';
+
 function eventTarget() {
   const listeners = new Map();
   return {
@@ -31,23 +34,36 @@ function memoryStorage() {
   };
 }
 
-function pushAction(notificationId, chatId, extra = {}) {
+function pushAction(notificationId, chatId, extra = {}, ownerId = OWNER_A) {
   return {
     actionId: 'tap',
     notification: {
       id: notificationId,
       title: 'Private title that must not be persisted',
       body: 'Private body that must not be persisted',
-      data: { chatId, ignored: 'not persisted' },
+      data: { ownerId, chatId, ignored: 'not persisted' },
     },
     ...extra,
   };
 }
 
-function createHarness({ queue, storage, chats = [], sync, runtimeReady = false }) {
+function createHarness({
+  queue,
+  storage,
+  chats = [],
+  sync,
+  load = null,
+  runtimeReady = false,
+  ownerId = OWNER_A,
+  revision = 1,
+}) {
   const loadedChats = [];
+  const toasts = [];
   const scheduled = [];
   const microtasks = [];
+  const scrubbers = [];
+  let currentOwnerId = ownerId;
+  let currentRevision = revision;
   const windowTarget = eventTarget();
   const windowObject = {
     ...windowTarget,
@@ -56,15 +72,41 @@ function createHarness({ queue, storage, chats = [], sync, runtimeReady = false 
       acknowledgePushAction: queueId => queue.acknowledge(queueId),
     },
     CrumpAPI: { isNative: true, installationId: () => 'fixture-installation' },
-    currentUser: { id: 'fixture-user' },
+    currentUser: currentOwnerId ? { id: currentOwnerId } : null,
     currentChatId: null,
     chats,
     syncChatsFromServer: sync,
-    loadChat(chatId) {
+    showToast(message, kind) {
+      toasts.push({ message, kind });
+    },
+    CrumpAuthBoundary: {
+      authenticatedUserId: () => currentOwnerId,
+      revision: () => currentRevision,
+      register(_name, callback) {
+        scrubbers.push(callback);
+        return () => {};
+      },
+    },
+    loadChat(chatId, expectedBoundary) {
+      if (
+        expectedBoundary?.ownerId !== currentOwnerId
+        || expectedBoundary?.revision !== currentRevision
+      ) return false;
+      if (typeof load === 'function') {
+        return load({
+          chatId: String(chatId),
+          expectedBoundary,
+          loadedChats,
+          ownerId: () => currentOwnerId,
+          revision: () => currentRevision,
+          window: windowObject,
+        });
+      }
       const target = this.chats.find(chat => String(chat.id || chat.chat_id) === String(chatId));
-      if (!target) return;
+      if (!target) return false;
       this.currentChatId = String(chatId);
       loadedChats.push(String(chatId));
+      return true;
     },
   };
   const connectionStatus = {
@@ -103,7 +145,22 @@ function createHarness({ queue, storage, chats = [], sync, runtimeReady = false 
     loadedChats,
     microtasks,
     scheduled,
+    toasts,
     window: windowObject,
+    switchOwner(nextOwnerId) {
+      currentRevision += 1;
+      for (const scrub of scrubbers) scrub({
+        reason: nextOwnerId ? 'authenticated-user-changed' : 'authentication-required',
+        previousUserId: currentOwnerId,
+        nextUserId: nextOwnerId,
+        revision: currentRevision,
+      });
+      currentOwnerId = nextOwnerId;
+      windowObject.currentUser = nextOwnerId ? { id: nextOwnerId } : null;
+      if (nextOwnerId) windowObject.dispatchEvent({ type: 'crump:authenticated-ready' });
+    },
+    ownerId: () => currentOwnerId,
+    revision: () => currentRevision,
     ready() {
       context.document.documentElement.dataset.crumpBodyRuntime = 'ready';
       windowObject.dispatchEvent({ type: 'crump:body-runtime-ready' });
@@ -126,7 +183,7 @@ assert.ok(coldEntry);
 assert.equal(nativeQueue.peek().length, 1);
 assert.equal(nativeQueue.drain().length, 1);
 assert.equal(nativeQueue.peek().length, 1, 'A drain/peek must not remove an unacknowledged action.');
-assert.doesNotMatch(durableStorage.getItem('crump_native_push_actions_v1'), /Private title|Private body|ignored/);
+assert.doesNotMatch(durableStorage.getItem('crump_native_push_actions_v2'), /Private title|Private body|ignored/);
 
 // A WebView reload recreates the queue and restores the unacknowledged action.
 const reloadedQueue = createNativePushActionQueue({ limit: 4, storage: durableStorage });
@@ -183,7 +240,7 @@ const topLevelQueue = createNativePushActionQueue({ storage: topLevelStorage });
 topLevelQueue.retain({
   actionId: 'tap',
   notification: { id: 'notification-top-level' },
-  data: { chatId: 'chat-top-level' },
+  data: { ownerId: OWNER_A, chatId: 'chat-top-level' },
 });
 const topLevelHarness = createHarness({
   queue: topLevelQueue,
@@ -212,31 +269,25 @@ assert.equal(staleQueue.peek().length, 0, 'A deleted conversation must not retry
 assert.equal(staleHarness.scheduled.length, 0);
 assert.deepEqual(staleHarness.loadedChats, []);
 
-// A pre-upgrade pending-chat handoff must retry after a transient failure too.
+// Ownerless pre-upgrade handoffs fail closed instead of navigating as whoever signs in next.
 const legacyStorage = memoryStorage();
 legacyStorage.setItem('crump_pending_chat', 'chat-legacy');
+legacyStorage.setItem('crump_native_push_actions_v1', JSON.stringify({
+  version: 1,
+  pending: [{queueId: 'legacy', dedupKey: 'legacy', action: {data: {chatId: 'chat-legacy'}}}],
+}));
 const legacyQueue = createNativePushActionQueue({ storage: legacyStorage });
-const legacyChats = [];
-let legacySyncAttempts = 0;
 const legacyHarness = createHarness({
   queue: legacyQueue,
   storage: legacyStorage,
-  chats: legacyChats,
-  sync: async () => {
-    legacySyncAttempts += 1;
-    if (legacySyncAttempts === 1) return { success: false, offline: true };
-    legacyChats.push({ id: 'chat-legacy' });
-    return { success: true };
-  },
+  chats: [{ id: 'chat-legacy' }],
+  sync: async () => ({ success: true }),
 });
 legacyHarness.ready();
 await flush();
-assert.equal(legacyStorage.getItem('crump_pending_chat'), 'chat-legacy');
-assert.equal(legacyHarness.scheduled.length, 1);
-legacyHarness.scheduled.shift()();
-await flush();
-assert.deepEqual(legacyHarness.loadedChats, ['chat-legacy']);
 assert.equal(legacyStorage.getItem('crump_pending_chat'), null);
+assert.deepEqual(legacyHarness.loadedChats, []);
+assert.equal(legacyQueue.peek().length, 0);
 
 // Multiple retained taps drain in order so the latest user action remains visible.
 const orderedStorage = memoryStorage();
@@ -283,49 +334,23 @@ assert.deepEqual(lateHarness.loadedChats, ['chat-waiting', 'chat-arrived-late'])
 assert.equal(lateHarness.window.currentChatId, 'chat-arrived-late');
 assert.equal(lateQueue.peek().length, 0);
 
-// A new queued tap arriving during legacy recovery is serialized after it.
-const legacyRaceStorage = memoryStorage();
-legacyRaceStorage.setItem('crump_pending_chat', 'chat-legacy-race');
-const legacyRaceQueue = createNativePushActionQueue({ storage: legacyRaceStorage });
-const legacyRaceChats = [];
-let releaseLegacyRaceSync;
-const legacyRaceSyncGate = new Promise(resolve => { releaseLegacyRaceSync = resolve; });
-const legacyRaceHarness = createHarness({
-  queue: legacyRaceQueue,
-  storage: legacyRaceStorage,
-  chats: legacyRaceChats,
-  sync: async () => {
-    await legacyRaceSyncGate;
-    return { success: true };
-  },
-});
-legacyRaceHarness.ready();
-await Promise.resolve();
-const newestDuringLegacy = legacyRaceQueue.retain(
-  pushAction('notification-after-legacy', 'chat-after-legacy'),
-);
-legacyRaceHarness.window.dispatchEvent({ type: 'crump:push-action', detail: newestDuringLegacy });
-legacyRaceChats.push({ id: 'chat-legacy-race' }, { id: 'chat-after-legacy' });
-releaseLegacyRaceSync();
-await flush();
-assert.deepEqual(legacyRaceHarness.loadedChats, ['chat-legacy-race', 'chat-after-legacy']);
-assert.equal(legacyRaceHarness.window.currentChatId, 'chat-after-legacy');
-assert.equal(legacyRaceQueue.peek().length, 0);
-
 // The queue is bounded and fallback identities are stable when a provider omits an ID.
 const bounded = createNativePushActionQueue({ limit: 2, storage: memoryStorage() });
 bounded.retain(pushAction('one', 'chat-one'));
 const keptTwo = bounded.retain(pushAction('two', 'chat-two'));
 const keptThree = bounded.retain(pushAction('three', 'chat-three'));
 assert.deepEqual(bounded.peek().map(entry => entry.queueId), [keptTwo.queueId, keptThree.queueId]);
-const fallback = { actionId: 'tap', notification: { data: { chatId: 'chat-fallback' } } };
+const fallback = {
+  actionId: 'tap',
+  notification: { data: { ownerId: OWNER_A, chatId: 'chat-fallback' } },
+};
 const fallbackFirst = bounded.retain(fallback);
 const fallbackSecond = bounded.retain({
   actionId: 'tap',
   notification: {
     title: 'Different private title',
     body: 'Different private body',
-    data: { chatId: 'chat-fallback', ignored: 'still not identity' },
+    data: { ownerId: OWNER_A, chatId: 'chat-fallback', ignored: 'still not identity' },
   },
 });
 assert.equal(fallbackFirst.queueId, fallbackSecond.queueId);
@@ -333,7 +358,7 @@ assert.equal(bounded.peek().length, 2, 'Private content changes must not create 
 
 const differentNavigation = bounded.retain({
   actionId: 'tap',
-  notification: { data: { chatId: 'chat-other' } },
+  notification: { data: { ownerId: OWNER_A, chatId: 'chat-other' } },
 });
 assert.notEqual(differentNavigation.queueId, fallbackFirst.queueId);
 
@@ -356,21 +381,139 @@ assert.ok(fallbackAfterAck.retain(fallback), 'The fallback suppression window mu
 const checkInQueue = createNativePushActionQueue({ limit: 4, storage: memoryStorage() });
 const firstCheckIn = checkInQueue.retain({
   actionId: 'tap',
-  notification: { data: { chatId: 'chat-shared', checkInId: 'check-in-one' } },
+  notification: { data: { ownerId: OWNER_A, chatId: 'chat-shared', checkInId: 'check-in-one' } },
 });
 const duplicateCheckIn = checkInQueue.retain({
   actionId: 'tap',
   notification: {
     title: 'Changed private title',
-    data: { chatId: 'chat-shared', checkInId: 'check-in-one' },
+    data: { ownerId: OWNER_A, chatId: 'chat-shared', checkInId: 'check-in-one' },
   },
 });
 const secondCheckIn = checkInQueue.retain({
   actionId: 'tap',
-  notification: { data: { chatId: 'chat-shared', checkInId: 'check-in-two' } },
+  notification: { data: { ownerId: OWNER_A, chatId: 'chat-shared', checkInId: 'check-in-two' } },
 });
 assert.equal(duplicateCheckIn.queueId, firstCheckIn.queueId);
 assert.notEqual(secondCheckIn.queueId, firstCheckIn.queueId);
 assert.equal(checkInQueue.peek().length, 2);
 
-console.log('Native push handoff verified: durable retry, reload, ordering, and deduplication all pass.');
+// Ownerless or contradictory callbacks are never retained, and identical
+// provider identities remain distinct across owners.
+const ownerQueue = createNativePushActionQueue({ limit: 4, storage: memoryStorage() });
+assert.equal(ownerQueue.retain({
+  actionId: 'tap',
+  notification: { id: 'notification-ownerless', data: { chatId: 'chat-ownerless' } },
+}), null);
+assert.equal(ownerQueue.retain({
+  actionId: 'tap',
+  notification: { id: 'notification-conflict', data: { ownerId: OWNER_A, chatId: 'chat-a' } },
+  data: { ownerId: OWNER_B, chatId: 'chat-a' },
+}), null);
+const ownerAEntry = ownerQueue.retain(pushAction('notification-shared', 'chat-shared', {}, OWNER_A));
+const ownerBEntry = ownerQueue.retain(pushAction('notification-shared', 'chat-shared', {}, OWNER_B));
+assert.notEqual(ownerAEntry.queueId, ownerBEntry.queueId);
+assert.equal(ownerQueue.peek().length, 2);
+
+// A queued action for A is discarded without sync, navigation, toast, or DOM
+// state when the active account is B.
+const mismatchStorage = memoryStorage();
+const mismatchQueue = createNativePushActionQueue({ storage: mismatchStorage });
+mismatchQueue.retain(pushAction('notification-a-under-b', 'chat-a', {}, OWNER_A));
+const mismatchHarness = createHarness({
+  queue: mismatchQueue,
+  storage: mismatchStorage,
+  ownerId: OWNER_B,
+  chats: [{ id: 'chat-a' }],
+  sync: async () => { throw new Error('mismatched owner must not synchronize'); },
+});
+mismatchHarness.ready();
+await flush();
+assert.equal(mismatchQueue.peek().length, 0);
+assert.deepEqual(mismatchHarness.loadedChats, []);
+assert.deepEqual(mismatchHarness.toasts, []);
+assert.equal(mismatchHarness.window.currentChatId, null);
+
+// With no authenticated owner the action remains deferred. Authentication of
+// its stamped owner wakes the drain and completes it exactly once.
+const deferredStorage = memoryStorage();
+const deferredQueue = createNativePushActionQueue({ storage: deferredStorage });
+deferredQueue.retain(pushAction('notification-deferred', 'chat-deferred', {}, OWNER_A));
+const deferredHarness = createHarness({
+  queue: deferredQueue,
+  storage: deferredStorage,
+  ownerId: '',
+  chats: [{ id: 'chat-deferred' }],
+  sync: async () => ({ success: true }),
+});
+deferredHarness.ready();
+await flush();
+assert.equal(deferredQueue.peek().length, 1);
+assert.deepEqual(deferredHarness.loadedChats, []);
+deferredHarness.switchOwner(OWNER_A);
+await flush();
+assert.equal(deferredQueue.peek().length, 0);
+assert.deepEqual(deferredHarness.loadedChats, ['chat-deferred']);
+
+// Switching A -> B while A awaits synchronization drops A's stale completion
+// and lets B's later action proceed without A blocking the queue.
+const syncRaceStorage = memoryStorage();
+const syncRaceQueue = createNativePushActionQueue({ storage: syncRaceStorage });
+syncRaceQueue.retain(pushAction('notification-sync-race-a', 'chat-sync-race-a', {}, OWNER_A));
+const syncRaceChats = [];
+let releaseSyncRace;
+const syncRaceGate = new Promise(resolve => { releaseSyncRace = resolve; });
+const syncRaceHarness = createHarness({
+  queue: syncRaceQueue,
+  storage: syncRaceStorage,
+  chats: syncRaceChats,
+  sync: async () => {
+    await syncRaceGate;
+    return { success: true };
+  },
+});
+syncRaceHarness.ready();
+await Promise.resolve();
+syncRaceChats.push({ id: 'chat-sync-race-b' });
+syncRaceQueue.retain(pushAction('notification-sync-race-b', 'chat-sync-race-b', {}, OWNER_B));
+syncRaceHarness.switchOwner(OWNER_B);
+await flush();
+releaseSyncRace();
+await flush();
+assert.deepEqual(syncRaceHarness.loadedChats, ['chat-sync-race-b']);
+assert.equal(syncRaceHarness.window.currentChatId, 'chat-sync-race-b');
+assert.equal(syncRaceQueue.peek().length, 0);
+assert.deepEqual(syncRaceHarness.toasts, []);
+
+// The owner/revision fence is also passed into the final chat projection. A
+// load that resumes after A -> B refuses to mutate B's active workspace.
+const loadRaceStorage = memoryStorage();
+const loadRaceQueue = createNativePushActionQueue({ storage: loadRaceStorage });
+loadRaceQueue.retain(pushAction('notification-load-race-a', 'chat-load-race-a', {}, OWNER_A));
+let releaseLoadRace;
+const loadRaceGate = new Promise(resolve => { releaseLoadRace = resolve; });
+const loadRaceHarness = createHarness({
+  queue: loadRaceQueue,
+  storage: loadRaceStorage,
+  chats: [{ id: 'chat-load-race-a' }],
+  sync: async () => ({ success: true }),
+  load: async ({ chatId, expectedBoundary, loadedChats, ownerId, revision, window }) => {
+    await loadRaceGate;
+    if (expectedBoundary.ownerId !== ownerId() || expectedBoundary.revision !== revision()) {
+      return false;
+    }
+    window.currentChatId = chatId;
+    loadedChats.push(chatId);
+    return true;
+  },
+});
+loadRaceHarness.ready();
+await Promise.resolve();
+loadRaceHarness.switchOwner(OWNER_B);
+releaseLoadRace();
+await flush();
+assert.deepEqual(loadRaceHarness.loadedChats, []);
+assert.equal(loadRaceHarness.window.currentChatId, null);
+assert.equal(loadRaceQueue.peek().length, 0);
+
+console.log('Native push handoff verified: durable retry, reload, ordering, and deduplication all pass; owner fencing passes.');

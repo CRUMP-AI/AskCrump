@@ -520,7 +520,7 @@ def test_release_version_and_cache_advance_together():
 
     assert '"version": "5.9.76"' in package
     assert "__version__ = '5.9.76'" in backend
-    assert "ask-crump-new-body-v1-r274-legacy-attachment-owner-fence-1" in worker
+    assert "ask-crump-new-body-v1-r275-native-push-owner-fence-1" in worker
     assert "/landing-5.6.css?v=5.9.76-accessibility-1" in worker
     assert "/use-case.css?v=5.9.76" in worker
     assert "/landing.js?v=5.9.76-free-guest-entry-1" in worker
@@ -543,7 +543,7 @@ def test_changed_activation_assets_are_release_versioned():
         "/conversation.css?v=5.9.76-muse-release-repair-1",
             "/ui-functions.js?v=5.9.76-private-owner-boundary-1",
         "/product-analytics.js?v=5.9.76-private-owner-boundary-1",
-        "/app.js?v=5.9.76-account-owner-boundary-1",
+        "/app.js?v=5.9.76-native-push-owner-fence-1",
     ):
         assert asset not in shell
         assert asset in runtime

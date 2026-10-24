@@ -259,9 +259,9 @@ def test_crump_voice_avoids_generic_assistant_form_language():
 def test_conversation_intelligence_advances_shell_cache():
     sw = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
-    assert "ask-crump-new-body-v1-r274-legacy-attachment-owner-fence-1" in sw
+    assert "ask-crump-new-body-v1-r275-native-push-owner-fence-1" in sw
     assert "CACHE_NAME = 'ask-crump-new-body-v1-r229'" not in sw
-    assert "ask-crump-new-body-v1-r274-legacy-attachment-owner-fence-1" in checker
+    assert "ask-crump-new-body-v1-r275-native-push-owner-fence-1" in checker
 
 
 def test_reload_opens_a_clean_conversation_without_discarding_history():
@@ -272,7 +272,7 @@ def test_reload_opens_a_clean_conversation_without_discarding_history():
     startup = app[app.index("window.initializeApp = function"):app.index("// Event Listeners")]
     fresh_start = app[
         app.index("function openFreshConversationAtStartup"):
-        app.index("function loadChat(chatId)")
+        app.index("function loadChat(chatId, expectedBoundary = null)")
     ]
 
     assert "openFreshConversationAtStartup();" in startup
@@ -284,7 +284,7 @@ def test_reload_opens_a_clean_conversation_without_discarding_history():
     assert "chats = []" not in fresh_start
     assert "recordChatDeletion" not in fresh_start
     assert 'src="/app.js?v=5.9.76-intelligence-receipt-1"' not in shell
-    released_app = "/app.js?v=5.9.76-account-owner-boundary-1&workspaceRelease=guest-free-contract-2"
+    released_app = "/app.js?v=5.9.76-native-push-owner-fence-1&workspaceRelease=guest-free-contract-2"
     assert f"['{released_app}', 'workspaceapp']" in runtime
     assert f"'{released_app}'" in worker
 

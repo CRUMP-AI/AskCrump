@@ -113,7 +113,7 @@ async def test_send_user_requires_current_session_generation_before_provider_cal
             push_row()["token"],
             SAFE_PUSH_TITLE,
             SAFE_PUSH_BODY,
-            {},
+            {"ownerId": push_row()["user_id"]},
         )
     ]
     assert "Private" not in provider_calls[0][1]
@@ -209,10 +209,13 @@ async def test_provider_stale_result_uses_full_generation_and_token_cas(monkeypa
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("platform", ["ios", "android"])
 async def test_owner_rebind_during_provider_send_never_exposes_private_check_in(
     monkeypatch,
+    platform,
 ) -> None:
     row = push_row()
+    row["platform"] = platform
     db = RecordingPushDB(row, active_session())
     provider_calls = []
 
@@ -225,13 +228,18 @@ async def test_owner_rebind_during_provider_send_never_exposes_private_check_in(
         provider_calls.append((token, title, body, data))
         return True, False
 
-    monkeypatch.setattr(PushService, "_send_ios", rebind_during_send)
+    provider_method = "_send_ios" if platform == "ios" else "_send_android"
+    monkeypatch.setattr(PushService, provider_method, rebind_during_send)
     result = await PushService(push_settings()).send_user(
         db,
         row["user_id"],
         title="Private assistant name",
         body="Private conversation-derived check-in",
-        data={"type": "check_in", "checkInId": "opaque-check-in"},
+        data={
+            "type": "check_in",
+            "checkInId": "opaque-check-in",
+            "ownerId": "70000000-0000-4000-8000-000000000002",
+        },
     )
 
     assert result.delivered == 1
@@ -240,7 +248,11 @@ async def test_owner_rebind_during_provider_send_never_exposes_private_check_in(
             row["token"],
             SAFE_PUSH_TITLE,
             SAFE_PUSH_BODY,
-            {"type": "check_in", "checkInId": "opaque-check-in"},
+            {
+                "type": "check_in",
+                "checkInId": "opaque-check-in",
+                "ownerId": row["user_id"],
+            },
         )
     ]
     assert "Private" not in provider_calls[0][1]

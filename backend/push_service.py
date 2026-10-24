@@ -219,6 +219,12 @@ class PushService:
         )
         result = PushResult()
         safe_data = {str(key): str(value)[:1000] for key, value in (data or {}).items() if value is not None}
+        # Navigation payloads must carry the owner that was authoritative when
+        # delivery started. Never trust a caller-supplied owner stamp: a device
+        # can be rebound after the generation check but before APNs/FCM accepts
+        # the request, and the client needs this server-owned claim to reject a
+        # late notification under the next account.
+        safe_data['ownerId'] = str(user_id)[:1000]
         for row in rows:
             token = str(row.get('token') or '').strip()
             platform = str(row.get('platform') or '').lower()

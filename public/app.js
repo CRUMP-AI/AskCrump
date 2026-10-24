@@ -711,9 +711,14 @@ function openFreshConversationAtStartup() {
     beginFreshConversation();
 }
 
-function loadChat(chatId) {
+function loadChat(chatId, expectedBoundary = null) {
+    if (expectedBoundary) {
+        const ownerId = String(expectedBoundary.ownerId || '').trim();
+        const revision = Number(expectedBoundary.revision);
+        if (!ownerId || !conversationAuthBoundaryIsCurrent({ownerId, revision})) return false;
+    }
     const chat = chats.find(item => item.id === chatId);
-    if (!chat) return;
+    if (!chat) return false;
     freshConversationRequested = false;
     currentChatId = chatId;
     window.currentChatId = chatId;
@@ -722,6 +727,7 @@ function loadChat(chatId) {
     window.renderMessages?.(chat.messages);
     announceConversationOpened(chatId);
     closeConversationMenu();
+    return true;
 }
 
 function getChat(chatId) {
