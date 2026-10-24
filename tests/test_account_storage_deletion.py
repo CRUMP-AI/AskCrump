@@ -23,6 +23,18 @@ OWNER_ID = '11111111-1111-4111-8111-111111111111'
 NEIGHBOR_ID = '11111111-1111-4111-8111-222222222222'
 
 
+def minute_worker_records(caplog, event):
+    records = []
+    for item in caplog.records:
+        try:
+            payload = json.loads(item.message)
+        except (TypeError, ValueError):
+            continue
+        if payload.get('component') == 'minute_worker' and payload.get('event') == event:
+            records.append(payload)
+    return records
+
+
 def file_service():
     settings = SimpleNamespace(
         storage_bucket='crump-files',
@@ -406,6 +418,67 @@ def test_idle_account_storage_queue_preserves_existing_code_worker(monkeypatch):
     manuscript_worker.process_next_run.assert_not_awaited()
 
 
+def test_all_idle_minute_worker_lanes_emit_one_content_free_turn(monkeypatch, caplog):
+    deletion_worker = SimpleNamespace(
+        process_next=AsyncMock(return_value={'handled': False, 'status': 'idle'})
+    )
+    verification_worker = SimpleNamespace(
+        process_next=AsyncMock(return_value={'handled': False, 'status': 'idle'})
+    )
+    password_worker = SimpleNamespace(
+        process_next=AsyncMock(return_value={'handled': False, 'status': 'idle'})
+    )
+    code_worker = SimpleNamespace(process_next=AsyncMock(return_value={'handled': False}))
+    manuscript_worker = SimpleNamespace(process_next_run=AsyncMock(return_value={'claimed': False}))
+    monkeypatch.setattr(manuscript_routes, 'account_deletions', deletion_worker)
+    monkeypatch.setattr(manuscript_routes, 'verification_emails', verification_worker)
+    monkeypatch.setattr(manuscript_routes, 'password_reset_emails', password_worker)
+    monkeypatch.setattr(manuscript_routes, 'code_worker', code_worker)
+    monkeypatch.setattr(manuscript_routes, 'manuscripts', manuscript_worker)
+    monkeypatch.setattr(
+        manuscript_routes,
+        '_cron_lane_order',
+        lambda: (
+            'account-storage-deletion',
+            'verification-email',
+            'password-reset-email',
+            'code',
+            'manuscripts',
+        ),
+    )
+    monkeypatch.setattr(
+        manuscript_routes,
+        'settings',
+        SimpleNamespace(cron_secret='cron-secret', vercel_oidc_token='oidc-token'),
+    )
+    caplog.set_level(logging.INFO, logger=manuscript_routes.__name__)
+
+    response = client.get(
+        '/api/cron/manuscripts',
+        headers={'Authorization': 'Bearer cron-secret'},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {'success': True, 'worker': 'idle', 'handled': False}
+    assert minute_worker_records(caplog, 'turn_outcome') == [{
+        'component': 'minute_worker',
+        'event': 'turn_outcome',
+        'result': 'idle',
+        'worker': 'idle',
+        'handled': False,
+        'status': 'idle',
+        'lane_outcomes': {
+            'account-storage-deletion': 'idle',
+            'verification-email': 'idle',
+            'password-reset-email': 'idle',
+            'code': 'idle',
+            'manuscripts': 'idle',
+        },
+        'degraded_lanes': [],
+        'degraded_lane_count': 0,
+    }]
+
+
 def test_verification_claim_failure_preserves_password_reset_lane(monkeypatch, caplog):
     private_error = 'private verification claim fixture'
     deletion_worker = SimpleNamespace(
@@ -447,7 +520,7 @@ def test_verification_claim_failure_preserves_password_reset_lane(monkeypatch, c
         'settings',
         SimpleNamespace(cron_secret='cron-secret', vercel_oidc_token='oidc-token'),
     )
-    caplog.set_level(logging.WARNING, logger=manuscript_routes.__name__)
+    caplog.set_level(logging.INFO, logger=manuscript_routes.__name__)
 
     response = client.get(
         '/api/cron/manuscripts',
@@ -469,6 +542,20 @@ def test_verification_claim_failure_preserves_password_reset_lane(monkeypatch, c
     deletion_worker.process_next.assert_not_awaited()
     assert 'lane=verification-email error_type=DatabaseError' in caplog.text
     assert private_error not in caplog.text
+    assert minute_worker_records(caplog, 'turn_outcome') == [{
+        'component': 'minute_worker',
+        'event': 'turn_outcome',
+        'result': 'handled',
+        'worker': 'password-reset-email',
+        'handled': True,
+        'status': 'provider_accepted',
+        'lane_outcomes': {
+            'verification-email': 'claim_database_error',
+            'password-reset-email': 'handled',
+        },
+        'degraded_lanes': ['verification-email'],
+        'degraded_lane_count': 1,
+    }]
 
 
 def test_password_reset_claim_failure_preserves_code_lane(monkeypatch, caplog):
@@ -514,7 +601,7 @@ def test_password_reset_claim_failure_preserves_code_lane(monkeypatch, caplog):
         'settings',
         SimpleNamespace(cron_secret='cron-secret', vercel_oidc_token='oidc-token'),
     )
-    caplog.set_level(logging.WARNING, logger=manuscript_routes.__name__)
+    caplog.set_level(logging.INFO, logger=manuscript_routes.__name__)
 
     response = client.get(
         '/api/cron/manuscripts',
@@ -536,6 +623,21 @@ def test_password_reset_claim_failure_preserves_code_lane(monkeypatch, caplog):
     verification_worker.process_next.assert_not_awaited()
     assert 'lane=password-reset-email error_type=DatabaseError' in caplog.text
     assert private_error not in caplog.text
+    records = minute_worker_records(caplog, 'turn_outcome')
+    assert records == [{
+        'component': 'minute_worker',
+        'event': 'turn_outcome',
+        'result': 'handled',
+        'worker': 'code',
+        'handled': True,
+        'status': 'completed',
+        'lane_outcomes': {
+            'password-reset-email': 'claim_database_error',
+            'code': 'handled',
+        },
+        'degraded_lanes': ['password-reset-email'],
+        'degraded_lane_count': 1,
+    }]
 
 
 @pytest.mark.parametrize(
@@ -612,9 +714,26 @@ def test_email_claim_failure_with_idle_lanes_returns_generic_database_503(
     deletion_worker.process_next.assert_awaited_once()
     assert private_error not in response.text
     assert private_error not in caplog.text
+    assert minute_worker_records(caplog, 'turn_outcome') == [{
+        'component': 'minute_worker',
+        'event': 'turn_outcome',
+        'result': 'retryable_database_503',
+        'worker': 'idle',
+        'handled': False,
+        'status': 'none',
+        'lane_outcomes': {
+            'account-storage-deletion': 'idle',
+            'verification-email': 'claim_database_error',
+            'password-reset-email': 'idle',
+            'code': 'idle',
+            'manuscripts': 'idle',
+        },
+        'degraded_lanes': ['verification-email'],
+        'degraded_lane_count': 1,
+    }]
 
 
-def test_unexpected_email_lane_failure_still_aborts_later_lanes(monkeypatch):
+def test_unexpected_email_lane_failure_still_aborts_later_lanes(monkeypatch, caplog):
     verification_worker = SimpleNamespace(
         process_next=AsyncMock(side_effect=RuntimeError('unexpected private fixture'))
     )
@@ -633,6 +752,7 @@ def test_unexpected_email_lane_failure_still_aborts_later_lanes(monkeypatch):
         'settings',
         SimpleNamespace(cron_secret='cron-secret', vercel_oidc_token=None),
     )
+    caplog.set_level(logging.ERROR, logger=manuscript_routes.__name__)
 
     with pytest.raises(RuntimeError, match='unexpected private fixture'):
         client.get(
@@ -642,6 +762,19 @@ def test_unexpected_email_lane_failure_still_aborts_later_lanes(monkeypatch):
 
     verification_worker.process_next.assert_awaited_once()
     password_worker.process_next.assert_not_awaited()
+    records = minute_worker_records(caplog, 'turn_outcome')
+    assert records == [{
+        'component': 'minute_worker',
+        'event': 'turn_outcome',
+        'result': 'unexpected_exception',
+        'worker': 'verification-email',
+        'handled': False,
+        'status': 'none',
+        'lane_outcomes': {'verification-email': 'unexpected_exception'},
+        'degraded_lanes': [],
+        'degraded_lane_count': 0,
+    }]
+    assert 'unexpected private fixture' not in json.dumps(records)
 
 
 def test_migration_contract_enqueues_before_delete_and_fences_all_worker_transitions():

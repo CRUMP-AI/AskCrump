@@ -13,6 +13,7 @@ from ..db import DatabaseError
 from ..feature_service import FeatureAccessError
 from ..file_service import FileServiceError
 from ..manuscript_service import ManuscriptError, chapter_count_from_prompt
+from ..minute_worker_observability import log_minute_worker_turn
 from ..paid_tool_access import paid_tool_required
 from ..project_service import ProjectNotFoundError
 from ..runtime import (
@@ -396,55 +397,102 @@ async def manuscript_cron(request: Request):
     # Rotate the first lane by UTC minute so a continuously busy queue cannot
     # starve the others. Each cron turn still claims at most one durable job.
     degraded_lanes: list[str] = []
+    lane_outcomes: dict[str, str] = {}
     email_lane_database_failed = False
     for lane in _cron_lane_order():
-        if lane == "account-storage-deletion":
-            summary = await account_deletions.process_next()
-            handled = bool(summary.get("handled"))
-        elif lane == "verification-email":
-            try:
-                summary = await verification_emails.process_next()
-            except DatabaseError as exc:
-                logger.warning(
-                    "Minute worker lane unavailable lane=%s error_type=%s",
-                    lane,
-                    type(exc).__name__,
-                )
-                degraded_lanes.append(lane)
-                email_lane_database_failed = True
-                continue
-            handled = bool(summary.get("handled"))
-        elif lane == "password-reset-email":
-            try:
-                summary = await password_reset_emails.process_next()
-            except DatabaseError as exc:
-                logger.warning(
-                    "Minute worker lane unavailable lane=%s error_type=%s",
-                    lane,
-                    type(exc).__name__,
-                )
-                degraded_lanes.append(lane)
-                email_lane_database_failed = True
-                continue
-            handled = bool(summary.get("handled"))
-        elif lane == "code":
-            summary = await code_worker.process_next(oidc_token=oidc_token)
-            handled = bool(summary.get("handled"))
-        else:
-            summary = await manuscripts.process_next_run()
-            handled = bool(summary.get("claimed"))
+        try:
+            if lane == "account-storage-deletion":
+                summary = await account_deletions.process_next()
+                handled = bool(summary.get("handled"))
+            elif lane == "verification-email":
+                try:
+                    summary = await verification_emails.process_next()
+                except DatabaseError as exc:
+                    logger.warning(
+                        "Minute worker lane unavailable lane=%s error_type=%s",
+                        lane,
+                        type(exc).__name__,
+                    )
+                    degraded_lanes.append(lane)
+                    lane_outcomes[lane] = "claim_database_error"
+                    email_lane_database_failed = True
+                    continue
+                handled = bool(summary.get("handled"))
+            elif lane == "password-reset-email":
+                try:
+                    summary = await password_reset_emails.process_next()
+                except DatabaseError as exc:
+                    logger.warning(
+                        "Minute worker lane unavailable lane=%s error_type=%s",
+                        lane,
+                        type(exc).__name__,
+                    )
+                    degraded_lanes.append(lane)
+                    lane_outcomes[lane] = "claim_database_error"
+                    email_lane_database_failed = True
+                    continue
+                handled = bool(summary.get("handled"))
+            elif lane == "code":
+                summary = await code_worker.process_next(oidc_token=oidc_token)
+                handled = bool(summary.get("handled"))
+            else:
+                summary = await manuscripts.process_next_run()
+                handled = bool(summary.get("claimed"))
+        except Exception:
+            lane_outcomes[lane] = "unexpected_exception"
+            log_minute_worker_turn(
+                logger,
+                logging.ERROR,
+                result="unexpected_exception",
+                worker=lane,
+                handled=False,
+                status="none",
+                lane_outcomes=lane_outcomes,
+                degraded_lanes=degraded_lanes,
+            )
+            raise
+        lane_outcomes[lane] = "handled" if handled else "idle"
         if handled:
             response = {"success": True, "worker": lane, **summary}
             if degraded_lanes:
                 response["degradedLanes"] = degraded_lanes
+            log_minute_worker_turn(
+                logger,
+                logging.INFO,
+                result="handled",
+                worker=lane,
+                handled=True,
+                status=summary.get("status") if isinstance(summary, dict) else None,
+                lane_outcomes=lane_outcomes,
+                degraded_lanes=degraded_lanes,
+            )
             return response
     if email_lane_database_failed:
+        log_minute_worker_turn(
+            logger,
+            logging.WARNING,
+            result="retryable_database_503",
+            worker="idle",
+            handled=False,
+            status="none",
+            lane_outcomes=lane_outcomes,
+            degraded_lanes=degraded_lanes,
+        )
         raise DatabaseError(
             "Minute worker email lane database unavailable",
             status_code=503,
             retryable=True,
             retry_after=2,
         ) from None
+    log_minute_worker_turn(
+        logger,
+        logging.INFO,
+        result="idle",
+        worker="idle",
+        handled=False,
+        status="idle",
+        lane_outcomes=lane_outcomes,
+    )
     return {"success": True, "worker": "idle", "handled": False}
 
 

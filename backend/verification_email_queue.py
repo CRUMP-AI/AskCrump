@@ -13,6 +13,7 @@ from uuid import UUID
 from .config import Settings
 from .db import DatabaseError, SupabaseDB
 from .email_service import EmailDeliveryError, EmailService
+from .minute_worker_observability import log_email_queue_outcome
 from .security import expiry_iso, new_uuid, normalize_email, random_token, token_hash
 from .verification_handoff import creation_intent, paid_plan_intent
 from .verification_tokens import create_resend_verification_alias
@@ -165,6 +166,20 @@ class VerificationEmailQueueService:
         return 'PROVIDER_REJECTED', False
 
     async def process_next(self) -> dict[str, Any]:
+        attempt: Any = None
+        provider_attempts: int | None = None
+
+        def result(handled: bool, status: Any) -> dict[str, Any]:
+            log_email_queue_outcome(
+                logger,
+                lane='verification-email',
+                handled=handled,
+                status=status,
+                attempt=attempt,
+                provider_attempts=provider_attempts,
+            )
+            return {'handled': handled, 'status': status}
+
         claim_token = new_uuid()
         claim_result = await self.db.rpc(
             'claim_verification_email_job_v1',
@@ -173,13 +188,14 @@ class VerificationEmailQueueService:
         )
         claim = _first_row(claim_result)
         if not claim:
-            return {'handled': False, 'status': 'idle'}
+            return result(False, 'idle')
 
         job_id = str(claim.get('job_id') or '')
         lease_token = str(claim.get('lease_token') or '')
+        attempt = claim.get('attempts')
         if lease_token != claim_token or not job_id:
             logger.error('Verification email claim failed integrity validation.')
-            return {'handled': True, 'status': 'claim_invalid'}
+            return result(True, 'claim_invalid')
 
         try:
             stage_result = await self.db.rpc(
@@ -189,13 +205,14 @@ class VerificationEmailQueueService:
             )
             stage = _first_row(stage_result)
             if not stage:
-                return {'handled': True, 'status': 'lease_lost'}
+                return result(True, 'lease_lost')
+            attempt = stage.get('attempts', attempt)
             disposition = str(stage.get('disposition') or '')
             if disposition == 'lease_lost':
-                return {'handled': True, 'status': 'lease_lost'}
+                return result(True, 'lease_lost')
             if disposition == 'suppress':
                 outcome = await self._complete(job_id, lease_token, 'suppressed')
-                return {'handled': True, 'status': outcome or 'suppressed'}
+                return result(True, outcome or 'suppressed')
             if disposition != 'deliver':
                 await self._release(
                     job_id,
@@ -203,7 +220,7 @@ class VerificationEmailQueueService:
                     failure_code='JOB_INTEGRITY_INVALID',
                     retryable=False,
                 )
-                return {'handled': True, 'status': 'failed_permanent'}
+                return result(True, 'failed_permanent')
 
             recipient = normalize_email(str(stage.get('recipient_email') or ''))
             recipient_fingerprint = str(stage.get('recipient_fingerprint') or '')
@@ -235,7 +252,7 @@ class VerificationEmailQueueService:
                     failure_code='JOB_INTEGRITY_INVALID',
                     retryable=False,
                 )
-                return {'handled': True, 'status': 'failed_permanent'}
+                return result(True, 'failed_permanent')
 
             try:
                 signing_secret = _signing_keys(self.settings).get(key_id)
@@ -248,7 +265,7 @@ class VerificationEmailQueueService:
                     failure_code='SIGNING_KEY_UNAVAILABLE',
                     retryable=True,
                 )
-                return {'handled': True, 'status': outcome or 'retry_scheduled'}
+                return result(True, outcome or 'retry_scheduled')
             if not hmac.compare_digest(
                 recipient_fingerprint,
                 _recipient_fingerprint(signing_secret, recipient),
@@ -259,7 +276,7 @@ class VerificationEmailQueueService:
                     failure_code='JOB_INTEGRITY_INVALID',
                     retryable=False,
                 )
-                return {'handled': True, 'status': 'failed_permanent'}
+                return result(True, 'failed_permanent')
 
             try:
                 alias = create_resend_verification_alias(
@@ -291,7 +308,7 @@ class VerificationEmailQueueService:
                     failure_code='JOB_INTEGRITY_INVALID',
                     retryable=False,
                 )
-                return {'handled': True, 'status': outcome or 'failed_permanent'}
+                return result(True, outcome or 'failed_permanent')
             if not sent:
                 outcome = await self._release(
                     job_id,
@@ -299,10 +316,12 @@ class VerificationEmailQueueService:
                     failure_code='EMAIL_NOT_CONFIGURED',
                     retryable=False,
                 )
-                return {'handled': True, 'status': outcome or 'failed_permanent'}
+                return result(True, outcome or 'failed_permanent')
+            provider_attempts = 1
             outcome = await self._complete(job_id, lease_token, 'provider_accepted')
-            return {'handled': True, 'status': outcome or 'provider_accepted'}
+            return result(True, outcome or 'provider_accepted')
         except EmailDeliveryError as exc:
+            provider_attempts = 1
             failure_code, retryable = self._delivery_failure(exc)
             try:
                 outcome = await self._release(
@@ -315,12 +334,12 @@ class VerificationEmailQueueService:
             except DatabaseError:
                 logger.warning('Verification email release outcome is uncertain.')
                 outcome = 'lease_recovery_pending'
-            return {'handled': True, 'status': outcome}
+            return result(True, outcome)
         except DatabaseError:
             # An uncertain completion is never followed by an explicit release:
             # the lease expires, and the exact alias/body/provider key replay.
             logger.warning('Verification email worker outcome is uncertain.')
-            return {'handled': True, 'status': 'lease_recovery_pending'}
+            return result(True, 'lease_recovery_pending')
         except Exception:
             logger.exception('Verification email worker failed without customer content.')
             try:
@@ -332,4 +351,4 @@ class VerificationEmailQueueService:
                 )
             except DatabaseError:
                 outcome = 'lease_recovery_pending'
-            return {'handled': True, 'status': outcome}
+            return result(True, outcome)
