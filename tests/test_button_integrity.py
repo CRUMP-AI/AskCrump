@@ -72,7 +72,7 @@ INDIRECT_DYNAMIC_BUTTON_OWNERS = {
         "wireOutputProjectAction(project, {",
         "button.addEventListener('click', async () => {",
     ),
-    "public/crump-5.2.js:736:buy": (
+    "public/crump-5.2.js:771:buy": (
         "buy.dataset.crumpPack =",
         "modal.addEventListener('click', event => {",
         "event.target.closest?.('[data-crump-pack]')",
@@ -651,7 +651,7 @@ def test_browser_control_matrix_is_fail_closed_and_one_command() -> None:
     workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     verifier_names = sorted(path.name for path in (ROOT / "scripts").glob("verify-*.cjs"))
 
-    assert len(verifier_names) == 64
+    assert len(verifier_names) == 65
     for name in verifier_names:
         assert f"'{name}'" in runner
     assert "Browser verifier inventory drifted." in runner

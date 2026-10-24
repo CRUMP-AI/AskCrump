@@ -1244,6 +1244,7 @@ const guestFreeWorkspaceRelease = 'workspaceRelease=guest-free-contract-2';
 const releasedWorkspaceAsset = url => `${url}&${guestFreeWorkspaceRelease}`;
 const accountOwnerBoundaryVersion = `${releaseVersion}-account-owner-boundary-1`;
 const privateOwnerBoundaryVersion = `${releaseVersion}-private-owner-boundary-1`;
+const legacyAttachmentOwnerBoundaryVersion = `${releaseVersion}-legacy-attachment-owner-fence-1`;
 const authControllerVersion = accountOwnerBoundaryVersion;
 const continuityHandoffVersion = `${releaseVersion}-continuity-handoff-1`;
 const composerModeResetVersion = `${releaseVersion}-composer-mode-reset-1`;
@@ -1283,7 +1284,7 @@ const libraryReconciliationVersion = `${releaseVersion}-library-reconciliation-1
 const homeDocumentEntryVersion = `${releaseVersion}-home-document-entry-1`;
 const autonomousContinuityVersion = `${releaseVersion}-autonomous-continuity-1`;
 const precisionAiPersistenceVersion = `${releaseVersion}-precision-ai-persistence-1`;
-const runtimeBodyVersion = accountOwnerBoundaryVersion;
+const runtimeBodyVersion = legacyAttachmentOwnerBoundaryVersion;
 const appearanceChoiceVersion = `${releaseVersion}-appearance-choice-3`;
 const uiReleaseAuditVersion = `${releaseVersion}-ui-release-audit-2`;
 const activityCenterVersion = autonomousContinuityVersion;
@@ -1691,7 +1692,7 @@ if (!runtime.includes('/billing.css') ||
     runtime.includes(`/crump-precision-image-edit.css?v=${precisionEditStudioVersion}`) ||
     runtime.includes(`/crump-precision-image-edit.js?v=${liveImagePreviewVersion}`) ||
     !runtime.includes(`/crump-billing-5.1.js?v=${privateOwnerBoundaryVersion}`) ||
-    !runtime.includes(`/crump-5.2.js?v=${privateOwnerBoundaryVersion}`) ||
+    !runtime.includes(`/crump-5.2.js?v=${legacyAttachmentOwnerBoundaryVersion}`) ||
     !runtime.includes(`/crump-5.2.2.css?v=${newResponseCueVersion}`) ||
     !runtime.includes(`/crump-5.2.2.js?v=${privateOwnerBoundaryVersion}&${guestFreeWorkspaceRelease}`) ||
     !runtime.includes(`/crump-4.3.js?v=${atelierWorkspaceVersion}`) ||
@@ -1720,7 +1721,7 @@ const guestFreeRuntimeAssets = [
   `/app.js?v=${appOwnerBoundaryVersion}`,
   `/crump-5.0.js?v=${chatComposerOwnerBoundaryVersion}`,
   `/crump-billing-5.1.js?v=${privateOwnerBoundaryVersion}`,
-  `/crump-5.2.js?v=${privateOwnerBoundaryVersion}`,
+  `/crump-5.2.js?v=${legacyAttachmentOwnerBoundaryVersion}`,
   `/crump-v1-body.js?v=${atelierWorkspaceVersion}`,
   `/crump-product-loader.js?v=${productOwnerBoundaryVersion}`,
   `/crump-code-loader.js?v=${codeOwnerBoundaryVersion}`,
@@ -1987,7 +1988,7 @@ for (const [pathname, expectedUrl] of [
   ['/product-analytics.js', `/product-analytics.js?v=${privateOwnerBoundaryVersion}`],
   ['/crump-4.4.js', `/crump-4.4.js?v=${privateOwnerBoundaryVersion}`],
   ['/crump-billing-5.1.js', releasedWorkspaceAsset(`/crump-billing-5.1.js?v=${privateOwnerBoundaryVersion}`)],
-  ['/crump-5.2.js', releasedWorkspaceAsset(`/crump-5.2.js?v=${privateOwnerBoundaryVersion}`)],
+  ['/crump-5.2.js', releasedWorkspaceAsset(`/crump-5.2.js?v=${legacyAttachmentOwnerBoundaryVersion}`)],
   ['/crump-5.2.2.js', releasedWorkspaceAsset(`/crump-5.2.2.js?v=${privateOwnerBoundaryVersion}`)],
   ['/crump-subscriptions-5.3.2.js', `/crump-subscriptions-5.3.2.js?v=${privateOwnerBoundaryVersion}`],
   ['/crump-activity-center-1.0.js', `/crump-activity-center-1.0.js?v=${privateOwnerBoundaryVersion}`],
@@ -2082,7 +2083,7 @@ for (const [pathname, expectedVersion] of [
     }
   }
 }
-if (!serviceWorker.includes('ask-crump-new-body-v1-r273-account-owner-boundary-1') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r274-legacy-attachment-owner-fence-1') ||
     !serviceWorker.includes(`'${shellBrandUrl}'`) ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||
@@ -2181,7 +2182,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r273-account-owner-boundary-1
     !serviceWorker.includes(`/subscription-ui.js?v=${privateOwnerBoundaryVersion}`) ||
     !serviceWorker.includes(`/crump-billing-5.1.css?v=${creditTruthVersion}`) ||
     !serviceWorker.includes(`/crump-billing-5.1.js?v=${privateOwnerBoundaryVersion}`) ||
-    !serviceWorker.includes(`/crump-5.2.js?v=${privateOwnerBoundaryVersion}`) ||
+    !serviceWorker.includes(`/crump-5.2.js?v=${legacyAttachmentOwnerBoundaryVersion}`) ||
     !serviceWorker.includes(`/crump-subscriptions-5.3.2.js?v=${privateOwnerBoundaryVersion}`) ||
     !serviceWorker.includes(`/crump-media-save.js?v=${libraryCrudPrivacyVersion}`) ||
     !serviceWorker.includes(`/crump-library-loader.js?v=${libraryOwnerBoundaryVersion}`) ||

@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Legacy attachment owner-boundary fixture</title>
+  <link rel="icon" href="data:,">
+</head>
+<body>
+  <main id="chatContainer" aria-label="Conversation"></main>
+  <script>
+    (() => {
+      'use strict';
+
+      const ownerA = '11111111-1111-4111-8111-111111111111';
+      const ownerB = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+      const sharedChatId = '22222222-2222-4222-8222-222222222222';
+      const sharedMessageId = '33333333-3333-4333-8333-333333333333';
+      const sharedName = 'Shared launch brief.pdf';
+      const sharedType = 'application/pdf';
+      const ownerAFileId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+      const ownerBFileId = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc';
+      const legacyFile = () => ({name: sharedName, type: sharedType, size: 0});
+      const makeChat = () => ({
+        id: sharedChatId,
+        messages: [{
+          id: sharedMessageId,
+          role: 'user',
+          content: 'Review the attached brief.',
+          files: [legacyFile()],
+        }],
+      });
+      const chatA = makeChat();
+      const chatAReplacement = makeChat();
+      const chatB = makeChat();
+      let ownerAReplacementWrites = 0;
+      let ownerAReplacementFiles = chatAReplacement.messages[0].files;
+      Object.defineProperty(chatAReplacement.messages[0], 'files', {
+        configurable: true,
+        enumerable: true,
+        get: () => ownerAReplacementFiles,
+        set: files => {
+          ownerAReplacementWrites += 1;
+          ownerAReplacementFiles = files;
+        },
+      });
+      let authenticatedOwnerId = ownerA;
+      let authRevision = 1;
+      let currentUserValue = {id: ownerA};
+      const scrubbers = new Map();
+
+      Object.defineProperty(window, 'currentUser', {
+        configurable: true,
+        get: () => currentUserValue,
+        set: value => { currentUserValue = value; },
+      });
+      window.CrumpAuthBoundary = Object.freeze({
+        authenticatedUserId: () => authenticatedOwnerId,
+        revision: () => authRevision,
+        register(name, scrub) {
+          scrubbers.set(String(name), scrub);
+          return () => scrubbers.delete(String(name));
+        },
+      });
+      window.currentChatId = sharedChatId;
+      window.chats = [chatA];
+      window.showToast = () => {};
+      window.open = () => {};
+
+      const renderMessages = messages => {
+        const container = document.getElementById('chatContainer');
+        container.replaceChildren();
+        for (const message of Array.isArray(messages) ? messages : []) {
+          const row = document.createElement('article');
+          row.dataset.messageId = message.id;
+          const wrapper = document.createElement('div');
+          wrapper.className = 'message-wrapper';
+          const content = document.createElement('p');
+          content.className = 'message-content';
+          content.textContent = message.content || '';
+          wrapper.appendChild(content);
+          row.appendChild(wrapper);
+          container.appendChild(row);
+        }
+      };
+      window.renderMessages = renderMessages;
+      renderMessages(chatA.messages);
+
+      const requests = [];
+      window.fetch = (input, options = {}) => {
+        const url = new URL(typeof input === 'string' ? input : input.url, location.href);
+        if (url.pathname !== `/api/files/chat/${sharedChatId}`) {
+          return Promise.resolve(new Response(JSON.stringify({
+            success: false,
+            error: `Unexpected fixture request: ${url.pathname}`,
+          }), {status: 500, headers: {'Content-Type': 'application/json'}}));
+        }
+        const request = {
+          ownerAtRequest: authenticatedOwnerId,
+          expectedOwner: new Headers(options.headers || {}).get('X-Ask-Crump-Expected-Owner') || '',
+          signal: options.signal || null,
+          aborted: Boolean(options.signal?.aborted),
+          abortEvents: 0,
+          settled: false,
+          resolve: null,
+        };
+        request.signal?.addEventListener('abort', () => {
+          request.aborted = true;
+          request.abortEvents += 1;
+        }, {once: true});
+        requests.push(request);
+        return new Promise(resolve => {
+          request.resolve = files => {
+            request.settled = true;
+            resolve(new Response(JSON.stringify({success: true, files}), {
+              status: 200,
+              headers: {'Content-Type': 'application/json'},
+            }));
+          };
+        });
+      };
+
+      function switchOwner(nextOwnerId, chat) {
+        const previousUserId = authenticatedOwnerId;
+        authRevision += 1;
+        authenticatedOwnerId = nextOwnerId;
+        currentUserValue = {id: nextOwnerId};
+        scrubbers.forEach(scrub => scrub({
+          reason: 'authenticated-user-changed',
+          previousUserId,
+          nextUserId: nextOwnerId,
+          revision: authRevision,
+        }));
+        window.chats = [chat];
+        window.currentChatId = sharedChatId;
+        window.renderMessages(chat.messages);
+        window.dispatchEvent(new Event('crump:authenticated-ready'));
+      }
+
+      window.__fixture = {
+        ownerA,
+        ownerB,
+        ownerAFileId,
+        ownerBFileId,
+        sharedChatId,
+        sharedMessageId,
+        sharedName,
+        chatA,
+        chatAReplacement,
+        chatB,
+        requests,
+        replaceOwnerAProjection() {
+          window.chats = [chatAReplacement];
+          window.currentChatId = sharedChatId;
+          window.renderMessages(chatAReplacement.messages);
+        },
+        switchToOwnerB() {
+          switchOwner(ownerB, chatB);
+        },
+        switchBackToOwnerA() {
+          switchOwner(ownerA, chatA);
+        },
+        resolveOwnerA(index = 0) {
+          requests[index]?.resolve?.([{
+            id: ownerAFileId,
+            name: sharedName,
+            type: sharedType,
+            size: 1024,
+          }]);
+        },
+        resolveOwnerB(index = 1) {
+          requests[index]?.resolve?.([{
+            id: ownerBFileId,
+            name: sharedName,
+            type: sharedType,
+            size: 2048,
+          }]);
+        },
+        resetOwnerBLegacyFile() {
+          chatB.messages[0].files = [legacyFile()];
+          window.renderMessages(chatB.messages);
+        },
+        snapshot() {
+          const attachment = document.querySelector('.crump52-rich-attachments');
+          const button = document.querySelector('.crump52-file-attachment');
+          return {
+            authenticatedOwnerId,
+            authRevision,
+            ownerAFile: {...chatA.messages[0].files[0]},
+            ownerAReplacementFile: {...chatAReplacement.messages[0].files[0]},
+            ownerAReplacementWrites,
+            ownerBFile: {...chatB.messages[0].files[0]},
+            attachmentSignature: attachment?.dataset.attachmentSignature || '',
+            attachmentText: attachment?.textContent?.replace(/\s+/g, ' ').trim() || '',
+            attachmentDisabled: button?.disabled ?? null,
+            requests: requests.map(request => ({
+              ownerAtRequest: request.ownerAtRequest,
+              expectedOwner: request.expectedOwner,
+              aborted: request.aborted,
+              abortEvents: request.abortEvents,
+              settled: request.settled,
+            })),
+          };
+        },
+      };
+    })();
+  </script>
+  <script src="/public/crump-5.2.js?v=legacy-attachment-owner-boundary-fixture-1"></script>
+</body>
+</html>

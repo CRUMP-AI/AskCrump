@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r273-account-owner-boundary-1';
+const CACHE_NAME = 'ask-crump-new-body-v1-r274-legacy-attachment-owner-fence-1';
 
 const CORE = [
   '/app',
@@ -49,7 +49,7 @@ const CORE = [
   '/crump-media-save.js?v=5.9.76-library-crud-privacy-1',
   '/crump-library-loader.js?v=5.9.76-account-owner-boundary-1',
   '/crump-subscriptions-5.3.2.js?v=5.9.76-private-owner-boundary-1',
-  '/runtime-body-v1.js?v=5.9.76-account-owner-boundary-1',
+  '/runtime-body-v1.js?v=5.9.76-legacy-attachment-owner-fence-1',
   '/home-document-entry.js?v=5.9.76-home-document-entry-1',
   '/native-runtime.js',
   '/mobile-bridge.js?v=5.9.76-private-owner-boundary-1',
@@ -85,7 +85,7 @@ const CORE = [
   '/crump-billing-5.1.css?v=5.9.76-credit-truth-1',
   '/crump-billing-5.1.js?v=5.9.76-private-owner-boundary-1&workspaceRelease=guest-free-contract-2',
   '/crump-5.2.css',
-  '/crump-5.2.js?v=5.9.76-private-owner-boundary-1&workspaceRelease=guest-free-contract-2',
+  '/crump-5.2.js?v=5.9.76-legacy-attachment-owner-fence-1&workspaceRelease=guest-free-contract-2',
   '/crump-5.2.2.css?v=5.9.76-new-response-cue-1',
   '/crump-5.2.2.js?v=5.9.76-private-owner-boundary-1&workspaceRelease=guest-free-contract-2',
   '/assets/brand/crump-shell-lockup-light.webp?v=5.9.76-shell-no-tagline-1',
