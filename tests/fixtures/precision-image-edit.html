@@ -20,11 +20,25 @@
   <script>
     window.__precisionStaged = null;
     window.__localSaveRequest = null;
+    window.__localSaveRequests = [];
+    window.__localSaveFailure = false;
+    window.__localSaveMetadataSize = '';
+    window.__holdLocalSave = false;
+    window.__ignoreLocalSaveAbort = false;
+    window.__releaseLocalSave = null;
+    window.__localSaveAborts = 0;
+    window.__localSaveIgnoredAborts = 0;
+    window.__localSaveResponses = 0;
+    window.__localSaveSequence = 0;
+    window.__unexpectedFetches = [];
     window.__appliedLocalFile = null;
+    window.__localAppliedEvents = 0;
+    window.__precisionStageCalls = 0;
     window.__lastToast = null;
     window.__versionRequest = null;
     window.currentChatId = '22222222-2222-4222-8222-222222222222';
     window.showToast = (message, tone) => { window.__lastToast = {message, tone}; };
+    window.addEventListener('crump:local-image-edit-applied', () => { window.__localAppliedEvents += 1; });
     const nativeFetch = window.fetch.bind(window);
     window.fetch = async (input, init = {}) => {
       const url = String(input || '');
@@ -46,24 +60,66 @@
         }), {status: 200, headers: {'Content-Type': 'application/json'}});
       }
       if (url.includes('/image-adjust')) {
-        window.__localSaveRequest = {url, body: JSON.parse(String(init.body || '{}'))};
+        const childNumber = ++window.__localSaveSequence;
+        const savedFileId = `33333333-3333-4333-8333-${String(childNumber).padStart(12, '0')}`;
+        const sourceFileId = decodeURIComponent(url.split('/api/files/')[1]?.split('/image-adjust')[0] || '');
+        const request = {url, body: JSON.parse(String(init.body || '{}')), savedFileId};
+        window.__localSaveRequest = request;
+        window.__localSaveRequests.push(request);
+        if (window.__holdLocalSave) {
+          await new Promise((resolve, reject) => {
+            const abort = () => {
+              if (window.__ignoreLocalSaveAbort) {
+                window.__localSaveIgnoredAborts += 1;
+                return;
+              }
+              window.__releaseLocalSave = null;
+              window.__localSaveAborts += 1;
+              reject(new DOMException('The local save was aborted.', 'AbortError'));
+            };
+            window.__releaseLocalSave = () => {
+              init.signal?.removeEventListener?.('abort', abort);
+              window.__releaseLocalSave = null;
+              resolve();
+            };
+            if (init.signal?.aborted) abort();
+            else init.signal?.addEventListener?.('abort', abort, {once: true});
+          });
+        }
+        window.__localSaveResponses += 1;
+        if (window.__localSaveFailure) {
+          return new Response(JSON.stringify({
+            success: false,
+            error: 'Fixture local save failed.',
+          }), {status: 503, headers: {'Content-Type': 'application/json'}});
+        }
         return new Response(JSON.stringify({
           success: true,
           providerUsed: false,
           creditsUsed: 0,
           file: {
-            id: '33333333-3333-4333-8333-333333333333',
+            id: savedFileId,
             name: 'Crump_Local_Edit.png',
             type: 'image/png',
             size: 3210,
-            url: '/api/files/33333333-3333-4333-8333-333333333333/content',
+            url: `/api/files/${savedFileId}/content`,
+            metadata: {
+              sourceFileId,
+              size: window.__localSaveMetadataSize || (
+                request.body?.transform?.operations?.some(operation => operation?.type === 'rotate')
+                  ? '480x640'
+                  : '640x480'
+              ),
+            },
           },
         }), {status: 200, headers: {'Content-Type': 'application/json'}});
       }
+      window.__unexpectedFetches.push({url, method: String(init.method || 'GET').toUpperCase()});
       return nativeFetch(input, init);
     };
     window.CrumpImageStudio = Object.freeze({
       applyPrecisionSelection(payload) {
+        window.__precisionStageCalls += 1;
         window.__precisionStaged = payload;
         document.getElementById('fixtureOutput').textContent = 'selection staged';
       },

@@ -312,9 +312,9 @@ def test_changed_primary_runtime_and_transport_are_release_versioned_and_network
 
     assert '/chat-resilience.js?v=5.9.76-contextual-plan-recovery-1' not in shell
     assert "['/chat-resilience.js?v=5.9.76-credit-confirmation-1&workspaceRelease=guest-free-contract-2', 'workspacechatresilience']" in runtime
-    assert "['/crump-5.0.js?v=5.9.76-library-crud-privacy-1&workspaceRelease=guest-free-contract-2', 'crump50']" in runtime
+    assert "['/crump-5.0.js?v=5.9.76-precision-ai-persistence-1&workspaceRelease=guest-free-contract-2', 'crump50']" in runtime
     assert "'/chat-resilience.js?v=5.9.76-credit-confirmation-1&workspaceRelease=guest-free-contract-2'" in worker
-    assert "'/crump-5.0.js?v=5.9.76-library-crud-privacy-1&workspaceRelease=guest-free-contract-2'" in worker
+    assert "'/crump-5.0.js?v=5.9.76-precision-ai-persistence-1&workspaceRelease=guest-free-contract-2'" in worker
     assert "url.pathname === '/chat-resilience.js'" in worker
     assert "url.pathname === '/crump-5.0.js'" in worker
 

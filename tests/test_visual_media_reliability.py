@@ -1553,7 +1553,8 @@ def test_precision_editor_is_manual_private_and_pixel_protected() -> None:
         "localAdjustmentMaskDataUrl",
         "maskDataUrl",
         "overlayDataUrl",
-        "overlayCanvas.toBlob",
+        "function overlayDataUrl(canvas",
+        "canvas.toBlob",
         "MAX_OVERLAY_ITEMS = 12",
         "MAX_OVERLAY_SOURCE_PIXELS = 16_777_216",
         "MAX_LASSO_POINTS = 4096",
@@ -1608,14 +1609,14 @@ def test_precision_editor_is_manual_private_and_pixel_protected() -> None:
     assert "stage.clientHeight" in editor
     assert "state.fitWidth = Math.max(1" in editor
     assert "state.fitHeight = Math.max(1" in editor
-    exact_script = "/crump-precision-image-edit.js?v=5.9.76-reference-fidelity-hard-contract-1"
+    exact_script = "/crump-precision-image-edit.js?v=5.9.76-precision-ai-persistence-1"
     exact_style = "/crump-precision-image-edit.css?v=5.9.76-reference-fidelity-hard-contract-1"
     for asset in (exact_script, exact_style):
         assert asset in loader
         assert asset not in runtime
         assert asset not in worker
         assert asset not in native
-    exact_loader = "/crump-precision-image-edit-loader.js?v=5.9.76-reference-fidelity-hard-contract-1"
+    exact_loader = "/crump-precision-image-edit-loader.js?v=5.9.76-precision-ai-persistence-1"
     for source in (runtime, worker, native):
         assert exact_loader in source
     assert "CrumpPrecisionImageEditLoader?.load" in composer

@@ -7,7 +7,7 @@ const {chromium} = require(playwrightModule);
 
 const publicDirectory = path.resolve(process.cwd(), 'public');
 const cachedTargets = Object.freeze([
-  ['/runtime-body-v1.js', '/runtime-body-v1.js?v=5.9.76-guest-free-contract-2'],
+  ['/runtime-body-v1.js', '/runtime-body-v1.js?v=5.9.76-precision-ai-persistence-1'],
   ['/crump-v1-body.css', '/crump-v1-body.css?v=5.9.76-owned-workspace-access-1'],
   ['/home-document-entry.js', '/home-document-entry.js?v=5.9.76-home-document-entry-1'],
   ['/crump-product-loader.js', '/crump-product-loader.js?v=5.9.76-manuscript-export-delivery-1&workspaceRelease=guest-free-contract-2'],

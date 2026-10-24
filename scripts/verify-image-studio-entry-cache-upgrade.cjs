@@ -15,7 +15,7 @@ const oldUrls = Object.freeze([
   '/auth-controller.js?v=5.9.76-facebook-reel-attribution-1',
 ]);
 const newUrls = Object.freeze({
-  runtime: '/runtime-body-v1.js?v=5.9.76-guest-free-contract-2',
+  runtime: '/runtime-body-v1.js?v=5.9.76-precision-ai-persistence-1',
   navigation: '/crump-navigation-5.9.30.js?v=5.9.76-atelier-workspace-1',
   auth: '/auth-controller.js?v=5.9.76-auth-verification-session-1',
 });

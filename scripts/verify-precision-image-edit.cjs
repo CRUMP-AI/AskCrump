@@ -14,6 +14,107 @@ const {chromium} = require(playwrightModule);
   await open.click();
   const editor = page.getByRole('dialog', {name: /Choose exactly what may change/});
   await editor.waitFor();
+  const resetAiFixtureState = async ({
+    failLocalSave = false,
+    holdLocalSave = false,
+    ignoreLocalSaveAbort = false,
+    localSaveSize = '',
+  } = {}) => {
+    await page.evaluate(({shouldFail, holdSave, ignoreAbort, savedSize}) => {
+      window.__releaseLocalSave?.();
+      window.__precisionStaged = null;
+      window.__localSaveRequest = null;
+      window.__localSaveRequests = [];
+      window.__localSaveFailure = shouldFail;
+      window.__localSaveMetadataSize = savedSize;
+      window.__holdLocalSave = holdSave;
+      window.__ignoreLocalSaveAbort = ignoreAbort;
+      window.__releaseLocalSave = null;
+      window.__localSaveAborts = 0;
+      window.__localSaveIgnoredAborts = 0;
+      window.__localSaveResponses = 0;
+      window.__appliedLocalFile = null;
+      window.__localAppliedEvents = 0;
+      window.__precisionStageCalls = 0;
+      window.__lastToast = null;
+      window.currentChatId = '22222222-2222-4222-8222-222222222222';
+    }, {
+      shouldFail: failLocalSave,
+      holdSave: holdLocalSave,
+      ignoreAbort: ignoreLocalSaveAbort,
+      savedSize: localSaveSize,
+    });
+  };
+  const paintSelection = async dialog => {
+    const clear = dialog.getByRole('button', {name: 'Clear'});
+    if (await clear.isEnabled()) await clear.click();
+    await dialog.getByRole('button', {name: 'Brush'}).click();
+    const mask = dialog.locator('.crump-precision-mask');
+    const bounds = await mask.boundingBox();
+    if (!bounds) throw new Error('Precision selection canvas was not visible.');
+    await page.mouse.move(bounds.x + bounds.width * .4, bounds.y + bounds.height * .4);
+    await page.mouse.down();
+    await page.mouse.move(bounds.x + bounds.width * .6, bounds.y + bounds.height * .6, {steps: 8});
+    await page.mouse.up();
+    return mask;
+  };
+  const addExactOverlay = async dialog => {
+    const overlayInput = dialog.getByLabel('Exact overlay image');
+    const pending = await overlayInput.evaluate((input, encoded) => {
+      const bytes = Uint8Array.from(atob(encoded), value => value.charCodeAt(0));
+      const transfer = new DataTransfer();
+      transfer.items.add(new File([bytes], 'approved-logo.png', {type: 'image/png'}));
+      input.files = transfer.files;
+      input.dispatchEvent(new Event('change', {bubbles: true}));
+      const editorNode = input.closest('.crump-precision-editor');
+      return {
+        useDisabled: editorNode.querySelector('.crump-precision-use')?.disabled,
+        saveDisabled: editorNode.querySelector('.crump-precision-save-local')?.disabled,
+        addDisabled: editorNode.querySelector('.crump-precision-overlay-actions button')?.disabled,
+      };
+    }, 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9Y9Zl2cAAAAASUVORK5CYII=');
+    await page.waitForFunction(() => {
+      const editorNode = document.querySelector('.crump-precision-editor');
+      const overlay = editorNode?.querySelector('.crump-precision-exact-canvas');
+      const add = editorNode?.querySelector('.crump-precision-overlay-actions button');
+      const save = editorNode?.querySelector('.crump-precision-save-local');
+      const use = editorNode?.querySelector('.crump-precision-use');
+      return overlay && !overlay.hidden && add && !add.disabled && save && !save.disabled && use && !use.disabled;
+    });
+    return {
+      ...pending,
+      useEnabledAfter: await dialog.getByRole('button', {name: 'Continue with AI edit'}).isEnabled(),
+      saveEnabledAfter: await dialog.getByRole('button', {name: 'Apply changes'}).isEnabled(),
+    };
+  };
+  const dataUrlProof = async kind => page.evaluate(async proofKind => {
+    const request = window.__localSaveRequests?.[0]?.body || {};
+    const dataUrl = proofKind === 'requestMask'
+      ? request.maskDataUrl
+      : proofKind === 'requestOverlay'
+        ? request.overlayDataUrl
+        : window.__precisionStaged?.maskDataUrl;
+    const image = new Image();
+    image.src = String(dataUrl || '');
+    await image.decode();
+    const canvas = document.createElement('canvas');
+    canvas.width = image.naturalWidth;
+    canvas.height = image.naturalHeight;
+    const context = canvas.getContext('2d', {alpha: true});
+    context.drawImage(image, 0, 0);
+    const center = context.getImageData(Math.floor(canvas.width / 2), Math.floor(canvas.height / 2), 1, 1).data[3];
+    const corner = context.getImageData(0, 0, 1, 1).data[3];
+    let nonzeroAlpha = false;
+    const pixels = context.getImageData(0, 0, canvas.width, canvas.height).data;
+    const stride = Math.max(4, Math.floor((canvas.width * canvas.height) / 50_000) * 4);
+    for (let index = 3; index < pixels.length; index += stride) {
+      if (pixels[index] > 0) {
+        nonzeroAlpha = true;
+        break;
+      }
+    }
+    return {width: canvas.width, height: canvas.height, center, corner, nonzeroAlpha};
+  }, kind);
   const desktop = {
     ariaModal: await editor.getAttribute('aria-modal'),
     heading: await editor.getByRole('heading').textContent(),
@@ -70,7 +171,9 @@ const {chromium} = require(playwrightModule);
     operations: window.__localSaveRequest?.body?.transform?.operations,
     mask: window.__localSaveRequest?.body?.maskDataUrl,
     overlay: window.__localSaveRequest?.body?.overlayDataUrl,
+    requestFileId: window.__localSaveRequest?.savedFileId,
     fileId: window.__appliedLocalFile?.id,
+    sourceFileId: window.__appliedLocalFile?.metadata?.sourceFileId,
   }));
   await page.evaluate(() => {
     window.__localSaveRequest = null;
@@ -169,6 +272,7 @@ const {chromium} = require(playwrightModule);
   await editor.getByRole('button', {name: 'Redo'}).click();
   await editor.getByRole('slider', {name: 'Selection edge feather'}).fill('1');
   const feather = await editor.getByRole('slider', {name: 'Selection edge feather'}).inputValue();
+  await resetAiFixtureState();
   await editor.getByRole('button', {name: 'Continue with AI edit'}).click();
   await page.waitForFunction(() => Boolean(window.__precisionStaged));
   await page.waitForFunction(() => document.activeElement?.id === 'openPrecision');
@@ -178,9 +282,278 @@ const {chromium} = require(playwrightModule);
     width: window.__precisionStaged?.width,
     height: window.__precisionStaged?.height,
     instruction: window.__precisionStaged?.instruction,
+    localSaveCount: window.__localSaveRequests?.length || 0,
+    stageCalls: window.__precisionStageCalls,
+    appliedLocalFile: window.__appliedLocalFile,
+    appliedEventCount: window.__localAppliedEvents,
     modalOpen: Boolean(document.querySelector('.crump-precision-editor')),
     focused: document.activeElement?.id,
   }));
+  staged.maskProof = await dataUrlProof('stagedMask');
+
+  await resetAiFixtureState({holdLocalSave: true});
+  await open.click();
+  await editor.waitFor();
+  await paintSelection(editor);
+  const aiWarmth = editor.getByRole('slider', {name: 'Warmth adjustment'});
+  await aiWarmth.fill('12');
+  await page.waitForFunction(() => {
+    const preview = document.querySelector('.crump-precision-preview');
+    return Boolean(preview && !preview.hidden);
+  });
+  await editor.getByRole('button', {name: 'Continue with AI edit'}).click();
+  await page.waitForFunction(() => window.__localSaveRequests?.length === 1);
+  const adjustmentLock = await page.evaluate(() => {
+    const modal = document.querySelector('.crump-precision-editor');
+    return {
+      modalBusy: modal?.getAttribute('aria-busy'),
+      useEnabled: !modal?.querySelector('.crump-precision-use')?.disabled,
+      saveEnabled: !modal?.querySelector('.crump-precision-save-local')?.disabled,
+      warmthEnabled: !modal?.querySelector('[aria-label="Warmth adjustment"]')?.disabled,
+      closeEnabled: !modal?.querySelector('.crump-precision-close')?.disabled,
+      cancelEnabled: !modal?.querySelector('.crump-precision-cancel')?.disabled,
+      stagedBeforeRelease: window.__precisionStaged,
+      stageCallsBeforeRelease: window.__precisionStageCalls,
+    };
+  });
+  await page.evaluate(() => window.__releaseLocalSave?.());
+  await page.waitForFunction(() => Boolean(window.__precisionStaged && window.__localSaveRequests?.length === 1));
+  const adjustmentAi = await page.evaluate(() => ({
+    saveCount: window.__localSaveRequests?.length || 0,
+    request: window.__localSaveRequests?.[0] || null,
+    stagedFileId: window.__precisionStaged?.file?.id,
+    stagedWidth: window.__precisionStaged?.width,
+    stagedHeight: window.__precisionStaged?.height,
+    stagedMaskPrefix: String(window.__precisionStaged?.maskDataUrl || '').slice(0, 22),
+    maskMatchesPersisted: window.__precisionStaged?.maskDataUrl === window.__localSaveRequests?.[0]?.body?.maskDataUrl,
+    savedMetadata: window.__precisionStaged?.file?.metadata,
+    stageCalls: window.__precisionStageCalls,
+    appliedLocalFile: window.__appliedLocalFile,
+    appliedEventCount: window.__localAppliedEvents,
+    modalOpen: Boolean(document.querySelector('.crump-precision-editor')),
+  }));
+  adjustmentAi.lock = adjustmentLock;
+  adjustmentAi.maskProof = await dataUrlProof('stagedMask');
+
+  await resetAiFixtureState();
+  await open.click();
+  await editor.waitFor();
+  await paintSelection(editor);
+  await editor.getByRole('textbox', {name: 'Exact overlay text'}).fill('APPROVED');
+  await editor.getByRole('button', {name: 'Add text'}).click();
+  await page.waitForFunction(() => !document.querySelector('.crump-precision-save-local')?.disabled);
+  const overlayPending = await addExactOverlay(editor);
+  await editor.getByRole('button', {name: 'Continue with AI edit'}).click();
+  await page.waitForFunction(() => Boolean(window.__precisionStaged && window.__localSaveRequests?.length === 1));
+  const overlayAi = await page.evaluate(() => ({
+    saveCount: window.__localSaveRequests?.length || 0,
+    request: window.__localSaveRequests?.[0] || null,
+    stagedFileId: window.__precisionStaged?.file?.id,
+    stagedWidth: window.__precisionStaged?.width,
+    stagedHeight: window.__precisionStaged?.height,
+    stagedMaskPrefix: String(window.__precisionStaged?.maskDataUrl || '').slice(0, 22),
+    savedMetadata: window.__precisionStaged?.file?.metadata,
+    stageCalls: window.__precisionStageCalls,
+    appliedLocalFile: window.__appliedLocalFile,
+    appliedEventCount: window.__localAppliedEvents,
+    modalOpen: Boolean(document.querySelector('.crump-precision-editor')),
+  }));
+  overlayAi.pendingImport = overlayPending;
+  overlayAi.maskProof = await dataUrlProof('stagedMask');
+  overlayAi.overlayProof = await dataUrlProof('requestOverlay');
+
+  await resetAiFixtureState();
+  await open.click();
+  await editor.waitFor();
+  await editor.getByRole('button', {name: 'Rotate image right 90 degrees'}).click();
+  await page.waitForFunction(() => document.querySelector('.crump-precision-mask')?.width === 480);
+  await paintSelection(editor);
+  await editor.getByRole('slider', {name: 'Exposure adjustment'}).fill('9');
+  await page.waitForFunction(() => {
+    const preview = document.querySelector('.crump-precision-preview');
+    return Boolean(preview && !preview.hidden);
+  });
+  await addExactOverlay(editor);
+  await editor.getByRole('button', {name: 'Continue with AI edit'}).click();
+  await page.waitForFunction(() => Boolean(window.__precisionStaged && window.__localSaveRequests?.length === 1));
+  const combinedAi = await page.evaluate(() => ({
+      saveCount: window.__localSaveRequests?.length || 0,
+      request: window.__localSaveRequests?.[0] || null,
+      stagedFileId: window.__precisionStaged?.file?.id,
+      stagedWidth: window.__precisionStaged?.width,
+      stagedHeight: window.__precisionStaged?.height,
+      stagedMaskPrefix: String(window.__precisionStaged?.maskDataUrl || '').slice(0, 22),
+      maskMatchesPersisted: window.__precisionStaged?.maskDataUrl === window.__localSaveRequests?.[0]?.body?.maskDataUrl,
+      savedMetadata: window.__precisionStaged?.file?.metadata,
+      stageCalls: window.__precisionStageCalls,
+      appliedLocalFile: window.__appliedLocalFile,
+      appliedEventCount: window.__localAppliedEvents,
+      modalOpen: Boolean(document.querySelector('.crump-precision-editor')),
+  }));
+  combinedAi.maskProof = await dataUrlProof('stagedMask');
+  combinedAi.overlayProof = await dataUrlProof('requestOverlay');
+
+  await resetAiFixtureState({failLocalSave: true});
+  await open.click();
+  await editor.waitFor();
+  await editor.getByRole('button', {name: 'Rotate image right 90 degrees'}).click();
+  await page.waitForFunction(() => document.querySelector('.crump-precision-mask')?.width === 480);
+  const failedMask = await paintSelection(editor);
+  await editor.getByRole('slider', {name: 'Saturation adjustment'}).fill('11');
+  await page.waitForFunction(() => {
+    const preview = document.querySelector('.crump-precision-preview');
+    return Boolean(preview && !preview.hidden);
+  });
+  await addExactOverlay(editor);
+  await editor.getByRole('button', {name: 'Continue with AI edit'}).click();
+  await page.waitForFunction(() => document.querySelector('.crump-precision-status')?.textContent?.includes('Fixture local save failed.'));
+  const failedAi = {
+    ...(await page.evaluate(() => ({
+      saveCount: window.__localSaveRequests?.length || 0,
+      request: window.__localSaveRequests?.[0] || null,
+      staged: window.__precisionStaged,
+      stageCalls: window.__precisionStageCalls,
+      appliedLocalFile: window.__appliedLocalFile,
+      appliedEventCount: window.__localAppliedEvents,
+      modalOpen: Boolean(document.querySelector('.crump-precision-editor')),
+      modalBusy: document.querySelector('.crump-precision-editor')?.getAttribute('aria-busy'),
+    }))),
+    saturation: await editor.getByRole('slider', {name: 'Saturation adjustment'}).inputValue(),
+    overlayPixels: await editor.locator('.crump-precision-exact-canvas').evaluate(node => {
+      const pixels = node.getContext('2d').getImageData(0, 0, node.width, node.height).data;
+      for (let index = 3; index < pixels.length; index += 4) {
+        if (pixels[index] > 0) return true;
+      }
+      return false;
+    }),
+    dimensions: await failedMask.evaluate(node => ({width: node.width, height: node.height})),
+    selectedAlpha: await failedMask.evaluate(node => {
+      const context = node.getContext('2d');
+      return context.getImageData(Math.floor(node.width / 2), Math.floor(node.height / 2), 1, 1).data[3];
+    }),
+    resetFrameEnabled: await editor.getByRole('button', {name: 'Reset frame'}).isEnabled(),
+    saveEnabled: await editor.getByRole('button', {name: 'Apply changes'}).isEnabled(),
+    useEnabled: await editor.getByRole('button', {name: 'Continue with AI edit'}).isEnabled(),
+    useBusy: await editor.getByRole('button', {name: 'Continue with AI edit'}).getAttribute('aria-busy'),
+  };
+  await editor.getByRole('button', {name: 'Close Precision Edit'}).click();
+  await page.waitForFunction(() => document.activeElement?.id === 'openPrecision');
+  await resetAiFixtureState();
+
+  await resetAiFixtureState({localSaveSize: '639x480'});
+  await open.click();
+  await editor.waitFor();
+  await paintSelection(editor);
+  await editor.getByRole('slider', {name: 'Warmth adjustment'}).fill('5');
+  await page.waitForFunction(() => {
+    const preview = document.querySelector('.crump-precision-preview');
+    return Boolean(preview && !preview.hidden);
+  });
+  await editor.getByRole('button', {name: 'Continue with AI edit'}).click();
+  await page.waitForFunction(() => document.querySelector('.crump-precision-status')?.textContent?.includes('dimensions did not match'));
+  const dimensionMismatch = await page.evaluate(() => ({
+    saveCount: window.__localSaveRequests?.length || 0,
+    staged: window.__precisionStaged,
+    stageCalls: window.__precisionStageCalls,
+    appliedLocalFile: window.__appliedLocalFile,
+    appliedEventCount: window.__localAppliedEvents,
+    modalOpen: Boolean(document.querySelector('.crump-precision-editor')),
+    modalBusy: document.querySelector('.crump-precision-editor')?.getAttribute('aria-busy'),
+    useBusy: document.querySelector('.crump-precision-use')?.getAttribute('aria-busy'),
+    useEnabled: !document.querySelector('.crump-precision-use')?.disabled,
+  }));
+  await editor.getByRole('button', {name: 'Close Precision Edit'}).click();
+  await page.waitForFunction(() => document.activeElement?.id === 'openPrecision');
+  await resetAiFixtureState({holdLocalSave: true});
+  await open.click();
+  await editor.waitFor();
+  await paintSelection(editor);
+  await editor.getByRole('slider', {name: 'Warmth adjustment'}).fill('7');
+  await page.waitForFunction(() => {
+    const preview = document.querySelector('.crump-precision-preview');
+    return Boolean(preview && !preview.hidden);
+  });
+  await editor.getByRole('button', {name: 'Continue with AI edit'}).click();
+  await page.waitForFunction(() => window.__localSaveRequests?.length === 1);
+  await page.evaluate(() => {
+    window.currentChatId = '44444444-4444-4444-8444-444444444444';
+    window.__releaseLocalSave?.();
+  });
+  await page.waitForFunction(() => document.querySelector('.crump-precision-status')?.textContent?.includes('conversation changed'));
+  const conversationRace = await page.evaluate(() => ({
+    saveCount: window.__localSaveRequests?.length || 0,
+    requestChatId: window.__localSaveRequests?.[0]?.body?.chatId,
+    staged: window.__precisionStaged,
+    stageCalls: window.__precisionStageCalls,
+    appliedLocalFile: window.__appliedLocalFile,
+    appliedEventCount: window.__localAppliedEvents,
+    modalOpen: Boolean(document.querySelector('.crump-precision-editor')),
+    modalBusy: document.querySelector('.crump-precision-editor')?.getAttribute('aria-busy'),
+    useEnabled: !document.querySelector('.crump-precision-use')?.disabled,
+  }));
+  await editor.getByRole('button', {name: 'Cancel'}).click();
+  await page.waitForFunction(() => document.activeElement?.id === 'openPrecision');
+
+  await resetAiFixtureState({holdLocalSave: true, ignoreLocalSaveAbort: true});
+  await open.click();
+  await editor.waitFor();
+  await paintSelection(editor);
+  await editor.getByRole('slider', {name: 'Warmth adjustment'}).fill('7');
+  await page.waitForFunction(() => {
+    const preview = document.querySelector('.crump-precision-preview');
+    return Boolean(preview && !preview.hidden);
+  });
+  await editor.getByRole('button', {name: 'Continue with AI edit'}).click();
+  await page.waitForFunction(() => window.__localSaveRequests?.length === 1);
+  const cancelWasEnabled = await editor.getByRole('button', {name: 'Cancel'}).isEnabled();
+  const cancellationFocus = await page.evaluate(() => document.activeElement?.className || '');
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => !document.querySelector('.crump-precision-editor'));
+  await page.evaluate(() => window.__releaseLocalSave?.());
+  await page.waitForFunction(() => window.__localSaveResponses === 1);
+  const cancelledLateSuccess = await page.evaluate(enabled => ({
+    cancelWasEnabled: enabled,
+    saveCount: window.__localSaveRequests?.length || 0,
+    saveAborts: window.__localSaveAborts,
+    ignoredAborts: window.__localSaveIgnoredAborts,
+    responses: window.__localSaveResponses,
+    staged: window.__precisionStaged,
+    stageCalls: window.__precisionStageCalls,
+    appliedLocalFile: window.__appliedLocalFile,
+    appliedEventCount: window.__localAppliedEvents,
+    modalOpen: Boolean(document.querySelector('.crump-precision-editor')),
+    bodyOpen: document.body.classList.contains('crump-precision-open'),
+  }), cancelWasEnabled);
+  cancelledLateSuccess.cancellationFocus = cancellationFocus;
+  await resetAiFixtureState();
+
+  await open.click();
+  await editor.waitFor();
+  await paintSelection(editor);
+  await editor.getByRole('slider', {name: 'Exposure adjustment'}).fill('6');
+  await page.waitForFunction(() => {
+    const preview = document.querySelector('.crump-precision-preview');
+    return Boolean(preview && !preview.hidden);
+  });
+  await page.evaluate(() => {
+    window.__fixtureImageStudio = window.CrumpImageStudio;
+    window.CrumpImageStudio = null;
+  });
+  await editor.getByRole('button', {name: 'Continue with AI edit'}).click();
+  await page.waitForFunction(() => document.querySelector('.crump-precision-status')?.textContent?.includes('AI edit workspace is unavailable'));
+  const unavailableWorkspace = await page.evaluate(() => ({
+    saveCount: window.__localSaveRequests?.length || 0,
+    staged: window.__precisionStaged,
+    stageCalls: window.__precisionStageCalls,
+    modalOpen: Boolean(document.querySelector('.crump-precision-editor')),
+    modalBusy: document.querySelector('.crump-precision-editor')?.getAttribute('aria-busy'),
+    useBusy: document.querySelector('.crump-precision-use')?.getAttribute('aria-busy'),
+    useEnabled: !document.querySelector('.crump-precision-use')?.disabled,
+  }));
+  await page.evaluate(() => { window.CrumpImageStudio = window.__fixtureImageStudio; });
+  await editor.getByRole('button', {name: 'Close Precision Edit'}).click();
+  await page.waitForFunction(() => document.activeElement?.id === 'openPrecision');
+  await resetAiFixtureState();
 
   await open.click();
   await editor.waitFor();
@@ -248,7 +621,9 @@ const {chromium} = require(playwrightModule);
     prefix: String(window.__localSaveRequest?.body?.maskDataUrl || '').slice(0, 22),
     adjustments: window.__localSaveRequest?.body?.adjustments,
     chatId: window.__localSaveRequest?.body?.chatId,
+    requestFileId: window.__localSaveRequest?.savedFileId,
     fileId: window.__appliedLocalFile?.id,
+    sourceFileId: window.__appliedLocalFile?.metadata?.sourceFileId,
     toast: window.__lastToast,
     focused: document.activeElement?.id,
   }));
@@ -304,7 +679,9 @@ const {chromium} = require(playwrightModule);
     overlayPrefix: String(window.__localSaveRequest?.body?.overlayDataUrl || '').slice(0, 22),
     overlayLength: String(window.__localSaveRequest?.body?.overlayDataUrl || '').length,
     adjustments: window.__localSaveRequest?.body?.adjustments,
+    requestFileId: window.__localSaveRequest?.savedFileId,
     fileId: window.__appliedLocalFile?.id,
+    sourceFileId: window.__appliedLocalFile?.metadata?.sourceFileId,
     toast: window.__lastToast,
     focused: document.activeElement?.id,
   }));
@@ -369,6 +746,7 @@ const {chromium} = require(playwrightModule);
   await page.keyboard.press('Escape');
   await page.waitForFunction(() => document.activeElement?.id === 'openPrecision');
   const escaped = await page.evaluate(() => !document.querySelector('.crump-precision-editor'));
+  const unexpectedFetches = await page.evaluate(() => window.__unexpectedFetches || []);
   await browser.close();
 
   if (
@@ -402,7 +780,8 @@ const {chromium} = require(playwrightModule);
     || geometrySave.operations?.[1]?.type !== 'crop'
     || geometrySave.mask !== ''
     || geometrySave.overlay !== ''
-    || geometrySave.fileId !== '33333333-3333-4333-8333-333333333333'
+    || geometrySave.fileId !== geometrySave.requestFileId
+    || geometrySave.sourceFileId !== '11111111-1111-4111-8111-111111111111'
     || zoomed.label !== '150%'
     || zoomed.width <= fittedWidth * 1.4
     || movePressed !== 'true'
@@ -428,8 +807,166 @@ const {chromium} = require(playwrightModule);
     || staged.width !== 640
     || staged.height !== 480
     || !staged.instruction.includes('subtly warmer')
+    || staged.localSaveCount !== 0
+    || staged.stageCalls !== 1
+    || staged.appliedLocalFile !== null
+    || staged.appliedEventCount !== 0
+    || staged.maskProof.width !== 640
+    || staged.maskProof.height !== 480
+    || staged.maskProof.center === 0
+    || staged.maskProof.corner !== 0
+    || !staged.maskProof.nonzeroAlpha
     || staged.modalOpen
     || staged.focused !== 'openPrecision'
+    || adjustmentAi.saveCount !== 1
+    || !adjustmentAi.request?.url?.endsWith('/11111111-1111-4111-8111-111111111111/image-adjust')
+    || !String(adjustmentAi.request?.body?.maskDataUrl || '').startsWith('data:image/png;base64,')
+    || adjustmentAi.request?.body?.adjustments?.warmth !== 12
+    || adjustmentAi.request?.body?.chatId !== '22222222-2222-4222-8222-222222222222'
+    || adjustmentAi.request?.body?.overlayDataUrl !== ''
+    || adjustmentAi.request?.body?.transform?.operations?.length !== 0
+    || adjustmentAi.stagedFileId !== adjustmentAi.request?.savedFileId
+    || adjustmentAi.stagedWidth !== 640
+    || adjustmentAi.stagedHeight !== 480
+    || adjustmentAi.stagedMaskPrefix !== 'data:image/png;base64,'
+    || adjustmentAi.savedMetadata?.size !== '640x480'
+    || adjustmentAi.savedMetadata?.sourceFileId !== '11111111-1111-4111-8111-111111111111'
+    || adjustmentAi.stageCalls !== 1
+    || !adjustmentAi.maskMatchesPersisted
+    || adjustmentAi.maskProof.width !== 640
+    || adjustmentAi.maskProof.height !== 480
+    || adjustmentAi.maskProof.center === 0
+    || adjustmentAi.maskProof.corner !== 0
+    || !adjustmentAi.maskProof.nonzeroAlpha
+    || adjustmentAi.appliedLocalFile !== null
+    || adjustmentAi.appliedEventCount !== 0
+    || adjustmentAi.modalOpen
+    || adjustmentAi.lock.modalBusy !== 'true'
+    || adjustmentAi.lock.useEnabled
+    || adjustmentAi.lock.saveEnabled
+    || adjustmentAi.lock.warmthEnabled
+    || !adjustmentAi.lock.closeEnabled
+    || !adjustmentAi.lock.cancelEnabled
+    || adjustmentAi.lock.stagedBeforeRelease !== null
+    || adjustmentAi.lock.stageCallsBeforeRelease !== 0
+    || overlayAi.saveCount !== 1
+    || overlayAi.request?.body?.maskDataUrl !== ''
+    || !String(overlayAi.request?.body?.overlayDataUrl || '').startsWith('data:image/png;base64,')
+    || overlayAi.request?.body?.adjustments?.warmth !== 0
+    || overlayAi.request?.body?.adjustments?.exposure !== 0
+    || overlayAi.request?.body?.adjustments?.saturation !== 0
+    || overlayAi.request?.body?.transform?.operations?.length !== 0
+    || overlayAi.request?.body?.chatId !== '22222222-2222-4222-8222-222222222222'
+    || overlayAi.stagedFileId !== overlayAi.request?.savedFileId
+    || overlayAi.stagedWidth !== 640
+    || overlayAi.stagedHeight !== 480
+    || overlayAi.stagedMaskPrefix !== 'data:image/png;base64,'
+    || overlayAi.savedMetadata?.size !== '640x480'
+    || overlayAi.savedMetadata?.sourceFileId !== '11111111-1111-4111-8111-111111111111'
+    || overlayAi.stageCalls !== 1
+    || !overlayAi.pendingImport.useDisabled
+    || !overlayAi.pendingImport.saveDisabled
+    || !overlayAi.pendingImport.addDisabled
+    || !overlayAi.pendingImport.useEnabledAfter
+    || !overlayAi.pendingImport.saveEnabledAfter
+    || overlayAi.maskProof.width !== 640
+    || overlayAi.maskProof.height !== 480
+    || overlayAi.maskProof.center === 0
+    || overlayAi.maskProof.corner !== 0
+    || !overlayAi.maskProof.nonzeroAlpha
+    || overlayAi.overlayProof.width !== 640
+    || overlayAi.overlayProof.height !== 480
+    || !overlayAi.overlayProof.nonzeroAlpha
+    || overlayAi.overlayProof.corner !== 0
+    || overlayAi.appliedLocalFile !== null
+    || overlayAi.appliedEventCount !== 0
+    || overlayAi.modalOpen
+    || combinedAi.saveCount !== 1
+    || !String(combinedAi.request?.body?.maskDataUrl || '').startsWith('data:image/png;base64,')
+    || !String(combinedAi.request?.body?.overlayDataUrl || '').startsWith('data:image/png;base64,')
+    || combinedAi.request?.body?.adjustments?.exposure !== 9
+    || combinedAi.request?.body?.transform?.operations?.length !== 1
+    || combinedAi.request?.body?.transform?.operations?.[0]?.type !== 'rotate'
+    || combinedAi.request?.body?.chatId !== '22222222-2222-4222-8222-222222222222'
+    || combinedAi.stagedFileId !== combinedAi.request?.savedFileId
+    || combinedAi.stagedWidth !== 480
+    || combinedAi.stagedHeight !== 640
+    || combinedAi.stagedMaskPrefix !== 'data:image/png;base64,'
+    || combinedAi.savedMetadata?.size !== '480x640'
+    || combinedAi.savedMetadata?.sourceFileId !== '11111111-1111-4111-8111-111111111111'
+    || combinedAi.stageCalls !== 1
+    || !combinedAi.maskMatchesPersisted
+    || combinedAi.maskProof.width !== combinedAi.stagedWidth
+    || combinedAi.maskProof.height !== combinedAi.stagedHeight
+    || combinedAi.maskProof.center === 0
+    || combinedAi.maskProof.corner !== 0
+    || !combinedAi.maskProof.nonzeroAlpha
+    || combinedAi.overlayProof.width !== combinedAi.stagedWidth
+    || combinedAi.overlayProof.height !== combinedAi.stagedHeight
+    || !combinedAi.overlayProof.nonzeroAlpha
+    || combinedAi.overlayProof.corner !== 0
+    || combinedAi.appliedLocalFile !== null
+    || combinedAi.appliedEventCount !== 0
+    || combinedAi.modalOpen
+    || failedAi.saveCount !== 1
+    || failedAi.staged !== null
+    || failedAi.stageCalls !== 0
+    || failedAi.appliedLocalFile !== null
+    || failedAi.appliedEventCount !== 0
+    || !failedAi.modalOpen
+    || failedAi.modalBusy !== null
+    || failedAi.saturation !== '11'
+    || failedAi.request?.body?.adjustments?.saturation !== 11
+    || failedAi.request?.body?.transform?.operations?.length !== 1
+    || failedAi.request?.body?.transform?.operations?.[0]?.type !== 'rotate'
+    || !String(failedAi.request?.body?.maskDataUrl || '').startsWith('data:image/png;base64,')
+    || !String(failedAi.request?.body?.overlayDataUrl || '').startsWith('data:image/png;base64,')
+    || !failedAi.overlayPixels
+    || failedAi.dimensions.width !== 480
+    || failedAi.dimensions.height !== 640
+    || failedAi.selectedAlpha === 0
+    || !failedAi.resetFrameEnabled
+    || !failedAi.saveEnabled
+    || !failedAi.useEnabled
+    || failedAi.useBusy !== null
+    || dimensionMismatch.saveCount !== 1
+    || dimensionMismatch.staged !== null
+    || dimensionMismatch.stageCalls !== 0
+    || dimensionMismatch.appliedLocalFile !== null
+    || dimensionMismatch.appliedEventCount !== 0
+    || !dimensionMismatch.modalOpen
+    || dimensionMismatch.modalBusy !== null
+    || dimensionMismatch.useBusy !== null
+    || !dimensionMismatch.useEnabled
+    || conversationRace.saveCount !== 1
+    || conversationRace.requestChatId !== '22222222-2222-4222-8222-222222222222'
+    || conversationRace.staged !== null
+    || conversationRace.stageCalls !== 0
+    || conversationRace.appliedLocalFile !== null
+    || conversationRace.appliedEventCount !== 0
+    || !conversationRace.modalOpen
+    || conversationRace.modalBusy !== null
+    || !conversationRace.useEnabled
+    || !cancelledLateSuccess.cancelWasEnabled
+    || cancelledLateSuccess.cancellationFocus !== 'crump-precision-cancel'
+    || cancelledLateSuccess.saveCount !== 1
+    || cancelledLateSuccess.saveAborts !== 0
+    || cancelledLateSuccess.ignoredAborts !== 1
+    || cancelledLateSuccess.responses !== 1
+    || cancelledLateSuccess.staged !== null
+    || cancelledLateSuccess.stageCalls !== 0
+    || cancelledLateSuccess.appliedLocalFile !== null
+    || cancelledLateSuccess.appliedEventCount !== 0
+    || cancelledLateSuccess.modalOpen
+    || cancelledLateSuccess.bodyOpen
+    || unavailableWorkspace.saveCount !== 0
+    || unavailableWorkspace.staged !== null
+    || unavailableWorkspace.stageCalls !== 0
+    || !unavailableWorkspace.modalOpen
+    || unavailableWorkspace.modalBusy !== null
+    || unavailableWorkspace.useBusy !== null
+    || !unavailableWorkspace.useEnabled
+    || unexpectedFetches.length !== 0
     || preview.warmth !== '18'
     || preview.exposure !== '16'
     || preview.saturation !== '-14'
@@ -447,7 +984,8 @@ const {chromium} = require(playwrightModule);
     || localSave.adjustments?.exposure !== 16
     || localSave.adjustments?.saturation !== -14
     || localSave.chatId !== '22222222-2222-4222-8222-222222222222'
-    || localSave.fileId !== '33333333-3333-4333-8333-333333333333'
+    || localSave.fileId !== localSave.requestFileId
+    || localSave.sourceFileId !== '11111111-1111-4111-8111-111111111111'
     || !localSave.toast?.message?.includes('Changes applied in this conversation')
     || localSave.focused !== 'openPrecision'
     || overlayPreview.placePressed !== 'true'
@@ -463,7 +1001,8 @@ const {chromium} = require(playwrightModule);
     || overlaySave.adjustments?.warmth !== 0
     || overlaySave.adjustments?.exposure !== 0
     || overlaySave.adjustments?.saturation !== 0
-    || overlaySave.fileId !== '33333333-3333-4333-8333-333333333333'
+    || overlaySave.fileId !== overlaySave.requestFileId
+    || overlaySave.sourceFileId !== '11111111-1111-4111-8111-111111111111'
     || !overlaySave.toast?.message?.includes('Changes applied in this conversation')
     || overlaySave.focused !== 'openPrecision'
     || exactEntry.entryMode !== 'overlay'
@@ -488,9 +1027,9 @@ const {chromium} = require(playwrightModule);
     || !mobile.workspaceScrollable
     || !escaped
   ) {
-    throw new Error(JSON.stringify({desktop, visibleImage, versions, cropGuideVisible, resetFrameEnabled, transformedSize, geometrySave, zoomed, fittedWidth, movePressed, lassoProof, broadInvertGuard, redoEnabled, feather, guidedInstruction, staged, preview, originalVisible, localSave, overlayPreview, overlaySave, exactEntry, exactCloseFocus, mobile, escaped, errors}));
+    throw new Error(JSON.stringify({desktop, visibleImage, versions, cropGuideVisible, resetFrameEnabled, transformedSize, geometrySave, zoomed, fittedWidth, movePressed, lassoProof, broadInvertGuard, redoEnabled, feather, guidedInstruction, staged, adjustmentAi, overlayAi, combinedAi, failedAi, dimensionMismatch, conversationRace, cancelledLateSuccess, unavailableWorkspace, unexpectedFetches, preview, originalVisible, localSave, overlayPreview, overlaySave, exactEntry, exactCloseFocus, mobile, escaped, errors}));
   }
-  process.stdout.write(`${JSON.stringify({desktop, visibleImage, versions, cropGuideVisible, resetFrameEnabled, transformedSize, geometrySave, zoomed, fittedWidth, movePressed, lassoProof, broadInvertGuard, redoEnabled, feather, guidedInstruction, staged, preview, originalVisible, localSave, overlayPreview, overlaySave, exactEntry, exactCloseFocus, mobile, escaped, errors})}\n`);
+  process.stdout.write(`${JSON.stringify({desktop, visibleImage, versions, cropGuideVisible, resetFrameEnabled, transformedSize, geometrySave, zoomed, fittedWidth, movePressed, lassoProof, broadInvertGuard, redoEnabled, feather, guidedInstruction, staged, adjustmentAi, overlayAi, combinedAi, failedAi, dimensionMismatch, conversationRace, cancelledLateSuccess, unavailableWorkspace, unexpectedFetches, preview, originalVisible, localSave, overlayPreview, overlaySave, exactEntry, exactCloseFocus, mobile, escaped, errors})}\n`);
 })().catch(error => {
   process.stderr.write(`${error.stack || error}\n`);
   process.exitCode = 1;
