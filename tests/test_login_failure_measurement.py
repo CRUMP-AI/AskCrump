@@ -63,14 +63,9 @@ async def test_login_rejections_return_stable_content_free_codes(monkeypatch) ->
 class UpgradeLoginDB:
     def __init__(self, user: dict) -> None:
         self.user = user
-        self.updates: list[dict] = []
 
     async def select_one(self, table, *_args, **_kwargs):
         return self.user if table == "users" else None
-
-    async def update(self, table, values, **_kwargs):
-        assert table == "users"
-        self.updates.append(values)
 
 
 @pytest.mark.asyncio
@@ -87,12 +82,21 @@ async def test_successful_legacy_login_upgrades_password_hash(monkeypatch) -> No
         "is_verified": True,
     })
 
-    async def create_test_session(*_args, **_kwargs):
-        return "session-token", {"expires_at": "2099-01-01T00:00:00+00:00"}
+    captured = {}
+
+    async def finalize_test_session(*_args, **kwargs):
+        captured.update(kwargs)
+        current_user = dict(db.user)
+        current_user["password_hash"] = kwargs["upgraded_password_hash"]
+        return (
+            "session-token",
+            current_user,
+            {"expires_at": "2099-01-01T00:00:00+00:00"},
+        )
 
     monkeypatch.setattr(auth_routes, "db", db)
     monkeypatch.setattr(auth_routes, "enforce_auth_rate_limit", allow_rate_limit)
-    monkeypatch.setattr(auth_routes, "create_session", create_test_session)
+    monkeypatch.setattr(auth_routes, "finalize_login_session", finalize_test_session)
     monkeypatch.setattr(auth_routes, "set_session_cookie", lambda *_args: None)
 
     result = await auth_routes.login(
@@ -102,8 +106,8 @@ async def test_successful_legacy_login_upgrades_password_hash(monkeypatch) -> No
     )
 
     assert result["success"] is True
-    assert len(db.updates) == 1
-    upgraded_hash = db.updates[0]["password_hash"]
+    assert captured["expected_password_hash"] == legacy_hash
+    upgraded_hash = captured["upgraded_password_hash"]
     assert upgraded_hash.startswith("$argon2id$")
     assert auth_routes.verify_password(password, upgraded_hash)
     assert not auth_routes.verify_password("A1" + ("x" * 80) + "other ending", upgraded_hash)

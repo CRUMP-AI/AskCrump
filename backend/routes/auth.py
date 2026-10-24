@@ -13,11 +13,13 @@ from ..auth_service import (
     authenticate_guest_for_registration,
     authenticate_request,
     create_session,
+    finalize_login_session,
     guest_mode_enabled,
     is_guest_user,
     public_user,
     revoke_current_session,
     verify_guest_and_create_session,
+    verify_registered_and_create_session,
 )
 from ..db import eq, gt
 from ..email_service import EmailDeliveryError
@@ -483,19 +485,35 @@ async def login(payload: LoginRequest, request: Request, response: Response):
             },
         )
 
-    raw_token, session = await create_session(
+    expected_password_hash = str(user.get('password_hash') or '')
+    upgraded_password_hash = None
+    if password_hash_needs_upgrade(expected_password_hash):
+        upgraded_password_hash = hash_password(payload.password)
+
+    finalized = await finalize_login_session(
         db,
         settings,
         user,
         request,
+        expected_password_hash=expected_password_hash,
+        upgraded_password_hash=upgraded_password_hash,
         device_name=payload.deviceName,
         platform=payload.platform,
     )
-    now = iso_now()
-    user_updates = {'last_login': now, 'updated_at': now}
-    if password_hash_needs_upgrade(user.get('password_hash')):
-        user_updates['password_hash'] = hash_password(payload.password)
-    await db.update('users', user_updates, filters={'id': eq(user['id'])})
+    if finalized is None:
+        logger.info(
+            'Auth login outcome=invalid_credentials client=%s',
+            _auth_client_kind(request),
+        )
+        return JSONResponse(
+            status_code=401,
+            content={
+                'success': False,
+                'error': 'Invalid email or password.',
+                'code': 'INVALID_CREDENTIALS',
+            },
+        )
+    raw_token, user, session = finalized
     set_session_cookie(response, raw_token, request)
     logger.info(
         'Auth login outcome=session_issued client=%s',
@@ -714,44 +732,23 @@ async def reset_password(payload: ResetPasswordRequest, request: Request):
             status_code=400,
             content={'success': False, 'error': password_error},
         )
-    user = await db.select_one(
-        'users',
-        columns='*',
-        filters={
-            'password_reset_token_hash': eq(token_hash(payload.token)),
-            'password_reset_expires': gt(iso_now()),
+    reset_result = await db.rpc(
+        'consume_password_reset_v1',
+        {
+            'p_token_hash': token_hash(payload.token),
+            'p_password_hash': hash_password(payload.newPassword),
         },
     )
-    if not user:
+    reset_row = (
+        reset_result[0]
+        if isinstance(reset_result, list) and reset_result
+        else reset_result if isinstance(reset_result, dict) else {}
+    )
+    if reset_row.get('reset_applied') is not True:
         return JSONResponse(
             status_code=400,
             content={'success': False, 'error': 'This reset link is invalid or expired.'},
         )
-    await db.update(
-        'users',
-        {
-            'password_hash': hash_password(payload.newPassword),
-            # Possession of a valid password-reset token proves control of the
-            # account inbox. Complete email verification as part of recovery
-            # so an unverified account does not require a second email loop.
-            'is_verified': True,
-            # A guest converted to an email/password account must leave guest
-            # mode on every inbox-control proof path. Otherwise password reset
-            # can create a verified login that remains permanently guest-gated.
-            'is_guest': False,
-            'verification_token_hash': None,
-            'verification_token_expires': None,
-            'password_reset_token_hash': None,
-            'password_reset_expires': None,
-            'updated_at': iso_now(),
-        },
-        filters={'id': eq(user['id'])},
-    )
-    await db.update(
-        'sessions',
-        {'revoked_at': iso_now()},
-        filters={'user_id': eq(user['id']), 'revoked_at': 'is.null'},
-    )
     return {'success': True, 'message': 'Password updated. Sign in with your new password.'}
 
 
@@ -890,33 +887,22 @@ async def verify_email(
             )
 
     if not user.get('is_verified'):
-        transition_time = iso_now()
-        verification_values = {
-            'is_verified': True,
-            'verification_token_expires': expiry_iso(minutes=15),
-            'updated_at': transition_time,
-        }
-        transitioned = await db.update(
-            'users',
-            verification_values,
-            filters={
-                'id': eq(user['id']),
-                'verification_token_hash': eq(verification_token_hash),
-                'verification_token_expires': gt(transition_time),
-                'is_verified': eq(False),
-            },
+        atomic_result = await verify_registered_and_create_session(
+            db,
+            settings,
+            user,
+            request,
+            verification_token_hash=verification_token_hash,
+            device_name='Verified email link',
+            platform='web',
         )
-        transitioned_user = (
-            transitioned[0]
-            if isinstance(transitioned, list) and transitioned
-            else None
-        )
-        if transitioned_user:
-            user = transitioned_user
+        if atomic_result:
+            raw_token, user, _ = atomic_result
         else:
-            # A concurrent request may have won the conditional transition.
-            # Re-read by account and token before reporting a replay; never use
-            # installation, IP, or user-agent data as proof of identity.
+            # A concurrent verifier may have completed the locked transition.
+            # Re-read only by account plus the still-valid bearer token. A
+            # password reset clears that token, so stale verification fails
+            # instead of minting a post-reset session.
             user = await db.select_one(
                 'users',
                 columns='*',
@@ -932,7 +918,14 @@ async def verify_email(
                     status_code=303,
                 )
             if not user.get('is_verified'):
-                raise RuntimeError('Email verification transition did not complete.')
+                # The database clock may have crossed the bearer expiry, or
+                # another writer may have made the account ineligible after
+                # the initial application read. Neither condition authenticates
+                # the click or warrants a server error.
+                return RedirectResponse(
+                    f'{settings.app_url}/app?verification=failed',
+                    status_code=303,
+                )
             logger.info(
                 'Auth verification outcome=already_verified client=%s',
                 _auth_client_kind(request),
@@ -948,14 +941,7 @@ async def verify_email(
             )
 
     if raw_token is None:
-        raw_token, _ = await create_session(
-            db,
-            settings,
-            user,
-            request,
-            device_name='Verified email link',
-            platform='web',
-        )
+        raise RuntimeError('Email verification did not return an atomic session.')
     response = RedirectResponse(
         verified_workspace_url(settings.app_url, intent=intent, plan=plan),
         status_code=303,

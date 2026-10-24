@@ -607,6 +607,119 @@ async def verify_guest_and_create_session(
     return raw_token, verified_user, session
 
 
+async def verify_registered_and_create_session(
+    db: SupabaseDB,
+    settings: Settings,
+    user: dict[str, Any],
+    request: Request,
+    *,
+    verification_token_hash: str,
+    device_name: str | None = None,
+    platform: str | None = None,
+) -> tuple[str, dict[str, Any], dict[str, Any]] | None:
+    """Atomically verify a registered account and mint its first session.
+
+    The database function shares the users-row serialization point with password
+    reset and password login. A reset that commits first invalidates the email
+    token before this session can be written; a reset that commits second revokes
+    the session created here.
+    """
+    if is_guest_user(user) or user.get('is_verified'):
+        return None
+
+    raw_token = random_token(48)
+    session_values = _new_session_values(
+        settings,
+        user,
+        request,
+        raw_token=raw_token,
+        device_name=device_name,
+        platform=platform,
+    )
+    rows = await db.rpc(
+        'verify_registered_and_create_session_v1',
+        {
+            'p_user_id': user['id'],
+            'p_verification_token_hash': verification_token_hash,
+            'p_session_id': new_uuid(),
+            'p_session_token_hash': session_values['token_hash'],
+            'p_session_expires_at': session_values['expires_at'],
+            'p_device_id': session_values['device_id'],
+            'p_device_name': session_values['device_name'],
+            'p_platform': session_values['platform'],
+            'p_device_info': session_values['device_info'],
+            'p_ip_address': session_values['ip_address'],
+            'p_user_agent': session_values['user_agent'],
+        },
+    )
+    result = rows[0] if isinstance(rows, list) and len(rows) == 1 else None
+    if not result or result.get('verification_applied') is not True:
+        return None
+
+    verified_user = result.get('user_data')
+    session = result.get('session_data')
+    if not isinstance(verified_user, dict) or not isinstance(session, dict):
+        raise RuntimeError(
+            'Registered verification did not return its atomic session.'
+        )
+    return raw_token, verified_user, session
+
+
+async def finalize_login_session(
+    db: SupabaseDB,
+    settings: Settings,
+    user: dict[str, Any],
+    request: Request,
+    *,
+    expected_password_hash: str,
+    upgraded_password_hash: str | None = None,
+    device_name: str | None = None,
+    platform: str | None = None,
+) -> tuple[str, dict[str, Any], dict[str, Any]] | None:
+    """Issue a login session only while the verified password state is current.
+
+    Password verification necessarily happens in Python, but the database locks
+    the user row and compares the exact hash Python verified before it writes a
+    session or upgrades that hash. A concurrent password reset therefore either
+    revokes this session after login commits or makes this stale login fail closed.
+    """
+    raw_token = random_token(48)
+    session_values = _new_session_values(
+        settings,
+        user,
+        request,
+        raw_token=raw_token,
+        device_name=device_name,
+        platform=platform,
+    )
+    rows = await db.rpc(
+        'finalize_password_login_v1',
+        {
+            'p_user_id': user['id'],
+            'p_expected_password_hash': expected_password_hash,
+            'p_upgraded_password_hash': upgraded_password_hash,
+            'p_session_id': new_uuid(),
+            'p_session_token_hash': session_values['token_hash'],
+            'p_session_expires_at': session_values['expires_at'],
+            'p_device_id': session_values['device_id'],
+            'p_device_name': session_values['device_name'],
+            'p_platform': session_values['platform'],
+            'p_device_info': session_values['device_info'],
+            'p_ip_address': session_values['ip_address'],
+            'p_user_agent': session_values['user_agent'],
+        },
+    )
+    result = rows[0] if isinstance(rows, list) and len(rows) == 1 else None
+    if not result or result.get('login_applied') is not True:
+        return None
+
+    current_user = result.get('user_data')
+    session = result.get('session_data')
+    if not isinstance(current_user, dict) or not isinstance(session, dict):
+        raise RuntimeError('Atomic login did not return its persisted session.')
+    return raw_token, current_user, session
+
+
 async def create_session(
     db: SupabaseDB,
     settings: Settings,
