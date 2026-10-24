@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 
 from fastapi import APIRouter, Request, Response
 from fastapi.responses import JSONResponse, RedirectResponse
@@ -26,7 +27,7 @@ from ..product_analytics import (
     record_account_created_event,
     record_product_event,
 )
-from ..rate_limit import enforce_auth_rate_limit
+from ..rate_limit import enforce_auth_rate_limit, enforce_guest_admission_rate_limit
 from ..runtime import db, email_service, settings
 from ..schemas import (
     CURRENT_TERMS_VERSION,
@@ -56,6 +57,21 @@ from ..security import (
 
 router = APIRouter(prefix="/api/auth", tags=["authentication"])
 logger = logging.getLogger("askcrump.auth")
+
+_GUEST_INSTALLATION_ID = re.compile(r'^[A-Za-z0-9._:-]{16,200}$')
+
+
+def _guest_rate_identity(request: Request, ip: str) -> str:
+    """Use the app's opaque installation ID without browser fingerprinting.
+
+    The shared public IP remains a separate ceiling in ``enforce_auth_rate_limit``.
+    Invalid or absent installation IDs fall back to that canonical IP so a
+    caller cannot bypass the stricter identity bucket with malformed headers.
+    """
+    installation_id = str(request.headers.get('x-installation-id') or '').strip()
+    if _GUEST_INSTALLATION_ID.fullmatch(installation_id):
+        return f'installation:{installation_id}'
+    return f'ip:{ip}'
 
 
 def _registration_terms_values(
@@ -369,13 +385,15 @@ async def start_guest_session(request: Request, response: Response):
         dict(request.headers),
         request.client.host if request.client else None,
     ) or 'unknown'
-    await enforce_auth_rate_limit(
+    await enforce_guest_admission_rate_limit(
         db,
         request,
-        action='guest',
-        identity=ip,
+        identity=_guest_rate_identity(request, ip),
         identity_limit=3,
-        ip_limit=3,
+        # Keep each installation tightly bounded while allowing a household,
+        # workplace, carrier NAT, or controlled verifier to share one public
+        # address without three visitors blocking everyone for a full day.
+        ip_limit=20,
         window_seconds=86400,
     )
     now = iso_now()

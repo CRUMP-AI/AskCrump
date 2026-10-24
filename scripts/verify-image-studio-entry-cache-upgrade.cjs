@@ -8,7 +8,7 @@ const {chromium} = require(playwrightModule);
 const root = path.resolve(__dirname, '..');
 const publicDirectory = path.join(root, 'public');
 const oldCacheName = 'ask-crump-new-body-v1-r252';
-const newCacheName = 'ask-crump-new-body-v1-r269-guest-free-contract-2';
+const newCacheName = 'ask-crump-new-body-v1-r270-guest-admission-1';
 const oldUrls = Object.freeze([
   '/runtime-body-v1.js?v=5.9.76-reference-fidelity-hard-contract-1',
   '/crump-navigation-5.9.30.js?v=5.9.76-navigation-discovery-1',
@@ -17,7 +17,7 @@ const oldUrls = Object.freeze([
 const newUrls = Object.freeze({
   runtime: '/runtime-body-v1.js?v=5.9.76-precision-ai-persistence-1',
   navigation: '/crump-navigation-5.9.30.js?v=5.9.76-atelier-workspace-1',
-  auth: '/auth-controller.js?v=5.9.76-auth-verification-session-1',
+  auth: '/auth-controller.js?v=5.9.76-guest-admission-1',
 });
 const fixturePath = '/__image-studio-entry-cache-upgrade.html';
 const oldWorkerPath = '/__image-studio-entry-r252-sw.js';

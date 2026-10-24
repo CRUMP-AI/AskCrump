@@ -602,10 +602,12 @@ class GuestFlowDb(FakeDb):
         return [{'allowed': True}]
 
 
-def flow_request(token=None):
+def flow_request(token=None, *, installation_id=None):
     headers = []
     if token:
         headers.append((b'authorization', f'Bearer {token}'.encode()))
+    if installation_id is not None:
+        headers.append((b'x-installation-id', str(installation_id).encode()))
     return Request({
         'type': 'http',
         'method': 'POST',
@@ -689,10 +691,51 @@ def test_guest_control_accepts_only_explicit_true_shapes(monkeypatch, control_va
     assert result['success'] is True
     assert [name for name, _payload in db.rpc_calls] == [
         'get_guest_mode_control_v1',
-        'consume_rate_limit_event',
-        'consume_rate_limit_event',
+        'consume_guest_admission_rate_limit_v1',
     ]
     assert len([row for table, row in db.inserted if table == 'users']) == 1
+
+
+def test_guest_rate_identity_prefers_a_bounded_opaque_installation_id():
+    installation_id = 'web-installation_2026-10-24'
+
+    assert auth_routes._guest_rate_identity(
+        flow_request(installation_id=installation_id),
+        '203.0.113.7',
+    ) == f'installation:{installation_id}'
+
+
+@pytest.mark.parametrize(
+    'installation_id',
+    [None, '', 'too-short', 'contains spaces 2026', 'slash/is/not/allowed', 'x' * 201],
+)
+def test_guest_rate_identity_falls_back_to_canonical_ip_for_missing_or_malformed_header(
+    installation_id,
+):
+    assert auth_routes._guest_rate_identity(
+        flow_request(installation_id=installation_id),
+        '203.0.113.7',
+    ) == 'ip:203.0.113.7'
+
+
+def test_guest_mint_enforces_installation_three_shared_ip_twenty_and_24_hours(monkeypatch):
+    db = GuestFlowDb()
+    limiter = AsyncMock()
+    request = flow_request(installation_id='fixture-installation-20261024')
+    monkeypatch.setattr(auth_routes, 'db', db)
+    monkeypatch.setattr(auth_routes, 'enforce_guest_admission_rate_limit', limiter)
+
+    result = asyncio.run(auth_routes.start_guest_session(request, StarletteResponse()))
+
+    assert result['success'] is True
+    limiter.assert_awaited_once_with(
+        db,
+        request,
+        identity='installation:fixture-installation-20261024',
+        identity_limit=3,
+        ip_limit=20,
+        window_seconds=86400,
+    )
 
 
 # --- Pending-signup collision: guest + someone else's unverified row --------
@@ -1048,7 +1091,7 @@ def test_guest_mint_refuses_cross_site_origin(monkeypatch):
     assert db.inserted == []  # nothing minted, no rate budget spent
 
 
-def test_guest_identity_uses_same_site_session_and_bounded_ip_control_without_device_fingerprinting():
+def test_guest_identity_uses_same_site_session_and_bounded_installation_plus_ip_control_without_fingerprinting():
     controller = (Path(__file__).parents[1] / 'public' / 'auth-controller.js').read_text(encoding='utf-8')
     guest_bootstrap = controller.split('async function enterAsGuest()', 1)[1].split(
         'window.CrumpAccess =', 1
@@ -1067,7 +1110,10 @@ def test_guest_identity_uses_same_site_session_and_bounded_ip_control_without_de
     ):
         assert invasive_signal not in guest_bootstrap.lower()
     assert 'origin_allowed' in route
-    assert 'identity=ip' in route
+    assert 'enforce_guest_admission_rate_limit(' in route
+    assert 'identity=_guest_rate_identity(request, ip)' in route
+    assert 'identity_limit=3' in route
+    assert 'ip_limit=20' in route
     assert 'window_seconds=86400' in route
     assert 'httponly=True' in http
     assert 'samesite="lax"' in http

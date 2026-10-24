@@ -31,7 +31,11 @@ def test_every_public_free_cta_enters_guest_mode_instead_of_forcing_signup() -> 
         for anchor in _anchors(path):
             destination = urlparse(anchor.get("href", ""))
             query = parse_qs(destination.query)
-            if destination.path == "/app" and query.get("plan") == ["free"]:
+            if (
+                destination.path == "/app"
+                and query.get("plan") == ["free"]
+                and anchor.get("data-plan") == "free"
+            ):
                 free_ctas.append((path, anchor))
 
     assert free_ctas
@@ -102,6 +106,18 @@ def test_browser_proof_exercises_the_mobile_free_guest_entry_boundary() -> None:
 
     assert "homepage Start free still opens registration" in verifier
     assert "new URL(request.url()).pathname === '/api/auth/guest'" in verifier
+    assert "guestSessionChecks[0] === false && guestSessionChecks[1] === true" in verifier
+    assert "x-installation-id" in verifier.lower()
+    assert "new Set(guestAdmissionHeaders.map(row => row.value)).size === 1" in verifier
+    assert "#tosModal" in verifier
+    assert "successful guest entry incorrectly opens Welcome back" in verifier
+    assert "registered-session takeover shows a false guest failure" in verifier
+    assert "authenticated guest explicit Sign in issued" in verifier
+    assert "stale registered-device hint blocks explicit Free CTA with Welcome back" in verifier
+    assert "status: 429" in verifier
+    assert "#guestEntryForm" in verifier
+    assert "429 incorrectly falls through to Welcome back" in verifier
+    assert "you did nothing wrong" in verifier.lower()
     assert "!destination.searchParams.has('signup')" in verifier
     assert "MarketingSignin" in verifier
     assert "MarketingCTA" in verifier

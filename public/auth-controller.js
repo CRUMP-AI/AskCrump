@@ -16,6 +16,7 @@
   let workspaceOpenVisibilityHandler = null;
   let workspaceOpenRecordedFor = '';
   let reauthenticationPreparation = Promise.resolve();
+  let guestEntryFailure = null;
   const TERMS_VERSION = '2026-08-01';
   const PLAN_INTENT_KEY = 'askcrump.pending-plan-intent';
   const CREATION_INTENT_KEY = 'askcrump.pending-creation-intent';
@@ -175,6 +176,7 @@
   const setText = (id, text, visible = true) => { const node = byId(id); if (!node) return; node.textContent = text || ''; node.style.display = visible ? 'block' : 'none'; };
   const AUTH_VIEWS = Object.freeze({
     login: {containerId: 'loginForm', fieldId: 'loginEmail'},
+    guest: {containerId: 'guestEntryForm', fieldId: null},
     register: {containerId: 'registerForm', fieldId: 'registerEmail'},
     forgot: {containerId: 'forgotPasswordForm', fieldId: 'forgotPasswordEmail'},
     reset: {containerId: 'resetPasswordForm', fieldId: 'newPassword'},
@@ -1078,15 +1080,31 @@
   }
 
   async function enterAsGuest() {
+    guestEntryFailure = null;
     try {
       const {response, data} = await authRequest(
         '/api/auth/guest',
         {method: 'POST'},
         'Starting a guest preview took too long. Try again.',
       );
-      if (!response.ok || !data?.success) return false;
+      if (!response.ok || !data?.success) {
+        guestEntryFailure = {
+          code: String(data?.code || '').toUpperCase(),
+          retryAfter: Number(data?.retryAfter || response.headers.get('Retry-After') || 0),
+          status: response.status,
+        };
+        return false;
+      }
       const session = await window.deviceAuth.checkSession();
-      if (!session.authenticated || !session.data?.user?.isGuest) return false;
+      // The guest endpoint deliberately preserves any valid session. Another
+      // tab may have completed sign-in after bootstrap's first session check,
+      // so the authoritative follow-up may be a registered user rather than a
+      // guest. Route either authenticated identity instead of showing a false
+      // guest-entry failure.
+      if (!session.authenticated || !session.data?.user) {
+        guestEntryFailure = {code: 'SESSION_NOT_READY', retryAfter: 0, status: 503};
+        return false;
+      }
       await prepareAuthenticatedWorkspace();
       activeUser = session.data.user;
       window.currentUser = activeUser;
@@ -1095,9 +1113,39 @@
       if (new URLSearchParams(location.search).get('signup') === '1') trackSignupIntent('deep-link');
       routeAuthenticatedUser(activeUser);
       return true;
-    } catch (_) {
+    } catch (error) {
+      guestEntryFailure = {
+        code: String(error?.code || 'GUEST_ENTRY_UNAVAILABLE').toUpperCase(),
+        retryAfter: 0,
+        status: 0,
+      };
       return false;
     }
+  }
+
+  function formatGuestRetryDelay(value) {
+    const seconds = Math.max(0, Number(value) || 0);
+    if (!seconds) return '';
+    if (seconds < 120) return 'about a minute';
+    if (seconds < 3600) return `about ${Math.ceil(seconds / 60)} minutes`;
+    if (seconds < 7200) return 'about 1 hour';
+    if (seconds < 86400) return `about ${Math.ceil(seconds / 3600)} hours`;
+    return 'about a day';
+  }
+
+  function showGuestEntryFailure(failure = {}) {
+    const code = String(failure.code || '').toUpperCase();
+    const delay = formatGuestRetryDelay(failure.retryAfter);
+    let message = 'Ask Crump could not start this private preview yet. You did nothing wrong. Try again in a moment, or sign in if you already have an account.';
+    if (code === 'RATE_LIMITED') {
+      message = `Free preview has been started several times from this browser or network today. You did nothing wrong. Try again${delay ? ` in ${delay}` : ' later'}, or sign in if you already have an account.`;
+    } else if (code === 'GUEST_MODE_DISABLED') {
+      message = 'Free preview is temporarily paused. You did nothing wrong. Try again later, or sign in if you already have an account.';
+    }
+    const retryLink = byId('guestEntryRetryLink');
+    if (retryLink) retryLink.href = `${location.pathname}${location.search || '?plan=free'}`;
+    setText('guestEntryMessage', message);
+    showAuth('guest');
   }
 
   window.CrumpAccess = Object.freeze({
@@ -1228,6 +1276,7 @@
     const params = new URLSearchParams(location.search);
     const signupRequested = params.get('signup') === '1';
     const signInRequested = (params.get('source') || '').toLowerCase().includes('signin');
+    const freeGuestRequested = params.get('plan') === 'free' && !signupRequested && !signInRequested;
     const returningDeviceHint = hasReturningDeviceHint();
     const resetToken = params.get('token');
     if (resetToken) {
@@ -1254,11 +1303,15 @@
     if (authFlowRevision !== bootstrapAuthFlowRevision) return;
     if (session.unavailable) {
       if (!signupRequested) {
-        showAuth('login');
-        setText(
-          'loginError',
-          'Ask Crump could not verify your existing session right now. Your saved sign-in was preserved; try again in a moment.',
-        );
+        if (freeGuestRequested) {
+          showGuestEntryFailure({code: 'SESSION_UNAVAILABLE'});
+        } else {
+          showAuth('login');
+          setText(
+            'loginError',
+            'Ask Crump could not verify your existing session right now. Your saved sign-in was preserved; try again in a moment.',
+          );
+        }
       }
       if (verification) showVerificationResult(verification);
       return;
@@ -1271,15 +1324,29 @@
       // (source=*signin*) always lands on the login form it promised.
       const cachedHintUser = window.deviceAuth?.cachedUser?.() || null;
       const accountOnDevice = returningDeviceHint && !cachedHintUser?.isGuest;
-      if (!signupRequested && !accountOnDevice && !verification && !signInRequested && await enterAsGuest()) return;
+      const mayStartGuest = !signupRequested
+        && !verification
+        && !signInRequested
+        && (freeGuestRequested || !accountOnDevice);
+      if (mayStartGuest && await enterAsGuest()) return;
       if (authFlowRevision !== bootstrapAuthFlowRevision) return;
       if (signupRequested) {
         showAuth('register');
         trackSignupIntent('deep-link');
+      } else if (mayStartGuest && guestEntryFailure) {
+        showGuestEntryFailure(guestEntryFailure);
       } else {
         showAuth('login');
       }
       if (verification) showVerificationResult(verification);
+      return;
+    }
+    if (signInRequested && isGuestUser(session.data.user)) {
+      // An explicit Sign in action must keep its promise even when this
+      // browser currently holds a guest session. Preserve that session until
+      // registered login succeeds, but do not route the visitor back into the
+      // guest workspace or mint another guest.
+      showAuth('login');
       return;
     }
     if (signupRequested && isGuestUser(session.data.user)) {

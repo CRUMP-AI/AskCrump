@@ -39,7 +39,7 @@ def test_billing_timeout_assets_are_versioned_across_web_pwa_and_native():
         assert asset in runtime
         assert asset in worker
         assert asset in native
-    assert "ask-crump-new-body-v1-r269-guest-free-contract-2" in worker
+    assert "ask-crump-new-body-v1-r270-guest-admission-1" in worker
 
 
 def test_billing_stall_fixture_uses_real_layers_without_credentials_or_production():
