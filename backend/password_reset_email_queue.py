@@ -13,6 +13,7 @@ from uuid import UUID
 from .config import Settings
 from .db import DatabaseError, SupabaseDB
 from .email_service import EmailDeliveryError, EmailService
+from .minute_worker_observability import log_email_queue_outcome
 from .password_reset_tokens import create_password_reset_alias
 from .security import expiry_iso, new_uuid, normalize_email, random_token, token_hash
 
@@ -162,6 +163,20 @@ class PasswordResetEmailQueueService:
         return 'PROVIDER_REJECTED', False
 
     async def process_next(self) -> dict[str, Any]:
+        attempt: Any = None
+        provider_attempts: int | None = None
+
+        def result(handled: bool, status: Any) -> dict[str, Any]:
+            log_email_queue_outcome(
+                logger,
+                lane='password-reset-email',
+                handled=handled,
+                status=status,
+                attempt=attempt,
+                provider_attempts=provider_attempts,
+            )
+            return {'handled': handled, 'status': status}
+
         claim_token = new_uuid()
         claim_result = await self.db.rpc(
             'claim_password_reset_email_job_v1',
@@ -170,13 +185,14 @@ class PasswordResetEmailQueueService:
         )
         claim = _first_row(claim_result)
         if not claim:
-            return {'handled': False, 'status': 'idle'}
+            return result(False, 'idle')
 
         job_id = str(claim.get('job_id') or '')
         lease_token = str(claim.get('lease_token') or '')
+        attempt = claim.get('attempts')
         if lease_token != claim_token or not job_id:
             logger.error('Password reset email claim failed integrity validation.')
-            return {'handled': True, 'status': 'claim_invalid'}
+            return result(True, 'claim_invalid')
 
         try:
             stage_result = await self.db.rpc(
@@ -186,21 +202,22 @@ class PasswordResetEmailQueueService:
             )
             stage = _first_row(stage_result)
             if not stage:
-                return {'handled': True, 'status': 'lease_lost'}
+                return result(True, 'lease_lost')
+            attempt = stage.get('attempts', attempt)
             disposition = str(stage.get('disposition') or '')
             if disposition == 'lease_lost':
-                return {'handled': True, 'status': 'lease_lost'}
+                return result(True, 'lease_lost')
             if disposition == 'suppress':
                 outcome = await self._complete(job_id, lease_token, 'suppressed')
-                return {'handled': True, 'status': outcome or 'suppressed'}
+                return result(True, outcome or 'suppressed')
             if disposition != 'deliver':
-                await self._release(
+                outcome = await self._release(
                     job_id,
                     lease_token,
                     failure_code='JOB_INTEGRITY_INVALID',
                     retryable=False,
                 )
-                return {'handled': True, 'status': 'failed_permanent'}
+                return result(True, outcome or 'failed_permanent')
 
             recipient = normalize_email(str(stage.get('recipient_email') or ''))
             recipient_fingerprint = str(stage.get('recipient_fingerprint') or '')
@@ -226,13 +243,13 @@ class PasswordResetEmailQueueService:
                 or not str(stage.get('support_email') or '')
                 or not str(stage.get('from_email') or '')
             ):
-                await self._release(
+                outcome = await self._release(
                     job_id,
                     lease_token,
                     failure_code='JOB_INTEGRITY_INVALID',
                     retryable=False,
                 )
-                return {'handled': True, 'status': 'failed_permanent'}
+                return result(True, outcome or 'failed_permanent')
 
             try:
                 signing_secret = _signing_keys(self.settings).get(key_id)
@@ -245,18 +262,18 @@ class PasswordResetEmailQueueService:
                     failure_code='SIGNING_KEY_UNAVAILABLE',
                     retryable=True,
                 )
-                return {'handled': True, 'status': outcome or 'retry_scheduled'}
+                return result(True, outcome or 'retry_scheduled')
             if not hmac.compare_digest(
                 recipient_fingerprint,
                 _recipient_fingerprint(signing_secret, recipient),
             ):
-                await self._release(
+                outcome = await self._release(
                     job_id,
                     lease_token,
                     failure_code='JOB_INTEGRITY_INVALID',
                     retryable=False,
                 )
-                return {'handled': True, 'status': 'failed_permanent'}
+                return result(True, outcome or 'failed_permanent')
 
             try:
                 alias = create_password_reset_alias(
@@ -286,7 +303,7 @@ class PasswordResetEmailQueueService:
                     failure_code='JOB_INTEGRITY_INVALID',
                     retryable=False,
                 )
-                return {'handled': True, 'status': outcome or 'failed_permanent'}
+                return result(True, outcome or 'failed_permanent')
             if not sent:
                 outcome = await self._release(
                     job_id,
@@ -294,10 +311,12 @@ class PasswordResetEmailQueueService:
                     failure_code='EMAIL_NOT_CONFIGURED',
                     retryable=False,
                 )
-                return {'handled': True, 'status': outcome or 'failed_permanent'}
+                return result(True, outcome or 'failed_permanent')
+            provider_attempts = 1
             outcome = await self._complete(job_id, lease_token, 'provider_accepted')
-            return {'handled': True, 'status': outcome or 'provider_accepted'}
+            return result(True, outcome or 'provider_accepted')
         except EmailDeliveryError as exc:
+            provider_attempts = 1
             failure_code, retryable = self._delivery_failure(exc)
             try:
                 outcome = await self._release(
@@ -310,12 +329,12 @@ class PasswordResetEmailQueueService:
             except DatabaseError:
                 logger.warning('Password reset email release outcome is uncertain.')
                 outcome = 'lease_recovery_pending'
-            return {'handled': True, 'status': outcome}
+            return result(True, outcome)
         except DatabaseError:
             # An uncertain completion is never followed by an explicit release:
             # the lease expires, and the exact alias/body/provider key replay.
             logger.warning('Password reset email worker outcome is uncertain.')
-            return {'handled': True, 'status': 'lease_recovery_pending'}
+            return result(True, 'lease_recovery_pending')
         except Exception:
             logger.exception('Password reset email worker failed without customer content.')
             try:
@@ -327,4 +346,4 @@ class PasswordResetEmailQueueService:
                 )
             except DatabaseError:
                 outcome = 'lease_recovery_pending'
-            return {'handled': True, 'status': outcome}
+            return result(True, outcome)

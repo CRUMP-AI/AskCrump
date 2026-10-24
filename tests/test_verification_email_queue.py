@@ -3,6 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 import hashlib
 import json
+import logging
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -29,6 +30,18 @@ VERIFICATION_V1_SUBJECT_HTML_SHA256 = (
     '3be0895aff7bbd072389eb9e2e200854b1405202383d1b6e2db819127caec839'
 )
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def queue_outcome_records(caplog):
+    records = []
+    for item in caplog.records:
+        try:
+            payload = json.loads(item.message)
+        except (TypeError, ValueError):
+            continue
+        if payload.get('event') == 'email_queue_outcome':
+            records.append(payload)
+    return records
 
 
 def _settings(**overrides):
@@ -260,7 +273,10 @@ async def test_enqueue_is_one_replay_safe_rpc_with_content_minimized_inputs(monk
 
 
 @pytest.mark.asyncio
-async def test_worker_reconstructs_exact_alias_and_records_provider_acceptance(monkeypatch):
+async def test_worker_reconstructs_exact_alias_and_records_provider_acceptance(
+    monkeypatch,
+    caplog,
+):
     database = _RPCDatabase({
         'claim_verification_email_job_v1': [[{
             'job_id': JOB_ID,
@@ -273,6 +289,7 @@ async def test_worker_reconstructs_exact_alias_and_records_provider_acceptance(m
     email = _EmailCapture()
     service = VerificationEmailQueueService(_settings(), database, email)
     monkeypatch.setattr('backend.verification_email_queue.new_uuid', lambda: LEASE_TOKEN)
+    caplog.set_level(logging.INFO, logger='askcrump.verification_email_queue')
 
     result = await service.process_next()
 
@@ -295,10 +312,22 @@ async def test_worker_reconstructs_exact_alias_and_records_provider_acceptance(m
     )
     assert database.calls[-1][0] == 'complete_verification_email_job_v1'
     assert database.calls[-1][1]['p_outcome'] == 'provider_accepted'
+    assert queue_outcome_records(caplog) == [{
+        'component': 'minute_worker',
+        'event': 'email_queue_outcome',
+        'lane': 'verification-email',
+        'handled': True,
+        'status': 'provider_accepted',
+        'attempt': 1,
+        'provider_attempts': 1,
+    }]
+    assert JOB_ID not in caplog.text
+    assert 'pending@example.com' not in caplog.text
+    assert call['token'] not in caplog.text
 
 
 @pytest.mark.asyncio
-async def test_worker_suppresses_stale_account_without_provider_call(monkeypatch):
+async def test_worker_suppresses_stale_account_without_provider_call(monkeypatch, caplog):
     database = _RPCDatabase({
         'claim_verification_email_job_v1': [[{
             'job_id': JOB_ID,
@@ -311,16 +340,49 @@ async def test_worker_suppresses_stale_account_without_provider_call(monkeypatch
     email = _EmailCapture()
     service = VerificationEmailQueueService(_settings(), database, email)
     monkeypatch.setattr('backend.verification_email_queue.new_uuid', lambda: LEASE_TOKEN)
+    caplog.set_level(logging.INFO, logger='askcrump.verification_email_queue')
 
     result = await service.process_next()
 
     assert result == {'handled': True, 'status': 'suppressed'}
     assert email.calls == []
     assert database.calls[-1][1]['p_outcome'] == 'suppressed'
+    record = queue_outcome_records(caplog)[-1]
+    assert record['status'] == 'suppressed'
+    assert record['attempt'] == 1
+    assert 'provider_attempts' not in record
 
 
 @pytest.mark.asyncio
-async def test_worker_requeues_retryable_provider_failure_once(monkeypatch):
+async def test_worker_omits_provider_attempt_when_email_is_not_configured(
+    monkeypatch,
+    caplog,
+):
+    database = _RPCDatabase({
+        'claim_verification_email_job_v1': [[{
+            'job_id': JOB_ID,
+            'lease_token': LEASE_TOKEN,
+            'attempts': 1,
+        }]],
+        'stage_verification_email_job_v1': [[_stage_row()]],
+        'release_verification_email_job_v1': ['failed_permanent'],
+    })
+    email = _EmailCapture(outcome=False)
+    service = VerificationEmailQueueService(_settings(), database, email)
+    monkeypatch.setattr('backend.verification_email_queue.new_uuid', lambda: LEASE_TOKEN)
+    caplog.set_level(logging.INFO, logger='askcrump.verification_email_queue')
+
+    result = await service.process_next()
+
+    assert result == {'handled': True, 'status': 'failed_permanent'}
+    assert database.calls[-1][1]['p_failure_code'] == 'EMAIL_NOT_CONFIGURED'
+    record = queue_outcome_records(caplog)[-1]
+    assert record['attempt'] == 1
+    assert 'provider_attempts' not in record
+
+
+@pytest.mark.asyncio
+async def test_worker_requeues_retryable_provider_failure_once(monkeypatch, caplog):
     database = _RPCDatabase({
         'claim_verification_email_job_v1': [[{
             'job_id': JOB_ID,
@@ -339,6 +401,7 @@ async def test_worker_requeues_retryable_provider_failure_once(monkeypatch):
     )
     service = VerificationEmailQueueService(_settings(), database, email)
     monkeypatch.setattr('backend.verification_email_queue.new_uuid', lambda: LEASE_TOKEN)
+    caplog.set_level(logging.INFO, logger='askcrump.verification_email_queue')
 
     result = await service.process_next()
 
@@ -349,6 +412,15 @@ async def test_worker_requeues_retryable_provider_failure_once(monkeypatch):
     assert payload['p_failure_code'] == 'PROVIDER_UNAVAILABLE'
     assert payload['p_retryable'] is True
     assert payload['p_retry_after_seconds'] == 17
+    assert queue_outcome_records(caplog)[-1] == {
+        'component': 'minute_worker',
+        'event': 'email_queue_outcome',
+        'lane': 'verification-email',
+        'handled': True,
+        'status': 'retry_scheduled',
+        'attempt': 1,
+        'provider_attempts': 1,
+    }
 
 
 @pytest.mark.asyncio
@@ -457,26 +529,59 @@ async def test_worker_requeues_concurrent_idempotent_provider_conflict(monkeypat
 
 
 @pytest.mark.asyncio
-async def test_worker_rejects_recipient_fingerprint_mismatch(monkeypatch):
+@pytest.mark.parametrize(
+    'integrity_failure',
+    ['unexpected_disposition', 'malformed_stage', 'fingerprint_mismatch'],
+)
+@pytest.mark.parametrize(
+    ('release_result', 'expected_status'),
+    [('lease_lost', 'lease_lost'), ('', 'failed_permanent')],
+)
+async def test_worker_reports_integrity_release_outcome(
+    monkeypatch,
+    caplog,
+    integrity_failure,
+    release_result,
+    expected_status,
+):
+    if integrity_failure == 'unexpected_disposition':
+        stage = _stage_row(disposition='unexpected')
+    elif integrity_failure == 'malformed_stage':
+        stage = {**_stage_row(), 'alias_nonce': ''}
+    else:
+        stage = _stage_row(fingerprint='f' * 64)
     database = _RPCDatabase({
         'claim_verification_email_job_v1': [[{
             'job_id': JOB_ID,
             'lease_token': LEASE_TOKEN,
             'attempts': 1,
         }]],
-        'stage_verification_email_job_v1': [[_stage_row(fingerprint='f' * 64)]],
-        'release_verification_email_job_v1': ['failed_permanent'],
+        'stage_verification_email_job_v1': [[stage]],
+        'release_verification_email_job_v1': [release_result],
     })
     email = _EmailCapture()
     service = VerificationEmailQueueService(_settings(), database, email)
     monkeypatch.setattr('backend.verification_email_queue.new_uuid', lambda: LEASE_TOKEN)
+    caplog.set_level(logging.INFO, logger='askcrump.verification_email_queue')
 
     result = await service.process_next()
 
-    assert result == {'handled': True, 'status': 'failed_permanent'}
+    assert result == {'handled': True, 'status': expected_status}
     assert email.calls == []
-    assert database.calls[-1][1]['p_failure_code'] == 'JOB_INTEGRITY_INVALID'
-    assert database.calls[-1][1]['p_retryable'] is False
+    name, payload, _retry = database.calls[-1]
+    assert name == 'release_verification_email_job_v1'
+    assert payload['p_failure_code'] == 'JOB_INTEGRITY_INVALID'
+    assert payload['p_retryable'] is False
+    assert queue_outcome_records(caplog)[-1] == {
+        'component': 'minute_worker',
+        'event': 'email_queue_outcome',
+        'lane': 'verification-email',
+        'handled': True,
+        'status': expected_status,
+        'attempt': 1,
+    }
+    assert JOB_ID not in caplog.text
+    assert 'pending@example.com' not in caplog.text
 
 
 def test_cron_rotation_gives_every_lane_first_position_once_per_five_minutes():

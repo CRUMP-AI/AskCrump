@@ -4,6 +4,7 @@ import asyncio
 from datetime import datetime, timedelta, timezone
 import hashlib
 import json
+import logging
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -36,6 +37,18 @@ PASSWORD_RESET_V1_SUBJECT_HTML_SHA256 = (
     '9b402f5218e8a6395b4ed4627eb519bd4cbbf185585b4c9cdaef7d385f1a5c9e'
 )
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def queue_outcome_records(caplog):
+    records = []
+    for item in caplog.records:
+        try:
+            payload = json.loads(item.message)
+        except (TypeError, ValueError):
+            continue
+        if payload.get('event') == 'email_queue_outcome':
+            records.append(payload)
+    return records
 
 
 def _settings(**overrides):
@@ -199,7 +212,10 @@ async def test_enqueue_is_one_content_minimized_replay_safe_rpc(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_worker_reconstructs_exact_alias_and_records_provider_acceptance(monkeypatch):
+async def test_worker_reconstructs_exact_alias_and_records_provider_acceptance(
+    monkeypatch,
+    caplog,
+):
     database = _RPCDatabase({
         'claim_password_reset_email_job_v1': [[{
             'job_id': JOB_ID,
@@ -212,6 +228,7 @@ async def test_worker_reconstructs_exact_alias_and_records_provider_acceptance(m
     email = _EmailCapture()
     service = PasswordResetEmailQueueService(_settings(), database, email)
     monkeypatch.setattr('backend.password_reset_email_queue.new_uuid', lambda: LEASE_TOKEN)
+    caplog.set_level(logging.INFO, logger='askcrump.password_reset_email_queue')
 
     result = await service.process_next()
 
@@ -229,10 +246,50 @@ async def test_worker_reconstructs_exact_alias_and_records_provider_acceptance(m
         password_reset_token_hash=ANCHOR,
     )
     assert database.calls[-1][0] == 'complete_password_reset_email_job_v1'
+    assert queue_outcome_records(caplog) == [{
+        'component': 'minute_worker',
+        'event': 'email_queue_outcome',
+        'lane': 'password-reset-email',
+        'handled': True,
+        'status': 'provider_accepted',
+        'attempt': 1,
+        'provider_attempts': 1,
+    }]
+    assert JOB_ID not in caplog.text
+    assert 'pending@example.com' not in caplog.text
+    assert call['token'] not in caplog.text
 
 
 @pytest.mark.asyncio
-async def test_worker_requeues_retryable_failure_with_same_provider_key(monkeypatch):
+async def test_worker_omits_provider_attempt_when_email_is_not_configured(
+    monkeypatch,
+    caplog,
+):
+    database = _RPCDatabase({
+        'claim_password_reset_email_job_v1': [[{
+            'job_id': JOB_ID,
+            'lease_token': LEASE_TOKEN,
+            'attempts': 1,
+        }]],
+        'stage_password_reset_email_job_v1': [[_stage_row()]],
+        'release_password_reset_email_job_v1': ['failed_permanent'],
+    })
+    email = _EmailCapture(outcome=False)
+    service = PasswordResetEmailQueueService(_settings(), database, email)
+    monkeypatch.setattr('backend.password_reset_email_queue.new_uuid', lambda: LEASE_TOKEN)
+    caplog.set_level(logging.INFO, logger='askcrump.password_reset_email_queue')
+
+    result = await service.process_next()
+
+    assert result == {'handled': True, 'status': 'failed_permanent'}
+    assert database.calls[-1][1]['p_failure_code'] == 'EMAIL_NOT_CONFIGURED'
+    record = queue_outcome_records(caplog)[-1]
+    assert record['attempt'] == 1
+    assert 'provider_attempts' not in record
+
+
+@pytest.mark.asyncio
+async def test_worker_requeues_retryable_failure_with_same_provider_key(monkeypatch, caplog):
     database = _RPCDatabase({
         'claim_password_reset_email_job_v1': [[{
             'job_id': JOB_ID,
@@ -245,6 +302,7 @@ async def test_worker_requeues_retryable_failure_with_same_provider_key(monkeypa
     email = _EmailCapture(EmailDeliveryError(status_code=503, retryable=True))
     service = PasswordResetEmailQueueService(_settings(), database, email)
     monkeypatch.setattr('backend.password_reset_email_queue.new_uuid', lambda: LEASE_TOKEN)
+    caplog.set_level(logging.INFO, logger='askcrump.password_reset_email_queue')
 
     result = await service.process_next()
 
@@ -253,6 +311,15 @@ async def test_worker_requeues_retryable_failure_with_same_provider_key(monkeypa
     assert database.calls[-1][0] == 'release_password_reset_email_job_v1'
     assert database.calls[-1][1]['p_failure_code'] == 'PROVIDER_UNAVAILABLE'
     assert database.calls[-1][1]['p_retryable'] is True
+    assert queue_outcome_records(caplog)[-1] == {
+        'component': 'minute_worker',
+        'event': 'email_queue_outcome',
+        'lane': 'password-reset-email',
+        'handled': True,
+        'status': 'retry_scheduled',
+        'attempt': 1,
+        'provider_attempts': 1,
+    }
 
 
 @pytest.mark.asyncio
@@ -365,25 +432,59 @@ async def test_provider_acceptance_completion_uncertainty_replays_exact_envelope
 
 
 @pytest.mark.asyncio
-async def test_worker_rejects_recipient_fingerprint_mismatch(monkeypatch):
+@pytest.mark.parametrize(
+    'integrity_failure',
+    ['unexpected_disposition', 'malformed_stage', 'fingerprint_mismatch'],
+)
+@pytest.mark.parametrize(
+    ('release_result', 'expected_status'),
+    [('lease_lost', 'lease_lost'), ('', 'failed_permanent')],
+)
+async def test_worker_reports_integrity_release_outcome(
+    monkeypatch,
+    caplog,
+    integrity_failure,
+    release_result,
+    expected_status,
+):
+    if integrity_failure == 'unexpected_disposition':
+        stage = _stage_row(disposition='unexpected')
+    elif integrity_failure == 'malformed_stage':
+        stage = {**_stage_row(), 'alias_nonce': ''}
+    else:
+        stage = _stage_row(fingerprint='f' * 64)
     database = _RPCDatabase({
         'claim_password_reset_email_job_v1': [[{
             'job_id': JOB_ID,
             'lease_token': LEASE_TOKEN,
             'attempts': 1,
         }]],
-        'stage_password_reset_email_job_v1': [[_stage_row(fingerprint='f' * 64)]],
-        'release_password_reset_email_job_v1': ['failed_permanent'],
+        'stage_password_reset_email_job_v1': [[stage]],
+        'release_password_reset_email_job_v1': [release_result],
     })
     email = _EmailCapture()
     service = PasswordResetEmailQueueService(_settings(), database, email)
     monkeypatch.setattr('backend.password_reset_email_queue.new_uuid', lambda: LEASE_TOKEN)
+    caplog.set_level(logging.INFO, logger='askcrump.password_reset_email_queue')
 
     result = await service.process_next()
 
-    assert result == {'handled': True, 'status': 'failed_permanent'}
+    assert result == {'handled': True, 'status': expected_status}
     assert email.calls == []
-    assert database.calls[-1][1]['p_failure_code'] == 'JOB_INTEGRITY_INVALID'
+    name, payload, _retry = database.calls[-1]
+    assert name == 'release_password_reset_email_job_v1'
+    assert payload['p_failure_code'] == 'JOB_INTEGRITY_INVALID'
+    assert payload['p_retryable'] is False
+    assert queue_outcome_records(caplog)[-1] == {
+        'component': 'minute_worker',
+        'event': 'email_queue_outcome',
+        'lane': 'password-reset-email',
+        'handled': True,
+        'status': expected_status,
+        'attempt': 1,
+    }
+    assert JOB_ID not in caplog.text
+    assert 'pending@example.com' not in caplog.text
 
 
 @pytest.mark.asyncio
