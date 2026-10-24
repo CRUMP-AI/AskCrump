@@ -396,7 +396,7 @@ async def manuscript_cron(request: Request):
     # Rotate the first lane by UTC minute so a continuously busy queue cannot
     # starve the others. Each cron turn still claims at most one durable job.
     degraded_lanes: list[str] = []
-    first_lane_failure: DatabaseError | None = None
+    email_lane_database_failed = False
     for lane in _cron_lane_order():
         if lane == "account-storage-deletion":
             summary = await account_deletions.process_next()
@@ -411,7 +411,7 @@ async def manuscript_cron(request: Request):
                     type(exc).__name__,
                 )
                 degraded_lanes.append(lane)
-                first_lane_failure = first_lane_failure or exc
+                email_lane_database_failed = True
                 continue
             handled = bool(summary.get("handled"))
         elif lane == "password-reset-email":
@@ -424,7 +424,7 @@ async def manuscript_cron(request: Request):
                     type(exc).__name__,
                 )
                 degraded_lanes.append(lane)
-                first_lane_failure = first_lane_failure or exc
+                email_lane_database_failed = True
                 continue
             handled = bool(summary.get("handled"))
         elif lane == "code":
@@ -438,8 +438,13 @@ async def manuscript_cron(request: Request):
             if degraded_lanes:
                 response["degradedLanes"] = degraded_lanes
             return response
-    if first_lane_failure is not None:
-        raise first_lane_failure
+    if email_lane_database_failed:
+        raise DatabaseError(
+            "Minute worker email lane database unavailable",
+            status_code=503,
+            retryable=True,
+            retry_after=2,
+        ) from None
     return {"success": True, "worker": "idle", "handled": False}
 
 

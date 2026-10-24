@@ -538,9 +538,16 @@ def test_password_reset_claim_failure_preserves_code_lane(monkeypatch, caplog):
     assert private_error not in caplog.text
 
 
+@pytest.mark.parametrize(
+    ('upstream_status', 'upstream_retryable', 'upstream_retry_after'),
+    ((503, True, 2), (404, False, 0)),
+)
 def test_email_claim_failure_with_idle_lanes_returns_generic_database_503(
     monkeypatch,
     caplog,
+    upstream_status,
+    upstream_retryable,
+    upstream_retry_after,
 ):
     private_error = 'private@example.test private-token-fixture'
     deletion_worker = SimpleNamespace(
@@ -550,9 +557,9 @@ def test_email_claim_failure_with_idle_lanes_returns_generic_database_503(
         process_next=AsyncMock(
             side_effect=DatabaseError(
                 private_error,
-                status_code=503,
-                retryable=True,
-                retry_after=2,
+                status_code=upstream_status,
+                retryable=upstream_retryable,
+                retry_after=upstream_retry_after,
             )
         )
     )
