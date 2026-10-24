@@ -403,17 +403,18 @@ async def test_worker_rejects_recipient_fingerprint_mismatch(monkeypatch):
     assert database.calls[-1][1]['p_retryable'] is False
 
 
-def test_cron_rotation_gives_every_lane_first_position_once_per_four_minutes():
+def test_cron_rotation_gives_every_lane_first_position_once_per_five_minutes():
     base = datetime(2026, 10, 24, 14, 0, tzinfo=timezone.utc)
-    orders = [_cron_lane_order(base + timedelta(minutes=offset)) for offset in range(4)]
+    orders = [_cron_lane_order(base + timedelta(minutes=offset)) for offset in range(5)]
 
     assert {order[0] for order in orders} == {
         'account-storage-deletion',
         'verification-email',
+        'password-reset-email',
         'code',
         'manuscripts',
     }
-    assert all(len(order) == len(set(order)) == 4 for order in orders)
+    assert all(len(order) == len(set(order)) == 5 for order in orders)
 
 
 def test_queue_migration_is_bound_to_the_postgresql_17_release_gate():
@@ -421,7 +422,7 @@ def test_queue_migration_is_bound_to_the_postgresql_17_release_gate():
         ROOT / '.github' / 'workflows' / 'postgres-migration-gate.yml'
     ).read_text(encoding='utf-8')
     job = workflow.split('durable-verification-email-queue:', 1)[1].split(
-        '\n  atomic-push-registration:', 1
+        '\n  durable-password-reset-email-queue:', 1
     )[0]
 
     assert 'image: postgres:17' in job

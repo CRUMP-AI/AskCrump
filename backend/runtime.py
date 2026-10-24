@@ -16,6 +16,7 @@ from .intelligence_service import IntelligenceService
 from .manuscript_service import ManuscriptService
 from .media_service import MediaService
 from .project_service import ProjectService
+from .password_reset_email_queue import PasswordResetEmailQueueService
 from .video_service import VideoService
 from .verification_email_queue import VerificationEmailQueueService
 from .voice_service import ElevenLabsVoiceService
@@ -39,4 +40,5 @@ artifacts = ArtifactService(files)
 intelligence = IntelligenceService(db=db, ai=ai, settings=settings)
 email_service = EmailService(settings)
 verification_emails = VerificationEmailQueueService(settings, db, email_service)
+password_reset_emails = PasswordResetEmailQueueService(settings, db, email_service)
 push_service = PushService(settings)

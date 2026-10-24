@@ -27,7 +27,8 @@ def test_password_reset_finishes_verification_for_inbox_owner():
     reset_route = auth[reset_start:reset_end]
 
     assert "'consume_password_reset_v1'" in reset_route
-    assert "'p_token_hash': token_hash(payload.token)" in reset_route
+    assert "reset_anchor = await _password_reset_anchor(payload.token)" in reset_route
+    assert "'p_token_hash': reset_anchor" in reset_route
     assert "'p_password_hash': hash_password(payload.newPassword)" in reset_route
     assert "db.select_one" not in reset_route
     assert "db.update" not in reset_route
@@ -47,8 +48,12 @@ def test_forgot_password_keeps_account_enumeration_message_generic():
     forgot_end = auth.index("@router.post('/reset-password')")
     forgot_route = auth[forgot_start:forgot_end]
 
-    assert "Always return the same result to prevent account enumeration." in forgot_route
-    assert "If an account exists for that email, a reset link has been sent." in forgot_route
+    assert "await password_reset_emails.enqueue(email=email)" in forgot_route
+    assert "_GENERIC_PASSWORD_RESET_RESULT" in forgot_route
+    assert "email_service.send_password_reset" not in forgot_route
+    assert "db.select_one" not in forgot_route
+    assert "db.update" not in forgot_route
+    assert "If an account exists for that email, check your email for a reset link." in auth
 
 
 def test_login_finalization_and_password_upgrade_share_one_database_cas():
