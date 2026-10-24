@@ -9,6 +9,7 @@ from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
 from ..auth_service import authenticate_request
+from ..db import DatabaseError
 from ..feature_service import FeatureAccessError
 from ..file_service import FileServiceError
 from ..manuscript_service import ManuscriptError, chapter_count_from_prompt
@@ -394,15 +395,37 @@ async def manuscript_cron(request: Request):
     ).strip()
     # Rotate the first lane by UTC minute so a continuously busy queue cannot
     # starve the others. Each cron turn still claims at most one durable job.
+    degraded_lanes: list[str] = []
+    first_lane_failure: DatabaseError | None = None
     for lane in _cron_lane_order():
         if lane == "account-storage-deletion":
             summary = await account_deletions.process_next()
             handled = bool(summary.get("handled"))
         elif lane == "verification-email":
-            summary = await verification_emails.process_next()
+            try:
+                summary = await verification_emails.process_next()
+            except DatabaseError as exc:
+                logger.warning(
+                    "Minute worker lane unavailable lane=%s error_type=%s",
+                    lane,
+                    type(exc).__name__,
+                )
+                degraded_lanes.append(lane)
+                first_lane_failure = first_lane_failure or exc
+                continue
             handled = bool(summary.get("handled"))
         elif lane == "password-reset-email":
-            summary = await password_reset_emails.process_next()
+            try:
+                summary = await password_reset_emails.process_next()
+            except DatabaseError as exc:
+                logger.warning(
+                    "Minute worker lane unavailable lane=%s error_type=%s",
+                    lane,
+                    type(exc).__name__,
+                )
+                degraded_lanes.append(lane)
+                first_lane_failure = first_lane_failure or exc
+                continue
             handled = bool(summary.get("handled"))
         elif lane == "code":
             summary = await code_worker.process_next(oidc_token=oidc_token)
@@ -411,7 +434,12 @@ async def manuscript_cron(request: Request):
             summary = await manuscripts.process_next_run()
             handled = bool(summary.get("claimed"))
         if handled:
-            return {"success": True, "worker": lane, **summary}
+            response = {"success": True, "worker": lane, **summary}
+            if degraded_lanes:
+                response["degradedLanes"] = degraded_lanes
+            return response
+    if first_lane_failure is not None:
+        raise first_lane_failure
     return {"success": True, "worker": "idle", "handled": False}
 
 
