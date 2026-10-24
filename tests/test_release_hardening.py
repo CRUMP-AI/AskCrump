@@ -16,6 +16,7 @@ from backend.routes import auth as auth_routes
 from backend.routes import billing as billing_routes
 from backend.schemas import RegisterRequest
 from backend.usage_service import tier_name
+from backend.verification_email_queue import VerificationEmailQueueUnavailable
 
 
 def email_settings() -> SimpleNamespace:
@@ -138,13 +139,13 @@ class RegistrationDB:
         return []
 
 
-class FailedVerificationEmail:
-    async def send_verification(self, *args, **kwargs):
-        raise EmailDeliveryError(status_code=401, retryable=False)
+class FailedVerificationQueue:
+    async def enqueue_resend(self, **_kwargs):
+        raise VerificationEmailQueueUnavailable('unavailable')
 
 
 @pytest.mark.asyncio
-async def test_registration_email_failure_returns_recoverable_pending_account(monkeypatch):
+async def test_registration_queue_failure_returns_recoverable_pending_account(monkeypatch):
     fake_db = RegistrationDB()
     account_events = []
     recorded_events = []
@@ -161,7 +162,7 @@ async def test_registration_email_failure_returns_recoverable_pending_account(mo
         return True
 
     monkeypatch.setattr(auth_routes, 'db', fake_db)
-    monkeypatch.setattr(auth_routes, 'email_service', FailedVerificationEmail())
+    monkeypatch.setattr(auth_routes, 'verification_emails', FailedVerificationQueue())
     monkeypatch.setattr(auth_routes, 'enforce_auth_rate_limit', allow_rate_limit)
     monkeypatch.setattr(auth_routes, 'hash_password', lambda password: 'hashed-password')
     monkeypatch.setattr(auth_routes, 'record_account_created_event', capture_account_event)
@@ -185,7 +186,10 @@ async def test_registration_email_failure_returns_recoverable_pending_account(mo
     assert body['success'] is False
     assert body['accountCreated'] is True
     assert body['needsVerification'] is True
+    assert body['emailQueued'] is False
+    assert body['emailSent'] is False
     assert body['code'] == 'EMAIL_DELIVERY_UNAVAILABLE'
+    assert 'could not be queued' in body['error']
     assert fake_db.inserted_user['email'] == 'new-user@example.com'
     assert fake_db.settings_created is True
     assert len(account_events) == 1

@@ -22,7 +22,6 @@ from ..auth_service import (
     verify_registered_and_create_session,
 )
 from ..db import DatabaseError, eq, gt
-from ..email_service import EmailDeliveryError
 from ..http import native_token_payload, set_session_cookie
 from ..product_analytics import (
     environment_for_request,
@@ -32,7 +31,6 @@ from ..product_analytics import (
 from ..rate_limit import enforce_auth_rate_limit, enforce_guest_admission_rate_limit
 from ..runtime import (
     db,
-    email_service,
     password_reset_emails,
     settings,
     verification_emails,
@@ -127,22 +125,14 @@ def _auth_client_kind(request: Request) -> str:
     )
 
 
-def verification_delivery_failure(
-    exc: EmailDeliveryError,
-    *,
-    account_created: bool,
-) -> JSONResponse:
-    logger.warning(
-        'Verification email delivery unavailable status=%s retryable=%s',
-        exc.status_code,
-        exc.retryable,
-    )
+def verification_enqueue_failure(*, account_created: bool) -> JSONResponse:
+    logger.warning('Registration verification durable enqueue unavailable.')
     error = (
-        'Your account was created, but the verification email could not be sent. '
+        'Your account was created, but the verification email request could not be queued. '
         'Use Resend verification in a moment; you do not need to create another account.'
         if account_created
         else (
-            'The verification email could not be sent right now. '
+            'The verification email request could not be queued right now. '
             'Please try Resend verification again shortly.'
         )
     )
@@ -152,6 +142,8 @@ def verification_delivery_failure(
             'success': False,
             'accountCreated': account_created,
             'needsVerification': True,
+            'emailSent': False,
+            'emailQueued': False,
             'code': 'EMAIL_DELIVERY_UNAVAILABLE',
             'error': error,
         },
@@ -451,16 +443,6 @@ async def register(payload: RegisterRequest, request: Request):
     pending_account = bool(existing) and not own_guest_row
     if existing and not own_guest_row:
         user = existing
-        try:
-            verification_token = await _prepare_resend_verification_alias(user)
-        except (DatabaseError, RuntimeError, ValueError):
-            logger.warning('Pending verification recovery preparation unavailable.')
-            verification_token = None
-        if not verification_token:
-            return {
-                **_GENERIC_RESEND_RESULT,
-                'emailSent': False,
-            }
     else:
         guest_user = session_guest
         if guest_user:
@@ -550,25 +532,28 @@ async def register(payload: RegisterRequest, request: Request):
             )
 
     try:
-        sent = await email_service.send_verification(
-            email,
-            user.get('full_name'),
-            verification_token,
+        await verification_emails.enqueue_resend(
+            email=email,
             intent=payload.intent,
             plan=payload.plan,
         )
-    except EmailDeliveryError as exc:
-        return verification_delivery_failure(exc, account_created=True)
+    except (VerificationEmailQueueUnavailable, RuntimeError, ValueError):
+        return verification_enqueue_failure(account_created=True)
 
-    if sent:
-        message = (
-            'Verification email resent. Check your inbox.'
-            if pending_account
-            else 'Account created. Check your email to verify it.'
-        )
-    else:
-        message = 'Email delivery is not configured; an administrator must enable RESEND_API_KEY.'
-    return {'success': True, 'message': message, 'emailSent': sent}
+    logger.info('Registration verification outcome=durably_accepted')
+    message = (
+        'A verification email will be sent shortly. Check your inbox.'
+        if pending_account
+        else 'Account created. A verification email will be sent shortly.'
+    )
+    return {
+        'success': True,
+        'message': message,
+        # Retain the legacy boolean for older web/native bundles without
+        # overstating a durable queue acceptance as a provider send.
+        'emailSent': False,
+        'emailQueued': True,
+    }
 
 
 @router.post('/guest')

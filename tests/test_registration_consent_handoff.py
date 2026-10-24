@@ -35,14 +35,18 @@ class RegistrationDB:
         return []
 
 
-class SentVerificationEmail:
-    async def send_verification(self, *args, **kwargs):
-        return True
+class QueuedVerificationEmail:
+    def __init__(self) -> None:
+        self.calls: list[dict] = []
+
+    async def enqueue_resend(self, **kwargs):
+        self.calls.append(dict(kwargs))
 
 
 @pytest.mark.asyncio
 async def test_current_registration_consent_is_saved_before_verification(monkeypatch):
     fake_db = RegistrationDB()
+    queue = QueuedVerificationEmail()
 
     async def allow_rate_limit(*args, **kwargs):
         return None
@@ -51,7 +55,7 @@ async def test_current_registration_consent_is_saved_before_verification(monkeyp
         return False
 
     monkeypatch.setattr(auth_routes, 'db', fake_db)
-    monkeypatch.setattr(auth_routes, 'email_service', SentVerificationEmail())
+    monkeypatch.setattr(auth_routes, 'verification_emails', queue)
     monkeypatch.setattr(auth_routes, 'enforce_auth_rate_limit', allow_rate_limit)
     monkeypatch.setattr(auth_routes, 'hash_password', lambda password: 'hashed-password')
     monkeypatch.setattr(auth_routes, 'record_account_created_event', reject_product_event)
@@ -81,6 +85,13 @@ async def test_current_registration_consent_is_saved_before_verification(monkeyp
         == fake_db.inserted_user['created_at']
     )
     assert fake_db.inserted_user['registration_environment'] == 'production'
+    assert response['emailSent'] is False
+    assert response['emailQueued'] is True
+    assert queue.calls == [{
+        'email': 'new-user@example.com',
+        'intent': None,
+        'plan': None,
+    }]
 
 
 def test_legacy_registration_omission_keeps_the_authenticated_terms_fallback():
@@ -124,6 +135,7 @@ async def test_guest_registration_preserves_existing_settings_without_redundant_
             raise AssertionError('guest conversion must preserve its existing settings row')
 
     fake_db = GuestRegistrationDB()
+    queue = QueuedVerificationEmail()
 
     async def allow_rate_limit(*_args, **_kwargs):
         return None
@@ -135,7 +147,7 @@ async def test_guest_registration_preserves_existing_settings_without_redundant_
         return True
 
     monkeypatch.setattr(auth_routes, 'db', fake_db)
-    monkeypatch.setattr(auth_routes, 'email_service', SentVerificationEmail())
+    monkeypatch.setattr(auth_routes, 'verification_emails', queue)
     monkeypatch.setattr(auth_routes, 'enforce_auth_rate_limit', allow_rate_limit)
     monkeypatch.setattr(auth_routes, 'authenticate_guest_for_registration', guest_identity)
     monkeypatch.setattr(auth_routes, 'hash_password', lambda _password: 'hashed-password')
@@ -157,7 +169,13 @@ async def test_guest_registration_preserves_existing_settings_without_redundant_
     )
 
     assert response['success'] is True
-    assert response['emailSent'] is True
+    assert response['emailSent'] is False
+    assert response['emailQueued'] is True
+    assert queue.calls == [{
+        'email': 'converted@example.com',
+        'intent': None,
+        'plan': None,
+    }]
     assert fake_db.updated_user is not None
     assert fake_db.updated_user['email'] == 'converted@example.com'
     assert fake_db.updated_user['is_guest'] is True

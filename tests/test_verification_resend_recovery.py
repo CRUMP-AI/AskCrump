@@ -201,7 +201,7 @@ async def test_resend_response_is_identical_for_every_account_and_delivery_state
     queue = _VerificationQueue()
     email = _VerificationEmail(True)
     monkeypatch.setattr(auth_routes, 'verification_emails', queue)
-    monkeypatch.setattr(auth_routes, 'email_service', email)
+    monkeypatch.setattr(auth_routes, 'email_service', email, raising=False)
 
     result = await auth_routes.resend_verification(
         ResendVerificationRequest(
@@ -231,7 +231,7 @@ async def test_resend_enqueue_failure_is_uniform_and_never_calls_provider(
     )
     email = _VerificationEmail(True)
     monkeypatch.setattr(auth_routes, 'verification_emails', queue)
-    monkeypatch.setattr(auth_routes, 'email_service', email)
+    monkeypatch.setattr(auth_routes, 'email_service', email, raising=False)
 
     result = await auth_routes.resend_verification(
         ResendVerificationRequest(email='pending@example.com'),
@@ -530,13 +530,13 @@ async def test_signed_alias_rejects_a_soft_deleted_account(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
-async def test_pending_reregistration_sends_alias_without_rotating_anchor(
+async def test_pending_reregistration_queues_without_rotating_anchor(
     monkeypatch,
 ) -> None:
     database = _ResendDB(_pending_user())
-    email = _VerificationEmail(True)
+    queue = _VerificationQueue()
     monkeypatch.setattr(auth_routes, 'db', database)
-    monkeypatch.setattr(auth_routes, 'email_service', email)
+    monkeypatch.setattr(auth_routes, 'verification_emails', queue)
 
     result = await auth_routes.register(
         RegisterRequest(
@@ -551,16 +551,16 @@ async def test_pending_reregistration_sends_alias_without_rotating_anchor(
 
     assert result == {
         'success': True,
-        'message': 'Verification email resent. Check your inbox.',
-        'emailSent': True,
+        'message': 'A verification email will be sent shortly. Check your inbox.',
+        'emailSent': False,
+        'emailQueued': True,
     }
     assert database.user is not None
     assert database.user['verification_token_hash'] == ANCHOR
     assert all('verification_token_hash' not in payload for payload, _filters in database.updates)
     assert all('password_hash' not in payload for payload, _filters in database.updates)
-    assert len(email.calls) == 1
-    alias_token = email.calls[0]['token']
-    assert alias_token.startswith(f'v2.k1.{USER_ID}.')
-    user, resolved_anchor = await auth_routes._verification_user_and_anchor(alias_token)
-    assert user is not None
-    assert resolved_anchor == ANCHOR
+    assert queue.calls == [{
+        'email': 'pending@example.com',
+        'intent': None,
+        'plan': None,
+    }]
