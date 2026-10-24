@@ -18,7 +18,10 @@ def test_clever_crump_has_a_dedicated_parent_company_landing_page():
     assert "We build the part" in page
     assert 'id="ask-crump"' in page
     assert 'id="principles"' in page
-    assert "https://www.askcrump.com/app?signup=1&amp;source=clevercrump&amp;plan=free" in page
+    assert page.count(
+        "https://www.askcrump.com/app?source=clevercrump&amp;plan=free"
+    ) == 2
+    assert "signup=1&amp;source=clevercrump&amp;plan=free" not in page
     assert "public/index.html" not in page
     assert "crump-mark-master.png" not in page
     assert page.count('src="/assets/brand/crump-mark-320.webp"') == 2
