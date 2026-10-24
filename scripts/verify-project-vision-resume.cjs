@@ -374,6 +374,7 @@ const {chromium} = require('playwright');
     loadCalls: window.__fixture.loadCalls,
     navigations: window.__fixture.navigations,
     pullClaims: window.__fixture.pullClaims,
+    pushClaims: window.__fixture.pushClaims,
     toasts: window.__fixture.toasts,
     aStorage: localStorage.getItem(`crump_chats:${window.__fixture.ownerA}`),
     bStorage: localStorage.getItem(`crump_chats:${window.__fixture.ownerB}`),
@@ -390,6 +391,7 @@ const {chromium} = require('playwright');
     '11111111-1111-4111-8111-111111111111',
     'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
   ]);
+  assert.deepEqual(realStateFailure.pushClaims, []);
   assert.deepEqual(realStateFailure.chats, []);
   assert.equal(realStateFailure.currentChatId, null);
   assert.equal(realStateFailure.sidebar.includes('Owner A'), false);
@@ -423,6 +425,8 @@ const {chromium} = require('playwright');
     currentChatId: window.currentChatId,
     toasts: window.__fixture.toasts,
     chats: window.chats,
+    pushClaims: window.__fixture.pushClaims,
+    pushPayloads: window.__fixture.pushPayloads,
   }));
   assert.deepEqual(realStateSuccess.loadCalls, ['bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb']);
   assert.deepEqual(realStateSuccess.navigations, ['ask']);
@@ -435,6 +439,107 @@ const {chromium} = require('playwright');
   }]);
   assert.equal(JSON.stringify(realStateSuccess.events).includes('Owner B'), false);
   assert.equal(JSON.stringify(realStateSuccess.events).includes('bbbbbbbb'), false);
+  assert.deepEqual(realStateSuccess.pushClaims, ['aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa']);
+  assert.equal(JSON.stringify(realStateSuccess.pushPayloads).includes('owner-a-private-content'), false);
+  assert.ok(JSON.stringify(realStateSuccess.pushPayloads).includes('owner-b-private-content'));
+  assert.equal(JSON.stringify(realStateSuccess.pushPayloads).includes('44444444-4444-4444-8444-444444444444'), false);
+  assert.ok(JSON.stringify(realStateSuccess.pushPayloads).includes('cccccccc-cccc-4ccc-8ccc-cccccccccccc'));
+
+  const ownerReconciliationPage = await openRealStateBoundary('owner-reconciliation');
+  await ownerReconciliationPage.evaluate(() => { void window.__fixture.startSync(); });
+  await ownerReconciliationPage.waitForFunction(() => window.__fixture.pullClaims.length === 1);
+  await ownerReconciliationPage.evaluate(() => window.__fixture.resolvePull(window.__fixture.ownerA));
+  await ownerReconciliationPage.waitForFunction(() => (
+    window.__fixture.syncResults.length === 1 && window.__fixture.pushClaims.length === 1
+  ));
+
+  await ownerReconciliationPage.evaluate(() => {
+    window.__fixture.switchToOwnerB();
+    void window.__fixture.startSync();
+  });
+  await ownerReconciliationPage.waitForFunction(() => window.__fixture.pullClaims.length === 2);
+  await ownerReconciliationPage.evaluate(() => window.__fixture.resolvePull(
+    window.__fixture.ownerB,
+    {success: false},
+  ));
+  await ownerReconciliationPage.waitForFunction(() => window.__fixture.syncResults.length === 2);
+
+  await ownerReconciliationPage.evaluate(() => { void window.__fixture.startSync(); });
+  await ownerReconciliationPage.waitForFunction(() => window.__fixture.pullClaims.length === 3);
+  await ownerReconciliationPage.evaluate(() => window.__fixture.resolvePull(window.__fixture.ownerB));
+  await ownerReconciliationPage.waitForFunction(() => (
+    window.__fixture.syncResults.length === 3 && window.__fixture.pushClaims.length === 2
+  ));
+
+  await ownerReconciliationPage.evaluate(() => { void window.__fixture.startSync(); });
+  await ownerReconciliationPage.waitForFunction(() => window.__fixture.pullClaims.length === 4);
+  await ownerReconciliationPage.evaluate(() => window.__fixture.resolvePull(window.__fixture.ownerB));
+  await ownerReconciliationPage.waitForFunction(() => window.__fixture.syncResults.length === 4);
+
+  await ownerReconciliationPage.evaluate(() => {
+    window.__fixture.restartOwnerBSession();
+    void window.__fixture.startSync();
+  });
+  await ownerReconciliationPage.waitForFunction(() => window.__fixture.pullClaims.length === 5);
+  await ownerReconciliationPage.evaluate(() => window.__fixture.resolvePull(window.__fixture.ownerB));
+  await ownerReconciliationPage.waitForFunction(() => (
+    window.__fixture.syncResults.length === 5 && window.__fixture.pushClaims.length === 3
+  ));
+  const ownerReconciliation = await ownerReconciliationPage.evaluate(() => ({
+    pullClaims: window.__fixture.pullClaims,
+    pushClaims: window.__fixture.pushClaims,
+    pushPayloads: window.__fixture.pushPayloads,
+    syncResults: window.__fixture.syncResults,
+  }));
+  assert.deepEqual(ownerReconciliation.pullClaims, [
+    '11111111-1111-4111-8111-111111111111',
+    'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  ]);
+  assert.deepEqual(ownerReconciliation.pushClaims, [
+    '11111111-1111-4111-8111-111111111111',
+    'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+  ]);
+  assert.equal(ownerReconciliation.syncResults[1]?.success, false);
+  assert.equal(JSON.stringify(ownerReconciliation.pushPayloads[0]).includes('owner-a-private-content'), true);
+  assert.equal(JSON.stringify(ownerReconciliation.pushPayloads[0]).includes('owner-b-private-content'), false);
+  assert.equal(JSON.stringify(ownerReconciliation.pushPayloads[0]).includes('44444444-4444-4444-8444-444444444444'), true);
+  assert.equal(JSON.stringify(ownerReconciliation.pushPayloads[0]).includes('cccccccc-cccc-4ccc-8ccc-cccccccccccc'), false);
+  assert.equal(JSON.stringify(ownerReconciliation.pushPayloads[1]).includes('44444444-4444-4444-8444-444444444444'), false);
+  assert.equal(JSON.stringify(ownerReconciliation.pushPayloads[1]).includes('cccccccc-cccc-4ccc-8ccc-cccccccccccc'), true);
+  for (const payload of ownerReconciliation.pushPayloads.slice(1)) {
+    assert.equal(JSON.stringify(payload).includes('owner-a-private-content'), false);
+    assert.equal(JSON.stringify(payload).includes('owner-b-private-content'), true);
+  }
+
+  const concurrentReconciliationPage = await openRealStateBoundary('concurrent-owner-reconciliation');
+  await concurrentReconciliationPage.evaluate(() => {
+    void window.__fixture.startSync();
+    void window.__fixture.startSync();
+  });
+  await concurrentReconciliationPage.waitForFunction(() => window.__fixture.pullClaims.length === 1);
+  await concurrentReconciliationPage.evaluate(() => window.__fixture.resolvePull(window.__fixture.ownerA));
+  await concurrentReconciliationPage.waitForFunction(() => window.__fixture.pullClaims.length === 2);
+  await concurrentReconciliationPage.evaluate(() => window.__fixture.resolvePull(window.__fixture.ownerA));
+  await concurrentReconciliationPage.waitForFunction(() => window.__fixture.syncResults.length === 2);
+  const concurrentReconciliation = await concurrentReconciliationPage.evaluate(() => ({
+    pullClaims: window.__fixture.pullClaims,
+    pushClaims: window.__fixture.pushClaims,
+    pushPayloads: window.__fixture.pushPayloads,
+    syncResults: window.__fixture.syncResults,
+  }));
+  assert.deepEqual(concurrentReconciliation.pullClaims, [
+    '11111111-1111-4111-8111-111111111111',
+    '11111111-1111-4111-8111-111111111111',
+  ]);
+  assert.deepEqual(concurrentReconciliation.pushClaims, [
+    '11111111-1111-4111-8111-111111111111',
+  ]);
+  assert.equal(concurrentReconciliation.pushPayloads.length, 1);
+  assert.equal(concurrentReconciliation.syncResults.every(result => result?.success !== false), true);
 
   const hiddenProjectsPage = await openRealStateBoundary('hidden');
   await hiddenProjectsPage.evaluate(() => {

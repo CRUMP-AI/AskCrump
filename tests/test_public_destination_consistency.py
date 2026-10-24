@@ -132,7 +132,7 @@ def test_truthful_destination_assets_and_sitemaps_share_one_release_boundary():
         assert f'/landing-5.6.css?v={version}' in read(relative)
 
     worker = read("public/sw.js")
-    assert "ask-crump-new-body-v1-r275-native-push-owner-fence-1" in worker
+    assert "ask-crump-new-body-v1-r276-initial-chat-owner-reconciliation-1" in worker
     assert f"/landing-5.6.css?v={version}" in worker
     sitemap = read("public/sitemap.xml")
     assert sitemap.count("<lastmod>2026-08-30</lastmod>") == 6

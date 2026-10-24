@@ -32,9 +32,9 @@ def test_changed_sync_manager_is_release_versioned_and_network_first():
     assert '<script defer src="/presence-manager.js?v=5.9.76-native-push-owner-fence-1"></script>' not in shell
     assert "['/presence-manager.js?v=5.9.76-native-push-owner-fence-1', 'workspacepresence']" in runtime
     assert "'/presence-manager.js?v=5.9.76-native-push-owner-fence-1'" in worker
-    assert '<script defer src="/chat-sync.js?v=5.9.76-auth-boundary-sync-1"></script>' not in shell
-    assert "['/chat-sync.js?v=5.9.76-auth-boundary-sync-1', 'workspacechatsync']" in runtime
-    assert "'/chat-sync.js?v=5.9.76-auth-boundary-sync-1'" in worker
+    assert '<script defer src="/chat-sync.js?v=5.9.76-initial-chat-owner-reconciliation-1"></script>' not in shell
+    assert "['/chat-sync.js?v=5.9.76-initial-chat-owner-reconciliation-1', 'workspacechatsync']" in runtime
+    assert "'/chat-sync.js?v=5.9.76-initial-chat-owner-reconciliation-1'" in worker
     assert "url.pathname === '/sync-manager.js'" in worker
 
 
@@ -65,7 +65,13 @@ def test_idle_sync_is_incremental_visible_only_and_never_blindly_pushes_state():
     assert "document.hidden" in scheduler
     assert "synchronize(null, { full: false })" in scheduler
     assert "window.__crumpSyncData = null" in sync
-    assert "initialReconciliationPending" in sync
+    assert "const initialReconciliationByOwner = new Map()" in sync
+    assert "initialReconciliationByOwner.get(authBoundary.userId)" in sync
+    assert "state: 'inflight'" in sync
+    assert "state: 'complete'" in sync
+    assert "initialReconciliationByOwner.delete(authBoundary.userId)" in sync
+    assert "result?.success !== false && authBoundaryIsCurrent(authBoundary)" in sync
+    assert "initialReconciliationPending" not in sync
     assert "full: true, reconcileLocal, authBoundary" in sync
     assert "stableMessageSignature(previousActive.messages)" in sync
     assert "window.replaceChats(merged, {preserveActiveRender})" in sync
