@@ -432,25 +432,59 @@ async def test_provider_acceptance_completion_uncertainty_replays_exact_envelope
 
 
 @pytest.mark.asyncio
-async def test_worker_rejects_recipient_fingerprint_mismatch(monkeypatch):
+@pytest.mark.parametrize(
+    'integrity_failure',
+    ['unexpected_disposition', 'malformed_stage', 'fingerprint_mismatch'],
+)
+@pytest.mark.parametrize(
+    ('release_result', 'expected_status'),
+    [('lease_lost', 'lease_lost'), ('', 'failed_permanent')],
+)
+async def test_worker_reports_integrity_release_outcome(
+    monkeypatch,
+    caplog,
+    integrity_failure,
+    release_result,
+    expected_status,
+):
+    if integrity_failure == 'unexpected_disposition':
+        stage = _stage_row(disposition='unexpected')
+    elif integrity_failure == 'malformed_stage':
+        stage = {**_stage_row(), 'alias_nonce': ''}
+    else:
+        stage = _stage_row(fingerprint='f' * 64)
     database = _RPCDatabase({
         'claim_password_reset_email_job_v1': [[{
             'job_id': JOB_ID,
             'lease_token': LEASE_TOKEN,
             'attempts': 1,
         }]],
-        'stage_password_reset_email_job_v1': [[_stage_row(fingerprint='f' * 64)]],
-        'release_password_reset_email_job_v1': ['failed_permanent'],
+        'stage_password_reset_email_job_v1': [[stage]],
+        'release_password_reset_email_job_v1': [release_result],
     })
     email = _EmailCapture()
     service = PasswordResetEmailQueueService(_settings(), database, email)
     monkeypatch.setattr('backend.password_reset_email_queue.new_uuid', lambda: LEASE_TOKEN)
+    caplog.set_level(logging.INFO, logger='askcrump.password_reset_email_queue')
 
     result = await service.process_next()
 
-    assert result == {'handled': True, 'status': 'failed_permanent'}
+    assert result == {'handled': True, 'status': expected_status}
     assert email.calls == []
-    assert database.calls[-1][1]['p_failure_code'] == 'JOB_INTEGRITY_INVALID'
+    name, payload, _retry = database.calls[-1]
+    assert name == 'release_password_reset_email_job_v1'
+    assert payload['p_failure_code'] == 'JOB_INTEGRITY_INVALID'
+    assert payload['p_retryable'] is False
+    assert queue_outcome_records(caplog)[-1] == {
+        'component': 'minute_worker',
+        'event': 'email_queue_outcome',
+        'lane': 'password-reset-email',
+        'handled': True,
+        'status': expected_status,
+        'attempt': 1,
+    }
+    assert JOB_ID not in caplog.text
+    assert 'pending@example.com' not in caplog.text
 
 
 @pytest.mark.asyncio

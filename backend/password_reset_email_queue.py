@@ -211,13 +211,13 @@ class PasswordResetEmailQueueService:
                 outcome = await self._complete(job_id, lease_token, 'suppressed')
                 return result(True, outcome or 'suppressed')
             if disposition != 'deliver':
-                await self._release(
+                outcome = await self._release(
                     job_id,
                     lease_token,
                     failure_code='JOB_INTEGRITY_INVALID',
                     retryable=False,
                 )
-                return result(True, 'failed_permanent')
+                return result(True, outcome or 'failed_permanent')
 
             recipient = normalize_email(str(stage.get('recipient_email') or ''))
             recipient_fingerprint = str(stage.get('recipient_fingerprint') or '')
@@ -243,13 +243,13 @@ class PasswordResetEmailQueueService:
                 or not str(stage.get('support_email') or '')
                 or not str(stage.get('from_email') or '')
             ):
-                await self._release(
+                outcome = await self._release(
                     job_id,
                     lease_token,
                     failure_code='JOB_INTEGRITY_INVALID',
                     retryable=False,
                 )
-                return result(True, 'failed_permanent')
+                return result(True, outcome or 'failed_permanent')
 
             try:
                 signing_secret = _signing_keys(self.settings).get(key_id)
@@ -267,13 +267,13 @@ class PasswordResetEmailQueueService:
                 recipient_fingerprint,
                 _recipient_fingerprint(signing_secret, recipient),
             ):
-                await self._release(
+                outcome = await self._release(
                     job_id,
                     lease_token,
                     failure_code='JOB_INTEGRITY_INVALID',
                     retryable=False,
                 )
-                return result(True, 'failed_permanent')
+                return result(True, outcome or 'failed_permanent')
 
             try:
                 alias = create_password_reset_alias(
