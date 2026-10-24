@@ -40,7 +40,12 @@
   let fullSyncRequested = false;
   let reconcileLocalRequested = false;
   let visibilityBound = false;
-  let initialReconciliationPending = true;
+  // A single document can authenticate more than one account over its
+  // lifetime. Each authenticated session must get one owner-bound pass that
+  // uploads retained local chats and tombstones before ordinary incremental
+  // sync takes over. Remember the completed auth revision per owner so one
+  // account cannot consume another account's initial reconciliation.
+  const initialReconciliationByOwner = new Map();
 
   const toTime = value => {
     if (typeof value === 'number') return Number.isFinite(value) ? value : 0;
@@ -418,10 +423,26 @@
     if (!authBoundaryIsCurrent(authBoundary)) return Promise.resolve(staleAuthResult());
     const prefetched = window.__crumpSyncData || null;
     window.__crumpSyncData = null;
-    const reconcileLocal = initialReconciliationPending;
-    initialReconciliationPending = false;
+    const initialReconciliation = initialReconciliationByOwner.get(authBoundary.userId);
+    const reconcileLocal = initialReconciliation?.revision !== authBoundary.revision;
+    if (reconcileLocal) {
+      initialReconciliationByOwner.set(authBoundary.userId, {
+        revision: authBoundary.revision,
+        state: 'inflight',
+      });
+    }
     return synchronize(prefetched, {full: true, reconcileLocal, authBoundary}).then(result => {
-      if (result?.success === false) initialReconciliationPending = true;
+      if (!reconcileLocal) return result;
+      const pending = initialReconciliationByOwner.get(authBoundary.userId);
+      if (pending?.revision !== authBoundary.revision) return result;
+      if (result?.success !== false && authBoundaryIsCurrent(authBoundary)) {
+        initialReconciliationByOwner.set(authBoundary.userId, {
+          revision: authBoundary.revision,
+          state: 'complete',
+        });
+      } else if (pending.state === 'inflight') {
+        initialReconciliationByOwner.delete(authBoundary.userId);
+      }
       return result;
     });
   };

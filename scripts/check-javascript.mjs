@@ -1259,8 +1259,9 @@ const fileLibraryWindowVersion = `${releaseVersion}-file-library-window-1`;
 const imageReferenceRecoveryVersion = `${releaseVersion}-image-reference-recovery-1`;
 const liveImagePreviewVersion = `${releaseVersion}-precision-studio-1`;
 const authBoundarySyncVersion = `${releaseVersion}-auth-boundary-sync-1`;
+const initialChatOwnerReconciliationVersion = `${releaseVersion}-initial-chat-owner-reconciliation-1`;
 const profileSettingsBoundaryVersion = accountOwnerBoundaryVersion;
-const chatSyncVersion = authBoundarySyncVersion;
+const chatSyncVersion = initialChatOwnerReconciliationVersion;
 const syncQueueVersion = authBoundarySyncVersion;
 const imageNodeStabilityVersion = `${releaseVersion}-image-node-stability-1`;
 const uploadedImageNodeStabilityVersion = `${releaseVersion}-uploaded-image-node-stability-1`;
@@ -1285,7 +1286,7 @@ const libraryReconciliationVersion = `${releaseVersion}-library-reconciliation-1
 const homeDocumentEntryVersion = `${releaseVersion}-home-document-entry-1`;
 const autonomousContinuityVersion = `${releaseVersion}-autonomous-continuity-1`;
 const precisionAiPersistenceVersion = `${releaseVersion}-precision-ai-persistence-1`;
-const runtimeBodyVersion = nativePushOwnerFenceVersion;
+const runtimeBodyVersion = initialChatOwnerReconciliationVersion;
 const appearanceChoiceVersion = `${releaseVersion}-appearance-choice-3`;
 const uiReleaseAuditVersion = `${releaseVersion}-ui-release-audit-2`;
 const activityCenterVersion = autonomousContinuityVersion;
@@ -2085,7 +2086,7 @@ for (const [pathname, expectedVersion] of [
     }
   }
 }
-if (!serviceWorker.includes('ask-crump-new-body-v1-r275-native-push-owner-fence-1') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r276-initial-chat-owner-reconciliation-1') ||
     !serviceWorker.includes(`'${shellBrandUrl}'`) ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||

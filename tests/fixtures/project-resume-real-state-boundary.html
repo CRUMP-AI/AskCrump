@@ -40,6 +40,14 @@
         updatedAt: '2026-10-24T02:00:00Z',
         revision: 1,
       };
+      const ownerADeletion = {
+        id: '44444444-4444-4444-8444-444444444444',
+        deleted_at: '2026-10-24T01:10:00Z',
+      };
+      const ownerBDeletion = {
+        id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+        deleted_at: '2026-10-24T02:10:00Z',
+      };
       let currentUserValue = {id: ownerA};
       let authOwnerId = ownerA;
       let authRevision = 0;
@@ -123,6 +131,8 @@
       localStorage.clear();
       localStorage.setItem(`crump_chats:${ownerA}`, JSON.stringify([ownerAChat]));
       localStorage.setItem(`crump_chats:${ownerB}`, JSON.stringify([ownerBChat]));
+      localStorage.setItem(`crump_deleted_chats_v4:${ownerA}`, JSON.stringify([ownerADeletion]));
+      localStorage.setItem(`crump_deleted_chats_v4:${ownerB}`, JSON.stringify([ownerBDeletion]));
       localStorage.setItem(`crump_last_sync_v4:${ownerA}`, JSON.stringify('a-cursor-original'));
       localStorage.setItem(`crump_last_sync_v4:${ownerB}`, JSON.stringify('b-cursor-original'));
 
@@ -132,12 +142,15 @@
         projectId,
         ownerAChat,
         ownerBChat,
+        ownerADeletion,
+        ownerBDeletion,
         actions: [],
         events: [],
         loadCalls: [],
         navigations: [],
         pullClaims: [],
         pushClaims: [],
+        pushPayloads: [],
         replaceCalls: 0,
         renderListCalls: 0,
         renderMessageCalls: 0,
@@ -184,6 +197,10 @@
         } else if (path === '/api/sync/push') {
           const claim = new Headers(options.headers || {}).get('X-Ask-Crump-Sync-Owner') || '';
           window.__fixture.pushClaims.push(claim);
+          window.__fixture.pushPayloads.push({
+            ownerId: claim,
+            payload: JSON.parse(String(options.body || '{}')),
+          });
           return Promise.resolve(new Response(JSON.stringify({success: true}), {
             status: 200,
             headers: {'Content-Type': 'application/json'},
@@ -271,6 +288,11 @@
         window.__crumpSyncData = {chats: [fixture.ownerAChat], settings: null};
       };
       fixture.switchToOwnerB = () => {
+        window.currentUser = {id: fixture.ownerB};
+        window.configureUserStorage(fixture.ownerB);
+      };
+      fixture.restartOwnerBSession = () => {
+        window.currentUser = null;
         window.currentUser = {id: fixture.ownerB};
         window.configureUserStorage(fixture.ownerB);
       };

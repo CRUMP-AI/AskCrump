@@ -520,7 +520,7 @@ def test_release_version_and_cache_advance_together():
 
     assert '"version": "5.9.76"' in package
     assert "__version__ = '5.9.76'" in backend
-    assert "ask-crump-new-body-v1-r275-native-push-owner-fence-1" in worker
+    assert "ask-crump-new-body-v1-r276-initial-chat-owner-reconciliation-1" in worker
     assert "/landing-5.6.css?v=5.9.76-accessibility-1" in worker
     assert "/use-case.css?v=5.9.76" in worker
     assert "/landing.js?v=5.9.76-free-guest-entry-1" in worker
