@@ -34,6 +34,12 @@ logger = logging.getLogger("askcrump.billing")
 
 STRIPE_ENTITLED_STATUSES = {'active', 'trialing'}
 STRIPE_TERMINAL_STATUSES = {'inactive', 'canceled', 'expired', 'incomplete_expired'}
+STRIPE_CHECKOUT_SETTLED_PAYMENT_STATUSES = {'paid', 'no_payment_required'}
+STRIPE_CHECKOUT_FULFILLMENT_EVENTS = {
+    'checkout.session.completed',
+    'checkout.session.async_payment_succeeded',
+}
+STRIPE_CHECKOUT_FAILURE_EVENT = 'checkout.session.async_payment_failed'
 STRIPE_API_VERSION = '2026-07-29.dahlia'
 REVENUECAT_PROVIDER_STATE_EVENTS = {
     'PURCHASE_REDEEMED',
@@ -755,6 +761,11 @@ async def reconcile_stripe_checkout_session(
     if str(session.get('status') or '').lower() != 'complete':
         raise RuntimeError('Subscription checkout has not completed yet.')
     if (
+        str(session.get('payment_status') or '').lower()
+        not in STRIPE_CHECKOUT_SETTLED_PAYMENT_STATUSES
+    ):
+        raise RuntimeError('Subscription payment has not completed yet.')
+    if (
         str(metadata.get('user_id') or '') != user_id
         or str(session.get('client_reference_id') or '') != user_id
     ):
@@ -973,7 +984,8 @@ async def stripe_webhook(request: Request):
     event_id = str(event.get('id') or '')
     event_type = event.get('type')
     if event_type not in {
-        'checkout.session.completed',
+        *STRIPE_CHECKOUT_FULFILLMENT_EVENTS,
+        STRIPE_CHECKOUT_FAILURE_EVENT,
         'customer.subscription.created',
         'customer.subscription.updated',
         'customer.subscription.deleted',
@@ -987,7 +999,10 @@ async def stripe_webhook(request: Request):
         )
     customer_id = obj.get('customer')
 
-    if event_type == 'checkout.session.completed':
+    if event_type in {
+        *STRIPE_CHECKOUT_FULFILLMENT_EVENTS,
+        STRIPE_CHECKOUT_FAILURE_EVENT,
+    }:
         metadata = obj.get('metadata')
         if metadata is None:
             metadata = {}
@@ -999,6 +1014,24 @@ async def stripe_webhook(request: Request):
         # Credit purchases have their own verified/idempotent webhook. Never let
         # a one-time credit Checkout session mutate subscription entitlements.
         if str(metadata.get('purchase_type') or '') != 'subscription':
+            return {'received': True}
+        if event_type == STRIPE_CHECKOUT_FAILURE_EVENT:
+            logger.info(
+                'Stripe reported a failed delayed subscription Checkout payment session=%s',
+                str(obj.get('id') or ''),
+            )
+            return {'received': True}
+        if (
+            str(obj.get('payment_status') or '').lower()
+            not in STRIPE_CHECKOUT_SETTLED_PAYMENT_STATUSES
+        ):
+            # Delayed methods emit checkout.session.completed while payment is
+            # still processing. Acknowledge that event without entitlement;
+            # Stripe will send async_payment_succeeded or async_payment_failed.
+            logger.info(
+                'Waiting for delayed subscription Checkout payment session=%s',
+                str(obj.get('id') or ''),
+            )
             return {'received': True}
         user_id = str(metadata.get('user_id') or obj.get('client_reference_id') or '')
         user = (

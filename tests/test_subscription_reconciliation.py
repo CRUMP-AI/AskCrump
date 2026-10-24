@@ -69,6 +69,8 @@ async def test_subscription_webhook_rejects_signed_non_event_payloads(monkeypatc
     [
         {'type': 'checkout.session.completed', 'data': []},
         {'type': 'checkout.session.completed', 'data': {'object': []}},
+        {'type': 'checkout.session.async_payment_succeeded', 'data': []},
+        {'type': 'checkout.session.async_payment_failed', 'data': {'object': []}},
         {
             'type': 'checkout.session.completed',
             'data': {'object': {'metadata': []}},
@@ -99,6 +101,7 @@ def checkout_session(**overrides):
         'id': 'cs_live_reconcile',
         'mode': 'subscription',
         'status': 'complete',
+        'payment_status': 'paid',
         'customer': 'cus_owner',
         'subscription': 'sub_paid',
         'client_reference_id': 'user-1',
@@ -268,7 +271,11 @@ async def test_past_due_subscription_routes_to_management_instead_of_duplicate_c
 
 
 @pytest.mark.asyncio
-async def test_checkout_reconciliation_uses_actual_subscription_price_not_metadata(monkeypatch):
+@pytest.mark.parametrize('payment_status', ['paid', 'no_payment_required'])
+async def test_checkout_reconciliation_uses_actual_subscription_price_not_metadata(
+    monkeypatch,
+    payment_status,
+):
     fake_db = BillingDB()
     monkeypatch.setattr(billing_routes, 'db', fake_db)
     monkeypatch.setattr(billing_routes, 'settings', settings_stub())
@@ -287,7 +294,7 @@ async def test_checkout_reconciliation_uses_actual_subscription_price_not_metada
 
     result = await billing_routes.reconcile_stripe_checkout_session(
         user=user,
-        session=checkout_session(),
+        session=checkout_session(payment_status=payment_status),
         request=request_stub(),
     )
 
@@ -328,6 +335,39 @@ async def test_checkout_reconciliation_never_entitles_incomplete_subscription(mo
     assert result['user']['tier'] == 'free'
     assert fake_db.updates[0][1]['subscription_tier'] == 'enterprise'
     assert fake_db.updates[0][1]['subscription_status'] == 'incomplete'
+    assert fake_db.events == []
+
+
+@pytest.mark.asyncio
+async def test_checkout_reconciliation_rejects_unpaid_session_before_provider_or_database(
+    monkeypatch,
+):
+    fake_db = BillingDB()
+    monkeypatch.setattr(billing_routes, 'db', fake_db)
+    monkeypatch.setattr(billing_routes, 'settings', settings_stub())
+    provider_paths = []
+
+    async def stripe_get(path):
+        provider_paths.append(path)
+        return stripe_subscription()
+
+    monkeypatch.setattr(billing_routes, 'stripe_get', stripe_get)
+    user = {
+        'id': 'user-1',
+        'stripe_customer_id': 'cus_owner',
+        'subscription_tier': 'free',
+        'subscription_status': 'inactive',
+    }
+
+    with pytest.raises(RuntimeError, match='payment has not completed'):
+        await billing_routes.reconcile_stripe_checkout_session(
+            user=user,
+            session=checkout_session(payment_status='unpaid'),
+            request=request_stub(),
+        )
+
+    assert provider_paths == []
+    assert fake_db.updates == []
     assert fake_db.events == []
 
 
@@ -389,7 +429,11 @@ async def test_finalize_checkout_returns_provider_failure_for_stripe_outage(monk
 
 
 @pytest.mark.asyncio
-async def test_webhook_and_browser_share_checkout_session_conversion_key(monkeypatch):
+@pytest.mark.parametrize(
+    'event_type',
+    ['checkout.session.completed', 'checkout.session.async_payment_succeeded'],
+)
+async def test_webhook_and_browser_share_checkout_session_conversion_key(monkeypatch, event_type):
     user = {
         'id': 'user-1',
         'email': 'owner@example.com',
@@ -408,7 +452,7 @@ async def test_webhook_and_browser_share_checkout_session_conversion_key(monkeyp
     monkeypatch.setattr(billing_routes, 'stripe_get', stripe_get)
     event = {
         'id': 'evt_delivery_attempt',
-        'type': 'checkout.session.completed',
+        'type': event_type,
         'data': {'object': checkout_session()},
     }
 
@@ -424,6 +468,85 @@ async def test_webhook_and_browser_share_checkout_session_conversion_key(monkeyp
     assert result == {'received': True}
     assert fake_db.events[0]['p_event_key'] == 'cs_live_reconcile'
     assert fake_db.events[0]['p_event_key'] != 'evt_delivery_attempt'
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ('event_type', 'payment_status'),
+    [
+        ('checkout.session.completed', 'unpaid'),
+        ('checkout.session.async_payment_failed', 'unpaid'),
+    ],
+)
+async def test_delayed_subscription_checkout_does_not_mutate_before_payment(
+    monkeypatch,
+    event_type,
+    payment_status,
+):
+    class NoDatabaseAccess:
+        async def select_one(self, *_args, **_kwargs):
+            raise AssertionError('unpaid or failed Checkout must not read customer state')
+
+    async def unexpected_stripe_get(path):
+        raise AssertionError(f'unpaid or failed Checkout must not look up {path}')
+
+    monkeypatch.setattr(billing_routes, 'db', NoDatabaseAccess())
+    monkeypatch.setattr(billing_routes, 'verify_stripe_signature', lambda *_args: True)
+    monkeypatch.setattr(billing_routes, 'stripe_get', unexpected_stripe_get)
+    event = {
+        'id': 'evt_delayed_subscription',
+        'type': event_type,
+        'data': {'object': checkout_session(payment_status=payment_status)},
+    }
+
+    class Request:
+        headers = {'stripe-signature': 'verified'}
+        url = SimpleNamespace(hostname='askcrump.com')
+
+        async def body(self):
+            return json.dumps(event).encode('utf-8')
+
+    response = await billing_routes.stripe_webhook(Request())
+
+    assert response == {'received': True}
+
+
+@pytest.mark.asyncio
+async def test_finalize_checkout_reports_unpaid_session_as_pending(monkeypatch):
+    user = {
+        'id': 'user-1',
+        'stripe_customer_id': 'cus_owner',
+        'subscription_tier': 'free',
+        'subscription_status': 'inactive',
+    }
+    fake_db = BillingDB(user=user)
+    monkeypatch.setattr(billing_routes, 'db', fake_db)
+    monkeypatch.setattr(billing_routes, 'settings', settings_stub())
+
+    async def authenticate(*_args, **_kwargs):
+        return SimpleNamespace(user=user)
+
+    async def stripe_get(path):
+        assert path == 'checkout/sessions/cs_live_reconcile'
+        return checkout_session(payment_status='unpaid')
+
+    class Request:
+        headers = {}
+
+        async def json(self):
+            return {'sessionId': 'cs_live_reconcile'}
+
+    monkeypatch.setattr(billing_routes, 'authenticate_request', authenticate)
+    monkeypatch.setattr(billing_routes, 'stripe_get', stripe_get)
+
+    response = await billing_routes.finalize_checkout(Request())
+
+    assert response.status_code == 409
+    assert b'SUBSCRIPTION_PENDING' in response.body
+    assert b'payment has not completed yet' in response.body
+    assert b'payment is complete' not in response.body
+    assert fake_db.updates == []
+    assert fake_db.events == []
 
 
 @pytest.mark.asyncio

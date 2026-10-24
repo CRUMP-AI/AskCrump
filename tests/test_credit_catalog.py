@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+import json
 from pathlib import Path
 import re
 import time
@@ -115,6 +116,8 @@ async def test_credit_webhook_rejects_signed_non_event_payloads(monkeypatch, bod
     [
         {'type': 'checkout.session.completed', 'data': []},
         {'type': 'checkout.session.completed', 'data': {'object': []}},
+        {'type': 'checkout.session.async_payment_succeeded', 'data': []},
+        {'type': 'checkout.session.async_payment_failed', 'data': {'object': []}},
         {
             'type': 'checkout.session.completed',
             'data': {'object': {'metadata': []}},
@@ -128,14 +131,116 @@ async def test_credit_webhook_rejects_malformed_completed_event_envelopes(monkey
         headers = {'stripe-signature': 'verified'}
 
         async def body(self):
-            import json
-
             return json.dumps(event).encode('utf-8')
 
     response = await credit_routes.stripe_webhook(Request())
 
     assert response.status_code == 400
     assert b'Invalid webhook payload.' in response.body
+
+
+def _credit_checkout_event(event_type: str, *, payment_status: str) -> dict:
+    return {
+        'id': f'evt_{event_type.rsplit(".", 1)[-1]}',
+        'type': event_type,
+        'data': {
+            'object': {
+                'id': 'cs_credit_delayed',
+                'payment_status': payment_status,
+                'client_reference_id': 'user-1',
+                'metadata': {
+                    'purchase_type': 'credits',
+                    'user_id': 'user-1',
+                    'pack': 'credits_50',
+                    'credits': '50',
+                },
+            },
+        },
+    }
+
+
+def _credit_webhook_request(event: dict):
+    class Request:
+        headers = {'stripe-signature': 'verified'}
+        url = SimpleNamespace(hostname='askcrump.com')
+
+        async def body(self):
+            return json.dumps(event).encode('utf-8')
+
+    return Request()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ('event_type', 'payment_status'),
+    [
+        ('checkout.session.completed', 'unpaid'),
+        ('checkout.session.async_payment_failed', 'unpaid'),
+    ],
+)
+async def test_credit_webhook_waits_without_granting_before_delayed_payment(
+    monkeypatch,
+    event_type,
+    payment_status,
+):
+    finalized = []
+
+    async def finalize(**kwargs):
+        finalized.append(kwargs)
+
+    monkeypatch.setattr(credit_routes, '_verify_stripe_signature', lambda *_args: True)
+    monkeypatch.setattr(credit_routes, '_finalize_stripe_session', finalize)
+
+    response = await credit_routes.stripe_webhook(
+        _credit_webhook_request(
+            _credit_checkout_event(event_type, payment_status=payment_status)
+        )
+    )
+
+    assert response == {'received': True}
+    assert finalized == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    'event_type',
+    ['checkout.session.completed', 'checkout.session.async_payment_succeeded'],
+)
+async def test_credit_webhook_fulfills_only_paid_checkout_events(monkeypatch, event_type):
+    finalized = []
+
+    async def finalize(**kwargs):
+        finalized.append(kwargs)
+        return {'duplicate': False}
+
+    monkeypatch.setattr(credit_routes, '_verify_stripe_signature', lambda *_args: True)
+    monkeypatch.setattr(credit_routes, '_finalize_stripe_session', finalize)
+    event = _credit_checkout_event(event_type, payment_status='paid')
+    request = _credit_webhook_request(event)
+
+    response = await credit_routes.stripe_webhook(request)
+
+    assert response == {'received': True}
+    assert len(finalized) == 1
+    assert finalized[0]['user_id'] == 'user-1'
+    assert finalized[0]['session']['id'] == 'cs_credit_delayed'
+
+
+@pytest.mark.asyncio
+async def test_credit_async_success_retries_transient_finalization_failure(monkeypatch):
+    async def unavailable(**_kwargs):
+        raise RuntimeError('database unavailable')
+
+    monkeypatch.setattr(credit_routes, '_verify_stripe_signature', lambda *_args: True)
+    monkeypatch.setattr(credit_routes, '_finalize_stripe_session', unavailable)
+    event = _credit_checkout_event(
+        'checkout.session.async_payment_succeeded',
+        payment_status='paid',
+    )
+
+    response = await credit_routes.stripe_webhook(_credit_webhook_request(event))
+
+    assert response.status_code == 503
 
 
 @pytest.mark.asyncio
