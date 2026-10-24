@@ -239,13 +239,13 @@ class PasswordResetEmailQueueService:
             except PasswordResetEmailQueueUnavailable:
                 signing_secret = None
             if not signing_secret:
-                await self._release(
+                outcome = await self._release(
                     job_id,
                     lease_token,
                     failure_code='SIGNING_KEY_UNAVAILABLE',
                     retryable=True,
                 )
-                return {'handled': True, 'status': 'retry_scheduled'}
+                return {'handled': True, 'status': outcome or 'retry_scheduled'}
             if not hmac.compare_digest(
                 recipient_fingerprint,
                 _recipient_fingerprint(signing_secret, recipient),

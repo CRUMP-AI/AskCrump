@@ -256,6 +256,81 @@ async def test_worker_requeues_retryable_failure_with_same_provider_key(monkeypa
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ('release_result', 'expected_status'),
+    [
+        ('retry_scheduled', 'retry_scheduled'),
+        ('failed_permanent', 'failed_permanent'),
+        ('lease_lost', 'lease_lost'),
+        ('', 'retry_scheduled'),
+    ],
+)
+@pytest.mark.parametrize(
+    'configured_keys',
+    [(), (('current', SIGNING_SECRET),)],
+    ids=['keyring-unavailable', 'queued-key-retired'],
+)
+async def test_missing_signing_key_reports_the_release_outcome(
+    monkeypatch,
+    release_result,
+    expected_status,
+    configured_keys,
+):
+    database = _RPCDatabase({
+        'claim_password_reset_email_job_v1': [[{
+            'job_id': JOB_ID,
+            'lease_token': LEASE_TOKEN,
+            'attempts': 6,
+        }]],
+        'stage_password_reset_email_job_v1': [[_stage_row()]],
+        'release_password_reset_email_job_v1': [release_result],
+    })
+    email = _EmailCapture()
+    settings = _settings()
+    settings.environment = 'production'
+    settings.verification_link_signing_keys = configured_keys
+    service = PasswordResetEmailQueueService(settings, database, email)
+    monkeypatch.setattr('backend.password_reset_email_queue.new_uuid', lambda: LEASE_TOKEN)
+
+    result = await service.process_next()
+
+    assert result == {'handled': True, 'status': expected_status}
+    assert email.calls == []
+    name, payload, _retry = database.calls[-1]
+    assert name == 'release_password_reset_email_job_v1'
+    assert payload['p_failure_code'] == 'SIGNING_KEY_UNAVAILABLE'
+    assert payload['p_retryable'] is True
+
+
+@pytest.mark.asyncio
+async def test_missing_signing_key_release_uncertainty_reports_lease_recovery(monkeypatch):
+    database = _RPCDatabase({
+        'claim_password_reset_email_job_v1': [[{
+            'job_id': JOB_ID,
+            'lease_token': LEASE_TOKEN,
+            'attempts': 1,
+        }]],
+        'stage_password_reset_email_job_v1': [[_stage_row()]],
+        'release_password_reset_email_job_v1': [DatabaseError('release unavailable')],
+    })
+    email = _EmailCapture()
+    settings = _settings()
+    settings.environment = 'production'
+    settings.verification_link_signing_keys = ()
+    service = PasswordResetEmailQueueService(settings, database, email)
+    monkeypatch.setattr('backend.password_reset_email_queue.new_uuid', lambda: LEASE_TOKEN)
+
+    result = await service.process_next()
+
+    assert result == {'handled': True, 'status': 'lease_recovery_pending'}
+    assert email.calls == []
+    name, payload, _retry = database.calls[-1]
+    assert name == 'release_password_reset_email_job_v1'
+    assert payload['p_failure_code'] == 'SIGNING_KEY_UNAVAILABLE'
+    assert payload['p_retryable'] is True
+
+
+@pytest.mark.asyncio
 async def test_provider_acceptance_completion_uncertainty_replays_exact_envelope(monkeypatch):
     second_lease = '44444444-4444-4444-8444-444444444444'
     first_stage = _stage_row()

@@ -9,6 +9,7 @@ from types import SimpleNamespace
 import httpx
 import pytest
 
+from backend.db import DatabaseError
 from backend.email_service import EmailDeliveryError, EmailService
 from backend.routes.manuscripts import _cron_lane_order
 from backend.verification_email_queue import VerificationEmailQueueService
@@ -348,6 +349,81 @@ async def test_worker_requeues_retryable_provider_failure_once(monkeypatch):
     assert payload['p_failure_code'] == 'PROVIDER_UNAVAILABLE'
     assert payload['p_retryable'] is True
     assert payload['p_retry_after_seconds'] == 17
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ('release_result', 'expected_status'),
+    [
+        ('retry_scheduled', 'retry_scheduled'),
+        ('failed_permanent', 'failed_permanent'),
+        ('lease_lost', 'lease_lost'),
+        ('', 'retry_scheduled'),
+    ],
+)
+@pytest.mark.parametrize(
+    'configured_keys',
+    [(), (('current', SIGNING_SECRET),)],
+    ids=['keyring-unavailable', 'queued-key-retired'],
+)
+async def test_missing_signing_key_reports_the_release_outcome(
+    monkeypatch,
+    release_result,
+    expected_status,
+    configured_keys,
+):
+    database = _RPCDatabase({
+        'claim_verification_email_job_v1': [[{
+            'job_id': JOB_ID,
+            'lease_token': LEASE_TOKEN,
+            'attempts': 6,
+        }]],
+        'stage_verification_email_job_v1': [[_stage_row()]],
+        'release_verification_email_job_v1': [release_result],
+    })
+    email = _EmailCapture()
+    settings = _settings()
+    settings.environment = 'production'
+    settings.verification_link_signing_keys = configured_keys
+    service = VerificationEmailQueueService(settings, database, email)
+    monkeypatch.setattr('backend.verification_email_queue.new_uuid', lambda: LEASE_TOKEN)
+
+    result = await service.process_next()
+
+    assert result == {'handled': True, 'status': expected_status}
+    assert email.calls == []
+    name, payload, _retry = database.calls[-1]
+    assert name == 'release_verification_email_job_v1'
+    assert payload['p_failure_code'] == 'SIGNING_KEY_UNAVAILABLE'
+    assert payload['p_retryable'] is True
+
+
+@pytest.mark.asyncio
+async def test_missing_signing_key_release_uncertainty_reports_lease_recovery(monkeypatch):
+    database = _RPCDatabase({
+        'claim_verification_email_job_v1': [[{
+            'job_id': JOB_ID,
+            'lease_token': LEASE_TOKEN,
+            'attempts': 1,
+        }]],
+        'stage_verification_email_job_v1': [[_stage_row()]],
+        'release_verification_email_job_v1': [DatabaseError('release unavailable')],
+    })
+    email = _EmailCapture()
+    settings = _settings()
+    settings.environment = 'production'
+    settings.verification_link_signing_keys = ()
+    service = VerificationEmailQueueService(settings, database, email)
+    monkeypatch.setattr('backend.verification_email_queue.new_uuid', lambda: LEASE_TOKEN)
+
+    result = await service.process_next()
+
+    assert result == {'handled': True, 'status': 'lease_recovery_pending'}
+    assert email.calls == []
+    name, payload, _retry = database.calls[-1]
+    assert name == 'release_verification_email_job_v1'
+    assert payload['p_failure_code'] == 'SIGNING_KEY_UNAVAILABLE'
+    assert payload['p_retryable'] is True
 
 
 @pytest.mark.asyncio
