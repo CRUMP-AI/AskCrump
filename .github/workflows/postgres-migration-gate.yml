@@ -338,6 +338,14 @@ jobs:
         run: >-
           psql -X --set=ON_ERROR_STOP=1
           --file=tests/postgres/test_registration_growth_cohort_migration.sql
+      - name: Apply immutable verification measurement migration
+        run: >-
+          psql -X --set=ON_ERROR_STOP=1
+          --file=migrations/20261024043331_email_verification_measurement.sql
+      - name: Exercise verified-user journey ordering against PostgreSQL
+        run: >-
+          psql -X --set=ON_ERROR_STOP=1
+          --file=tests/postgres/test_email_verification_measurement_migration.sql
 
   chat-claim-and-artifact-versioning:
     name: Chat claim and artifact versioning
