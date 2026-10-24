@@ -39,6 +39,12 @@ router = APIRouter(prefix='/api/billing/credits', tags=['billing'])
 logger = logging.getLogger('askcrump.credits')
 STRIPE_API_VERSION = '2026-07-29.dahlia'
 CHECKOUT_ATTEMPT_PATTERN = re.compile(r'^[A-Za-z0-9][A-Za-z0-9:._-]{15,99}$')
+CREDIT_CHECKOUT_FULFILLMENT_EVENTS = {
+    'checkout.session.completed',
+    'checkout.session.async_payment_succeeded',
+}
+CREDIT_CHECKOUT_FAILURE_EVENT = 'checkout.session.async_payment_failed'
+CREDIT_CHECKOUT_SETTLED_PAYMENT_STATUSES = {'paid', 'no_payment_required'}
 CREDIT_PURCHASE_PLAN_MESSAGE = (
     'Crump Credits are used by paid creation tools. Subscribe to Professional '
     'or Enterprise before adding credits. Your existing balance and credit '
@@ -262,7 +268,10 @@ async def _finalize_stripe_session(
         raise ValueError('This checkout session is not a credit purchase.')
     if str(metadata.get('user_id') or '') != str(user_id):
         raise PermissionError('This credit purchase belongs to another account.')
-    if str(session.get('payment_status') or '').lower() != 'paid':
+    if (
+        str(session.get('payment_status') or '').lower()
+        not in CREDIT_CHECKOUT_SETTLED_PAYMENT_STATUSES
+    ):
         raise RuntimeError('The payment has not completed yet.')
 
     pack = by_code(str(metadata.get('pack') or ''))
@@ -586,7 +595,11 @@ async def stripe_webhook(request: Request):
             status_code=400,
             content={'success': False, 'error': 'Invalid webhook payload.'},
         )
-    if str(event.get('type') or '') != 'checkout.session.completed':
+    event_type = str(event.get('type') or '')
+    if event_type not in {
+        *CREDIT_CHECKOUT_FULFILLMENT_EVENTS,
+        CREDIT_CHECKOUT_FAILURE_EVENT,
+    }:
         return {'received': True}
     session = stripe_webhook_object(event)
     if session is None:
@@ -603,6 +616,24 @@ async def stripe_webhook(request: Request):
             content={'success': False, 'error': 'Invalid webhook payload.'},
         )
     if str(metadata.get('purchase_type') or '') != 'credits':
+        return {'received': True}
+    if event_type == CREDIT_CHECKOUT_FAILURE_EVENT:
+        logger.info(
+            'Stripe reported a failed delayed credit Checkout payment session=%s',
+            str(session.get('id') or ''),
+        )
+        return {'received': True}
+    if (
+        str(session.get('payment_status') or '').lower()
+        not in CREDIT_CHECKOUT_SETTLED_PAYMENT_STATUSES
+    ):
+        # Delayed methods emit checkout.session.completed while payment is still
+        # processing. Acknowledge without granting; the signed async success
+        # event will safely retry the session-idempotent ledger grant.
+        logger.info(
+            'Waiting for delayed credit Checkout payment session=%s',
+            str(session.get('id') or ''),
+        )
         return {'received': True}
     user_id = str(metadata.get('user_id') or session.get('client_reference_id') or '')
     if not user_id:

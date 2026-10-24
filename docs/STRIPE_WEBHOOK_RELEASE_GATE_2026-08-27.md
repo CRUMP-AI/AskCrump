@@ -6,6 +6,13 @@ Both live Ask Crump Stripe destinations now deliver directly to the canonical `w
 returned HTTP 200 to signed Stripe replays. Their original descriptions, API version, signing
 secrets, and narrow event allowlists are preserved.
 
+> **2026-10-24 delayed-payment follow-up:** this document is point-in-time evidence for the narrow
+> 2026-08-27 scopes. It does not prove delivery of `checkout.session.async_payment_succeeded` or
+> `checkout.session.async_payment_failed`. Before delayed-payment support can be called live, both
+> destinations must subscribe to `checkout.session.completed`,
+> `checkout.session.async_payment_succeeded`, and `checkout.session.async_payment_failed`, retain
+> their existing subscription events where applicable, and pass signed non-mutating delivery proof.
+
 | Destination | Direct endpoint | Final scope | Signed proof |
 | --- | --- | --- | --- |
 | Subscription entitlement | `https://www.askcrump.com/api/stripe/webhook` | 3 original events | 200 |
