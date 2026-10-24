@@ -36,6 +36,7 @@
     renderHooked: false,
     legacyFileCache: new Map(),
     legacyFileLoading: new Set(),
+    legacyFileRequests: new Map(),
     checkoutOpening: false,
     creditPurchasesAllowed: false,
     billingTrigger: null,
@@ -273,30 +274,56 @@
     })));
   }
 
-  async function hydrateLegacyFileRefs(messages = currentMessages()) {
-    const chatId = String(window.currentChatId || '');
-    if (!chatId || !Array.isArray(messages)) return;
-    const missing = messages.some(message => Array.isArray(message?.files) && message.files.some(file => !file?.id));
-    if (!missing || state.legacyFileLoading.has(chatId)) return;
+  function legacyFileCacheKey(ownerId, chatId) {
+    return `${encodeURIComponent(String(ownerId || ''))}:${encodeURIComponent(String(chatId || ''))}`;
+  }
 
-    state.legacyFileLoading.add(chatId);
+  function legacyFileRequestIsCurrent(authBoundary, chatId) {
+    return billingBoundary52IsCurrent(authBoundary)
+      && String(window.currentChatId || '').trim() === chatId;
+  }
+
+  function legacyFileHydrationIsCurrent(authBoundary, chatId, messages) {
+    return legacyFileRequestIsCurrent(authBoundary, chatId)
+      && currentMessages() === messages;
+  }
+
+  async function hydrateLegacyFileRefs(messages = currentMessages()) {
+    const chatId = String(window.currentChatId || '').trim();
+    const authBoundary = captureBillingBoundary52();
+    if (!chatId || !Array.isArray(messages) || !legacyFileHydrationIsCurrent(authBoundary, chatId, messages)) return;
+    const missing = messages.some(message => Array.isArray(message?.files) && message.files.some(file => !file?.id));
+    const cacheKey = legacyFileCacheKey(authBoundary.ownerId, chatId);
+    if (!missing || state.legacyFileLoading.has(cacheKey)) return;
+
+    const controller = new AbortController();
+    state.legacyFileLoading.add(cacheKey);
+    state.legacyFileRequests.set(cacheKey, controller);
     try {
-      let catalog = state.legacyFileCache.get(chatId);
+      let catalog = state.legacyFileCache.get(cacheKey);
       if (!catalog) {
-        const response = await fetch(`/api/files/chat/${encodeURIComponent(chatId)}`, {credentials:'same-origin'});
+        const response = await fetch(`/api/files/chat/${encodeURIComponent(chatId)}`, {
+          credentials: 'same-origin',
+          headers: {'X-Ask-Crump-Expected-Owner': authBoundary.ownerId},
+          signal: controller.signal,
+        });
+        if (!legacyFileRequestIsCurrent(authBoundary, chatId)) return;
         const data = await response.json().catch(() => ({}));
-        if (!response.ok || !data.success) return;
+        if (!legacyFileRequestIsCurrent(authBoundary, chatId) || !response.ok || !data.success) return;
         catalog = Array.isArray(data.files) ? data.files : [];
-        state.legacyFileCache.set(chatId, catalog);
+        if (!legacyFileRequestIsCurrent(authBoundary, chatId)) return;
+        state.legacyFileCache.set(cacheKey, catalog);
       }
 
+      const activeMessages = currentMessages();
+      if (!legacyFileHydrationIsCurrent(authBoundary, chatId, activeMessages)) return;
       const pools = new Map();
       for (const file of catalog) {
         const key = fileMatchKey(file);
         if (!pools.has(key)) pools.set(key, []);
         pools.get(key).push(file);
       }
-      for (const message of messages) {
+      for (const message of activeMessages) {
         if (!Array.isArray(message?.files)) continue;
         message.files = message.files.map(file => {
           if (file?.id) return file;
@@ -305,11 +332,15 @@
           return match ? {...file, ...match} : file;
         });
       }
-      enhanceMessageAttachments(messages);
+      if (!legacyFileHydrationIsCurrent(authBoundary, chatId, activeMessages)) return;
+      enhanceMessageAttachments(activeMessages);
     } catch (_) {
       // Legacy recovery is best-effort. New 5.2 messages already retain IDs.
     } finally {
-      state.legacyFileLoading.delete(chatId);
+      if (state.legacyFileRequests.get(cacheKey) === controller) {
+        state.legacyFileRequests.delete(cacheKey);
+        state.legacyFileLoading.delete(cacheKey);
+      }
     }
   }
 
@@ -661,6 +692,10 @@
   }
 
   function scrubBilling52Boundary() {
+    state.legacyFileRequests.forEach(controller => controller.abort());
+    state.legacyFileRequests.clear();
+    state.legacyFileCache.clear();
+    state.legacyFileLoading.clear();
     state.billingRequests.forEach(controller => controller.abort());
     state.billingRequests.clear();
     closeBilling52({restoreFocus: false});

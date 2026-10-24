@@ -54,11 +54,11 @@ def test_parallel_runtime_asset_is_versioned_for_web_pwa_and_native():
     worker = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
 
-    asset = "/runtime-body-v1.js?v=5.9.76-account-owner-boundary-1"
+    asset = "/runtime-body-v1.js?v=5.9.76-legacy-attachment-owner-fence-1"
     assert asset in shell
     assert asset in worker
-    assert "ask-crump-new-body-v1-r273-account-owner-boundary-1" in worker
-    assert "ask-crump-new-body-v1-r273-account-owner-boundary-1" in checker
+    assert "ask-crump-new-body-v1-r274-legacy-attachment-owner-fence-1" in worker
+    assert "ask-crump-new-body-v1-r274-legacy-attachment-owner-fence-1" in checker
 
 
 def test_runtime_fetch_fixture_is_credential_free_and_measures_the_full_plan():
@@ -134,7 +134,10 @@ def test_owner_boundary_release_replaces_frozen_r272_on_first_controlled_load_an
     )
     assert "tests', 'fixtures', 'sw-r272-project-resume.js'" in verifier
     assert "previous.cache, 'ask-crump-new-body-v1-r272-project-resume-auth-boundary-1'" in verifier
-    assert "current.cache, 'ask-crump-new-body-v1-r273-account-owner-boundary-1'" in verifier
+    assert "current.cache, 'ask-crump-new-body-v1-r274-legacy-attachment-owner-fence-1'" in verifier
+    assert "immediatePredecessor.runtime" in verifier
+    assert "current.runtime, immediatePredecessor.runtime" in verifier
+    assert "current.billing52, immediatePredecessor.billing52" in verifier
     assert "const installGatePath = '/delete-account.html'" in verifier
     assert "fixture.holdInstall()" in verifier
     assert "gateObserved" in verifier

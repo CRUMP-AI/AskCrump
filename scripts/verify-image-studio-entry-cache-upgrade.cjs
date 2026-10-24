@@ -11,6 +11,11 @@ const frozenWorkerFile = path.join(root, 'tests', 'fixtures', 'sw-r272-project-r
 const oldWorkerPath = '/__frozen-r272-project-resume-sw.js';
 const controlPath = '/__project-resume-cache-upgrade-control.html';
 const installGatePath = '/delete-account.html';
+const immediatePredecessor = Object.freeze({
+  cache: 'ask-crump-new-body-v1-r273-account-owner-boundary-1',
+  runtime: '/runtime-body-v1.js?v=5.9.76-account-owner-boundary-1',
+  billing52: '/crump-5.2.js?v=5.9.76-private-owner-boundary-1&workspaceRelease=guest-free-contract-2',
+});
 const contentTypes = Object.freeze({
   '.css': 'text/css; charset=utf-8',
   '.html': 'text/html; charset=utf-8',
@@ -95,7 +100,10 @@ function resolveRelease(swSource, shellSource, runtimeSource, frozenSource) {
     libraryLoader: matchOne(frozenSource, /'([^']*\/crump-library-loader\.js\?[^']+)'/, 'frozen Library loader URL'),
   });
   assert.equal(previous.cache, 'ask-crump-new-body-v1-r272-project-resume-auth-boundary-1');
-  assert.equal(current.cache, 'ask-crump-new-body-v1-r273-account-owner-boundary-1');
+  assert.equal(current.cache, 'ask-crump-new-body-v1-r274-legacy-attachment-owner-fence-1');
+  assert.notEqual(current.cache, immediatePredecessor.cache);
+  assert.notEqual(current.runtime, immediatePredecessor.runtime);
+  assert.notEqual(current.billing52, immediatePredecessor.billing52);
   assert.ok(current.profile.includes('/profile-manager.js?v='));
   assert.ok(current.presence.includes('/presence-manager.js?v='));
   assert.ok(current.account.includes('/account-manager.js?v='));

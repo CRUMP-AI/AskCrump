@@ -71,7 +71,7 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/crump-5.0.js?v=5.9.76-chat-owner-boundary-1&workspaceRelease=guest-free-contract-2', 'crump50'],
     ['/crump-precision-image-edit-loader.js?v=5.9.76-precision-ai-persistence-1', 'crumpprecisionloader'],
     ['/crump-billing-5.1.js?v=5.9.76-private-owner-boundary-1&workspaceRelease=guest-free-contract-2', 'billing51'],
-    ['/crump-5.2.js?v=5.9.76-private-owner-boundary-1&workspaceRelease=guest-free-contract-2', 'crump52'],
+    ['/crump-5.2.js?v=5.9.76-legacy-attachment-owner-fence-1&workspaceRelease=guest-free-contract-2', 'crump52'],
     ['/crump-5.2.2.js?v=5.9.76-private-owner-boundary-1&workspaceRelease=guest-free-contract-2', 'crump522'],
     ['/crump-v1-body.js?v=5.9.76-atelier-workspace-1&workspaceRelease=guest-free-contract-2', 'crumpbodyv1'],
     ['/crump-v1-stability.js?v=5.9.76-intelligence-architecture-1', 'crumpv1stability'],

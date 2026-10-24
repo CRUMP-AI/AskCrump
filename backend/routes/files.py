@@ -210,7 +210,13 @@ async def chat_files(chat_id: str, request: Request):
     5.0/5.1, whose file arrays retained names/types but lost durable file IDs.
     The response never exposes storage paths or service-role credentials.
     """
-    auth = await authenticate_request(request, db, settings, require_account=True)
+    auth = await authenticate_request(
+        request,
+        db,
+        settings,
+        require_account=True,
+        require_expected_owner_header=True,
+    )
     normalized_chat = normalize_chat_id(chat_id)
     rows = await db.select(
         'user_files',

@@ -95,7 +95,7 @@ def test_changed_assets_are_versioned_across_web_pwa_and_native():
     composer_token = "5.9.76-chat-owner-boundary-1"
     reconciliation_token = "5.9.76-account-owner-boundary-1"
     runtime_token = "5.9.76-account-owner-boundary-1"
-    cache_name = "ask-crump-new-body-v1-r273-account-owner-boundary-1"
+    cache_name = "ask-crump-new-body-v1-r274-legacy-attachment-owner-fence-1"
     shell = read("public/app.html")
     runtime = read("public/runtime-body-v1.js")
     runtime_config = read("public/runtime-config.js")

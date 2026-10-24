@@ -2,6 +2,7 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+from types import SimpleNamespace
 
 import pytest
 
@@ -184,6 +185,130 @@ def test_chat_transport_owner_boundary_has_real_browser_regression_coverage() ->
     assert "verify-chat-owner-boundary.cjs" in matrix
     for source in (fixture, verifier):
         assert "askcrump.com" not in source.lower()
+
+
+def test_legacy_attachment_hydration_is_owner_bound_and_browser_verified() -> None:
+    node = os.environ.get("ASKCRUMP_NODE_EXECUTABLE") or shutil.which("node")
+    if not node:
+        pytest.skip("Node.js is required for the attachment owner-boundary fixture.")
+
+    enhancement = read("public/crump-5.2.js")
+    file_routes = read("backend/routes/files.py")
+    fixture = read("tests/fixtures/legacy-attachment-owner-boundary.html")
+    verifier = read("scripts/verify-legacy-attachment-owner-boundary.cjs")
+    matrix = read("scripts/verify-browser-control-matrix.mjs")
+    hydration = between(
+        enhancement,
+        "  function legacyFileCacheKey",
+        "  function enhanceMessageAttachments",
+    )
+    scrub = between(
+        enhancement,
+        "  function scrubBilling52Boundary",
+        "  function ensureBilling52BoundaryRegistration",
+    )
+    chat_files = between(file_routes, "async def chat_files", "@router.get('/{file_id}/signed')")
+
+    for contract in (
+        "legacyFileCacheKey(authBoundary.ownerId, chatId)",
+        "legacyFileRequestIsCurrent(authBoundary, chatId)",
+        "legacyFileHydrationIsCurrent(authBoundary, chatId, messages)",
+        "const activeMessages = currentMessages()",
+        "for (const message of activeMessages)",
+        "enhanceMessageAttachments(activeMessages)",
+        "'X-Ask-Crump-Expected-Owner': authBoundary.ownerId",
+        "signal: controller.signal",
+    ):
+        assert contract in hydration
+    for contract in (
+        "state.legacyFileRequests.forEach(controller => controller.abort())",
+        "state.legacyFileCache.clear()",
+        "state.legacyFileLoading.clear()",
+    ):
+        assert contract in scrub
+    assert "require_expected_owner_header=True" in chat_files
+    assert "verify-legacy-attachment-owner-boundary.cjs" in matrix
+    for contract in (
+        "replaceOwnerAProjection",
+        "ownerAReplacementWrites",
+        "chatAReplacement",
+    ):
+        assert contract in fixture
+    for contract in (
+        "sameOwnerProjectionReplaced",
+        "sameOwnerProjectionHydrated",
+        "ownerAReplacementWrites, 1",
+    ):
+        assert contract in verifier
+    for source in (fixture, verifier):
+        assert "askcrump.com" not in source.lower()
+
+    result = subprocess.run(
+        [node, "scripts/verify-legacy-attachment-owner-boundary.cjs"],
+        cwd=ROOT,
+        check=False,
+        capture_output=True,
+        text=True,
+        timeout=45,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    assert '"attachmentDisabled":false' in result.stdout
+    assert '"expectedOwner":"bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb"' in result.stdout
+    assert '"aborted":true' in result.stdout
+
+
+@pytest.mark.asyncio
+async def test_legacy_attachment_catalog_route_executes_with_expected_owner_fencing(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from backend.routes import files as file_routes
+
+    owner_id = "11111111-1111-4111-8111-111111111111"
+    chat_id = "22222222-2222-4222-8222-222222222222"
+    file_id = "33333333-3333-4333-8333-333333333333"
+    captured: dict[str, object] = {}
+
+    async def authenticate(_request, _database, _settings, **kwargs):
+        captured["auth"] = kwargs
+        return SimpleNamespace(user={"id": owner_id})
+
+    class Database:
+        async def select(self, table, **kwargs):
+            captured["table"] = table
+            captured["select"] = kwargs
+            return [{
+                "id": file_id,
+                "file_name": "Owned brief.pdf",
+                "mime_type": "application/pdf",
+                "size_bytes": 2048,
+                "status": "ready",
+            }]
+
+    monkeypatch.setattr(file_routes, "authenticate_request", authenticate)
+    monkeypatch.setattr(file_routes, "db", Database())
+
+    response = await file_routes.chat_files(chat_id, object())
+
+    assert captured["auth"] == {
+        "require_account": True,
+        "require_expected_owner_header": True,
+    }
+    assert captured["table"] == "user_files"
+    filters = captured["select"]["filters"]
+    assert filters["user_id"] == f"eq.{owner_id}"
+    assert filters["chat_id"] == f"eq.{chat_id}"
+    assert response["files"] == [{
+        "id": file_id,
+        "name": "Owned brief.pdf",
+        "type": "application/pdf",
+        "size": 2048,
+        "kind": "upload",
+        "status": "ready",
+        "metadata": {},
+        "createdAt": None,
+        "updatedAt": None,
+        "url": f"/api/files/{file_id}/content",
+    }]
 
 
 def test_project_target_state_and_storage_are_account_bound_at_auth_transitions() -> None:

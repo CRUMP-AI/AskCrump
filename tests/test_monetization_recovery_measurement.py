@@ -110,4 +110,4 @@ def test_monetization_measurement_assets_are_registered_for_web_pwa_and_native()
         assert asset in runtime
         assert asset in worker
         assert asset in native
-    assert "ask-crump-new-body-v1-r273-account-owner-boundary-1" in worker
+    assert "ask-crump-new-body-v1-r274-legacy-attachment-owner-fence-1" in worker
