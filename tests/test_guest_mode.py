@@ -829,11 +829,8 @@ def test_register_converts_the_same_guest_row_without_resetting_usage(monkeypatc
     }
     db = MultiUserDb([guest], {token_hash(RAW_TOKEN): guest_session})
     monkeypatch.setattr(auth_routes, 'db', db)
-
-    async def sent(*_args, **_kwargs):
-        return True
-
-    monkeypatch.setattr(auth_routes.email_service, 'send_verification', sent)
+    queue = SimpleNamespace(enqueue_resend=AsyncMock(return_value=None))
+    monkeypatch.setattr(auth_routes, 'verification_emails', queue)
     payload = RegisterRequest(
         email='person@example.com',
         password='Password123',
@@ -854,6 +851,11 @@ def test_register_converts_the_same_guest_row_without_resetting_usage(monkeypatc
     assert values['registration_environment'] == 'development'
     assert 'guest_message_count' not in values
     assert all(table != 'usage_events' for table, _payload in db.inserted)
+    queue.enqueue_resend.assert_awaited_once_with(
+        email='person@example.com',
+        intent=None,
+        plan=None,
+    )
 
 
 def test_register_preserves_control_revoked_guest_row_and_allowance(monkeypatch):
@@ -872,11 +874,8 @@ def test_register_preserves_control_revoked_guest_row_and_allowance(monkeypatch)
     }
     db = MultiUserDb([guest], {token_hash(RAW_TOKEN): guest_session})
     monkeypatch.setattr(auth_routes, 'db', db)
-
-    async def sent(*_args, **_kwargs):
-        return True
-
-    monkeypatch.setattr(auth_routes.email_service, 'send_verification', sent)
+    queue = SimpleNamespace(enqueue_resend=AsyncMock(return_value=None))
+    monkeypatch.setattr(auth_routes, 'verification_emails', queue)
     response = asyncio.run(auth_routes.register(
         RegisterRequest(
             email='person@example.com',
@@ -895,6 +894,11 @@ def test_register_preserves_control_revoked_guest_row_and_allowance(monkeypatch)
     assert user_updates[0][1]['email'] == 'person@example.com'
     assert all(table not in {'users', 'usage_events'} for table, _row in db.inserted)
     assert all(name != 'get_guest_mode_control_v1' for name, _payload in db.rpc_calls)
+    queue.enqueue_resend.assert_awaited_once_with(
+        email='person@example.com',
+        intent=None,
+        plan=None,
+    )
 
 
 @pytest.mark.parametrize(

@@ -778,15 +778,19 @@ class RegistrationDB:
         return []
 
 
-class VerificationEmail:
-    async def send_verification(self, *args, **kwargs):
-        return True
+class VerificationEmailQueue:
+    def __init__(self) -> None:
+        self.calls: list[dict] = []
+
+    async def enqueue_resend(self, **kwargs):
+        self.calls.append(dict(kwargs))
 
 
 @pytest.mark.asyncio
 async def test_registration_records_first_touch_once_on_the_authoritative_event(monkeypatch):
     captured: list[dict] = []
     database = RegistrationDB()
+    queue = VerificationEmailQueue()
 
     async def allow_rate_limit(*args, **kwargs):
         return None
@@ -796,7 +800,7 @@ async def test_registration_records_first_touch_once_on_the_authoritative_event(
         return True
 
     monkeypatch.setattr(auth_routes, "db", database)
-    monkeypatch.setattr(auth_routes, "email_service", VerificationEmail())
+    monkeypatch.setattr(auth_routes, "verification_emails", queue)
     monkeypatch.setattr(auth_routes, "enforce_auth_rate_limit", allow_rate_limit)
     monkeypatch.setattr(auth_routes, "hash_password", lambda password: "hashed-password")
     monkeypatch.setattr(auth_routes, "record_account_created_event", capture_account_event)
@@ -815,7 +819,14 @@ async def test_registration_records_first_touch_once_on_the_authoritative_event(
     )
 
     assert result["success"] is True
+    assert result["emailQueued"] is True
+    assert result["emailSent"] is False
     assert database.inserted_user["registration_environment"] == "production"
+    assert queue.calls == [{
+        "email": "campaign-fixture@example.com",
+        "intent": "presentation",
+        "plan": None,
+    }]
     assert len(captured) == 1
     assert captured[0] == {
         "user_id": captured[0]["user_id"],

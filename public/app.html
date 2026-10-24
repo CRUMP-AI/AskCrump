@@ -135,15 +135,15 @@
       <section id="registrationPending" class="v1-registration-pending" style="display:none;" tabindex="-1" aria-labelledby="registrationPendingTitle">
         <div class="v1-registration-confirmation" aria-hidden="true">✓</div>
         <div class="v1-auth-eyebrow">ACCOUNT CREATED</div>
-        <h2 id="registrationPendingTitle">Check your inbox.</h2>
-        <p>We sent a secure verification link to <strong id="registrationPendingEmail"></strong>. Open it to verify your email and enter your workspace automatically. If it opens on another device, you can still sign in here with the password you created.</p>
+        <h2 id="registrationPendingTitle">Verify your email to continue.</h2>
+        <p><strong id="registrationPendingEmail"></strong> is linked to your new account. Follow the status below for the next step. After verification, you can enter your workspace automatically or sign in here with the password you created.</p>
         <div id="registrationPendingSuccess" class="auth-success" role="status" aria-live="polite" style="display:none;"></div>
         <div id="registrationPendingError" class="auth-error" role="alert" style="display:none;"></div>
         <div class="v1-registration-actions">
           <button id="registrationPendingSigninBtn" class="btn btn-secondary btn-block" type="button">Already verified? Sign in</button>
           <button id="registrationPendingResendBtn" class="btn btn-secondary btn-block" type="button">Resend verification email</button>
         </div>
-        <p class="v1-registration-help">The link may take a minute. Check spam or promotions if it does not appear.</p>
+        <p class="v1-registration-help">Use Resend verification email if the first request could not be queued or if no link arrives after a minute, then check spam or promotions.</p>
       </section>
     </div>
 
@@ -692,7 +692,7 @@
 <script defer src="/install-prompt.js?v=5.9.76-update-work-guard-1"></script>
 <script defer src="/auth-resilience.js?v=5.9.76"></script>
 <script defer src="/device-auth.js?v=5.9.76-account-owner-boundary-1"></script>
-<script defer src="/auth-controller.js?v=5.9.76-account-owner-boundary-1"></script>
+<script defer src="/auth-controller.js?v=5.9.76-registration-verification-queue-1"></script>
 <script defer src="/_vercel/insights/script.js"></script>
 <script defer src="/_vercel/speed-insights/script.js" data-route="/app"></script>
 </body>

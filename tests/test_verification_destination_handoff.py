@@ -113,15 +113,6 @@ class _RegistrationDB:
         return [dict(payload)]
 
 
-class _VerificationEmailCapture:
-    def __init__(self) -> None:
-        self.calls: list[dict] = []
-
-    async def send_verification(self, email, name, token, **kwargs):
-        self.calls.append({"email": email, "name": name, "token": token, **kwargs})
-        return True
-
-
 class _VerificationQueueCapture:
     def __init__(self) -> None:
         self.calls: list[dict] = []
@@ -137,7 +128,6 @@ async def test_registration_and_resend_preserve_the_promised_destination(
     intent: str,
 ) -> None:
     database = _RegistrationDB()
-    email = _VerificationEmailCapture()
     queue = _VerificationQueueCapture()
 
     async def allow_rate_limit(*_args, **_kwargs):
@@ -147,7 +137,6 @@ async def test_registration_and_resend_preserve_the_promised_destination(
         return True
 
     monkeypatch.setattr(auth_routes, "db", database)
-    monkeypatch.setattr(auth_routes, "email_service", email)
     monkeypatch.setattr(auth_routes, "verification_emails", queue)
     monkeypatch.setattr(auth_routes, "enforce_auth_rate_limit", allow_rate_limit)
     monkeypatch.setattr(auth_routes, "record_account_created_event", ignore_event)
@@ -170,8 +159,13 @@ async def test_registration_and_resend_preserve_the_promised_destination(
     )
 
     assert result["success"] is True
-    assert email.calls[0]["intent"] == intent
-    assert email.calls[0]["plan"] == "professional"
+    assert result["emailQueued"] is True
+    assert result["emailSent"] is False
+    assert queue.calls == [{
+        "email": "new-user@example.com",
+        "intent": intent,
+        "plan": "professional",
+    }]
 
     await auth_routes.resend_verification(
         ResendVerificationRequest(
@@ -181,12 +175,32 @@ async def test_registration_and_resend_preserve_the_promised_destination(
         ),
         request,
     )
-    assert len(email.calls) == 1
-    assert queue.calls == [{
-        "email": "new-user@example.com",
-        "intent": intent,
-        "plan": "professional",
-    }]
+    assert queue.calls == [
+        {
+            "email": "new-user@example.com",
+            "intent": intent,
+            "plan": "professional",
+        },
+        {
+            "email": "new-user@example.com",
+            "intent": intent,
+            "plan": "professional",
+        },
+    ]
+
+
+def test_registration_uses_only_the_durable_verification_queue() -> None:
+    source = Path(auth_routes.__file__).read_text(encoding="utf-8")
+    registration = source[
+        source.index("@router.post('/register')") :
+        source.index("@router.post('/guest')")
+    ]
+
+    assert "await verification_emails.enqueue_resend(" in registration
+    assert "email_service.send_verification" not in registration
+    assert "_prepare_resend_verification_alias" not in registration
+    assert "'emailSent': False" in registration
+    assert "'emailQueued': True" in registration
 
 
 def test_browser_contract_sends_destination_context_without_customer_content() -> None:

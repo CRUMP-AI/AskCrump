@@ -184,13 +184,12 @@ class IsolatedAttributionDB:
         ]
 
 
-class FixtureEmail:
+class FixtureVerificationQueue:
     def __init__(self) -> None:
-        self.calls = 0
+        self.calls: list[dict] = []
 
-    async def send_verification(self, *_args, **_kwargs):
-        self.calls += 1
-        return True
+    async def enqueue_resend(self, **kwargs):
+        self.calls.append(dict(kwargs))
 
 
 @pytest.mark.asyncio
@@ -200,7 +199,7 @@ class FixtureEmail:
 )
 async def test_exact_first_touch_is_idempotent_exportable_and_cleanable(monkeypatch, expected):
     database = IsolatedAttributionDB()
-    fixture_email = FixtureEmail()
+    fixture_queue = FixtureVerificationQueue()
     request = fixture_request()
     production_before = database.production_control()
 
@@ -208,7 +207,7 @@ async def test_exact_first_touch_is_idempotent_exportable_and_cleanable(monkeypa
         return None
 
     monkeypatch.setattr(auth_routes, "db", database)
-    monkeypatch.setattr(auth_routes, "email_service", fixture_email)
+    monkeypatch.setattr(auth_routes, "verification_emails", fixture_queue)
     monkeypatch.setattr(auth_routes, "enforce_auth_rate_limit", allow_rate_limit)
     monkeypatch.setattr(auth_routes, "hash_password", lambda _password: "fixture-hash")
 
@@ -235,7 +234,12 @@ async def test_exact_first_touch_is_idempotent_exportable_and_cleanable(monkeypa
         request,
     )
     assert registration["success"] is True
-    assert fixture_email.calls == 1
+    assert len(fixture_queue.calls) == 1
+    assert fixture_queue.calls[0] == {
+        "email": f"fixture+{expected['campaign']}@example.com",
+        "intent": expected["intent"],
+        "plan": None,
+    }
 
     fixture_users = [user for user in database.users if user.get("registration_environment") == "development"]
     assert len(fixture_users) == 1
@@ -282,7 +286,8 @@ async def test_exact_first_touch_is_idempotent_exportable_and_cleanable(monkeypa
         request,
     )
     assert pending_registration["success"] is True
-    assert fixture_email.calls == 2
+    assert len(fixture_queue.calls) == 2
+    assert fixture_queue.calls[1] == fixture_queue.calls[0]
     assert len(database.account_events(environment="development")) == 1
 
     await database.rpc("delete_user_account", {"p_user_id": fixture_user["id"]})

@@ -425,8 +425,9 @@ function startFixtureServer() {
         }
         const registrationResponse = {
           success: true,
-          message: 'Account created. Check your email to verify it.',
-          emailSent: true,
+          message: 'Account created. A verification email will be sent shortly.',
+          emailSent: false,
+          emailQueued: true,
         };
         records.registrations.push({
           caseName,
@@ -914,8 +915,9 @@ async function desktopJourney(browser, fixture) {
     assert.equal(registration.fullName, '', 'registration must match production and omit profile name');
     assert.deepEqual(registration.response, {
       success: true,
-      message: 'Account created. Check your email to verify it.',
-      emailSent: true,
+      message: 'Account created. A verification email will be sent shortly.',
+      emailSent: false,
+      emailQueued: true,
     });
     assert.equal(registration.recoveredControlRevoked, false);
     assert.equal(originalSession.kind, 'guest', 'registration alone must not promote the guest');
@@ -1221,8 +1223,9 @@ async function controlRevokedRegistrationRecovery(browser, fixture) {
     assert.equal(registration.fullName, '', 'registration must match production and omit profile name');
     assert.deepEqual(registration.response, {
       success: true,
-      message: 'Account created. Check your email to verify it.',
-      emailSent: true,
+      message: 'Account created. A verification email will be sent shortly.',
+      emailSent: false,
+      emailQueued: true,
     });
     assert.equal(originalSession.kind, 'guest');
     assert.equal(originalSession.pendingVerification, true);

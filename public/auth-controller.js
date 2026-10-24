@@ -1833,15 +1833,15 @@
             trackFunnel('AccountCreated', {verification_delivery: 'failed'});
             showRegistrationPending(
               email,
-              data.error || 'Your account exists, but the verification email could not be delivered. Use Resend verification email to try again.',
+              data.error || 'Your account exists, but the verification email request could not be queued. Use Resend verification email to try again.',
               {deliveryFailed: true},
             );
             return;
           }
           throw new Error(data.error || 'Registration failed.');
         }
-        trackFunnel('AccountCreated', {verification_delivery: 'sent'});
-        showRegistrationPending(email, data.message || 'Verification email sent.');
+        trackFunnel('AccountCreated', {verification_delivery: 'queued'});
+        showRegistrationPending(email, data.message || 'A verification email will be sent shortly.');
       } catch (error) {
         setText('registerError', error.message);
       } finally { restore(); }

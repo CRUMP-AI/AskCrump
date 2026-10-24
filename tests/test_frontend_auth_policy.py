@@ -288,13 +288,18 @@ def test_signup_success_has_durable_verification_handoff_and_recovery_ui():
     controller = (PUBLIC / 'auth-controller.js').read_text(encoding='utf-8')
 
     assert 'id="registrationPending"' in app
-    assert 'Check your inbox.' in app
+    assert 'Verify your email to continue.' in app
     assert 'id="registrationPendingSigninBtn"' in app
     assert 'enter your workspace automatically' in app
     assert 'Already verified? Sign in' in app
     assert 'id="registrationPendingResendBtn"' in app
     assert 'function showRegistrationPending(email, message' in controller
-    assert "showRegistrationPending(email, data.message || 'Verification email sent.')" in controller
+    assert 'is linked to your new account. Follow the status below for the next step.' in app
+    assert 'A secure verification link will be sent to' not in app
+    assert 'We sent a secure verification link to' not in app
+    assert "trackFunnel('AccountCreated', {verification_delivery: 'queued'})" in controller
+    assert "showRegistrationPending(email, data.message || 'A verification email will be sent shortly.')" in controller
+    assert "verification_delivery: 'sent'" not in controller
     assert "if (loginEmail) loginEmail.value = email" in controller
     assert "byId('registrationPending')?.focus()" in controller
     assert 'Email verified. Your workspace is ready.' in controller
@@ -303,14 +308,24 @@ def test_signup_success_has_durable_verification_handoff_and_recovery_ui():
 
 
 def test_signup_email_failure_preserves_created_account_and_explicit_recovery_ui():
+    app = (PUBLIC / 'app.html').read_text(encoding='utf-8')
     controller = (PUBLIC / 'auth-controller.js').read_text(encoding='utf-8')
+    pending = app[
+        app.index('id="registrationPending"'):
+        app.index('id="forgotPasswordForm"')
+    ]
 
     assert 'data.accountCreated && data.needsVerification' in controller
     assert "trackFunnel('AccountCreated', {verification_delivery: 'failed'})" in controller
-    assert 'Your account exists, but the verification email could not be delivered.' in controller
+    assert 'Your account exists, but the verification email request could not be queued.' in controller
     assert '{deliveryFailed: true}' in controller
     assert "successId: 'registrationPendingSuccess'" in controller
     assert "errorId: 'registrationPendingError'" in controller
+    assert 'Follow the status below for the next step.' in pending
+    assert 'Use Resend verification email if the first request could not be queued' in pending
+    assert 'Check your inbox.' not in pending
+    assert 'will be sent' not in pending
+    assert 'The link may take a minute.' not in pending
 
 
 def test_failed_or_reused_verification_link_exposes_an_actionable_recovery_surface():
