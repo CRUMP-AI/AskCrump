@@ -70,6 +70,38 @@ async def enforce_auth_rate_limit(
     )
 
 
+async def enforce_guest_admission_rate_limit(
+    db: SupabaseDB,
+    request: Request,
+    *,
+    identity: str,
+    identity_limit: int,
+    ip_limit: int,
+    window_seconds: int,
+) -> None:
+    """Consume guest installation and shared-IP capacity together or not at all."""
+    ip = client_ip(dict(request.headers), request.client.host if request.client else None) or 'unknown'
+    normalized_identity = identity.strip()
+    identity_scope = 'auth:guest:identity'
+    ip_scope = 'auth:guest:ip'
+    result = await db.rpc('consume_guest_admission_rate_limit_v1', {
+        'p_identity_key_hash': _hashed_key(identity_scope, normalized_identity),
+        'p_ip_key_hash': _hashed_key(ip_scope, ip),
+        'p_identity_limit': identity_limit,
+        'p_ip_limit': ip_limit,
+        'p_window_seconds': window_seconds,
+    })
+    row: dict[str, Any] = result[0] if isinstance(result, list) and result else (
+        result if isinstance(result, dict) else {}
+    )
+    if row.get('allowed') is not True:
+        try:
+            retry_after = int(row.get('retry_after') or window_seconds)
+        except (TypeError, ValueError):
+            retry_after = window_seconds
+        raise RateLimitError(retry_after=max(1, retry_after))
+
+
 async def enforce_user_rate_limit(
     db: SupabaseDB,
     *,

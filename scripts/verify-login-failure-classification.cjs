@@ -61,7 +61,7 @@ const cases = [
       if (message.type() === 'error') browserErrors.push(message.text());
     });
     page.on('pageerror', error => browserErrors.push(error.message));
-    await page.goto('http://127.0.0.1:8765/tests/fixtures/auth-navigation-focus.html', {
+    await page.goto('http://127.0.0.1:8765/tests/fixtures/auth-navigation-focus.html?source=login-failure-signin', {
       waitUntil: 'networkidle',
     });
     await page.evaluate(config => {

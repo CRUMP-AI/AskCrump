@@ -78,6 +78,21 @@
       <div id="loginSuccess" class="auth-success" role="status" aria-live="polite" style="display:none;"></div>
     </div>
 
+    <div id="guestEntryForm" class="auth-form v1-auth-card" style="display:none;">
+      <div class="auth-header">
+        <div class="v1-auth-eyebrow">FREE PREVIEW</div>
+        <h1>Free preview is temporarily busy.</h1>
+        <p id="guestEntryMessage" role="status" aria-live="polite">Ask Crump could not start this private preview yet. You did nothing wrong.</p>
+      </div>
+      <div class="auth-form-content">
+        <a id="guestEntryRetryLink" class="btn btn-primary btn-large btn-block" href="/app?plan=free">Try free again</a>
+        <div class="v1-auth-links">
+          <p>Already have an account? <a id="guestEntrySigninLink" class="auth-link" href="/app?source=guest-admission-signin&amp;plan=free">Sign in</a></p>
+          <p><a id="guestEntryRegisterLink" class="auth-link" href="/app?signup=1&amp;source=guest-admission&amp;plan=free">Create a free account instead</a></p>
+        </div>
+      </div>
+    </div>
+
     <div id="registerForm" class="auth-form v1-auth-card" style="display:none;">
       <div id="registerEntry">
         <div class="auth-header">
@@ -677,7 +692,7 @@
 <script defer src="/install-prompt.js?v=5.9.76-update-work-guard-1"></script>
 <script defer src="/auth-resilience.js?v=5.9.76"></script>
 <script defer src="/device-auth.js?v=5.9.76-native-billing-identity-1"></script>
-<script defer src="/auth-controller.js?v=5.9.76-auth-verification-session-1"></script>
+<script defer src="/auth-controller.js?v=5.9.76-guest-admission-1"></script>
 <script defer src="/_vercel/insights/script.js"></script>
 <script defer src="/_vercel/speed-insights/script.js" data-route="/app"></script>
 </body>

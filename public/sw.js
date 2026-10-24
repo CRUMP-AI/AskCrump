@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r269-guest-free-contract-2';
+const CACHE_NAME = 'ask-crump-new-body-v1-r270-guest-admission-1';
 
 const CORE = [
   '/app',
@@ -74,7 +74,7 @@ const CORE = [
   '/lifecycle-share.js?v=5.9.76-settings-invite-1',
   '/lifecycle-manager.js?v=5.9.76-lifecycle-idle-send-1',
   '/crump-activity-center-1.0.js?v=5.9.76-autonomous-continuity-1',
-  '/auth-controller.js?v=5.9.76-auth-verification-session-1',
+  '/auth-controller.js?v=5.9.76-guest-admission-1',
   '/crump-4.3.css',
   '/crump-4.3.js?v=5.9.76-atelier-workspace-1',
   '/crump-4.4.css?v=5.9.76-friendly-workspace-1',

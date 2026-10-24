@@ -65,7 +65,12 @@ def test_bootstrap_exposes_a_truthful_surface_before_the_bounded_session_probe()
     assert "const returningDeviceHint = hasReturningDeviceHint();" in bootstrap
     assert "const bootstrapAuthFlowRevision = authFlowRevision;" in bootstrap
     assert "if (signupRequested)" in bootstrap
-    assert "if (!signupRequested && !accountOnDevice" in bootstrap
+    assert "const freeGuestRequested = params.get('plan') === 'free' && !signupRequested && !signInRequested;" in bootstrap
+    assert "const mayStartGuest = !signupRequested" in bootstrap
+    assert "&& !verification" in bootstrap
+    assert "&& !signInRequested" in bootstrap
+    assert "&& (freeGuestRequested || !accountOnDevice);" in bootstrap
+    assert "if (mayStartGuest && await enterAsGuest()) return;" in bootstrap
     assert bootstrap.index("showAuth('register')") < bootstrap.index("await window.CrumpAPI?.ready")
     assert bootstrap.index("showReturningVisitorGate()") < bootstrap.index("await window.CrumpAPI?.ready")
     assert bootstrap.index("await window.CrumpAPI?.ready") < bootstrap.index("window.deviceAuth.checkSession()")

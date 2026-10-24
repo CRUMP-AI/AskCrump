@@ -56,18 +56,68 @@ function pageErrors(page) {
       };
     });
     await context.route('**/_vercel/**', route => route.fulfill({ status: 204, body: '' }));
-    await context.route('**/api/auth/check-session*', route => route.fulfill({
+    await context.route('**/api/billing/credits/status*', route => route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ authenticated: false }),
+      body: JSON.stringify({ success: true, credits: { balance: 0 } }),
     }));
-    let guestMintRequests = 0;
-    await context.route('**/api/auth/guest*', route => {
-      guestMintRequests += 1;
+    await context.route('**/api/intelligence/preferences*', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, preferences: {}, entitlements: {} }),
+    }));
+    let guestMinted = false;
+    const guestSessionChecks = [];
+    const guestAdmissionInstallationIds = [];
+    const guestUser = {
+      id: 'public-entry-guest-20261024',
+      email: 'guest-public-entry@guest.askcrump.local',
+      fullName: '',
+      isVerified: false,
+      isGuest: true,
+      subscriptionTier: 'free',
+      tier: 'free',
+      termsAcceptedAt: null,
+      termsVersion: null,
+      freeMessageLimit: 5,
+      freeMessageWindowKind: 'rolling_24h',
+      freeMessageWindowSeconds: 86400,
+    };
+    await context.route('**/api/auth/check-session*', route => {
+      guestAdmissionInstallationIds.push({
+        stage: guestMinted ? 'follow-up-check' : 'initial-check',
+        value: route.request().headers()['x-installation-id'] || '',
+      });
+      guestSessionChecks.push(guestMinted);
       return route.fulfill({
         status: 200,
         contentType: 'application/json',
-        body: JSON.stringify({ success: false }),
+        body: JSON.stringify(guestMinted ? {
+          success: true,
+          authenticated: true,
+          data: {user: guestUser, settings: {}},
+        } : {
+          success: true,
+          authenticated: false,
+        }),
+      });
+    });
+    let guestMintRequests = 0;
+    await context.route('**/api/auth/guest*', route => {
+      guestAdmissionInstallationIds.push({
+        stage: 'guest-mint',
+        value: route.request().headers()['x-installation-id'] || '',
+      });
+      guestMintRequests += 1;
+      guestMinted = true;
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          message: 'Guest session started.',
+          data: {user: guestUser, guest: true},
+        }),
       });
     });
     const page = await context.newPage();
@@ -153,10 +203,34 @@ function pageErrors(page) {
     ));
     await page.goto(normalizedAppUrl(heroHref), { waitUntil: 'networkidle' });
     await guestEntryRequest;
+    await page.locator('#tosModal').waitFor({ state: 'visible' });
     assert(!(await page.locator('#registerForm').isVisible()), 'homepage Start free still opens registration');
-    assert(await page.locator('#loginForm').isVisible(), 'failed guest mint does not resolve to the safe sign-in fallback');
+    assert(!(await page.locator('#loginForm').isVisible()), 'successful guest entry incorrectly opens Welcome back');
+    assert((await page.evaluate(() => window.currentUser?.isGuest)) === true, 'successful guest entry did not authenticate the minted guest');
+    assert(
+      guestSessionChecks.length >= 2 && guestSessionChecks[0] === false && guestSessionChecks[1] === true,
+      `guest entry session checks were ${JSON.stringify(guestSessionChecks)} instead of signed-out then authenticated guest`,
+    );
+    const guestAdmissionHeaders = guestAdmissionInstallationIds.slice(0, 3);
+    assert(
+      JSON.stringify(guestAdmissionHeaders.map(row => row.stage)) === JSON.stringify([
+        'initial-check',
+        'guest-mint',
+        'follow-up-check',
+      ]),
+      `guest admission header stages drifted: ${JSON.stringify(guestAdmissionHeaders)}`,
+    );
+    assert(
+      guestAdmissionHeaders.every(row => /^[A-Za-z0-9._:-]{16,200}$/.test(row.value)),
+      `guest admission omitted a valid opaque X-Installation-ID: ${JSON.stringify(guestAdmissionHeaders)}`,
+    );
+    assert(
+      new Set(guestAdmissionHeaders.map(row => row.value)).size === 1,
+      `guest admission changed X-Installation-ID between requests: ${JSON.stringify(guestAdmissionHeaders)}`,
+    );
     assert(guestMintRequests === 1, `homepage Start free issued ${guestMintRequests} guest mint requests`);
 
+    guestMinted = false;
     await page.evaluate(() => sessionStorage.clear());
     for (const [index, guidePath] of guideSigninPages.entries()) {
       const entryQuery = index === 0
@@ -220,6 +294,225 @@ function pageErrors(page) {
     const bodyWidth = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
     assert(bodyWidth <= 1, `Video registration overflows the phone viewport by ${bodyWidth}px`);
     assert(errors.length === 0, `browser errors: ${errors.join(' | ')}`);
+
+    const registeredTakeoverContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    await registeredTakeoverContext.route('**/_vercel/**', route => route.fulfill({ status: 204, body: '' }));
+    await registeredTakeoverContext.route('**/api/billing/credits/status*', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, credits: { balance: 0 } }),
+    }));
+    await registeredTakeoverContext.route('**/api/intelligence/preferences*', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, preferences: {}, entitlements: {} }),
+    }));
+    let registeredTakeoverAuthenticated = false;
+    let registeredTakeoverGuestRequests = 0;
+    const registeredTakeoverChecks = [];
+    const registeredTakeoverUser = {
+      ...guestUser,
+      id: 'public-entry-registered-takeover-20261024',
+      email: 'registered-takeover@example.test',
+      isVerified: true,
+      isGuest: false,
+    };
+    await registeredTakeoverContext.route('**/api/auth/check-session*', route => {
+      registeredTakeoverChecks.push(registeredTakeoverAuthenticated);
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(registeredTakeoverAuthenticated ? {
+          success: true,
+          authenticated: true,
+          data: { user: registeredTakeoverUser, settings: {} },
+        } : {
+          success: true,
+          authenticated: false,
+        }),
+      });
+    });
+    await registeredTakeoverContext.route('**/api/auth/guest*', route => {
+      registeredTakeoverGuestRequests += 1;
+      registeredTakeoverAuthenticated = true;
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          data: { user: registeredTakeoverUser, guest: false },
+        }),
+      });
+    });
+    const registeredTakeoverPage = await registeredTakeoverContext.newPage();
+    const registeredTakeoverErrors = pageErrors(registeredTakeoverPage);
+    await registeredTakeoverPage.goto(normalizedAppUrl(heroHref), { waitUntil: 'networkidle' });
+    await registeredTakeoverPage.locator('#tosModal').waitFor({ state: 'visible' });
+    assert(
+      (await registeredTakeoverPage.evaluate(() => window.currentUser?.isGuest)) === false,
+      'registered-session takeover was misclassified as a guest',
+    );
+    assert(!(await registeredTakeoverPage.locator('#guestEntryForm').isVisible()), 'registered-session takeover shows a false guest failure');
+    assert(!(await registeredTakeoverPage.locator('#loginForm').isVisible()), 'registered-session takeover falls through to Welcome back');
+    assert(!(await registeredTakeoverPage.locator('#registerForm').isVisible()), 'registered-session takeover forces registration');
+    assert(registeredTakeoverGuestRequests === 1, `registered-session takeover issued ${registeredTakeoverGuestRequests} guest requests`);
+    assert(
+      registeredTakeoverChecks.length >= 2
+        && registeredTakeoverChecks[0] === false
+        && registeredTakeoverChecks[1] === true,
+      `registered-session takeover checks drifted: ${JSON.stringify(registeredTakeoverChecks)}`,
+    );
+    assert(registeredTakeoverErrors.length === 0, `registered-session takeover browser errors: ${registeredTakeoverErrors.join(' | ')}`);
+    await registeredTakeoverContext.close();
+
+    const authenticatedGuestSigninContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    await authenticatedGuestSigninContext.route('**/_vercel/**', route => route.fulfill({ status: 204, body: '' }));
+    let authenticatedGuestSigninChecks = 0;
+    let authenticatedGuestSigninMints = 0;
+    await authenticatedGuestSigninContext.route('**/api/auth/check-session*', route => {
+      authenticatedGuestSigninChecks += 1;
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          authenticated: true,
+          data: { user: guestUser, settings: {} },
+        }),
+      });
+    });
+    await authenticatedGuestSigninContext.route('**/api/auth/guest*', route => {
+      authenticatedGuestSigninMints += 1;
+      return route.fulfill({
+        status: 500,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: false, error: 'Explicit Sign in must not remint a guest.' }),
+      });
+    });
+    const authenticatedGuestSigninPage = await authenticatedGuestSigninContext.newPage();
+    const authenticatedGuestSigninErrors = pageErrors(authenticatedGuestSigninPage);
+    await authenticatedGuestSigninPage.goto(
+      `${baseUrl}/app.html?source=homepage-signin-action&plan=free`,
+      { waitUntil: 'networkidle' },
+    );
+    await authenticatedGuestSigninPage.locator('#loginForm').waitFor({ state: 'visible' });
+    assert(!(await authenticatedGuestSigninPage.locator('#tosModal').isVisible()), 'authenticated guest explicit Sign in shows Terms');
+    assert(!(await authenticatedGuestSigninPage.locator('#appContainer').isVisible()), 'authenticated guest explicit Sign in shows workspace');
+    assert(!(await authenticatedGuestSigninPage.locator('#registerForm').isVisible()), 'authenticated guest explicit Sign in shows registration');
+    assert(!(await authenticatedGuestSigninPage.locator('#guestEntryForm').isVisible()), 'authenticated guest explicit Sign in shows guest-entry failure');
+    assert(authenticatedGuestSigninChecks >= 1, 'authenticated guest explicit Sign in skipped the authoritative session check');
+    assert(authenticatedGuestSigninMints === 0, `authenticated guest explicit Sign in issued ${authenticatedGuestSigninMints} guest remints`);
+    assert(
+      authenticatedGuestSigninErrors.length === 0,
+      `authenticated guest explicit Sign in browser errors: ${authenticatedGuestSigninErrors.join(' | ')}`,
+    );
+    await authenticatedGuestSigninContext.close();
+
+    const staleRegisteredHintContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    await staleRegisteredHintContext.addInitScript(() => {
+      localStorage.setItem('crump_user_cache_v4', JSON.stringify({
+        id: 'stale-registered-cache-20261024',
+        email: 'stale-registered@example.test',
+        isGuest: false,
+        isVerified: true,
+      }));
+    });
+    await staleRegisteredHintContext.route('**/_vercel/**', route => route.fulfill({ status: 204, body: '' }));
+    await staleRegisteredHintContext.route('**/api/billing/credits/status*', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, credits: { balance: 0 } }),
+    }));
+    await staleRegisteredHintContext.route('**/api/intelligence/preferences*', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, preferences: {}, entitlements: {} }),
+    }));
+    let staleRegisteredHintMinted = false;
+    let staleRegisteredHintMints = 0;
+    const staleRegisteredHintChecks = [];
+    await staleRegisteredHintContext.route('**/api/auth/check-session*', route => {
+      staleRegisteredHintChecks.push(staleRegisteredHintMinted);
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(staleRegisteredHintMinted ? {
+          success: true,
+          authenticated: true,
+          data: { user: guestUser, settings: {} },
+        } : {
+          success: true,
+          authenticated: false,
+        }),
+      });
+    });
+    await staleRegisteredHintContext.route('**/api/auth/guest*', route => {
+      staleRegisteredHintMints += 1;
+      staleRegisteredHintMinted = true;
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          message: 'Guest session started.',
+          data: { user: guestUser, guest: true },
+        }),
+      });
+    });
+    const staleRegisteredHintPage = await staleRegisteredHintContext.newPage();
+    const staleRegisteredHintErrors = pageErrors(staleRegisteredHintPage);
+    await staleRegisteredHintPage.goto(normalizedAppUrl(heroHref), { waitUntil: 'networkidle' });
+    await staleRegisteredHintPage.locator('#tosModal').waitFor({ state: 'visible' });
+    assert(!(await staleRegisteredHintPage.locator('#loginForm').isVisible()), 'stale registered-device hint blocks explicit Free CTA with Welcome back');
+    assert(!(await staleRegisteredHintPage.locator('#registerForm').isVisible()), 'stale registered-device hint forces Free CTA registration');
+    assert(staleRegisteredHintMints === 1, `stale registered-device hint issued ${staleRegisteredHintMints} guest mint requests`);
+    assert(
+      staleRegisteredHintChecks.length >= 2
+        && staleRegisteredHintChecks[0] === false
+        && staleRegisteredHintChecks[1] === true,
+      `stale registered-device hint checks drifted: ${JSON.stringify(staleRegisteredHintChecks)}`,
+    );
+    assert(staleRegisteredHintErrors.length === 0, `stale registered-device hint browser errors: ${staleRegisteredHintErrors.join(' | ')}`);
+    await staleRegisteredHintContext.close();
+
+    const rateLimitedContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    await rateLimitedContext.route('**/_vercel/**', route => route.fulfill({ status: 204, body: '' }));
+    await rateLimitedContext.route('**/api/auth/check-session*', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, authenticated: false }),
+    }));
+    let rateLimitedGuestRequests = 0;
+    await rateLimitedContext.route('**/api/auth/guest*', route => {
+      rateLimitedGuestRequests += 1;
+      return route.fulfill({
+        status: 429,
+        headers: { 'Retry-After': '3600' },
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: false,
+          code: 'RATE_LIMITED',
+          error: 'Too many guest preview attempts.',
+          retryAfter: 3600,
+        }),
+      });
+    });
+    const rateLimitedPage = await rateLimitedContext.newPage();
+    const rateLimitedErrors = pageErrors(rateLimitedPage);
+    await rateLimitedPage.goto(normalizedAppUrl(heroHref), { waitUntil: 'networkidle' });
+    await rateLimitedPage.locator('#guestEntryForm').waitFor({ state: 'visible' });
+    const guestEntryMessage = (await rateLimitedPage.locator('#guestEntryMessage').textContent()).trim();
+    assert(
+      /preview.*several times.*browser or network/i.test(guestEntryMessage),
+      `429 copy is not truthful about the bounded browser or shared-network limit: ${guestEntryMessage}`,
+    );
+    assert(/you did nothing wrong/i.test(guestEntryMessage), `429 copy blames the visitor: ${guestEntryMessage}`);
+    assert(!(await rateLimitedPage.locator('#loginForm').isVisible()), '429 incorrectly falls through to Welcome back');
+    assert(!(await rateLimitedPage.locator('#registerForm').isVisible()), '429 incorrectly forces registration');
+    assert(rateLimitedGuestRequests === 1, `429 path issued ${rateLimitedGuestRequests} guest mint requests`);
+    const unexpectedRateLimitedErrors = rateLimitedErrors.filter(error => !/status of 429/i.test(error));
+    assert(unexpectedRateLimitedErrors.length === 0, `429 browser errors: ${unexpectedRateLimitedErrors.join(' | ')}`);
+    await rateLimitedContext.close();
 
     const socialContext = await browser.newContext({
       viewport: { width: 390, height: 844 },
@@ -286,7 +579,7 @@ function pageErrors(page) {
     assert(socialErrors.length === 0, `Facebook mobile browser errors: ${socialErrors.join(' | ')}`);
     await socialContext.close();
 
-    console.log('Public account-entry button proof passed: free homepage actions enter the guest path without forcing registration, five guide sign-in actions including an attributed organic-search path preserve campaign context while opening login without minting a guest, five paid creation surfaces preserve their destination, the homepage Video action opens the exact Video + Professional handoff, all five auth navigation actions work on phone width, and a Facebook embedded-mobile handoff reaches Projects registration with one privacy-safe signup milestone sequence.');
+    console.log('Public account-entry button proof passed: free homepage actions carry one stable valid opaque X-Installation-ID through the signed-out check, guest mint and authenticated follow-up, then reach the guest Terms gate without showing login or registration; a concurrent registered-session takeover routes that account normally without a false guest failure; an explicit Sign in URL keeps an authenticated guest on login without Terms, workspace, registration or a guest remint; an explicit Free CTA overrides a stale registered-device cache after the server reports no session and reaches guest Terms; a separate 429 renders truthful shared-network retry guidance instead of Welcome back; five guide sign-in actions including an attributed organic-search path preserve campaign context while opening login without minting a guest; five paid creation surfaces preserve their destination; the homepage Video action opens the exact Video + Professional handoff; all five auth navigation actions work on phone width; and a Facebook embedded-mobile handoff reaches Projects registration with one privacy-safe signup milestone sequence.');
   } finally {
     await browser.close();
   }

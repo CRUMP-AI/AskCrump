@@ -687,6 +687,22 @@ async function waitForLogin(page) {
   });
 }
 
+async function waitForGuestEntryFailure(page) {
+  await page.waitForFunction(() => {
+    const auth = document.getElementById('authContainer');
+    const guestEntry = document.getElementById('guestEntryForm');
+    const login = document.getElementById('loginForm');
+    const register = document.getElementById('registerForm');
+    const app = document.getElementById('appContainer');
+    return auth && guestEntry && login && register && app
+      && getComputedStyle(auth).display !== 'none'
+      && getComputedStyle(guestEntry).display !== 'none'
+      && getComputedStyle(login).display === 'none'
+      && getComputedStyle(register).display === 'none'
+      && getComputedStyle(app).display === 'none';
+  });
+}
+
 async function sendText(harness, fixture, text, expectedMessages, expectedRemaining) {
   const {page} = harness;
   let phase = 'fill-draft';
@@ -980,7 +996,10 @@ async function disabledMint(browser, fixture) {
   const harness = await createHarness(browser, fixture, {caseName, mode: 'disabled'});
   try {
     await openFixture(harness, fixture);
-    await waitForLogin(harness.page);
+    await waitForGuestEntryFailure(harness.page);
+    assert.match(await harness.page.locator('#guestEntryMessage').textContent(), /you did nothing wrong/i);
+    assert.equal(await harness.page.locator('#loginForm').isVisible(), false);
+    assert.equal(await harness.page.locator('#registerForm').isVisible(), false);
     assert.equal(await harness.page.evaluate(() => window.currentUser), null);
     assert.equal(await sessionCookie(harness.context), '');
     assert.equal(fixture.records.guestAttempts.filter(row => row.caseName === caseName).length, 1);
@@ -1037,7 +1056,8 @@ async function capturedGuestToken(browser, fixture) {
     // inert cookie is checked again, then bootstrap makes exactly one ordinary
     // guest-start attempt; the disabled control rejects it without a remint.
     await harness.page.reload({waitUntil: 'load'});
-    await waitForLogin(harness.page);
+    await waitForGuestEntryFailure(harness.page);
+    assert.match(await harness.page.locator('#guestEntryMessage').textContent(), /you did nothing wrong/i);
     const disabledChecks = fixture.records.sessionChecks.filter(row => (
       row.caseName === caseName && row.mode === 'disabled'
     ));

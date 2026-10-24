@@ -1241,7 +1241,7 @@ const visibleWorkspaceReturnVersion = `${releaseVersion}-visible-workspace-retur
 const guestFreeContractVersion = `${releaseVersion}-guest-free-contract-2`;
 const guestFreeWorkspaceRelease = 'workspaceRelease=guest-free-contract-2';
 const releasedWorkspaceAsset = url => `${url}&${guestFreeWorkspaceRelease}`;
-const authControllerVersion = `${releaseVersion}-auth-verification-session-1`;
+const authControllerVersion = `${releaseVersion}-guest-admission-1`;
 const continuityHandoffVersion = `${releaseVersion}-continuity-handoff-1`;
 const composerModeResetVersion = `${releaseVersion}-composer-mode-reset-1`;
 const accountDeletionStorageVersion = `${releaseVersion}-account-storage-deletion-1`;
@@ -2007,7 +2007,7 @@ for (const [label, source] of [
     process.exit(1);
   }
 }
-if (!serviceWorker.includes('ask-crump-new-body-v1-r269-guest-free-contract-2') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r270-guest-admission-1') ||
     !serviceWorker.includes(`'${shellBrandUrl}'`) ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||

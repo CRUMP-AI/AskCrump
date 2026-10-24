@@ -95,7 +95,7 @@ def test_changed_assets_are_versioned_across_web_pwa_and_native():
     composer_token = "5.9.76-precision-ai-persistence-1"
     reconciliation_token = "5.9.76-library-reconciliation-1"
     runtime_token = "5.9.76-precision-ai-persistence-1"
-    cache_name = "ask-crump-new-body-v1-r269-guest-free-contract-2"
+    cache_name = "ask-crump-new-body-v1-r270-guest-admission-1"
     shell = read("public/app.html")
     runtime = read("public/runtime-body-v1.js")
     runtime_config = read("public/runtime-config.js")

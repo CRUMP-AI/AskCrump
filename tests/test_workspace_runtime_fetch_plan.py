@@ -56,8 +56,8 @@ def test_parallel_runtime_asset_is_versioned_for_web_pwa_and_native():
     asset = "/runtime-body-v1.js?v=5.9.76-precision-ai-persistence-1"
     assert asset in shell
     assert asset in worker
-    assert "ask-crump-new-body-v1-r269-guest-free-contract-2" in worker
-    assert "ask-crump-new-body-v1-r269-guest-free-contract-2" in checker
+    assert "ask-crump-new-body-v1-r270-guest-admission-1" in worker
+    assert "ask-crump-new-body-v1-r270-guest-admission-1" in checker
 
 
 def test_runtime_fetch_fixture_is_credential_free_and_measures_the_full_plan():
@@ -127,7 +127,7 @@ def test_image_studio_entry_replaces_the_frozen_r252_runtime_cache():
     matrix = read("scripts/verify-browser-control-matrix.mjs")
 
     assert "oldCacheName = 'ask-crump-new-body-v1-r252'" in verifier
-    assert "newCacheName = 'ask-crump-new-body-v1-r269-guest-free-contract-2'" in verifier
+    assert "newCacheName = 'ask-crump-new-body-v1-r270-guest-admission-1'" in verifier
     for old_url in (
         "/runtime-body-v1.js?v=5.9.76-reference-fidelity-hard-contract-1",
         "/crump-navigation-5.9.30.js?v=5.9.76-navigation-discovery-1",
@@ -137,7 +137,7 @@ def test_image_studio_entry_replaces_the_frozen_r252_runtime_cache():
     for new_url in (
         "/runtime-body-v1.js?v=5.9.76-precision-ai-persistence-1",
         "/crump-navigation-5.9.30.js?v=5.9.76-atelier-workspace-1",
-        "/auth-controller.js?v=5.9.76-auth-verification-session-1",
+        "/auth-controller.js?v=5.9.76-guest-admission-1",
     ):
         assert new_url in verifier
     assert "detail: {kind, capturedAt}" in verifier

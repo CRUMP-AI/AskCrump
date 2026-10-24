@@ -128,5 +128,6 @@ def test_login_failure_measurement_has_bounded_runtime_coverage() -> None:
     ):
         assert f"'{reason}'" in source
     assert "event.result?.error" not in source
+    assert "auth-navigation-focus.html?source=login-failure-signin" in verifier
     assert "login-measurement@example.test" in verifier
     assert "UNSTRUCTURED_PRIVATE_DETAIL" in verifier
