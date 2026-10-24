@@ -55,6 +55,12 @@
         url: 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
       }],
     };
+    window.currentUser = {id: 'fixture-owner'};
+    window.CrumpAuthBoundary = Object.freeze({
+      authenticatedUserId: () => window.currentUser?.id || '',
+      revision: () => 0,
+      register: () => () => {},
+    });
     window.currentChatId = '33333333-3333-4333-8333-333333333333';
     window.chats = [{
       id: window.currentChatId,

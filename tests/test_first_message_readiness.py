@@ -15,7 +15,8 @@ def test_usage_preflight_is_bounded_through_response_parsing():
     assert "USAGE_PREFLIGHT_TIMEOUT_MS = 10_000" in app
     assert "new AbortController()" in preflight
     assert "controller.abort()" in preflight
-    assert "fetch('/api/usage/check', {signal: controller.signal})" in preflight
+    assert "fetch('/api/usage/check', {" in preflight
+    assert "'X-Ask-Crump-Expected-Owner': authBoundary.ownerId" in preflight
     assert "await usageResponse.json()" in preflight
     assert preflight.index("await usageResponse.json()") < preflight.index(
         "window.clearTimeout(timeoutId)"
@@ -30,8 +31,8 @@ def test_changed_first_message_asset_is_release_versioned():
 
     assert '"version": "5.9.76"' in package
     assert '<script defer src="/app.js?v=5.9.76-intelligence-receipt-1"></script>' not in shell
-    assert "['/app.js?v=5.9.76-grounded-research-1&workspaceRelease=guest-free-contract-2', 'workspaceapp']" in runtime
-    assert "'/app.js?v=5.9.76-grounded-research-1&workspaceRelease=guest-free-contract-2'" in worker
+    assert "['/app.js?v=5.9.76-account-owner-boundary-1&workspaceRelease=guest-free-contract-2', 'workspaceapp']" in runtime
+    assert "'/app.js?v=5.9.76-account-owner-boundary-1&workspaceRelease=guest-free-contract-2'" in worker
 
 
 def test_pre_message_failure_preserves_the_draft_and_explains_recovery():
@@ -43,7 +44,7 @@ def test_pre_message_failure_preserves_the_draft_and_explains_recovery():
     assert "} else {" in send
     assert "showToast(error.message || 'Hmm, that didn’t go through — want to try again?', 'error')" in send
     assert "userInput?.focus({ preventScroll: true })" in send
-    assert send.index("await ensureUsageAvailable()") < send.index("userInput.value = ''")
+    assert send.index("await ensureUsageAvailable(authBoundary)") < send.index("userInput.value = ''")
 
 
 def test_browser_fixture_uses_real_first_message_code_without_credentials_or_production_writes():

@@ -49,6 +49,7 @@ def create_app() -> FastAPI:
         allow_headers=[
             'Content-Type', 'Authorization', 'X-Crump-Client', 'X-Crump-Platform',
             'X-Device-Name', 'X-Installation-ID', 'X-Request-ID', 'X-Idempotency-Key',
+            'X-Ask-Crump-Sync-Owner', 'X-Ask-Crump-Expected-Owner',
         ],
     )
     application.middleware('http')(request_guards)

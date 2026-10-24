@@ -60,11 +60,11 @@ def test_auth_transport_is_release_versioned_and_network_first():
 
     assert '<script defer src="/auth-resilience.js?v=5.9.76"></script>' in shell
     assert shell.index("/auth-resilience.js?v=5.9.76") < shell.index(
-        "/device-auth.js?v=5.9.76-native-billing-identity-1"
+        "/device-auth.js?v=5.9.76-account-owner-boundary-1"
     )
     assert "'/auth-resilience.js?v=5.9.76'" in worker
     assert "url.pathname === '/auth-resilience.js'" in worker
-    assert "ask-crump-new-body-v1-r270-guest-admission-1" in worker
+    assert "ask-crump-new-body-v1-r273-account-owner-boundary-1" in worker
 
 
 def test_auth_stall_fixtures_are_loopback_only_and_load_real_runtime_assets():

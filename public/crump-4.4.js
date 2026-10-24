@@ -25,8 +25,58 @@
   let hydratedPrivateChatId = null;
   let privateMutationRevision = 0;
   let preferenceMutationRevision = 0;
+  let preferenceTimer = null;
+  let intelligenceBoundaryUnregister = null;
+  const intelligenceRequests = new Set();
 
   const $ = (selector, root = document) => root.querySelector(selector);
+
+  function captureIntelligenceBoundary() {
+    const boundary = window.CrumpAuthBoundary;
+    return Object.freeze({
+      ownerId: String(boundary?.authenticatedUserId?.() || window.currentUser?.id || '').trim(),
+      revision: Number(boundary?.revision?.() || 0),
+    });
+  }
+
+  function intelligenceBoundaryIsCurrent(snapshot) {
+    const current = captureIntelligenceBoundary();
+    return !!snapshot?.ownerId
+      && current.ownerId === snapshot.ownerId
+      && current.revision === snapshot.revision;
+  }
+
+  function scrubIntelligenceAuthBoundary() {
+    privateMutationRevision += 1;
+    preferenceMutationRevision += 1;
+    clearTimeout(preferenceTimer);
+    preferenceTimer = null;
+    intelligenceRequests.forEach(controller => controller.abort());
+    intelligenceRequests.clear();
+    state = {...DEFAULTS};
+    hydratedUserId = null;
+    hydratedPrivateChatId = null;
+    memoryViewOpen = false;
+    advancedOpen = false;
+    statusData = null;
+    entitlements = {thinkLonger: false, minimumTier: 'professional'};
+    planOpenPending = false;
+    panel?.remove?.();
+    panel = null;
+    document.body.classList.remove('crump44-panel-open');
+    $('#crumpIntelligenceButton')?.setAttribute('aria-expanded', 'false');
+  }
+
+  function ensureIntelligenceBoundaryRegistration() {
+    if (intelligenceBoundaryUnregister || typeof window.CrumpAuthBoundary?.register !== 'function') return;
+    intelligenceBoundaryUnregister = window.CrumpAuthBoundary.register(
+      'intelligence-private-controls',
+      scrubIntelligenceAuthBoundary,
+    );
+  }
+
+  ensureIntelligenceBoundaryRegistration();
+  window.addEventListener('crump:body-runtime-ready', ensureIntelligenceBoundaryRegistration, {once: true});
 
   function assistantName() {
     return String(window.getAssistantName?.() || 'Crump').trim() || 'Crump';
@@ -186,10 +236,12 @@
   }
 
   async function syncConversationPrivacy(id, enabled, revision) {
+    const authBoundary = captureIntelligenceBoundary();
     try {
       const data = await api(`/api/intelligence/conversations/${encodeURIComponent(id)}/privacy`, {
         method: 'PATCH',
         body: JSON.stringify({ memoryOptOut: Boolean(enabled) }),
+        authBoundary,
       });
       clearPendingPrivateChange(id, Boolean(enabled));
       if (revision !== privateMutationRevision || String(window.currentChatId || '') !== id) return;
@@ -219,6 +271,7 @@
     if (!window.currentUser?.id || !id) return;
     if (!force && hydratedPrivateChatId === id) return;
     const startedRevision = privateMutationRevision;
+    const authBoundary = captureIntelligenceBoundary();
     hydratedPrivateChatId = id;
     const pending = pendingPrivateChanges();
     const hasPending = Object.prototype.hasOwnProperty.call(pending, id);
@@ -227,8 +280,9 @@
         ? await api(`/api/intelligence/conversations/${encodeURIComponent(id)}/privacy`, {
             method: 'PATCH',
             body: JSON.stringify({ memoryOptOut: Boolean(pending[id]) }),
+            authBoundary,
           })
-        : await api(`/api/intelligence/conversations/${encodeURIComponent(id)}/privacy`);
+        : await api(`/api/intelligence/conversations/${encodeURIComponent(id)}/privacy`, {authBoundary});
       if (hasPending) clearPendingPrivateChange(id, Boolean(pending[id]));
       if (startedRevision !== privateMutationRevision || String(window.currentChatId || '') !== id) return;
       writeLocalPrivateState(id, data.memoryOptOut === true);
@@ -269,15 +323,34 @@
   };
 
   async function api(path, options = {}) {
+    const {
+      authBoundary: suppliedBoundary,
+      signal: upstreamSignal,
+      ...requestOptions
+    } = options;
+    const authBoundary = suppliedBoundary || captureIntelligenceBoundary();
+    const controller = new AbortController();
+    const abortFromUpstream = () => controller.abort();
+    if (upstreamSignal?.aborted) controller.abort();
+    else upstreamSignal?.addEventListener?.('abort', abortFromUpstream, {once: true});
+    intelligenceRequests.add(controller);
+    try {
     const response = await originalFetch(path, {
       credentials: 'same-origin',
-      ...options,
+      ...requestOptions,
+      signal: controller.signal,
       headers: {
         'Content-Type': 'application/json',
-        ...(options.headers || {}),
+        ...(authBoundary.ownerId ? {'X-Ask-Crump-Expected-Owner': authBoundary.ownerId} : {}),
+        ...(requestOptions.headers || {}),
       },
     });
     const data = await response.json().catch(() => ({}));
+    if (!intelligenceBoundaryIsCurrent(authBoundary)) {
+      const error = new Error('Your account changed. Reopen Intelligence and try again.');
+      error.code = 'AUTH_OWNER_CHANGED';
+      throw error;
+    }
     if (!response.ok) {
       const error = new Error(data.error || data.message || `Request failed (${response.status})`);
       error.status = response.status;
@@ -286,6 +359,10 @@
       throw error;
     }
     return data;
+    } finally {
+      intelligenceRequests.delete(controller);
+      upstreamSignal?.removeEventListener?.('abort', abortFromUpstream);
+    }
   }
 
   async function hydratePreferences({ force = false } = {}) {
@@ -326,13 +403,13 @@
     refreshPanel();
   }
 
-  let preferenceTimer = null;
   function persistPreferences() {
     saveLocalState();
     const outgoing = preferencePayload();
     writePendingPreferenceState(outgoing);
     preferenceMutationRevision += 1;
     const revision = preferenceMutationRevision;
+    const authBoundary = captureIntelligenceBoundary();
     clearTimeout(preferenceTimer);
     preferenceTimer = setTimeout(async () => {
       if (!window.currentUser?.id) return;
@@ -340,6 +417,7 @@
         const data = await api('/api/intelligence/preferences', {
           method: 'PATCH',
           body: JSON.stringify(outgoing),
+          authBoundary,
         });
         clearPendingPreferenceState(outgoing);
         if (revision !== preferenceMutationRevision) return;

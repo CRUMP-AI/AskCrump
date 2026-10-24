@@ -32,6 +32,48 @@
     </div>
     <output id="fixtureStatus" aria-live="polite">Choose a synthetic case.</output>
   </main>
+  <script>
+    (() => {
+      'use strict';
+      const ownerA = '11111111-1111-4111-8111-111111111111';
+      const ownerB = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+      const scrubbers = new Map();
+      let ownerId = ownerA;
+      let revision = 0;
+
+      window.currentUser = {id: ownerA};
+      window.CrumpAuthBoundary = Object.freeze({
+        register(name, scrub) {
+          const key = String(name || '').trim();
+          if (!key || typeof scrub !== 'function') return () => {};
+          scrubbers.set(key, scrub);
+          return () => {
+            if (scrubbers.get(key) === scrub) scrubbers.delete(key);
+          };
+        },
+        authenticatedUserId: () => ownerId,
+        revision: () => revision,
+      });
+      window.__creditAuthFixture = Object.freeze({
+        ownerA,
+        ownerB,
+        switchOwner(nextOwnerId = ownerB) {
+          const next = String(nextOwnerId || '').trim();
+          const previous = ownerId;
+          revision += 1;
+          const boundary = Object.freeze({
+            reason: 'authenticated-user-changed',
+            previousUserId: previous,
+            nextUserId: next,
+            revision,
+          });
+          scrubbers.forEach(scrub => scrub(boundary));
+          ownerId = next;
+          window.currentUser = next ? {id: next} : null;
+        },
+      });
+    })();
+  </script>
   <script src="/public/credit-confirmation.js?v=credit-fixture-1"></script>
   <script>
     const status = document.getElementById('fixtureStatus');

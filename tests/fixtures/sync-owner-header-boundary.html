@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Sync expected-owner header boundary fixture</title>
+  <link rel="icon" href="data:,">
+</head>
+<body>
+  <main>Owner-bound synchronization fixture</main>
+  <script>
+    (() => {
+      'use strict';
+      const ownerA = '11111111-1111-4111-8111-111111111111';
+      const ownerB = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
+      const chatA = {
+        chat_id: '33333333-3333-4333-8333-333333333333',
+        title: 'Owner A queued work',
+        messages: [],
+        created_at: '2026-10-24T01:00:00Z',
+        updated_at: '2026-10-24T01:00:00Z',
+        revision: 1,
+      };
+      const chatB = {
+        chat_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+        title: 'Owner B queued work',
+        messages: [],
+        created_at: '2026-10-24T02:00:00Z',
+        updated_at: '2026-10-24T02:00:00Z',
+        revision: 1,
+      };
+      let clientOwner = ownerA;
+      let revision = 0;
+      let serverOwner = ownerA;
+      const pending = [];
+      const requests = [];
+
+      localStorage.clear();
+      localStorage.setItem(`crump_last_sync_v4:${ownerA}`, JSON.stringify('a-cursor-original'));
+      localStorage.setItem(`crump_last_sync_v4:${ownerB}`, JSON.stringify('b-cursor-original'));
+      localStorage.setItem(`crump_sync_queue_v4:${ownerA}`, '[]');
+      localStorage.setItem(`crump_sync_queue_v4:${ownerB}`, '[]');
+
+      window.currentUser = {id: ownerA};
+      window.CrumpAuthBoundary = Object.freeze({
+        authenticatedUserId: () => clientOwner,
+        revision: () => revision,
+      });
+
+      window.fetch = (input, options = {}) => {
+        const url = new URL(String(input), window.location.href);
+        const method = String(options.method || 'GET').toUpperCase();
+        const claim = new Headers(options.headers || {}).get('X-Ask-Crump-Sync-Owner') || '';
+        const request = {
+          path: url.pathname,
+          method,
+          claim,
+          body: options.body ? JSON.parse(options.body) : null,
+          settled: false,
+        };
+        requests.push(request);
+        return new Promise(resolve => pending.push({...request, resolve}));
+      };
+
+      function responseFor(request) {
+        if (request.claim !== serverOwner) {
+          return new Response(JSON.stringify({
+            success: false,
+            code: 'SYNC_OWNER_MISMATCH',
+            staleAuth: true,
+            error: 'The signed-in account changed before synchronization began. Retry under the current account.',
+            queued: true,
+            retryable: true,
+          }), {status: 409, headers: {'Content-Type': 'application/json'}});
+        }
+        if (request.method === 'GET') {
+          const chat = serverOwner === ownerB ? chatB : chatA;
+          return new Response(JSON.stringify({
+            success: true,
+            serverTime: serverOwner === ownerB
+              ? '2026-10-24T08:01:00Z'
+              : '2026-10-24T08:00:00Z',
+            data: {chats: [chat], settings: null},
+          }), {status: 200, headers: {'Content-Type': 'application/json'}});
+        }
+        return new Response(JSON.stringify({
+          success: true,
+          accepted: (request.body?.chats || []).map(chat => chat.chat_id),
+          ignored: [],
+        }), {status: 200, headers: {'Content-Type': 'application/json'}});
+      }
+
+      window.__fixture = {
+        ownerA,
+        ownerB,
+        chatA,
+        chatB,
+        requests,
+        results: [],
+        setServerOwner(ownerId) { serverOwner = ownerId; },
+        switchClient(ownerId) {
+          clientOwner = ownerId;
+          revision += 1;
+          window.currentUser = {id: ownerId};
+        },
+        resolveNext(method) {
+          const index = pending.findIndex(item => item.method === method);
+          if (index < 0) throw new Error(`No pending ${method} request.`);
+          const [request] = pending.splice(index, 1);
+          request.resolve(responseFor(request));
+        },
+        pendingCount(method) {
+          return pending.filter(item => !method || item.method === method).length;
+        },
+      };
+    })();
+  </script>
+  <script src="/public/sync-manager.js?v=sync-owner-header-fixture-1"></script>
+  <script>
+    (() => {
+      const fixture = window.__fixture;
+      fixture.startPull = () => {
+        const promise = window.SyncManager.pull(null, {full: false});
+        promise.then(result => fixture.results.push({kind: 'pull', result}));
+        return promise;
+      };
+      fixture.startPush = chat => {
+        const promise = window.SyncManager.push(null, {chats: [chat]});
+        promise.then(result => fixture.results.push({kind: 'push', result}));
+        return promise;
+      };
+    })();
+  </script>
+</body>
+</html>

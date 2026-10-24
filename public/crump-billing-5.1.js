@@ -13,6 +13,10 @@
     creditPurchasesAllowed: false,
     trigger: null,
     background: [],
+    modalBoundary: null,
+    loadingOperation: 0,
+    requestControllers: new Set(),
+    unregisterBoundary: null,
   };
 
   const BALANCE_STALE_MS = 5 * 60 * 1000;
@@ -23,6 +27,21 @@
 
   const $ = (selector, root = document) => root.querySelector(selector);
   const native = () => Boolean(window.BillingManager?.isNative?.());
+
+  function captureBillingBoundary() {
+    const boundary = window.CrumpAuthBoundary;
+    return Object.freeze({
+      ownerId: String(boundary?.authenticatedUserId?.() || window.currentUser?.id || '').trim(),
+      revision: Number(boundary?.revision?.() || 0),
+    });
+  }
+
+  function billingBoundaryIsCurrent(snapshot) {
+    const current = captureBillingBoundary();
+    return !!snapshot?.ownerId
+      && current.ownerId === snapshot.ownerId
+      && current.revision === snapshot.revision;
+  }
   const recoverySources = Object.freeze({
     CREDITS_REQUIRED: 'recovery_credits',
     SUBSCRIPTION_REQUIRED: 'recovery_subscription',
@@ -135,33 +154,43 @@
     return `<aside class="billing51-recovery" data-recovery-kind="${context.kind}" aria-label="Why Plan and credits opened"><span>CONTINUE YOUR WORK</span><h3>${context.title}</h3><p>${context.detail}</p></aside>`;
   }
 
-  async function recordPlanCenterView(options = {}) {
+  async function recordPlanCenterView(options = {}, suppliedBoundary = null) {
+    const authBoundary = suppliedBoundary || state.modalBoundary || captureBillingBoundary();
+    if (!billingBoundaryIsCurrent(authBoundary)) return false;
     const source = planCenterSource(options);
     document.documentElement.dataset.crumpPlanCenterEvent = `pending:${source}`;
     try {
       if (await window.CrumpAnalytics?.track?.('PlanCenterViewed', {
         eventKey: 'plan-center-viewed',
         source,
-      })) {
+      }, authBoundary)) {
+        if (!billingBoundaryIsCurrent(authBoundary)) return false;
         document.documentElement.dataset.crumpPlanCenterEvent = `accepted:${source}`;
         return true;
       }
+      if (!billingBoundaryIsCurrent(authBoundary)) return false;
       const response = await fetch('/api/analytics/events', {
         method: 'POST',
         credentials: 'same-origin',
         keepalive: true,
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Ask-Crump-Expected-Owner': authBoundary.ownerId,
+        },
         body: JSON.stringify({
           eventName: 'PlanCenterViewed',
           eventKey: 'plan-center-viewed',
           source,
         }),
       });
+      if (!billingBoundaryIsCurrent(authBoundary)) return false;
       document.documentElement.dataset.crumpPlanCenterEvent =
         `${response.ok ? 'accepted' : 'rejected'}:${source}`;
       return response.ok;
     } catch (_) {
-      document.documentElement.dataset.crumpPlanCenterEvent = `failed:${source}`;
+      if (billingBoundaryIsCurrent(authBoundary)) {
+        document.documentElement.dataset.crumpPlanCenterEvent = `failed:${source}`;
+      }
       return false;
     }
   }
@@ -170,9 +199,12 @@
     const {
       timeoutMs = BILLING_REQUEST_TIMEOUT_MS,
       signal: upstreamSignal,
+      authBoundary: suppliedBoundary,
       ...requestOptions
     } = options;
+    const authBoundary = suppliedBoundary || captureBillingBoundary();
     const controller = new AbortController();
+    state.requestControllers.add(controller);
     const abortFromUpstream = () => controller.abort();
     if (upstreamSignal?.aborted) controller.abort();
     else upstreamSignal?.addEventListener?.('abort', abortFromUpstream, {once: true});
@@ -187,10 +219,16 @@
         signal: controller.signal,
         headers: {
           ...(requestOptions.body ? {'Content-Type': 'application/json'} : {}),
+          ...(authBoundary.ownerId ? {'X-Ask-Crump-Expected-Owner': authBoundary.ownerId} : {}),
           ...(requestOptions.headers || {}),
         },
       });
       const data = await response.json().catch(() => ({}));
+      if (!billingBoundaryIsCurrent(authBoundary)) {
+        const error = new Error('Your account changed. Reopen billing and try again.');
+        error.code = 'AUTH_OWNER_CHANGED';
+        throw error;
+      }
       if (!response.ok || data.success === false) {
         const error = new Error(data.error || 'Billing could not complete that request.');
         error.code = data.code;
@@ -206,6 +244,7 @@
       throw error;
     } finally {
       window.clearTimeout(timeoutId);
+      state.requestControllers.delete(controller);
       upstreamSignal?.removeEventListener?.('abort', abortFromUpstream);
     }
   }
@@ -283,9 +322,31 @@
     document.body.classList.remove('billing51-open');
     restoreBillingBackground();
     state.trigger = null;
+    state.modalBoundary = null;
     if (restoreFocus && trigger?.isConnected && !trigger.disabled) {
       requestAnimationFrame(() => trigger.focus?.({preventScroll: true}));
     }
+  }
+
+  function scrubBillingBoundary() {
+    state.loadingOperation += 1;
+    state.requestControllers.forEach(controller => controller.abort());
+    state.requestControllers.clear();
+    close({restoreFocus: false});
+    state.credits = 0;
+    state.loading = false;
+    state.lastBalanceFetchAt = 0;
+    state.balanceRequest = null;
+    state.creditPurchasesAllowed = false;
+    document.querySelector('#upgradeBtnSidebar .billing51-sidebar-balance')?.remove();
+  }
+
+  function ensureBillingBoundaryRegistration() {
+    if (state.unregisterBoundary || typeof window.CrumpAuthBoundary?.register !== 'function') return;
+    state.unregisterBoundary = window.CrumpAuthBoundary.register(
+      'billing51-private-view',
+      scrubBillingBoundary,
+    );
   }
 
   function setBusy(button, busy, label = null) {
@@ -307,9 +368,12 @@
       return;
     }
     setBusy(button, true, native() ? 'Opening store…' : 'Opening checkout…');
+    const authBoundary = state.modalBoundary || captureBillingBoundary();
+    if (!billingBoundaryIsCurrent(authBoundary)) return;
     try {
       if (native()) {
-        await window.BillingManager.purchaseCredits(pack.code);
+        await window.BillingManager.purchaseCredits(pack.code, authBoundary);
+        if (!billingBoundaryIsCurrent(authBoundary)) return;
         window.showToast?.(`${pack.credits} credits added`, 'success');
         await hydrate(state.modal);
         return;
@@ -318,12 +382,14 @@
       const result = await jsonFetch('/api/billing/credits/checkout', {
         method: 'POST',
         body: JSON.stringify({pack: pack.code, attemptId}),
+        authBoundary,
       });
       const url = window.BillingManager?.requireStripeDestination?.(result.url, 'checkout');
       if (!url) throw new Error('Stripe did not return a secure checkout destination.');
       window.BillingManager?.completeCreditCheckoutAttempt?.(pack.code, attemptId);
       window.location.assign(url);
     } catch (error) {
+      if (!billingBoundaryIsCurrent(authBoundary)) return;
       window.showToast?.(error.message || 'Credit purchase could not be opened.', 'error');
       setBusy(button, false);
     }
@@ -331,9 +397,12 @@
 
   async function buyPlan(tier, button) {
     setBusy(button, true, native() ? 'Opening store…' : 'Opening checkout…');
+    const authBoundary = state.modalBoundary || captureBillingBoundary();
+    if (!billingBoundaryIsCurrent(authBoundary)) return;
     try {
       if (native()) {
-        await window.BillingManager.purchase(tier);
+        await window.BillingManager.purchase(tier, authBoundary);
+        if (!billingBoundaryIsCurrent(authBoundary)) return;
         window.showToast?.('Subscription activated', 'success');
         await hydrate(state.modal);
         return;
@@ -342,12 +411,14 @@
       const response = await jsonFetch('/api/stripe/create-checkout-session', {
         method: 'POST',
         body: JSON.stringify({tier, attemptId}),
+        authBoundary,
       });
       const url = window.BillingManager?.requireStripeDestination?.(response.url, 'checkout');
       if (!url) throw new Error('Stripe did not return a secure checkout destination.');
       window.BillingManager?.completeSubscriptionCheckoutAttempt?.(tier, attemptId);
       window.location.assign(url);
     } catch (error) {
+      if (!billingBoundaryIsCurrent(authBoundary)) return;
       window.showToast?.(error.message || 'Subscription checkout could not be opened.', 'error');
       setBusy(button, false);
     }
@@ -355,22 +426,29 @@
 
   async function restore(button) {
     setBusy(button, true, 'Restoring…');
+    const authBoundary = state.modalBoundary || captureBillingBoundary();
+    if (!billingBoundaryIsCurrent(authBoundary)) return;
     try {
-      await window.BillingManager.restore();
+      await window.BillingManager.restore(authBoundary);
+      if (!billingBoundaryIsCurrent(authBoundary)) return;
       window.showToast?.('Purchases restored', 'success');
       await hydrate(state.modal);
     } catch (error) {
+      if (!billingBoundaryIsCurrent(authBoundary)) return;
       window.showToast?.(error.message || 'No purchases were restored.', 'error');
     } finally {
-      setBusy(button, false);
+      if (billingBoundaryIsCurrent(authBoundary)) setBusy(button, false);
     }
   }
 
   async function manageSubscription(button) {
     setBusy(button, true, 'Opening…');
+    const authBoundary = state.modalBoundary || captureBillingBoundary();
+    if (!billingBoundaryIsCurrent(authBoundary)) return;
     try {
-      await window.BillingManager.manageSubscription();
+      await window.BillingManager.manageSubscription(authBoundary);
     } catch (error) {
+      if (!billingBoundaryIsCurrent(authBoundary)) return;
       window.showToast?.(error.message || 'Subscription management could not be opened.', 'error');
       setBusy(button, false);
     }
@@ -536,18 +614,23 @@
     return article;
   }
 
-  async function hydrate(modal) {
+  async function hydrate(modal, suppliedBoundary = null) {
     if (!modal || state.loading) return;
+    const authBoundary = suppliedBoundary || state.modalBoundary || captureBillingBoundary();
+    if (!billingBoundaryIsCurrent(authBoundary)) return;
+    const loadingOperation = ++state.loadingOperation;
     state.loading = true;
     modal.classList.add('is-loading');
     try {
       const [creditData, usageData, subscriptions, nativeCredits, billingStatus] = await Promise.all([
-        jsonFetch('/api/billing/credits/status'),
-        jsonFetch('/api/usage/check'),
+        jsonFetch('/api/billing/credits/status', {authBoundary}),
+        jsonFetch('/api/usage/check', {authBoundary}),
         Promise.resolve(window.BillingManager?.getProducts?.() || {}).catch(() => ({})),
         Promise.resolve(window.BillingManager?.getCreditProducts?.() || {}).catch(() => ({})),
-        jsonFetch('/api/billing/status').catch(() => ({tier:'free', plan:null, status:'inactive', provider:null, manageable:false})),
+        jsonFetch('/api/billing/status', {authBoundary}).catch(() => ({tier:'free', plan:null, status:'inactive', provider:null, manageable:false})),
       ]);
+
+      if (!billingBoundaryIsCurrent(authBoundary) || state.modal !== modal) return;
 
       applyBalance(creditData.credits?.balance);
       const balance = $('#billing51Balance', modal);
@@ -621,15 +704,21 @@
 
       renderHistory(creditData.history || []);
     } catch (error) {
+      if (!billingBoundaryIsCurrent(authBoundary) || state.modal !== modal) return;
       window.showToast?.(error.message || 'Billing information could not be loaded.', 'error');
     } finally {
+      if (state.loadingOperation !== loadingOperation) return;
       state.loading = false;
-      modal.classList.remove('is-loading');
+      if (state.modal === modal && billingBoundaryIsCurrent(authBoundary)) {
+        modal.classList.remove('is-loading');
+      }
     }
   }
 
   function showBillingCenter(options = {}) {
     close({restoreFocus: false});
+    const authBoundary = captureBillingBoundary();
+    if (!billingBoundaryIsCurrent(authBoundary)) return null;
     state.trigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const recovery = billingRecoveryContext(options);
     const modal = document.createElement('div');
@@ -707,13 +796,14 @@
     modal.querySelector('#billing51Manage')?.addEventListener('click', event => manageSubscription(event.currentTarget));
     document.body.appendChild(modal);
     state.modal = modal;
+    state.modalBoundary = authBoundary;
     if (recovery?.plan) modal.dataset.crumpPlanIntent = recovery.plan;
     document.body.classList.add('billing51-open');
     $('.billing51-close', modal)?.focus({preventScroll: true});
     isolateBillingBackground(modal);
-    void recordPlanCenterView(options);
+    void recordPlanCenterView(options, authBoundary);
     requestAnimationFrame(() => modal.classList.add('is-visible'));
-    hydrate(modal);
+    hydrate(modal, authBoundary);
     return modal;
   }
 
@@ -741,10 +831,17 @@
     updateSidebarBalance(state.credits);
   }
 
+  function clearBillingReturnParams(url) {
+    url.searchParams.delete('billing');
+    url.searchParams.delete('session_id');
+    history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+  }
+
   async function finalizeReturn() {
     const url = new URL(window.location.href);
     const billing = url.searchParams.get('billing');
     const sessionId = url.searchParams.get('session_id');
+    const authBoundary = captureBillingBoundary();
     if (billing === 'success' && sessionId) {
       try {
         let result;
@@ -753,13 +850,22 @@
             result = await jsonFetch('/api/stripe/finalize-checkout', {
               method: 'POST',
               body: JSON.stringify({sessionId}),
+              authBoundary,
             });
             break;
           } catch (error) {
             const retryable = ['BILLING_PROVIDER_UNAVAILABLE', 'SUBSCRIPTION_PENDING'].includes(error.code);
             if (!retryable || attempt > 0) throw error;
             await new Promise(resolve => setTimeout(resolve, 2500));
+            if (!billingBoundaryIsCurrent(authBoundary)) {
+              clearBillingReturnParams(url);
+              return;
+            }
           }
+        }
+        if (!billingBoundaryIsCurrent(authBoundary)) {
+          clearBillingReturnParams(url);
+          return;
         }
         if (result?.user) {
           window.currentUser = result.user;
@@ -769,15 +875,17 @@
         const plan = result?.tier === 'enterprise' ? 'Enterprise' : 'Professional';
         window.showToast?.(`${plan} is active`, 'success');
       } catch (error) {
+        if (!billingBoundaryIsCurrent(authBoundary)) {
+          clearBillingReturnParams(url);
+          return;
+        }
         window.showToast?.(
           error.message || 'Payment completed; subscription activation is still processing.',
           'warning'
         );
         setTimeout(() => window.BillingManager?.refreshStatus?.(), 8000);
       }
-      url.searchParams.delete('billing');
-      url.searchParams.delete('session_id');
-      history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+      clearBillingReturnParams(url);
     } else if (billing === 'cancelled') {
       window.showToast?.('Subscription checkout cancelled', 'info');
       url.searchParams.delete('billing');
@@ -787,16 +895,23 @@
         const result = await jsonFetch('/api/billing/credits/finalize', {
           method: 'POST',
           body: JSON.stringify({sessionId}),
+          authBoundary,
         });
+        if (!billingBoundaryIsCurrent(authBoundary)) {
+          clearBillingReturnParams(url);
+          return;
+        }
         state.credits = Number(result.balance || 0);
         window.showToast?.(`${result.credits || ''} credits added to Crump`, 'success');
         window.dispatchEvent(new CustomEvent('crump:credits-updated', {detail:{balance:state.credits}}));
       } catch (error) {
+        if (!billingBoundaryIsCurrent(authBoundary)) {
+          clearBillingReturnParams(url);
+          return;
+        }
         window.showToast?.(error.message || 'Payment completed; credit verification is still processing.', 'warning');
       }
-      url.searchParams.delete('billing');
-      url.searchParams.delete('session_id');
-      history.replaceState({}, '', `${url.pathname}${url.search}${url.hash}`);
+      clearBillingReturnParams(url);
     } else if (billing === 'credits-cancelled') {
       window.showToast?.('Credit purchase cancelled', 'info');
       url.searchParams.delete('billing');
@@ -819,14 +934,17 @@
       return Promise.resolve(false);
     }
     if (state.balanceRequest) return state.balanceRequest;
-    state.balanceRequest = jsonFetch('/api/billing/credits/status')
-      .then(data => applyBalance(data.credits?.balance))
+    const authBoundary = captureBillingBoundary();
+    if (!billingBoundaryIsCurrent(authBoundary)) return Promise.resolve(false);
+    state.balanceRequest = jsonFetch('/api/billing/credits/status', {authBoundary})
+      .then(data => billingBoundaryIsCurrent(authBoundary) && applyBalance(data.credits?.balance))
       .catch(() => false)
       .finally(() => { state.balanceRequest = null; });
     return state.balanceRequest;
   }
 
   function boot() {
+    ensureBillingBoundaryRegistration();
     window.showBillingCenter = showBillingCenter;
     // Every existing "upgrade required" call now opens the combined premium
     // billing center rather than a subscription-only dead end.
@@ -837,7 +955,10 @@
     ownSidebarButton();
     finalizeReturn();
     if (window.currentUser) refreshBalance();
-    window.addEventListener('crump:authenticated-ready', () => refreshBalance());
+    window.addEventListener('crump:authenticated-ready', () => {
+      ensureBillingBoundaryRegistration();
+      refreshBalance({force: true});
+    });
     window.addEventListener('crump:credits-updated', event => {
       const balance = Number(event.detail?.balance ?? event.detail?.credits?.balance);
       if (!applyBalance(balance)) refreshBalance({force: true});

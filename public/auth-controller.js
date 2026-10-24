@@ -17,6 +17,13 @@
   let workspaceOpenRecordedFor = '';
   let reauthenticationPreparation = Promise.resolve();
   let guestEntryFailure = null;
+  let onboardingProfileController = null;
+  let onboardingProfileGeneration = 0;
+  let onboardingBoundaryUnregister = null;
+  let termsAcceptanceGeneration = 0;
+  let termsBoundaryUnregister = null;
+  let authIdentityStorageGeneration = 0;
+  const AUTH_USER_CACHE_KEY = 'crump_user_cache_v4';
   const TERMS_VERSION = '2026-08-01';
   const PLAN_INTENT_KEY = 'askcrump.pending-plan-intent';
   const CREATION_INTENT_KEY = 'askcrump.pending-creation-intent';
@@ -30,6 +37,13 @@
   const PLAN_INTENT_DELIVERY_MAX_ATTEMPTS = 32;
   const CREATION_INTENT_TTL_MS = 24 * 60 * 60 * 1000;
   const FIRST_TOUCH_TTL_MS = 24 * 60 * 60 * 1000;
+
+  // This controller loads before the private app runtime. Keep an early
+  // cross-tab identity generation so an account rotation cannot occur while
+  // app.js is still loading and escape the later app-level storage listener.
+  window.addEventListener('storage', event => {
+    if (event.key === AUTH_USER_CACHE_KEY) authIdentityStorageGeneration += 1;
+  });
   const PAID_PLAN_INTENTS = new Set(['professional', 'enterprise']);
   const CREATION_INTENTS = new Set(['document', 'presentation', 'resume', 'image', 'video', 'projects']);
   const CREATION_INTENT_EXPLORE_DESTINATIONS = Object.freeze({
@@ -184,6 +198,40 @@
 
   function authRequest(url, options, timeoutMessage) {
     return window.CrumpAuthTransport.request(url, options, {timeoutMessage});
+  }
+
+  function captureExpectedOwnerBoundary(generation) {
+    const boundary = window.CrumpAuthBoundary;
+    const ownerId = String(
+      typeof boundary?.authenticatedUserId === 'function'
+        ? boundary.authenticatedUserId()
+        : activeUser?.id || window.currentUser?.id || ''
+    ).trim();
+    const rawRevision = typeof boundary?.revision === 'function' ? boundary.revision() : 0;
+    const revision = Number(rawRevision);
+    return Object.freeze({
+      ownerId,
+      revision: Number.isFinite(revision) ? revision : 0,
+      authFlowRevision,
+      generation,
+    });
+  }
+
+  function expectedOwnerBoundaryIsCurrent(snapshot, generation) {
+    if (!snapshot?.ownerId || snapshot.generation !== generation) return false;
+    const boundary = window.CrumpAuthBoundary;
+    const currentOwnerId = String(
+      typeof boundary?.authenticatedUserId === 'function'
+        ? boundary.authenticatedUserId()
+        : window.currentUser?.id || activeUser?.id || ''
+    ).trim();
+    const rawRevision = typeof boundary?.revision === 'function' ? boundary.revision() : 0;
+    const revision = Number(rawRevision);
+    return currentOwnerId === snapshot.ownerId
+      && String(window.currentUser?.id || '').trim() === snapshot.ownerId
+      && String(activeUser?.id || '').trim() === snapshot.ownerId
+      && (Number.isFinite(revision) ? revision : 0) === snapshot.revision
+      && authFlowRevision === snapshot.authFlowRevision;
   }
 
   function funnelValue(value, fallback) {
@@ -804,11 +852,57 @@
     byId('userInput')?.focus({preventScroll: true});
   }
 
+  function scrubOnboardingAuthBoundary() {
+    onboardingProfileGeneration += 1;
+    onboardingProfileController?.abort?.();
+    onboardingProfileController = null;
+    const modal = byId('onboardingModal');
+    const focusedInModal = Boolean(modal?.contains(document.activeElement));
+    const name = byId('onboardingName');
+    if (name) {
+      name.value = '';
+      name.removeAttribute('aria-busy');
+    }
+    setText('onboardingError', '', false);
+    hide('onboardingModal');
+    if (focusedInModal) document.activeElement?.blur?.();
+    const button = byId('onboardingContinueBtn');
+    if (button) {
+      button.disabled = false;
+      button.removeAttribute('aria-busy');
+      button.textContent = 'Save name';
+    }
+    const skip = byId('onboardingSkipBtn');
+    if (skip) skip.disabled = false;
+  }
+
+  function ensureOnboardingBoundaryRegistration() {
+    if (onboardingBoundaryUnregister || typeof window.CrumpAuthBoundary?.register !== 'function') return;
+    onboardingBoundaryUnregister = window.CrumpAuthBoundary.register(
+      'auth-onboarding-profile',
+      scrubOnboardingAuthBoundary,
+    );
+  }
+
+  function captureOnboardingAuthBoundary(generation) {
+    ensureOnboardingBoundaryRegistration();
+    return captureExpectedOwnerBoundary(generation);
+  }
+
+  function onboardingAuthBoundaryIsCurrent(snapshot) {
+    return expectedOwnerBoundaryIsCurrent(snapshot, onboardingProfileGeneration);
+  }
+
+  ensureOnboardingBoundaryRegistration();
+  window.addEventListener('crump:body-runtime-ready', ensureOnboardingBoundaryRegistration, {once: true});
+
   function routeAuthenticatedUser(user) {
     activeUser = user;
     window.currentUser = user;
     window.configureUserStorage?.(user.id);
-    window.profileManager?.applyServerSubscription?.(user);
+    const profileManager = window.CrumpProfileState?.bindAuthenticatedUser?.(user)
+      || window.profileManager;
+    profileManager?.applyServerSubscription?.(user);
     if (!user.termsAcceptedAt) {
       hide('authContainer');
       show('tosModal', 'flex');
@@ -816,7 +910,7 @@
     }
     if (user.fullName) {
       localStorage.setItem(window.STORAGE_KEYS?.HAS_ONBOARDED || 'crump_has_onboarded', 'true');
-      window.profileManager?.updateProfile?.({ name: user.fullName, email: user.email });
+      profileManager?.updateProfile?.({ name: user.fullName, email: user.email });
     }
     startApp();
     if (!user.fullName) maybeOfferProfileSetup();
@@ -1298,9 +1392,20 @@
     }
 
     const bootstrapAuthFlowRevision = authFlowRevision;
+    const bootstrapIdentityStorageGeneration = authIdentityStorageGeneration;
     await window.CrumpAPI?.ready;
-    const session = await window.deviceAuth.checkSession();
+    // Bootstrap owns the decision to adopt or clear this identity. Keep the
+    // transport probe non-committing until its auth-flow generation is still
+    // current; otherwise a delayed prior-account response could repopulate
+    // DeviceAuth and its shared identity cache after a same-page login.
+    const session = await window.deviceAuth.checkSession({commit: false});
     if (authFlowRevision !== bootstrapAuthFlowRevision) return;
+    if (authIdentityStorageGeneration !== bootstrapIdentityStorageGeneration) return bootstrap();
+    if (!session.unavailable && session.authenticated && session.data?.user) {
+      window.deviceAuth.acceptSession?.(session.data);
+    } else if (!session.unavailable && !session.authenticated) {
+      window.deviceAuth.clearLocalState?.();
+    }
     if (session.unavailable) {
       if (!signupRequested) {
         if (freeGuestRequested) {
@@ -1360,6 +1465,7 @@
     }
     await prepareAuthenticatedWorkspace();
     if (authFlowRevision !== bootstrapAuthFlowRevision) return;
+    if (authIdentityStorageGeneration !== bootstrapIdentityStorageGeneration) return bootstrap();
     activeUser = session.data.user;
     window.currentUser = activeUser;
     window.configureUserStorage?.(activeUser.id);
@@ -1386,7 +1492,32 @@
     });
   }
 
+  function scrubTermsAuthBoundary() {
+    termsAcceptanceGeneration += 1;
+    hide('tosModal');
+    const checkbox = byId('tosAccept');
+    if (checkbox) checkbox.checked = false;
+    const button = byId('tosAcceptBtn');
+    if (button) {
+      button.disabled = true;
+      button.removeAttribute('aria-busy');
+      button.textContent = button.dataset.originalText || 'Continue';
+    }
+  }
+
+  function ensureTermsBoundaryRegistration() {
+    if (termsBoundaryUnregister || typeof window.CrumpAuthBoundary?.register !== 'function') return;
+    termsBoundaryUnregister = window.CrumpAuthBoundary.register(
+      'auth-terms-acceptance',
+      scrubTermsAuthBoundary,
+    );
+  }
+
+  ensureTermsBoundaryRegistration();
+  window.addEventListener('crump:body-runtime-ready', ensureTermsBoundaryRegistration, {once: true});
+
   function wireTerms() {
+    ensureTermsBoundaryRegistration();
     byId('tosAccept')?.addEventListener('change', event => {
       const button = byId('tosAcceptBtn');
       if (!button) return;
@@ -1395,24 +1526,44 @@
     });
     byId('tosAcceptBtn')?.addEventListener('click', async event => {
       const button = event.currentTarget;
+      termsAcceptanceGeneration += 1;
+      const generation = termsAcceptanceGeneration;
+      const authBoundary = captureExpectedOwnerBoundary(generation);
+      if (!authBoundary.ownerId) {
+        scrubTermsAuthBoundary();
+        window.showToast?.('Your account changed. Reopen the workspace and accept the terms again.', 'error');
+        return;
+      }
       button.disabled = true;
       const original = button.textContent;
+      button.dataset.originalText = original;
+      button.setAttribute('aria-busy', 'true');
       button.textContent = 'Saving…';
       try {
         const {response, data} = await authRequest('/api/account/accept-terms', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Ask-Crump-Expected-Owner': authBoundary.ownerId,
+          },
           body: JSON.stringify({ version: TERMS_VERSION }),
         }, 'Saving your acceptance took too long. Try Continue again.');
+        if (!expectedOwnerBoundaryIsCurrent(authBoundary, termsAcceptanceGeneration)) return;
         if (!response.ok || !data.success) throw new Error(data.error || 'Could not save your acceptance.');
+        const responseOwnerId = String(data.user?.id || authBoundary.ownerId).trim();
+        if (responseOwnerId !== authBoundary.ownerId) return;
         activeUser = data.user || { ...activeUser, termsAcceptedAt: new Date().toISOString(), termsVersion: TERMS_VERSION };
         window.currentUser = activeUser;
+        button.removeAttribute('aria-busy');
+        button.textContent = original;
         hide('tosModal');
         startApp();
         if (!activeUser.fullName) maybeOfferProfileSetup();
       } catch (error) {
+        if (!expectedOwnerBoundaryIsCurrent(authBoundary, termsAcceptanceGeneration)) return;
         window.showToast?.(error.message, 'error');
         button.disabled = false;
+        button.removeAttribute('aria-busy');
         button.textContent = original;
       }
     });
@@ -1765,18 +1916,37 @@
     const button = byId('onboardingContinueBtn');
     const skip = byId('onboardingSkipBtn');
     const original = button?.textContent || 'Save name';
+    onboardingProfileGeneration += 1;
+    const generation = onboardingProfileGeneration;
+    onboardingProfileController?.abort?.();
+    const controller = new AbortController();
+    onboardingProfileController = controller;
+    const authBoundary = captureOnboardingAuthBoundary(generation);
+    if (!authBoundary.ownerId) {
+      onboardingProfileController = null;
+      setText('onboardingError', 'Your account changed. Reopen profile setup and try again.');
+      return;
+    }
     if (button) {
       button.disabled = true;
+      button.setAttribute('aria-busy', 'true');
       button.textContent = 'Saving…';
     }
     if (skip) skip.disabled = true;
     try {
       const {response, data} = await authRequest('/api/account/profile', {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Ask-Crump-Expected-Owner': authBoundary.ownerId,
+        },
         body: JSON.stringify({ fullName: name }),
+        signal: controller.signal,
       }, 'Saving your profile took too long. Try again or choose Not now.');
+      if (!onboardingAuthBoundaryIsCurrent(authBoundary)) return;
       if (!response.ok || !data.success) throw new Error(data.error || 'Could not save your profile.');
+      const responseOwnerId = String(data.user?.id || authBoundary.ownerId).trim();
+      if (responseOwnerId !== authBoundary.ownerId) return;
       activeUser = data.user || { ...activeUser, fullName: name };
       window.currentUser = activeUser;
       window.profileManager?.updateProfile?.({ name, email: activeUser.email, initial: name.charAt(0).toUpperCase() });
@@ -1784,10 +1954,14 @@
       try { localStorage.removeItem(profileNudgeKey()); } catch (_) {}
       startApp();
     } catch (error) {
+      if (!onboardingAuthBoundaryIsCurrent(authBoundary)) return;
       setText('onboardingError', error.message || 'Could not save your name. Try again or choose Not now.');
     } finally {
+      if (onboardingProfileController === controller) onboardingProfileController = null;
+      if (!onboardingAuthBoundaryIsCurrent(authBoundary)) return;
       if (button) {
         button.disabled = false;
+        button.removeAttribute('aria-busy');
         button.textContent = original;
       }
       if (skip) skip.disabled = false;
@@ -1806,12 +1980,14 @@
 
   window.logoutUser = async function logoutUser() {
     try {
-      await window.deviceAuth.logout();
+      const result = await window.deviceAuth.logout();
+      if (result?.stale) return;
     } catch (error) {
       console.warn('[Auth] Sign-out confirmation unavailable:', error);
-    } finally {
-      location.replace('/app');
+      const currentOwner = String(window.CrumpAuthBoundary?.authenticatedUserId?.() || '').trim();
+      if (currentOwner) return;
     }
+    location.replace('/app');
   };
 
   window.restartTutorial = function restartTutorial() {

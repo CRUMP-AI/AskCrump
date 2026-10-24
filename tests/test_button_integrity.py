@@ -29,7 +29,7 @@ EXPECTED_BUTTON_INVENTORY = {
     "public/crump-product-5.3.js": 61,
     "public/crump-vision-home-1.0.js": 1,
     "public/crump-vision-library-1.0.js": 6,
-    "public/crump-vision-projects-1.0.js": 5,
+    "public/crump-vision-projects-1.0.js": 6,
     "public/crump-vision-shell-1.0.js": 7,
     "public/crump-vision-studios-1.0.js": 5,
     "public/crump-vision-you-1.0.js": 6,
@@ -60,44 +60,44 @@ DYNAMIC_BUTTON_INVENTORY = {
     "public/ui-functions.js": 16,
 }
 INDIRECT_DYNAMIC_BUTTON_OWNERS = {
-    "public/crump-5.0.js:2003:close": (
+    "public/crump-5.0.js:2027:close": (
         "mountLightbox(box, close);",
         "closeButton.addEventListener('click', dismiss)",
     ),
-    "public/crump-5.0.js:2096:close": (
+    "public/crump-5.0.js:2120:close": (
         "mountLightbox(box, close);",
         "closeButton.addEventListener('click', dismiss)",
     ),
-    "public/crump-5.0.js:2473:project": (
+    "public/crump-5.0.js:2507:project": (
         "wireOutputProjectAction(project, {",
         "button.addEventListener('click', async () => {",
     ),
-    "public/crump-5.2.js:669:buy": (
+    "public/crump-5.2.js:736:buy": (
         "buy.dataset.crumpPack =",
         "modal.addEventListener('click', event => {",
         "event.target.closest?.('[data-crump-pack]')",
     ),
-    "public/crump-code-5.9.35.js:355:button": (
+    "public/crump-code-5.9.35.js:358:button": (
         "button.dataset.crumpCodeTask =",
         "byId('crumpCodeTaskList')?.addEventListener('click'",
         "event.target.closest?.('[data-crump-code-task]')",
     ),
-    "public/crump-code-5.9.35.js:399:button": (
+    "public/crump-code-5.9.35.js:402:button": (
         "button.dataset.codeApproval =",
         "byId('crumpCodeDetail')?.addEventListener('click'",
         "event.target.closest?.('[data-code-approval]')",
     ),
-    "public/crump-code-5.9.35.js:513:download": (
+    "public/crump-code-5.9.35.js:516:download": (
         "download.dataset.codeAction = 'download'",
         "byId('crumpCodeDetail')?.addEventListener('click'",
         "button.dataset.codeAction === 'download'",
     ),
-    "public/crump-code-5.9.35.js:543:run": (
+    "public/crump-code-5.9.35.js:546:run": (
         "run.dataset.codeAction = 'run'",
         "byId('crumpCodeDetail')?.addEventListener('click'",
         "button.dataset.codeAction === 'run'",
     ),
-    "public/crump-code-5.9.35.js:561:cancel": (
+    "public/crump-code-5.9.35.js:564:cancel": (
         "cancel.dataset.codeAction = 'cancel'",
         "byId('crumpCodeDetail')?.addEventListener('click'",
         "button.dataset.codeAction === 'cancel'",
@@ -108,11 +108,11 @@ INDIRECT_DYNAMIC_BUTTON_OWNERS = {
         "event.target.closest?.('.crump531-chat-menu-button')",
     ),
     # Detached state controller owned by the explicit lifecycle Project action.
-    "public/ui-functions.js:773:projectButton": (
+    "public/ui-functions.js:829:projectButton": (
         "keepLatestInProject: () => keepLatestOutcomeInProject()",
         "return performOutcomeProjectAction(projectButton)",
     ),
-    "public/ui-functions.js:358:submit": (
+    "public/ui-functions.js:401:submit": (
         "submit.type = 'submit'",
         "form.addEventListener('submit', async event => {",
     ),
@@ -304,7 +304,7 @@ def test_rendered_button_inventory_requires_explicit_review() -> None:
             inventory[page.relative_to(ROOT).as_posix()] = len(parser.buttons)
 
     assert inventory == EXPECTED_BUTTON_INVENTORY
-    assert sum(inventory.values()) == 226
+    assert sum(inventory.values()) == 227
 
 
 def test_programmatically_created_button_inventory_requires_explicit_review() -> None:
@@ -316,7 +316,7 @@ def test_programmatically_created_button_inventory_requires_explicit_review() ->
 
     assert inventory == DYNAMIC_BUTTON_INVENTORY
     assert sum(inventory.values()) == 104
-    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 330
+    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 331
 
 
 def test_programmatically_created_buttons_declare_type_and_runtime_owner() -> None:
@@ -651,7 +651,7 @@ def test_browser_control_matrix_is_fail_closed_and_one_command() -> None:
     workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     verifier_names = sorted(path.name for path in (ROOT / "scripts").glob("verify-*.cjs"))
 
-    assert len(verifier_names) == 60
+    assert len(verifier_names) == 64
     for name in verifier_names:
         assert f"'{name}'" in runner
     assert "Browser verifier inventory drifted." in runner
@@ -754,7 +754,7 @@ def test_library_layout_buttons_expose_their_selected_state() -> None:
 
 
 def test_library_new_button_release_is_loaded_only_on_library_entry() -> None:
-    asset = "/crump-library-5.7.js?v=5.9.76-library-reconciliation-1"
+    asset = "/crump-library-5.7.js?v=5.9.76-account-owner-boundary-1"
     loader = (PUBLIC / "crump-library-loader.js").read_text(encoding="utf-8")
 
     assert asset in loader

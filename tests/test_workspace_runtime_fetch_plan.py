@@ -1,3 +1,4 @@
+from hashlib import sha256
 from pathlib import Path
 
 
@@ -53,11 +54,11 @@ def test_parallel_runtime_asset_is_versioned_for_web_pwa_and_native():
     worker = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
 
-    asset = "/runtime-body-v1.js?v=5.9.76-precision-ai-persistence-1"
+    asset = "/runtime-body-v1.js?v=5.9.76-account-owner-boundary-1"
     assert asset in shell
     assert asset in worker
-    assert "ask-crump-new-body-v1-r270-guest-admission-1" in worker
-    assert "ask-crump-new-body-v1-r270-guest-admission-1" in checker
+    assert "ask-crump-new-body-v1-r273-account-owner-boundary-1" in worker
+    assert "ask-crump-new-body-v1-r273-account-owner-boundary-1" in checker
 
 
 def test_runtime_fetch_fixture_is_credential_free_and_measures_the_full_plan():
@@ -91,7 +92,7 @@ def test_runtime_fetch_fixture_is_credential_free_and_measures_the_full_plan():
     assert "evidence.preloadCount, 35" in verifier
     assert "mode === 'style-retry' ? 22 : 21" in verifier
     assert "mode === 'script-retry' ? 36 : 35" in verifier
-    assert "evidence.lastScript, '/crump-activity-center-1.0.js?v=5.9.76-autonomous-continuity-1'" in verifier
+    assert "evidence.lastScript, '/crump-activity-center-1.0.js?v=5.9.76-private-owner-boundary-1'" in verifier
     assert "evidence.styleAttempts, mode === 'style-retry' ? 2 : 1" in verifier
     assert "evidence.scriptAttempts, mode === 'script-retry' ? 2 : 1" in verifier
     assert "failureMessage: 'Ask Crump could not finish loading your workspace." in verifier
@@ -122,28 +123,37 @@ def test_returning_workspace_uses_precache_without_staling_the_shell():
     assert "password" not in verifier.lower()
 
 
-def test_image_studio_entry_replaces_the_frozen_r252_runtime_cache():
+def test_owner_boundary_release_replaces_frozen_r272_on_first_controlled_load_and_offline_return():
     verifier = read("scripts/verify-image-studio-entry-cache-upgrade.cjs")
+    frozen_worker_path = ROOT / "tests" / "fixtures" / "sw-r272-project-resume.js"
     matrix = read("scripts/verify-browser-control-matrix.mjs")
 
-    assert "oldCacheName = 'ask-crump-new-body-v1-r252'" in verifier
-    assert "newCacheName = 'ask-crump-new-body-v1-r270-guest-admission-1'" in verifier
-    for old_url in (
-        "/runtime-body-v1.js?v=5.9.76-reference-fidelity-hard-contract-1",
-        "/crump-navigation-5.9.30.js?v=5.9.76-navigation-discovery-1",
-        "/auth-controller.js?v=5.9.76-facebook-reel-attribution-1",
-    ):
-        assert old_url in verifier
-    for new_url in (
-        "/runtime-body-v1.js?v=5.9.76-precision-ai-persistence-1",
-        "/crump-navigation-5.9.30.js?v=5.9.76-atelier-workspace-1",
-        "/auth-controller.js?v=5.9.76-guest-admission-1",
-    ):
-        assert new_url in verifier
-    assert "detail: {kind, capturedAt}" in verifier
-    assert "if (creationKind !== 'image') dispatchPendingPlanIntent();" in verifier
-    assert "url.searchParams.delete('signup')" in verifier
-    assert "result.staleEntries" in verifier
+    assert frozen_worker_path.is_file()
+    assert sha256(frozen_worker_path.read_bytes()).hexdigest().upper() == (
+        "410669F9B5990C62F6311B9F325A6D9BAD0F0921180B0B6A84BA9C0F94B0716F"
+    )
+    assert "tests', 'fixtures', 'sw-r272-project-resume.js'" in verifier
+    assert "previous.cache, 'ask-crump-new-body-v1-r272-project-resume-auth-boundary-1'" in verifier
+    assert "current.cache, 'ask-crump-new-body-v1-r273-account-owner-boundary-1'" in verifier
+    assert "const installGatePath = '/delete-account.html'" in verifier
+    assert "fixture.holdInstall()" in verifier
+    assert "gateObserved" in verifier
+    assert "firstControlled.controllerChanges, 0" in verifier
+    assert "assertRuntimeExecuted(page, oldWorkerPath)" in verifier
+    assert "current.sync" in verifier
+    assert "current.chat" in verifier
+    assert "current.profile" in verifier
+    assert "current.presence" in verifier
+    assert "current.account" in verifier
+    assert "current.app" in verifier
+    assert "current.authController" in verifier
+    assert "cached.libraryJs" in verifier
+    assert "cached.codeLoader" in verifier
+    assert "firstLoadRequestStart" in verifier
+    assert "Only after the old r272 controller" in verifier
+    assert "context.setOffline(true)" in verifier
+    assert "offlineReturn" in verifier
+    assert "currentAssetsReturnedOffline: true" in verifier
     assert "verify-image-studio-entry-cache-upgrade.cjs" in matrix
 
 

@@ -144,12 +144,196 @@ let isProcessing = false;
 let freshConversationRequested = false;
 let settingsBaselineSignature = '';
 let settingsIdentityRequest = null;
+let settingsIdentityGeneration = 0;
+let settingsSaveController = null;
 let settingsReturnFocus = null;
 let settingsBackgroundState = [];
 window.chats = chats;
 window.currentChatId = currentChatId;
 window.STORAGE_KEYS = STORAGE_KEYS;
 const previewObjectUrls = new Set();
+
+function captureAppAuthBoundary() {
+    const boundary = window.CrumpAuthBoundary;
+    const ownerId = String(
+        typeof boundary?.authenticatedUserId === 'function'
+            ? boundary.authenticatedUserId()
+            : window.currentUser?.id || ''
+    ).trim();
+    const rawRevision = typeof boundary?.revision === 'function' ? boundary.revision() : 0;
+    const revision = Number(rawRevision);
+    return Object.freeze({
+        ownerId,
+        revision: Number.isFinite(revision) ? revision : 0,
+        settingsIdentityGeneration,
+    });
+}
+
+function captureConversationAuthBoundary() {
+    const boundary = window.CrumpAuthBoundary;
+    const ownerId = String(
+        typeof boundary?.authenticatedUserId === 'function'
+            ? boundary.authenticatedUserId()
+            : window.currentUser?.id || ''
+    ).trim();
+    const rawRevision = typeof boundary?.revision === 'function' ? boundary.revision() : 0;
+    const revision = Number(rawRevision);
+    return Object.freeze({ownerId, revision: Number.isFinite(revision) ? revision : 0});
+}
+
+function conversationAuthBoundaryIsCurrent(snapshot) {
+    if (!snapshot?.ownerId) return false;
+    const current = captureConversationAuthBoundary();
+    return current.ownerId === snapshot.ownerId && current.revision === snapshot.revision;
+}
+
+function conversationBoundaryAbortError() {
+    return Object.assign(
+        new Error('This message belongs to a previous authentication session.'),
+        {name: 'AbortError', quiet: true},
+    );
+}
+
+function appAuthBoundaryIsCurrent(snapshot) {
+    if (!snapshot?.ownerId || snapshot.settingsIdentityGeneration !== settingsIdentityGeneration) return false;
+    const current = captureAppAuthBoundary();
+    return current.ownerId === snapshot.ownerId && current.revision === snapshot.revision;
+}
+
+function bindProfileManagerToAuthenticatedUser(user) {
+    const ownerId = String(user?.id || '').trim();
+    const manager = currentProfile || window.profileManager || window.currentProfile || null;
+    if (!ownerId || !manager) return manager;
+    manager.bindOwner?.(ownerId);
+    currentProfile = manager;
+    window.currentProfile = manager;
+    window.profileManager = manager;
+    return manager;
+}
+
+function neutralGreetingText() {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning.';
+    if (hour < 17) return 'Good afternoon.';
+    return 'Good evening.';
+}
+
+function scrubProfileAndSettingsAuthBoundary() {
+    settingsIdentityGeneration += 1;
+    settingsIdentityRequest = null;
+    settingsSaveController?.abort?.();
+    settingsSaveController = null;
+
+    const manager = currentProfile || window.profileManager || window.currentProfile || null;
+    manager?.scrubOwner?.();
+    if (manager) {
+        currentProfile = manager;
+        window.currentProfile = manager;
+        window.profileManager = manager;
+    }
+
+    const modal = document.getElementById('settingsModal');
+    const focusedInSettings = Boolean(modal?.contains(document.activeElement));
+    if (modal) {
+        modal.style.display = 'none';
+        modal.setAttribute('aria-hidden', 'true');
+    }
+    restoreSettingsBackground();
+    if (focusedInSettings && typeof document.activeElement?.blur === 'function') {
+        document.activeElement.blur();
+    }
+    settingsReturnFocus = null;
+    settingsBaselineSignature = '';
+
+    document.querySelectorAll('[data-v1-settings-tab]').forEach(button => {
+        const active = button.dataset.v1SettingsTab === 'profile';
+        button.classList.toggle('is-active', active);
+        if (active) button.setAttribute('aria-current', 'page');
+        else button.removeAttribute('aria-current');
+    });
+    document.querySelectorAll('[data-v1-settings-panel]').forEach(panel => {
+        const active = panel.dataset.v1SettingsPanel === 'profile';
+        panel.classList.toggle('is-active', active);
+        panel.hidden = !active;
+    });
+
+    for (const id of SETTINGS_EDITABLE_IDS) {
+        const field = document.getElementById(id);
+        if (!field) continue;
+        if (field.type === 'checkbox') field.checked = false;
+        else field.value = '';
+        field.removeAttribute('aria-busy');
+    }
+    const email = document.getElementById('settingsEmail');
+    if (email) {
+        email.value = '';
+        email.readOnly = true;
+        email.removeAttribute('aria-busy');
+        email.placeholder = 'Sign in to view account email';
+    }
+    const saveButton = document.getElementById('saveSettingsBtn');
+    if (saveButton) {
+        delete saveButton.dataset.settingsSaving;
+        saveButton.disabled = true;
+        saveButton.hidden = false;
+        saveButton.removeAttribute('aria-busy');
+        saveButton.setAttribute('aria-disabled', 'true');
+        saveButton.title = 'No changes to save';
+        saveButton.textContent = 'Save changes';
+    }
+    const workHours = document.getElementById('workHoursGroup');
+    if (workHours) workHours.style.display = 'none';
+
+    document.querySelectorAll('.assistant-name').forEach(element => { element.textContent = 'Crump'; });
+    const composer = document.getElementById('userInput');
+    if (composer) {
+        composer.placeholder = 'Message Crump';
+        composer.setAttribute('aria-label', 'Message Crump');
+    }
+    const greeting = document.getElementById('v1Greeting');
+    if (greeting) greeting.textContent = neutralGreetingText();
+
+    // These modules own their own private memory and in-flight requests. The
+    // direct calls cover the brief interval before their idempotent boundary
+    // registrations are established during deferred runtime startup.
+    window.CrumpPresence?.scrubAuthBoundary?.();
+    window.CrumpAccountBoundary?.scrubAuthBoundary?.();
+}
+
+// Authentication changes must clear the live conversation projection without
+// touching either account's durable, owner-scoped cache. Projects and other
+// private views may remain mounted while a new HttpOnly session becomes
+// authoritative, so this API deliberately owns both app.js's lexical state and
+// the visible legacy conversation DOM.
+function scrubConversationAuthBoundary() {
+    scrubProfileAndSettingsAuthBoundary();
+    scrubVoiceAuthBoundary();
+    chats = [];
+    currentChatId = null;
+    window.chats = chats;
+    window.currentChatId = null;
+    window.__crumpSyncData = null;
+    if (window.syncDebounceTimer) {
+        window.clearTimeout(window.syncDebounceTimer);
+        window.syncDebounceTimer = null;
+    }
+    document.getElementById('chatsList')?.replaceChildren();
+    try { window.renderMessages?.([]); } catch (_) {}
+    // A renderer may be absent, stale, or layered by an enhancement. Emptying
+    // the authoritative container last guarantees no prior owner's messages
+    // survive until the next account explicitly opens one of its own chats.
+    document.getElementById('chatContainer')?.replaceChildren();
+}
+window.CrumpConversationState = Object.freeze({
+    scrubAuthBoundary: scrubConversationAuthBoundary,
+    checkSessionHealth: (...args) => checkSessionHealth(...args),
+});
+window.CrumpProfileState = Object.freeze({
+    bindAuthenticatedUser: bindProfileManagerToAuthenticatedUser,
+    scrubAuthBoundary: scrubProfileAndSettingsAuthBoundary,
+});
+window.CrumpAuthBoundary?.register?.('workspace-conversations', scrubConversationAuthBoundary);
+
 const COMPOSER_SCAFFOLDS = Object.freeze({
     image: 'Generate an image of ',
     research: 'Search the web for ',
@@ -219,9 +403,12 @@ window.initializeAuthenticatedApp = function(user) {
     window.currentUser = user;
     window.configureUserStorage?.(user.id);
 
-    // Sync subscription from server to profile manager
-    if (window.profileManager && typeof window.profileManager.applyServerSubscription === 'function') {
-        window.profileManager.applyServerSubscription(user);
+    // Rebind before any server fallback can read or write the retained
+    // manager. A same-document account change must start from this owner's
+    // cache (or defaults), never the previous owner's in-memory profile.
+    const profileManager = bindProfileManagerToAuthenticatedUser(user);
+    if (profileManager && typeof profileManager.applyServerSubscription === 'function') {
+        profileManager.applyServerSubscription(user);
     }
 
     // Sync is server-authoritative. This call is safe before or after initializeApp().
@@ -642,14 +829,19 @@ function checkInBeingAnswered(chat, userMessage) {
     return null;
 }
 
-async function ensureUsageAvailable() {
+async function ensureUsageAvailable(authBoundary = captureConversationAuthBoundary()) {
     if (window.CrumpChatTransport?.ensureUsage) {
-        return window.CrumpChatTransport.ensureUsage();
+        return window.CrumpChatTransport.ensureUsage({expectedOwnerId: authBoundary.ownerId});
     }
     const controller = new AbortController();
     const timeoutId = window.setTimeout(() => controller.abort(), USAGE_PREFLIGHT_TIMEOUT_MS);
     try {
-        const usageResponse = await fetch('/api/usage/check', {signal: controller.signal});
+        const usageResponse = await fetch('/api/usage/check', {
+            signal: controller.signal,
+            headers: authBoundary.ownerId
+                ? {'X-Ask-Crump-Expected-Owner': authBoundary.ownerId}
+                : {},
+        });
         if (usageResponse.status === 401) throw new Error('Your session expired. Please sign in again.');
         const usageData = await usageResponse.json().catch(() => ({}));
         if (usageResponse.ok && usageData.limits?.messages !== -1 && usageData.usage?.messages >= usageData.limits?.messages) {
@@ -763,13 +955,15 @@ async function recordFirstSuccessfulResponse() {
     if (recorded) SafeStorage.setItem(STORAGE_KEYS.ACTIVATION_RECORDED, 'true');
 }
 
-async function processUserMessage(chat, userMessage, attachment = null) {
+async function processUserMessage(chat, userMessage, attachment = null, authBoundary = captureConversationAuthBoundary()) {
+    if (!conversationAuthBoundaryIsCurrent(authBoundary)) throw conversationBoundaryAbortError();
     if (!navigator.onLine || window.CrumpPresence?.online === false) {
         updateMessageState(chat, userMessage, { deliveryStatus: 'queued', replyStatus: 'pending' });
         throw Object.assign(new Error('This message is waiting for a connection.'), { quiet: true });
     }
 
     const syncResult = await window.syncChatsToServer?.();
+    if (!conversationAuthBoundaryIsCurrent(authBoundary)) throw conversationBoundaryAbortError();
     if (syncResult && syncResult.success === false) {
         updateMessageState(chat, userMessage, { deliveryStatus: 'queued', replyStatus: 'pending' });
         throw Object.assign(new Error('This message is waiting to sync.'), { quiet: true });
@@ -784,7 +978,8 @@ async function processUserMessage(chat, userMessage, attachment = null) {
         messageId: userMessage.id,
         message: userMessage.content || '',
         fileTypes: (userMessage.files || []).map(file => file.type),
-    });
+    }, {expectedOwnerId: authBoundary.ownerId});
+    if (!conversationAuthBoundaryIsCurrent(authBoundary)) throw conversationBoundaryAbortError();
     updateMessageState(chat, userMessage, {
         deliveryStatus: 'seen',
         deliveredAt: ackData.deliveredAt,
@@ -810,13 +1005,16 @@ async function processUserMessage(chat, userMessage, attachment = null) {
     };
     if (attachment) requestBody.fileData = [attachment];
 
-    const data = await transport.send(requestBody);
+    const data = await transport.send(requestBody, {expectedOwnerId: authBoundary.ownerId});
+    if (!conversationAuthBoundaryIsCurrent(authBoundary)) throw conversationBoundaryAbortError();
     applyCompletedReplySafely(chat, userMessage, data);
     window.CrumpAccess?.applyServerAllowance?.(data);
 }
 
 async function sendMessage() {
     if (isProcessing) return;
+    const authBoundary = captureConversationAuthBoundary();
+    if (!authBoundary.ownerId) return;
     const userInput = document.getElementById('userInput');
     const message = userInput?.value.trim() || '';
     if (!message && selectedFiles.length === 0) return;
@@ -838,12 +1036,15 @@ async function sendMessage() {
     let userMessage = null;
 
     try {
-        await ensureUsageAvailable();
+        await ensureUsageAvailable(authBoundary);
+        if (!conversationAuthBoundaryIsCurrent(authBoundary)) throw conversationBoundaryAbortError();
         let attachment = null;
         if (selectedFiles.length) {
             const file = selectedFiles[0];
             attachment = { type: file.type, name: file.name, data: await readFileAsBase64(file) };
+            if (!conversationAuthBoundaryIsCurrent(authBoundary)) throw conversationBoundaryAbortError();
         }
+        if (!conversationAuthBoundaryIsCurrent(authBoundary)) throw conversationBoundaryAbortError();
         chat = chats.find(item => item.id === currentChatId) || ensureCurrentChat();
 
         userMessage = {
@@ -869,8 +1070,9 @@ async function sendMessage() {
         selectedFiles = [];
         displayFilePreview();
 
-        await processUserMessage(chat, userMessage, attachment);
+        await processUserMessage(chat, userMessage, attachment, authBoundary);
     } catch (error) {
+        if (!conversationAuthBoundaryIsCurrent(authBoundary)) return;
         console.error('[Chat]', error);
         window.CrumpAccess?.onChatError?.(error);
         window.CrumpPresence?.stop?.();
@@ -903,6 +1105,8 @@ async function sendMessage() {
 
 window.retryMessage = async function retryMessage(id) {
     if (isProcessing || !id) return;
+    const authBoundary = captureConversationAuthBoundary();
+    if (!authBoundary.ownerId) return;
     const chat = chats.find(item => item.id === currentChatId);
     const message = chat?.messages.find(item => item.id === id && item.role === 'user');
     if (!chat || !message) return;
@@ -913,15 +1117,20 @@ window.retryMessage = async function retryMessage(id) {
     isProcessing = true;
     window.CrumpLifecycle?.suppressActiveWork?.();
     try {
-        const recovered = await window.CrumpChatTransport?.recover?.(id);
+        const recovered = await window.CrumpChatTransport?.recover?.(id, {
+            expectedOwnerId: authBoundary.ownerId,
+        });
+        if (!conversationAuthBoundaryIsCurrent(authBoundary)) return;
         if (recovered) {
             applyCompletedReplySafely(chat, message, recovered);
             return;
         }
-        await ensureUsageAvailable();
+        await ensureUsageAvailable(authBoundary);
+        if (!conversationAuthBoundaryIsCurrent(authBoundary)) return;
         updateMessageState(chat, message, { deliveryStatus: 'sending', replyStatus: 'pending', replyError: null });
-        await processUserMessage(chat, message, null);
+        await processUserMessage(chat, message, null, authBoundary);
     } catch (error) {
+        if (!conversationAuthBoundaryIsCurrent(authBoundary)) return;
         console.error('[Chat retry]', error);
         window.CrumpAccess?.onChatError?.(error);
         window.CrumpPresence?.stop?.();
@@ -1083,7 +1292,8 @@ window.removeFile = function removeFile(index) {
 let activeVoiceAudio = null;
 let activeVoiceObjectUrl = '';
 let voiceRequestSequence = 0;
-let premiumVoiceCapability = {available: false, checkedAt: 0};
+let activeVoiceController = null;
+let premiumVoiceCapability = {available: false, checkedAt: 0, ownerId: ''};
 
 function clearPremiumVoice() {
     if (activeVoiceAudio) {
@@ -1095,6 +1305,22 @@ function clearPremiumVoice() {
         URL.revokeObjectURL(activeVoiceObjectUrl);
         activeVoiceObjectUrl = '';
     }
+}
+
+function scrubVoiceAuthBoundary() {
+    voiceRequestSequence += 1;
+    activeVoiceController?.abort?.();
+    activeVoiceController = null;
+    premiumVoiceCapability = {available: false, checkedAt: 0, ownerId: ''};
+    clearPremiumVoice();
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+}
+
+function voiceOperationIsCurrent(requestId, authBoundary, controller) {
+    return requestId === voiceRequestSequence
+        && controller === activeVoiceController
+        && !controller?.signal?.aborted
+        && conversationAuthBoundaryIsCurrent(authBoundary);
 }
 
 function speakWithDeviceVoice(text, notice = 'Reading response...') {
@@ -1125,23 +1351,35 @@ function speakWithDeviceVoice(text, notice = 'Reading response...') {
     return true;
 }
 
-async function canUsePremiumVoice() {
+async function canUsePremiumVoice(authBoundary, controller) {
+    if (!conversationAuthBoundaryIsCurrent(authBoundary)) return false;
     const now = Date.now();
-    if (now - premiumVoiceCapability.checkedAt < 5 * 60 * 1000) {
+    if (premiumVoiceCapability.ownerId === authBoundary.ownerId
+        && now - premiumVoiceCapability.checkedAt < 5 * 60 * 1000) {
         return premiumVoiceCapability.available;
     }
     try {
-        const response = await fetch('/api/features', {credentials: 'same-origin'});
+        const response = await fetch('/api/features', {
+            credentials: 'same-origin',
+            headers: {'X-Ask-Crump-Expected-Owner': authBoundary.ownerId},
+            signal: controller.signal,
+        });
         const data = response.ok ? await response.json() : {};
+        if (!conversationAuthBoundaryIsCurrent(authBoundary) || controller.signal.aborted) return false;
         const feature = data?.features?.premium_voice || {};
         premiumVoiceCapability = {
             available: Boolean(feature.configured && feature.entitled),
             checkedAt: now,
+            ownerId: authBoundary.ownerId,
         };
     } catch (_) {
-        premiumVoiceCapability = {available: false, checkedAt: now};
+        if (!controller.signal.aborted && conversationAuthBoundaryIsCurrent(authBoundary)) {
+            premiumVoiceCapability = {available: false, checkedAt: now, ownerId: authBoundary.ownerId};
+        }
     }
-    return premiumVoiceCapability.available;
+    return conversationAuthBoundaryIsCurrent(authBoundary)
+        && premiumVoiceCapability.ownerId === authBoundary.ownerId
+        && premiumVoiceCapability.available;
 }
 
 // Read assistant responses aloud. Premium voice is requested only after this
@@ -1149,16 +1387,23 @@ async function canUsePremiumVoice() {
 window.speakText = async function(text) {
     const readable = String(text || '').trim();
     if (!readable) return;
+    const authBoundary = captureConversationAuthBoundary();
+    if (!conversationAuthBoundaryIsCurrent(authBoundary)) return;
     voiceRequestSequence += 1;
     const requestId = voiceRequestSequence;
+    activeVoiceController?.abort?.();
+    const controller = new AbortController();
+    activeVoiceController = controller;
     clearPremiumVoice();
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     if (readable.length > 4000) {
-        speakWithDeviceVoice(readable, 'Using your device voice for this longer response.');
+        if (voiceOperationIsCurrent(requestId, authBoundary, controller)) {
+            speakWithDeviceVoice(readable, 'Using your device voice for this longer response.');
+        }
         return;
     }
-    const premiumAvailable = await canUsePremiumVoice();
-    if (requestId !== voiceRequestSequence) return;
+    const premiumAvailable = await canUsePremiumVoice(authBoundary, controller);
+    if (!voiceOperationIsCurrent(requestId, authBoundary, controller)) return;
     if (!premiumAvailable) {
         speakWithDeviceVoice(readable);
         return;
@@ -1170,17 +1415,28 @@ window.speakText = async function(text) {
             const response = await fetch('/api/voice/synthesize', {
                 method: 'POST',
                 credentials: 'same-origin',
-                headers: {'Content-Type': 'application/json'},
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Ask-Crump-Expected-Owner': authBoundary.ownerId,
+                },
                 body: JSON.stringify({
                     text: readable,
                     idempotencyKey,
                     ...(creditConfirmation ? {creditConfirmation} : {}),
                 }),
+                signal: controller.signal,
             });
+            if (!voiceOperationIsCurrent(requestId, authBoundary, controller)) {
+                throw conversationBoundaryAbortError();
+            }
             if (!response.ok) {
                 const data = await response.json().catch(() => ({}));
                 if ([401, 403, 503].includes(response.status)) {
-                    premiumVoiceCapability = {available: false, checkedAt: Date.now()};
+                    premiumVoiceCapability = {
+                        available: false,
+                        checkedAt: Date.now(),
+                        ownerId: authBoundary.ownerId,
+                    };
                 }
                 const error = new Error(data.error || `Premium voice unavailable (${response.status})`);
                 error.code = data.code;
@@ -1191,30 +1447,32 @@ window.speakText = async function(text) {
             return response;
         };
         const response = window.CrumpCreditConfirmation?.run
-            ? await window.CrumpCreditConfirmation.run(execute)
+            ? await window.CrumpCreditConfirmation.run(execute, authBoundary)
             : await execute(null);
         const audioBlob = await response.blob();
-        if (requestId !== voiceRequestSequence || !audioBlob.size) return;
+        if (!voiceOperationIsCurrent(requestId, authBoundary, controller) || !audioBlob.size) return;
         activeVoiceObjectUrl = URL.createObjectURL(audioBlob);
         activeVoiceAudio = new Audio(activeVoiceObjectUrl);
         activeVoiceAudio.addEventListener('ended', clearPremiumVoice, {once: true});
         activeVoiceAudio.addEventListener('error', clearPremiumVoice, {once: true});
         await activeVoiceAudio.play();
+        if (!voiceOperationIsCurrent(requestId, authBoundary, controller)) {
+            clearPremiumVoice();
+            return;
+        }
         showToast('Reading with Crump Voice...', 'info');
     } catch (_) {
-        if (requestId === voiceRequestSequence) {
+        if (voiceOperationIsCurrent(requestId, authBoundary, controller)) {
             clearPremiumVoice();
             speakWithDeviceVoice(readable, 'Using your device voice.');
         }
+    } finally {
+        if (activeVoiceController === controller) activeVoiceController = null;
     }
 };
 
 window.stopSpeaking = function() {
-    voiceRequestSequence += 1;
-    clearPremiumVoice();
-    if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-    }
+    scrubVoiceAuthBoundary();
 };
 
 // Quick Actions
@@ -1415,35 +1673,52 @@ function scheduleSettingsIdentityPresentation() {
 async function restoreSettingsIdentity() {
     const emailField = document.getElementById('settingsEmail');
     if (!emailField || String(emailField.value || '').trim() || settingsIdentityRequest) return settingsIdentityRequest;
+    const authBoundary = captureAppAuthBoundary();
+    if (!authBoundary.ownerId) return null;
     emailField.setAttribute('aria-busy', 'true');
     emailField.placeholder = 'Confirming account email…';
-    settingsIdentityRequest = Promise.resolve()
-        .then(() => window.deviceAuth?.checkSession?.())
+    const request = Promise.resolve()
+        // This identity fill is speculative UI work, not an authentication
+        // transition. A delayed response must never commit an old account into
+        // DeviceAuth's shared session/cache after another tab or login switched
+        // the authoritative browser cookie.
+        .then(() => window.deviceAuth?.checkSession?.({commit: false}))
         .then(result => {
             const user = result?.authenticated ? result.data?.user : null;
             const userEmail = String(user?.email || '').trim();
-            if (!userEmail) return;
+            if (!userEmail || String(user?.id || '').trim() !== authBoundary.ownerId
+                || !appAuthBoundaryIsCurrent(authBoundary)) return;
             window.currentUser = { ...(window.currentUser || {}), ...user };
             window.configureUserStorage?.(user.id);
-            currentProfile?.updateProfile?.({
+            const profileManager = bindProfileManagerToAuthenticatedUser(user);
+            if (!appAuthBoundaryIsCurrent(authBoundary)) return;
+            profileManager?.updateProfile?.({
                 ...(user.fullName ? { name: user.fullName } : {}),
                 email: userEmail,
             });
+            if (!appAuthBoundaryIsCurrent(authBoundary)) return;
             emailField.value = userEmail;
         })
         .catch(() => {})
         .finally(() => {
+            if (settingsIdentityRequest !== request) return;
+            settingsIdentityRequest = null;
+            if (!appAuthBoundaryIsCurrent(authBoundary)) return;
             emailField.removeAttribute('aria-busy');
             syncSettingsIdentityPresentation();
-            settingsIdentityRequest = null;
         });
+    settingsIdentityRequest = request;
     return settingsIdentityRequest;
 }
 
 function loadSettingsValues() {
-    const profile = currentProfile?.getProfile?.() || {};
     const sessionUser = window.deviceAuth?.session?.user || {};
-    const user = { ...sessionUser, ...(window.currentUser || {}) };
+    const activeUser = window.currentUser || {};
+    const sameSessionOwner = String(sessionUser.id || '').trim()
+        && String(sessionUser.id || '').trim() === String(activeUser.id || '').trim();
+    const user = sameSessionOwner ? { ...sessionUser, ...activeUser } : { ...activeUser };
+    const profileManager = bindProfileManagerToAuthenticatedUser(user);
+    const profile = profileManager?.getProfile?.() || {};
     const settingsEmail = document.getElementById('settingsEmail');
     document.getElementById('settingsName').value = user.fullName || profile.name || '';
     settingsEmail.value = String(user.email || profile.email || '').trim();
@@ -1488,6 +1763,20 @@ window.addEventListener('crump:authenticated-ready', () => {
 window.saveSettings = async function() {
     const saveButton = document.getElementById('saveSettingsBtn');
     if (saveButton?.disabled || saveButton?.dataset.settingsSaving === 'true') return;
+    const authBoundary = captureAppAuthBoundary();
+    if (!authBoundary.ownerId || !appAuthBoundaryIsCurrent(authBoundary)) return;
+    const syncAuthBoundary = Object.freeze({
+        userId: authBoundary.ownerId,
+        revision: authBoundary.revision,
+    });
+    settingsSaveController?.abort?.();
+    const saveController = new AbortController();
+    settingsSaveController = saveController;
+    const saveIsCurrent = () => (
+        settingsSaveController === saveController
+        && !saveController.signal.aborted
+        && appAuthBoundaryIsCurrent(authBoundary)
+    );
     if (saveButton) {
         saveButton.dataset.settingsSaving = 'true';
         saveButton.disabled = true;
@@ -1495,7 +1784,7 @@ window.saveSettings = async function() {
         saveButton.textContent = 'Saving…';
     }
     const finishSaveAttempt = () => {
-        if (!saveButton) return;
+        if (!saveButton || !saveIsCurrent()) return;
         delete saveButton.dataset.settingsSaving;
         saveButton.removeAttribute('aria-busy');
         saveButton.textContent = 'Save changes';
@@ -1505,30 +1794,47 @@ window.saveSettings = async function() {
     const workMode = document.getElementById('workMode').checked;
     const workStart = document.getElementById('workStart').value;
     const workEnd = document.getElementById('workEnd').value;
-    SafeStorage.setItem(STORAGE_KEYS.ASSISTANT_NAME, assistantName);
-    SafeStorage.setItem(STORAGE_KEYS.WORK_MODE, String(workMode));
-    SafeStorage.setItem(STORAGE_KEYS.WORK_START, workStart);
-    SafeStorage.setItem(STORAGE_KEYS.WORK_END, workEnd);
+    const capturedStorageKeys = Object.freeze({
+        assistantName: STORAGE_KEYS.ASSISTANT_NAME,
+        workMode: STORAGE_KEYS.WORK_MODE,
+        workStart: STORAGE_KEYS.WORK_START,
+        workEnd: STORAGE_KEYS.WORK_END,
+    });
+    if (!saveIsCurrent()) return;
+    SafeStorage.setItem(capturedStorageKeys.assistantName, assistantName);
+    SafeStorage.setItem(capturedStorageKeys.workMode, String(workMode));
+    SafeStorage.setItem(capturedStorageKeys.workStart, workStart);
+    SafeStorage.setItem(capturedStorageKeys.workEnd, workEnd);
     let profileError = null;
     let syncError = null;
     let presenceError = null;
     try {
         if (window.currentUser && name && name !== window.currentUser.fullName) {
             const response = await fetch('/api/account/profile', {
-                method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ fullName: name }),
+                method: 'PATCH',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-Ask-Crump-Expected-Owner': authBoundary.ownerId,
+                },
+                body: JSON.stringify({ fullName: name }),
+                signal: saveController.signal,
             });
             const data = await response.json().catch(() => ({}));
+            if (!saveIsCurrent()) return;
             if (!response.ok || !data.success || !data.user) {
                 throw new Error(data.error || 'Your name could not be saved. Try again.');
             }
             window.currentUser = data.user;
         }
+        if (!saveIsCurrent()) return;
         if (currentProfile && name) currentProfile.updateProfile({ name, initial: name.charAt(0).toUpperCase() });
         if (name) window.dispatchEvent(new CustomEvent('crump:profile-updated'));
     } catch (error) {
+        if (!saveIsCurrent()) return;
         console.warn('[Profile settings]', error);
         profileError = error;
     }
+    if (!saveIsCurrent()) return;
     try {
         if (typeof window.SyncManager?.push !== 'function') {
             throw new Error('Cross-device settings sync is unavailable.');
@@ -1541,24 +1847,33 @@ window.saveSettings = async function() {
                 work_start: Number(workStart),
                 work_end: Number(workEnd),
             },
-        });
+        }, {authBoundary: syncAuthBoundary});
+        if (!saveIsCurrent()) return;
         if (syncResult?.success === false) {
             throw new Error(syncResult.error || 'Cross-device settings sync is pending.');
         }
     } catch (error) {
+        if (!saveIsCurrent()) return;
         console.warn('[Settings sync]', error);
         syncError = error;
     }
+    if (!saveIsCurrent()) return;
     try {
         if (typeof window.CrumpPresence?.savePreferences !== 'function') {
             throw new Error('Check-in preferences are unavailable.');
         }
-        await window.CrumpPresence.savePreferences();
+        await window.CrumpPresence.savePreferences({
+            ownerId: authBoundary.ownerId,
+            revision: authBoundary.revision,
+        });
+        if (!saveIsCurrent()) return;
     } catch (error) {
+        if (!saveIsCurrent()) return;
         console.warn('[Presence settings]', error);
         presenceError = error;
     }
 
+    if (!saveIsCurrent()) return;
     updateAssistantNameDisplay();
     updateUserAvatar();
     const unsavedAreas = [];
@@ -1576,6 +1891,7 @@ window.saveSettings = async function() {
         );
     }
     finishSaveAttempt();
+    if (settingsSaveController === saveController) settingsSaveController = null;
     syncSettingsSaveState();
 };
 
@@ -1642,22 +1958,51 @@ window.addEventListener('beforeunload', clearPreviewObjectUrls);
 // Session Health Check
 let tokenRefreshTimer = null;
 
+function scrubAndReloadForOwnerMismatch(reload = () => window.location.reload()) {
+    // The shared identity cache/native token may already belong to the next
+    // account. Scrub only this document's memory/DOM, then reload; do not
+    // clear another tab's or a just-completed native login's credentials.
+    window.CrumpAuthBoundary?.observe?.(null);
+    reload();
+}
+
+async function checkSessionHealth({reload} = {}) {
+    if (document.hidden || !window.currentUser) return {skipped: true};
+    const authBoundary = captureConversationAuthBoundary();
+    if (!conversationAuthBoundaryIsCurrent(authBoundary)) return {skipped: true};
+    try {
+        const response = await fetch('/api/auth/check-session', {
+            headers: {'X-Ask-Crump-Expected-Owner': authBoundary.ownerId},
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!conversationAuthBoundaryIsCurrent(authBoundary)) return {stale: true};
+        if (response.ok && data.authenticated && data.data?.user) {
+            if (String(data.data.user.id || '') !== authBoundary.ownerId) return {stale: true};
+            window.currentUser = data.data.user;
+            return {authenticated: true};
+        }
+        if (
+            response.status === 409
+            && (data.code === 'AUTH_OWNER_MISMATCH' || data.staleAuth === true)
+        ) {
+            scrubAndReloadForOwnerMismatch(reload);
+            return {stale: true, reloading: true};
+        }
+        if (response.status === 401) {
+            const cleared = await window.deviceAuth?.clearLocalState?.(authBoundary.ownerId);
+            if (cleared === false) return {stale: true};
+            window.location.href = '/app';
+            return {authenticated: false, reloading: true};
+        }
+        return {authenticated: false};
+    } catch (error) {
+        console.warn('[Auth] Session health check failed:', error);
+        return {error: true};
+    }
+}
+
 async function setupTokenRefresh() {
     if (tokenRefreshTimer) clearInterval(tokenRefreshTimer);
-    tokenRefreshTimer = setInterval(async () => {
-        if (document.hidden || !window.currentUser) return;
-        try {
-            const response = await fetch('/api/auth/check-session');
-            const data = await response.json().catch(() => ({}));
-            if (response.ok && data.authenticated && data.data?.user) {
-                window.currentUser = data.data.user;
-            } else if (response.status === 401) {
-                await window.deviceAuth?.clearLocalState?.();
-                window.location.href = '/app';
-            }
-        } catch (error) {
-            console.warn('[Auth] Session health check failed:', error);
-        }
-    }, 12 * 60 * 60 * 1000);
+    tokenRefreshTimer = setInterval(() => { void checkSessionHealth(); }, 12 * 60 * 60 * 1000);
 }
 window.setupTokenRefresh = setupTokenRefresh;

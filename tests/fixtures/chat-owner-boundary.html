@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Chat owner boundary fixture</title>
+</head>
+<body>
+  <aside id="chatsList"></aside>
+  <section id="chatContainer"></section>
+  <textarea id="userInput"></textarea>
+  <button id="sendButton" type="button">Send</button>
+  <button id="newChatBtn" type="button">New</button>
+  <button id="attachBtn" type="button">Attach</button>
+  <input id="fileInput" type="file">
+  <div id="filePreview"></div>
+  <div id="toastContainer"></div>
+  <script>
+    (() => {
+      'use strict';
+      const ownerA = '11111111-1111-4111-8111-111111111111';
+      const ownerB = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+      let serverOwner = ownerA;
+      let delayedChatResolve = null;
+      let delayedFileResolve = null;
+      const requests = [];
+      const serverMutations = [];
+      const allowanceOwners = [];
+
+      window.currentUser = {id: ownerA};
+      window.SafeStorage = {
+        getItem: key => localStorage.getItem(key),
+        setItem: (key, value) => localStorage.setItem(key, value),
+        removeItem: key => localStorage.removeItem(key),
+      };
+      window.renderMessages = () => {};
+      window.renderChatsList = () => {};
+      window.syncChatsToServer = () => Promise.resolve({success: true});
+      window.showToast = () => {};
+      window.CrumpAccess = {
+        applyServerAllowance: () => allowanceOwners.push(
+          window.CrumpAuthBoundary?.authenticatedUserId?.() || window.currentUser?.id || '',
+        ),
+        isFree: () => false,
+        requirePaidTool: () => true,
+        onChatError() {},
+      };
+      window.CrumpPresence = {update() {}};
+      const NativeFileReader = window.FileReader;
+      window.FileReader = class DelayedFileReader extends NativeFileReader {
+        readAsDataURL(file) {
+          delayedFileResolve = () => {
+            Object.defineProperty(this, 'result', {configurable: true, value: 'data:application/pdf;base64,QQ=='});
+            this.onload?.(new ProgressEvent('load'));
+          };
+        }
+      };
+
+      function response(body, status = 200) {
+        return Promise.resolve(new Response(JSON.stringify(body), {
+          status,
+          headers: {'Content-Type': 'application/json'},
+        }));
+      }
+
+      window.fetch = (input, options = {}) => {
+        const path = new URL(String(input), location.href).pathname;
+        const method = String(options.method || 'GET').toUpperCase();
+        const claim = new Headers(options.headers || {}).get('X-Ask-Crump-Expected-Owner') || '';
+        requests.push({path, method, claim, serverOwner});
+        if (claim !== serverOwner) {
+          return response({
+            success: false,
+            code: 'AUTH_OWNER_MISMATCH',
+            staleAuth: true,
+            retryable: true,
+            error: 'The signed-in account changed before this request began.',
+          }, 409);
+        }
+        if (path === '/api/usage/check') {
+          return response({success: true, usage: {messages: 0}, limits: {messages: 5}});
+        }
+        if (path === '/api/chat/ack') {
+          serverMutations.push({owner: serverOwner, path});
+          return response({success: true, deliveredAt: '2026-10-24T00:00:00Z', seenAt: '2026-10-24T00:00:00Z'});
+        }
+        if (path === '/api/chat' && window.__fixture.delayChat) {
+          serverMutations.push({owner: serverOwner, path});
+          return new Promise(resolve => { delayedChatResolve = resolve; });
+        }
+        if (path === '/api/chat') {
+          serverMutations.push({owner: serverOwner, path});
+          return response({success: true, response: 'safe reply'});
+        }
+        if (path.startsWith('/api/chat/status/')) {
+          return response({success: false, status: 'missing'}, 404);
+        }
+        return response({success: false, error: 'Unexpected request.'}, 500);
+      };
+
+      window.__fixture = {
+        ownerA,
+        ownerB,
+        requests,
+        serverMutations,
+        allowanceOwners,
+        delayChat: false,
+        sameOwner: async () => {
+          await window.CrumpChatTransport.ensureUsage({expectedOwnerId: ownerA});
+          await window.CrumpChatTransport.acknowledge({messageId: 'ack-a'}, {expectedOwnerId: ownerA});
+          return window.CrumpChatTransport.send({messageId: 'chat-a'}, {expectedOwnerId: ownerA});
+        },
+        cookieSkew: async () => {
+          serverOwner = ownerB;
+          try {
+            await window.CrumpChatTransport.send({messageId: 'stale-a'}, {expectedOwnerId: ownerA});
+            return {rejected: false};
+          } catch (error) {
+            return {rejected: true, code: error.code, status: error.status};
+          }
+        },
+        delayedCompletion: async () => {
+          serverOwner = ownerA;
+          window.currentUser = {id: ownerA};
+          window.__fixture.delayChat = true;
+          const pending = window.CrumpChatTransport.send(
+            {messageId: 'delayed-a'},
+            {expectedOwnerId: ownerA},
+          ).then(
+            () => ({rejected: false}),
+            error => ({rejected: true, code: error.code, quiet: error.quiet === true}),
+          );
+          while (!delayedChatResolve) await new Promise(resolve => setTimeout(resolve, 0));
+          serverOwner = ownerB;
+          window.currentUser = {id: ownerB};
+          delayedChatResolve(new Response(JSON.stringify({success: true, response: 'owner-a-private-reply'}), {
+            status: 200,
+            headers: {'Content-Type': 'application/json'},
+          }));
+          return pending;
+        },
+        delayedFileRead: async () => {
+          serverOwner = ownerA;
+          window.currentUser = {id: ownerA};
+          window.configureUserStorage(ownerA);
+          const input = document.getElementById('userInput');
+          input.value = 'owner-a-private-draft';
+          const transfer = new DataTransfer();
+          transfer.items.add(new File(['private-a'], 'owner-a-private.pdf', {type: 'application/pdf'}));
+          const fileInput = document.getElementById('fileInput');
+          fileInput.files = transfer.files;
+          fileInput.dispatchEvent(new Event('change', {bubbles: true}));
+          document.getElementById('sendButton').click();
+          while (!delayedFileResolve) await new Promise(resolve => setTimeout(resolve, 0));
+          window.currentUser = {id: ownerB};
+          window.configureUserStorage(ownerB);
+          delayedFileResolve();
+          await new Promise(resolve => setTimeout(resolve, 25));
+          return {
+            bChats: localStorage.getItem(`crump_chats:${ownerB}`),
+            chats: window.chats,
+            chatRequests: requests.filter(item => item.path === '/api/chat' || item.path === '/api/chat/ack'),
+            visibleText: document.body.innerText,
+          };
+        },
+      };
+    })();
+  </script>
+  <script src="/public/chat-resilience.js?v=chat-owner-boundary-fixture-1"></script>
+  <script src="/public/app.js?v=chat-owner-boundary-fixture-1"></script>
+  <script>
+    window.configureUserStorage(window.__fixture.ownerA);
+    window.initializeApp();
+  </script>
+</body>
+</html>

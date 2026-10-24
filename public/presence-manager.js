@@ -1,6 +1,7 @@
 (() => {
   'use strict';
 
+  const EXPECTED_OWNER_HEADER = 'X-Ask-Crump-Expected-Owner';
   const DEFAULTS = Object.freeze({
     enabled: false,
     frequency: 'balanced',
@@ -21,6 +22,13 @@
   let warmVerbIndex = 0;
   let warmVerbTimer = null;
   let preferences = { ...DEFAULTS };
+  let preferencesOwnerId = '';
+  let presenceBoundaryGeneration = 0;
+  let unregisterAuthBoundary = null;
+  const preferenceRequests = new Set();
+  let pushRegistrationController = null;
+  let pushRegistrationGeneration = 0;
+  let pendingNotificationBoundary = null;
   let notificationToken = null;
   let online = navigator.onLine;
   const handledPushActionIds = new Set();
@@ -37,6 +45,60 @@
     const region = document.getElementById('conversationStatus');
     if (region) region.textContent = text || '';
   };
+
+  function captureAuthBoundary(expected = null) {
+    const boundary = window.CrumpAuthBoundary;
+    const ownerId = String(
+      expected?.ownerId
+      || (typeof boundary?.authenticatedUserId === 'function'
+        ? boundary.authenticatedUserId()
+        : window.currentUser?.id || ''),
+    ).trim();
+    const rawRevision = expected?.revision
+      ?? (typeof boundary?.revision === 'function' ? boundary.revision() : 0);
+    const revision = Number(rawRevision);
+    return Object.freeze({
+      ownerId,
+      revision: Number.isFinite(revision) ? revision : 0,
+      generation: presenceBoundaryGeneration,
+    });
+  }
+
+  function authBoundaryIsCurrent(snapshot) {
+    if (!snapshot?.ownerId || snapshot.generation !== presenceBoundaryGeneration) return false;
+    const current = captureAuthBoundary();
+    return current.ownerId === snapshot.ownerId && current.revision === snapshot.revision;
+  }
+
+  function newPreferenceRequest() {
+    const controller = new AbortController();
+    preferenceRequests.add(controller);
+    return controller;
+  }
+
+  function releasePreferenceRequest(controller) {
+    preferenceRequests.delete(controller);
+  }
+
+  function scrubAuthBoundary() {
+    presenceBoundaryGeneration += 1;
+    pushRegistrationGeneration += 1;
+    pushRegistrationController?.abort?.();
+    pushRegistrationController = null;
+    pendingNotificationBoundary = null;
+    preferenceRequests.forEach(controller => controller.abort());
+    preferenceRequests.clear();
+    preferencesOwnerId = '';
+    preferences = { ...DEFAULTS };
+  }
+
+  function ensureAuthBoundaryRegistration() {
+    if (unregisterAuthBoundary || typeof window.CrumpAuthBoundary?.register !== 'function') return;
+    unregisterAuthBoundary = window.CrumpAuthBoundary.register(
+      'presence-preferences',
+      scrubAuthBoundary,
+    );
+  }
 
   function refreshVisiblePresence({ensureLabel = false} = {}) {
     const label = labelFor(activity);
@@ -169,17 +231,36 @@
   }
 
   async function loadPreferences() {
-    if (!window.currentUser) return preferences;
+    ensureAuthBoundaryRegistration();
+    const authBoundary = captureAuthBoundary();
+    if (!authBoundary.ownerId || !authBoundaryIsCurrent(authBoundary)) return { ...DEFAULTS };
+    const controller = newPreferenceRequest();
     try {
-      const response = await fetch('/api/presence/preferences');
+      const response = await fetch('/api/presence/preferences', {
+        headers: {[EXPECTED_OWNER_HEADER]: authBoundary.ownerId},
+        signal: controller.signal,
+      });
       const data = await response.json().catch(() => ({}));
-      if (response.ok && data.preferences) preferences = { ...DEFAULTS, ...data.preferences };
-    } catch (_) {}
+      if (!authBoundaryIsCurrent(authBoundary)) return { ...DEFAULTS };
+      if (response.ok && data.preferences) {
+        preferencesOwnerId = authBoundary.ownerId;
+        preferences = { ...DEFAULTS, ...data.preferences };
+      }
+    } catch (_) {
+      if (!authBoundaryIsCurrent(authBoundary)) return { ...DEFAULTS };
+    } finally {
+      releasePreferenceRequest(controller);
+    }
+    if (!authBoundaryIsCurrent(authBoundary)) return { ...DEFAULTS };
     applyPreferencesToForm();
-    return preferences;
+    return { ...preferences };
   }
 
   function applyPreferencesToForm() {
+    const activeOwnerId = String(window.currentUser?.id || '').trim();
+    const visiblePreferences = activeOwnerId && preferencesOwnerId === activeOwnerId
+      ? preferences
+      : DEFAULTS;
     const map = {
       crumpCheckIns: 'enabled',
       crumpNotifications: 'notifications_enabled',
@@ -191,14 +272,14 @@
     };
     for (const [id, key] of Object.entries(map)) {
       const element = document.getElementById(id);
-      if (element) element.checked = Boolean(preferences[key]);
+      if (element) element.checked = Boolean(visiblePreferences[key]);
     }
     const frequency = document.getElementById('checkInFrequency');
     const quietStart = document.getElementById('quietStart');
     const quietEnd = document.getElementById('quietEnd');
-    if (frequency) frequency.value = preferences.frequency;
-    if (quietStart) quietStart.value = String(preferences.quiet_start);
-    if (quietEnd) quietEnd.value = String(preferences.quiet_end);
+    if (frequency) frequency.value = visiblePreferences.frequency;
+    if (quietStart) quietStart.value = String(visiblePreferences.quiet_start);
+    if (quietEnd) quietEnd.value = String(visiblePreferences.quiet_end);
     updateCheckInVisibility();
   }
 
@@ -218,7 +299,12 @@
     };
   }
 
-  async function savePreferences() {
+  async function savePreferences(expectedBoundary = null) {
+    ensureAuthBoundaryRegistration();
+    const authBoundary = captureAuthBoundary(expectedBoundary);
+    if (!authBoundary.ownerId || !authBoundaryIsCurrent(authBoundary)) {
+      throw new Error('Account changed before preferences could be saved.');
+    }
     const next = readPreferencesFromForm();
     if (next.notifications_enabled && !window.CrumpAPI?.isNative) {
       next.notifications_enabled = false;
@@ -227,22 +313,38 @@
       window.showToast?.('Push notifications are available in the iPhone and Android apps.', 'info');
     }
     if (next.notifications_enabled) {
-      const granted = await enableNotifications();
+      const granted = await enableNotifications(authBoundary);
+      if (!authBoundaryIsCurrent(authBoundary)) {
+        throw new Error('Account changed before preferences could be saved.');
+      }
       if (!granted) {
         next.notifications_enabled = false;
         const checkbox = document.getElementById('crumpNotifications');
         if (checkbox) checkbox.checked = false;
       }
     }
-    const response = await fetch('/api/presence/preferences', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(next),
-    });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || 'Could not save conversation-presence settings.');
-    preferences = { ...DEFAULTS, ...(data.preferences || next) };
-    return preferences;
+    const controller = newPreferenceRequest();
+    try {
+      const response = await fetch('/api/presence/preferences', {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          [EXPECTED_OWNER_HEADER]: authBoundary.ownerId,
+        },
+        body: JSON.stringify(next),
+        signal: controller.signal,
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!authBoundaryIsCurrent(authBoundary)) {
+        throw new Error('Account changed before preferences could be saved.');
+      }
+      if (!response.ok) throw new Error(data.error || 'Could not save conversation-presence settings.');
+      preferencesOwnerId = authBoundary.ownerId;
+      preferences = { ...DEFAULTS, ...(data.preferences || next) };
+      return { ...preferences };
+    } finally {
+      releasePreferenceRequest(controller);
+    }
   }
 
   function updateCheckInVisibility() {
@@ -251,42 +353,85 @@
     if (details) details.hidden = !enabled;
   }
 
-  async function enableNotifications() {
+  async function enableNotifications(expectedBoundary = null) {
+    const authBoundary = captureAuthBoundary(expectedBoundary);
+    if (!authBoundary.ownerId || !authBoundaryIsCurrent(authBoundary)) return false;
     const plugin = window.CrumpNative?.PushNotifications;
     if (!window.CrumpAPI?.isNative || !plugin) return false;
     try {
       let permission = await plugin.checkPermissions();
+      if (!authBoundaryIsCurrent(authBoundary)) return false;
       if (permission.receive === 'prompt') permission = await plugin.requestPermissions();
+      if (!authBoundaryIsCurrent(authBoundary)) return false;
       if (permission.receive !== 'granted') {
         window.showToast?.('Notifications remain off. You can enable them later in device settings.', 'warning');
         return false;
       }
+      pendingNotificationBoundary = authBoundary;
       await plugin.register();
-      return true;
+      return authBoundaryIsCurrent(authBoundary);
     } catch (error) {
+      if (!authBoundaryIsCurrent(authBoundary)) return false;
       console.warn('[Push]', error);
       window.showToast?.('Push notifications could not be enabled on this device.', 'warning');
       return false;
     }
   }
 
-  async function registerToken(token) {
+  async function registerToken(token, expectedBoundary = null) {
     notificationToken = token || notificationToken;
     if (!notificationToken || !window.currentUser) return;
     const platform = window.CrumpNative?.Capacitor?.getPlatform?.() || window.Capacitor?.getPlatform?.();
     if (!['ios', 'android'].includes(platform)) return;
+    const authBoundary = captureAuthBoundary(expectedBoundary);
+    if (!authBoundaryIsCurrent(authBoundary)) return;
+    pushRegistrationController?.abort?.();
+    const controller = new AbortController();
+    pushRegistrationController = controller;
+    const registrationGeneration = ++pushRegistrationGeneration;
     try {
-      await fetch('/api/notifications/register', {
+      const response = await fetch('/api/notifications/register', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          [EXPECTED_OWNER_HEADER]: authBoundary.ownerId,
+        },
         body: JSON.stringify({
           token: notificationToken,
           platform,
           installationId: window.CrumpAPI.installationId(),
         }),
+        signal: controller.signal,
       });
+      if (
+        registrationGeneration !== pushRegistrationGeneration
+        || !authBoundaryIsCurrent(authBoundary)
+      ) return;
+      if (!response.ok) throw new Error('Push token registration failed.');
     } catch (error) {
+      if (
+        controller.signal.aborted
+        || registrationGeneration !== pushRegistrationGeneration
+        || !authBoundaryIsCurrent(authBoundary)
+      ) return;
       console.warn('[Push] Token registration failed:', error);
+    } finally {
+      if (pushRegistrationController === controller) pushRegistrationController = null;
+      if (
+        pendingNotificationBoundary?.ownerId === authBoundary.ownerId
+        && pendingNotificationBoundary?.revision === authBoundary.revision
+      ) pendingNotificationBoundary = null;
+    }
+  }
+
+  async function refreshAuthenticatedPresence() {
+    ensureAuthBoundaryRegistration();
+    const authBoundary = captureAuthBoundary();
+    if (!authBoundary.ownerId || !authBoundaryIsCurrent(authBoundary)) return;
+    const loaded = await loadPreferences();
+    if (!authBoundaryIsCurrent(authBoundary)) return;
+    if (loaded.notifications_enabled && window.CrumpAPI?.isNative) {
+      await enableNotifications(authBoundary);
     }
   }
 
@@ -438,7 +583,10 @@
     setOnline(event.detail?.connected);
     if (event.detail?.connected) void consumeAllPushActions();
   });
-  window.addEventListener('crump:push-registration', event => registerToken(event.detail?.value));
+  window.addEventListener('crump:push-registration', event => {
+    const expectedBoundary = pendingNotificationBoundary;
+    if (expectedBoundary) void registerToken(event.detail?.value, expectedBoundary);
+  });
   window.addEventListener('crump:push-action', () => { void consumeAllPushActions(); });
   window.addEventListener('crump:body-runtime-ready', startPushConsumer, { once: true });
   if (pushConsumerReady) queueMicrotask(startPushConsumer);
@@ -463,9 +611,21 @@
     applyPreferencesToForm,
     updateCheckInVisibility,
     registerToken,
-    get preferences() { return { ...preferences }; },
+    scrubAuthBoundary,
+    get preferences() {
+      const activeOwnerId = String(window.currentUser?.id || '').trim();
+      return activeOwnerId && preferencesOwnerId === activeOwnerId
+        ? { ...preferences }
+        : { ...DEFAULTS };
+    },
     get online() { return online; },
   };
 
+  window.addEventListener('crump:authenticated-ready', () => {
+    void refreshAuthenticatedPresence();
+  });
+  window.addEventListener('crump:authentication-required', scrubAuthBoundary);
+  ensureAuthBoundaryRegistration();
+  if (captureAuthBoundary().ownerId) queueMicrotask(() => { void refreshAuthenticatedPresence(); });
   renderConnectionState();
 })();

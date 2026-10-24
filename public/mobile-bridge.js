@@ -8,6 +8,7 @@
   const apiBase = () => isNative() ? (window.CRUMP_CONFIG?.apiBase || 'https://www.askcrump.com') : '';
   const originalFetch = window.fetch.bind(window);
   let sessionToken = null;
+  let tokenMutation = Promise.resolve();
   let readyResolve;
   const ready = new Promise(resolve => { readyResolve = resolve; });
 
@@ -69,16 +70,33 @@
     setTimeout(initialize, 2500);
   }
 
-  async function setSessionToken(token) {
-    sessionToken = token || null;
-    if (isNative()) {
-      if (token) await secureSet(SESSION_KEY, token);
-      else await secureRemove(SESSION_KEY);
-    }
+  function mutateSessionToken(token, expectedToken, compareExpected) {
+    const nextToken = token || null;
+    const operation = tokenMutation.catch(() => {}).then(async () => {
+      if (compareExpected && sessionToken !== expectedToken) return false;
+      const previousToken = sessionToken;
+      sessionToken = nextToken;
+      try {
+        if (isNative()) {
+          if (nextToken) await secureSet(SESSION_KEY, nextToken);
+          else await secureRemove(SESSION_KEY);
+        }
+      } catch (error) {
+        if (sessionToken === nextToken) sessionToken = previousToken;
+        throw error;
+      }
+      return true;
+    });
+    tokenMutation = operation.catch(() => {});
+    return operation;
   }
 
-  async function clearSessionToken() {
-    await setSessionToken(null);
+  function setSessionToken(token) {
+    return mutateSessionToken(token, undefined, false);
+  }
+
+  function clearSessionToken(expectedToken) {
+    return mutateSessionToken(null, expectedToken, arguments.length > 0);
   }
 
   function installationId() {
@@ -105,7 +123,8 @@
     headers.set('X-Crump-Platform', window.CrumpNative?.Capacitor?.getPlatform?.() || window.Capacitor?.getPlatform?.() || (native ? 'native' : 'web'));
     headers.set('X-Device-Name', navigator.userAgent.slice(0, 150));
     headers.set('X-Installation-ID', installationId());
-    if (native && sessionToken) headers.set('Authorization', `Bearer ${sessionToken}`);
+    const requestToken = native ? sessionToken : null;
+    if (native && requestToken) headers.set('Authorization', `Bearer ${requestToken}`);
 
     const response = await originalFetch(url, {
       ...init,
@@ -113,7 +132,7 @@
       credentials: 'include',
     });
     if (response.status === 401 && native) {
-      await clearSessionToken();
+      await clearSessionToken(requestToken);
     }
     return response;
   }

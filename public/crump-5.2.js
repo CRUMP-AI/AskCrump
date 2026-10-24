@@ -40,6 +40,9 @@
     creditPurchasesAllowed: false,
     billingTrigger: null,
     billingBackground: [],
+    billingBoundary: null,
+    billingRequests: new Set(),
+    unregisterBillingBoundary: null,
   };
 
   function planCenterSource(options = {}) {
@@ -126,33 +129,43 @@
     return `<aside class="billing51-recovery" data-recovery-kind="${context.kind}" aria-label="Why Plan and credits opened"><span>CONTINUE YOUR WORK</span><h3>${context.title}</h3><p>${context.detail}</p></aside>`;
   }
 
-  async function recordPlanCenterView(options = {}) {
+  async function recordPlanCenterView(options = {}, suppliedBoundary = null) {
+    const authBoundary = suppliedBoundary || state.billingBoundary || captureBillingBoundary52();
+    if (!billingBoundary52IsCurrent(authBoundary)) return false;
     const source = planCenterSource(options);
     document.documentElement.dataset.crumpPlanCenterEvent = `pending:${source}`;
     try {
       if (await window.CrumpAnalytics?.track?.('PlanCenterViewed', {
         eventKey: 'plan-center-viewed',
         source,
-      })) {
+      }, authBoundary)) {
+        if (!billingBoundary52IsCurrent(authBoundary)) return false;
         document.documentElement.dataset.crumpPlanCenterEvent = `accepted:${source}`;
         return true;
       }
+      if (!billingBoundary52IsCurrent(authBoundary)) return false;
       const response = await fetch('/api/analytics/events', {
         method: 'POST',
         credentials: 'same-origin',
         keepalive: true,
-        headers: {'Content-Type': 'application/json'},
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Ask-Crump-Expected-Owner': authBoundary.ownerId,
+        },
         body: JSON.stringify({
           eventName: 'PlanCenterViewed',
           eventKey: 'plan-center-viewed',
           source,
         }),
       });
+      if (!billingBoundary52IsCurrent(authBoundary)) return false;
       document.documentElement.dataset.crumpPlanCenterEvent =
         `${response.ok ? 'accepted' : 'rejected'}:${source}`;
       return response.ok;
     } catch (_) {
-      document.documentElement.dataset.crumpPlanCenterEvent = `failed:${source}`;
+      if (billingBoundary52IsCurrent(authBoundary)) {
+        document.documentElement.dataset.crumpPlanCenterEvent = `failed:${source}`;
+      }
       return false;
     }
   }
@@ -520,22 +533,52 @@
     button.addEventListener('click', showAttachMenu52, { capture: true });
   }
 
-  async function jsonFetch(url, options = {}) {
-    const response = await fetch(url, {
-      credentials: 'same-origin',
-      ...options,
-      headers: {
-        ...(options.body ? {'Content-Type': 'application/json'} : {}),
-        ...(options.headers || {}),
-      },
+  function captureBillingBoundary52() {
+    const boundary = window.CrumpAuthBoundary;
+    return Object.freeze({
+      ownerId: String(boundary?.authenticatedUserId?.() || window.currentUser?.id || '').trim(),
+      revision: Number(boundary?.revision?.() || 0),
     });
-    const data = await response.json().catch(() => ({}));
-    if (!response.ok || data.success === false) {
-      const error = new Error(data.error || 'That billing request could not be completed.');
-      error.code = data.code;
-      throw error;
+  }
+
+  function billingBoundary52IsCurrent(snapshot) {
+    const current = captureBillingBoundary52();
+    return !!snapshot?.ownerId
+      && current.ownerId === snapshot.ownerId
+      && current.revision === snapshot.revision;
+  }
+
+  async function jsonFetch(url, options = {}) {
+    const {authBoundary: suppliedBoundary, ...requestOptions} = options;
+    const authBoundary = suppliedBoundary || captureBillingBoundary52();
+    const controller = new AbortController();
+    state.billingRequests.add(controller);
+    try {
+      const response = await fetch(url, {
+        credentials: 'same-origin',
+        ...requestOptions,
+        signal: controller.signal,
+        headers: {
+          ...(requestOptions.body ? {'Content-Type': 'application/json'} : {}),
+          ...(authBoundary.ownerId ? {'X-Ask-Crump-Expected-Owner': authBoundary.ownerId} : {}),
+          ...(requestOptions.headers || {}),
+        },
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!billingBoundary52IsCurrent(authBoundary)) {
+        const error = new Error('Your account changed. Reopen billing and try again.');
+        error.code = 'AUTH_OWNER_CHANGED';
+        throw error;
+      }
+      if (!response.ok || data.success === false) {
+        const error = new Error(data.error || 'That billing request could not be completed.');
+        error.code = data.code;
+        throw error;
+      }
+      return data;
+    } finally {
+      state.billingRequests.delete(controller);
     }
-    return data;
   }
 
   function visibleElement(element) {
@@ -611,9 +654,26 @@
     document.body.classList.remove('billing51-open');
     restoreBillingBackground52();
     state.billingTrigger = null;
+    state.billingBoundary = null;
     if (restoreFocus && trigger?.isConnected && !trigger.disabled) {
       requestAnimationFrame(() => trigger.focus?.({preventScroll: true}));
     }
+  }
+
+  function scrubBilling52Boundary() {
+    state.billingRequests.forEach(controller => controller.abort());
+    state.billingRequests.clear();
+    closeBilling52({restoreFocus: false});
+    state.checkoutOpening = false;
+    state.creditPurchasesAllowed = false;
+  }
+
+  function ensureBilling52BoundaryRegistration() {
+    if (state.unregisterBillingBoundary || typeof window.CrumpAuthBoundary?.register !== 'function') return;
+    state.unregisterBillingBoundary = window.CrumpAuthBoundary.register(
+      'billing52-private-view',
+      scrubBilling52Boundary,
+    );
   }
 
   async function openCreditCheckout(packCode, trigger) {
@@ -623,6 +683,11 @@
       return;
     }
     state.checkoutOpening = true;
+    const authBoundary = state.billingBoundary || captureBillingBoundary52();
+    if (!billingBoundary52IsCurrent(authBoundary)) {
+      state.checkoutOpening = false;
+      return;
+    }
     const button = trigger?.closest?.('.billing51-buy') || trigger;
     const prior = button?.textContent || 'Add credits';
     const priorAccessibleLabel = button?.getAttribute?.('aria-label') || prior;
@@ -636,12 +701,14 @@
       const result = await jsonFetch('/api/billing/credits/checkout', {
         method: 'POST',
         body: JSON.stringify({pack: packCode, attemptId}),
+        authBoundary,
       });
       const url = window.BillingManager?.requireStripeDestination?.(result.url, 'checkout');
       if (!url) throw new Error('Stripe did not return a secure checkout destination.');
       window.BillingManager?.completeCreditCheckoutAttempt?.(packCode, attemptId);
       window.location.assign(url);
     } catch (error) {
+      if (!billingBoundary52IsCurrent(authBoundary)) return;
       state.checkoutOpening = false;
       if (button) {
         button.disabled = false;
@@ -744,18 +811,20 @@
     host.innerHTML = `<div class="billing51-allowance"><div><span>Included today</span><strong>${remaining}</strong></div><div class="billing51-progress"><i style="width:${percent}%"></i></div></div>`;
   }
 
-  async function hydrateBilling52(modal) {
+  async function hydrateBilling52(modal, suppliedBoundary = null) {
+    const authBoundary = suppliedBoundary || state.billingBoundary || captureBillingBoundary52();
+    if (!billingBoundary52IsCurrent(authBoundary)) return;
     const balance = $('#billing52Balance', modal);
     const packs = $('#billing52Packs', modal);
     const allowance = $('#billing52Allowance', modal);
     const history = $('#billing52History', modal);
     try {
       const [creditData, usageData, billingStatus] = await Promise.all([
-        jsonFetch('/api/billing/credits/status'),
-        jsonFetch('/api/usage/check').catch(() => ({daily:{limit:0,used:0,remaining:0}})),
-        jsonFetch('/api/billing/status').catch(() => ({tier:'free', plan:null, status:'inactive', provider:null, manageable:false})),
+        jsonFetch('/api/billing/credits/status', {authBoundary}),
+        jsonFetch('/api/usage/check', {authBoundary}).catch(() => ({daily:{limit:0,used:0,remaining:0}})),
+        jsonFetch('/api/billing/status', {authBoundary}).catch(() => ({tier:'free', plan:null, status:'inactive', provider:null, manageable:false})),
       ]);
-      if (!modal.isConnected || state.billing !== modal) return;
+      if (!modal.isConnected || state.billing !== modal || !billingBoundary52IsCurrent(authBoundary)) return;
       if (balance) balance.textContent = String(Math.max(0, Number(creditData.credits?.balance || 0)));
       if (allowance) renderAllowance(allowance, usageData.daily || {});
       state.creditPurchasesAllowed = creditData.creditPurchasesAllowed === true;
@@ -785,7 +854,7 @@
       const sidebarBadge = document.querySelector('#upgradeBtnSidebar .billing51-sidebar-balance');
       if (sidebarBadge) sidebarBadge.textContent = `${Math.max(0, Number(creditData.credits?.balance || 0))} C`;
     } catch (error) {
-      if (!modal.isConnected || state.billing !== modal) return;
+      if (!modal.isConnected || state.billing !== modal || !billingBoundary52IsCurrent(authBoundary)) return;
       window.showToast?.(error.message || 'Billing information could not be loaded.', 'error');
       if (packs) {
         packs.replaceChildren();
@@ -799,6 +868,8 @@
 
   function showBillingCenter52(options = {}) {
     closeBilling52({restoreFocus: false});
+    const authBoundary = captureBillingBoundary52();
+    if (!billingBoundary52IsCurrent(authBoundary)) return null;
     state.billingTrigger = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     const recovery = billingRecoveryContext(options);
     const modal = document.createElement('div');
@@ -851,12 +922,13 @@
     modal.querySelectorAll('[data-close]').forEach(node => node.addEventListener('click', closeBilling52));
     document.body.appendChild(modal);
     state.billing = modal;
+    state.billingBoundary = authBoundary;
     if (recovery?.plan) modal.dataset.crumpPlanIntent = recovery.plan;
     document.body.classList.add('billing51-open');
     const closeButton = $('.billing51-close', modal);
     closeButton?.focus({preventScroll: true});
     isolateBillingBackground52(modal);
-    void recordPlanCenterView(options);
+    void recordPlanCenterView(options, authBoundary);
 
     // One capture-phase handler owns checkout for both the explicit button and
     // the full credit card. This survives re-renders and is reliable on iOS
@@ -886,7 +958,7 @@
       const button = card.querySelector('.billing51-buy');
       if (!button?.disabled) openCreditCheckout(card.dataset.crumpPack, button);
     });
-    hydrateBilling52(modal);
+    hydrateBilling52(modal, authBoundary);
     return modal;
   }
 
@@ -906,10 +978,13 @@
   }
 
   function boot() {
+    ensureBilling52BoundaryRegistration();
     installRequestEnhancer();
     hookRenderer();
     ownAttachButton();
     ownBillingButton();
+
+    window.addEventListener('crump:authenticated-ready', ensureBilling52BoundaryRegistration);
 
     const observer = new MutationObserver(() => {
       hookRenderer();

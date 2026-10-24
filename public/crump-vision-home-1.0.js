@@ -15,19 +15,46 @@
   // and let the caller render an honest error state instead.
   var BRIEFING_TIMEOUT_MS = 15000;
 
+  function captureAuthBoundary() {
+    var boundary = window.CrumpAuthBoundary;
+    var rawRevision = typeof boundary?.revision === 'function' ? boundary.revision() : 0;
+    var revision = Number(rawRevision);
+    return Object.freeze({
+      ownerId: String(
+        typeof boundary?.authenticatedUserId === 'function'
+          ? boundary.authenticatedUserId()
+          : (window.currentUser && window.currentUser.id) || '',
+      ).trim(),
+      revision: Number.isFinite(revision) ? revision : 0,
+    });
+  }
+
+  function authBoundaryIsCurrent(snapshot) {
+    if (window.__crumpVisionDemo === true) return true;
+    if (!snapshot || !snapshot.ownerId) return false;
+    var current = captureAuthBoundary();
+    return current.ownerId === snapshot.ownerId && current.revision === snapshot.revision;
+  }
+
   function requestTimeoutError() {
     var error = new Error('The request took too long. Check your connection and try again.');
     error.code = 'REQUEST_TIMEOUT';
     return error;
   }
 
-  function api(path) {
+  function api(path, authBoundary) {
+    if (window.__crumpVisionDemo !== true && !authBoundaryIsCurrent(authBoundary)) {
+      return Promise.reject(new Error('The signed-in account changed before this request began.'));
+    }
     var controller = new AbortController();
     var timer = setTimeout(function () { controller.abort(); }, BRIEFING_TIMEOUT_MS);
     function done() { clearTimeout(timer); }
     return fetch(path, {
       credentials: 'include',
-      headers: { Accept: 'application/json' },
+      headers: {
+        Accept: 'application/json',
+        'X-Ask-Crump-Expected-Owner': authBoundary?.ownerId || '',
+      },
       signal: controller.signal,
     }).then(function (response) {
       // Two-argument then: the rejection handler covers only response.json()
@@ -208,11 +235,12 @@
         nudgeBody.innerHTML = '<div class="cv-nudges"><p class="cv-empty">Library couldn\u2019t load. Try again in a moment.</p></div>';
       }
 
+      var authBoundary = captureAuthBoundary();
       Promise.all([
-        settled(api('/api/projects')),
-        settled(api('/api/library/books')),
+        settled(api('/api/projects', authBoundary)),
+        settled(api('/api/library/books', authBoundary)),
       ]).then(function (results) {
-        if (!container.isConnected) return;
+        if (!container.isConnected || !authBoundaryIsCurrent(authBoundary)) return;
         var projectsResult = results[0];
         var booksResult = results[1];
         if (!projectsResult.ok && !booksResult.ok) {
@@ -238,7 +266,7 @@
       }).catch(function () {
         // Safety net only: settled() resolves for every request outcome, so
         // reaching here means something unexpected threw during render.
-        if (!container.isConnected) return;
+        if (!container.isConnected || !authBoundaryIsCurrent(authBoundary)) return;
         unreachableState();
       });
     }

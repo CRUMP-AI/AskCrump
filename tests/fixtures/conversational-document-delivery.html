@@ -30,6 +30,12 @@
     <div id="toastContainer" aria-live="polite"></div>
   </main>
   <script>
+    window.currentUser = {id: 'fixture-owner'};
+    window.CrumpAuthBoundary = Object.freeze({
+      authenticatedUserId: () => window.currentUser?.id || '',
+      revision: () => 0,
+      register: () => () => {},
+    });
     window.currentChatId = '00000000-0000-4000-8000-000000000010';
     window.chats = [{
       id: window.currentChatId,

@@ -5,6 +5,7 @@
   let configuredUserId = null;
   let configurationPromise = null;
   let identityPromise = null;
+  let nativeOperationQueue = Promise.resolve();
   const CHECKOUT_RECOVERY_KEY = 'askcrump.pending-checkout-recovery';
   const CHECKOUT_RECOVERY_TTL_MS = 15 * 60 * 1000;
   const CREDIT_PACKS = new Set(['credits_50', 'credits_150', 'credits_400']);
@@ -18,6 +19,35 @@
   const platform = () => window.CrumpNative?.Capacitor?.getPlatform?.() || window.Capacitor?.getPlatform?.() || 'web';
   const purchases = () => window.CrumpNative?.Purchases;
   const config = () => window.CRUMP_CONFIG || {};
+
+  function captureBillingBoundary() {
+    const boundary = window.CrumpAuthBoundary;
+    return Object.freeze({
+      ownerId: String(boundary?.authenticatedUserId?.() || window.currentUser?.id || '').trim(),
+      revision: Number(boundary?.revision?.() || 0),
+    });
+  }
+
+  function billingBoundaryIsCurrent(snapshot) {
+    const current = captureBillingBoundary();
+    return !!snapshot?.ownerId
+      && current.ownerId === snapshot.ownerId
+      && current.revision === snapshot.revision;
+  }
+
+  function billingHeaders(authBoundary, headers = {}) {
+    return {
+      ...(authBoundary?.ownerId ? {'X-Ask-Crump-Expected-Owner': authBoundary.ownerId} : {}),
+      ...headers,
+    };
+  }
+
+  function assertBillingBoundary(authBoundary) {
+    if (billingBoundaryIsCurrent(authBoundary)) return;
+    const error = new Error('Your account changed. Reopen billing and try again.');
+    error.code = 'AUTH_OWNER_CHANGED';
+    throw error;
+  }
 
   function stripeDestination(value, kind = 'checkout') {
     const expectedHost = STRIPE_DESTINATION_HOSTS[kind];
@@ -161,7 +191,13 @@
     }
   }
 
-  async function configure() {
+  function withNativeOperation(operation) {
+    const queued = nativeOperationQueue.catch(() => {}).then(operation);
+    nativeOperationQueue = queued.catch(() => {});
+    return queued;
+  }
+
+  async function configureUnlocked(requestedUserId = undefined) {
     if (!native()) return false;
     await window.CrumpAPI?.ready;
     const plugin = purchases();
@@ -184,11 +220,16 @@
       await configurationPromise;
     }
 
-    await alignAppUser(plugin);
+    await alignAppUser(plugin, requestedUserId);
     return true;
   }
 
-  async function disconnect() {
+  function configure() {
+    return withNativeOperation(() => configureUnlocked());
+  }
+
+  function disconnect() {
+    return withNativeOperation(async () => {
     if (!native()) return false;
     await window.CrumpAPI?.ready;
     const plugin = purchases();
@@ -205,6 +246,7 @@
     if (!configured) return true;
     await alignAppUser(plugin, null);
     return true;
+    });
   }
 
   function packageProduct(item = {}) {
@@ -258,11 +300,15 @@
     return creditPackConfig().find(pack => productId === pack.productId) || null;
   }
 
-  async function offeringPackages() {
-    if (!(await configure())) return [];
+  async function offeringPackagesUnlocked(requestedUserId = undefined) {
+    if (!(await configureUnlocked(requestedUserId))) return [];
     const offeringsResult = await purchases().getOfferings();
     const offering = offeringsResult?.offerings?.current || offeringsResult?.current;
     return offering?.availablePackages || offering?.available_packages || [];
+  }
+
+  function offeringPackages() {
+    return withNativeOperation(() => offeringPackagesUnlocked());
   }
 
   async function getProducts() {
@@ -315,29 +361,42 @@
     return products;
   }
 
-  async function purchase(tier = 'professional') {
+  async function purchase(tier = 'professional', suppliedBoundary = null) {
     if (!native()) throw new Error('Native billing is only available in the installed mobile app.');
-    if (!(await configure())) {
-      throw new Error('App Store billing is not configured yet. Add the RevenueCat public SDK key before submission.');
-    }
-    const packages = await offeringPackages();
-    const selected = packages.find(item => tierForPackage(item) === tier);
-    if (!selected) throw new Error('That subscription package is not available from the store.');
-    const result = await purchases().purchasePackage({ aPackage: selected });
-    await synchronizeServerEntitlement();
-    await refreshStatus();
-    return result;
+    const authBoundary = suppliedBoundary || captureBillingBoundary();
+    assertBillingBoundary(authBoundary);
+    return withNativeOperation(async () => {
+      assertBillingBoundary(authBoundary);
+      if (!(await configureUnlocked(authBoundary.ownerId))) {
+        throw new Error('App Store billing is not configured yet. Add the RevenueCat public SDK key before submission.');
+      }
+      assertBillingBoundary(authBoundary);
+      const packages = await offeringPackagesUnlocked(authBoundary.ownerId);
+      assertBillingBoundary(authBoundary);
+      const selected = packages.find(item => tierForPackage(item) === tier);
+      if (!selected) throw new Error('That subscription package is not available from the store.');
+      const result = await purchases().purchasePackage({ aPackage: selected });
+      assertBillingBoundary(authBoundary);
+      await synchronizeServerEntitlement(authBoundary);
+      assertBillingBoundary(authBoundary);
+      await refreshStatus(authBoundary);
+      assertBillingBoundary(authBoundary);
+      return result;
+    });
   }
 
-  async function purchaseCredits(packCode) {
+  async function purchaseCredits(packCode, suppliedBoundary = null) {
     if (!native()) throw new Error('Use secure web checkout to purchase credits on the web.');
+    const authBoundary = suppliedBoundary || captureBillingBoundary();
+    assertBillingBoundary(authBoundary);
     const eligibilityResponse = await fetch('/api/billing/credits/purchase-eligibility', {
       method: 'POST',
       credentials: 'same-origin',
-      headers: {'Content-Type': 'application/json'},
+      headers: billingHeaders(authBoundary, {'Content-Type': 'application/json'}),
       body: JSON.stringify({pack: packCode}),
     });
     const eligibility = await eligibilityResponse.json().catch(() => ({}));
+    assertBillingBoundary(authBoundary);
     if (!eligibilityResponse.ok || eligibility.success === false || eligibility.creditPurchasesAllowed !== true) {
       const error = new Error(
         eligibility.error
@@ -346,33 +405,58 @@
       error.code = eligibility.code || 'CREDIT_PURCHASE_REQUIRES_SUBSCRIPTION';
       throw error;
     }
-    if (!(await configure())) {
-      throw new Error('App Store billing is not configured yet.');
-    }
-    const packages = await offeringPackages();
-    const selected = packages.find(item => creditPackForPackage(item)?.code === packCode);
-    if (!selected) throw new Error('That credit pack is not available from the store yet.');
-    const result = await purchases().purchasePackage({ aPackage: selected });
-    // RevenueCat records the consumable purchase. Ask Crump then queries the
-    // server-side customer record and grants only transaction IDs it has never
-    // seen before, preventing duplicate credit deposits.
-    await purchases().invalidateVirtualCurrenciesCache?.().catch?.(() => {});
-    await synchronizeServerCredits();
-    return result;
+    return withNativeOperation(async () => {
+      assertBillingBoundary(authBoundary);
+      if (!(await configureUnlocked(authBoundary.ownerId))) {
+        throw new Error('App Store billing is not configured yet.');
+      }
+      assertBillingBoundary(authBoundary);
+      const packages = await offeringPackagesUnlocked(authBoundary.ownerId);
+      assertBillingBoundary(authBoundary);
+      const selected = packages.find(item => creditPackForPackage(item)?.code === packCode);
+      if (!selected) throw new Error('That credit pack is not available from the store yet.');
+      const result = await purchases().purchasePackage({ aPackage: selected });
+      assertBillingBoundary(authBoundary);
+      // RevenueCat records the consumable purchase. Ask Crump then queries the
+      // server-side customer record and grants only transaction IDs it has never
+      // seen before, preventing duplicate credit deposits.
+      await purchases().invalidateVirtualCurrenciesCache?.().catch?.(() => {});
+      assertBillingBoundary(authBoundary);
+      await synchronizeServerCredits(authBoundary);
+      assertBillingBoundary(authBoundary);
+      return result;
+    });
   }
 
-  async function restore() {
-    if (!(await configure())) throw new Error('Native billing is not configured.');
-    const result = await purchases().restorePurchases();
-    await synchronizeServerEntitlement();
-    await synchronizeServerCredits().catch(() => {});
-    await refreshStatus();
-    return result;
+  async function restore(suppliedBoundary = null) {
+    const authBoundary = suppliedBoundary || captureBillingBoundary();
+    assertBillingBoundary(authBoundary);
+    return withNativeOperation(async () => {
+      assertBillingBoundary(authBoundary);
+      if (!(await configureUnlocked(authBoundary.ownerId))) throw new Error('Native billing is not configured.');
+      assertBillingBoundary(authBoundary);
+      const result = await purchases().restorePurchases();
+      assertBillingBoundary(authBoundary);
+      await synchronizeServerEntitlement(authBoundary);
+      assertBillingBoundary(authBoundary);
+      await synchronizeServerCredits(authBoundary).catch(error => {
+        assertBillingBoundary(authBoundary);
+        return undefined;
+      });
+      assertBillingBoundary(authBoundary);
+      await refreshStatus(authBoundary);
+      assertBillingBoundary(authBoundary);
+      return result;
+    });
   }
 
-  async function synchronizeServerEntitlement() {
-    const response = await fetch('/api/billing/revenuecat/sync', { method: 'POST' });
+  async function synchronizeServerEntitlement(authBoundary = captureBillingBoundary()) {
+    const response = await fetch('/api/billing/revenuecat/sync', {
+      method: 'POST',
+      headers: billingHeaders(authBoundary),
+    });
     const data = await response.json().catch(() => ({}));
+    assertBillingBoundary(authBoundary);
     if (!response.ok || !data.success) {
       throw new Error(data.error || 'Your purchase completed, but subscription verification is still processing.');
     }
@@ -383,9 +467,13 @@
     return data;
   }
 
-  async function synchronizeServerCredits() {
-    const response = await fetch('/api/billing/credits/revenuecat/sync', { method: 'POST' });
+  async function synchronizeServerCredits(authBoundary = captureBillingBoundary()) {
+    const response = await fetch('/api/billing/credits/revenuecat/sync', {
+      method: 'POST',
+      headers: billingHeaders(authBoundary),
+    });
     const data = await response.json().catch(() => ({}));
+    assertBillingBoundary(authBoundary);
     if (!response.ok || !data.success) {
       const error = new Error(data.error || 'Your purchase completed, but credit verification is still processing.');
       error.code = data.code || 'CREDIT_VERIFICATION_PENDING';
@@ -402,18 +490,29 @@
     return data;
   }
 
-  async function manageSubscription() {
+  async function manageSubscription(suppliedBoundary = null) {
+    const authBoundary = suppliedBoundary || captureBillingBoundary();
+    assertBillingBoundary(authBoundary);
     if (native()) {
-      if (!(await configure())) throw new Error('Native billing is not configured.');
-      const result = await purchases().getCustomerInfo();
-      const info = result?.customerInfo || result?.customer_info || result;
-      const url = info?.managementURL || info?.managementUrl || info?.management_url;
-      if (!url) throw new Error('No active store subscription was found.');
-      window.open(url, '_blank', 'noopener,noreferrer');
-      return {url};
+      return withNativeOperation(async () => {
+        assertBillingBoundary(authBoundary);
+        if (!(await configureUnlocked(authBoundary.ownerId))) throw new Error('Native billing is not configured.');
+        assertBillingBoundary(authBoundary);
+        const result = await purchases().getCustomerInfo();
+        assertBillingBoundary(authBoundary);
+        const info = result?.customerInfo || result?.customer_info || result;
+        const url = info?.managementURL || info?.managementUrl || info?.management_url;
+        if (!url) throw new Error('No active store subscription was found.');
+        window.open(url, '_blank', 'noopener,noreferrer');
+        return {url};
+      });
     }
-    const response = await fetch('/api/stripe/customer-portal', {method: 'POST'});
+    const response = await fetch('/api/stripe/customer-portal', {
+      method: 'POST',
+      headers: billingHeaders(authBoundary),
+    });
     const data = await response.json().catch(() => ({}));
+    assertBillingBoundary(authBoundary);
     if (!response.ok || !data.url) throw new Error(data.error || 'Subscription management could not be opened.');
     const url = requireStripeDestination(data.url, 'portal');
     window.location.assign(url);
@@ -472,9 +571,10 @@
     } catch (_) {}
   }
 
-  async function refreshStatus() {
-    const response = await fetch('/api/billing/status');
+  async function refreshStatus(authBoundary = captureBillingBoundary()) {
+    const response = await fetch('/api/billing/status', {headers: billingHeaders(authBoundary)});
     const data = await response.json().catch(() => ({}));
+    assertBillingBoundary(authBoundary);
     if (response.ok && data.success && data.user) {
       window.currentUser = data.user;
       window.profileManager?.applyServerSubscription?.(data.user);
@@ -482,9 +582,10 @@
     return data;
   }
 
-  async function refreshCredits() {
-    const response = await fetch('/api/billing/credits/status');
+  async function refreshCredits(authBoundary = captureBillingBoundary()) {
+    const response = await fetch('/api/billing/credits/status', {headers: billingHeaders(authBoundary)});
     const data = await response.json().catch(() => ({}));
+    assertBillingBoundary(authBoundary);
     if (response.ok && data.success) {
       window.dispatchEvent(new CustomEvent('crump:credits-updated', { detail: data.credits || {} }));
     }

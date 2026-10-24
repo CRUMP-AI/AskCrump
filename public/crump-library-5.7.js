@@ -509,6 +509,8 @@
   async function api(path, options = {}) {
     const init = {...options};
     const headers = {...(init.headers || {})};
+    const expectedOwnerId = currentLibraryUserId();
+    if (expectedOwnerId) headers['X-Ask-Crump-Expected-Owner'] = expectedOwnerId;
     if (init.body && typeof init.body !== 'string') {
       headers['Content-Type'] = 'application/json';
       init.body = JSON.stringify(init.body);

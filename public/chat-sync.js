@@ -3,11 +3,42 @@
 
   const DELETED_KEY = 'crump_deleted_chats_v4';
   const AUTO_SYNC_INTERVAL_MS = 60_000;
-  const deletedKey = () => `${DELETED_KEY}:${window.currentUser?.id || 'anonymous'}`;
+  function captureAuthBoundary() {
+    const boundary = window.CrumpAuthBoundary;
+    const userId = String(
+      typeof boundary?.authenticatedUserId === 'function'
+        ? boundary.authenticatedUserId()
+        : window.currentUser?.id || '',
+    ).trim();
+    const rawRevision = typeof boundary?.revision === 'function' ? boundary.revision() : 0;
+    const revision = Number(rawRevision);
+    return Object.freeze({
+      userId,
+      revision: Number.isFinite(revision) ? revision : 0,
+    });
+  }
+
+  function authBoundaryIsCurrent(snapshot) {
+    if (!snapshot?.userId) return false;
+    const current = captureAuthBoundary();
+    return current.userId === snapshot.userId && current.revision === snapshot.revision;
+  }
+
+  const staleAuthResult = () => ({
+    success: false,
+    code: 'SYNC_AUTH_BOUNDARY_CHANGED',
+    staleAuth: true,
+    queued: true,
+    retryable: true,
+    error: 'The signed-in account changed before synchronization completed.',
+  });
+
+  const deletedKey = (userId = captureAuthBoundary().userId) => `${DELETED_KEY}:${userId || 'anonymous'}`;
   let intervalId = null;
-  let syncing = false;
+  let activeSynchronization = null;
   let syncRequested = false;
   let fullSyncRequested = false;
+  let reconcileLocalRequested = false;
   let visibilityBound = false;
   let initialReconciliationPending = true;
 
@@ -19,12 +50,12 @@
 
   const iso = value => new Date(toTime(value) || Date.now()).toISOString();
 
-  const readDeleted = () => {
-    try { return JSON.parse(localStorage.getItem(deletedKey()) || '[]'); } catch (_) { return []; }
+  const readDeleted = (userId = captureAuthBoundary().userId) => {
+    try { return JSON.parse(localStorage.getItem(deletedKey(userId)) || '[]'); } catch (_) { return []; }
   };
 
-  const writeDeleted = value => {
-    try { localStorage.setItem(deletedKey(), JSON.stringify(value)); } catch (_) {}
+  const writeDeleted = (value, userId = captureAuthBoundary().userId) => {
+    try { localStorage.setItem(deletedKey(userId), JSON.stringify(value)); } catch (_) {}
   };
 
   const normalizedChat = chat => ({
@@ -162,7 +193,7 @@
     writeDeleted(deleted.slice(-500));
   };
 
-  function mergeServerState(serverRows, localRows) {
+  function mergeServerState(serverRows, localRows, userId = captureAuthBoundary().userId) {
     const map = new Map();
 
     for (const local of localRows || []) {
@@ -171,7 +202,7 @@
       if (chat.id) map.set(chat.id, chat);
     }
 
-    const deleted = readDeleted();
+    const deleted = readDeleted(userId);
     const localTombstones = new Map(deleted.map(item => [item.id || item.chat_id, item]));
 
     for (const row of serverRows || []) {
@@ -222,18 +253,21 @@
     }
 
     const merged = [...map.values()].sort((a, b) => toTime(b.updatedAt) - toTime(a.updatedAt));
-    writeDeleted([...localTombstones.values()]);
+    writeDeleted([...localTombstones.values()], userId);
     return merged;
   }
 
-  async function pullAndMerge(prefetched = null, { full = true } = {}) {
-    if (!window.currentUser || !navigator.onLine) return null;
+  async function pullAndMerge(prefetched = null, { full = true, authBoundary = captureAuthBoundary() } = {}) {
+    if (!authBoundaryIsCurrent(authBoundary)) return staleAuthResult();
+    if (!navigator.onLine) return null;
     const result = prefetched
       ? { success: true, data: prefetched }
-      : await window.SyncManager.pull(null, { full });
+      : await window.SyncManager.pull(null, { full, authBoundary });
 
+    if (!authBoundaryIsCurrent(authBoundary)) return staleAuthResult();
     if (!result?.success) return result;
     applySynchronizedSettings(result.data?.settings);
+    if (!authBoundaryIsCurrent(authBoundary)) return staleAuthResult();
     if (!Array.isArray(result.data?.chats)) return result;
 
     let local = [];
@@ -242,7 +276,7 @@
     const previous = Array.isArray(window.chats) ? window.chats : local;
     const activeId = String(window.currentChatId || '');
     const previousActive = previous.find(chat => String(chat?.id || chat?.chat_id || '') === activeId);
-    const merged = mergeServerState(result.data.chats, local);
+    const merged = mergeServerState(result.data.chats, local, authBoundary.userId);
     const nextActive = merged.find(chat => String(chat?.id || chat?.chat_id || '') === activeId);
     const preserveActiveRender = Boolean(
       activeId
@@ -262,13 +296,13 @@
     return result;
   }
 
-  async function pushLocal() {
-    if (!window.currentUser) return { success: false, offline: true };
+  async function pushLocal(authBoundary = captureAuthBoundary()) {
+    if (!authBoundaryIsCurrent(authBoundary)) return staleAuthResult();
 
     let local = [];
     try { local = JSON.parse(SafeStorage.getItem(STORAGE_KEYS.CHATS) || '[]'); } catch (_) {}
 
-    const tombstoneSnapshot = readDeleted();
+    const tombstoneSnapshot = readDeleted(authBoundary.userId);
     const payload = {
       chats: local.filter(chat => !isPristineChat(chat)).map(chat => ({
         chat_id: chat.chat_id || chat.id,
@@ -282,67 +316,111 @@
     };
 
     if (!payload.chats.length && !payload.deletedChats.length) return { success: true, skipped: true };
-    const result = await window.SyncManager.push(null, payload);
+    const result = await window.SyncManager.push(null, payload, {authBoundary});
+    if (!authBoundaryIsCurrent(authBoundary)) return staleAuthResult();
     if (result?.success) {
       const acknowledged = new Set(tombstoneSnapshot.map(stableTombstoneSignature));
-      writeDeleted(readDeleted().filter(item => !acknowledged.has(stableTombstoneSignature(item))));
+      writeDeleted(
+        readDeleted(authBoundary.userId)
+          .filter(item => !acknowledged.has(stableTombstoneSignature(item))),
+        authBoundary.userId,
+      );
     }
     return result;
   }
 
-  async function synchronize(prefetched = null, { full = true, reconcileLocal = false } = {}) {
-    if (!window.currentUser || !navigator.onLine) return { success: false, offline: true };
-    if (syncing) {
-      syncRequested = true;
-      fullSyncRequested = fullSyncRequested || full;
-      return { success: true, deferred: true };
+  async function synchronize(
+    prefetched = null,
+    { full = true, reconcileLocal = false, authBoundary = captureAuthBoundary() } = {},
+  ) {
+    if (!authBoundaryIsCurrent(authBoundary)) return staleAuthResult();
+    const synchronizationKey = `${authBoundary.userId}@${authBoundary.revision}`;
+    if (activeSynchronization) {
+      if (activeSynchronization.key === synchronizationKey) {
+        syncRequested = true;
+        fullSyncRequested = fullSyncRequested || full;
+        reconcileLocalRequested = reconcileLocalRequested || reconcileLocal;
+        // Coalesce onto the owner-bound operation. Callers such as Projects
+        // must not receive an optimistic deferred success before their rerun
+        // has actually pulled the requested conversation.
+        return activeSynchronization.promise;
+      }
+      try { await activeSynchronization.promise; } catch (_) {}
+      if (!authBoundaryIsCurrent(authBoundary)) return staleAuthResult();
+      return synchronize(prefetched, {full, reconcileLocal, authBoundary});
     }
+    if (!navigator.onLine) return { success: false, offline: true };
 
-    syncing = true;
+    syncRequested = false;
+    fullSyncRequested = false;
+    reconcileLocalRequested = false;
     let firstPrefetch = prefetched;
     let nextFull = full;
     let lastResult = { success: true };
 
-    try {
+    const operation = (async () => {
+      try {
       do {
+        if (!authBoundaryIsCurrent(authBoundary)) return staleAuthResult();
+        reconcileLocal = reconcileLocal || reconcileLocalRequested;
         syncRequested = false;
         fullSyncRequested = false;
+        reconcileLocalRequested = false;
         const snapshot = firstPrefetch;
-        if (snapshot) await pullAndMerge(snapshot, { full: true });
+        if (snapshot) {
+          const prefetchedResult = await pullAndMerge(snapshot, {full: true, authBoundary});
+          if (prefetchedResult?.success === false) return prefetchedResult;
+        }
         firstPrefetch = null;
-        const flushResult = await window.SyncManager.flush?.() || { success: true, flushed: false };
+        const flushResult = await window.SyncManager.flush?.({authBoundary}) || { success: true, flushed: false };
+        if (!authBoundaryIsCurrent(authBoundary)) return staleAuthResult();
         if (flushResult.success === false) return flushResult;
         if (!snapshot || flushResult.flushed) {
-          lastResult = await pullAndMerge(null, { full: nextFull || flushResult.flushed }) || flushResult;
+          lastResult = await pullAndMerge(
+            null,
+            {full: nextFull || flushResult.flushed, authBoundary},
+          ) || flushResult;
         } else {
           lastResult = flushResult;
         }
+        if (!authBoundaryIsCurrent(authBoundary)) return staleAuthResult();
+        if (lastResult?.success === false) return lastResult;
         if (reconcileLocal) {
-          const reconciliation = await pushLocal();
+          const reconciliation = await pushLocal(authBoundary);
           if (reconciliation?.success === false) return reconciliation;
           lastResult = reconciliation || lastResult;
           if (Array.isArray(reconciliation?.ignored) && reconciliation.ignored.length) {
-            lastResult = await pullAndMerge(null, { full: true }) || lastResult;
+            lastResult = await pullAndMerge(null, {full: true, authBoundary}) || lastResult;
           }
           reconcileLocal = false;
         }
         nextFull = fullSyncRequested;
       } while (syncRequested);
       return lastResult;
-    } catch (error) {
-      console.warn('[Sync] Synchronization failed:', error);
-      return { success: false, error: error?.message || 'Synchronization failed.' };
-    } finally {
-      syncing = false;
-    }
+      } catch (error) {
+        console.warn('[Sync] Synchronization failed:', error);
+        return { success: false, error: error?.message || 'Synchronization failed.' };
+      }
+    })();
+    const tracked = operation.finally(() => {
+      if (activeSynchronization?.promise !== tracked) return;
+      activeSynchronization = null;
+      syncRequested = false;
+      fullSyncRequested = false;
+      reconcileLocalRequested = false;
+    });
+    activeSynchronization = {key: synchronizationKey, promise: tracked};
+    return tracked;
   }
 
   window.syncChatsFromServer = () => {
+    const authBoundary = captureAuthBoundary();
+    if (!authBoundaryIsCurrent(authBoundary)) return Promise.resolve(staleAuthResult());
     const prefetched = window.__crumpSyncData || null;
     window.__crumpSyncData = null;
     const reconcileLocal = initialReconciliationPending;
     initialReconciliationPending = false;
-    return synchronize(prefetched, { full: true, reconcileLocal }).then(result => {
+    return synchronize(prefetched, {full: true, reconcileLocal, authBoundary}).then(result => {
       if (result?.success === false) initialReconciliationPending = true;
       return result;
     });
@@ -353,7 +431,7 @@
   // stale object. The database merge function is authoritative and lossless,
   // while the visible-tab synchronizer flushes only queued writes and then
   // performs one incremental pull.
-  window.syncChatsToServer = () => pushLocal();
+  window.syncChatsToServer = () => pushLocal(captureAuthBoundary());
 
   window.startAutoSync = () => {
     clearInterval(intervalId);

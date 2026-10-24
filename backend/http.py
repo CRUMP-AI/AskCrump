@@ -170,13 +170,15 @@ def native_token_payload(request: Request, raw_token: str) -> dict[str, Any]:
 def register_exception_handlers(app: FastAPI) -> None:
     @app.exception_handler(AuthenticationError)
     async def auth_error_handler(_: Request, exc: AuthenticationError):
+        details = dict(getattr(exc, 'details', {}) or {})
         return JSONResponse(
             status_code=exc.status_code,
             content={
                 "success": False,
                 "authenticated": False,
                 "error": exc.message,
-                "code": "AUTH_REQUIRED",
+                "code": getattr(exc, 'code', 'AUTH_REQUIRED'),
+                **details,
             },
         )
 

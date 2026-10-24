@@ -8,6 +8,9 @@
 
   var VIEW_ID = 'studios';
   var registered = false;
+  var mountedStudiosRoot = null;
+  var galleryRequests = new Set();
+  var boundaryUnregister = null;
 
   var MODES = [
     { id: 'quick', label: 'Quick', desc: 'Short, efficient first takes. The fastest way to see an idea move.' },
@@ -35,6 +38,61 @@
   function shell() {
     return window.CrumpVision;
   }
+
+  function captureAuthBoundary() {
+    var boundary = window.CrumpAuthBoundary;
+    var revision = Number(boundary && typeof boundary.revision === 'function' ? boundary.revision() : 0);
+    return Object.freeze({
+      ownerId: String(
+        boundary && typeof boundary.authenticatedUserId === 'function'
+          ? boundary.authenticatedUserId()
+          : (window.currentUser && window.currentUser.id) || '',
+      ).trim(),
+      revision: Number.isFinite(revision) ? revision : 0,
+    });
+  }
+
+  function authBoundaryIsCurrent(snapshot) {
+    if (!snapshot || !snapshot.ownerId) return false;
+    var current = captureAuthBoundary();
+    return current.ownerId === snapshot.ownerId && current.revision === snapshot.revision;
+  }
+
+  function studiosDestinationIsActive() {
+    var viewShell = shell();
+    return !viewShell || typeof viewShell.current !== 'function' || viewShell.current() === VIEW_ID;
+  }
+
+  function scrubStudiosPrivateView(boundary) {
+    galleryRequests.forEach(function (controller) { controller.abort(); });
+    galleryRequests.clear();
+    var root = mountedStudiosRoot;
+    if (!root || !root.isConnected || !studiosDestinationIsActive()) return;
+    root.querySelectorAll('textarea, input').forEach(function (field) { field.value = ''; });
+    root.innerHTML = '<div class="cv-wrap" role="status"><h1 class="cv-headline">Studios</h1><p class="cv-sub">Loading this account\'s private studio…</p></div>';
+    var nextOwnerId = String(boundary && boundary.nextUserId || '').trim();
+    if (nextOwnerId) {
+      queueMicrotask(function () {
+        if (mountedStudiosRoot !== root || !root.isConnected || !studiosDestinationIsActive()) return;
+        var current = captureAuthBoundary();
+        if (current.ownerId === nextOwnerId) render(root);
+      });
+    }
+  }
+
+  function ensureBoundaryRegistration() {
+    if (boundaryUnregister || typeof window.CrumpAuthBoundary?.register !== 'function') return;
+    boundaryUnregister = window.CrumpAuthBoundary.register('vision-studios-private-view', scrubStudiosPrivateView);
+  }
+
+  function releaseView() {
+    galleryRequests.forEach(function (controller) { controller.abort(); });
+    galleryRequests.clear();
+    mountedStudiosRoot = null;
+  }
+
+  ensureBoundaryRegistration();
+  window.addEventListener('crump:body-runtime-ready', ensureBoundaryRegistration, {once: true});
 
   /* Image Studio opens as a sheet over the current surface; the chosen mode
      is handed to the real studio when it accepts one. */
@@ -122,7 +180,7 @@
     return '<div class="cv-gallery-item">' + inner + '</div>';
   }
 
-  function loadGallery(listEl) {
+  function loadGallery(listEl, authBoundary) {
     if (!listEl) return;
     var authed = Boolean(window.currentUser && window.currentUser.id);
     var demo = window.__crumpVisionDemo === true;
@@ -130,13 +188,21 @@
       listEl.innerHTML = '<div class="cv-gallery-empty"><strong>No clips yet</strong><p>Sign in and generate your first video — finished clips appear here.</p></div>';
       return;
     }
+    if (!authBoundaryIsCurrent(authBoundary)) return;
     listEl.innerHTML = '<div class="cv-loading">Checking your private video jobs…</div>';
-    fetch('/api/media/video', { credentials: 'same-origin' })
+    var controller = new AbortController();
+    galleryRequests.add(controller);
+    fetch('/api/media/video', {
+      credentials: 'same-origin',
+      headers: {'X-Ask-Crump-Expected-Owner': authBoundary.ownerId},
+      signal: controller.signal,
+    })
       .then(function (res) {
         if (!res.ok) throw new Error('unavailable');
         return res.json();
       })
       .then(function (data) {
+        if (!authBoundaryIsCurrent(authBoundary) || !listEl.isConnected) return;
         var jobs = Array.isArray(data && data.jobs) ? data.jobs.slice(0, 6) : [];
         if (!jobs.length) {
           listEl.innerHTML = '<div class="cv-gallery-empty"><strong>No clips yet</strong><p>Generate your first video and it will live here, kept in your workspace.</p></div>';
@@ -145,11 +211,15 @@
         listEl.innerHTML = jobs.map(renderGalleryItem).join('');
       })
       .catch(function () {
+        if (!authBoundaryIsCurrent(authBoundary) || !listEl.isConnected) return;
         listEl.innerHTML = '<div class="cv-gallery-empty"><strong>Could not load your clips</strong><p>Your recent videos are unavailable right now. Open Video Studio to check on them.</p></div>';
-      });
+      })
+      .finally(function () { galleryRequests.delete(controller); });
   }
 
   function render(root) {
+    mountedStudiosRoot = root;
+    var authBoundary = captureAuthBoundary();
     root.classList.add('cv-view');
     root.innerHTML =
       '<div class="cv-wrap">' +
@@ -256,9 +326,11 @@
     var gallery = root.querySelector('[data-cv-gallery]');
     var refreshBtn = root.querySelector('[data-cv-refresh-gallery]');
     if (refreshBtn && gallery) {
-      refreshBtn.addEventListener('click', function () { loadGallery(gallery); });
+      refreshBtn.addEventListener('click', function () {
+        if (authBoundaryIsCurrent(authBoundary)) loadGallery(gallery, authBoundary);
+      });
     }
-    loadGallery(gallery);
+    loadGallery(gallery, authBoundary);
   }
 
   function tryRegister() {
@@ -266,7 +338,7 @@
     var v = shell();
     if (!v || typeof v.registerView !== 'function') return false;
     try {
-      v.registerView(VIEW_ID, { title: 'Studios', render: render });
+      v.registerView(VIEW_ID, { title: 'Studios', render: render, onHide: releaseView });
     } catch (_) {
       return false;
     }

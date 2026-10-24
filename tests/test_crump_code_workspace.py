@@ -26,9 +26,9 @@ def test_code_workspace_is_lazy_loaded_only_after_server_configuration_and_entit
     assert "function hydrateAvailability(data)" in script
     assert "__crumpCodeBootstrapStatus" in script
     assert "window.CrumpCodeWorkspace = Object.freeze({open, close, refresh, refreshAvailability, hydrateAvailability})" in script
-    versioned_script = "/crump-code-5.9.35.js?v=5.9.76-autonomous-continuity-1"
+    versioned_script = "/crump-code-5.9.35.js?v=5.9.76-account-owner-boundary-1"
     versioned_style = "/crump-code-5.9.35.css?v=5.9.76-autonomous-continuity-1"
-    versioned_loader = "/crump-code-loader.js?v=5.9.76-autonomous-continuity-1"
+    versioned_loader = "/crump-code-loader.js?v=5.9.76-account-owner-boundary-1&workspaceRelease=guest-free-contract-2"
     for source in (runtime, native, worker):
         assert versioned_loader in source
         assert versioned_script not in source

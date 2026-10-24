@@ -30,3 +30,25 @@ def test_native_preflight_allows_installation_header():
     assert response.status_code == 200
     allowed = response.headers.get('access-control-allow-headers', '').lower()
     assert 'x-installation-id' in allowed
+
+
+def test_native_sync_preflight_allows_expected_owner_header():
+    response = client.options('/api/sync/pull', headers={
+        'Origin': 'capacitor://localhost',
+        'Access-Control-Request-Method': 'GET',
+        'Access-Control-Request-Headers': 'authorization,x-ask-crump-sync-owner,x-crump-client',
+    })
+    assert response.status_code == 200
+    allowed = response.headers.get('access-control-allow-headers', '').lower()
+    assert 'x-ask-crump-sync-owner' in allowed
+
+
+def test_account_bound_preflight_allows_generic_expected_owner_header():
+    response = client.options('/api/account/profile', headers={
+        'Origin': 'capacitor://localhost',
+        'Access-Control-Request-Method': 'PATCH',
+        'Access-Control-Request-Headers': 'authorization,x-ask-crump-expected-owner,x-crump-client',
+    })
+    assert response.status_code == 200
+    allowed = response.headers.get('access-control-allow-headers', '').lower()
+    assert 'x-ask-crump-expected-owner' in allowed

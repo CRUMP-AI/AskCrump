@@ -220,13 +220,14 @@ def test_primary_and_fallback_chat_runtimes_use_bounded_server_job_recovery():
     assert "STATUS_MAX_POLLS = 10" in transport
     assert "new AbortController()" in transport
     assert "`/api/chat/status/${encodeURIComponent(messageId)}`" in transport
-    assert "const recovered = await recover(requestBody.messageId)" in transport
+    assert "const recovered = await recover(requestBody.messageId, {expectedOwnerId})" in transport
     assert "Crump is still working on this message. Tap it to check again." in transport
     assert "window.CrumpChatTransport.acknowledge" in primary
     assert "window.CrumpChatTransport.send" in primary
-    assert "window.CrumpChatTransport?.recover?.(id)" in primary
+    assert "window.CrumpChatTransport?.recover?.(id, {expectedOwnerId})" in primary
     assert "const transport = window.CrumpChatTransport" in fallback
-    assert "const recovered = await window.CrumpChatTransport?.recover?.(id)" in fallback
+    assert "const recovered = await window.CrumpChatTransport?.recover?.(id, {" in fallback
+    assert "expectedOwnerId: authBoundary.ownerId" in fallback
 
 
 def test_completed_reply_sync_is_best_effort_and_cannot_relabel_durable_success():
@@ -311,10 +312,10 @@ def test_changed_primary_runtime_and_transport_are_release_versioned_and_network
     worker = (PUBLIC / "sw.js").read_text(encoding="utf-8")
 
     assert '/chat-resilience.js?v=5.9.76-contextual-plan-recovery-1' not in shell
-    assert "['/chat-resilience.js?v=5.9.76-credit-confirmation-1&workspaceRelease=guest-free-contract-2', 'workspacechatresilience']" in runtime
-    assert "['/crump-5.0.js?v=5.9.76-precision-ai-persistence-1&workspaceRelease=guest-free-contract-2', 'crump50']" in runtime
-    assert "'/chat-resilience.js?v=5.9.76-credit-confirmation-1&workspaceRelease=guest-free-contract-2'" in worker
-    assert "'/crump-5.0.js?v=5.9.76-precision-ai-persistence-1&workspaceRelease=guest-free-contract-2'" in worker
+    assert "['/chat-resilience.js?v=5.9.76-chat-owner-boundary-1&workspaceRelease=guest-free-contract-2', 'workspacechatresilience']" in runtime
+    assert "['/crump-5.0.js?v=5.9.76-chat-owner-boundary-1&workspaceRelease=guest-free-contract-2', 'crump50']" in runtime
+    assert "'/chat-resilience.js?v=5.9.76-chat-owner-boundary-1&workspaceRelease=guest-free-contract-2'" in worker
+    assert "'/crump-5.0.js?v=5.9.76-chat-owner-boundary-1&workspaceRelease=guest-free-contract-2'" in worker
     assert "url.pathname === '/chat-resilience.js'" in worker
     assert "url.pathname === '/crump-5.0.js'" in worker
 

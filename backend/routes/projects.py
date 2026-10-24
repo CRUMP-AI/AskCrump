@@ -41,7 +41,13 @@ def _projects_unavailable() -> JSONResponse:
 
 @router.get("")
 async def list_projects(request: Request):
-    auth = await authenticate_request(request, db, settings, require_account=True)
+    auth = await authenticate_request(
+        request,
+        db,
+        settings,
+        require_account=True,
+        require_expected_owner_header=True,
+    )
     items = await projects.list(auth.user["id"])
     return {
         "success": True,
@@ -239,7 +245,13 @@ async def project_target(project_id: str, request: Request):
 
 @router.get("/{project_id}/chats")
 async def list_project_chats(project_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings, require_account=True)
+    auth = await authenticate_request(
+        request,
+        db,
+        settings,
+        require_account=True,
+        require_expected_owner_header=True,
+    )
     try:
         conversations = await projects.list_chats(
             user_id=auth.user["id"],
@@ -252,7 +264,13 @@ async def list_project_chats(project_id: str, request: Request):
 
 @router.get("/{project_id}")
 async def get_project(project_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings, require_account=True)
+    auth = await authenticate_request(
+        request,
+        db,
+        settings,
+        require_account=True,
+        require_expected_owner_header=True,
+    )
     try:
         item = await projects.get(auth.user["id"], project_id)
         context = await projects.hydrate_context(auth.user["id"], project_id)

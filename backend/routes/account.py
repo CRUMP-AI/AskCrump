@@ -11,7 +11,6 @@ from fastapi.responses import JSONResponse
 
 from ..auth_service import authenticate_request, public_user
 from ..db import eq
-from ..http import clear_session_cookie
 from ..product_analytics import record_product_event
 from ..runtime import db, settings
 from ..schemas import DeleteAccountRequest, ProfileUpdateRequest, TermsAcceptanceRequest
@@ -98,7 +97,12 @@ async def delete_stripe_customer(user: dict[str, Any]) -> bool:
 
 @router.patch('/profile')
 async def update_profile(payload: ProfileUpdateRequest, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(
+        request,
+        db,
+        settings,
+        require_expected_owner_header=True,
+    )
     first_completion = not str(auth.user.get('full_name') or '').strip()
     full_name = payload.fullName.strip()
     if not full_name:
@@ -118,7 +122,12 @@ async def update_profile(payload: ProfileUpdateRequest, request: Request):
 
 @router.post('/accept-terms')
 async def accept_terms(payload: TermsAcceptanceRequest, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(
+        request,
+        db,
+        settings,
+        require_expected_owner_header=True,
+    )
     accepted_at = iso_now()
     await db.update('users', {
         'terms_accepted_at': accepted_at,
@@ -132,7 +141,12 @@ async def accept_terms(payload: TermsAcceptanceRequest, request: Request):
 
 @router.delete('')
 async def delete_account(payload: DeleteAccountRequest, request: Request, response: Response):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(
+        request,
+        db,
+        settings,
+        require_expected_owner_header=True,
+    )
     if payload.confirmation.strip().upper() != 'DELETE':
         return JSONResponse(status_code=400, content={'success': False, 'error': 'Type DELETE to confirm.'})
     if not verify_password(payload.password, auth.user.get('password_hash')):
@@ -177,7 +191,10 @@ async def delete_account(payload: DeleteAccountRequest, request: Request, respon
             'p_storage_bucket': settings.storage_bucket,
         },
     )
-    clear_session_cookie(response)
+    # The authenticated session is revoked by the atomic account-deletion RPC.
+    # Do not emit a late cookie deletion here: billing/provider cleanup can take
+    # long enough for this tab to establish a different account session, and an
+    # old response must never clear that newer account's shared cookie.
     response.status_code = 202
     return {
         'success': True,

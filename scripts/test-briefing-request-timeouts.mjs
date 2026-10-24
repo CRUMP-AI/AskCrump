@@ -30,6 +30,8 @@ import vm from 'node:vm';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const FAST_TIMEOUT_MS = 120;
+const HOME_OWNER_ID = '11111111-1111-4111-8111-111111111111';
+const HOME_AUTH_BOUNDARY = Object.freeze({ ownerId: HOME_OWNER_ID, revision: 7 });
 
 function extractApiBlock(source, constName) {
   const start = source.indexOf(`var ${constName}`);
@@ -49,11 +51,22 @@ function extractApiBlock(source, constName) {
   return source.slice(start, i + 1).replaceAll('15000', String(FAST_TIMEOUT_MS));
 }
 
-function loadApi(relPath, constName) {
+function loadApi(relPath, constName, authBoundary = null) {
   const src = readFileSync(path.join(ROOT, relPath), 'utf8');
   const block = extractApiBlock(src, constName);
   const sandbox = { fetch: null, AbortController, setTimeout, clearTimeout, Error };
   sandbox.globalThis = sandbox;
+  // The production helpers run in a browser and intentionally resolve their
+  // auth boundary through window. Keep this VM fixture browser-faithful rather
+  // than weakening the production fail-closed owner check for Node.
+  sandbox.window = sandbox;
+  if (authBoundary) {
+    sandbox.currentUser = { id: authBoundary.ownerId };
+    sandbox.CrumpAuthBoundary = {
+      authenticatedUserId: () => authBoundary.ownerId,
+      revision: () => authBoundary.revision,
+    };
+  }
   vm.createContext(sandbox);
   vm.runInContext(`${block}\nglobalThis.__api = api;`, sandbox);
   return {
@@ -114,7 +127,11 @@ function assert(cond, msg) {
   if (!cond) throw new Error(msg);
 }
 
-const home = loadApi('public/crump-vision-home-1.0.js', 'BRIEFING_TIMEOUT_MS');
+const home = loadApi(
+  'public/crump-vision-home-1.0.js',
+  'BRIEFING_TIMEOUT_MS',
+  HOME_AUTH_BOUNDARY,
+);
 const library = loadApi('public/crump-vision-library-1.0.js', 'LIBRARY_TIMEOUT_MS');
 
 // --- Home api() ---
@@ -123,7 +140,7 @@ await check('home: hanging request rejects with REQUEST_TIMEOUT', async () => {
   home.setFetch(hangingFetch());
   const t0 = Date.now();
   try {
-    await home.call('/api/projects');
+    await home.call('/api/projects', HOME_AUTH_BOUNDARY);
     assert(false, 'resolved instead of rejecting');
   } catch (e) {
     assert(e.code === 'REQUEST_TIMEOUT', `expected REQUEST_TIMEOUT, got ${e.code}`);
@@ -138,7 +155,7 @@ await check('home: HTTP 200 success:false rejects (not silent {})', async () => 
     json: async () => ({ success: false, error: 'Workspace unavailable' }),
   }));
   try {
-    await home.call('/api/projects');
+    await home.call('/api/projects', HOME_AUTH_BOUNDARY);
     assert(false, 'resolved as {} instead of rejecting');
   } catch (e) {
     assert(e.code !== 'REQUEST_TIMEOUT', 'wrong error kind');
@@ -149,7 +166,7 @@ await check('home: HTTP 200 success:false rejects (not silent {})', async () => 
 await check('home: HTTP 500 rejects with status error', async () => {
   home.setFetch(async () => ({ ok: false, status: 500, json: async () => ({}) }));
   try {
-    await home.call('/api/projects');
+    await home.call('/api/projects', HOME_AUTH_BOUNDARY);
     assert(false, 'resolved instead of rejecting');
   } catch (e) {
     assert(e.message === 'Request failed (500)', `unexpected message: ${e.message}`);
@@ -159,7 +176,7 @@ await check('home: HTTP 500 rejects with status error', async () => {
 await check('home: stalled body after 200 headers rejects REQUEST_TIMEOUT', async () => {
   home.setFetch(stalledBodyFetch());
   try {
-    await home.call('/api/projects');
+    await home.call('/api/projects', HOME_AUTH_BOUNDARY);
     assert(false, 'resolved instead of rejecting');
   } catch (e) {
     assert(e.code === 'REQUEST_TIMEOUT', `expected REQUEST_TIMEOUT, got ${e.code || e.message}`);
@@ -167,9 +184,14 @@ await check('home: stalled body after 200 headers rejects REQUEST_TIMEOUT', asyn
 });
 
 await check('home: fast success still resolves data', async () => {
-  home.setFetch(async () => ({ ok: true, status: 200, json: async () => ({ projects: [1] }) }));
-  const data = await home.call('/api/projects');
+  let expectedOwner = '';
+  home.setFetch(async (_url, options = {}) => {
+    expectedOwner = options.headers?.['X-Ask-Crump-Expected-Owner'] || '';
+    return { ok: true, status: 200, json: async () => ({ projects: [1] }) };
+  });
+  const data = await home.call('/api/projects', HOME_AUTH_BOUNDARY);
   assert(Array.isArray(data.projects) && data.projects.length === 1, 'data lost');
+  assert(expectedOwner === HOME_OWNER_ID, 'authenticated Home request omitted its owner claim');
 });
 
 // --- Library api() ---

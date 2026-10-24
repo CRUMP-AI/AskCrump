@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Project conversation resume fixture</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/public/crump-vision-projects-1.0.css?v=project-resume-fixture-1">
+</head>
+<body>
+  <main id="fixtureRoot"></main>
+  <textarea id="userInput" aria-label="Message Crump"></textarea>
+  <script>
+    (() => {
+      'use strict';
+
+      const scenario = new URL(window.location.href).searchParams.get('scenario') || 'same';
+      const ownerId = '11111111-1111-4111-8111-111111111111';
+      const projectId = '22222222-2222-4222-8222-222222222222';
+      const chatId = '33333333-3333-4333-8333-333333333333';
+      const chat = {id: chatId, title: 'Supervisor launch plan', messages: []};
+      const ownerBChatId = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+      const ownerBChat = {id: ownerBChatId, title: 'Owner B handoff', messages: []};
+      let pendingSync = null;
+      let currentUserValue = {id: ownerId};
+      let authOwnerId = ownerId;
+      let authRevision = 0;
+      const authScrubbers = new Map();
+
+      Object.defineProperty(window, 'currentUser', {
+        configurable: true,
+        get: () => currentUserValue,
+        set(nextUser) {
+          const nextOwnerId = String(nextUser?.id || '');
+          if (authOwnerId !== nextOwnerId) {
+            authRevision += 1;
+            authScrubbers.forEach(scrub => scrub({
+              previousUserId: authOwnerId,
+              nextUserId: nextOwnerId,
+              revision: authRevision,
+            }));
+          }
+          currentUserValue = nextUser || null;
+          authOwnerId = nextOwnerId;
+        },
+      });
+      window.CrumpAuthBoundary = Object.freeze({
+        authenticatedUserId: () => authOwnerId,
+        revision: () => authRevision,
+        register(name, scrub) {
+          authScrubbers.set(String(name), scrub);
+          return () => authScrubbers.delete(String(name));
+        },
+      });
+      window.currentChatId = '';
+      window.chats = scenario === 'same' ? [chat] : [];
+      window.__fixture = {
+        scenario,
+        ownerId,
+        projectId,
+        chatId,
+        ownerBChatId,
+        actions: [],
+        events: [],
+        loadCalls: [],
+        navigations: [],
+        syncCalls: 0,
+        toasts: [],
+        view: null,
+        switchOwner(nextOwnerId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa') {
+          window.currentUser = nextOwnerId ? {id: nextOwnerId} : null;
+          window.chats = nextOwnerId ? [ownerBChat] : [];
+          window.currentChatId = '';
+        },
+        resolveSync({success = true, includeChat = true} = {}) {
+          if (includeChat && authOwnerId === ownerId) window.chats = [chat];
+          const resolve = pendingSync;
+          pendingSync = null;
+          resolve?.({success});
+        },
+      };
+
+      window.fetch = async input => {
+        const path = new URL(String(input), window.location.href).pathname;
+        let body;
+        if (path === '/api/projects') {
+          const ownerB = authOwnerId !== ownerId;
+          body = {success: true, projects: [{
+            id: projectId,
+            name: ownerB ? 'Owner B Project' : 'Launch Project',
+            description: ownerB ? 'Owner B private work.' : 'A private continuation fixture.',
+            created_at: '2026-10-23T12:00:00Z',
+            updated_at: '2026-10-24T01:00:00Z',
+          }]};
+        } else if (path === `/api/projects/${projectId}`) {
+          const ownerB = authOwnerId !== ownerId;
+          body = {success: true, project: {
+            id: projectId,
+            name: ownerB ? 'Owner B Project' : 'Launch Project',
+            description: ownerB ? 'Owner B private work.' : 'A private continuation fixture.',
+            created_at: '2026-10-23T12:00:00Z',
+            updated_at: '2026-10-24T01:00:00Z',
+          }, context: {canon: [], manuscripts: []}};
+        } else if (path === `/api/projects/${projectId}/chats`) {
+          const ownerB = authOwnerId !== ownerId;
+          body = {success: true, conversations: [{
+            chatId: ownerB ? ownerBChatId : chatId,
+            title: ownerB ? ownerBChat.title : chat.title,
+            createdAt: '2026-10-23T12:15:00Z',
+            updatedAt: '2026-10-24T01:05:00Z',
+          }]};
+        } else if (path === '/api/library/books') {
+          body = {success: true, books: []};
+        } else {
+          return new Response(JSON.stringify({success: false, error: `Unexpected fixture path: ${path}`}), {
+            status: 404,
+            headers: {'Content-Type': 'application/json'},
+          });
+        }
+        return new Response(JSON.stringify(body), {
+          status: 200,
+          headers: {'Content-Type': 'application/json'},
+        });
+      };
+
+      window.syncChatsFromServer = () => {
+        window.__fixture.syncCalls += 1;
+        window.__fixture.actions.push('sync');
+        if (scenario === 'failure') return Promise.resolve({success: false});
+        if (scenario === 'pending') {
+          return new Promise(resolve => { pendingSync = resolve; });
+        }
+        window.chats = [chat];
+        return Promise.resolve({success: true});
+      };
+
+      window.loadChat = id => {
+        window.__fixture.loadCalls.push(id);
+        window.__fixture.actions.push(`load:${id}`);
+        if ((window.chats || []).some(item => String(item.id || item.chat_id || '') === String(id))) {
+          window.currentChatId = String(id);
+        }
+      };
+
+      window.showToast = (message, type) => {
+        window.__fixture.toasts.push({message, type});
+      };
+      window.CrumpAnalytics = {
+        track(name, detail) {
+          window.__fixture.actions.push('track');
+          window.__fixture.events.push({name, detail});
+          return Promise.resolve(true);
+        },
+      };
+      window.CrumpVision = {
+        registerView(id, view) {
+          if (id !== 'projects') throw new Error(`Unexpected fixture view: ${id}`);
+          window.__fixture.view = view;
+          view.render(document.getElementById('fixtureRoot'));
+          return true;
+        },
+        navigate(id) {
+          window.__fixture.actions.push(`navigate:${id}`);
+          window.__fixture.navigations.push(id);
+        },
+      };
+    })();
+  </script>
+  <script src="/public/crump-vision-projects-1.0.js?v=project-resume-fixture-1"></script>
+</body>
+</html>

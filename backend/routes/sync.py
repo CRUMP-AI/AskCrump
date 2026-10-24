@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
+import hmac
+from uuid import UUID
+
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
-from ..auth_service import authenticate_request, is_guest_user
+from ..auth_service import authenticate_request, is_guest_user, touch_authenticated_session
 from ..rate_limit import enforce_user_rate_limit
 from ..runtime import db, settings
 from ..security import iso_now
@@ -13,11 +16,46 @@ from ..sync_service import pull_sync, push_sync
 from ..usage_service import current_usage
 
 router = APIRouter(prefix="/api", tags=["synchronization"])
+SYNC_OWNER_HEADER = 'x-ask-crump-sync-owner'
+
+
+def _sync_owner_mismatch(request: Request, authenticated_user_id: str) -> JSONResponse | None:
+    """Refuse a request captured for a different browser-side account.
+
+    The HttpOnly session cookie can change in another tab after a sync snapshot
+    is queued. Binding that snapshot to the client-observed owner prevents the
+    old account's queue from being read or written under the new session.
+    """
+    headers = getattr(request, 'headers', {})
+    expected_owner = str(headers.get(SYNC_OWNER_HEADER, '') or '').strip()
+    actual_owner = str(authenticated_user_id or '').strip()
+    try:
+        expected_bytes = UUID(expected_owner).bytes
+        actual_bytes = UUID(actual_owner).bytes
+    except (AttributeError, TypeError, ValueError):
+        expected_bytes = b''
+        actual_bytes = b'\x01'
+    if hmac.compare_digest(expected_bytes, actual_bytes):
+        return None
+    return JSONResponse(
+        status_code=409,
+        content={
+            'success': False,
+            'code': 'SYNC_OWNER_MISMATCH',
+            'staleAuth': True,
+            'error': 'The signed-in account changed before synchronization began. Retry under the current account.',
+            'queued': True,
+            'retryable': True,
+        },
+    )
 
 
 @router.get('/sync/pull')
 async def sync_pull(request: Request, since: str | None = None):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, touch=False)
+    if mismatch := _sync_owner_mismatch(request, auth.user['id']):
+        return mismatch
+    await touch_authenticated_session(db, settings, auth)
     # Capture the read watermark before querying. A write that lands while the
     # query is in flight must remain newer than this cursor so the next
     # incremental pull cannot skip it.
@@ -28,7 +66,10 @@ async def sync_pull(request: Request, since: str | None = None):
 
 @router.post('/sync/push')
 async def sync_push(request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(request, db, settings, touch=False)
+    if mismatch := _sync_owner_mismatch(request, auth.user['id']):
+        return mismatch
+    await touch_authenticated_session(db, settings, auth)
     guest = is_guest_user(auth.user)
     if guest:
         # Sync stays open to guests (their conversation must survive to
@@ -137,7 +178,9 @@ async def sync_push(request: Request):
 
 @router.get('/usage/check')
 async def usage_check(request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(
+        request, db, settings, require_expected_owner_header=True
+    )
     status = await current_usage(db, auth.user, settings)
     credits = status.get('credits') or {'balance': 0}
     balance = max(0, int(credits.get('balance') or 0))

@@ -1,12 +1,65 @@
 (() => {
   'use strict';
 
+  const EXPECTED_OWNER_HEADER = 'X-Ask-Crump-Expected-Owner';
   let previouslyFocused = null;
+  let accountBoundaryGeneration = 0;
+  let unregisterAuthBoundary = null;
+  const accountRequests = new Set();
 
-  function closeModal(id) {
+  function captureAuthBoundary() {
+    const boundary = window.CrumpAuthBoundary;
+    const ownerId = String(
+      typeof boundary?.authenticatedUserId === 'function'
+        ? boundary.authenticatedUserId()
+        : window.currentUser?.id || '',
+    ).trim();
+    const rawRevision = typeof boundary?.revision === 'function' ? boundary.revision() : 0;
+    const revision = Number(rawRevision);
+    return Object.freeze({
+      ownerId,
+      revision: Number.isFinite(revision) ? revision : 0,
+      generation: accountBoundaryGeneration,
+    });
+  }
+
+  function authBoundaryIsCurrent(snapshot) {
+    if (!snapshot?.ownerId || snapshot.generation !== accountBoundaryGeneration) return false;
+    const current = captureAuthBoundary();
+    return current.ownerId === snapshot.ownerId && current.revision === snapshot.revision;
+  }
+
+  function newAccountRequest() {
+    const controller = new AbortController();
+    accountRequests.add(controller);
+    return controller;
+  }
+
+  function releaseAccountRequest(controller) {
+    accountRequests.delete(controller);
+  }
+
+  function closeModal(id, {restoreFocus = true} = {}) {
     document.getElementById(id)?.remove();
-    previouslyFocused?.focus?.();
+    if (restoreFocus && previouslyFocused?.isConnected) previouslyFocused.focus?.();
     previouslyFocused = null;
+  }
+
+  function scrubAuthBoundary() {
+    accountBoundaryGeneration += 1;
+    accountRequests.forEach(controller => controller.abort());
+    accountRequests.clear();
+    closeModal('devicesModal', {restoreFocus: false});
+    closeModal('deleteAccountModal', {restoreFocus: false});
+    previouslyFocused = null;
+  }
+
+  function ensureAuthBoundaryRegistration() {
+    if (unregisterAuthBoundary || typeof window.CrumpAuthBoundary?.register !== 'function') return;
+    unregisterAuthBoundary = window.CrumpAuthBoundary.register(
+      'account-dialogs',
+      scrubAuthBoundary,
+    );
   }
 
   function createModal(id, title) {
@@ -87,31 +140,49 @@
     return Number.isNaN(date.getTime()) ? 'Unknown' : date.toLocaleString();
   }
 
-  async function revokeDevice(button, sessionId) {
+  async function revokeDevice(button, sessionId, authBoundary) {
+    if (!authBoundaryIsCurrent(authBoundary) || !button?.isConnected) return;
+    const controller = newAccountRequest();
     button.disabled = true;
     try {
       const response = await fetch('/api/auth/revoke-device', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          [EXPECTED_OWNER_HEADER]: authBoundary.ownerId,
+        },
         body: JSON.stringify({ sessionId }),
+        signal: controller.signal,
       });
+      if (!authBoundaryIsCurrent(authBoundary) || !button.isConnected) return;
       if (!response.ok) throw new Error('Unable to sign out that device.');
       button.closest('.device-row')?.remove();
     } catch (error) {
+      if (!authBoundaryIsCurrent(authBoundary) || controller.signal.aborted || !button.isConnected) return;
       button.disabled = false;
       window.showToast?.(error.message, 'error');
+    } finally {
+      releaseAccountRequest(controller);
     }
   }
 
   async function openDevices() {
-    const { card } = createModal('devicesModal', 'Signed-in devices');
+    ensureAuthBoundaryRegistration();
+    const authBoundary = captureAuthBoundary();
+    if (!authBoundary.ownerId || !authBoundaryIsCurrent(authBoundary)) return;
+    const { root, card } = createModal('devicesModal', 'Signed-in devices');
     const status = textElement('p', 'Loading devices…', 'account-modal-status');
     status.setAttribute('role', 'status');
     card.appendChild(status);
+    const controller = newAccountRequest();
 
     try {
-      const response = await fetch('/api/auth/devices');
+      const response = await fetch('/api/auth/devices', {
+        headers: {[EXPECTED_OWNER_HEADER]: authBoundary.ownerId},
+        signal: controller.signal,
+      });
       const data = await response.json().catch(() => ({}));
+      if (!authBoundaryIsCurrent(authBoundary) || !root.isConnected) return;
       if (!response.ok) throw new Error(data.error || 'Unable to load devices.');
 
       const list = document.createElement('div');
@@ -139,7 +210,7 @@
         } else {
           const button = textElement('button', 'Sign out');
           button.type = 'button';
-          button.addEventListener('click', () => revokeDevice(button, device.id));
+          button.addEventListener('click', () => revokeDevice(button, device.id, authBoundary));
           row.appendChild(button);
         }
         list.appendChild(row);
@@ -147,7 +218,10 @@
 
       status.replaceWith(list);
     } catch (error) {
+      if (!authBoundaryIsCurrent(authBoundary) || controller.signal.aborted || !root.isConnected) return;
       status.textContent = error.message;
+    } finally {
+      releaseAccountRequest(controller);
     }
   }
 
@@ -164,7 +238,10 @@
   }
 
   function openDeleteAccountDialog() {
-    const { card } = createModal('deleteAccountModal', 'Delete account');
+    ensureAuthBoundaryRegistration();
+    const authBoundary = captureAuthBoundary();
+    if (!authBoundary.ownerId || !authBoundaryIsCurrent(authBoundary)) return;
+    const { root, card } = createModal('deleteAccountModal', 'Delete account');
     card.appendChild(textElement(
       'p',
       'This immediately ends account access and deletes synchronized records. Private files are then permanently removed by a background cleanup that is retried and verified. This action cannot be undone.',
@@ -186,29 +263,49 @@
     card.append(password.label, confirmation.label, error, confirm);
 
     confirm.addEventListener('click', async () => {
+      if (!authBoundaryIsCurrent(authBoundary) || !root.isConnected) return;
       error.textContent = '';
       confirm.disabled = true;
+      const nativeToken = window.CrumpAPI?.isNative
+        ? window.CrumpAPI?.getSessionToken?.() || null
+        : null;
+      const controller = newAccountRequest();
       try {
         const response = await fetch('/api/account', {
           method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            [EXPECTED_OWNER_HEADER]: authBoundary.ownerId,
+          },
           body: JSON.stringify({
             password: password.input.value,
             confirmation: confirmation.input.value,
           }),
+          signal: controller.signal,
         });
         const data = await response.json().catch(() => ({}));
+        if (!authBoundaryIsCurrent(authBoundary) || !root.isConnected) return;
         if (!response.ok) throw new Error(data.error || 'Account deletion failed.');
-        await window.CrumpAPI?.clearSessionToken?.();
-        window.deviceAuth?.clearLocalState?.();
+        const cleared = await window.CrumpAPI?.clearSessionToken?.(nativeToken);
+        if (window.CrumpAPI?.isNative && cleared === false) return;
+        if (!authBoundaryIsCurrent(authBoundary)) return;
+        const localCleared = window.deviceAuth?.clearLocalState?.(authBoundary.ownerId);
+        if (localCleared === false) return;
         window.location.replace('/');
       } catch (exception) {
+        if (!authBoundaryIsCurrent(authBoundary) || controller.signal.aborted || !root.isConnected) return;
         error.textContent = exception.message;
         confirm.disabled = false;
+      } finally {
+        releaseAccountRequest(controller);
       }
     });
   }
 
+  window.CrumpAccountBoundary = Object.freeze({scrubAuthBoundary});
   window.openDevices = openDevices;
   window.openDeleteAccountDialog = openDeleteAccountDialog;
+  window.addEventListener('crump:authenticated-ready', ensureAuthBoundaryRegistration);
+  window.addEventListener('crump:authentication-required', scrubAuthBoundary);
+  ensureAuthBoundaryRegistration();
 })();

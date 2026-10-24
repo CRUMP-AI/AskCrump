@@ -71,14 +71,43 @@
   // used to leave "Opening your library…" / "Opening book…" on screen
   // indefinitely.
   var LIBRARY_TIMEOUT_MS = 15000;
+  var libraryRequests = new Set();
+  var activeReader = null;
+  var libraryBoundaryUnregister = null;
 
-  async function api(path, timeoutMs) {
+  function captureAuthBoundary() {
+    var boundary = window.CrumpAuthBoundary;
+    var rawRevision = boundary && typeof boundary.revision === 'function' ? boundary.revision() : 0;
+    var revision = Number(rawRevision);
+    return Object.freeze({
+      ownerId: String(
+        boundary && typeof boundary.authenticatedUserId === 'function'
+          ? boundary.authenticatedUserId()
+          : (window.currentUser && window.currentUser.id) || '',
+      ).trim(),
+      revision: Number.isFinite(revision) ? revision : 0,
+    });
+  }
+
+  function authBoundaryIsCurrent(snapshot) {
+    if (window.__crumpVisionDemo === true) return true;
+    if (!snapshot || !snapshot.ownerId) return false;
+    var current = captureAuthBoundary();
+    return current.ownerId === snapshot.ownerId && current.revision === snapshot.revision;
+  }
+
+  async function api(path, timeoutMs, authBoundary) {
     var controller = new AbortController();
+    libraryRequests.add(controller);
     var timer = setTimeout(function () { controller.abort(); }, timeoutMs || LIBRARY_TIMEOUT_MS);
+    var ownerId = authBoundary && authBoundary.ownerId || '';
     try {
       var response = await fetch(path, {
         credentials: 'include',
-        headers: { Accept: 'application/json' },
+        headers: {
+          Accept: 'application/json',
+          'X-Ask-Crump-Expected-Owner': ownerId,
+        },
         signal: controller.signal,
       });
       var data = {};
@@ -104,8 +133,27 @@
       throw err;
     } finally {
       clearTimeout(timer);
+      libraryRequests.delete(controller);
     }
   }
+
+  function scrubLibraryAuthBoundary() {
+    libraryRequests.forEach(function (controller) { controller.abort(); });
+    libraryRequests.clear();
+    document.querySelectorAll('.cvl-overlay').forEach(function (overlay) { overlay.remove(); });
+    activeReader = null;
+  }
+
+  function ensureLibraryBoundaryRegistration() {
+    if (libraryBoundaryUnregister || typeof window.CrumpAuthBoundary?.register !== 'function') return;
+    libraryBoundaryUnregister = window.CrumpAuthBoundary.register(
+      'vision-library-private-view',
+      scrubLibraryAuthBoundary,
+    );
+  }
+
+  ensureLibraryBoundaryRegistration();
+  window.addEventListener('crump:body-runtime-ready', ensureLibraryBoundaryRegistration, {once: true});
 
   function bookInitial(title) {
     var t = String(title || '').trim();
@@ -174,11 +222,15 @@
     }).join('');
   }
 
-  function openReader(book) {
+  function openReader(book, authBoundary) {
+    if (!authBoundaryIsCurrent(authBoundary)) return;
+    ensureLibraryBoundaryRegistration();
+    activeReader?.remove?.();
     var previousFocus = document.activeElement;
 
     var overlay = document.createElement('div');
     overlay.className = 'cvl-overlay';
+    activeReader = overlay;
     overlay.setAttribute('role', 'presentation');
     overlay.innerHTML =
       '<section class="cvl-sheet" role="dialog" aria-modal="true" aria-label="Read ' + esc(book.title || 'manuscript') + '">' +
@@ -199,6 +251,7 @@
     function close() {
       document.removeEventListener('keydown', onKey, true);
       if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+      if (activeReader === overlay) activeReader = null;
       if (previousFocus && typeof previousFocus.focus === 'function') {
         try { previousFocus.focus(); } catch (_) { /* best effort */ }
       }
@@ -217,8 +270,8 @@
     var closeButton = overlay.querySelector('[data-cvl-close]');
     if (closeButton) closeButton.focus();
 
-    api('/api/manuscripts/' + encodeURIComponent(book.id)).then(function (data) {
-      if (!overlay.isConnected) return;
+    api('/api/manuscripts/' + encodeURIComponent(book.id), null, authBoundary).then(function (data) {
+      if (!overlay.isConnected || !authBoundaryIsCurrent(authBoundary)) return;
       var sections = Array.isArray(data.sections) ? data.sections : [];
       var loading = overlay.querySelector('[data-cvl-loading]');
       var sheet = overlay.querySelector('.cvl-sheet');
@@ -274,7 +327,7 @@
 
       showSection(0);
     }).catch(function (error) {
-      if (!overlay.isConnected) return;
+      if (!overlay.isConnected || !authBoundaryIsCurrent(authBoundary)) return;
       var loading = overlay.querySelector('[data-cvl-loading]');
       if (!loading) return;
       loading.innerHTML =
@@ -283,7 +336,7 @@
         '<button type="button" class="cvl-button" data-cvl-retry>Try again</button>';
       loading.querySelector('[data-cvl-retry]').addEventListener('click', function () {
         close();
-        openReader(book);
+        openReader(book, authBoundary);
       });
     });
   }
@@ -339,13 +392,16 @@
       return;
     }
 
-    api('/api/library/books').then(function (data) {
+    var authBoundary = captureAuthBoundary();
+    api('/api/library/books', null, authBoundary).then(function (data) {
+      if (!root.isConnected || !authBoundaryIsCurrent(authBoundary)) return;
       var books = Array.isArray(data.books) ? data.books : [];
       books.sort(function (a, b) {
         return new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime();
       });
-      renderShelf(root, shelf, books);
+      renderShelf(root, shelf, books, authBoundary);
     }).catch(function (error) {
+      if (!root.isConnected || !authBoundaryIsCurrent(authBoundary)) return;
       shelf.innerHTML =
         '<div class="cvl-panel cvl-error" role="alert">' +
           '<h2>The Library could not load.</h2>' +
@@ -358,7 +414,7 @@
     });
   }
 
-  function renderShelf(root, shelf, books) {
+  function renderShelf(root, shelf, books, authBoundary) {
     var search = root.querySelector('[data-cvl-search]');
     var count = root.querySelector('[data-cvl-count]');
 
@@ -395,7 +451,9 @@
       shelf.querySelectorAll('[data-cvl-open]').forEach(function (button) {
         button.addEventListener('click', function () {
           var book = byId[button.getAttribute('data-cvl-open')];
-          if (book) openReader(book);
+          if (book && root.isConnected && authBoundaryIsCurrent(authBoundary)) {
+            openReader(book, authBoundary);
+          }
         });
       });
     }

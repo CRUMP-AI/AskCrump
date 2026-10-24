@@ -73,8 +73,9 @@ class DeviceAuth {
       return data;
     }
 
-    if (data.data.sessionToken && window.CrumpAPI?.isNative) {
-      await window.CrumpAPI.setSessionToken(data.data.sessionToken);
+    const issuedNativeToken = data.data.sessionToken || null;
+    if (issuedNativeToken && window.CrumpAPI?.isNative) {
+      await window.CrumpAPI.setSessionToken(issuedNativeToken);
     }
 
     // A successful login rotates the installation session exactly once. Give the
@@ -103,7 +104,7 @@ class DeviceAuth {
     }
 
     if (window.CrumpAPI?.isNative) {
-      await window.CrumpAPI.clearSessionToken?.();
+      await window.CrumpAPI.clearSessionToken?.(issuedNativeToken);
     }
 
     return {
@@ -128,10 +129,10 @@ class DeviceAuth {
     }
   }
 
-  sessionUnavailable(error = null) {
+  sessionUnavailable(error = null, {commit = true} = {}) {
     const cached = this.cachedUser();
     if (cached && !navigator.onLine) {
-      this.session = { user: cached, offline: true };
+      if (commit) this.session = { user: cached, offline: true };
       return { success: true, authenticated: true, offline: true, data: { user: cached } };
     }
 
@@ -145,7 +146,10 @@ class DeviceAuth {
     };
   }
 
-  async checkSession() {
+  async checkSession({commit = true} = {}) {
+    const expectedOwnerId = String(
+      this.session?.user?.id || this.cachedUser()?.id || window.currentUser?.id || '',
+    ).trim();
     try {
       await window.CrumpAPI?.ready;
       const {response, data} = await window.CrumpAuthTransport.request('/api/auth/check-session', {
@@ -157,53 +161,113 @@ class DeviceAuth {
       });
 
       if (!response.ok) {
-        return this.sessionUnavailable(new Error(data.error || `Session check failed (${response.status}).`));
+        return this.sessionUnavailable(
+          new Error(data.error || `Session check failed (${response.status}).`),
+          {commit},
+        );
       }
 
       if (data.authenticated && data.data?.user) {
-        this.acceptSession(data.data);
+        if (commit) this.acceptSession(data.data);
         return data;
       }
 
       // A definitive successful response saying "not authenticated" is the only
       // bootstrap outcome that clears local identity state.
-      this.clearLocalState();
+      if (commit && this.clearLocalState(expectedOwnerId || null) === false) {
+        return {success: false, authenticated: false, stale: true};
+      }
       return { ...data, success: true, authenticated: false };
     } catch (error) {
       console.warn('[Auth] Session check unavailable:', error);
-      return this.sessionUnavailable(error);
+      return this.sessionUnavailable(error, {commit});
     }
   }
 
   async logout(allDevices = false) {
+    const boundary = window.CrumpAuthBoundary;
+    const ownerId = String(
+      boundary?.authenticatedUserId?.() || this.session?.user?.id || window.currentUser?.id || '',
+    ).trim();
+    const revision = Number(boundary?.revision?.() || 0);
+    const nativeToken = window.CrumpAPI?.isNative
+      ? window.CrumpAPI?.getSessionToken?.() || null
+      : null;
+    const stillCurrent = () => {
+      const knownOwners = [
+        boundary?.authenticatedUserId?.(),
+        this.session?.user?.id,
+        window.currentUser?.id,
+      ].map(value => String(value || '').trim()).filter(Boolean);
+      const currentRevision = Number(boundary?.revision?.() || 0);
+      const unboundNativeSession = !ownerId && Boolean(window.CrumpAPI?.isNative);
+      return (Boolean(ownerId) || unboundNativeSession)
+        && knownOwners.every(currentOwnerId => currentOwnerId === ownerId)
+        && currentRevision === revision;
+    };
+    if (!stillCurrent()) return {stale: true};
+    const ownerHeaders = ownerId ? {'X-Ask-Crump-Expected-Owner': ownerId} : {};
+    const isOwnerMismatch = ({response, data} = {}) => response?.status === 409 && (
+      data?.code === 'AUTH_OWNER_MISMATCH'
+      || data?.staleAuth === true
+      || data?.details?.staleAuth === true
+    );
+    let staleOwnerResponse = false;
     try {
       if (!allDevices && window.CrumpAPI?.isNative) {
         try {
-          await window.CrumpAuthTransport.request('/api/notifications/register', {method: 'DELETE'}, {
+          const unregisterResult = await window.CrumpAuthTransport.request('/api/notifications/register', {
+            method: 'DELETE',
+            headers: ownerHeaders,
+          }, {
             timeoutMs: window.CrumpAuthTransport.SESSION_TIMEOUT_MS,
             timeoutMessage: 'Push-registration cleanup took too long.',
           });
+          if (isOwnerMismatch(unregisterResult)) {
+            staleOwnerResponse = true;
+            return {stale: true};
+          }
         } catch (_) {}
       }
-      await window.CrumpAuthTransport.request(allDevices ? '/api/auth/logout-all' : '/api/auth/logout', {
+      const logoutResult = await window.CrumpAuthTransport.request(allDevices ? '/api/auth/logout-all' : '/api/auth/logout', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...ownerHeaders,
+        },
       }, {
         timeoutMessage: 'Signing out took too long to confirm.',
       });
+      if (isOwnerMismatch(logoutResult)) {
+        staleOwnerResponse = true;
+        return {stale: true};
+      }
     } finally {
-      await window.CrumpAPI?.clearSessionToken?.();
-      this.clearLocalState();
+      if (staleOwnerResponse || !stillCurrent()) return {stale: true};
+      const cleared = await window.CrumpAPI?.clearSessionToken?.(nativeToken);
+      if (window.CrumpAPI?.isNative && cleared === false) return {stale: true};
+      if (!stillCurrent()) return {stale: true};
+      if (this.clearLocalState(ownerId || null) === false) return {stale: true};
       await window.BillingManager?.disconnect?.().catch(() => {});
     }
+    return {success: true};
   }
 
-  clearLocalState() {
-    const userId = this.session?.user?.id || window.currentUser?.id;
+  clearLocalState(expectedOwnerId = null) {
+    const expected = String(expectedOwnerId || '').trim();
+    const cachedOwnerId = String(this.cachedUser()?.id || '').trim();
+    const knownOwners = [
+      this.session?.user?.id,
+      window.currentUser?.id,
+      cachedOwnerId,
+    ].map(value => String(value || '').trim()).filter(Boolean);
+    if (expected && knownOwners.some(ownerId => ownerId !== expected)) return false;
+    const userId = this.session?.user?.id || window.currentUser?.id || cachedOwnerId;
     if (userId) this.clearAccountCache(userId);
     this.session = null;
     window.currentUser = null;
     try { localStorage.removeItem(this.userCacheKey); } catch (_) {}
+    return true;
   }
 
   clearAccountCache(userId) {

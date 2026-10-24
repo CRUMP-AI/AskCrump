@@ -200,7 +200,7 @@ async def test_activity_endpoint_authenticates_and_returns_only_service_projecti
 
     calls: list[tuple] = []
 
-    async def authenticate(request, database, settings, *, require_account=False):
+    async def authenticate(request, database, settings, *, require_account=False, **_kwargs):
         assert require_account is True
         calls.append((request, database, settings))
         return SimpleNamespace(user={"id": OWNER_ID})

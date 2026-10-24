@@ -81,10 +81,9 @@ def test_checkout_recovery_fixture_is_local_and_content_free():
 
 
 def test_checkout_recovery_assets_are_cache_addressable_on_web_pwa_and_native():
-    billing_version = "5.9.76-credit-entitlement-sync-1"
-    label_version = "5.9.76-checkout-destination-label-1"
-    runtime_version = "5.9.76-precision-ai-persistence-1"
-    auth_version = "5.9.76-guest-admission-1"
+    billing_version = "5.9.76-private-owner-boundary-1"
+    runtime_version = "5.9.76-account-owner-boundary-1"
+    auth_version = "5.9.76-account-owner-boundary-1"
     shell = read_public("app.html")
     runtime = read_public("runtime-body-v1.js")
     worker = read_public("sw.js")
@@ -94,16 +93,19 @@ def test_checkout_recovery_assets_are_cache_addressable_on_web_pwa_and_native():
     assert f"/auth-controller.js?v={auth_version}" in shell
     for asset, version in (
         ("billing-manager.js", billing_version),
-        ("crump-5.2.2.js", "5.9.76-muse-release-repair-1&workspaceRelease=guest-free-contract-2"),
+        ("crump-5.2.2.js", "5.9.76-private-owner-boundary-1&workspaceRelease=guest-free-contract-2"),
     ):
         versioned = f"/{asset}?v={version}"
         assert versioned in runtime
         assert versioned in worker
         assert versioned in native
-    for asset in ("crump-billing-5.1.js", "crump-subscriptions-5.3.2.js"):
-        versioned = f"/{asset}?v={label_version}"
+    for asset, version in (
+        ("crump-billing-5.1.js", "5.9.76-private-owner-boundary-1&workspaceRelease=guest-free-contract-2"),
+        ("crump-subscriptions-5.3.2.js", "5.9.76-private-owner-boundary-1"),
+    ):
+        versioned = f"/{asset}?v={version}"
         assert versioned in runtime
         assert versioned in worker
         assert versioned in native
     assert f"/auth-controller.js?v={auth_version}" in worker
-    assert "ask-crump-new-body-v1-r270-guest-admission-1" in worker
+    assert "ask-crump-new-body-v1-r273-account-owner-boundary-1" in worker

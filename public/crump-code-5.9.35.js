@@ -44,7 +44,10 @@
     const request = {
       credentials: 'same-origin',
       method: options.method || 'GET',
-      headers: {Accept: 'application/json'},
+      headers: {
+        Accept: 'application/json',
+        'X-Ask-Crump-Expected-Owner': currentOwnerId(),
+      },
       cache: 'no-store',
     };
     if (options.signal) request.signal = options.signal;

@@ -171,7 +171,9 @@ async def _durable_reply_for_job(*, user_id: str, message_id: str, job: dict) ->
 
 @router.post('/ack')
 async def chat_ack(payload: ChatAckRequest, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(
+        request, db, settings, require_expected_owner_header=True
+    )
     chat_id = normalize_chat_id(payload.chatId)
     message_id = normalize_chat_id(payload.messageId)
     now = iso_now()
@@ -201,7 +203,9 @@ async def chat_ack(payload: ChatAckRequest, request: Request):
 
 @router.get('/status/{message_id}')
 async def chat_status(message_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(
+        request, db, settings, require_expected_owner_header=True
+    )
     normalized_message_id = normalize_chat_id(message_id)
     job = await db.select_one(
         'chat_jobs',
@@ -278,7 +282,13 @@ async def chat_status(message_id: str, request: Request):
 
 @router.post('/artifacts/{message_id}/retry')
 async def retry_chat_artifact(message_id: str, request: Request):
-    auth = await authenticate_request(request, db, settings, require_account=True)
+    auth = await authenticate_request(
+        request,
+        db,
+        settings,
+        require_account=True,
+        require_expected_owner_header=True,
+    )
     try:
         normalized_message_id = normalize_chat_id(message_id)
     except Exception:
@@ -736,7 +746,9 @@ async def chat(request: Request):
 async def _chat_impl(request: Request):
     started = time.perf_counter()
     request_id = request.headers.get('X-Request-ID') or str(uuid4())
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(
+        request, db, settings, require_expected_owner_header=True
+    )
     effective_user_tier = tier_name(auth.user)
     payload = await request.json()
     request_payload = dict(payload) if isinstance(payload, dict) else {}

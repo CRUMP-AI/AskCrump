@@ -12,17 +12,17 @@ def test_product53_runtime_is_lazy_loaded_and_cache_addressable():
     worker = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
     loader = read("public/crump-product-loader.js")
-    assert "/crump-product-loader.js?v=5.9.76-manuscript-export-delivery-1" in runtime
-    assert "/crump-product-loader.js?v=5.9.76-manuscript-export-delivery-1" in worker
+    assert "/crump-product-loader.js?v=5.9.76-account-owner-boundary-1" in runtime
+    assert "/crump-product-loader.js?v=5.9.76-account-owner-boundary-1" in worker
     assert "/crump-product-5.3.css?v=5.9.76-reference-fidelity-hard-contract-1" not in runtime
     assert "/crump-product-5.3.js?v=5.9.76-reference-fidelity-hard-contract-1" not in runtime
     assert "/crump-product-5.3.css?v=5.9.76-reference-fidelity-hard-contract-1" not in worker
     assert "/crump-product-5.3.js?v=5.9.76-reference-fidelity-hard-contract-1" not in worker
     assert "/crump-product-5.3.css?v=5.9.76-projects-empty-state-1" in loader
-    assert "/crump-product-5.3.js?v=5.9.76-manuscript-export-delivery-1" in loader
+    assert "/crump-product-5.3.js?v=5.9.76-account-owner-boundary-1" in loader
     assert runtime.index("/crump-navigation-5.2.5.js") < runtime.index("/crump-product-loader.js")
-    assert "ask-crump-new-body-v1-r270-guest-admission-1" in worker
-    assert "/crump-product-5.3.js?v=5.9.76-manuscript-export-delivery-1&workspaceRelease=guest-free-contract-2" in loader
+    assert "ask-crump-new-body-v1-r273-account-owner-boundary-1" in worker
+    assert "/crump-product-5.3.js?v=5.9.76-account-owner-boundary-1&workspaceRelease=guest-free-contract-2" in loader
     assert "crump-product-5.3.js" in checker
     assert "crump-product-loader.js" in checker
 

@@ -422,8 +422,10 @@ def test_credit_purchase_frontend_is_fail_closed_and_subscribe_first():
     billing52 = (ROOT / 'public' / 'crump-5.2.js').read_text(encoding='utf-8')
     repair = (ROOT / 'public' / 'crump-5.2.2.js').read_text(encoding='utf-8')
 
-    purchase = manager[manager.index('async function purchaseCredits(packCode)') :]
-    assert purchase.index('/api/billing/credits/purchase-eligibility') < purchase.index('await configure()')
+    purchase = manager[manager.index('async function purchaseCredits(packCode, suppliedBoundary = null)') :]
+    assert purchase.index('/api/billing/credits/purchase-eligibility') < purchase.index(
+        'await configureUnlocked(authBoundary.ownerId)'
+    )
     assert purchase.index('/api/billing/credits/purchase-eligibility') < purchase.index('purchasePackage')
     assert "eligibility.creditPurchasesAllowed !== true" in purchase
     assert "Number(data.rejectedTransactions || 0) > 0" in manager

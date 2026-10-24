@@ -23,7 +23,7 @@ def test_fresh_start_is_ephemeral_until_the_first_real_message():
     assert "saveChats" not in fresh
     assert "syncChatsToServer" not in fresh
     assert "ensureCurrentChat()" in send
-    assert send.index("await ensureUsageAvailable()") < send.index("ensureCurrentChat()")
+    assert send.index("await ensureUsageAvailable(authBoundary)") < send.index("ensureCurrentChat()")
     assert send.index("ensureCurrentChat()") < send.index("chat.messages.push(userMessage)")
 
 
@@ -47,7 +47,7 @@ def test_studio_sender_materializes_the_ephemeral_draft_before_saving():
     ]
 
     assert "currentChat() || window.ensureCurrentChat?.()" in send
-    assert send.index("await ensureUsage()") < send.index("window.ensureCurrentChat?.()")
+    assert send.index("await ensureUsage(expectedOwnerId)") < send.index("window.ensureCurrentChat?.()")
     assert send.index("window.ensureCurrentChat?.()") < send.index("fresh.messages.push(userMessage)")
 
 

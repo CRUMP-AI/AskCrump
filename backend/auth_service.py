@@ -2,8 +2,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
+import hmac
 import logging
 from typing import Any
+from uuid import UUID
 
 from fastapi import Request
 from fastapi.responses import JSONResponse
@@ -15,6 +17,13 @@ from .usage_service import tier_name
 
 
 logger = logging.getLogger("askcrump.auth")
+EXPECTED_OWNER_HEADER = 'x-ask-crump-expected-owner'
+# Rolling-deploy compatibility: already-open cookie-authenticated web tabs from
+# before the owner-boundary release cannot add this header until they reload.
+# Route-level ``require_expected_owner_header=True`` markers intentionally stay
+# in place so a later release can flip this to False after the old client window
+# has elapsed. Any supplied claim is always validated regardless of this flag.
+ALLOW_LEGACY_MISSING_EXPECTED_OWNER = True
 
 
 @dataclass(slots=True)
@@ -25,10 +34,52 @@ class AuthenticatedUser:
 
 
 class AuthenticationError(RuntimeError):
-    def __init__(self, message: str = 'Authentication required.', status_code: int = 401) -> None:
+    def __init__(
+        self,
+        message: str = 'Authentication required.',
+        status_code: int = 401,
+        *,
+        code: str = 'AUTH_REQUIRED',
+        details: dict[str, Any] | None = None,
+    ) -> None:
         super().__init__(message)
         self.message = message
         self.status_code = status_code
+        self.code = code
+        self.details = dict(details or {})
+
+
+def require_expected_owner(request: Request, authenticated_user_id: str) -> None:
+    """Bind a browser request to the account visible when it was dispatched.
+
+    An HttpOnly session cookie can rotate in another tab before this tab sees
+    the storage/auth event. The header is only a precondition: authentication
+    still comes exclusively from the cookie/bearer credential. Parse both IDs
+    as UUID bytes so malformed or non-ASCII claims fail closed without making
+    string comparison an exception path.
+    """
+    raw_expected = str(request.headers.get(EXPECTED_OWNER_HEADER, '') or '').strip()
+    raw_actual = str(authenticated_user_id or '').strip()
+    authorization = str(request.headers.get('authorization', '') or '').strip()
+    if not raw_expected and authorization.lower().startswith('bearer ') and authorization[7:].strip():
+        # Installed native builds already bind each request to a per-installation
+        # bearer credential rather than a shared browser cookie. Preserve their
+        # compatibility; newer builds may send the claim and are still checked.
+        return
+    try:
+        expected = UUID(raw_expected).bytes
+        actual = UUID(raw_actual).bytes
+    except (AttributeError, TypeError, ValueError):
+        expected = b''
+        actual = b'\x01'
+    if hmac.compare_digest(expected, actual):
+        return
+    raise AuthenticationError(
+        'The signed-in account changed before this request began. Refresh and try again.',
+        status_code=409,
+        code='AUTH_OWNER_MISMATCH',
+        details={'staleAuth': True, 'retryable': True},
+    )
 
 
 # Guest mode and registered Free accounts share one text-only allowance. The
@@ -777,6 +828,42 @@ async def create_session(
     return raw_token, session
 
 
+async def touch_authenticated_session(
+    db: SupabaseDB,
+    settings: Settings,
+    auth: AuthenticatedUser,
+    *,
+    now: str | None = None,
+) -> None:
+    """Renew an already-authenticated session using the ordinary touch rules.
+
+    Routes that must validate an additional request-bound identity before any
+    database mutation can authenticate with ``touch=False``, perform that
+    validation, and then call this helper. Keeping the implementation here
+    preserves the same ten-minute write throttle and expiry renewal used by
+    ordinary authenticated requests.
+    """
+    session = auth.session
+    touch_time = now or iso_now()
+    last = session.get('last_activity')
+    should_touch = True
+    if last:
+        try:
+            parsed = datetime.fromisoformat(str(last).replace('Z', '+00:00'))
+            should_touch = datetime.now(timezone.utc) - parsed > timedelta(minutes=10)
+        except ValueError:
+            pass
+    if should_touch:
+        renewed_expiry = expiry_iso(days=settings.session_days)
+        await db.update(
+            'sessions',
+            {'last_activity': touch_time, 'expires_at': renewed_expiry},
+            filters={'id': eq(session['id'])},
+        )
+        session['last_activity'] = touch_time
+        session['expires_at'] = renewed_expiry
+
+
 async def authenticate_request(
     request: Request,
     db: SupabaseDB,
@@ -784,6 +871,7 @@ async def authenticate_request(
     *,
     touch: bool = True,
     require_account: bool = False,
+    require_expected_owner_header: bool = False,
 ) -> AuthenticatedUser:
     raw_tokens = session_tokens_from_request(request, settings)
     if not raw_tokens:
@@ -808,6 +896,18 @@ async def authenticate_request(
     if not session:
         raise AuthenticationError('Your session has expired. Please sign in again.')
 
+    owner_claim_supplied = request.headers.get(EXPECTED_OWNER_HEADER) is not None
+    if owner_claim_supplied:
+        # Generic private API clients attach this precondition to every call.
+        # Validate any supplied claim centrally, even on routes that still
+        # permit legacy callers to omit it. The authenticated session already
+        # binds the owner ID, so reject cookie skew before reading that owner's
+        # account state or performing the normal session-renewal write.
+        require_expected_owner(request, session['user_id'])
+    elif require_expected_owner_header and not ALLOW_LEGACY_MISSING_EXPECTED_OWNER:
+        # Enforcement is deliberately staged. Keep the route markers active so
+        # removing the compatibility window is a one-line, reviewable release.
+        require_expected_owner(request, session['user_id'])
     user = await db.select_one('users', columns='*', filters={'id': eq(session['user_id'])})
     if not user or user.get('deleted_at'):
         raise AuthenticationError('This account is no longer available.')
@@ -825,26 +925,11 @@ async def authenticate_request(
             status_code=403,
         )
 
+    authenticated = AuthenticatedUser(user=user, session=session, token=raw_token)
     if touch:
-        last = session.get('last_activity')
-        should_touch = True
-        if last:
-            try:
-                parsed = datetime.fromisoformat(str(last).replace('Z', '+00:00'))
-                should_touch = datetime.now(timezone.utc) - parsed > timedelta(minutes=10)
-            except ValueError:
-                pass
-        if should_touch:
-            renewed_expiry = expiry_iso(days=settings.session_days)
-            await db.update(
-                'sessions',
-                {'last_activity': now, 'expires_at': renewed_expiry},
-                filters={'id': eq(session['id'])},
-            )
-            session['last_activity'] = now
-            session['expires_at'] = renewed_expiry
+        await touch_authenticated_session(db, settings, authenticated, now=now)
 
-    return AuthenticatedUser(user=user, session=session, token=raw_token)
+    return authenticated
 
 
 async def revoke_current_session(request: Request, db: SupabaseDB, settings: Settings) -> None:

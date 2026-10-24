@@ -150,7 +150,7 @@ async def test_navigation_destination_route_derives_one_server_day_key(
 ):
     calls = []
 
-    async def authenticate(_request, _database, _settings):
+    async def authenticate(_request, _database, _settings, **_kwargs):
         return type("Auth", (), {"user": {"id": "00000000-0000-0000-0000-000000000001"}})()
 
     async def rate_limit(*_args, **_kwargs):
@@ -257,7 +257,7 @@ async def test_generated_document_download_records_only_content_free_artifact_st
     file_id = "00000000-0000-0000-0000-000000000002"
     message_id = "00000000-0000-0000-0000-000000000003"
 
-    async def authenticate(_request, _database, _settings, *, require_account=False):
+    async def authenticate(_request, _database, _settings, *, require_account=False, **_kwargs):
         assert require_account is True
         return type("Auth", (), {"user": {
             "id": user_id,
@@ -336,7 +336,7 @@ async def test_inline_opens_and_ordinary_uploads_do_not_record_artifact_download
     calls = []
     file_id = "00000000-0000-0000-0000-000000000002"
 
-    async def authenticate(_request, _database, _settings, *, require_account=False):
+    async def authenticate(_request, _database, _settings, *, require_account=False, **_kwargs):
         assert require_account is True
         return type("Auth", (), {"user": {"id": "user-1"}})()
 
@@ -383,7 +383,7 @@ async def test_inline_opens_and_ordinary_uploads_do_not_record_artifact_download
 async def test_large_document_download_uses_attachment_signed_url_without_function_proxy(monkeypatch):
     file_id = "00000000-0000-0000-0000-000000000002"
 
-    async def authenticate(_request, _database, _settings, *, require_account=False):
+    async def authenticate(_request, _database, _settings, *, require_account=False, **_kwargs):
         assert require_account is True
         return type("Auth", (), {"user": {"id": "user-1"}})()
 
@@ -426,7 +426,7 @@ async def test_native_signed_file_route_preserves_requested_download_disposition
     signed_calls = []
     event_calls = []
 
-    async def authenticate(_request, _database, _settings, *, require_account=False):
+    async def authenticate(_request, _database, _settings, *, require_account=False, **_kwargs):
         assert require_account is True
         return type("Auth", (), {"user": {
             "id": "user-1",
@@ -505,7 +505,7 @@ async def test_native_signed_inline_opens_and_ordinary_uploads_do_not_record_dow
     file_id = "00000000-0000-0000-0000-000000000019"
     event_calls = []
 
-    async def authenticate(_request, _database, _settings, *, require_account=False):
+    async def authenticate(_request, _database, _settings, *, require_account=False, **_kwargs):
         assert require_account is True
         return type("Auth", (), {"user": {"id": "user-1"}})()
 
@@ -546,7 +546,7 @@ async def test_native_signed_inline_opens_and_ordinary_uploads_do_not_record_dow
 async def test_outcome_feedback_route_accepts_only_binary_content_free_signal(monkeypatch):
     calls = []
 
-    async def authenticate(_request, _database, _settings):
+    async def authenticate(_request, _database, _settings, **_kwargs):
         return type("Auth", (), {"user": {"id": "00000000-0000-0000-0000-000000000001"}})()
 
     async def rate_limit(*_args, **_kwargs):
@@ -602,7 +602,7 @@ async def test_outcome_feedback_route_rejects_non_contract_values(event_key, sou
 async def test_outcome_issue_category_route_accepts_only_fixed_content_free_signal(monkeypatch):
     calls = []
 
-    async def authenticate(_request, _database, _settings):
+    async def authenticate(_request, _database, _settings, **_kwargs):
         return type("Auth", (), {"user": {"id": "00000000-0000-0000-0000-000000000001"}})()
 
     async def rate_limit(*_args, **_kwargs):
@@ -683,7 +683,7 @@ async def test_response_share_route_rejects_non_contract_values(event_key, sourc
 async def test_project_save_intent_route_accepts_only_the_fixed_content_free_contract(monkeypatch):
     calls = []
 
-    async def authenticate(_request, _database, _settings):
+    async def authenticate(_request, _database, _settings, **_kwargs):
         return type("Auth", (), {"user": {"id": "00000000-0000-0000-0000-000000000001"}})()
 
     async def rate_limit(*_args, **_kwargs):
@@ -750,7 +750,7 @@ async def test_project_save_offer_route_derives_one_server_utc_day_key_per_sourc
 ):
     calls = []
 
-    async def authenticate(_request, _database, _settings):
+    async def authenticate(_request, _database, _settings, **_kwargs):
         return type("Auth", (), {"user": {"id": "00000000-0000-0000-0000-000000000001"}})()
 
     async def rate_limit(*_args, **_kwargs):
@@ -857,7 +857,7 @@ async def test_recent_work_route_derives_one_server_utc_day_key_per_source(
 ):
     calls = []
 
-    async def authenticate(_request, _database, _settings):
+    async def authenticate(_request, _database, _settings, **_kwargs):
         return type("Auth", (), {"user": {"id": "00000000-0000-0000-0000-000000000001"}})()
 
     async def rate_limit(*_args, **_kwargs):
@@ -892,7 +892,7 @@ async def test_recent_work_route_derives_one_server_utc_day_key_per_source(
 async def test_plan_center_route_derives_one_server_utc_day_key(monkeypatch):
     calls = []
 
-    async def authenticate(_request, _database, _settings):
+    async def authenticate(_request, _database, _settings, **_kwargs):
         return type("Auth", (), {"user": {"id": "00000000-0000-0000-0000-000000000001"}})()
 
     async def rate_limit(*_args, **_kwargs):
@@ -942,7 +942,7 @@ async def test_plan_center_route_keeps_one_content_free_row_per_source_and_serve
 ):
     calls = []
 
-    async def authenticate(_request, _database, _settings):
+    async def authenticate(_request, _database, _settings, **_kwargs):
         return type("Auth", (), {"user": {"id": "00000000-0000-0000-0000-000000000001"}})()
 
     async def rate_limit(*_args, **_kwargs):

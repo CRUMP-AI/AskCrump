@@ -12,7 +12,7 @@ def test_settings_recovers_server_identity_without_exposing_it_to_logs():
     app = read("public/app.js")
 
     assert "async function restoreSettingsIdentity()" in app
-    assert ".then(() => window.deviceAuth?.checkSession?.())" in app
+    assert ".then(() => window.deviceAuth?.checkSession?.({commit: false}))" in app
     assert "const user = result?.authenticated ? result.data?.user : null;" in app
     assert "window.currentUser = { ...(window.currentUser || {}), ...user };" in app
     assert "const userEmail = String(user?.email || '').trim();" in app

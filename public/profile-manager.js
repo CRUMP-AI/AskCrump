@@ -1,16 +1,28 @@
 (() => {
   'use strict';
   const BASE_KEY = 'crump_user_profile_v4';
-  const key = () => `${BASE_KEY}:${window.currentUser?.id || 'anonymous'}`;
+  const ownerId = value => String(value || '').trim();
+  const key = value => `${BASE_KEY}:${ownerId(value)}`;
+  const emptyProfile = () => ({
+    name: '',
+    email: '',
+    initial: 'U',
+    tier: 'free',
+    subscriptionStatus: 'inactive',
+  });
 
   class ProfileManager {
-    constructor() {
-      this.profile = this.load();
+    constructor(initialOwnerId = window.currentUser?.id) {
+      this.ownerId = '';
+      this.profile = emptyProfile();
+      this.bindOwner(initialOwnerId);
     }
 
-    load() {
+    load(boundOwnerId = this.ownerId) {
+      const resolvedOwnerId = ownerId(boundOwnerId);
+      if (!resolvedOwnerId) return emptyProfile();
       try {
-        const cached = JSON.parse(localStorage.getItem(key()) || '{}');
+        const cached = JSON.parse(localStorage.getItem(key(resolvedOwnerId)) || '{}');
         return {
           name: cached.name || '',
           email: cached.email || '',
@@ -19,12 +31,37 @@
           subscriptionStatus: cached.subscriptionStatus || 'inactive',
         };
       } catch (_) {
-        return { name: '', email: '', initial: 'U', tier: 'free', subscriptionStatus: 'inactive' };
+        return emptyProfile();
       }
     }
 
+    bindOwner(nextOwnerId) {
+      const resolvedOwnerId = ownerId(nextOwnerId);
+      if (this.ownerId === resolvedOwnerId) return this.getProfile();
+      this.ownerId = resolvedOwnerId;
+      this.profile = this.load(resolvedOwnerId);
+      return this.getProfile();
+    }
+
+    scrubOwner() {
+      this.ownerId = '';
+      this.profile = emptyProfile();
+      return this.getProfile();
+    }
+
+    isCurrentOwner() {
+      const activeOwnerId = ownerId(window.currentUser?.id);
+      return Boolean(this.ownerId && activeOwnerId && this.ownerId === activeOwnerId);
+    }
+
     saveProfile() {
-      try { localStorage.setItem(key(), JSON.stringify(this.profile)); } catch (_) {}
+      if (!this.isCurrentOwner()) return false;
+      try {
+        localStorage.setItem(key(this.ownerId), JSON.stringify(this.profile));
+        return true;
+      } catch (_) {
+        return false;
+      }
     }
 
     getProfile() {
@@ -32,6 +69,7 @@
     }
 
     updateProfile(values = {}) {
+      if (!this.isCurrentOwner()) return this.getProfile();
       this.profile = {
         ...this.profile,
         ...values,
@@ -42,8 +80,17 @@
     }
 
     applyServerSubscription(user = {}) {
+      const activeOwnerId = ownerId(window.currentUser?.id);
+      const suppliedOwnerId = ownerId(user.id);
+      if (!activeOwnerId || (suppliedOwnerId && suppliedOwnerId !== activeOwnerId)) {
+        return this.getProfile();
+      }
+      // Rebind before reading any fallback. A retained manager from another
+      // same-document session must never supply that account's name or email
+      // while writing the new owner's cache.
+      this.bindOwner(activeOwnerId);
       const tier = user.subscriptionTier || user.tier || 'free';
-      this.updateProfile({
+      return this.updateProfile({
         name: user.fullName || this.profile.name,
         email: user.email || this.profile.email,
         tier: tier === 'professional' ? 'pro' : tier === 'enterprise' ? 'premium' : tier,

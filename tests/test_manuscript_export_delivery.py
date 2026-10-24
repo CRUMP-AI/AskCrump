@@ -258,8 +258,8 @@ def test_manuscript_export_runtime_is_cache_busted_through_both_lazy_loaders():
     native = read("scripts/build-native.mjs")
     worker = read("public/sw.js")
 
-    assert "/crump-product-5.3.js?v=5.9.76-manuscript-export-delivery-1" in product_loader
-    assert "/crump-library-5.7.js?v=5.9.76-library-reconciliation-1" in library_loader
+    assert "/crump-product-5.3.js?v=5.9.76-account-owner-boundary-1" in product_loader
+    assert "/crump-library-5.7.js?v=5.9.76-account-owner-boundary-1" in library_loader
     for shell in (runtime, native, worker):
-        assert "/crump-product-loader.js?v=5.9.76-manuscript-export-delivery-1" in shell
-        assert "/crump-library-loader.js?v=5.9.76-library-reconciliation-1" in shell
+        assert "/crump-product-loader.js?v=5.9.76-account-owner-boundary-1" in shell
+        assert "/crump-library-loader.js?v=5.9.76-account-owner-boundary-1" in shell
