@@ -58,6 +58,7 @@ def test_hosted_settings_reject_supabase_origin_drift(environment):
         cookie_secure=True,
         supabase_url=PRODUCTION_SUPABASE_ORIGIN,
         supabase_service_key="production-service-key",
+        verification_link_signing_keys=(("v1", "s" * 43),),
         anthropic_api_key="production-anthropic-key",
         ai_gateway_enabled=False,
         resend_api_key="production-resend-key",

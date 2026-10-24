@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from functools import lru_cache
 import os
+import re
 from urllib.parse import urlparse
 
 
@@ -22,6 +23,25 @@ def _csv(value: str | None, default: tuple[str, ...] = ()) -> tuple[str, ...]:
     if not value:
         return default
     return tuple(item.strip().rstrip('/') for item in value.split(',') if item.strip())
+
+
+def _verification_signing_keys(value: str | None) -> tuple[tuple[str, str], ...]:
+    keys: list[tuple[str, str]] = []
+    seen: set[str] = set()
+    for item in str(value or '').split(','):
+        if not item.strip():
+            continue
+        key_id, separator, secret = item.strip().partition(':')
+        if (
+            not separator
+            or not re.fullmatch(r'[A-Za-z0-9_-]{1,16}', key_id)
+            or not re.fullmatch(r'[A-Za-z0-9_-]{43,128}', secret)
+            or key_id in seen
+        ):
+            raise RuntimeError('VERIFICATION_LINK_SIGNING_KEYS is invalid.')
+        seen.add(key_id)
+        keys.append((key_id, secret))
+    return tuple(keys)
 
 
 def _bool(value: str | None, default: bool = False) -> bool:
@@ -85,6 +105,7 @@ class Settings:
     environment: str
     supabase_url: str
     supabase_service_key: str
+    verification_link_signing_keys: tuple[tuple[str, str], ...]
     anthropic_api_key: str | None
     anthropic_model: str
     ai_gateway_enabled: bool
@@ -165,6 +186,11 @@ class Settings:
             missing.append('SUPABASE_URL')
         if not self.supabase_service_key:
             missing.append('SUPABASE_SERVICE_KEY')
+        if (
+            self.environment in {'production', 'preview'}
+            and not self.verification_link_signing_keys
+        ):
+            missing.append('VERIFICATION_LINK_SIGNING_KEYS')
         if self.is_production and not self.anthropic_api_key:
             missing.append('ANTHROPIC_API_KEY')
         if self.is_production and self.ai_gateway_enabled and not (
@@ -254,6 +280,9 @@ def get_settings() -> Settings:
         environment=environment,
         supabase_url=os.getenv('SUPABASE_URL', '').rstrip('/'),
         supabase_service_key=os.getenv('SUPABASE_SERVICE_KEY', ''),
+        verification_link_signing_keys=_verification_signing_keys(
+            os.getenv('VERIFICATION_LINK_SIGNING_KEYS')
+        ),
         anthropic_api_key=os.getenv('ANTHROPIC_API_KEY'),
         anthropic_model=os.getenv('ANTHROPIC_MODEL', 'claude-sonnet-5'),
         # Vercel injects a short-lived OIDC token into deployments, so the free

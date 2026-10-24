@@ -6,6 +6,7 @@ import pytest
 from backend import auth_service
 from backend.routes import auth as auth_routes
 from backend.security import token_hash
+from backend.verification_tokens import create_resend_verification_alias
 
 
 class VerificationDB:
@@ -17,7 +18,11 @@ class VerificationDB:
     async def select_one(self, table, **kwargs):
         assert table == 'users'
         filters = kwargs['filters']
-        if not self.user or filters.get('verification_token_hash') != f"eq.{token_hash('verification-token')}":
+        expected_hash = filters.get('verification_token_hash')
+        if not self.user or (
+            expected_hash
+            and expected_hash != f"eq.{token_hash('verification-token')}"
+        ):
             return None
         if filters.get('id') and filters['id'] != f"eq.{self.user['id']}":
             return None
@@ -107,6 +112,70 @@ async def test_verification_issues_only_one_session_and_replay_never_overwrites_
     assert replay.headers['location'] == (
         'https://www.askcrump.com/app?verification=already_verified'
         '&intent=presentation&plan=professional'
+    )
+    assert database.user['is_verified'] is True
+    assert database.user['verification_token_expires'] == '2099-01-01T00:15:00+00:00'
+    assert len(database.rpc_calls) == 1
+    assert len(database.sessions) == 1
+    assert cookies == ['session-token-1']
+
+
+@pytest.mark.asyncio
+async def test_signed_alias_first_click_and_shortened_expiry_replay_share_one_session(
+    monkeypatch,
+):
+    user_id = '11111111-1111-4111-8111-111111111111'
+    original_expiry = '2099-01-02T00:00:00+00:00'
+    signing_secret = 'verification-replay-signing-key-' + ('1' * 48)
+    database = VerificationDB({
+        'id': user_id,
+        'email': 'new-user@example.com',
+        'is_guest': False,
+        'is_verified': False,
+        'verification_token_hash': token_hash('verification-token'),
+        'verification_token_expires': original_expiry,
+    })
+    alias = create_resend_verification_alias(
+        signing_secret,
+        key_id='k1',
+        user_id=user_id,
+        verification_token_hash=token_hash('verification-token'),
+        expires_at=original_expiry,
+        nonce='first_click_replay_nonce_123',
+    )
+    cookies = []
+
+    monkeypatch.setattr(auth_routes, 'db', database)
+    monkeypatch.setattr(
+        auth_routes,
+        'settings',
+        SimpleNamespace(app_url='https://www.askcrump.com', session_days=365),
+    )
+    monkeypatch.setattr(
+        auth_routes,
+        '_verification_alias_signing_keys',
+        lambda: {'k1': signing_secret},
+    )
+    monkeypatch.setattr(auth_service, 'random_token', lambda _size: 'session-token-1')
+    monkeypatch.setattr(auth_service, 'new_uuid', lambda: 'session-1')
+    monkeypatch.setattr(
+        auth_routes,
+        'set_session_cookie',
+        lambda _response, raw_token, _request: cookies.append(raw_token),
+    )
+    request = SimpleNamespace(
+        headers={},
+        cookies={'ask_crump_session': 'another-account-session'},
+        client=SimpleNamespace(host='127.0.0.1'),
+    )
+
+    first = await auth_routes.verify_email(alias, request)
+    replay = await auth_routes.verify_email(alias, request)
+
+    assert first.status_code == replay.status_code == 303
+    assert first.headers['location'] == 'https://www.askcrump.com/app?verification=success'
+    assert replay.headers['location'] == (
+        'https://www.askcrump.com/app?verification=already_verified'
     )
     assert database.user['is_verified'] is True
     assert database.user['verification_token_expires'] == '2099-01-01T00:15:00+00:00'
