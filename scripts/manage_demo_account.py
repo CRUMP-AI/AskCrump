@@ -76,6 +76,7 @@ CONTENT_GROUPS: dict[str, tuple[str, ...]] = {
     "notifications": (
         "push_tokens",
         "verification_email_jobs",
+        "password_reset_email_jobs",
         "check_in_preferences",
         "check_in_events",
         "lifecycle_prompt_state",

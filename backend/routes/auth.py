@@ -30,7 +30,13 @@ from ..product_analytics import (
     record_product_event,
 )
 from ..rate_limit import enforce_auth_rate_limit, enforce_guest_admission_rate_limit
-from ..runtime import db, email_service, settings, verification_emails
+from ..runtime import (
+    db,
+    email_service,
+    password_reset_emails,
+    settings,
+    verification_emails,
+)
 from ..schemas import (
     CURRENT_TERMS_VERSION,
     EmailRequest,
@@ -47,6 +53,11 @@ from ..verification_tokens import (
     resend_verification_alias_matches,
 )
 from ..verification_email_queue import VerificationEmailQueueUnavailable
+from ..password_reset_email_queue import PasswordResetEmailQueueUnavailable
+from ..password_reset_tokens import (
+    parse_password_reset_alias,
+    password_reset_alias_matches,
+)
 from ..security import (
     client_ip,
     expiry_iso,
@@ -156,6 +167,17 @@ _GENERIC_RESEND_UNAVAILABLE = {
     'success': False,
     'error': 'Verification email requests are temporarily unavailable. Please try again shortly.',
     'code': 'VERIFICATION_EMAIL_QUEUE_UNAVAILABLE',
+}
+
+_GENERIC_PASSWORD_RESET_RESULT = {
+    'success': True,
+    'message': 'If an account exists for that email, check your email for a reset link.',
+}
+
+_GENERIC_PASSWORD_RESET_UNAVAILABLE = {
+    'success': False,
+    'error': 'Password-reset email requests are temporarily unavailable. Please try again shortly.',
+    'code': 'PASSWORD_RESET_EMAIL_QUEUE_UNAVAILABLE',
 }
 
 
@@ -306,6 +328,41 @@ async def _verification_user_and_anchor(token: str) -> tuple[dict | None, str]:
         },
     )
     return user, anchor
+
+
+async def _password_reset_anchor(token: str) -> str:
+    if not token.startswith('r1.'):
+        return token_hash(token)
+
+    alias = parse_password_reset_alias(token)
+    now = iso_now()
+    now_epoch = _timestamp_epoch(now)
+    if alias is None or now_epoch is None or alias.expires_at <= now_epoch:
+        return ''
+    user = await db.select_one(
+        'users',
+        columns='id,deleted_at,password_reset_token_hash,password_reset_expires',
+        filters={
+            'id': eq(alias.user_id),
+            'password_reset_expires': gt(now),
+        },
+    )
+    anchor = str((user or {}).get('password_reset_token_hash') or '').strip().lower()
+    row_expiry = _timestamp_epoch((user or {}).get('password_reset_expires'))
+    if (
+        not user
+        or user.get('deleted_at') is not None
+        or not re.fullmatch(r'[0-9a-f]{64}', anchor)
+        or row_expiry is None
+        or alias.expires_at != row_expiry
+        or not password_reset_alias_matches(
+            alias,
+            _verification_alias_signing_keys(),
+            password_reset_token_hash=anchor,
+        )
+    ):
+        return ''
+    return anchor
 
 
 @router.post('/register')
@@ -871,37 +928,15 @@ async def forgot_password(payload: EmailRequest, request: Request):
         ip_limit=20,
         window_seconds=3600,
     )
-    user = await db.select_one(
-        'users',
-        columns='id,email,full_name',
-        filters={'email': eq(email)},
-    )
-    # Always return the same result to prevent account enumeration.
-    if user:
-        raw_token = random_token(40)
-        await db.update(
-            'users',
-            {
-                'password_reset_token_hash': token_hash(raw_token),
-                'password_reset_expires': expiry_iso(hours=1),
-                'updated_at': iso_now(),
-            },
-            filters={'id': eq(user['id'])},
+    try:
+        await password_reset_emails.enqueue(email=email)
+    except (PasswordResetEmailQueueUnavailable, RuntimeError, ValueError):
+        logger.warning('Password-reset durable enqueue unavailable.')
+        return JSONResponse(
+            status_code=503,
+            content=_GENERIC_PASSWORD_RESET_UNAVAILABLE,
         )
-        try:
-            await email_service.send_password_reset(email, user.get('full_name'), raw_token)
-        except EmailDeliveryError as exc:
-            logger.warning(
-                'Password reset email delivery unavailable status=%s retryable=%s',
-                exc.status_code,
-                exc.retryable,
-            )
-        except Exception:
-            logger.exception('Unexpected password reset email failure')
-    return {
-        'success': True,
-        'message': 'If an account exists for that email, a reset link has been sent.',
-    }
+    return _GENERIC_PASSWORD_RESET_RESULT
 
 
 @router.post('/reset-password')
@@ -921,10 +956,16 @@ async def reset_password(payload: ResetPasswordRequest, request: Request):
             status_code=400,
             content={'success': False, 'error': password_error},
         )
+    reset_anchor = await _password_reset_anchor(payload.token)
+    if not reset_anchor:
+        return JSONResponse(
+            status_code=400,
+            content={'success': False, 'error': 'This reset link is invalid or expired.'},
+        )
     reset_result = await db.rpc(
         'consume_password_reset_v1',
         {
-            'p_token_hash': token_hash(payload.token),
+            'p_token_hash': reset_anchor,
             'p_password_hash': hash_password(payload.newPassword),
         },
     )

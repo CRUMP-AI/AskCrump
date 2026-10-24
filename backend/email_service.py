@@ -232,15 +232,40 @@ class EmailService:
             from_email=from_email,
         )
 
-    async def send_password_reset(self, email: str, name: str | None, token: str) -> bool:
-        url = f"{self.settings.app_url}/app?token={token}"
+    async def send_password_reset(
+        self,
+        email: str,
+        name: str | None,
+        token: str,
+        *,
+        idempotency_key: str | None = None,
+        provider_attempts: int = 3,
+        template_version: str = 'password-reset-v1',
+        app_name: str | None = None,
+        app_url: str | None = None,
+        support_email: str | None = None,
+        from_email: str | None = None,
+    ) -> bool:
+        if template_version != 'password-reset-v1':
+            raise ValueError('Password-reset email template is unsupported.')
+        url = f"{app_url or self.settings.app_url}/app?token={token}"
         safe_name = html.escape(name or 'there')
         content = f"""<p>Hi {safe_name},</p><p>Use the button below to choose a new password.</p>
 <p><a href="{html.escape(url)}" style="display:inline-block;background:#c9b892;color:#101419;text-decoration:none;padding:13px 20px;border-radius:10px;font-weight:700">Reset password</a></p>
-<p style="color:#9aa4ad">This link expires in one hour. If you did not request it, your password has not changed.</p>"""
+<p style="color:#9aa4ad">This link is time-limited. If you did not request it, your password has not changed.</p>"""
         return await self._send(
             email,
-            f'Reset your {self.settings.app_name} password',
-            self._layout('Reset your password', content),
-            idempotency_key=self._idempotency_key('password-reset', email, token),
+            f'Reset your {app_name or self.settings.app_name} password',
+            self._layout(
+                'Reset your password',
+                content,
+                app_name=app_name,
+                support_email=support_email,
+            ),
+            idempotency_key=(
+                idempotency_key
+                or self._idempotency_key('password-reset', email, token)
+            ),
+            provider_attempts=provider_attempts,
+            from_email=from_email,
         )

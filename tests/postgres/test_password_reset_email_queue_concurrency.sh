@@ -1,0 +1,316 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+result_dir="$(mktemp -d)"
+trap 'rm -rf -- "$result_dir"' EXIT
+
+wait_for_advisory_count() {
+  local class_id="$1"
+  local granted="$2"
+  local minimum="$3"
+  local count
+  for _ in $(seq 1 200); do
+    count="$(psql -X -qAt --set=ON_ERROR_STOP=1 --command="select count(*) from pg_catalog.pg_locks where locktype = 'advisory' and database = (select oid from pg_catalog.pg_database where datname = pg_catalog.current_database()) and classid = '${class_id}'::oid and granted is ${granted};")"
+    if [ "$count" -ge "$minimum" ]; then
+      return 0
+    fi
+    sleep 0.05
+  done
+  echo "Timed out waiting for advisory class ${class_id} granted=${granted} count >= ${minimum}." >&2
+  return 1
+}
+
+terminate_advisory_holder() {
+  local class_id="$1"
+  local backend_pid
+  backend_pid="$(psql -X -qAt --set=ON_ERROR_STOP=1 --command="select pid from pg_catalog.pg_locks where locktype = 'advisory' and database = (select oid from pg_catalog.pg_database where datname = pg_catalog.current_database()) and classid = '${class_id}'::oid and granted is true order by pid limit 1;")"
+  if [ -z "$backend_pid" ]; then
+    echo "No advisory holder found for class ${class_id}." >&2
+    return 1
+  fi
+  psql -X -qAt --set=ON_ERROR_STOP=1 \
+    --command="select pg_catalog.pg_terminate_backend(${backend_pid});" | grep -Fx 't'
+}
+
+wait_for_named_backend() {
+  local application_name="$1"
+  local count
+  for _ in $(seq 1 200); do
+    count="$(psql -X -qAt --set=ON_ERROR_STOP=1 --command="select count(*) from pg_catalog.pg_stat_activity where datname = pg_catalog.current_database() and application_name = '${application_name}' and state = 'active' and wait_event_type = 'Timeout' and wait_event = 'PgSleep';")"
+    if [ "$count" -ge 1 ]; then
+      return 0
+    fi
+    sleep 0.05
+  done
+  echo "Timed out waiting for backend ${application_name}." >&2
+  return 1
+}
+
+wait_for_locked_enqueues() {
+  local minimum="$1"
+  local count
+  for _ in $(seq 1 200); do
+    count="$(psql -X -qAt --set=ON_ERROR_STOP=1 --command="select count(*) from pg_catalog.pg_stat_activity where datname = pg_catalog.current_database() and query like '%enqueue_password_reset_email_job_v1%' and wait_event_type = 'Lock';")"
+    if [ "$count" -ge "$minimum" ]; then
+      return 0
+    fi
+    sleep 0.05
+  done
+  echo "Timed out waiting for ${minimum} locked enqueue requests." >&2
+  return 1
+}
+
+wait_for_locked_stage() {
+  local count
+  for _ in $(seq 1 200); do
+    count="$(psql -X -qAt --set=ON_ERROR_STOP=1 --command="select count(*) from pg_catalog.pg_stat_activity where datname = pg_catalog.current_database() and query like '%stage_password_reset_email_job_v1%' and wait_event_type = 'Lock';")"
+    if [ "$count" -ge 1 ]; then
+      return 0
+    fi
+    sleep 0.05
+  done
+  echo 'Timed out waiting for stage request to block on the account lock.' >&2
+  return 1
+}
+
+psql -X --set=ON_ERROR_STOP=1 <<'SQL'
+truncate table public.password_reset_email_jobs;
+delete from public.users;
+insert into public.users (
+  id, email, is_guest, password_reset_token_hash, password_reset_expires
+) values
+  ('71000000-0000-4000-8000-000000000001', 'queue-race-a@example.test', false, repeat('a', 64), clock_timestamp() + interval '45 minutes'),
+  ('71000000-0000-4000-8000-000000000002', 'queue-race-b@example.test', false, repeat('b', 64), clock_timestamp() + interval '45 minutes'),
+  ('71000000-0000-4000-8000-000000000003', 'queue-race-expired@example.test', false, repeat('9', 64), clock_timestamp() + interval '30 minutes');
+SQL
+
+# Hold the same advisory key so both identical enqueue attempts wait together.
+psql -X --set=ON_ERROR_STOP=1 >"$result_dir/enqueue-gate.log" <<'SQL' &
+select pg_advisory_lock(1179014993, hashtext('72000000-0000-4000-8000-000000000001'));
+select pg_sleep(30);
+SQL
+gate_pid=$!
+wait_for_advisory_count 1179014993 true 1
+
+enqueue_sql="set role service_role; select accepted::text || '|' || job_id::text from public.enqueue_password_reset_email_job_v1('72000000-0000-4000-8000-000000000001', 'queue-race-a@example.test', repeat('1', 64), repeat('c', 64), clock_timestamp() + interval '1 hour', 'k1', 'queue_race_nonce_123456', 'password-reset-v1', 'Ask Crump', 'https://www.askcrump.com', 'askcrump@gmail.com', 'Ask Crump <noreply@askcrump.com>');"
+psql -X -qAt --set=ON_ERROR_STOP=1 --command="$enqueue_sql" >"$result_dir/enqueue-a" &
+enqueue_a_pid=$!
+psql -X -qAt --set=ON_ERROR_STOP=1 --command="$enqueue_sql" >"$result_dir/enqueue-b" &
+enqueue_b_pid=$!
+wait_for_advisory_count 1179014993 false 2
+terminate_advisory_holder 1179014993
+wait "$gate_pid" || true
+wait "$enqueue_a_pid"
+wait "$enqueue_b_pid"
+
+expected_enqueue='true|72000000-0000-4000-8000-000000000001'
+for output in "$result_dir/enqueue-a" "$result_dir/enqueue-b"; do
+  if [ "$(tr -d '\r\n[:space:]' <"$output")" != "$expected_enqueue" ]; then
+    echo "Concurrent enqueue did not return the one stable job." >&2
+    cat "$output" >&2
+    exit 1
+  fi
+done
+
+# Distinct jobs racing for one expired account must converge on whichever
+# reset generation wins the account row lock. Neither request may overwrite
+# the committed winner with its own candidate after waiting.
+PGAPPNAME=password-reset-race-gate psql -X --set=ON_ERROR_STOP=1 >"$result_dir/account-gate.log" <<'SQL' &
+begin;
+select id from public.users where email = 'queue-race-expired@example.test' for update;
+select pg_sleep(10);
+update public.users
+set password_reset_expires = clock_timestamp() - interval '1 second'
+where email = 'queue-race-expired@example.test';
+commit;
+SQL
+account_gate_pid=$!
+wait_for_named_backend password-reset-race-gate
+
+expired_a_sql="set role service_role; select accepted::text || '|' || job_id::text from public.enqueue_password_reset_email_job_v1('72000000-0000-4000-8000-000000000011', 'queue-race-expired@example.test', repeat('a', 64), repeat('c', 64), clock_timestamp() + interval '1 hour', 'k1', 'expired_race_nonce_a_1234', 'password-reset-v1', 'Ask Crump', 'https://www.askcrump.com', 'askcrump@gmail.com', 'Ask Crump <noreply@askcrump.com>');"
+expired_b_sql="set role service_role; select accepted::text || '|' || job_id::text from public.enqueue_password_reset_email_job_v1('72000000-0000-4000-8000-000000000012', 'queue-race-expired@example.test', repeat('b', 64), repeat('d', 64), clock_timestamp() + interval '1 hour', 'k1', 'expired_race_nonce_b_1234', 'password-reset-v1', 'Ask Crump', 'https://www.askcrump.com', 'askcrump@gmail.com', 'Ask Crump <noreply@askcrump.com>');"
+psql -X -qAt --set=ON_ERROR_STOP=1 --command="$expired_a_sql" >"$result_dir/expired-a" &
+expired_a_pid=$!
+psql -X -qAt --set=ON_ERROR_STOP=1 --command="$expired_b_sql" >"$result_dir/expired-b" &
+expired_b_pid=$!
+wait_for_locked_enqueues 2
+wait "$account_gate_pid"
+wait "$expired_a_pid"
+wait "$expired_b_pid"
+
+grep -Fx 'true|72000000-0000-4000-8000-000000000011' "$result_dir/expired-a"
+grep -Fx 'true|72000000-0000-4000-8000-000000000012' "$result_dir/expired-b"
+psql -X -qAt --set=ON_ERROR_STOP=1 <<'SQL' | grep -Fx 't'
+select
+  account.password_reset_token_hash in (repeat('c', 64), repeat('d', 64))
+  and account.password_reset_expires > clock_timestamp()
+  and (select count(*) = 2
+       from public.password_reset_email_jobs as job
+       where job.id in (
+         '72000000-0000-4000-8000-000000000011'::uuid,
+         '72000000-0000-4000-8000-000000000012'::uuid
+       )
+         and job.user_id = account.id
+         and job.password_reset_token_hash = account.password_reset_token_hash
+         and job.password_reset_expires = account.password_reset_expires)
+  and (select count(distinct job.password_reset_token_hash) = 1
+       from public.password_reset_email_jobs as job
+       where job.id in (
+         '72000000-0000-4000-8000-000000000011'::uuid,
+         '72000000-0000-4000-8000-000000000012'::uuid
+       ))
+from public.users as account
+where account.email = 'queue-race-expired@example.test';
+SQL
+
+psql -X -qAt --set=ON_ERROR_STOP=1 --command="set role service_role; select * from public.enqueue_password_reset_email_job_v1('72000000-0000-4000-8000-000000000002', 'queue-race-b@example.test', repeat('2', 64), repeat('d', 64), clock_timestamp() + interval '1 hour', 'k1', 'queue_race_nonce_234567', 'password-reset-v1', 'Ask Crump', 'https://www.askcrump.com', 'askcrump@gmail.com', 'Ask Crump <noreply@askcrump.com>');" >/dev/null
+
+# Retrying one claim token concurrently must converge on one lease instead of
+# raising a unique-index conflict or consuming two jobs.
+psql -X --set=ON_ERROR_STOP=1 >"$result_dir/claim-gate.log" <<'SQL' &
+select pg_advisory_lock(1179014994, hashtext('73000000-0000-4000-8000-000000000000'));
+select pg_sleep(30);
+SQL
+claim_gate_pid=$!
+wait_for_advisory_count 1179014994 true 1
+
+same_claim_sql="set role service_role; select job_id::text || '|' || lease_token::text from public.claim_password_reset_email_job_v1('73000000-0000-4000-8000-000000000000', 60);"
+psql -X -qAt --set=ON_ERROR_STOP=1 --command="$same_claim_sql" >"$result_dir/claim-same-a" &
+claim_same_a_pid=$!
+psql -X -qAt --set=ON_ERROR_STOP=1 --command="$same_claim_sql" >"$result_dir/claim-same-b" &
+claim_same_b_pid=$!
+wait_for_advisory_count 1179014994 false 2
+terminate_advisory_holder 1179014994
+wait "$claim_gate_pid" || true
+wait "$claim_same_a_pid"
+wait "$claim_same_b_pid"
+
+same_claim_a="$(tr -d '\r\n[:space:]' <"$result_dir/claim-same-a")"
+same_claim_b="$(tr -d '\r\n[:space:]' <"$result_dir/claim-same-b")"
+if [ -z "$same_claim_a" ] || [ "$same_claim_a" != "$same_claim_b" ]; then
+  echo 'Concurrent retries of one claim token did not converge.' >&2
+  cat "$result_dir/claim-same-a" "$result_dir/claim-same-b" >&2
+  exit 1
+fi
+same_job="${same_claim_a%%|*}"
+same_lease="${same_claim_a##*|}"
+if [ "$same_lease" != '73000000-0000-4000-8000-000000000000' ]; then
+  echo 'Same-token claim returned an unexpected lease token.' >&2
+  exit 1
+fi
+psql -X -qAt --set=ON_ERROR_STOP=1 --command="set role service_role; select disposition from public.stage_password_reset_email_job_v1('$same_job', '$same_lease');" | grep -Fx 'deliver'
+psql -X -qAt --set=ON_ERROR_STOP=1 --command="set role service_role; select public.complete_password_reset_email_job_v1('$same_job', '$same_lease', 'provider_accepted');" | grep -Fx 'provider_accepted'
+
+psql -X -qAt --set=ON_ERROR_STOP=1 --command="set role service_role; select * from public.enqueue_password_reset_email_job_v1('72000000-0000-4000-8000-000000000003', 'queue-race-a@example.test', repeat('3', 64), repeat('e', 64), clock_timestamp() + interval '1 hour', 'k1', 'queue_race_nonce_345678', 'password-reset-v1', 'Ask Crump', 'https://www.askcrump.com', 'askcrump@gmail.com', 'Ask Crump <noreply@askcrump.com>');" >/dev/null
+
+# Two workers must claim distinct ready rows via SKIP LOCKED.
+psql -X -qAt --set=ON_ERROR_STOP=1 --command="set role service_role; select job_id::text || '|' || lease_token::text from public.claim_password_reset_email_job_v1('73000000-0000-4000-8000-000000000001', 60);" >"$result_dir/claim-a" &
+claim_a_pid=$!
+psql -X -qAt --set=ON_ERROR_STOP=1 --command="set role service_role; select job_id::text || '|' || lease_token::text from public.claim_password_reset_email_job_v1('73000000-0000-4000-8000-000000000002', 60);" >"$result_dir/claim-b" &
+claim_b_pid=$!
+wait "$claim_a_pid"
+wait "$claim_b_pid"
+
+if [ "$(cut -d'|' -f1 "$result_dir/claim-a" "$result_dir/claim-b" | sort -u | wc -l | tr -d ' ')" != '2' ]; then
+  echo 'Concurrent workers did not claim distinct jobs.' >&2
+  cat "$result_dir/claim-a" "$result_dir/claim-b" >&2
+  exit 1
+fi
+
+old_job="$(cut -d'|' -f1 "$result_dir/claim-a" | tr -d '\r\n')"
+old_lease="$(cut -d'|' -f2 "$result_dir/claim-a" | tr -d '\r\n')"
+psql -X --set=ON_ERROR_STOP=1 --command="update public.password_reset_email_jobs set lease_expires_at = clock_timestamp() - interval '1 second' where id = '$old_job'::uuid and lease_token = '$old_lease'::uuid"
+expired_retry="$(psql -X -qAt --set=ON_ERROR_STOP=1 --command="set role service_role; select job_id::text from public.claim_password_reset_email_job_v1('$old_lease', 60);" | tr -d '\r\n[:space:]')"
+if [ -n "$expired_retry" ]; then
+  echo 'Expired claim token was incorrectly renewed.' >&2
+  exit 1
+fi
+new_claim="$(psql -X -qAt --set=ON_ERROR_STOP=1 --command="set role service_role; select job_id::text || '|' || lease_token::text from public.claim_password_reset_email_job_v1('73000000-0000-4000-8000-000000000003', 60);")"
+new_job="$(printf '%s' "$new_claim" | cut -d'|' -f1 | tr -d '\r\n')"
+new_lease="$(printf '%s' "$new_claim" | cut -d'|' -f2 | tr -d '\r\n')"
+
+if [ "$new_job" != "$old_job" ]; then
+  echo 'Expired lease was not reclaimed.' >&2
+  exit 1
+fi
+psql -X -qAt --set=ON_ERROR_STOP=1 --command="set role service_role; select * from public.enqueue_password_reset_email_job_v1('72000000-0000-4000-8000-000000000004', 'queue-race-a@example.test', repeat('4', 64), repeat('f', 64), clock_timestamp() + interval '1 hour', 'k1', 'queue_race_nonce_456789', 'password-reset-v1', 'Ask Crump', 'https://www.askcrump.com', 'askcrump@gmail.com', 'Ask Crump <noreply@askcrump.com>');" >/dev/null
+expired_retry_after_reclaim="$(psql -X -qAt --set=ON_ERROR_STOP=1 --command="set role service_role; select job_id::text from public.claim_password_reset_email_job_v1('$old_lease', 60);" | tr -d '\r\n[:space:]')"
+if [ -n "$expired_retry_after_reclaim" ]; then
+  echo 'Expired claim token consumed another job after fresh reclaim.' >&2
+  exit 1
+fi
+old_outcome="$(psql -X -qAt --set=ON_ERROR_STOP=1 --command="set role service_role; select public.complete_password_reset_email_job_v1('$old_job', '$old_lease', 'provider_accepted');" | tr -d '\r\n[:space:]')"
+if [ "$old_outcome" != 'lease_lost' ]; then
+  echo "Stale lease was not fenced: $old_outcome" >&2
+  exit 1
+fi
+psql -X -qAt --set=ON_ERROR_STOP=1 --command="set role service_role; select disposition from public.stage_password_reset_email_job_v1('$new_job', '$new_lease');" | grep -Fx 'deliver'
+psql -X -qAt --set=ON_ERROR_STOP=1 --command="set role service_role; select public.complete_password_reset_email_job_v1('$new_job', '$new_lease', 'provider_accepted');" | grep -Fx 'provider_accepted'
+completed_retry="$(psql -X -qAt --set=ON_ERROR_STOP=1 --command="set role service_role; select job_id::text from public.claim_password_reset_email_job_v1('$new_lease', 60);" | tr -d '\r\n[:space:]')"
+if [ -n "$completed_retry" ]; then
+  echo 'Completed claim token consumed another job.' >&2
+  exit 1
+fi
+
+# Stage must sample time after waiting for the account and job locks. Move one
+# locked generation to 25 seconds from expiry after a ten-second wait; an old
+# pre-lock timestamp would incorrectly classify it as deliverable.
+psql -X --set=ON_ERROR_STOP=1 <<'SQL'
+truncate table public.password_reset_email_jobs;
+delete from public.users;
+insert into public.users (
+  id, email, is_guest, password_reset_token_hash, password_reset_expires
+) values (
+  '71000000-0000-4000-8000-000000000004',
+  'queue-stage-race@example.test', false, repeat('5', 64),
+  clock_timestamp() + interval '10 minutes'
+);
+set role service_role;
+select * from public.enqueue_password_reset_email_job_v1(
+  '72000000-0000-4000-8000-000000000021',
+  'queue-stage-race@example.test', repeat('6', 64), repeat('7', 64),
+  clock_timestamp() + interval '1 hour', 'k1', 'stage_race_nonce_123456',
+  'password-reset-v1', 'Ask Crump', 'https://www.askcrump.com',
+  'askcrump@gmail.com', 'Ask Crump <noreply@askcrump.com>'
+);
+reset role;
+SQL
+stage_claim="$(psql -X -qAt --set=ON_ERROR_STOP=1 --command="set role service_role; select job_id::text || '|' || lease_token::text from public.claim_password_reset_email_job_v1('73000000-0000-4000-8000-000000000021', 120);")"
+stage_job="$(printf '%s' "$stage_claim" | cut -d'|' -f1 | tr -d '\r\n')"
+stage_lease="$(printf '%s' "$stage_claim" | cut -d'|' -f2 | tr -d '\r\n')"
+
+PGAPPNAME=password-reset-stage-gate psql -X --set=ON_ERROR_STOP=1 >"$result_dir/stage-gate.log" <<'SQL' &
+do $$
+declare
+  v_expiry timestamptz;
+begin
+  perform account.id
+  from public.users as account
+  where account.email = 'queue-stage-race@example.test'
+  for update;
+  perform pg_catalog.pg_sleep(10);
+  v_expiry := pg_catalog.clock_timestamp() + interval '25 seconds';
+  update public.users
+  set password_reset_expires = v_expiry
+  where email = 'queue-stage-race@example.test';
+  update public.password_reset_email_jobs
+  set password_reset_expires = v_expiry
+  where id = '72000000-0000-4000-8000-000000000021'::uuid;
+end;
+$$;
+SQL
+stage_gate_pid=$!
+wait_for_named_backend password-reset-stage-gate
+psql -X -qAt --set=ON_ERROR_STOP=1 \
+  --command="set role service_role; select disposition from public.stage_password_reset_email_job_v1('$stage_job', '$stage_lease');" \
+  >"$result_dir/stage-race" &
+stage_pid=$!
+wait_for_locked_stage
+wait "$stage_gate_pid"
+wait "$stage_pid"
+grep -Fx 'suppress' "$result_dir/stage-race"
+psql -X -qAt --set=ON_ERROR_STOP=1 \
+  --command="set role service_role; select public.complete_password_reset_email_job_v1('$stage_job', '$stage_lease', 'suppressed');" \
+  | grep -Fx 'suppressed'
+
+echo 'Password-reset-email queue concurrency and lease fencing passed.'

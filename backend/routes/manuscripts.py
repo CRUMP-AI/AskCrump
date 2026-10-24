@@ -21,6 +21,7 @@ from ..runtime import (
     features,
     files,
     manuscripts,
+    password_reset_emails,
     projects,
     settings,
     verification_emails,
@@ -32,6 +33,7 @@ logger = logging.getLogger(__name__)
 _CRON_LANES = (
     "account-storage-deletion",
     "verification-email",
+    "password-reset-email",
     "code",
     "manuscripts",
 )
@@ -398,6 +400,9 @@ async def manuscript_cron(request: Request):
             handled = bool(summary.get("handled"))
         elif lane == "verification-email":
             summary = await verification_emails.process_next()
+            handled = bool(summary.get("handled"))
+        elif lane == "password-reset-email":
+            summary = await password_reset_emails.process_next()
             handled = bool(summary.get("handled"))
         elif lane == "code":
             summary = await code_worker.process_next(oidc_token=oidc_token)
