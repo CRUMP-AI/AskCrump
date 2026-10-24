@@ -74,6 +74,7 @@ async function destination(page, selector) {
       await direct.page.goto(`${baseUrl}${guide.path}?acquisition=direct`, { waitUntil: 'networkidle' });
 
       const navSelector = `[data-cta="${guide.key}-nav"]`;
+      const signinSelector = `[data-cta="${guide.key}-nav-signin"]`;
       const heroSelector = `[data-cta="${guide.key}-hero"]`;
       assert(await direct.page.locator(navSelector).isVisible(), `${guide.key} nav start is hidden on phone width`);
       assert(await direct.page.locator(heroSelector).isVisible(), `${guide.key} hero start is hidden on phone width`);
@@ -81,16 +82,21 @@ async function destination(page, selector) {
       const overflow = await direct.page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
       assert(overflow <= 1, `${guide.key} overflows the phone viewport by ${overflow}px`);
 
-      for (const [selector, expectedPlan] of [[navSelector, 'free'], [heroSelector, guide.heroPlan]]) {
+      for (const [selector, expectedPlan, forcesSignup] of [[navSelector, 'free', false], [heroSelector, guide.heroPlan, true]]) {
         const target = await destination(direct.page, selector);
         assert(target.pathname === '/app', `${guide.key} start misses /app`);
-        assert(target.searchParams.get('signup') === '1', `${guide.key} start misses signup handoff`);
+        assert(target.searchParams.has('signup') === forcesSignup, `${guide.key} start has the wrong registration handoff`);
         assert(target.searchParams.get('plan') === expectedPlan, `${guide.key} start misses ${expectedPlan}-plan handoff`);
         assert(target.searchParams.get('intent') === guide.intent, `${guide.key} start loses intent`);
         assert(target.searchParams.get('acquisition') === 'direct', `${guide.key} direct start changes acquisition`);
         assert(!target.searchParams.has('campaign'), `${guide.key} direct start invents a campaign`);
         assert(!target.searchParams.has('creative'), `${guide.key} direct start invents a creative`);
       }
+
+      const signinTarget = await destination(direct.page, signinSelector);
+      assert(signinTarget.pathname === '/app', `${guide.key} sign in misses /app`);
+      assert(signinTarget.searchParams.get('source') === `${guide.key}-nav-signin`, `${guide.key} sign in does not force login`);
+      assert(!signinTarget.searchParams.has('signup'), `${guide.key} sign in incorrectly opens registration`);
 
       await direct.page.locator(heroSelector).evaluate(node => {
         node.addEventListener('click', event => {

@@ -421,12 +421,14 @@
     try {
       const destination = new URL(link.getAttribute('href'), location.href);
       if (destination.origin === location.origin && destination.pathname === '/app') {
-        analyticsEvent = destination.searchParams.get('signup') === '1'
-          ? 'MarketingCTA'
-          : 'MarketingSignin';
+        const source = safeSource(destination.searchParams.get('source'), '');
+        const isExplicitSignin = link.classList?.contains('nav-signin') === true || source.includes('signin');
+        analyticsEvent = isExplicitSignin ? 'MarketingSignin' : 'MarketingCTA';
         creationIntent = safeSource(destination.searchParams.get('intent'), creationIntent);
         destination.searchParams.set('acquisition', attribution.acquisition);
-        if (attribution.placement) destination.searchParams.set('source', attribution.placement);
+        if (attribution.placement && !isExplicitSignin) {
+          destination.searchParams.set('source', attribution.placement);
+        }
         if (attribution.campaign) destination.searchParams.set('campaign', attribution.campaign);
         if (attribution.creative) destination.searchParams.set('creative', attribution.creative);
         link.setAttribute('href', `${destination.pathname}${destination.search}${destination.hash}`);

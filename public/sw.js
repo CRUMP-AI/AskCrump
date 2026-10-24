@@ -10,7 +10,7 @@ const CORE = [
   '/appearance-controls.css?v=5.9.76-appearance-choice-3',
   '/landing-5.6.css?v=5.9.76-accessibility-1',
   '/use-case.css?v=5.9.76',
-  '/landing.js?v=5.9.76-facebook-reel-attribution-1',
+  '/landing.js?v=5.9.76-free-guest-entry-1',
   '/styles.css',
   '/billing.css',
   '/install-prompt.css?v=5.9.76',
