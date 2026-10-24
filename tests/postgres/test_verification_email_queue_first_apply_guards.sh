@@ -7,6 +7,10 @@ result_dir="$(mktemp -d)"
 cleanup() {
   set +e
   psql -X --set=ON_ERROR_STOP=0 \
+    --command='alter table if exists public.users alter column is_verified drop not null' \
+    --command='alter table if exists public.users alter column is_verified set default false' \
+    --command='alter table if exists public.users alter column updated_at drop not null' \
+    --command='alter table if exists public.users alter column updated_at set default now()' \
     --command='alter default privileges for role postgres in schema public revoke execute on functions from queue_default_intruder' \
     --command='revoke service_role from anon' \
     --command='drop index if exists public.verification_email_jobs_ready_idx' \
@@ -22,6 +26,59 @@ assert_absent() {
     --command="select to_regclass('public.verification_email_jobs') is null and to_regprocedure('public.enqueue_verification_email_job_v1(uuid,text,text,text,timestamp with time zone,text,text,text,text,text,text,text,text,text)') is null" \
     | grep -Fx 't'
 }
+
+assert_users_contract_rejected() {
+  local case_name="$1"
+  local mutation_sql="$2"
+  local restore_sql="$3"
+  local log_file="$result_dir/${case_name}.log"
+  local status
+
+  psql -X --set=ON_ERROR_STOP=1 --command="$mutation_sql"
+
+  set +e
+  psql -X --set=ON_ERROR_STOP=1 --set=VERBOSITY=verbose \
+    --single-transaction --file="$migration" >"$log_file" 2>&1
+  status=$?
+  set -e
+  cat "$log_file"
+  if [ "$status" -eq 0 ]; then
+    echo "Migration unexpectedly accepted users schema drift: $case_name." >&2
+    exit 1
+  fi
+  grep -F '55000' "$log_file"
+  grep -F 'unexpected users verification columns.' "$log_file"
+  assert_absent
+
+  psql -X --set=ON_ERROR_STOP=1 --command="$restore_sql"
+}
+
+# Fresh/bootstrap databases may already enforce the two verification columns as
+# NOT NULL. Prove that exact-default variant applies, then rolls back cleanly.
+psql -X --set=ON_ERROR_STOP=1 \
+  --command='begin' \
+  --command='alter table public.users alter column is_verified set not null' \
+  --command='alter table public.users alter column updated_at set not null' \
+  --file="$migration" \
+  --command='rollback'
+assert_absent
+
+assert_users_contract_rejected \
+  'is-verified-default-true' \
+  'alter table public.users alter column is_verified set default true' \
+  'alter table public.users alter column is_verified set default false'
+assert_users_contract_rejected \
+  'is-verified-default-absent' \
+  'alter table public.users alter column is_verified drop default' \
+  'alter table public.users alter column is_verified set default false'
+assert_users_contract_rejected \
+  'updated-at-default-clock-timestamp' \
+  'alter table public.users alter column updated_at set default pg_catalog.clock_timestamp()' \
+  'alter table public.users alter column updated_at set default now()'
+assert_users_contract_rejected \
+  'updated-at-default-absent' \
+  'alter table public.users alter column updated_at drop default' \
+  'alter table public.users alter column updated_at set default now()'
 
 psql -X --set=ON_ERROR_STOP=1 \
   --command='create schema queue_hostile' \

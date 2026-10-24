@@ -110,11 +110,21 @@ begin
       and (
         (column_name = 'id' and data_type = 'uuid' and is_nullable = 'NO')
         or (column_name = 'email' and data_type = 'text' and is_nullable = 'NO')
-        or (column_name = 'is_verified' and data_type = 'boolean' and is_nullable = 'NO')
+        -- Hosted legacy projects retain nullable verification metadata while a
+        -- clean bootstrap declares these columns NOT NULL. Both shapes are
+        -- safe because every queue decision below uses IS FALSE / IS NOT
+        -- FALSE; require the same defaults so unexpected drift still blocks.
+        or (column_name = 'is_verified'
+            and data_type = 'boolean'
+            and is_nullable in ('YES', 'NO')
+            and column_default = 'false')
         or (column_name = 'deleted_at' and data_type = 'timestamp with time zone' and is_nullable = 'YES')
         or (column_name = 'verification_token_hash' and data_type = 'text' and is_nullable = 'YES')
         or (column_name = 'verification_token_expires' and data_type = 'timestamp with time zone' and is_nullable = 'YES')
-        or (column_name = 'updated_at' and data_type = 'timestamp with time zone' and is_nullable = 'NO')
+        or (column_name = 'updated_at'
+            and data_type = 'timestamp with time zone'
+            and is_nullable in ('YES', 'NO')
+            and column_default = 'now()')
       )
   ) <> 7 then
     raise exception 'unexpected users verification columns.' using errcode = '55000';

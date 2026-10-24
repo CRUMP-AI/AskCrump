@@ -17,11 +17,11 @@ $$;
 create table public.users (
   id uuid primary key,
   email text not null,
-  is_verified boolean not null default false,
+  is_verified boolean default false,
   deleted_at timestamptz,
   verification_token_hash text,
   verification_token_expires timestamptz,
-  updated_at timestamptz not null default pg_catalog.clock_timestamp()
+  updated_at timestamptz default now()
 );
 
 create unique index users_email_lower_unique on public.users (lower(email));

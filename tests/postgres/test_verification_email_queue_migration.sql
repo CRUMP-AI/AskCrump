@@ -63,11 +63,14 @@ end;
 $$;
 
 insert into public.users (
-  id, email, is_verified, verification_token_hash, verification_token_expires
+  id, email, is_verified, verification_token_hash, verification_token_expires,
+  updated_at
 ) values
-  ('11111111-1111-4111-8111-111111111111', 'pending@example.com', false, repeat('a', 64), now() + interval '20 hours'),
-  ('22222222-2222-4222-8222-222222222222', 'verified@example.com', true, repeat('b', 64), now() + interval '20 hours'),
-  ('33333333-3333-4333-8333-333333333333', 'expired@example.com', false, repeat('c', 64), now() - interval '1 hour');
+  ('11111111-1111-4111-8111-111111111111', 'pending@example.com', false, repeat('a', 64), now() + interval '20 hours', now()),
+  ('22222222-2222-4222-8222-222222222222', 'verified@example.com', true, repeat('b', 64), now() + interval '20 hours', now()),
+  ('33333333-3333-4333-8333-333333333333', 'expired@example.com', false, repeat('c', 64), now() - interval '1 hour', null),
+  ('44444444-4444-4444-8444-444444444440', 'nullable@example.com', null, repeat('d', 64), now() + interval '20 hours', null),
+  ('44444444-4444-4444-8444-444444444442', 'live-null-time@example.com', false, repeat('f', 64), now() + interval '20 hours', null);
 
 do $$
 declare
@@ -177,6 +180,18 @@ select * from public.enqueue_verification_email_job_v1(
   null, null, 'verification-v1', 'Ask Crump', 'https://www.askcrump.com',
   'askcrump@gmail.com', 'Ask Crump <noreply@askcrump.com>'
 );
+select * from public.enqueue_verification_email_job_v1(
+  'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee0', 'nullable@example.com', repeat('5', 64),
+  repeat('8', 64), now() + interval '24 hours', 'k1', 'nullable_nonce_12345678',
+  null, null, 'verification-v1', 'Ask Crump', 'https://www.askcrump.com',
+  'askcrump@gmail.com', 'Ask Crump <noreply@askcrump.com>'
+);
+select * from public.enqueue_verification_email_job_v1(
+  'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee3', 'live-null-time@example.com', repeat('7', 64),
+  repeat('0', 64), now() + interval '24 hours', 'k1', 'live_null_time_nonce_1234',
+  null, null, 'verification-v1', 'Ask Crump', 'https://www.askcrump.com',
+  'askcrump@gmail.com', 'Ask Crump <noreply@askcrump.com>'
+);
 
 -- A database-client retry may replay the same immutable envelope. A UUID
 -- collision with changed immutable inputs must fail closed instead of silently
@@ -220,6 +235,21 @@ select pg_temp.assert_true(
   'an expired generation must rotate atomically'
 );
 select pg_temp.assert_true(
+  (select updated_at is not null
+   from public.users where email = 'expired@example.com'),
+  'an expired false account with a null legacy timestamp must receive a rotation timestamp'
+);
+select pg_temp.assert_true(
+  (select verification_token_hash = repeat('d', 64) and updated_at is null
+   from public.users where email = 'nullable@example.com'),
+  'an ambiguous nullable verification account must not be mutated'
+);
+select pg_temp.assert_true(
+  (select verification_token_hash = repeat('f', 64) and updated_at is null
+   from public.users where email = 'live-null-time@example.com'),
+  'a live anchor on a false account must not fabricate a legacy update timestamp'
+);
+select pg_temp.assert_true(
   (select status = 'suppressed' and user_id is null
    from public.verification_email_jobs where id = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'),
   'an unknown account must create only a content-free suppression envelope'
@@ -228,6 +258,11 @@ select pg_temp.assert_true(
   (select status = 'suppressed' and user_id is null
    from public.verification_email_jobs where id = 'cccccccc-cccc-4ccc-8ccc-cccccccccccc'),
   'a verified account must create only a content-free suppression envelope'
+);
+select pg_temp.assert_true(
+  (select status = 'suppressed' and user_id is null
+   from public.verification_email_jobs where id = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee0'),
+  'a nullable verification account must create only a content-free suppression envelope'
 );
 select pg_temp.assert_true(
   (select count(*) = 1
@@ -244,7 +279,12 @@ select * from public.stage_verification_email_job_v1(
   :'claimed_job_id'::uuid, :'claimed_lease_token'::uuid
 ) \gset staged_
 select pg_temp.assert_true(:'staged_disposition' = 'deliver', 'pending account must stage for delivery');
-select pg_temp.assert_true(:'staged_recipient_email' in ('pending@example.com', 'expired@example.com'), 'stage returns only the locked current recipient');
+select pg_temp.assert_true(
+  :'staged_recipient_email' in (
+    'pending@example.com', 'expired@example.com', 'live-null-time@example.com'
+  ),
+  'stage returns only the locked current recipient'
+);
 select pg_temp.assert_true(
   public.complete_verification_email_job_v1(
     :'claimed_job_id'::uuid, :'claimed_lease_token'::uuid, 'provider_accepted'
@@ -261,6 +301,56 @@ select pg_temp.assert_true(
    from public.verification_email_jobs where id = :'claimed_job_id'::uuid),
   'provider acceptance must be terminal and retain its one-shot claim token'
 );
+
+-- A user can become ambiguous after enqueue but before provider staging. The
+-- locked stage recheck must still suppress the job without returning a
+-- recipient, and the worker completion path must leave it terminal.
+insert into public.users (
+  id, email, is_verified, verification_token_hash, verification_token_expires
+) values (
+  '44444444-4444-4444-8444-444444444441', 'race-null@example.com', false,
+  repeat('e', 64), now() + interval '20 hours'
+);
+set role service_role;
+select * from public.enqueue_verification_email_job_v1(
+  'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1', 'race-null@example.com', repeat('6', 64),
+  repeat('e', 64), now() + interval '20 hours', 'k1', 'race_null_nonce_12345678',
+  null, null, 'verification-v1', 'Ask Crump', 'https://www.askcrump.com',
+  'askcrump@gmail.com', 'Ask Crump <noreply@askcrump.com>'
+);
+reset role;
+update public.verification_email_jobs
+set next_attempt_at = pg_catalog.clock_timestamp() + interval '1 hour'
+where status = 'queued'
+  and id <> 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1';
+update public.users
+set is_verified = null
+where id = '44444444-4444-4444-8444-444444444441';
+set role service_role;
+select * from public.claim_verification_email_job_v1(
+  'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee2', 120
+) \gset nullable_race_
+select disposition, recipient_email is null as recipient_is_null
+from public.stage_verification_email_job_v1(
+  :'nullable_race_job_id'::uuid, :'nullable_race_lease_token'::uuid
+) \gset nullable_stage_
+select pg_temp.assert_true(
+  :'nullable_stage_disposition' = 'suppress'
+    and :'nullable_stage_recipient_is_null' = 't',
+  'a false-to-null account transition must suppress before provider delivery'
+);
+select pg_temp.assert_true(
+  public.complete_verification_email_job_v1(
+    :'nullable_race_job_id'::uuid,
+    :'nullable_race_lease_token'::uuid,
+    'suppressed'
+  ) = 'suppressed',
+  'a false-to-null staged suppression must complete terminally'
+);
+reset role;
+update public.verification_email_jobs
+set next_attempt_at = pg_catalog.clock_timestamp() - interval '1 second'
+where status = 'queued';
 
 update public.verification_email_jobs
 set next_attempt_at = pg_catalog.clock_timestamp() + interval '1 hour'
