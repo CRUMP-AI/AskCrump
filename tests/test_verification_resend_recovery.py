@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 from datetime import datetime
 
 import pytest
@@ -8,10 +9,10 @@ from starlette.requests import Request
 
 from backend.auth_service import AuthenticationError
 from backend.db import DatabaseError
-from backend.email_service import EmailDeliveryError
 from backend.routes import auth as auth_routes
 from backend.schemas import RegisterRequest, ResendVerificationRequest
 from backend.security import token_hash
+from backend.verification_email_queue import VerificationEmailQueueUnavailable
 from backend.verification_tokens import (
     create_resend_verification_alias,
     parse_resend_verification_alias,
@@ -39,7 +40,7 @@ WINNER_EXPIRY = '2026-10-28T12:00:00+00:00'
 PAST_EXPIRY = '2026-10-24T00:00:00+00:00'
 GENERIC_RESULT = {
     'success': True,
-    'message': 'If verification is needed, a new email has been sent.',
+    'message': 'If verification is needed, an email will be sent.',
 }
 
 
@@ -161,6 +162,17 @@ class _VerificationEmail:
         return self.outcome
 
 
+class _VerificationQueue:
+    def __init__(self, outcome: Exception | None = None) -> None:
+        self.outcome = outcome
+        self.calls: list[dict] = []
+
+    async def enqueue_resend(self, **kwargs):
+        self.calls.append(dict(kwargs))
+        if self.outcome:
+            raise self.outcome
+
+
 @pytest.fixture(autouse=True)
 def stable_recovery_environment(monkeypatch):
     async def allow_rate_limit(*_args, **_kwargs):
@@ -186,74 +198,39 @@ def stable_recovery_environment(monkeypatch):
 async def test_resend_response_is_identical_for_every_account_and_delivery_state(
     monkeypatch,
 ) -> None:
-    cases = [
-        (None, True, 0),
-        (_pending_user(is_verified=True), True, 0),
-        (_pending_user(), True, 1),
-        (
-            _pending_user(),
-            EmailDeliveryError(status_code=503, retryable=True),
-            1,
-        ),
-        (_pending_user(), False, 1),
-    ]
-    results = []
-
-    for user, outcome, expected_calls in cases:
-        database = _ResendDB(user)
-        email = _VerificationEmail(outcome)
-        monkeypatch.setattr(auth_routes, 'db', database)
-        monkeypatch.setattr(auth_routes, 'email_service', email)
-
-        result = await auth_routes.resend_verification(
-            ResendVerificationRequest(email='pending@example.com'),
-            _request(),
-        )
-
-        results.append(result)
-        assert len(email.calls) == expected_calls
-
-    # Returning the same ordinary mapping also leaves FastAPI's status at 200.
-    assert results == [GENERIC_RESULT] * len(cases)
-
-
-@pytest.mark.asyncio
-async def test_provider_failure_preserves_anchor_and_original_legacy_link(
-    monkeypatch,
-) -> None:
-    database = _ResendDB(_pending_user())
-    email = _VerificationEmail(
-        EmailDeliveryError(status_code=503, retryable=True),
-    )
-    monkeypatch.setattr(auth_routes, 'db', database)
-    monkeypatch.setattr(auth_routes, 'email_service', email)
-
-    result = await auth_routes.resend_verification(
-        ResendVerificationRequest(email='pending@example.com'),
-        _request(),
-    )
-
-    assert result == GENERIC_RESULT
-    assert database.user is not None
-    assert database.user['verification_token_hash'] == ANCHOR
-    assert database.user['verification_token_expires'] == OLD_EXPIRY
-    assert database.updates == []
-    assert len(email.calls) == 1
-    assert email.calls[0]['token'].startswith(f'v2.k1.{USER_ID}.')
-
-    user, resolved_anchor = await auth_routes._verification_user_and_anchor(LEGACY_TOKEN)
-    assert user is not None
-    assert user['id'] == USER_ID
-    assert resolved_anchor == ANCHOR
-
-
-@pytest.mark.asyncio
-async def test_successful_resend_sends_a_valid_alias_without_rotating_anchor(
-    monkeypatch,
-) -> None:
-    database = _ResendDB(_pending_user())
+    queue = _VerificationQueue()
     email = _VerificationEmail(True)
-    monkeypatch.setattr(auth_routes, 'db', database)
+    monkeypatch.setattr(auth_routes, 'verification_emails', queue)
+    monkeypatch.setattr(auth_routes, 'email_service', email)
+
+    result = await auth_routes.resend_verification(
+        ResendVerificationRequest(
+            email='Pending@Example.com',
+            intent='presentation',
+            plan='professional',
+        ),
+        _request(),
+    )
+
+    assert result.status_code == 202
+    assert json.loads(result.body) == GENERIC_RESULT
+    assert queue.calls == [{
+        'email': 'pending@example.com',
+        'intent': 'presentation',
+        'plan': 'professional',
+    }]
+    assert email.calls == []
+
+
+@pytest.mark.asyncio
+async def test_resend_enqueue_failure_is_uniform_and_never_calls_provider(
+    monkeypatch,
+) -> None:
+    queue = _VerificationQueue(
+        VerificationEmailQueueUnavailable('unavailable'),
+    )
+    email = _VerificationEmail(True)
+    monkeypatch.setattr(auth_routes, 'verification_emails', queue)
     monkeypatch.setattr(auth_routes, 'email_service', email)
 
     result = await auth_routes.resend_verification(
@@ -261,10 +238,28 @@ async def test_successful_resend_sends_a_valid_alias_without_rotating_anchor(
         _request(),
     )
 
-    assert result == GENERIC_RESULT
+    assert result.status_code == 503
+    assert json.loads(result.body) == {
+        'success': False,
+        'error': 'Verification email requests are temporarily unavailable. Please try again shortly.',
+        'code': 'VERIFICATION_EMAIL_QUEUE_UNAVAILABLE',
+    }
+    assert len(queue.calls) == 1
+    assert email.calls == []
+
+
+@pytest.mark.asyncio
+async def test_pending_recovery_prepares_a_valid_alias_without_rotating_anchor(
+    monkeypatch,
+) -> None:
+    database = _ResendDB(_pending_user())
+    monkeypatch.setattr(auth_routes, 'db', database)
+
+    alias_token = await auth_routes._prepare_resend_verification_alias(database.user)
+
     assert database.user is not None
     assert database.user['verification_token_hash'] == ANCHOR
-    alias_token = email.calls[0]['token']
+    assert alias_token is not None
     alias = parse_resend_verification_alias(alias_token)
     assert alias is not None
     assert alias.key_id == 'k1'
@@ -303,30 +298,20 @@ async def test_successful_resend_sends_a_valid_alias_without_rotating_anchor(
 
 
 @pytest.mark.asyncio
-async def test_concurrent_resends_send_distinct_aliases_for_one_immutable_anchor(
+async def test_concurrent_pending_recovery_aliases_share_one_immutable_anchor(
     monkeypatch,
 ) -> None:
     database = _ResendDB(_pending_user())
-    email = _VerificationEmail(True)
     monkeypatch.setattr(auth_routes, 'db', database)
-    monkeypatch.setattr(auth_routes, 'email_service', email)
 
     first, second = await asyncio.gather(
-        auth_routes.resend_verification(
-            ResendVerificationRequest(email='pending@example.com'),
-            _request(),
-        ),
-        auth_routes.resend_verification(
-            ResendVerificationRequest(email='pending@example.com'),
-            _request(),
-        ),
+        auth_routes._prepare_resend_verification_alias(dict(database.user)),
+        auth_routes._prepare_resend_verification_alias(dict(database.user)),
     )
 
-    assert first == second == GENERIC_RESULT
     assert database.user is not None
     assert database.user['verification_token_hash'] == ANCHOR
-    assert len(email.calls) == 2
-    tokens = {call['token'] for call in email.calls}
+    tokens = {first, second}
     assert len(tokens) == 2
     for token in tokens:
         alias = parse_resend_verification_alias(token)
@@ -342,30 +327,23 @@ async def test_concurrent_resends_send_distinct_aliases_for_one_immutable_anchor
 
 
 @pytest.mark.asyncio
-async def test_ambiguous_expiry_write_is_confirmed_by_readback_before_email(
+async def test_ambiguous_expiry_write_is_confirmed_before_alias_return(
     monkeypatch,
 ) -> None:
     database = _ResendDB(
         _pending_user(verification_token_expires=PAST_EXPIRY),
         update_mode='apply_then_raise',
     )
-    email = _VerificationEmail(True)
     monkeypatch.setattr(auth_routes, 'db', database)
-    monkeypatch.setattr(auth_routes, 'email_service', email)
 
-    result = await auth_routes.resend_verification(
-        ResendVerificationRequest(email='pending@example.com'),
-        _request(),
-    )
+    alias_token = await auth_routes._prepare_resend_verification_alias(database.user)
 
-    assert result == GENERIC_RESULT
     assert len(database.updates) == 1
     assert any(filters == {'id': f'eq.{USER_ID}'} for filters in database.selects)
     assert database.user is not None
     assert database.user['verification_token_hash'] == NEW_ANCHOR
     assert database.user['verification_token_expires'] == TARGET_EXPIRY
-    assert len(email.calls) == 1
-    alias = parse_resend_verification_alias(email.calls[0]['token'])
+    alias = parse_resend_verification_alias(alias_token)
     assert alias is not None
     assert resend_verification_alias_matches(
         alias,
@@ -375,23 +353,17 @@ async def test_ambiguous_expiry_write_is_confirmed_by_readback_before_email(
 
 
 @pytest.mark.asyncio
-async def test_expiry_compare_and_swap_conflict_uses_winning_readback(
+async def test_expiry_compare_and_swap_conflict_uses_winner_for_alias(
     monkeypatch,
 ) -> None:
     database = _ResendDB(
         _pending_user(verification_token_expires=PAST_EXPIRY),
         update_mode='conflict_once',
     )
-    email = _VerificationEmail(True)
     monkeypatch.setattr(auth_routes, 'db', database)
-    monkeypatch.setattr(auth_routes, 'email_service', email)
 
-    result = await auth_routes.resend_verification(
-        ResendVerificationRequest(email='pending@example.com'),
-        _request(),
-    )
+    alias_token = await auth_routes._prepare_resend_verification_alias(database.user)
 
-    assert result == GENERIC_RESULT
     assert len(database.updates) == 1
     assert database.updates[0][1] == {
         'id': f'eq.{USER_ID}',
@@ -403,8 +375,7 @@ async def test_expiry_compare_and_swap_conflict_uses_winning_readback(
     assert database.user is not None
     assert database.user['verification_token_hash'] == WINNER_ANCHOR
     assert database.user['verification_token_expires'] == WINNER_EXPIRY
-    assert len(email.calls) == 1
-    alias = parse_resend_verification_alias(email.calls[0]['token'])
+    alias = parse_resend_verification_alias(alias_token)
     assert alias is not None
     assert alias.expires_at == int(datetime.fromisoformat(WINNER_EXPIRY).timestamp())
     assert resend_verification_alias_matches(
@@ -413,20 +384,18 @@ async def test_expiry_compare_and_swap_conflict_uses_winning_readback(
         verification_token_hash=WINNER_ANCHOR,
     )
     winner_user, winner_anchor = await auth_routes._verification_user_and_anchor(
-        email.calls[0]['token']
+        alias_token
     )
     assert winner_user is not None
     assert winner_anchor == WINNER_ANCHOR
 
 
 @pytest.mark.asyncio
-async def test_resend_replaces_expired_generation_without_reviving_old_bearers(
+async def test_pending_recovery_replaces_expired_generation_without_reviving_old_bearers(
     monkeypatch,
 ) -> None:
     database = _ResendDB(_pending_user(verification_token_expires=PAST_EXPIRY))
-    email = _VerificationEmail(True)
     monkeypatch.setattr(auth_routes, 'db', database)
-    monkeypatch.setattr(auth_routes, 'email_service', email)
     old_alias = create_resend_verification_alias(
         CURRENT_SIGNING_SECRET,
         key_id='k1',
@@ -441,23 +410,17 @@ async def test_resend_replaces_expired_generation_without_reviving_old_bearers(
     assert old_raw_user is None
     assert old_alias_user is None
 
-    result = await auth_routes.resend_verification(
-        ResendVerificationRequest(email='pending@example.com'),
-        _request(),
-    )
+    new_alias = await auth_routes._prepare_resend_verification_alias(database.user)
 
-    assert result == GENERIC_RESULT
     assert database.user is not None
     assert database.user['verification_token_hash'] == NEW_ANCHOR
     assert database.user['verification_token_expires'] == TARGET_EXPIRY
-    assert len(email.calls) == 1
 
     old_raw_user, _ = await auth_routes._verification_user_and_anchor(LEGACY_TOKEN)
     old_alias_user, _ = await auth_routes._verification_user_and_anchor(old_alias)
     assert old_raw_user is None
     assert old_alias_user is None
 
-    new_alias = email.calls[0]['token']
     new_user, new_anchor = await auth_routes._verification_user_and_anchor(new_alias)
     assert new_user is not None
     assert new_user['id'] == USER_ID

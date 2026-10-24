@@ -1337,7 +1337,7 @@
           intent: pendingCreationIntent()?.kind || null,
           plan: pendingPlanIntent()?.plan || null,
         }),
-      }, 'Sending the verification email took too long. Check your inbox before retrying.');
+      }, 'Submitting the verification email request took too long. It may already be queued; check your inbox before retrying.');
       const message = data.message || data.error || 'Request completed.';
       setText(response.ok ? successId : errorId, message);
     } catch (error) {
