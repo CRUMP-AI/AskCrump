@@ -191,8 +191,15 @@ def test_service_worker_never_cache_firsts_api_requests():
     assert "fetch(request)" in source
 
 def test_no_decorative_startup_video_or_in_app_splash():
-    assert not list(PUBLIC.rglob('*.mp4'))
-    assert not list(PUBLIC.rglob('*.webm'))
+    # The launchpad welcome-state avatar is the single allowed video: a short
+    # muted mascot loop in the authenticated empty/home state, controlled by
+    # crump-v1-body.js. No other decorative or startup video ships in public/.
+    allowed_videos = {
+        PUBLIC / 'assets' / 'brand' / 'crump-mascot-idle.mp4',
+        PUBLIC / 'assets' / 'brand' / 'crump-mascot-idle.webm',
+    }
+    shipped_videos = set(PUBLIC.rglob('*.mp4')) | set(PUBLIC.rglob('*.webm'))
+    assert shipped_videos <= allowed_videos
     app_html = (PUBLIC / 'app.html').read_text()
     auth_source = (PUBLIC / 'auth-controller.js').read_text()
     assert 'id="splashScreen"' not in app_html

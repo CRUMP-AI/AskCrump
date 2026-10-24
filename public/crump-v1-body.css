@@ -1228,18 +1228,28 @@ body.crump-v1-body .v1-launchpad.is-hidden {
   pointer-events: none;
   transform: translateY(-7px);
 }
+/* Welcome mark: circular medallion with a muted-gold rim, matching the
+   badge treatment on the company site. The clip has no alpha, so the
+   container carries its ivory and the media is scaled inside the rim —
+   the full owl stays within the circle through the whole motion. */
 body.crump-v1-body .v1-launchpad-mark {
   display: grid;
   width: 76px;
   height: 76px;
   place-items: center;
   margin-bottom: 18px;
+  overflow: hidden;
+  border: 2px solid rgba(213, 185, 113, .85);
+  border-radius: 50%;
+  background: #fef8f3;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, .45);
 }
-body.crump-v1-body .v1-launchpad-mark img {
+body.crump-v1-body .v1-launchpad-mark img,
+body.crump-v1-body .v1-launchpad-mark video {
   width: 74px;
   height: 74px;
   object-fit: contain;
-  filter: drop-shadow(0 16px 28px rgba(217,191,132,.09));
+  transform: scale(.88);
 }
 body.crump-v1-body .v1-launchpad-greeting {
   margin-bottom: 9px;
@@ -2369,7 +2379,7 @@ body.crump-v1-body :is(.confirm-dialog__card,.account-modal-card) {
     padding-left: max(16px,env(safe-area-inset-left));
   }
   body.crump-v1-body .v1-launchpad-mark { width: 70px; height: 70px; margin-bottom: 14px; }
-  body.crump-v1-body .v1-launchpad-mark img { width: 68px; height: 68px; }
+  body.crump-v1-body .v1-launchpad-mark img, body.crump-v1-body .v1-launchpad-mark video { width: 68px; height: 68px; }
   body.crump-v1-body .v1-launchpad h1 { max-width: 570px; font-size: clamp(36px,8vw,48px); }
   body.crump-v1-body .v1-launchpad > p { max-width: 460px; font-size: 14px; }
   body.crump-v1-body .v1-launchpad-actions-label { width: min(560px,100%); }
@@ -2498,7 +2508,7 @@ body.crump-v1-body :is(.confirm-dialog__card,.account-modal-card) {
 
   body.crump-v1-body .v1-launchpad { padding-top: 30px; }
   body.crump-v1-body .v1-launchpad-mark { width: 62px; height: 62px; }
-  body.crump-v1-body .v1-launchpad-mark img { width: 60px; height: 60px; }
+  body.crump-v1-body .v1-launchpad-mark img, body.crump-v1-body .v1-launchpad-mark video { width: 60px; height: 60px; }
   body.crump-v1-body .v1-launchpad-greeting { font-size: 8.5px; }
   body.crump-v1-body .v1-launchpad h1 { font-size: clamp(32px,9.6vw,42px); }
   body.crump-v1-body .v1-launchpad > p { max-width: 350px; margin-top: 13px; font-size: 13px; line-height: 1.52; }

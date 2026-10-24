@@ -482,6 +482,48 @@
     syncRecentWork();
   }
 
+  function wireLaunchpadMarkVideo() {
+    const video = $('.v1-launchpad-mark video');
+    if (!video || video.dataset.v1MarkVideoWired === 'true') return;
+    video.dataset.v1MarkVideoWired = 'true';
+
+    const launchpad = byId('v1Launchpad');
+    const input = byId('userInput');
+    const motion = matchMedia('(prefers-reduced-motion: reduce)');
+    let onScreen = false;
+
+    // The welcome mark only moves while it is actually on screen, the tab is
+    // visible, the launchpad is the active state, motion is allowed, and the
+    // composer does not have focus. Every other moment keeps the still.
+    const sync = () => {
+      const allowed = !motion.matches
+        && onScreen
+        && !document.hidden
+        && !launchpad?.classList.contains('is-hidden')
+        && document.activeElement !== input;
+      if (allowed) {
+        if (video.paused) video.play()?.catch(() => {});
+      } else if (!video.paused) {
+        video.pause();
+      }
+    };
+
+    new IntersectionObserver(entries => {
+      onScreen = entries.some(entry => entry.isIntersecting);
+      sync();
+    }, {threshold: 0.25}).observe(video);
+
+    if (launchpad) {
+      new MutationObserver(sync)
+        .observe(launchpad, {attributes: true, attributeFilter: ['class']});
+    }
+    document.addEventListener('visibilitychange', sync);
+    motion.addEventListener?.('change', sync);
+    input?.addEventListener('focus', sync);
+    input?.addEventListener('blur', sync);
+    sync();
+  }
+
   function syncWorkspaceTitle() {
     const active = $('.chat-item.active .chat-title');
     const title = byId('v1WorkspaceTitle');
@@ -672,6 +714,7 @@
     syncRecentWork();
     syncLibraryControl();
     wireComposer();
+    wireLaunchpadMarkVideo();
   }
 
   function boot() {
@@ -681,6 +724,7 @@
     wireStarterChips();
     wireRecentWork();
     wireComposer();
+    wireLaunchpadMarkVideo();
     wireSettingsTabs();
     wireKeyboard();
     wireObservers();
