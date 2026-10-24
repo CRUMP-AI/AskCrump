@@ -486,6 +486,23 @@ if (validDestination.searchParams.get('campaign') !== 'presentation-proof-curren
   process.exit(1);
 }
 
+const attributedSigninStore = new Map();
+const attributedSignin = runLandingAttribution(
+  'https://askcrump.com/ai-presentation-maker?acquisition=instagram&source=profile-link&campaign=presentation-proof-current&intent=presentation',
+  attributedSigninStore,
+  '/app?source=presentation-nav-signin&plan=free&intent=presentation',
+);
+const attributedSigninDestination = new URL(attributedSignin.link.href, 'https://askcrump.com');
+const attributedSigninEvent = attributedSignin.events.find(event => event.payload?.name === 'MarketingSignin');
+if (attributedSigninDestination.searchParams.get('source') !== 'presentation-nav-signin' ||
+    attributedSigninDestination.searchParams.get('acquisition') !== 'instagram' ||
+    attributedSigninDestination.searchParams.get('campaign') !== 'presentation-proof-current' ||
+    attributedSigninEvent?.payload?.data?.campaign !== 'presentation-proof-current' ||
+    storedAttribution(attributedSigninStore)?.placement !== 'profile-link') {
+  console.error('Attributed sign-in lost login intent or privacy-safe campaign context.');
+  process.exit(1);
+}
+
 const profileLandingStore = new Map();
 const profileLanding = runLandingAttribution(
   'https://askcrump.com/ai-project-workspace?acquisition=facebook&source=profile-link&campaign=real-product-continuity&intent=projects',
@@ -1204,7 +1221,7 @@ assertAttribution(storedAttribution(immutableStore), {
 const repoRoot = new URL('../', import.meta.url);
 const packageJson = JSON.parse(await readFile(new URL('package.json', repoRoot), 'utf8'));
 const releaseVersion = String(packageJson.version || '');
-const landingVersion = `${releaseVersion}-facebook-reel-attribution-1`;
+const landingVersion = `${releaseVersion}-free-guest-entry-1`;
 const planRendererVersion = `${releaseVersion}-credit-pack-accessibility-1`;
 const commerceRecoveryVersion = `${releaseVersion}-commerce-recovery-1`;
 const nativeBillingIdentityVersion = `${releaseVersion}-native-billing-identity-1`;

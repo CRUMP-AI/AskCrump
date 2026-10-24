@@ -18,6 +18,14 @@ const paidCreationDisclosures = new Map([
   ['/ai-resume-builder.html', 'Résumé creation requires a paid plan · Account creation is free · Nothing is purchased until checkout is confirmed'],
 ]);
 
+const guideSigninPages = [
+  '/guides/rough-idea-six-week-launch-plan.html',
+  '/guides/what-ai-project-should-remember.html',
+  '/guides/editable-ai-powerpoint-review.html',
+  '/guides/word-or-pdf-ai-document-output.html',
+  '/guides/audit-ai-resume-bullets.html',
+];
+
 function assert(condition, message) {
   if (!condition) throw new Error(message);
 }
@@ -41,17 +49,27 @@ function pageErrors(page) {
   const browser = await chromium.launch({ executablePath, headless: true });
   try {
     const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    await context.addInitScript(() => {
+      window.__entryFunnelEvents = [];
+      window.va = (command, payload) => {
+        if (command === 'event') window.__entryFunnelEvents.push(payload);
+      };
+    });
     await context.route('**/_vercel/**', route => route.fulfill({ status: 204, body: '' }));
     await context.route('**/api/auth/check-session*', route => route.fulfill({
       status: 200,
       contentType: 'application/json',
       body: JSON.stringify({ authenticated: false }),
     }));
-    await context.route('**/api/auth/guest*', route => route.fulfill({
-      status: 200,
-      contentType: 'application/json',
-      body: JSON.stringify({ success: false }),
-    }));
+    let guestMintRequests = 0;
+    await context.route('**/api/auth/guest*', route => {
+      guestMintRequests += 1;
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: false }),
+      });
+    });
     const page = await context.newPage();
     const errors = pageErrors(page);
 
@@ -96,10 +114,85 @@ function pageErrors(page) {
     }
 
     await page.goto(`${baseUrl}/ask-crump.html`, { waitUntil: 'networkidle' });
+    const freeCtas = await page.locator('[data-cta][data-plan="free"]').evaluateAll(nodes => nodes.map(node => ({
+      name: node.dataset.cta,
+      href: node.getAttribute('href'),
+    })));
+    assert(freeCtas.length >= 5, 'homepage is missing its free-entry actions');
+    for (const cta of freeCtas) {
+      const destination = new URL(cta.href, baseUrl);
+      assert(destination.pathname === '/app', `homepage ${cta.name} misses /app`);
+      assert(destination.searchParams.get('plan') === 'free', `homepage ${cta.name} drops the Free plan`);
+      assert(!destination.searchParams.has('signup'), `homepage ${cta.name} incorrectly forces registration`);
+    }
+    const heroHref = await page.locator('[data-cta="hero"]').getAttribute('href');
     const videoHref = await page.locator('[data-cta="video"]').getAttribute('href');
     const videoDestination = new URL(videoHref, baseUrl);
     assert(videoDestination.searchParams.get('intent') === 'video', 'homepage Video button drops the Video intent');
     assert(videoDestination.searchParams.get('plan') === 'professional', 'homepage Video button drops the Professional plan review');
+
+    await page.locator('[data-cta="hero"]').evaluate(node => {
+      node.addEventListener('click', event => event.preventDefault(), { once: true });
+    });
+    await page.locator('[data-cta="hero"]').click();
+    const freeEntryEvents = await page.evaluate(() => window.__entryFunnelEvents);
+    const freeStarts = freeEntryEvents.filter(event => (
+      event?.name === 'MarketingCTA'
+      && event?.data?.location === 'hero'
+      && event?.data?.plan === 'free'
+    ));
+    assert(freeStarts.length === 1, `homepage Start free recorded ${freeStarts.length} MarketingCTA events`);
+    assert(
+      !freeEntryEvents.some(event => event?.name === 'MarketingSignin' && event?.data?.location === 'hero'),
+      'homepage Start free is misclassified as a sign-in event',
+    );
+
+    const guestEntryRequest = page.waitForRequest(request => (
+      request.method() === 'POST'
+      && new URL(request.url()).pathname === '/api/auth/guest'
+    ));
+    await page.goto(normalizedAppUrl(heroHref), { waitUntil: 'networkidle' });
+    await guestEntryRequest;
+    assert(!(await page.locator('#registerForm').isVisible()), 'homepage Start free still opens registration');
+    assert(await page.locator('#loginForm').isVisible(), 'failed guest mint does not resolve to the safe sign-in fallback');
+    assert(guestMintRequests === 1, `homepage Start free issued ${guestMintRequests} guest mint requests`);
+
+    await page.evaluate(() => sessionStorage.clear());
+    for (const [index, guidePath] of guideSigninPages.entries()) {
+      const entryQuery = index === 0
+        ? '?acquisition=organic-search&source=workflow-guide&campaign=rough-idea-launch-plan&creative=search-article&intent=projects'
+        : '';
+      await page.goto(`${baseUrl}${guidePath}${entryQuery}`, { waitUntil: 'networkidle' });
+      const signinHref = await page.locator('.nav-signin').getAttribute('href');
+      const signinDestination = new URL(signinHref, baseUrl);
+      assert(signinDestination.searchParams.get('source')?.includes('signin'), `${guidePath} sign in does not declare login intent`);
+      assert(!signinDestination.searchParams.has('signup'), `${guidePath} sign in incorrectly requests registration`);
+      if (index === 0) {
+        assert(signinDestination.searchParams.get('acquisition') === 'organic-search', `${guidePath} sign in loses acquisition`);
+        assert(signinDestination.searchParams.get('campaign') === 'rough-idea-launch-plan', `${guidePath} sign in loses campaign`);
+        assert(signinDestination.searchParams.get('creative') === 'search-article', `${guidePath} sign in loses creative`);
+        assert(
+          await page.evaluate(() => sessionStorage.getItem('askcrump.acquisition-placement')) === 'workflow-guide',
+          `${guidePath} sign in loses stored placement`,
+        );
+      }
+      await page.locator('.nav-signin').evaluate(node => {
+        node.addEventListener('click', event => event.preventDefault(), { once: true });
+      });
+      await page.locator('.nav-signin').evaluate(node => node.dispatchEvent(new MouseEvent('click', {
+        bubbles: true,
+        cancelable: true,
+      })));
+      const signinEvents = await page.evaluate(() => window.__entryFunnelEvents);
+      assert(
+        signinEvents.some(event => event?.name === 'MarketingSignin' && event?.data?.location?.includes('signin')),
+        `${guidePath} sign in is not measured as MarketingSignin`,
+      );
+      const guestRequestsBeforeSignin = guestMintRequests;
+      await page.goto(normalizedAppUrl(signinHref), { waitUntil: 'networkidle' });
+      assert(await page.locator('#loginForm').isVisible(), `${guidePath} sign in does not open login`);
+      assert(guestMintRequests === guestRequestsBeforeSignin, `${guidePath} sign in incorrectly minted a guest session`);
+    }
 
     await page.goto(normalizedAppUrl(videoHref), { waitUntil: 'networkidle' });
     assert(await page.locator('#registrationTitle').textContent() === 'Open your Video Studio.', 'Video signup title is generic');
@@ -193,7 +286,7 @@ function pageErrors(page) {
     assert(socialErrors.length === 0, `Facebook mobile browser errors: ${socialErrors.join(' | ')}`);
     await socialContext.close();
 
-    console.log('Public account-entry button proof passed: five creation surfaces preserve their destination, the homepage Video action opens the exact Video + Professional handoff, all five auth navigation actions work on phone width, and a Facebook embedded-mobile handoff reaches Projects registration with one privacy-safe signup milestone sequence.');
+    console.log('Public account-entry button proof passed: free homepage actions enter the guest path without forcing registration, five guide sign-in actions including an attributed organic-search path preserve campaign context while opening login without minting a guest, five paid creation surfaces preserve their destination, the homepage Video action opens the exact Video + Professional handoff, all five auth navigation actions work on phone width, and a Facebook embedded-mobile handoff reaches Projects registration with one privacy-safe signup milestone sequence.');
   } finally {
     await browser.close();
   }

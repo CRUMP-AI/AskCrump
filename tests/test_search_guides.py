@@ -92,7 +92,7 @@ def test_search_guides_have_self_referencing_editorial_metadata_and_one_matched_
         assert '<meta name="robots" content="index,follow,max-image-preview:large">' in page
         assert '<meta property="article:published_time" content="2026-08-30">' in page
         assert f'<meta property="article:modified_time" content="{expected["modified"]}">' in page
-        assert '<script defer src="/landing.js?v=5.9.76-facebook-reel-attribution-1"></script>' in page
+        assert '<script defer src="/landing.js?v=5.9.76-free-guest-entry-1"></script>' in page
         assert f'<link rel="stylesheet" href="/guide.css?v={expected["guide_css"]}">' in page
         assert '/_vercel/insights/script.js' in page
         assert '/_vercel/speed-insights/script.js' in page
@@ -158,12 +158,18 @@ def test_search_guides_expose_early_attribution_preserving_start_paths():
         )
         nav_cta = (
             f'class="nav-cta" data-cta="{expected["key"]}-nav" data-plan="free" '
-            f'href="/app?signup=1&amp;source={expected["key"]}-nav&amp;plan=free&amp;'
+            f'href="/app?source={expected["key"]}-nav&amp;plan=free&amp;'
             f'intent={expected["intent"]}&amp;acquisition=direct">Start free</a>'
+        )
+        signin_cta = (
+            f'class="nav-signin" data-cta="{expected["key"]}-nav-signin" data-plan="free" '
+            f'href="/app?source={expected["key"]}-nav-signin&amp;plan=free&amp;'
+            f'intent={expected["intent"]}&amp;acquisition=direct">Sign in</a>'
         )
 
         assert hero_cta in hero
         assert nav_cta in nav
+        assert signin_cta in nav
         assert expected["support"] in hero
         assert hero.index(hero_cta) < hero.index('class="guide-meta"')
         assert "campaign=" not in hero_cta and "creative=" not in hero_cta
@@ -333,7 +339,7 @@ def test_public_word_pdf_guide_has_exact_search_release_contract():
     assert '<meta name="robots" content="index,follow,max-image-preview:large">' in page
     assert '<meta property="article:published_time" content="2026-08-30">' in page
     assert '<meta property="article:modified_time" content="2026-09-10">' in page
-    assert '<script defer src="/landing.js?v=5.9.76-facebook-reel-attribution-1"></script>' in page
+    assert '<script defer src="/landing.js?v=5.9.76-free-guest-entry-1"></script>' in page
     assert '<link rel="stylesheet" href="/guide.css?v=5.9.76-word-pdf-guide-1">' in page
     assert page.count("<h1>") == 1
     assert page.count('class="button primary"') == 1
@@ -428,7 +434,7 @@ def test_public_resume_bullet_guide_has_exact_search_release_contract():
     assert '<meta name="robots" content="index,follow,max-image-preview:large">' in page
     assert '<meta property="article:published_time" content="2026-09-10">' in page
     assert '<meta property="article:modified_time" content="2026-09-10">' in page
-    assert '<script defer src="/landing.js?v=5.9.76-facebook-reel-attribution-1"></script>' in page
+    assert '<script defer src="/landing.js?v=5.9.76-free-guest-entry-1"></script>' in page
     assert '<link rel="stylesheet" href="/guide.css?v=5.9.76-resume-bullet-guide-1">' in page
     assert page.count("<h1>") == 1
     assert page.count('class="button primary"') == 1
