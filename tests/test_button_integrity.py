@@ -719,6 +719,7 @@ def test_public_accessibility_matrix_covers_supported_viewport_classes() -> None
     assert "{name: 'phone', width: 390, height: 844}" in verifier
     assert "{name: 'tablet', width: 1024, height: 1366}" in verifier
     assert "{name: 'desktop', width: 1440, height: 900}" in verifier
+    assert verifier.count("pathname: '/app?source=accessibility-signin'") == 2
 
 
 def test_add_menu_browser_fixture_exercises_both_authoritative_studios() -> None:

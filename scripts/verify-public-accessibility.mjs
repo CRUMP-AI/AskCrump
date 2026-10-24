@@ -32,11 +32,11 @@ const scenarios = Object.freeze([
   {name: 'Presentation capability', pathname: '/ai-presentation-maker'},
   {name: 'Resume capability', pathname: '/ai-resume-builder'},
   {name: 'Video capability', pathname: '/ai-video-generator'},
-  {name: 'Sign in', pathname: '/app', ready: '#loginForm'},
+  {name: 'Sign in', pathname: '/app?source=accessibility-signin', ready: '#loginForm'},
   {name: 'Create account', pathname: '/app?signup=1', ready: '#registerForm'},
   {
     name: 'Password recovery',
-    pathname: '/app',
+    pathname: '/app?source=accessibility-signin',
     ready: '#forgotPasswordForm',
     prepare: async page => {
       await page.locator('#showForgotPasswordLink').click();
