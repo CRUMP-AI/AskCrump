@@ -817,3 +817,73 @@ jobs:
         run: >-
           psql -X --set=ON_ERROR_STOP=1
           --file=tests/postgres/test_atomic_video_reservation_billing.sql
+
+  queue-backlog-observability:
+    name: Email queue backlog observability
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17.11
+        env:
+          POSTGRES_DB: askcrump_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d askcrump_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGDATABASE: askcrump_test
+      PGUSER: postgres
+      PGPASSWORD: postgres-ci-only
+
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+      - name: Apply both durable queue prerequisites
+        run: |
+          psql -X --set=ON_ERROR_STOP=1 \
+            --file=tests/postgres/password_reset_email_queue_baseline.sql
+          psql -X --set=ON_ERROR_STOP=1 --single-transaction \
+            --file=migrations/20261024144202_durable_verification_email_jobs.sql
+          psql -X --set=ON_ERROR_STOP=1 --single-transaction \
+            --file=migrations/20261024163849_durable_password_reset_email_jobs.sql
+      - name: Prove first-apply guards and rollback
+        run: bash tests/postgres/test_queue_backlog_observability_first_apply_guards.sh
+      - name: Apply and idempotently reapply the aggregate RPC
+        run: |
+          psql -X --set=ON_ERROR_STOP=1 --single-transaction \
+            --file=migrations/20261024210302_queue_backlog_observability.sql
+          psql -X --set=ON_ERROR_STOP=1 --single-transaction \
+            --command='set search_path=pg_catalog' \
+            --command='set quote_all_identifiers=on' \
+            --file=migrations/20261024210302_queue_backlog_observability.sql \
+            --command="select case when current_setting('search_path') = 'pg_catalog' and current_setting('quote_all_identifiers') = 'on' then true else false end as migration_restored_caller_gucs"
+      - name: Exercise aggregate, privacy, ACL, boundary, and plan contracts
+        run: >-
+          psql -X --set=ON_ERROR_STOP=1
+          --file=tests/postgres/test_queue_backlog_observability_migration.sql
+      - name: Exercise coherent nonblocking backlog reads
+        run: bash tests/postgres/test_queue_backlog_observability_concurrency.sh
+      - name: Prove source, ACL, result, overload, and queue drift fails closed
+        run: bash tests/postgres/test_queue_backlog_observability_drift.sh
+      - name: Prove transactional rollback preserves the prior exact RPC
+        run: |
+          before="$(psql -X -qAt --set=ON_ERROR_STOP=1 --command="select oid::text || ':' || md5(prosrc) from pg_proc where oid = 'public.read_email_queue_backlog_v1()'::regprocedure")"
+          psql -X --set=ON_ERROR_STOP=1 \
+            --command=begin \
+            --command='drop function public.read_email_queue_backlog_v1()' \
+            --file=migrations/20261024210302_queue_backlog_observability.sql \
+            --command=rollback
+          after="$(psql -X -qAt --set=ON_ERROR_STOP=1 --command="select oid::text || ':' || md5(prosrc) from pg_proc where oid = 'public.read_email_queue_backlog_v1()'::regprocedure")"
+          test "$before" = "$after"
