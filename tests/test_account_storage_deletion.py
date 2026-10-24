@@ -1,6 +1,7 @@
 import asyncio
 from datetime import datetime, timedelta, timezone
 import json
+import logging
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
@@ -10,6 +11,7 @@ from fastapi.testclient import TestClient
 
 import app as app_module
 from backend.account_deletion_service import AccountDeletionService
+from backend.db import DatabaseError
 from backend.file_service import FileService, FileServiceError
 from backend.routes import manuscripts as manuscript_routes
 
@@ -402,6 +404,244 @@ def test_idle_account_storage_queue_preserves_existing_code_worker(monkeypatch):
     deletion_worker.process_next.assert_awaited_once()
     code_worker.process_next.assert_awaited_once_with(oidc_token='oidc-token')
     manuscript_worker.process_next_run.assert_not_awaited()
+
+
+def test_verification_claim_failure_preserves_password_reset_lane(monkeypatch, caplog):
+    private_error = 'private verification claim fixture'
+    deletion_worker = SimpleNamespace(
+        process_next=AsyncMock(return_value={'handled': False, 'status': 'idle'})
+    )
+    verification_worker = SimpleNamespace(
+        process_next=AsyncMock(
+            side_effect=DatabaseError(
+                private_error,
+                status_code=503,
+                retryable=True,
+                retry_after=2,
+            )
+        )
+    )
+    password_worker = SimpleNamespace(
+        process_next=AsyncMock(return_value={'handled': True, 'status': 'provider_accepted'})
+    )
+    code_worker = SimpleNamespace(process_next=AsyncMock(return_value={'handled': False}))
+    manuscript_worker = SimpleNamespace(process_next_run=AsyncMock(return_value={'claimed': False}))
+    monkeypatch.setattr(manuscript_routes, 'account_deletions', deletion_worker)
+    monkeypatch.setattr(manuscript_routes, 'verification_emails', verification_worker)
+    monkeypatch.setattr(manuscript_routes, 'password_reset_emails', password_worker)
+    monkeypatch.setattr(manuscript_routes, 'code_worker', code_worker)
+    monkeypatch.setattr(manuscript_routes, 'manuscripts', manuscript_worker)
+    monkeypatch.setattr(
+        manuscript_routes,
+        '_cron_lane_order',
+        lambda: (
+            'verification-email',
+            'password-reset-email',
+            'code',
+            'manuscripts',
+            'account-storage-deletion',
+        ),
+    )
+    monkeypatch.setattr(
+        manuscript_routes,
+        'settings',
+        SimpleNamespace(cron_secret='cron-secret', vercel_oidc_token='oidc-token'),
+    )
+    caplog.set_level(logging.WARNING, logger=manuscript_routes.__name__)
+
+    response = client.get(
+        '/api/cron/manuscripts',
+        headers={'Authorization': 'Bearer cron-secret'},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        'success': True,
+        'worker': 'password-reset-email',
+        'handled': True,
+        'status': 'provider_accepted',
+        'degradedLanes': ['verification-email'],
+    }
+    verification_worker.process_next.assert_awaited_once()
+    password_worker.process_next.assert_awaited_once()
+    code_worker.process_next.assert_not_awaited()
+    manuscript_worker.process_next_run.assert_not_awaited()
+    deletion_worker.process_next.assert_not_awaited()
+    assert 'lane=verification-email error_type=DatabaseError' in caplog.text
+    assert private_error not in caplog.text
+
+
+def test_password_reset_claim_failure_preserves_code_lane(monkeypatch, caplog):
+    private_error = 'private password reset claim fixture'
+    deletion_worker = SimpleNamespace(
+        process_next=AsyncMock(return_value={'handled': False, 'status': 'idle'})
+    )
+    verification_worker = SimpleNamespace(
+        process_next=AsyncMock(return_value={'handled': False, 'status': 'idle'})
+    )
+    password_worker = SimpleNamespace(
+        process_next=AsyncMock(
+            side_effect=DatabaseError(
+                private_error,
+                status_code=503,
+                retryable=True,
+                retry_after=2,
+            )
+        )
+    )
+    code_worker = SimpleNamespace(
+        process_next=AsyncMock(return_value={'handled': True, 'status': 'completed'})
+    )
+    manuscript_worker = SimpleNamespace(process_next_run=AsyncMock(return_value={'claimed': False}))
+    monkeypatch.setattr(manuscript_routes, 'account_deletions', deletion_worker)
+    monkeypatch.setattr(manuscript_routes, 'verification_emails', verification_worker)
+    monkeypatch.setattr(manuscript_routes, 'password_reset_emails', password_worker)
+    monkeypatch.setattr(manuscript_routes, 'code_worker', code_worker)
+    monkeypatch.setattr(manuscript_routes, 'manuscripts', manuscript_worker)
+    monkeypatch.setattr(
+        manuscript_routes,
+        '_cron_lane_order',
+        lambda: (
+            'password-reset-email',
+            'code',
+            'manuscripts',
+            'account-storage-deletion',
+            'verification-email',
+        ),
+    )
+    monkeypatch.setattr(
+        manuscript_routes,
+        'settings',
+        SimpleNamespace(cron_secret='cron-secret', vercel_oidc_token='oidc-token'),
+    )
+    caplog.set_level(logging.WARNING, logger=manuscript_routes.__name__)
+
+    response = client.get(
+        '/api/cron/manuscripts',
+        headers={'Authorization': 'Bearer cron-secret'},
+    )
+
+    assert response.status_code == 200
+    assert response.json() == {
+        'success': True,
+        'worker': 'code',
+        'handled': True,
+        'status': 'completed',
+        'degradedLanes': ['password-reset-email'],
+    }
+    password_worker.process_next.assert_awaited_once()
+    code_worker.process_next.assert_awaited_once_with(oidc_token='oidc-token')
+    manuscript_worker.process_next_run.assert_not_awaited()
+    deletion_worker.process_next.assert_not_awaited()
+    verification_worker.process_next.assert_not_awaited()
+    assert 'lane=password-reset-email error_type=DatabaseError' in caplog.text
+    assert private_error not in caplog.text
+
+
+@pytest.mark.parametrize(
+    ('upstream_status', 'upstream_retryable', 'upstream_retry_after'),
+    ((503, True, 2), (404, False, 0)),
+)
+def test_email_claim_failure_with_idle_lanes_returns_generic_database_503(
+    monkeypatch,
+    caplog,
+    upstream_status,
+    upstream_retryable,
+    upstream_retry_after,
+):
+    private_error = 'private@example.test private-token-fixture'
+    deletion_worker = SimpleNamespace(
+        process_next=AsyncMock(return_value={'handled': False, 'status': 'idle'})
+    )
+    verification_worker = SimpleNamespace(
+        process_next=AsyncMock(
+            side_effect=DatabaseError(
+                private_error,
+                status_code=upstream_status,
+                retryable=upstream_retryable,
+                retry_after=upstream_retry_after,
+            )
+        )
+    )
+    password_worker = SimpleNamespace(
+        process_next=AsyncMock(return_value={'handled': False, 'status': 'idle'})
+    )
+    code_worker = SimpleNamespace(process_next=AsyncMock(return_value={'handled': False}))
+    manuscript_worker = SimpleNamespace(process_next_run=AsyncMock(return_value={'claimed': False}))
+    monkeypatch.setattr(manuscript_routes, 'account_deletions', deletion_worker)
+    monkeypatch.setattr(manuscript_routes, 'verification_emails', verification_worker)
+    monkeypatch.setattr(manuscript_routes, 'password_reset_emails', password_worker)
+    monkeypatch.setattr(manuscript_routes, 'code_worker', code_worker)
+    monkeypatch.setattr(manuscript_routes, 'manuscripts', manuscript_worker)
+    monkeypatch.setattr(
+        manuscript_routes,
+        '_cron_lane_order',
+        lambda: (
+            'verification-email',
+            'password-reset-email',
+            'code',
+            'manuscripts',
+            'account-storage-deletion',
+        ),
+    )
+    monkeypatch.setattr(
+        manuscript_routes,
+        'settings',
+        SimpleNamespace(cron_secret='cron-secret', vercel_oidc_token='oidc-token'),
+    )
+    caplog.set_level(logging.WARNING)
+
+    response = client.get(
+        '/api/cron/manuscripts',
+        headers={'Authorization': 'Bearer cron-secret'},
+    )
+
+    assert response.status_code == 503
+    assert response.headers['retry-after'] == '2'
+    assert response.json() == {
+        'success': False,
+        'error': 'The service database is temporarily unavailable.',
+        'code': 'DATABASE_ERROR',
+        'shouldRetry': True,
+        'retryAfter': 2,
+    }
+    verification_worker.process_next.assert_awaited_once()
+    password_worker.process_next.assert_awaited_once()
+    code_worker.process_next.assert_awaited_once_with(oidc_token='oidc-token')
+    manuscript_worker.process_next_run.assert_awaited_once()
+    deletion_worker.process_next.assert_awaited_once()
+    assert private_error not in response.text
+    assert private_error not in caplog.text
+
+
+def test_unexpected_email_lane_failure_still_aborts_later_lanes(monkeypatch):
+    verification_worker = SimpleNamespace(
+        process_next=AsyncMock(side_effect=RuntimeError('unexpected private fixture'))
+    )
+    password_worker = SimpleNamespace(
+        process_next=AsyncMock(return_value={'handled': True, 'status': 'provider_accepted'})
+    )
+    monkeypatch.setattr(manuscript_routes, 'verification_emails', verification_worker)
+    monkeypatch.setattr(manuscript_routes, 'password_reset_emails', password_worker)
+    monkeypatch.setattr(
+        manuscript_routes,
+        '_cron_lane_order',
+        lambda: ('verification-email', 'password-reset-email'),
+    )
+    monkeypatch.setattr(
+        manuscript_routes,
+        'settings',
+        SimpleNamespace(cron_secret='cron-secret', vercel_oidc_token=None),
+    )
+
+    with pytest.raises(RuntimeError, match='unexpected private fixture'):
+        client.get(
+            '/api/cron/manuscripts',
+            headers={'Authorization': 'Bearer cron-secret'},
+        )
+
+    verification_worker.process_next.assert_awaited_once()
+    password_worker.process_next.assert_not_awaited()
 
 
 def test_migration_contract_enqueues_before_delete_and_fences_all_worker_transitions():
