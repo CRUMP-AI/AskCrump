@@ -351,8 +351,9 @@ async def record_product_event(
     source: str | None = None,
     plan: str | None = None,
     artifact_type: str | None = None,
+    raise_on_error: bool = False,
 ) -> bool:
-    """Record one allowlisted event; analytics must never break the product flow."""
+    """Record one allowlisted event, failing open unless a caller opts in."""
     if event_name not in EVENT_NAMES:
         return False
     normalized_artifact = str(artifact_type or "").lower() or None
@@ -374,6 +375,8 @@ async def record_product_event(
         return bool(result)
     except Exception:
         logger.warning("Product analytics write failed event=%s", event_name, exc_info=True)
+        if raise_on_error:
+            raise
         return False
 
 

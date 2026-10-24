@@ -157,6 +157,20 @@
         }
         return Promise.resolve(true);
       },
+      recordWorkspaceOpenedWhenVisible() {
+        const record = () => {
+          const day = new Date().toISOString().slice(0, 10);
+          return this.track('WorkspaceOpened', {eventKey: `workspace-open:${day}`});
+        };
+        if (document.visibilityState !== 'hidden') return record();
+        const onVisible = () => {
+          if (document.visibilityState === 'hidden') return;
+          document.removeEventListener('visibilitychange', onVisible);
+          void record();
+        };
+        document.addEventListener('visibilitychange', onVisible);
+        return Promise.resolve(false);
+      },
     };
     window.configureUserStorage = () => {};
     window.profileManager = {applyServerSubscription() {}, updateProfile() {}};

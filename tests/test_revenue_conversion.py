@@ -534,7 +534,7 @@ def test_changed_activation_assets_are_release_versioned():
     for asset in (
         "/crump-v1-body.css?v=5.9.76-owned-workspace-access-1",
         "/device-auth.js?v=5.9.76-account-owner-boundary-1",
-        "/auth-controller.js?v=5.9.76-registration-verification-queue-1",
+        "/auth-controller.js?v=5.9.76-workspace-opened-retry-1",
     ):
         assert asset in shell
         assert asset in worker
@@ -542,7 +542,7 @@ def test_changed_activation_assets_are_release_versioned():
     for asset in (
         "/conversation.css?v=5.9.76-muse-release-repair-1",
             "/ui-functions.js?v=5.9.76-private-owner-boundary-1",
-        "/product-analytics.js?v=5.9.76-private-owner-boundary-1",
+        "/product-analytics.js?v=5.9.76-workspace-opened-retry-1",
         "/app.js?v=5.9.76-native-push-owner-fence-1",
     ):
         assert asset not in shell

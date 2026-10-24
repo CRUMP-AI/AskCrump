@@ -88,7 +88,7 @@ const loader = String.raw`
     ['/chat-sync.js?v=5.9.76-initial-chat-owner-reconciliation-1', 'workspacechatsync'],
     ['/account-manager.js?v=5.9.76-account-owner-boundary-1', 'workspaceaccount'],
     ['/app.js?v=5.9.76-native-push-owner-fence-1&workspaceRelease=guest-free-contract-2', 'workspaceapp'],
-    ['/product-analytics.js?v=5.9.76-private-owner-boundary-1', 'workspaceanalytics'],
+    ['/product-analytics.js?v=5.9.76-workspace-opened-retry-1', 'workspaceanalytics'],
   ]);
 
   const enhancementScripts = Object.freeze([

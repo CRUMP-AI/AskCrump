@@ -32,7 +32,7 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
     assert scripts == [
         '/telemetry-config.js?v=5.9.76',
         '/crump-vision-demo-1.0.js?v=5.9.76-atelier-workspace-1',
-        '/runtime-body-v1.js?v=5.9.76-initial-chat-owner-reconciliation-1',
+        '/runtime-body-v1.js?v=5.9.76-workspace-opened-retry-1',
         '/home-document-entry.js?v=5.9.76-home-document-entry-1',
         '/crump-vision-shell-1.0.js?v=5.9.76-atelier-workspace-1',
         '/crump-vision-chats-1.0.js?v=5.9.76-atelier-workspace-1',
@@ -44,7 +44,7 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
         '/install-prompt.js?v=5.9.76-update-work-guard-1',
         '/auth-resilience.js?v=5.9.76',
         '/device-auth.js?v=5.9.76-account-owner-boundary-1',
-        '/auth-controller.js?v=5.9.76-registration-verification-queue-1',
+        '/auth-controller.js?v=5.9.76-workspace-opened-retry-1',
         '/_vercel/insights/script.js',
         '/_vercel/speed-insights/script.js',
     ]
@@ -77,7 +77,7 @@ def test_workspace_runtime_is_complete_idempotent_and_authentication_gated():
         '/chat-sync.js?v=5.9.76-initial-chat-owner-reconciliation-1',
         '/account-manager.js?v=5.9.76-account-owner-boundary-1',
         '/app.js?v=5.9.76-native-push-owner-fence-1',
-        '/product-analytics.js?v=5.9.76-private-owner-boundary-1',
+        '/product-analytics.js?v=5.9.76-workspace-opened-retry-1',
     ]
     for asset in deferred_assets:
         assert asset not in shell
