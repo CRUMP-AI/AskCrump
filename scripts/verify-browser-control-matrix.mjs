@@ -38,6 +38,7 @@ const expectedVerifiers = Object.freeze([
   'verify-library-crud-privacy.cjs',
   'verify-library-lazy-load.cjs',
   'verify-legacy-attachment-owner-boundary.cjs',
+  'verify-legacy-project-resume.cjs',
   'verify-lifecycle-project-continuity.cjs',
   'verify-lifecycle-referral-recovery.cjs',
   'verify-login-failure-classification.cjs',

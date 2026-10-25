@@ -605,7 +605,7 @@ async function assertRuntimeExecuted(page, expectedControllerSuffix) {
     assert.ok(cached.subscriptions.includes('X-Ask-Crump-Expected-Owner'));
     assert.ok(cached.activity.includes('currentUserId() !== ownerUserId'));
     assert.ok(cached.activity.includes('X-Ask-Crump-Expected-Owner'));
-    assert.ok(cached.productLoader.includes('/crump-product-5.3.js?v=5.9.76-account-owner-boundary-1'));
+    assert.ok(cached.productLoader.includes('/crump-product-5.3.js?v=5.9.76-legacy-project-resume-truth-1'));
     assert.ok(cached.libraryLoader.includes('/crump-library-5.7.js?v=5.9.76-account-owner-boundary-1'));
     assert.ok(cached.codeLoader.includes('/crump-code-5.9.35.js?v=5.9.76-account-owner-boundary-1'));
     assert.equal(Object.values(cached).some(value => value.includes('stale-r272:')), false);

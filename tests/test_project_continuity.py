@@ -605,19 +605,39 @@ async def test_project_file_attach_preserves_missing_and_retryable_failure_seman
 def test_project_workspace_surfaces_saved_conversations_and_a_private_resume_action():
     product = (ROOT / "public" / "crump-product-5.3.js").read_text(encoding="utf-8")
     route = (ROOT / "backend" / "routes" / "projects.py").read_text(encoding="utf-8")
+    verifier = (ROOT / "scripts" / "verify-legacy-project-resume.cjs").read_text(
+        encoding="utf-8"
+    )
 
     assert '@router.get("/{project_id}/chats")' in route
     assert '"conversations": conversations' in route
     assert 'id="crump53ProjectConversationsCard"' in product
     assert "refreshProjectConversations()" in product
-    assert "await window.syncChatsFromServer?.()" in product
-    assert "window.loadChat(normalized)" in product
-    resume = product[product.index("async function resumeProjectConversation"):product.index("async function saveProject")]
+    resume = product[
+        product.index("async function resumeProjectConversation") : product.index(
+            "async function saveProject"
+        )
+    ]
+    assert "const operation = projectOperationContext();" in resume
+    assert "const projectId = String(state.activeProject?.id || '').trim();" in resume
+    assert "projectOperationIsCurrent(operation)" in resume
+    assert "String(state.activeProject?.id || '').trim() === projectId" in resume
+    assert "const syncResult = await window.syncChatsFromServer();" in resume
+    assert "syncResult === false || syncResult?.success === false" in resume
+    assert "loaded = await Promise.resolve(window.loadChat(normalized));" in resume
+    assert "loaded !== true || String(window.currentChatId || '').trim() !== normalized" in resume
     assert "window.CrumpNavigation5930.open('ask')" in resume
     assert "byId('userInput')?.focus({preventScroll: true})" in resume
+    assert resume.index("window.loadChat(normalized)") < resume.index(
+        "window.CrumpNavigation5930.open('ask')"
+    ) < resume.index("track('RecentWorkResumed'")
     assert "chatId:" not in resume
     assert "title:" not in resume
     assert "source: 'project'" in resume
+    assert "for (const staleAction of ['switchOwner', 'logout', 'switchProject'])" in verifier
+    assert "{local: true, loadResult: false}" in verifier
+    assert "loadCurrentChatId:" in verifier
+    assert "assert.equal(JSON.stringify(harness.events).includes(chatId), false)" in verifier
 
 
 def test_project_rows_open_a_real_project_workspace_and_scoped_new_chat():
@@ -1014,7 +1034,10 @@ def test_project_chat_context_is_explicit_visible_and_relationship_scoped():
     assert "/api/projects/for-chat/" in fixture
     assert "/api/chat" in fixture
     assert "fixtureChatRequests" in fixture
-    assert "window.loadChat = chatId => window.fixtureOpenConversation(chatId)" in fixture
+    assert """window.loadChat = chatId => {
+      window.fixtureOpenConversation(chatId);
+      return true;
+    };""" in fixture
     assert "window.fixtureDestinations.push(destination)" in fixture
     verifier = (ROOT / "scripts" / "verify-project-chat-context-boundary.cjs").read_text(
         encoding="utf-8"
