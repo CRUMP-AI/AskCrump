@@ -2738,35 +2738,85 @@
 
   async function resumeProjectConversation(chatId) {
     const normalized = String(chatId || '').trim();
-    if (!normalized || typeof window.loadChat !== 'function') {
+    const operation = projectOperationContext();
+    const projectId = String(state.activeProject?.id || '').trim();
+    const resumeIsCurrent = () => Boolean(
+      projectId
+      && projectOperationIsCurrent(operation)
+      && String(state.activeProject?.id || '').trim() === projectId
+    );
+    const localConversationExists = () => Boolean(
+      Array.isArray(window.chats)
+      && window.chats.some(item => String(item?.id || '').trim() === normalized)
+    );
+    const showRecoveryError = message => {
+      if (resumeIsCurrent()) window.showToast?.(message, 'error');
+    };
+
+    if (!normalized || !operation.userId || !projectId || typeof window.loadChat !== 'function') {
       window.showToast?.('That conversation is not available yet.', 'error');
-      return;
+      return false;
     }
-    if (!(Array.isArray(window.chats) && window.chats.some(item => item.id === normalized))) {
+    if (!localConversationExists()) {
       try {
-        await window.syncChatsFromServer?.();
+        if (typeof window.syncChatsFromServer !== 'function') {
+          throw new Error('Conversation synchronization is unavailable.');
+        }
+        const syncResult = await window.syncChatsFromServer();
+        if (!resumeIsCurrent()) return false;
+        if (syncResult === false || syncResult?.success === false) {
+          throw new Error('Conversation synchronization failed.');
+        }
       } catch (_) {
-        window.showToast?.('Could not sync that conversation on this device yet.', 'error');
-        return;
+        showRecoveryError('Could not sync that conversation on this device yet.');
+        return false;
       }
     }
-    if (!(Array.isArray(window.chats) && window.chats.some(item => item.id === normalized))) {
-      window.showToast?.('That conversation could not be restored on this device yet.', 'error');
-      return;
+    if (!resumeIsCurrent()) return false;
+    if (!localConversationExists()) {
+      showRecoveryError('That conversation could not be restored on this device yet.');
+      return false;
     }
-    void window.CrumpAnalytics?.track?.('RecentWorkResumed', {
-      eventKey: 'recent-work-resumed',
-      source: 'project',
-    });
-    if (typeof window.CrumpNavigation5930?.open === 'function') {
-      window.CrumpNavigation5930.open('ask');
-    } else {
-      closeStudio();
+
+    let loaded = false;
+    try {
+      loaded = await Promise.resolve(window.loadChat(normalized));
+    } catch (_) {
+      showRecoveryError('That conversation could not be restored on this device yet.');
+      return false;
     }
-    window.loadChat(normalized);
+    if (!resumeIsCurrent()) return false;
+    if (loaded !== true || String(window.currentChatId || '').trim() !== normalized) {
+      showRecoveryError('That conversation could not be restored on this device yet.');
+      return false;
+    }
+
+    try {
+      if (typeof window.CrumpNavigation5930?.open === 'function') {
+        window.CrumpNavigation5930.open('ask');
+      } else {
+        closeStudio();
+      }
+    } catch (_) {
+      showRecoveryError('That conversation could not be opened on this device yet.');
+      return false;
+    }
+    if (!resumeIsCurrent()) return false;
+    try {
+      const track = window.CrumpAnalytics?.track;
+      if (typeof track === 'function') {
+        void Promise.resolve(track('RecentWorkResumed', {
+          eventKey: 'recent-work-resumed',
+          source: 'project',
+        })).catch(() => { /* analytics must not interrupt the restored conversation */ });
+      }
+    } catch (_) {
+      // Analytics is best effort after a confirmed Project resume.
+    }
     requestAnimationFrame(() => {
       byId('userInput')?.focus({preventScroll: true});
     });
+    return true;
   }
 
   async function saveProject(event) {

@@ -79,7 +79,7 @@ window.CRUMP_CONFIG = Object.freeze({
 
   const finalScripts = Object.freeze([
     ['/crump-navigation-5.2.5.js?v=5.9.76-chats-language-1', 'crumpnav525'],
-    ['/crump-product-loader.js?v=5.9.76-account-owner-boundary-1&workspaceRelease=guest-free-contract-2', 'crumpproductloader'],
+    ['/crump-product-loader.js?v=5.9.76-legacy-project-resume-truth-1&workspaceRelease=guest-free-contract-2', 'crumpproductloader'],
     ['/crump-product-5.3.1.js?v=5.9.76-conversation-action-labels-2', 'crumpproduct531'],
     ['/crump-subscriptions-5.3.2.js?v=5.9.76-private-owner-boundary-1', 'crumpsubscriptions532'],
     ['/crump-polish-5.6.js?v=5.9.76-friendly-workspace-1', 'crumppolish56'],
