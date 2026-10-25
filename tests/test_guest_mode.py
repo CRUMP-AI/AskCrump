@@ -250,7 +250,7 @@ from backend.auth_service import reserve_free_text_message  # noqa: E402
 
 
 class ReservationDb:
-    """In-memory contract stand-in for reserve_free_message_v1."""
+    """In-memory contract stand-in for reserve_free_message_v2."""
 
     def __init__(self, count=0, *, rpc_down=False):
         self.count = count
@@ -259,8 +259,9 @@ class ReservationDb:
         self.calls = []
 
     async def rpc(self, name, payload, retry_transient=False):
-        assert name == 'reserve_free_message_v1'
+        assert name == 'reserve_free_message_v2'
         assert retry_transient is True
+        assert 'p_network_key_hash' in payload
         self.calls.append(dict(payload))
         if self.rpc_down:
             from backend.db import DatabaseError
@@ -273,6 +274,9 @@ class ReservationDb:
                 'used': self.count,
                 'remaining': max(0, 5 - self.count),
                 'next_available_at': '2026-10-23T12:00:00+00:00' if self.count >= 5 else None,
+                'network_used': 1 if payload['p_network_key_hash'] else None,
+                'network_remaining': 24 if payload['p_network_key_hash'] else None,
+                'network_next_available_at': None,
             }]
         if self.count >= 5:
             return [{
@@ -281,6 +285,9 @@ class ReservationDb:
                 'used': self.count,
                 'remaining': 0,
                 'next_available_at': '2026-10-23T12:00:00+00:00',
+                'network_used': 1 if payload['p_network_key_hash'] else None,
+                'network_remaining': 24 if payload['p_network_key_hash'] else None,
+                'network_next_available_at': None,
             }]
         self.receipts.add(key)
         self.count += 1
@@ -290,6 +297,9 @@ class ReservationDb:
             'used': self.count,
             'remaining': 5 - self.count,
             'next_available_at': '2026-10-23T12:00:00+00:00' if self.count >= 5 else None,
+            'network_used': 1 if payload['p_network_key_hash'] else None,
+            'network_remaining': 24 if payload['p_network_key_hash'] else None,
+            'network_next_available_at': None,
         }]
 
 
@@ -299,6 +309,7 @@ def reserve(db, user, message_id='11111111-1111-5111-8111-111111111119', fingerp
         user,
         message_id=message_id,
         fingerprint=fingerprint,
+        network_key_hash='f' * 64 if is_guest_user(user) else None,
     ))
 
 
@@ -344,7 +355,7 @@ def test_paid_account_bypasses_free_reservation_rpc():
 def test_database_guest_write_barrier_maps_to_fail_closed_auth_response():
     class DisabledReservationDb:
         async def rpc(self, name, payload, retry_transient=False):
-            assert name == 'reserve_free_message_v1'
+            assert name == 'reserve_free_message_v2'
             assert retry_transient is True
             return [{
                 'outcome': 'guest_mode_disabled',

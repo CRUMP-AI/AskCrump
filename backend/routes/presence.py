@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hmac
+import logging
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
@@ -14,6 +15,7 @@ from ..schemas import PresencePreferencesRequest, PushTokenRequest
 from ..security import expiry_iso
 
 router = APIRouter(prefix="/api", tags=["presence"])
+logger = logging.getLogger('askcrump.presence')
 
 @router.get('/presence/preferences')
 async def presence_preferences(request: Request):
@@ -153,6 +155,20 @@ async def check_in_cron(request: Request):
     authorization = request.headers.get('authorization', '')
     if not expected or not hmac.compare_digest(authorization, f'Bearer {expected}'):
         return JSONResponse(status_code=401, content={'success': False, 'error': 'Unauthorized.'})
+    purge_result = await db.rpc(
+        'purge_guest_network_message_events_v1',
+        {},
+        retry_transient=True,
+    )
+    purge = (
+        purge_result[0]
+        if isinstance(purge_result, list) and purge_result
+        else purge_result if isinstance(purge_result, dict) else {}
+    )
+    if purge.get('has_more') is True:
+        logger.warning(
+            'Guest network receipt retention sweep left concurrently locked expired rows.'
+        )
     summary = await run_check_ins(
         db,
         ai,

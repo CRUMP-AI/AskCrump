@@ -21,6 +21,9 @@ GUEST_BASE = (
 FREE_RECEIPTS = (
     ROOT / "migrations" / "20261021020000_guest_message_receipts.sql"
 ).read_text(encoding="utf-8")
+GUEST_NETWORK_BUDGET = (
+    ROOT / "migrations" / "20261025010000_guest_network_message_budget.sql"
+).read_text(encoding="utf-8")
 GUEST_SYNC = (
     ROOT / "migrations" / "20261021030000_guest_sync_admission.sql"
 ).read_text(encoding="utf-8")
@@ -29,6 +32,7 @@ GUEST_MIGRATIONS = [
     ROOT / "migrations" / "20261021020000_guest_message_receipts.sql",
     ROOT / "migrations" / "20261021030000_guest_sync_admission.sql",
     ROOT / "migrations" / "20261021040000_guest_mode_control.sql",
+    ROOT / "migrations" / "20261025010000_guest_network_message_budget.sql",
 ]
 
 
@@ -66,18 +70,80 @@ def test_guest_free_postgres_gate_runs_real_migrations_and_fixtures_in_order():
         "tests/postgres/test_free_message_reservation_migration.sql",
         "tests/postgres/test_guest_sync_admission_migration.sql",
         "migrations/20261021040000_guest_mode_control.sql",
+        "tests/postgres/guest_network_cron_stub.sql",
+        "migrations/20261025010000_guest_network_message_budget.sql",
+        "tests/postgres/test_guest_network_message_budget_migration.sql",
         "tests/postgres/test_guest_mode_control_migration.sql",
     ]
     positions = [job.index(path) for path in ordered_paths]
     assert positions == sorted(positions)
-    assert job.count("--set=ON_ERROR_STOP=1") == len(ordered_paths)
-    assert job.count("--single-transaction") == 6
+    assert job.count("--set=ON_ERROR_STOP=1") == len(ordered_paths) + 8
+    assert job.count("--single-transaction") == 15
 
 
 def test_guest_schema_is_created_by_the_real_migration_not_the_baseline():
     assert "is_guest" not in BASELINE
     assert "is_verified boolean not null default false" in BASELINE
     assert "create table public.sessions" in BASELINE
+
+
+def test_guest_network_budget_is_private_fixed_and_lock_ordered():
+    normalized = GUEST_NETWORK_BUDGET.lower()
+    reservation = normalized.split(
+        "create or replace function public.reserve_free_message_v2(", 1
+    )[1].split("revoke all on function", 1)[0]
+
+    assert "v_account_limit constant integer := 5" in reservation
+    assert "v_network_limit constant integer := 25" in reservation
+    assert "interval '24 hours'" in reservation
+    assert "on delete set null" in normalized
+    assert "receipt_id uuid primary key default pg_catalog.gen_random_uuid()" in normalized
+    assert "usage_event_id uuid unique" in normalized
+    assert "check (network_key_hash ~ '^[0-9a-f]{64}$')" in normalized
+    assert "alter table public.guest_network_message_events enable row level security" in normalized
+    assert "from public, anon, authenticated, service_role" in normalized
+    assert "to service_role" in normalized
+    assert "interval '25 hours'" in normalized
+    assert "askcrump_guest_network_retention_v1" in normalized
+    assert "*/15 * * * *" in normalized
+    assert "select * from public.purge_guest_network_message_events_v1();" in normalized
+    assert "nodename <> 'localhost'" in normalized
+    assert "nodeport <> pg_catalog.inet_server_port()" in normalized
+    assert "nodename = 'localhost'" in normalized
+    assert "nodeport = pg_catalog.inet_server_port()" in normalized
+    assert "unexpected guest network message-budget index definition" in normalized
+    assert "index_row.indisvalid" in normalized
+    assert "index_row.indisready" in normalized
+    assert "pg_catalog.pg_get_indexdef" in normalized
+    assert "unexpected guest network message-budget table security contract" in normalized
+    assert "unexpected guest network message-budget function security contract" in normalized
+    assert "relation_row.relpersistence = 'p'" in normalized
+    assert "expected_constraints constant text[]" in normalized
+    assert "constraint_row.convalidated" in normalized
+    assert "guest_network_message_events_usage_event_id_fkey" in normalized
+    assert "pg_catalog.count(*) <> 4" in normalized
+    assert "pg_catalog.count(*) <> 2" in normalized
+    assert "attribute_row.attacl is not null" in normalized
+    assert "policy_row.polrelid = relation_oid" in normalized
+    assert "not trigger_row.tgisinternal" in normalized
+    assert "rewrite_row.ev_class = relation_oid" in normalized
+    assert "alter function public.reserve_free_message_v2(uuid, uuid, text, text)" in normalized
+    assert "alter function public.refund_usage_event_v2(uuid, uuid)" in normalized
+    assert "delete from public.usage_events as usage_event" in normalized
+    assert "where network_event.receipt_id = v_network_receipt_id" in normalized
+    assert "return query select v_deleted = 1" in normalized
+    assert "owner to postgres" in normalized
+
+    account_lock = reservation.index("'usage:' || p_user_id::text || ':messages'")
+    network_lock = reservation.index("'usage:guest-network:' || p_network_key_hash")
+    clock = reservation.index("v_now := pg_catalog.clock_timestamp();")
+    replay = reservation.index("and event.idempotency_key = v_key")
+    account_denial = reservation.index("if v_used >= v_account_limit then", replay)
+    network_denial = reservation.index(
+        "if v_is_guest and v_network_used >= v_network_limit then", replay
+    )
+    assert account_lock < network_lock < clock < replay
+    assert replay < account_denial < network_denial
 
 
 def test_guest_control_is_fail_closed_service_only_and_deadlock_aware():

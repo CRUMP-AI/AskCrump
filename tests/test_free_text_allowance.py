@@ -161,7 +161,7 @@ def test_chat_routes_all_effective_free_users_through_one_meter():
     assert "if not is_free_text_user(auth.user):\n            authorization = await features.authorize(" in source
     assert "reserve_guest_message(" not in source
     assert "GUEST_LIMIT_REACHED" not in source
-    assert source.index("result['dailyUsage'] = usage") < source.index("'response_data': result")
+    assert source.index("result['dailyUsage'] = daily_usage") < source.index("'response_data': result")
 
 
 def test_guest_creation_does_not_initialize_a_second_counter():

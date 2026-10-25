@@ -149,7 +149,7 @@ def test_guest_and_registered_free_receive_distinct_upgrade_actions():
 def test_guest_free_contract_auth_asset_is_cache_refreshable():
     app = read_public("app.html")
     worker = read_public("sw.js")
-    asset = "/auth-controller.js?v=5.9.76-workspace-opened-retry-1"
+    asset = "/auth-controller.js?v=5.9.76-guest-network-budget-1"
 
     assert asset in app
     assert asset in worker
@@ -168,7 +168,7 @@ def test_guest_free_frontend_release_is_atomic_across_web_native_and_pwa():
     assert "/auth-styles.css?v=5.9.76-guest-free-contract-2" in worker
     assert "/runtime-body-v1.js?v=5.9.76-legacy-project-resume-truth-1" in app
     assert "/runtime-body-v1.js?v=5.9.76-legacy-project-resume-truth-1" in worker
-    assert "ask-crump-new-body-v1-r276-initial-chat-owner-reconciliation-1" in worker
+    assert "ask-crump-new-body-v1-r277-guest-network-budget-1" in worker
 
     released_assets = (
         "/chat-resilience.js?v=5.9.76-chat-owner-boundary-1&workspaceRelease=guest-free-contract-2",

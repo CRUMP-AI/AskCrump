@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import hmac
 import logging
+import math
+import re
 from typing import Any
 from uuid import UUID
 
@@ -89,6 +91,8 @@ def require_expected_owner(request: Request, authenticated_user_id: str) -> None
 # independently verified plan entitlements.
 FREE_TEXT_MESSAGE_LIMIT = 5
 FREE_TEXT_WINDOW_SECONDS = 24 * 60 * 60
+GUEST_NETWORK_MESSAGE_LIMIT = 25
+GUEST_NETWORK_MESSAGE_WINDOW_SECONDS = 24 * 60 * 60
 
 # Compatibility name for older imports while the guest-only counter is retired.
 GUEST_MESSAGE_LIMIT = FREE_TEXT_MESSAGE_LIMIT
@@ -159,12 +163,39 @@ def free_text_message_fingerprint(chat_id: str | None, message: str | None) -> s
 guest_message_fingerprint = free_text_message_fingerprint
 
 
+_PRIVATE_GUEST_NETWORK_USAGE_KEYS = frozenset({
+    'networkLimited',
+    'networkUsed',
+    'networkLimit',
+    'networkRemaining',
+    'networkNextAvailableAt',
+})
+
+
+def public_daily_usage(usage: dict[str, Any] | None) -> dict[str, Any]:
+    """Remove shared-network enforcement state from a customer response.
+
+    The route needs the network fields long enough to select the neutral
+    recovery path and coarsen ``Retry-After``. They are not part of the public
+    allowance contract: returning or caching them would expose another
+    household/network's aggregate activity and oldest rolling-window boundary.
+    """
+    if not isinstance(usage, dict):
+        return {}
+    return {
+        key: value
+        for key, value in usage.items()
+        if key not in _PRIVATE_GUEST_NETWORK_USAGE_KEYS
+    }
+
+
 async def reserve_free_text_message(
     db: SupabaseDB,
     user: dict[str, Any],
     *,
     message_id: str | None = None,
     fingerprint: str | None = None,
+    network_key_hash: str | None = None,
 ) -> dict[str, Any]:
     """Atomically reserve one rolling-24-hour Free text message.
 
@@ -181,6 +212,7 @@ async def reserve_free_text_message(
             'remaining': -1,
             'nextAvailableAt': None,
             'idempotentReplay': False,
+            'networkLimited': False,
         }
     user_id = str(user.get('id') or '')
     normalized_message_id = str(message_id or '').strip()
@@ -190,12 +222,21 @@ async def reserve_free_text_message(
             'A conversation and message ID are required for Free messages.',
             status_code=400,
         )
+    normalized_network_hash = str(network_key_hash or '').strip().lower() or None
+    if is_guest_user(user) and not re.fullmatch(r'[0-9a-f]{64}', normalized_network_hash or ''):
+        raise AuthenticationError(
+            'Guest message protection is temporarily unavailable. Sign in or create an account.',
+            status_code=503,
+            code='GUEST_NETWORK_BUDGET_UNAVAILABLE',
+            details={'accountRequired': True, 'retryable': True},
+        )
     raw = await db.rpc(
-        'reserve_free_message_v1',
+        'reserve_free_message_v2',
         {
             'p_user_id': user_id,
             'p_message_id': normalized_message_id,
             'p_fingerprint': normalized_fingerprint,
+            'p_network_key_hash': normalized_network_hash,
         },
         retry_transient=True,
     )
@@ -206,10 +247,20 @@ async def reserve_free_text_message(
             'Guest preview is temporarily unavailable. Sign in or create an account.',
             status_code=503,
         )
-    if outcome not in {'reserved', 'reused', 'exhausted'}:
+    if outcome not in {'reserved', 'reused', 'exhausted', 'network_exhausted'}:
         raise RuntimeError('Free message reservation returned an invalid outcome.')
     used = max(0, int(row.get('used') or 0))
     remaining = max(0, int(row.get('remaining') or 0))
+    network_used = (
+        max(0, int(row.get('network_used') or 0))
+        if row.get('network_used') is not None
+        else None
+    )
+    network_remaining = (
+        max(0, int(row.get('network_remaining') or 0))
+        if row.get('network_remaining') is not None
+        else None
+    )
     return {
         'allowed': outcome in {'reserved', 'reused'},
         'eventId': row.get('event_id') if outcome == 'reserved' else None,
@@ -218,6 +269,11 @@ async def reserve_free_text_message(
         'remaining': remaining,
         'nextAvailableAt': row.get('next_available_at'),
         'idempotentReplay': outcome == 'reused',
+        'networkLimited': outcome == 'network_exhausted',
+        'networkUsed': network_used,
+        'networkLimit': GUEST_NETWORK_MESSAGE_LIMIT if network_used is not None else None,
+        'networkRemaining': network_remaining,
+        'networkNextAvailableAt': row.get('network_next_available_at'),
         'freeMessageAllowance': {
             'limit': FREE_TEXT_MESSAGE_LIMIT,
             'used': used,
@@ -235,6 +291,7 @@ async def reserve_guest_message(
     *,
     message_id: str | None = None,
     fingerprint: str | None = None,
+    network_key_hash: str | None = None,
 ) -> bool:
     """Compatibility wrapper for callers/tests during the guest cutover."""
     result = await reserve_free_text_message(
@@ -242,6 +299,7 @@ async def reserve_guest_message(
         user,
         message_id=message_id,
         fingerprint=fingerprint,
+        network_key_hash=network_key_hash,
     )
     return bool(result.get('allowed'))
 
@@ -329,6 +387,50 @@ def free_text_limit_response(
             # One-release compatibility for the guest-only shell.
             'guestLimitReached': guest,
             'guestMessageLimit': FREE_TEXT_MESSAGE_LIMIT,
+        },
+    )
+
+
+def guest_network_limit_response(allowance: dict[str, Any]) -> JSONResponse:
+    """Return a neutral shared-network recovery without person-level claims."""
+    next_at = allowance.get('networkNextAvailableAt')
+    retry_after = GUEST_NETWORK_MESSAGE_WINDOW_SECONDS
+    try:
+        boundary = datetime.fromisoformat(str(next_at or '').replace('Z', '+00:00'))
+        if boundary.tzinfo is None:
+            boundary = boundary.replace(tzinfo=timezone.utc)
+        seconds = max(
+            1,
+            math.ceil((boundary - datetime.now(timezone.utc)).total_seconds()),
+        )
+        # Do not reveal the oldest shared-network send time with exact-second
+        # precision. Round upward so the recovery guidance never expires early.
+        retry_after = max(
+            300,
+            min(
+                GUEST_NETWORK_MESSAGE_WINDOW_SECONDS,
+                math.ceil(seconds / 300) * 300,
+            ),
+        )
+    except (TypeError, ValueError):
+        pass
+    message = (
+        'Guest access is temporarily limited on this network. Sign in to an '
+        'existing account or create and verify one to continue.'
+    )
+    return JSONResponse(
+        status_code=429,
+        headers={'Retry-After': str(retry_after)},
+        content={
+            'success': False,
+            'error': message,
+            'message': message,
+            'code': 'GUEST_NETWORK_LIMIT_REACHED',
+            'accountRequired': True,
+            # Recovery is sign-in/account creation or a later manual retry;
+            # chat resilience must not retry sooner than the HTTP boundary.
+            'shouldRetry': False,
+            'retryAfter': retry_after,
         },
     )
 # Client-supplied payload markers that carry no authority for a guest. The

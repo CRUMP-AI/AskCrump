@@ -280,4 +280,11 @@ async def refund_usage(db: SupabaseDB, user_id: str, event_id: str | None) -> No
                 },
             )
         return
-    await db.delete('usage_events', filters={'id': eq(value), 'user_id': eq(user_id)})
+    refunded = await db.rpc(
+        'refund_usage_event_v2',
+        {'p_user_id': user_id, 'p_event_id': value},
+    )
+    row = refunded[0] if isinstance(refunded, list) and refunded else (refunded or {})
+    confirmed = row.get('refunded') if isinstance(row, dict) else row
+    if confirmed is not True:
+        raise RuntimeError('Usage refund was not confirmed.')

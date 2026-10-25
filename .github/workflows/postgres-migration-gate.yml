@@ -504,6 +504,92 @@ jobs:
         run: >-
           psql -X --set=ON_ERROR_STOP=1 --single-transaction
           --file=migrations/20261021040000_guest_mode_control.sql
+      - name: Install the production pg_cron scheduling contract stub
+        run: >-
+          psql -X --set=ON_ERROR_STOP=1
+          --file=tests/postgres/guest_network_cron_stub.sql
+      - name: Apply guest network message budget twice
+        run: |
+          psql -X --set=ON_ERROR_STOP=1 --single-transaction \
+            --file=migrations/20261025010000_guest_network_message_budget.sql
+          psql -X --set=ON_ERROR_STOP=1 --single-transaction \
+            --command='set search_path=pg_catalog' \
+            --file=migrations/20261025010000_guest_network_message_budget.sql
+      - name: Exercise guest network message budget
+        run: >-
+          psql -X --set=ON_ERROR_STOP=1
+          --file=tests/postgres/test_guest_network_message_budget_migration.sql
+      - name: Prove retention target drift fails closed
+        run: |
+          psql -X --command="update cron.job set nodename = 'wrong-host.invalid', nodeport = 1 where jobname = 'askcrump_guest_network_retention_v1' and username = current_user"
+          set +e
+          psql -X --set=ON_ERROR_STOP=1 --set=VERBOSITY=verbose \
+            --single-transaction \
+            --file=migrations/20261025010000_guest_network_message_budget.sql \
+            > "$RUNNER_TEMP/guest-network-cron-target-refusal.log" 2>&1
+          migration_status=$?
+          set -e
+          cat "$RUNNER_TEMP/guest-network-cron-target-refusal.log"
+          if [ "$migration_status" -eq 0 ]; then
+            echo "Migration unexpectedly accepted guest-network cron target drift."
+            exit 1
+          fi
+          grep -F "55000" "$RUNNER_TEMP/guest-network-cron-target-refusal.log"
+          grep -F "Conflicting guest network retention schedule; refusing migration." \
+            "$RUNNER_TEMP/guest-network-cron-target-refusal.log"
+          psql -X --command="update cron.job set nodename = 'localhost', nodeport = inet_server_port() where jobname = 'askcrump_guest_network_retention_v1' and username = current_user"
+          psql -X --set=ON_ERROR_STOP=1 --single-transaction \
+            --file=migrations/20261025010000_guest_network_message_budget.sql
+      - name: Prove receipt-table privacy drift fails closed
+        run: |
+          psql -X --command="grant select (network_key_hash) on public.guest_network_message_events to authenticated"
+          psql -X --set=ON_ERROR_STOP=1 --single-transaction \
+            --file=migrations/20261025010000_guest_network_message_budget.sql
+          psql -X --tuples-only --no-align \
+            --command="select not exists (select 1 from pg_attribute where attrelid = 'public.guest_network_message_events'::regclass and attnum > 0 and not attisdropped and attacl is not null)" \
+            | grep -Fx 't'
+          psql -X --command="create policy guest_network_drift_test on public.guest_network_message_events for select to authenticated using (true)"
+          set +e
+          psql -X --set=ON_ERROR_STOP=1 --set=VERBOSITY=verbose \
+            --single-transaction \
+            --file=migrations/20261025010000_guest_network_message_budget.sql \
+            > "$RUNNER_TEMP/guest-network-table-security-refusal.log" 2>&1
+          migration_status=$?
+          set -e
+          cat "$RUNNER_TEMP/guest-network-table-security-refusal.log"
+          if [ "$migration_status" -eq 0 ]; then
+            echo "Migration unexpectedly accepted guest-network table security drift."
+            exit 1
+          fi
+          grep -F "55000" "$RUNNER_TEMP/guest-network-table-security-refusal.log"
+          grep -F "Unexpected guest network message-budget table security contract." \
+            "$RUNNER_TEMP/guest-network-table-security-refusal.log"
+          psql -X --command="drop policy guest_network_drift_test on public.guest_network_message_events"
+          psql -X --set=ON_ERROR_STOP=1 --single-transaction \
+            --file=migrations/20261025010000_guest_network_message_budget.sql
+      - name: Prove SECURITY DEFINER ACL drift fails closed
+        run: |
+          psql -X --command="create role guest_network_acl_probe noinherit"
+          psql -X --command="grant execute on function public.reserve_free_message_v2(uuid, uuid, text, text) to guest_network_acl_probe"
+          set +e
+          psql -X --set=ON_ERROR_STOP=1 --set=VERBOSITY=verbose \
+            --single-transaction \
+            --file=migrations/20261025010000_guest_network_message_budget.sql \
+            > "$RUNNER_TEMP/guest-network-function-acl-refusal.log" 2>&1
+          migration_status=$?
+          set -e
+          cat "$RUNNER_TEMP/guest-network-function-acl-refusal.log"
+          if [ "$migration_status" -eq 0 ]; then
+            echo "Migration unexpectedly accepted guest-network function ACL drift."
+            exit 1
+          fi
+          grep -F "55000" "$RUNNER_TEMP/guest-network-function-acl-refusal.log"
+          grep -F "Unexpected guest network message-budget function security contract." \
+            "$RUNNER_TEMP/guest-network-function-acl-refusal.log"
+          psql -X --command="revoke execute on function public.reserve_free_message_v2(uuid, uuid, text, text) from guest_network_acl_probe"
+          psql -X --command="drop role guest_network_acl_probe"
+          psql -X --set=ON_ERROR_STOP=1 --single-transaction \
+            --file=migrations/20261025010000_guest_network_message_budget.sql
       - name: Exercise guest-mode release and rollback control
         run: >-
           psql -X --set=ON_ERROR_STOP=1
