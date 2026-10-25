@@ -101,13 +101,22 @@ async def create_product_event(payload: ProductEventRequest, request: Request):
         limit=240,
         window_seconds=3600,
     )
-    recorded = await record_product_event(
-        db,
-        user_id=auth.user["id"],
-        event_name=payload.eventName,
-        event_key=event_key,
-        request=request,
-        source=payload.source,
-        plan=payload.plan,
-    )
+    recorder_kwargs = {
+        "user_id": auth.user["id"],
+        "event_name": payload.eventName,
+        "event_key": event_key,
+        "request": request,
+        "source": payload.source,
+        "plan": payload.plan,
+    }
+    if payload.eventName == "WorkspaceOpened":
+        # The RPC's false result is an accepted idempotent duplicate. Database
+        # failures must still become a non-2xx response so the client can retry.
+        recorded = await record_product_event(
+            db,
+            **recorder_kwargs,
+            raise_on_error=True,
+        )
+        return {"success": True, "accepted": True, "recorded": recorded}
+    recorded = await record_product_event(db, **recorder_kwargs)
     return {"success": True, "recorded": recorded}

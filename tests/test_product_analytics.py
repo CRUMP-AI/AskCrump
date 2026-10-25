@@ -251,6 +251,91 @@ async def test_analytics_failure_is_fail_open():
 
 
 @pytest.mark.asyncio
+async def test_workspace_opened_can_opt_into_retryable_database_failures():
+    database = FakeDB(error=RuntimeError("database unavailable"))
+    with pytest.raises(RuntimeError, match="database unavailable"):
+        await record_product_event(
+            database,
+            user_id="00000000-0000-0000-0000-000000000001",
+            event_name="WorkspaceOpened",
+            event_key="workspace-open:2026-10-24",
+            request=request_for("www.askcrump.com"),
+            raise_on_error=True,
+        )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("recorded", [True, False])
+async def test_workspace_opened_route_accepts_new_and_duplicate_writes(monkeypatch, recorded):
+    calls = []
+
+    async def authenticate(_request, _database, _settings, **kwargs):
+        assert kwargs["require_expected_owner_header"] is True
+        return type("Auth", (), {
+            "user": {"id": "00000000-0000-0000-0000-000000000001"}
+        })()
+
+    async def rate_limit(*_args, **_kwargs):
+        return None
+
+    async def recorder(_database, **kwargs):
+        calls.append(kwargs)
+        return recorded
+
+    monkeypatch.setattr(analytics_routes, "authenticate_request", authenticate)
+    monkeypatch.setattr(analytics_routes, "enforce_user_rate_limit", rate_limit)
+    monkeypatch.setattr(analytics_routes, "record_product_event", recorder)
+
+    result = await analytics_routes.create_product_event(
+        ProductEventRequest(
+            eventName="WorkspaceOpened",
+            eventKey="workspace-open:2026-10-24",
+        ),
+        request_for("www.askcrump.com"),
+    )
+
+    assert result == {"success": True, "accepted": True, "recorded": recorded}
+    assert len(calls) == 1
+    assert isinstance(calls[0].pop("request"), Request)
+    assert calls == [{
+        "user_id": "00000000-0000-0000-0000-000000000001",
+        "event_name": "WorkspaceOpened",
+        "event_key": "workspace-open:2026-10-24",
+        "source": None,
+        "plan": None,
+        "raise_on_error": True,
+    }]
+
+
+@pytest.mark.asyncio
+async def test_workspace_opened_route_does_not_turn_database_failure_into_http_200(monkeypatch):
+    async def authenticate(_request, _database, _settings, **_kwargs):
+        return type("Auth", (), {
+            "user": {"id": "00000000-0000-0000-0000-000000000001"}
+        })()
+
+    async def rate_limit(*_args, **_kwargs):
+        return None
+
+    async def recorder(_database, **kwargs):
+        assert kwargs["raise_on_error"] is True
+        raise RuntimeError("database unavailable")
+
+    monkeypatch.setattr(analytics_routes, "authenticate_request", authenticate)
+    monkeypatch.setattr(analytics_routes, "enforce_user_rate_limit", rate_limit)
+    monkeypatch.setattr(analytics_routes, "record_product_event", recorder)
+
+    with pytest.raises(RuntimeError, match="database unavailable"):
+        await analytics_routes.create_product_event(
+            ProductEventRequest(
+                eventName="WorkspaceOpened",
+                eventKey="workspace-open:2026-10-24",
+            ),
+            request_for("www.askcrump.com"),
+        )
+
+
+@pytest.mark.asyncio
 async def test_generated_document_download_records_only_content_free_artifact_stage(monkeypatch):
     calls = []
     user_id = "00000000-0000-0000-0000-000000000001"
@@ -1359,12 +1444,17 @@ def test_frontend_intake_is_narrow_and_wired_before_authentication_bootstrap():
     assert "ProjectSaveOfferShown" in client
     assert "ProjectSaveIntentReached" in client
     assert "NavigationDestinationSelected" in client
+    assert "localStorage" not in client
+    assert "sessionStorage" not in client
+    assert "console." not in client
+    assert "result?.accepted === true" in client
     assert "/product-analytics.js" in worker
     assert "application.include_router(analytics.router)" in application
 
 
 def test_workspace_return_waits_for_a_visible_authenticated_workspace():
     controller = (ROOT / "public" / "auth-controller.js").read_text(encoding="utf-8")
+    analytics = (ROOT / "public" / "product-analytics.js").read_text(encoding="utf-8")
 
     recorder = controller[
         controller.index("  function recordWorkspaceOpenedWhenVisible()"):
@@ -1375,13 +1465,35 @@ def test_workspace_return_waits_for_a_visible_authenticated_workspace():
         controller.index("  function profileNudgeKey()")
     ]
 
-    assert "if (!activeUser || document.visibilityState === 'hidden') return;" in recorder
-    assert "if (workspaceOpenRecordedFor === recordedFor) return;" in recorder
-    assert "document.addEventListener('visibilitychange', workspaceOpenVisibilityHandler);" in recorder
-    assert "document.removeEventListener('visibilitychange', workspaceOpenVisibilityHandler);" in recorder
-    assert "window.CrumpAnalytics?.track('WorkspaceOpened'" in recorder
+    assert "if (!activeUser) return;" in recorder
+    assert "window.CrumpAnalytics?.recordWorkspaceOpenedWhenVisible?.();" in recorder
     assert "recordWorkspaceOpenedWhenVisible();" in starter
     assert "window.CrumpAnalytics?.track('WorkspaceOpened'" not in starter
+    assert "workspaceOpenedMaxAttempts = 3" in analytics
+    assert "document.addEventListener('visibilitychange', wakeWorkspaceOpened);" in analytics
+    assert "window.addEventListener('online', wakeWorkspaceOpened);" in analytics
+    assert "window.CrumpAuthBoundary?.register?.(" in analytics
+    assert "workspaceOpenedAbortController?.abort();" in analytics
+    assert "workspaceOpenedRecordedFor = target.recordedFor;" in analytics
+
+
+def test_workspace_opened_retry_assets_are_cache_version_coherent():
+    version = "5.9.76-workspace-opened-retry-1"
+    shell = (ROOT / "public" / "app.html").read_text(encoding="utf-8")
+    runtime = (ROOT / "public" / "runtime-body-v1.js").read_text(encoding="utf-8")
+    worker = (ROOT / "public" / "sw.js").read_text(encoding="utf-8")
+    native = (ROOT / "scripts" / "build-native.mjs").read_text(encoding="utf-8")
+
+    runtime_url = f"/runtime-body-v1.js?v={version}"
+    auth_url = f"/auth-controller.js?v={version}"
+    analytics_url = f"/product-analytics.js?v={version}"
+    assert runtime_url in shell
+    assert runtime_url in worker
+    assert auth_url in shell
+    assert auth_url in worker
+    assert analytics_url in runtime
+    assert analytics_url in worker
+    assert analytics_url in native
 
 
 def test_first_successful_response_records_activation_without_message_content():

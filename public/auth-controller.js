@@ -13,8 +13,6 @@
   let workspaceRuntimeGateTimer = 0;
   let workspaceRuntimeGateWaiting = false;
   let workspaceRuntimeGateRevealFrame = 0;
-  let workspaceOpenVisibilityHandler = null;
-  let workspaceOpenRecordedFor = '';
   let reauthenticationPreparation = Promise.resolve();
   let guestEntryFailure = null;
   let onboardingProfileController = null;
@@ -772,26 +770,7 @@
 
   function recordWorkspaceOpenedWhenVisible() {
     if (!activeUser) return;
-    const record = () => {
-      if (!activeUser || document.visibilityState === 'hidden') return;
-      const day = new Date().toISOString().slice(0, 10);
-      const recordedFor = `${activeUser.id || 'active'}:${day}`;
-      if (workspaceOpenRecordedFor === recordedFor) return;
-      workspaceOpenRecordedFor = recordedFor;
-      void window.CrumpAnalytics?.track('WorkspaceOpened', {eventKey: `workspace-open:${day}`});
-    };
-    if (document.visibilityState !== 'hidden') {
-      record();
-      return;
-    }
-    if (workspaceOpenVisibilityHandler) return;
-    workspaceOpenVisibilityHandler = () => {
-      if (document.visibilityState === 'hidden') return;
-      document.removeEventListener('visibilitychange', workspaceOpenVisibilityHandler);
-      workspaceOpenVisibilityHandler = null;
-      record();
-    };
-    document.addEventListener('visibilitychange', workspaceOpenVisibilityHandler);
+    void window.CrumpAnalytics?.recordWorkspaceOpenedWhenVisible?.();
   }
 
   function startApp() {
