@@ -1034,7 +1034,10 @@ def test_project_chat_context_is_explicit_visible_and_relationship_scoped():
     assert "/api/projects/for-chat/" in fixture
     assert "/api/chat" in fixture
     assert "fixtureChatRequests" in fixture
-    assert "window.loadChat = chatId => window.fixtureOpenConversation(chatId)" in fixture
+    assert """window.loadChat = chatId => {
+      window.fixtureOpenConversation(chatId);
+      return true;
+    };""" in fixture
     assert "window.fixtureDestinations.push(destination)" in fixture
     verifier = (ROOT / "scripts" / "verify-project-chat-context-boundary.cjs").read_text(
         encoding="utf-8"

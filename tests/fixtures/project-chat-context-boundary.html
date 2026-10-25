@@ -209,7 +209,10 @@
         detail: {chatId, fresh},
       }));
     };
-    window.loadChat = chatId => window.fixtureOpenConversation(chatId);
+    window.loadChat = chatId => {
+      window.fixtureOpenConversation(chatId);
+      return true;
+    };
     window.fixtureSend = async chatId => {
       await window.fetch('/api/chat', {
         method: 'POST',
