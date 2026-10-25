@@ -1478,15 +1478,16 @@ def test_workspace_return_waits_for_a_visible_authenticated_workspace():
 
 
 def test_workspace_opened_retry_assets_are_cache_version_coherent():
-    version = "5.9.76-workspace-opened-retry-1"
+    workspace_opened_retry_version = "5.9.76-workspace-opened-retry-1"
+    runtime_body_version = "5.9.76-legacy-project-resume-truth-1"
     shell = (ROOT / "public" / "app.html").read_text(encoding="utf-8")
     runtime = (ROOT / "public" / "runtime-body-v1.js").read_text(encoding="utf-8")
     worker = (ROOT / "public" / "sw.js").read_text(encoding="utf-8")
     native = (ROOT / "scripts" / "build-native.mjs").read_text(encoding="utf-8")
 
-    runtime_url = f"/runtime-body-v1.js?v={version}"
-    auth_url = f"/auth-controller.js?v={version}"
-    analytics_url = f"/product-analytics.js?v={version}"
+    runtime_url = f"/runtime-body-v1.js?v={runtime_body_version}"
+    auth_url = f"/auth-controller.js?v={workspace_opened_retry_version}"
+    analytics_url = f"/product-analytics.js?v={workspace_opened_retry_version}"
     assert runtime_url in shell
     assert runtime_url in worker
     assert auth_url in shell
