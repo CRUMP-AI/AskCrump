@@ -119,6 +119,16 @@ def test_guest_network_budget_is_private_fixed_and_lock_ordered():
     assert "unexpected guest network message-budget function security contract" in normalized
     assert "relation_row.relpersistence = 'p'" in normalized
     assert "expected_constraints constant text[]" in normalized
+    assert "constraint_row.conname || ':' || constraint_row.contype::text" in normalized
+    assert "constraint_row.confkey = array[usage_event_target_attribute]" in normalized
+    assert "constraint_row.confdelsetcols is null" in normalized
+    assert "pg_catalog.pg_get_constraintdef(constraint_row.oid, false)" in normalized
+    assert "'check ((network_key_hash ~ ''^[0-9a-f]{64}$''::text))'" in normalized
+    assert "not index_row.indnullsnotdistinct" in normalized
+    assert "index_row.indkey[0] = receipt_attribute" in normalized
+    assert "index_row.indkey[0] = usage_event_attribute" in normalized
+    assert "constraint_row.conkey = array[network_key_hash_attribute]" in normalized
+    assert "operator_class.opcname = 'uuid_ops'" in normalized
     assert "constraint_row.convalidated" in normalized
     assert "guest_network_message_events_usage_event_id_fkey" in normalized
     assert "pg_catalog.count(*) <> 4" in normalized

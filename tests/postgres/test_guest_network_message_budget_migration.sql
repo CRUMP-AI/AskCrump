@@ -56,18 +56,80 @@ select pg_temp.assert_true(
   exists (
     select 1
       from pg_catalog.pg_constraint as constraint_row
+      join pg_catalog.pg_index as index_row
+        on index_row.indexrelid = constraint_row.conindid
+      join pg_catalog.pg_class as index_relation
+        on index_relation.oid = index_row.indexrelid
+      join pg_catalog.pg_am as access_method
+        on access_method.oid = index_relation.relam
+      join pg_catalog.pg_opclass as operator_class
+        on operator_class.oid = index_row.indclass[0]
      where constraint_row.conrelid =
            'public.guest_network_message_events'::regclass
+       and constraint_row.conname = 'guest_network_message_events_pkey'
        and constraint_row.contype = 'p'
+       and constraint_row.conkey = array[
+         (
+           select attribute_row.attnum
+             from pg_catalog.pg_attribute as attribute_row
+            where attribute_row.attrelid = constraint_row.conrelid
+              and attribute_row.attname = 'receipt_id'
+              and not attribute_row.attisdropped
+         )
+       ]
+       and index_row.indrelid = constraint_row.conrelid
+       and index_row.indisunique
+       and index_row.indisprimary
+       and index_row.indisvalid
+       and index_row.indisready
+       and index_row.indislive
+       and index_row.indimmediate
+       and not index_row.indnullsnotdistinct
+       and not index_row.indisexclusion
+       and not index_row.indisreplident
+       and index_row.indpred is null
+       and index_row.indexprs is null
+       and index_row.indnkeyatts = 1
+       and index_row.indnatts = 1
+       and index_row.indkey[0] = constraint_row.conkey[1]
+       and access_method.amname = 'btree'
+       and operator_class.opcname = 'uuid_ops'
+       and operator_class.opcintype = 'uuid'::regtype
+       and operator_class.opcdefault
+       and index_row.indcollation[0] = 0
+       and index_row.indoption[0] = 0
   )
   and exists (
     select 1
       from pg_catalog.pg_constraint as constraint_row
      where constraint_row.conrelid =
            'public.guest_network_message_events'::regclass
+       and constraint_row.conname =
+           'guest_network_message_events_usage_event_id_fkey'
        and constraint_row.contype = 'f'
        and constraint_row.confrelid = 'public.usage_events'::regclass
        and constraint_row.confdeltype = 'n'
+       and constraint_row.confupdtype = 'a'
+       and constraint_row.confmatchtype = 's'
+       and constraint_row.conkey = array[
+         (
+           select attribute_row.attnum
+             from pg_catalog.pg_attribute as attribute_row
+            where attribute_row.attrelid = constraint_row.conrelid
+              and attribute_row.attname = 'usage_event_id'
+              and not attribute_row.attisdropped
+         )
+       ]
+       and constraint_row.confkey = array[
+         (
+           select attribute_row.attnum
+             from pg_catalog.pg_attribute as attribute_row
+            where attribute_row.attrelid = constraint_row.confrelid
+              and attribute_row.attname = 'id'
+              and not attribute_row.attisdropped
+         )
+       ]
+       and constraint_row.confdelsetcols is null
   )
   and exists (
     select 1
@@ -77,35 +139,85 @@ select pg_temp.assert_true(
        and constraint_row.conname =
            'guest_network_message_events_network_key_hash_check'
        and constraint_row.contype = 'c'
-       and pg_catalog.pg_get_constraintdef(constraint_row.oid)
-           like '%^[0-9a-f]{64}$%'
+       and constraint_row.conkey = array[
+         (
+           select attribute_row.attnum
+             from pg_catalog.pg_attribute as attribute_row
+            where attribute_row.attrelid = constraint_row.conrelid
+              and attribute_row.attname = 'network_key_hash'
+              and not attribute_row.attisdropped
+         )
+       ]
+       and not constraint_row.connoinherit
+       and pg_catalog.pg_get_constraintdef(constraint_row.oid, false) =
+           'CHECK ((network_key_hash ~ ''^[0-9a-f]{64}$''::text))'
   )
   and exists (
     select 1
       from pg_catalog.pg_constraint as constraint_row
+      join pg_catalog.pg_index as index_row
+        on index_row.indexrelid = constraint_row.conindid
+      join pg_catalog.pg_class as index_relation
+        on index_relation.oid = index_row.indexrelid
+      join pg_catalog.pg_am as access_method
+        on access_method.oid = index_relation.relam
+      join pg_catalog.pg_opclass as operator_class
+        on operator_class.oid = index_row.indclass[0]
      where constraint_row.conrelid =
            'public.guest_network_message_events'::regclass
+       and constraint_row.conname =
+           'guest_network_message_events_usage_event_id_key'
        and constraint_row.contype = 'u'
-       and pg_catalog.pg_get_constraintdef(constraint_row.oid) =
-           'UNIQUE (usage_event_id)'
+       and constraint_row.conkey = array[
+         (
+           select attribute_row.attnum
+             from pg_catalog.pg_attribute as attribute_row
+            where attribute_row.attrelid = constraint_row.conrelid
+              and attribute_row.attname = 'usage_event_id'
+              and not attribute_row.attisdropped
+         )
+       ]
+       and index_row.indrelid = constraint_row.conrelid
+       and index_row.indisunique
+       and not index_row.indisprimary
+       and index_row.indisvalid
+       and index_row.indisready
+       and index_row.indislive
+       and index_row.indimmediate
+       and not index_row.indnullsnotdistinct
+       and not index_row.indisexclusion
+       and not index_row.indisreplident
+       and index_row.indpred is null
+       and index_row.indexprs is null
+       and index_row.indnkeyatts = 1
+       and index_row.indnatts = 1
+       and index_row.indkey[0] = constraint_row.conkey[1]
+       and access_method.amname = 'btree'
+       and operator_class.opcname = 'uuid_ops'
+       and operator_class.opcintype = 'uuid'::regtype
+       and operator_class.opcdefault
+       and index_row.indcollation[0] = 0
+       and index_row.indoption[0] = 0
   ),
   'a primary-key, hash-check, unique link, or SET NULL foreign-key constraint is missing'
 );
 select pg_temp.assert_true(
   (
     select pg_catalog.array_agg(
-      constraint_row.conname || ':' || constraint_row.contype::text || ':' ||
-        pg_catalog.pg_get_constraintdef(constraint_row.oid, true)
+      constraint_row.conname || ':' || constraint_row.contype::text
       order by constraint_row.conname
     ) = array[
-      'guest_network_message_events_network_key_hash_check:c:CHECK (network_key_hash ~ ''^[0-9a-f]{64}$''::text)',
-      'guest_network_message_events_pkey:p:PRIMARY KEY (receipt_id)',
-      'guest_network_message_events_usage_event_id_fkey:f:FOREIGN KEY (usage_event_id) REFERENCES usage_events(id) ON DELETE SET NULL',
-      'guest_network_message_events_usage_event_id_key:u:UNIQUE (usage_event_id)'
+      'guest_network_message_events_network_key_hash_check:c',
+      'guest_network_message_events_pkey:p',
+      'guest_network_message_events_usage_event_id_fkey:f',
+      'guest_network_message_events_usage_event_id_key:u'
     ]::text[]
        and pg_catalog.bool_and(constraint_row.convalidated)
        and pg_catalog.bool_and(not constraint_row.condeferrable)
        and pg_catalog.bool_and(not constraint_row.condeferred)
+       and pg_catalog.bool_and(constraint_row.conislocal)
+       and pg_catalog.bool_and(constraint_row.coninhcount = 0)
+       and pg_catalog.bool_and(constraint_row.conparentid = 0)
       from pg_catalog.pg_constraint as constraint_row
      where constraint_row.conrelid =
            'public.guest_network_message_events'::regclass
