@@ -106,6 +106,7 @@ class Settings:
     supabase_url: str
     supabase_service_key: str
     verification_link_signing_keys: tuple[tuple[str, str], ...]
+    guest_network_hash_key: str | None
     anthropic_api_key: str | None
     anthropic_model: str
     ai_gateway_enabled: bool
@@ -191,6 +192,13 @@ class Settings:
             and not self.verification_link_signing_keys
         ):
             missing.append('VERIFICATION_LINK_SIGNING_KEYS')
+        if (
+            self.environment in {'production', 'preview'}
+            and not self.guest_network_hash_key
+        ):
+            # Hosted builds must never look healthy while every guest send
+            # will fail closed at the network-budget boundary.
+            missing.append('GUEST_NETWORK_HASH_KEY')
         if self.is_production and not self.anthropic_api_key:
             missing.append('ANTHROPIC_API_KEY')
         if self.is_production and self.ai_gateway_enabled and not (
@@ -201,6 +209,13 @@ class Settings:
             missing.append('RESEND_API_KEY')
         if missing:
             raise RuntimeError(f"Missing required environment variables: {', '.join(missing)}")
+        if (
+            self.guest_network_hash_key is not None
+            and len(self.guest_network_hash_key.encode('utf-8')) < 32
+        ):
+            raise RuntimeError('GUEST_NETWORK_HASH_KEY must contain at least 32 UTF-8 bytes.')
+        if self.guest_network_hash_key == 'REPLACE_WITH_AT_LEAST_32_RANDOM_BYTES':
+            raise RuntimeError('GUEST_NETWORK_HASH_KEY must not use the documented placeholder.')
         if self.is_production and not self.app_url.startswith('https://'):
             raise RuntimeError('APP_URL must use HTTPS in production.')
         if self.is_production and not self.cookie_secure:
@@ -283,6 +298,7 @@ def get_settings() -> Settings:
         verification_link_signing_keys=_verification_signing_keys(
             os.getenv('VERIFICATION_LINK_SIGNING_KEYS')
         ),
+        guest_network_hash_key=(os.getenv('GUEST_NETWORK_HASH_KEY') or '').strip() or None,
         anthropic_api_key=os.getenv('ANTHROPIC_API_KEY'),
         anthropic_model=os.getenv('ANTHROPIC_MODEL', 'claude-sonnet-5'),
         # Vercel injects a short-lived OIDC token into deployments, so the free

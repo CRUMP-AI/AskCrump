@@ -1139,7 +1139,10 @@
   function handleGuestChatError(error) {
     const code = String(error?.code || '').toUpperCase();
     applyServerAllowance(error?.data || error);
-    if (code === 'FREE_TEXT_LIMIT_REACHED' || code === 'GUEST_LIMIT_REACHED') {
+    if (code === 'GUEST_NETWORK_LIMIT_REACHED') {
+      showAuth('register');
+      showGuestNote('Guest access is temporarily limited on this network. Sign in to an existing account or create and verify one to continue.');
+    } else if (code === 'FREE_TEXT_LIMIT_REACHED' || code === 'GUEST_LIMIT_REACHED') {
       if (isGuestUser(window.currentUser || activeUser)) showGuestWall();
       else {
         showPaidToolPrompt('More messages');

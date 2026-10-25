@@ -17,9 +17,11 @@ from ..auth_service import (
     free_text_limit_response,
     free_text_message_fingerprint,
     guest_blocked_signal,
+    guest_network_limit_response,
     is_free_text_user,
     is_guest_user,
     paid_feature_required_response,
+    public_daily_usage,
     reserve_free_text_message,
 )
 from ..checkin_service import mark_check_in_responded
@@ -42,6 +44,7 @@ from ..product_analytics import (
     artifact_type_for_result,
     record_product_event,
 )
+from ..rate_limit import guest_network_message_key_hash
 from ..runtime import ai, artifacts, db, features, files, intelligence, manuscripts, media, projects, settings
 from ..schemas import ChatAckRequest
 from ..security import iso_now, normalize_chat_id
@@ -54,6 +57,14 @@ MANUSCRIPT_EXPORT_FORMATS = {'docx', 'pdf', 'epub'}
 
 class DurableReplyLookupUnavailable(RuntimeError):
     """The API cannot safely distinguish a missing reply from an ambiguous commit."""
+
+
+def _public_chat_response(response_data: dict | None) -> dict:
+    """Defensively strip private quota state from fresh and cached replies."""
+    public = dict(response_data or {})
+    if isinstance(public.get('dailyUsage'), dict):
+        public['dailyUsage'] = public_daily_usage(public['dailyUsage'])
+    return public
 
 
 def _ai_error_recovery(error_code: str) -> dict | None:
@@ -226,9 +237,10 @@ async def chat_status(message_id: str, request: Request):
     status = str(job.get('status') or '').lower()
     response_data = job.get('response_data')
     if status == 'completed' and isinstance(response_data, dict):
+        public_response = _public_chat_response(response_data)
         return JSONResponse(
             headers=headers,
-            content={**response_data, 'success': True, 'status': 'completed', 'cached': True},
+            content={**public_response, 'success': True, 'status': 'completed', 'cached': True},
         )
     try:
         durable_reply = await _durable_reply_for_job(
@@ -250,10 +262,11 @@ async def chat_status(message_id: str, request: Request):
             },
         )
     if durable_reply:
+        public_reply = _public_chat_response(durable_reply)
         return JSONResponse(
             headers=headers,
             content={
-                **durable_reply,
+                **public_reply,
                 'success': True,
                 'status': 'completed',
                 'cached': True,
@@ -830,7 +843,8 @@ async def _chat_impl(request: Request):
         claim = claim_result[0] if isinstance(claim_result, list) and claim_result else (claim_result or {})
         state = claim.get('job_state') or 'claimed'
         if state == 'completed' and isinstance(claim.get('response_data'), dict):
-            return {'success': True, **claim['response_data'], 'cached': True}
+            public_response = _public_chat_response(claim['response_data'])
+            return {'success': True, **public_response, 'cached': True}
         if state == 'busy':
             return JSONResponse(
                 status_code=409,
@@ -892,6 +906,7 @@ async def _chat_impl(request: Request):
                 },
             )
         if durable_reply:
+            durable_reply = _public_chat_response(durable_reply)
             try:
                 await db.update(
                     'chat_jobs',
@@ -957,9 +972,29 @@ async def _chat_impl(request: Request):
             auth.user,
             message_id=message_id,
             fingerprint=free_text_message_fingerprint(chat_id, original_message),
+            network_key_hash=(
+                guest_network_message_key_hash(request, settings.guest_network_hash_key)
+                if is_guest_user(auth.user)
+                else None
+            ),
         )
         if hasattr(request.state, 'chat_job_claim'):
             request.state.chat_job_claim['usage_event_id'] = usage.get('eventId')
+        if usage.get('networkLimited'):
+            released = await release_owned_chat_claim('GUEST_NETWORK_LIMIT_REACHED')
+            if not released:
+                logger.warning('Guest network budget claim release was not confirmed.')
+                return JSONResponse(
+                    status_code=503,
+                    content={
+                        'success': False,
+                        'error': 'Crump could not safely release this reply after guest access was limited.',
+                        'message': 'Wait before retrying this same message, or send it again as a new message.',
+                        'code': 'REPLY_CLAIM_RELEASE_UNCONFIRMED',
+                        'shouldRetry': False,
+                    },
+                )
+            return guest_network_limit_response(usage)
         if not usage.get('allowed'):
             released = await release_owned_chat_claim('FREE_TEXT_LIMIT_REACHED')
             if not released:
@@ -1986,7 +2021,8 @@ async def _chat_impl(request: Request):
 
     # Cache the authoritative post-reservation allowance with the completed
     # job so a recovered/replayed response cannot show an older Free count.
-    result['dailyUsage'] = usage
+    daily_usage = public_daily_usage(usage)
+    result['dailyUsage'] = daily_usage
 
     if message_id:
         try:
@@ -2031,4 +2067,4 @@ async def _chat_impl(request: Request):
             request=request,
             artifact_type=artifact_type,
         )
-    return {'success': True, **result, 'dailyUsage': usage}
+    return {'success': True, **result, 'dailyUsage': daily_usage}

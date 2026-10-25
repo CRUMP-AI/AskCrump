@@ -4,6 +4,8 @@
 
 - A signed-out visitor may start a real guest session and use standard text chat.
 - Guest and registered Free accounts share **five text messages per rolling 24 hours**.
+- Guest sends are also bounded to **25 messages per observed network per
+  rolling 24 hours**. Registered Free accounts do not use the network budget.
 - Registering upgrades the same user row. It preserves the conversation and the
   existing allowance; it does not grant another five messages.
 - More messages and advanced tools require a currently verified paid entitlement.
@@ -12,11 +14,37 @@
 
 ## Server authority
 
-`public.usage_events` is the single message ledger. The service-role-only
-`reserve_free_message_v1` function owns the fixed limit, rolling window,
-concurrency lock, and retry identity. It stores a message UUID and a one-way
+`public.usage_events` remains the single message ledger. The additive,
+service-role-only `reserve_free_message_v2` function preserves the v1 account
+rule and atomically attaches a guest-only network receipt. V1 remains installed
+for rollback compatibility, but the guest-aware application calls v2. The
+function owns both hard-coded limits, rolling windows, deterministic account-
+then-network locks, and retry identity. It stores a message UUID and a one-way
 content fingerprint, not message text, filenames, referrer URLs, or response
 content.
+
+`public.guest_network_message_events` contains only an independent opaque
+receipt UUID, an optional refundable usage-event link, a 64-character keyed
+digest, and its timestamp. Account deletion removes the identifiable usage
+event and sets that optional link to null; it deliberately retains only the
+de-identified receipt UUID, keyed digest, and timestamp until the 25-hour purge,
+so delete-and-recreate cannot replenish a shared network bucket. The backend canonicalizes IPv4
+as `/32` and IPv6 as `/64`, then applies HMAC-SHA256 with the dedicated
+`GUEST_NETWORK_HASH_KEY`. The network receipt itself and its logs never contain
+the raw address or subnet, and the older unkeyed rate-limit digest is never
+reused. Preview and production point at the same Supabase project and therefore
+must use the same stable key; a per-deployment or per-environment key would
+split one real network into multiple quota buckets. Existing session-security
+metadata is unchanged and may still contain
+the canonical client address; this control does not claim anonymity from a
+privileged database operator. A database-native named pg_cron job runs every 15
+minutes and drains unlocked keyed receipts older than 25 hours. The hourly
+application check-in invokes the same private purge RPC as defense in depth.
+This leaves substantial alert/recovery margin before the 48-hour live-table
+privacy SLO, and an application rollback retains the database scheduler.
+Database downtime can delay logical deletion, so operations must monitor the
+exact job and page before the SLO is breached. PostgreSQL WAL and backup
+retention remain separate platform policies.
 
 The backend derives effective tier from server-managed subscription lifecycle or
 internal entitlement fields. Client-provided tier labels never authorize paid
@@ -25,11 +53,12 @@ consumption.
 
 ## Anonymous enforcement boundary
 
-Guest enforcement is account/session based and guest creation is additionally
-bounded by the existing privacy-respecting IP rate limit. This is not perfect
-person-level identity. Clearing browser storage, using another device, or
-changing networks can create another anonymous identity. Ask Crump must not
-claim that the five-message limit is impossible to evade.
+Guest enforcement is account/session based, guest creation is additionally
+bounded by the existing privacy-respecting admission rate limit, and message
+sends have the keyed network ceiling above. This is not person-level identity.
+Shared networks can legitimately reach the ceiling, while changing networks
+can move a guest to another bucket. Ask Crump must not claim it identified an
+individual or that either limit is impossible to evade.
 
 The implementation deliberately does not add invasive browser fingerprinting.
 If abuse becomes material, use aggregate abuse evidence and proportionate
@@ -40,12 +69,26 @@ mint limits; do not collect customer content for quota enforcement.
 
 - Chat-job cache/reconciliation runs before message reservation.
 - An exact retry reuses its receipt and has no refundable event ID.
+- Exact replay is resolved before either account or network quota denial.
+- A network denial creates neither receipt, releases the owned chat claim, and
+  returns HTTP 429 plus a five-minute-rounded, upward-only `Retry-After` and
+  `GUEST_NETWORK_LIMIT_REACHED`. It does not expose the shared bucket's exact
+  next-available timestamp. Recovery copy neutrally offers sign-in or
+  verified-account creation.
 - A newly owned reservation may be refunded only after a confirmed
-  pre-persistence failure.
+  pre-persistence failure. The service-only refund RPC row-locks and verifies
+  the exact owned usage event and optional child, deletes the parent first so
+  its FK action de-identifies the child, then deletes that exact captured child
+  in the same transaction. It deliberately does not join quota advisory locks:
+  a concurrent removal can only conservatively underfill or false-deny, while
+  avoiding a cycle with the established account-deletion path. Only that path restores one
+  network slot; ordinary account deletion merely severs the nullable link and
+  preserves the de-identified receipt until retention purge.
 - Once a reply is durably stored, or persistence is ambiguous, the reservation
   remains so a retry cannot produce duplicate provider work.
-- The UI displays the server-provided next-available timestamp. A rolling window
-  releases messages individually, so it must not promise a single daily reset.
+- The UI may display the server-provided next-available timestamp for a user's
+  own five-message allowance. A rolling window releases messages individually,
+  so it must not promise a single daily reset.
 
 ## Guest synchronization acknowledgement contract
 
@@ -166,14 +209,31 @@ static contract also rejects top-level transaction-control commands while
 allowing PL/pgSQL function bodies. This protects the transaction-wrapper
 assumption but does not authorize or perform a production migration.
 
-Release order is mandatory:
+For the already-live guest service, the network-budget release order is
+mandatory:
 
-1. Apply the reviewed additive migrations with guest mode still disabled.
-2. Verify the migration ledger, exact function signatures and ACLs, disabled
-   control state, and zero active guest sessions.
-3. Deploy the matching guest-aware application and verify registered-account
-   flows before explicitly enabling guest mode.
-4. Verify a new guest can use only the documented bounded path.
+1. Preflight the live prerequisite schema, v1 function, migration ledger, and
+   absence of v2/table name collisions without mutating customer data. Also
+   verify pg_cron is installed and active and that the exact retention job name
+   is absent or already matches this migration.
+2. Apply only the reviewed additive migration. Verify the exact
+   reservation/refund/purge signatures, owner, ACLs, indexes, one exact active
+   15-minute retention job, account-deletion invariance, retention contract,
+   and unchanged v1 behavior. Existing application
+   instances continue to use v1.
+3. Provision the same stable dedicated server-only HMAC key in both preview and
+   production—never a generated-per-deployment value—then require an exact-head
+   green preview before the application release.
+4. Deploy the matching application and monitor content-free denial, retention,
+   and runtime-failure telemetry. Do not create synthetic production guests or
+   provider work solely to exercise the limit.
+
+An application rollback retains the additive table, functions, and database
+retention job and restores the prior v1 behavior, reopening this preventive
+loophole without deleting data. Guest-mode disable-and-drain remains the
+stronger emergency control only for a verified reservation, privacy, or
+authentication failure; it is not a routine prerequisite for this additive
+release.
 
 Emergency rollback is disable-and-drain first: call
 `set_guest_mode_enabled_v1(false)`, verify the returned disabled state and zero

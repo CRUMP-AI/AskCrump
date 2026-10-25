@@ -520,7 +520,7 @@ def test_release_version_and_cache_advance_together():
 
     assert '"version": "5.9.76"' in package
     assert "__version__ = '5.9.76'" in backend
-    assert "ask-crump-new-body-v1-r276-initial-chat-owner-reconciliation-1" in worker
+    assert "ask-crump-new-body-v1-r277-guest-network-budget-1" in worker
     assert "/landing-5.6.css?v=5.9.76-accessibility-1" in worker
     assert "/use-case.css?v=5.9.76" in worker
     assert "/landing.js?v=5.9.76-free-guest-entry-1" in worker
@@ -534,7 +534,7 @@ def test_changed_activation_assets_are_release_versioned():
     for asset in (
         "/crump-v1-body.css?v=5.9.76-owned-workspace-access-1",
         "/device-auth.js?v=5.9.76-account-owner-boundary-1",
-        "/auth-controller.js?v=5.9.76-workspace-opened-retry-1",
+        "/auth-controller.js?v=5.9.76-guest-network-budget-1",
     ):
         assert asset in shell
         assert asset in worker

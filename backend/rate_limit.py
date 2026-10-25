@@ -1,12 +1,18 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
+import hmac
+import ipaddress
 from typing import Any
 
 from fastapi import Request
 
 from .db import SupabaseDB
 from .security import client_ip, normalize_email, token_hash
+
+
+GUEST_NETWORK_MESSAGE_HASH_DOMAIN = 'ask-crump:guest-network-message:v1'
 
 
 @dataclass(slots=True)
@@ -20,6 +26,38 @@ class RateLimitError(RuntimeError):
 
 def _hashed_key(scope: str, value: str) -> str:
     return token_hash(f'{scope}:{value}')
+
+
+def guest_network_message_key_hash(
+    request: Request,
+    secret: str | None,
+) -> str | None:
+    """Return a keyed, non-reversible guest network bucket identity.
+
+    IPv4 addresses remain distinct (/32). IPv6 privacy addresses share their
+    canonical /64. The raw address and subnet never leave this helper, and a
+    missing/weak key or unparseable address fails closed by returning ``None``.
+    """
+    key = str(secret or '').encode('utf-8')
+    if len(key) < 32:
+        return None
+    raw_ip = client_ip(
+        dict(request.headers),
+        request.client.host if request.client else None,
+    )
+    try:
+        address = ipaddress.ip_address(str(raw_ip or '').strip())
+    except ValueError:
+        return None
+    if isinstance(address, ipaddress.IPv6Address) and address.ipv4_mapped is not None:
+        address = address.ipv4_mapped
+    if isinstance(address, ipaddress.IPv4Address):
+        network_identity = f'ipv4:{address}/32'
+    else:
+        network = ipaddress.ip_network(f'{address}/64', strict=False)
+        network_identity = f'ipv6:{network.network_address}/64'
+    material = f'{GUEST_NETWORK_MESSAGE_HASH_DOMAIN}:{network_identity}'.encode('ascii')
+    return hmac.new(key, material, hashlib.sha256).hexdigest()
 
 
 async def _consume(
