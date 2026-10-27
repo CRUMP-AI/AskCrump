@@ -12,15 +12,15 @@ from typing import Any, Literal
 from .db import SupabaseDB
 
 
-CURRENT_POLICY_BUNDLE_ID = "ask-crump-legal-2026-08-01-a44e8c36"
+CURRENT_POLICY_BUNDLE_ID = "ask-crump-legal-2026-08-01-bc5e6e1d"
 CURRENT_POLICY_BUNDLE_HASH = (
-    "a44e8c3637047ccfda406e35310312b4ea068bed73244a753fee5c4f2173a83a"
+    "bc5e6e1d6e73636ff65a56a7e19ebf1d559218b51943236b75011752336418dd"
 )
 
 CURRENT_POLICY_COMPONENTS = {
     "terms": {
         "id": "ask-crump-terms-v1",
-        "sha256": "5ef56db9335386895dd9bfb90589e15d766bf9b7c4401defe4ec38568d98f258",
+        "sha256": "c9f6ccec1c2cf76e17bbd8a8ca1b3daeb3f2c9d7e927c01cddb94d78d28c4c7e",
     },
     "privacy": {
         "id": "ask-crump-privacy-v1",

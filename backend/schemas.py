@@ -9,8 +9,8 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
 LEGACY_TERMS_VERSION = "2026-08-01"
 CURRENT_TERMS_VERSION = LEGACY_TERMS_VERSION
-CURRENT_POLICY_BUNDLE_ID = "ask-crump-legal-2026-08-01-a44e8c36"
-CURRENT_POLICY_BUNDLE_HASH = "a44e8c3637047ccfda406e35310312b4ea068bed73244a753fee5c4f2173a83a"
+CURRENT_POLICY_BUNDLE_ID = "ask-crump-legal-2026-08-01-bc5e6e1d"
+CURRENT_POLICY_BUNDLE_HASH = "bc5e6e1d6e73636ff65a56a7e19ebf1d559218b51943236b75011752336418dd"
 
 _POLICY_ATTESTATION_FIELDS = (
     "termsAccepted",
@@ -64,7 +64,7 @@ class RegisterRequest(APIModel):
     aiProviderTransmissionAuthorized: bool | None = None
     termsVersion: Literal[
         "2026-08-01",
-        "ask-crump-legal-2026-08-01-a44e8c36",
+        "ask-crump-legal-2026-08-01-bc5e6e1d",
     ] | None = None
 
     @model_validator(mode="before")
@@ -113,7 +113,7 @@ class ProfileUpdateRequest(APIModel):
 class TermsAcceptanceRequest(APIModel):
     version: Literal[
         "2026-08-01",
-        "ask-crump-legal-2026-08-01-a44e8c36",
+        "ask-crump-legal-2026-08-01-bc5e6e1d",
     ] = CURRENT_TERMS_VERSION
     termsAccepted: bool | None = None
     privacyNoticeAcknowledged: bool | None = None

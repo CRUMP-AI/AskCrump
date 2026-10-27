@@ -98,7 +98,7 @@ begin
   begin
     perform * from public.record_policy_acceptance_v1(
       '11111111-1111-4111-8111-111111111111',
-      'ask-crump-legal-2026-08-01-a44e8c36',
+      'ask-crump-legal-2026-08-01-bc5e6e1d',
       'guest_gate',
       'web',
       false, true, true, true
@@ -111,7 +111,7 @@ begin
   begin
     perform * from public.record_policy_acceptance_v1(
       '33333333-3333-4333-8333-333333333333',
-      'ask-crump-legal-2026-08-01-a44e8c36',
+      'ask-crump-legal-2026-08-01-bc5e6e1d',
       'guest_gate',
       'web',
       true, true, true, true
@@ -141,7 +141,7 @@ select
 from (select pg_catalog.clock_timestamp() as before_at) as bounds
 cross join lateral public.record_policy_acceptance_v1(
   '11111111-1111-4111-8111-111111111111',
-  'ask-crump-legal-2026-08-01-a44e8c36',
+  'ask-crump-legal-2026-08-01-bc5e6e1d',
   'guest_gate',
   'web',
   true, true, true, true
@@ -162,7 +162,7 @@ select
 from (select pg_catalog.clock_timestamp() as before_at) as bounds
 cross join lateral public.record_policy_acceptance_v1(
   '11111111-1111-4111-8111-111111111111',
-  'ask-crump-legal-2026-08-01-a44e8c36',
+  'ask-crump-legal-2026-08-01-bc5e6e1d',
   'registration',
   'native',
   true, true, true, true
@@ -170,7 +170,7 @@ cross join lateral public.record_policy_acceptance_v1(
 
 select * from public.record_policy_acceptance_v1(
   '22222222-2222-4222-8222-222222222222',
-  'ask-crump-legal-2026-08-01-a44e8c36',
+  'ask-crump-legal-2026-08-01-bc5e6e1d',
   'registration',
   'web',
   true, true, true, true
@@ -178,7 +178,7 @@ select * from public.record_policy_acceptance_v1(
 
 select * from public.record_policy_acceptance_v1(
   '33333333-3333-4333-8333-333333333333',
-  'ask-crump-legal-2026-08-01-a44e8c36',
+  'ask-crump-legal-2026-08-01-bc5e6e1d',
   'account_gate',
   'web',
   true, true, true, true
@@ -187,7 +187,7 @@ select * from public.record_policy_acceptance_v1(
 create temporary table account_replay_first as
 select * from public.record_policy_acceptance_v1(
   '33333333-3333-4333-8333-333333333333',
-  'ask-crump-legal-2026-08-01-a44e8c36',
+  'ask-crump-legal-2026-08-01-bc5e6e1d',
   'account_gate',
   'web',
   true, true, true, true
@@ -196,7 +196,7 @@ select * from public.record_policy_acceptance_v1(
 create temporary table account_replay_second as
 select * from public.record_policy_acceptance_v1(
   '33333333-3333-4333-8333-333333333333',
-  'ask-crump-legal-2026-08-01-a44e8c36',
+  'ask-crump-legal-2026-08-01-bc5e6e1d',
   'account_gate',
   'web',
   true, true, true, true
@@ -214,7 +214,7 @@ begin
     select count(*)
       from public.user_policy_acceptance_receipts
      where user_id = '33333333-3333-4333-8333-333333333333'
-       and bundle_id = 'ask-crump-legal-2026-08-01-a44e8c36'
+       and bundle_id = 'ask-crump-legal-2026-08-01-bc5e6e1d'
        and acceptance_source = 'account_gate'
   ) <> 1 then
     raise exception 'Acceptance replay created duplicate or unstable evidence.';
@@ -224,7 +224,7 @@ $replay_contract$;
 
 select * from public.record_policy_acceptance_v1(
   '44444444-4444-4444-8444-444444444444',
-  'ask-crump-legal-2026-08-01-a44e8c36',
+  'ask-crump-legal-2026-08-01-bc5e6e1d',
   'account_gate',
   'web',
   true, true, true, true
@@ -253,15 +253,15 @@ begin
     from public.read_current_policy_acceptance_v1(
       '11111111-1111-4111-8111-111111111111'
     );
-  if v_current.bundle_id <> 'ask-crump-legal-2026-08-01-a44e8c36'
-     or v_current.bundle_hash <> 'a44e8c3637047ccfda406e35310312b4ea068bed73244a753fee5c4f2173a83a'
+  if v_current.bundle_id <> 'ask-crump-legal-2026-08-01-bc5e6e1d'
+     or v_current.bundle_hash <> 'bc5e6e1d6e73636ff65a56a7e19ebf1d559218b51943236b75011752336418dd'
      or v_current.acceptance_source <> 'registration' then
     raise exception 'Current receipt readback was not exact.';
   end if;
 
   if exists (
     select 1 from public.users
-     where terms_version is distinct from 'ask-crump-legal-2026-08-01-a44e8c36'
+     where terms_version is distinct from 'ask-crump-legal-2026-08-01-bc5e6e1d'
         or terms_accepted_at is null
   ) then
     raise exception 'Legacy acceptance mirrors were not updated.';
@@ -291,7 +291,7 @@ begin
   begin
     update public.consent_policy_bundles
        set effective_date = date '2026-08-02'
-     where bundle_id = 'ask-crump-legal-2026-08-01-a44e8c36';
+     where bundle_id = 'ask-crump-legal-2026-08-01-bc5e6e1d';
     raise exception 'Manifest mutation unexpectedly succeeded';
   exception when sqlstate '55000' then
     null;
@@ -312,7 +312,7 @@ begin
   end if;
   if not exists (
     select 1 from public.consent_policy_bundles
-     where bundle_id = 'ask-crump-legal-2026-08-01-a44e8c36'
+     where bundle_id = 'ask-crump-legal-2026-08-01-bc5e6e1d'
   ) then
     raise exception 'Account deletion removed the non-personal bundle manifest.';
   end if;
@@ -336,7 +336,7 @@ insert into public.user_policy_acceptance_receipts (
   ai_provider_transmission_authorized
 ) values (
   '33333333-3333-4333-8333-333333333333',
-  'ask-crump-legal-2026-08-01-a44e8c36',
+  'ask-crump-legal-2026-08-01-bc5e6e1d',
   'registration',
   'web',
   true,

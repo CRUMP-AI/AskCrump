@@ -10,7 +10,7 @@ and the exact current policy-bundle contract. It deliberately supports both:
 
 - legacy registration and reacceptance payloads keep their existing behavior
   and may update only the legacy `users.terms_*` mirror;
-- the exact bundle `ask-crump-legal-2026-08-01-a44e8c36`, accompanied by four
+- the exact bundle `ask-crump-legal-2026-08-01-bc5e6e1d`, accompanied by four
   literal boolean `true` attestations, may call the service-only receipt writer;
 - no legacy timestamp, version, truthy value, header, user agent, installation
   identifier, or platform claim can mint or promote an exact current receipt.

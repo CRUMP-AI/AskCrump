@@ -60,7 +60,7 @@ begin
       select not function_row.prosecdef
          and function_row.proconfig = array['search_path=""']::text[]
          and pg_catalog.pg_get_userbyid(function_row.proowner) = 'postgres'
-         and pg_catalog.md5(function_row.prosrc) = '5f1ac35d767abaebf4968db2e9600967'
+         and pg_catalog.md5(function_row.prosrc) = '549a35e508bb87f6f325c664d572064b'
         from pg_catalog.pg_proc as function_row
        where function_row.oid = v_assert_function
     ) or exists (
@@ -214,16 +214,16 @@ insert into public.consent_policy_bundles (
   provider_disclosure_component_id,
   provider_disclosure_sha256
 ) values (
-  'ask-crump-legal-2026-08-01-a44e8c36',
+  'ask-crump-legal-2026-08-01-bc5e6e1d',
   date '2026-08-01',
   '/legal.html',
   'html-section-outerhtml-lf-v1',
-  '72067fedd1a1f189b088e909eadebb9c9b86816064dcbe31f178c7b4dec499b5',
-  'a44e8c3637047ccfda406e35310312b4ea068bed73244a753fee5c4f2173a83a',
+  'f6cbe102dd8897492561734500c7ceac6ce8e20db8bb2278a60e7c361ca71f55',
+  'bc5e6e1d6e73636ff65a56a7e19ebf1d559218b51943236b75011752336418dd',
   'f9f8e731dae7b009371538f8be561b458b6fb6b3bab54e4a3f18190aaec5ad61',
   '92b512f3bd4c3d4f44a38e5561b853be3f42ea6288cf20881ae21c5aa2e7cf2c',
   'ask-crump-terms-v1',
-  '5ef56db9335386895dd9bfb90589e15d766bf9b7c4401defe4ec38568d98f258',
+  'c9f6ccec1c2cf76e17bbd8a8ca1b3daeb3f2c9d7e927c01cddb94d78d28c4c7e',
   'ask-crump-privacy-v1',
   '4191cbfbeb311232797c2645d7d2e4616dea6ca3cd7161f70b2caba0e88a8ddf',
   'ask-crump-age-17-v1',
@@ -305,7 +305,7 @@ declare
   v_receipt_id uuid := pg_catalog.gen_random_uuid();
   v_accepted_at timestamptz := pg_catalog.clock_timestamp();
 begin
-  if p_bundle_id is distinct from 'ask-crump-legal-2026-08-01-a44e8c36'
+  if p_bundle_id is distinct from 'ask-crump-legal-2026-08-01-bc5e6e1d'
      or p_age_17_plus_attested is distinct from true
      or p_terms_accepted is distinct from true
      or p_privacy_notice_acknowledged is distinct from true
@@ -318,16 +318,16 @@ begin
   if not exists (
     select 1
       from public.consent_policy_bundles as bundle
-     where bundle.bundle_id = 'ask-crump-legal-2026-08-01-a44e8c36'
+     where bundle.bundle_id = 'ask-crump-legal-2026-08-01-bc5e6e1d'
        and bundle.effective_date = date '2026-08-01'
        and bundle.legal_path = '/legal.html'
        and bundle.canonicalization = 'html-section-outerhtml-lf-v1'
-       and bundle.legal_document_sha256 = '72067fedd1a1f189b088e909eadebb9c9b86816064dcbe31f178c7b4dec499b5'
-       and bundle.policy_sections_sha256 = 'a44e8c3637047ccfda406e35310312b4ea068bed73244a753fee5c4f2173a83a'
+       and bundle.legal_document_sha256 = 'f6cbe102dd8897492561734500c7ceac6ce8e20db8bb2278a60e7c361ca71f55'
+       and bundle.policy_sections_sha256 = 'bc5e6e1d6e73636ff65a56a7e19ebf1d559218b51943236b75011752336418dd'
        and bundle.registration_disclosure_sha256 = 'f9f8e731dae7b009371538f8be561b458b6fb6b3bab54e4a3f18190aaec5ad61'
        and bundle.fallback_disclosure_sha256 = '92b512f3bd4c3d4f44a38e5561b853be3f42ea6288cf20881ae21c5aa2e7cf2c'
        and bundle.terms_component_id = 'ask-crump-terms-v1'
-       and bundle.terms_sha256 = '5ef56db9335386895dd9bfb90589e15d766bf9b7c4401defe4ec38568d98f258'
+       and bundle.terms_sha256 = 'c9f6ccec1c2cf76e17bbd8a8ca1b3daeb3f2c9d7e927c01cddb94d78d28c4c7e'
        and bundle.privacy_component_id = 'ask-crump-privacy-v1'
        and bundle.privacy_sha256 = '4191cbfbeb311232797c2645d7d2e4616dea6ca3cd7161f70b2caba0e88a8ddf'
        and bundle.age_attestation_component_id = 'ask-crump-age-17-v1'
@@ -401,7 +401,7 @@ begin
     v_receipt_id,
     v_accepted_at,
     p_bundle_id,
-    'a44e8c3637047ccfda406e35310312b4ea068bed73244a753fee5c4f2173a83a'::text;
+    'bc5e6e1d6e73636ff65a56a7e19ebf1d559218b51943236b75011752336418dd'::text;
 end;
 $function$;
 
@@ -428,10 +428,10 @@ begin
   if not exists (
     select 1
       from public.consent_policy_bundles as bundle
-     where bundle.bundle_id = 'ask-crump-legal-2026-08-01-a44e8c36'
-       and bundle.policy_sections_sha256 = 'a44e8c3637047ccfda406e35310312b4ea068bed73244a753fee5c4f2173a83a'
+     where bundle.bundle_id = 'ask-crump-legal-2026-08-01-bc5e6e1d'
+       and bundle.policy_sections_sha256 = 'bc5e6e1d6e73636ff65a56a7e19ebf1d559218b51943236b75011752336418dd'
        and bundle.terms_component_id = 'ask-crump-terms-v1'
-       and bundle.terms_sha256 = '5ef56db9335386895dd9bfb90589e15d766bf9b7c4401defe4ec38568d98f258'
+       and bundle.terms_sha256 = 'c9f6ccec1c2cf76e17bbd8a8ca1b3daeb3f2c9d7e927c01cddb94d78d28c4c7e'
        and bundle.privacy_component_id = 'ask-crump-privacy-v1'
        and bundle.privacy_sha256 = '4191cbfbeb311232797c2645d7d2e4616dea6ca3cd7161f70b2caba0e88a8ddf'
        and bundle.age_attestation_component_id = 'ask-crump-age-17-v1'
@@ -447,12 +447,12 @@ begin
     receipt.id,
     receipt.accepted_at,
     receipt.bundle_id,
-    'a44e8c3637047ccfda406e35310312b4ea068bed73244a753fee5c4f2173a83a'::text,
+    'bc5e6e1d6e73636ff65a56a7e19ebf1d559218b51943236b75011752336418dd'::text,
     receipt.acceptance_source
   from public.user_policy_acceptance_receipts as receipt
   join public.users as account on account.id = receipt.user_id
   where receipt.user_id = p_user_id
-    and receipt.bundle_id = 'ask-crump-legal-2026-08-01-a44e8c36'
+    and receipt.bundle_id = 'ask-crump-legal-2026-08-01-bc5e6e1d'
     and receipt.age_17_plus_attested is true
     and receipt.terms_accepted is true
     and receipt.privacy_notice_acknowledged is true
@@ -822,11 +822,11 @@ begin
     select pg_catalog.md5(function_row.prosrc)
       from pg_catalog.pg_proc as function_row
      where function_row.oid = 'public.record_policy_acceptance_v1(uuid,text,text,text,boolean,boolean,boolean,boolean)'::regprocedure
-  ) <> '31c8f972cc8399d4f4629b06e255b888' or (
+  ) <> '0d478d23d4ad2d783d5f4b4dfabc9039' or (
     select pg_catalog.md5(function_row.prosrc)
       from pg_catalog.pg_proc as function_row
      where function_row.oid = 'public.read_current_policy_acceptance_v1(uuid)'::regprocedure
-  ) <> 'db366c127ad7dc9234e5e810f4d9062c' or (
+  ) <> 'd1210dda88a8fc72dd0ad4c4f333e4be' or (
     select pg_catalog.md5(function_row.prosrc)
       from pg_catalog.pg_proc as function_row
      where function_row.oid = 'public.reject_policy_acceptance_receipt_mutation_v1()'::regprocedure
@@ -923,16 +923,16 @@ begin
   if not exists (
     select 1
       from public.consent_policy_bundles as bundle
-     where bundle.bundle_id = 'ask-crump-legal-2026-08-01-a44e8c36'
+     where bundle.bundle_id = 'ask-crump-legal-2026-08-01-bc5e6e1d'
        and bundle.effective_date = date '2026-08-01'
        and bundle.legal_path = '/legal.html'
        and bundle.canonicalization = 'html-section-outerhtml-lf-v1'
-       and bundle.legal_document_sha256 = '72067fedd1a1f189b088e909eadebb9c9b86816064dcbe31f178c7b4dec499b5'
-       and bundle.policy_sections_sha256 = 'a44e8c3637047ccfda406e35310312b4ea068bed73244a753fee5c4f2173a83a'
+       and bundle.legal_document_sha256 = 'f6cbe102dd8897492561734500c7ceac6ce8e20db8bb2278a60e7c361ca71f55'
+       and bundle.policy_sections_sha256 = 'bc5e6e1d6e73636ff65a56a7e19ebf1d559218b51943236b75011752336418dd'
        and bundle.registration_disclosure_sha256 = 'f9f8e731dae7b009371538f8be561b458b6fb6b3bab54e4a3f18190aaec5ad61'
        and bundle.fallback_disclosure_sha256 = '92b512f3bd4c3d4f44a38e5561b853be3f42ea6288cf20881ae21c5aa2e7cf2c'
        and bundle.terms_component_id = 'ask-crump-terms-v1'
-       and bundle.terms_sha256 = '5ef56db9335386895dd9bfb90589e15d766bf9b7c4401defe4ec38568d98f258'
+       and bundle.terms_sha256 = 'c9f6ccec1c2cf76e17bbd8a8ca1b3daeb3f2c9d7e927c01cddb94d78d28c4c7e'
        and bundle.privacy_component_id = 'ask-crump-privacy-v1'
        and bundle.privacy_sha256 = '4191cbfbeb311232797c2645d7d2e4616dea6ca3cd7161f70b2caba0e88a8ddf'
        and bundle.age_attestation_component_id = 'ask-crump-age-17-v1'
@@ -984,7 +984,7 @@ begin
     select pg_catalog.md5(function_row.prosrc)
       from pg_catalog.pg_proc as function_row
      where function_row.oid = 'public.assert_policy_consent_schema_v1()'::regprocedure
-  ) <> '5f1ac35d767abaebf4968db2e9600967' then
+  ) <> '549a35e508bb87f6f325c664d572064b' then
     raise exception 'Policy schema assertion guard body drifted during apply.'
       using errcode = '55000';
   end if;

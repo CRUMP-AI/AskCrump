@@ -62,7 +62,7 @@ def test_terms_remain_a_required_server_saved_fallback_gate_before_workspace_ent
     assert "privacyNoticeAcknowledged: policyBundleAccepted" in controller
     assert "age17PlusAttested: policyBundleAccepted" in controller
     assert "aiProviderTransmissionAuthorized: policyBundleAccepted" in controller
-    assert "const TERMS_VERSION = 'ask-crump-legal-2026-08-01-a44e8c36'" in controller
+    assert "const TERMS_VERSION = 'ask-crump-legal-2026-08-01-bc5e6e1d'" in controller
 
 
 def test_name_completion_event_semantics_remain_server_authoritative():

@@ -22,8 +22,8 @@
   let termsBoundaryUnregister = null;
   let authIdentityStorageGeneration = 0;
   const AUTH_USER_CACHE_KEY = 'crump_user_cache_v4';
-  const TERMS_VERSION = 'ask-crump-legal-2026-08-01-a44e8c36';
-  const TERMS_BUNDLE_HASH = 'a44e8c3637047ccfda406e35310312b4ea068bed73244a753fee5c4f2173a83a';
+  const TERMS_VERSION = 'ask-crump-legal-2026-08-01-bc5e6e1d';
+  const TERMS_BUNDLE_HASH = 'bc5e6e1d6e73636ff65a56a7e19ebf1d559218b51943236b75011752336418dd';
   const PLAN_INTENT_KEY = 'askcrump.pending-plan-intent';
   const CREATION_INTENT_KEY = 'askcrump.pending-creation-intent';
   const ACQUISITION_KEY = 'askcrump.acquisition-source';

@@ -1,21 +1,21 @@
 {
   "schemaVersion": 1,
-  "currentBundleId": "ask-crump-legal-2026-08-01-a44e8c36",
+  "currentBundleId": "ask-crump-legal-2026-08-01-bc5e6e1d",
   "bundles": [
     {
-      "bundleId": "ask-crump-legal-2026-08-01-a44e8c36",
+      "bundleId": "ask-crump-legal-2026-08-01-bc5e6e1d",
       "effectiveDate": "2026-08-01",
       "legalPath": "/legal.html",
       "canonicalization": "html-section-outerhtml-lf-v1",
-      "legalDocumentSha256": "72067fedd1a1f189b088e909eadebb9c9b86816064dcbe31f178c7b4dec499b5",
-      "policySectionsSha256": "a44e8c3637047ccfda406e35310312b4ea068bed73244a753fee5c4f2173a83a",
+      "legalDocumentSha256": "f6cbe102dd8897492561734500c7ceac6ce8e20db8bb2278a60e7c361ca71f55",
+      "policySectionsSha256": "bc5e6e1d6e73636ff65a56a7e19ebf1d559218b51943236b75011752336418dd",
       "registrationDisclosureSha256": "f9f8e731dae7b009371538f8be561b458b6fb6b3bab54e4a3f18190aaec5ad61",
       "fallbackDisclosureSha256": "92b512f3bd4c3d4f44a38e5561b853be3f42ea6288cf20881ae21c5aa2e7cf2c",
       "components": {
         "terms": {
           "id": "ask-crump-terms-v1",
           "legalSectionId": "terms",
-          "sha256": "5ef56db9335386895dd9bfb90589e15d766bf9b7c4401defe4ec38568d98f258"
+          "sha256": "c9f6ccec1c2cf76e17bbd8a8ca1b3daeb3f2c9d7e927c01cddb94d78d28c4c7e"
         },
         "privacy": {
           "id": "ask-crump-privacy-v1",
