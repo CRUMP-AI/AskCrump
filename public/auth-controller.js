@@ -22,7 +22,8 @@
   let termsBoundaryUnregister = null;
   let authIdentityStorageGeneration = 0;
   const AUTH_USER_CACHE_KEY = 'crump_user_cache_v4';
-  const TERMS_VERSION = '2026-08-01';
+  const TERMS_VERSION = 'ask-crump-legal-2026-08-01-a44e8c36';
+  const TERMS_BUNDLE_HASH = 'a44e8c3637047ccfda406e35310312b4ea068bed73244a753fee5c4f2173a83a';
   const PLAN_INTENT_KEY = 'askcrump.pending-plan-intent';
   const CREATION_INTENT_KEY = 'askcrump.pending-creation-intent';
   const ACQUISITION_KEY = 'askcrump.acquisition-source';
@@ -882,6 +883,8 @@
     const profileManager = window.CrumpProfileState?.bindAuthenticatedUser?.(user)
       || window.profileManager;
     profileManager?.applyServerSubscription?.(user);
+    // Pre-enforcement transition: keep every existing user journey functional.
+    // Only the established missing-acceptance gate is active in this phase.
     if (!user.termsAcceptedAt) {
       hide('authContainer');
       show('tosModal', 'flex');
@@ -1554,19 +1557,32 @@
       button.setAttribute('aria-busy', 'true');
       button.textContent = 'Saving…';
       try {
+        const policyBundleAccepted = byId('tosAccept')?.checked === true;
         const {response, data} = await authRequest('/api/account/accept-terms', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'X-Ask-Crump-Expected-Owner': authBoundary.ownerId,
           },
-          body: JSON.stringify({ version: TERMS_VERSION }),
+          body: JSON.stringify({
+            version: TERMS_VERSION,
+            termsAccepted: policyBundleAccepted,
+            privacyNoticeAcknowledged: policyBundleAccepted,
+            age17PlusAttested: policyBundleAccepted,
+            aiProviderTransmissionAuthorized: policyBundleAccepted,
+          }),
         }, 'Saving your acceptance took too long. Try Continue again.');
         if (!expectedOwnerBoundaryIsCurrent(authBoundary, termsAcceptanceGeneration)) return;
         if (!response.ok || !data.success) throw new Error(data.error || 'Could not save your acceptance.');
         const responseOwnerId = String(data.user?.id || authBoundary.ownerId).trim();
         if (responseOwnerId !== authBoundary.ownerId) return;
-        activeUser = data.user || { ...activeUser, termsAcceptedAt: new Date().toISOString(), termsVersion: TERMS_VERSION };
+        activeUser = data.user || {
+          ...activeUser,
+          termsAcceptedAt: new Date().toISOString(),
+          termsVersion: TERMS_VERSION,
+          policyBundleHash: TERMS_BUNDLE_HASH,
+          policyAcceptedCurrent: true,
+        };
         window.currentUser = activeUser;
         button.removeAttribute('aria-busy');
         button.textContent = original;
@@ -1826,6 +1842,7 @@
         const attribution = firstTouchAttribution();
         const creationIntent = pendingCreationIntent();
         const planIntent = pendingPlanIntent();
+        const policyBundleAccepted = byId('registerTerms')?.checked === true;
         const {response, data} = await authRequest('/api/auth/register', {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -1838,7 +1855,10 @@
             creative: attribution.creative,
             intent: creationIntent?.kind || attribution.intent,
             plan: planIntent?.plan || null,
-            termsAccepted: byId('registerTerms')?.checked === true,
+            termsAccepted: policyBundleAccepted,
+            privacyNoticeAcknowledged: policyBundleAccepted,
+            age17PlusAttested: policyBundleAccepted,
+            aiProviderTransmissionAuthorized: policyBundleAccepted,
             termsVersion: TERMS_VERSION,
           }),
         }, 'Creating your account took too long to confirm. Check your inbox before retrying; the account may already exist.');

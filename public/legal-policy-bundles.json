@@ -1,0 +1,38 @@
+{
+  "schemaVersion": 1,
+  "currentBundleId": "ask-crump-legal-2026-08-01-a44e8c36",
+  "bundles": [
+    {
+      "bundleId": "ask-crump-legal-2026-08-01-a44e8c36",
+      "effectiveDate": "2026-08-01",
+      "legalPath": "/legal.html",
+      "canonicalization": "html-section-outerhtml-lf-v1",
+      "legalDocumentSha256": "72067fedd1a1f189b088e909eadebb9c9b86816064dcbe31f178c7b4dec499b5",
+      "policySectionsSha256": "a44e8c3637047ccfda406e35310312b4ea068bed73244a753fee5c4f2173a83a",
+      "registrationDisclosureSha256": "f9f8e731dae7b009371538f8be561b458b6fb6b3bab54e4a3f18190aaec5ad61",
+      "fallbackDisclosureSha256": "92b512f3bd4c3d4f44a38e5561b853be3f42ea6288cf20881ae21c5aa2e7cf2c",
+      "components": {
+        "terms": {
+          "id": "ask-crump-terms-v1",
+          "legalSectionId": "terms",
+          "sha256": "5ef56db9335386895dd9bfb90589e15d766bf9b7c4401defe4ec38568d98f258"
+        },
+        "privacy": {
+          "id": "ask-crump-privacy-v1",
+          "legalSectionId": "privacy",
+          "sha256": "4191cbfbeb311232797c2645d7d2e4616dea6ca3cd7161f70b2caba0e88a8ddf"
+        },
+        "ageAttestation": {
+          "id": "ask-crump-age-17-v1",
+          "legalSectionId": "age",
+          "sha256": "d3d8e283bf73ceb97867d09d50497635fc875af042d3d4f0ea5d1122bd235b99"
+        },
+        "providerDisclosure": {
+          "id": "ask-crump-ai-provider-disclosure-v1",
+          "legalSectionId": "ai",
+          "sha256": "b145250398b66900d5f00687158cba029b0b5407c90d3a73ab8ca9fc4e809d73"
+        }
+      }
+    }
+  ]
+}

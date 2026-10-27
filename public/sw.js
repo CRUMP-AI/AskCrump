@@ -74,7 +74,7 @@ const CORE = [
   '/lifecycle-share.js?v=5.9.76-settings-invite-1',
   '/lifecycle-manager.js?v=5.9.76-lifecycle-idle-send-1',
   '/crump-activity-center-1.0.js?v=5.9.76-private-owner-boundary-1',
-  '/auth-controller.js?v=5.9.76-inbox-proof-password-1',
+  '/auth-controller.js?v=5.9.76-consent-transition-1',
   '/crump-4.3.css',
   '/crump-4.3.js?v=5.9.76-atelier-workspace-1',
   '/crump-4.4.css?v=5.9.76-friendly-workspace-1',

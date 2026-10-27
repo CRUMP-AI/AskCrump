@@ -58,8 +58,11 @@ def test_terms_remain_a_required_server_saved_fallback_gate_before_workspace_ent
     assert "show('tosModal', 'flex')" in terms_gate
     assert "return;" in terms_gate
     assert "authRequest('/api/account/accept-terms'" in controller
-    assert "body: JSON.stringify({ version: TERMS_VERSION })" in controller
-    assert "const TERMS_VERSION = '2026-08-01'" in controller
+    assert "version: TERMS_VERSION" in controller
+    assert "privacyNoticeAcknowledged: policyBundleAccepted" in controller
+    assert "age17PlusAttested: policyBundleAccepted" in controller
+    assert "aiProviderTransmissionAuthorized: policyBundleAccepted" in controller
+    assert "const TERMS_VERSION = 'ask-crump-legal-2026-08-01-a44e8c36'" in controller
 
 
 def test_name_completion_event_semantics_remain_server_authoritative():

@@ -11,6 +11,10 @@ from fastapi.responses import JSONResponse
 
 from ..auth_service import authenticate_request, public_user
 from ..db import eq
+from ..policy_consent import (
+    UNTRUSTED_CLIENT_PLATFORM,
+    record_current_policy_acceptance,
+)
 from ..product_analytics import record_product_event
 from ..runtime import db, settings
 from ..schemas import DeleteAccountRequest, ProfileUpdateRequest, TermsAcceptanceRequest
@@ -128,14 +132,32 @@ async def accept_terms(payload: TermsAcceptanceRequest, request: Request):
         settings,
         require_expected_owner_header=True,
     )
-    accepted_at = iso_now()
-    await db.update('users', {
-        'terms_accepted_at': accepted_at,
-        'terms_version': payload.version,
-        'updated_at': accepted_at,
-    }, filters={'id': eq(auth.user['id'])})
-    auth.user['terms_accepted_at'] = accepted_at
-    auth.user['terms_version'] = payload.version
+    if payload.accepts_current_policy_bundle:
+        receipt = await record_current_policy_acceptance(
+            db,
+            user_id=str(auth.user['id']),
+            source='guest_gate' if auth.user.get('is_guest') else 'account_gate',
+            platform=UNTRUSTED_CLIENT_PLATFORM,
+            age_17_plus_attested=payload.age17PlusAttested is True,
+            terms_accepted=payload.termsAccepted is True,
+            privacy_notice_acknowledged=payload.privacyNoticeAcknowledged is True,
+            ai_provider_transmission_authorized=(
+                payload.aiProviderTransmissionAuthorized is True
+            ),
+        )
+        auth.user['terms_accepted_at'] = receipt['accepted_at']
+        auth.user['terms_version'] = receipt['bundle_id']
+    else:
+        # Preserve the installed-client contract during the pre-enforcement
+        # transition. This timestamp is not and cannot become a current receipt.
+        accepted_at = iso_now()
+        await db.update('users', {
+            'terms_accepted_at': accepted_at,
+            'terms_version': payload.version,
+            'updated_at': accepted_at,
+        }, filters={'id': eq(auth.user['id'])})
+        auth.user['terms_accepted_at'] = accepted_at
+        auth.user['terms_version'] = payload.version
     return {'success': True, 'user': public_user(auth.user)}
 
 
