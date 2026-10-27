@@ -5,6 +5,7 @@ declare
   v_users_id_attnum smallint;
   v_sessions_user_id_attnum smallint;
   v_constraint_oid oid;
+  v_support_index_oid oid;
 begin
   select attnum into v_users_id_attnum
     from pg_catalog.pg_attribute
@@ -73,6 +74,35 @@ begin
        and v_sessions_user_id_attnum = any(constraint_row.conkey)
   ) <> 1 then
     raise exception 'Unexpected duplicate sessions.user_id foreign key.';
+  end if;
+
+  v_support_index_oid := pg_catalog.to_regclass(
+    'public.sessions_user_id_fk_idx'
+  );
+
+  if v_support_index_oid is null or coalesce((
+    select index_row.indrelid <> 'public.sessions'::regclass
+      or index_row.indisvalid is not true
+      or index_row.indisready is not true
+      or index_row.indislive is not true
+      or index_row.indisunique is true
+      or index_row.indisprimary is true
+      or index_row.indisexclusion is true
+      or index_row.indnkeyatts <> 1
+      or index_row.indnatts <> 1
+      or index_row.indpred is not null
+      or index_row.indexprs is not null
+      or access_method.amname <> 'btree'
+      or pg_catalog.pg_get_indexdef(index_row.indexrelid, 1, true)
+           <> 'user_id'
+      from pg_catalog.pg_index as index_row
+      join pg_catalog.pg_class as index_class
+        on index_class.oid = index_row.indexrelid
+      join pg_catalog.pg_am as access_method
+        on access_method.oid = index_class.relam
+     where index_row.indexrelid = v_support_index_oid
+  ), true) then
+    raise exception 'Expected exact full-row sessions.user_id support index.';
   end if;
 
   if not exists (

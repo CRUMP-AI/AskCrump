@@ -9,9 +9,11 @@ drift_log="$(mktemp)"
 other_fk_log="$(mktemp)"
 orphan_log="$(mktemp)"
 trigger_log="$(mktemp)"
+index_log="$(mktemp)"
 
 cleanup() {
-  rm -f "$drift_log" "$other_fk_log" "$orphan_log" "$trigger_log"
+  rm -f "$drift_log" "$other_fk_log" "$orphan_log" "$trigger_log" \
+    "$index_log"
 }
 trap cleanup EXIT
 
@@ -47,12 +49,27 @@ reset_fixture
 "${psql_base[@]}" --single-transaction --file="$migration"
 fk_oid_before="$(psql -X -qAt --set=ON_ERROR_STOP=1 --command="select oid from pg_catalog.pg_constraint where conrelid='public.sessions'::regclass and conname='sessions_user_id_fkey'")"
 test -n "$fk_oid_before"
+support_index_oid_before="$(psql -X -qAt --set=ON_ERROR_STOP=1 --command="select oid from pg_catalog.pg_class where oid='public.sessions_user_id_fk_idx'::regclass")"
+test -n "$support_index_oid_before"
 "${psql_base[@]}" --single-transaction \
   --command='set search_path=pg_catalog' \
   --file="$migration"
 fk_oid_after="$(psql -X -qAt --set=ON_ERROR_STOP=1 --command="select oid from pg_catalog.pg_constraint where conrelid='public.sessions'::regclass and conname='sessions_user_id_fkey'")"
 test "$fk_oid_before" = "$fk_oid_after"
+support_index_oid_after="$(psql -X -qAt --set=ON_ERROR_STOP=1 --command="select oid from pg_catalog.pg_class where oid='public.sessions_user_id_fk_idx'::regclass")"
+test "$support_index_oid_before" = "$support_index_oid_after"
 "${psql_base[@]}" --file="$catalog_test"
+
+# A same-name partial index cannot support cascade lookup across revoked rows.
+# Reapply must reject that drift without replacing the hostile object.
+reset_fixture
+"${psql_base[@]}" --command='create index sessions_user_id_fk_idx on public.sessions(user_id) where revoked_at is null'
+expect_refusal \
+  '55000' \
+  'Sessions-user FK support index exists with conflicting semantics.' \
+  "$index_log"
+test "$(psql -X -qAt --set=ON_ERROR_STOP=1 --command="select count(*) from pg_catalog.pg_index where indexrelid='public.sessions_user_id_fk_idx'::regclass and indpred is not null and indisvalid and indisready")" = '1'
+test "$(psql -X -qAt --set=ON_ERROR_STOP=1 --command="select count(*) from pg_catalog.pg_constraint where conrelid='public.sessions'::regclass and conname='sessions_user_id_fkey'")" = '0'
 
 # A same-name constraint with weaker delete semantics is malicious drift. The
 # migration must refuse it without replacing or validating the hostile object.

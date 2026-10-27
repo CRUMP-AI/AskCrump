@@ -22,7 +22,8 @@ create table public.users (
 
 create table public.sessions (
   id uuid primary key,
-  user_id uuid not null
+  user_id uuid not null,
+  revoked_at timestamptz
 );
 
 alter table public.users enable row level security;
