@@ -49,6 +49,10 @@ class ResetPasswordRequest(APIModel):
     newPassword: str = Field(min_length=1, max_length=256)
 
 
+class CompletePasswordSetupRequest(APIModel):
+    newPassword: str = Field(min_length=1, max_length=256)
+
+
 class DeleteAccountRequest(APIModel):
     password: str = Field(min_length=1, max_length=256)
     confirmation: str = Field(default="DELETE", max_length=40)

@@ -26,6 +26,13 @@ except ImportError:  # The standard-library fallback keeps local diagnostics usa
 EMAIL_RE = re.compile(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
 ARGON2_HASHER = PasswordHasher() if PasswordHasher is not None else None
 
+# Registration input is not proof that the submitter owns the inbox. Keep a
+# deliberately unverifiable marker until the verification-link session (or a
+# password-reset link) authorizes a fresh password. The database migration uses
+# the same marker so old application instances remain fail closed during a
+# schema-first rolling deployment.
+PENDING_PASSWORD_HASH = '!pending-inbox-password-setup-v1!'
+
 
 def utcnow() -> datetime:
     return datetime.now(timezone.utc)

@@ -421,6 +421,7 @@ def public_user(user: dict[str, Any]) -> dict[str, Any]:
         'profilePicture': user.get('profile_picture'),
         'isVerified': bool(user.get('is_verified')),
         'isGuest': bool(user.get('is_guest')),
+        'passwordSetupRequired': bool(user.get('password_setup_required')),
         'freeMessageLimit': FREE_TEXT_MESSAGE_LIMIT,
         'freeMessageWindowKind': 'rolling_24h',
         'freeMessageWindowSeconds': FREE_TEXT_WINDOW_SECONDS,
@@ -714,6 +715,37 @@ async def verify_registered_and_create_session(
             'Registered verification did not return its atomic session.'
         )
     return raw_token, verified_user, session
+
+
+async def complete_initial_password_setup(
+    db: SupabaseDB,
+    authenticated: AuthenticatedUser,
+    *,
+    password_hash: str,
+) -> tuple[dict[str, Any], int] | None:
+    """Set the first verified password through the exact inbox-proof session.
+
+    The database locks the user before validating the session tuple, updates the
+    password, and revokes every other session in one transaction. This prevents
+    a pre-registration password or pre-verification guest session from surviving
+    the inbox owner's transition.
+    """
+    rows = await db.rpc(
+        'complete_initial_password_setup_v1',
+        {
+            'p_user_id': authenticated.user['id'],
+            'p_session_id': authenticated.session['id'],
+            'p_session_token_hash': authenticated.session['token_hash'],
+            'p_password_hash': password_hash,
+        },
+    )
+    result = rows[0] if isinstance(rows, list) and len(rows) == 1 else None
+    if not result or result.get('password_setup_applied') is not True:
+        return None
+    updated_user = result.get('user_data')
+    if not isinstance(updated_user, dict):
+        raise RuntimeError('Password setup did not return the updated account.')
+    return updated_user, int(result.get('revoked_sessions') or 0)
 
 
 async def finalize_login_session(
