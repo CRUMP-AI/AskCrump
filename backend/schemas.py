@@ -4,10 +4,37 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, model_validator
 
 
-CURRENT_TERMS_VERSION = "2026-08-01"
+LEGACY_TERMS_VERSION = "2026-08-01"
+CURRENT_TERMS_VERSION = LEGACY_TERMS_VERSION
+CURRENT_POLICY_BUNDLE_ID = "ask-crump-legal-2026-08-01-bc5e6e1d"
+CURRENT_POLICY_BUNDLE_HASH = "bc5e6e1d6e73636ff65a56a7e19ebf1d559218b51943236b75011752336418dd"
+
+_POLICY_ATTESTATION_FIELDS = (
+    "termsAccepted",
+    "privacyNoticeAcknowledged",
+    "age17PlusAttested",
+    "aiProviderTransmissionAuthorized",
+)
+
+
+def _validate_current_policy_payload(value, *, version_field: str):
+    """Require four literal booleans only when the exact new bundle is used.
+
+    The legacy contract remains intentionally unchanged during this transition.
+    A legacy version, even with extra truthy fields, never becomes an exact
+    current-bundle acceptance.
+    """
+    if not isinstance(value, dict) or value.get(version_field) != CURRENT_POLICY_BUNDLE_ID:
+        return value
+    for field in _POLICY_ATTESTATION_FIELDS:
+        if field not in value or type(value[field]) is not bool or value[field] is not True:
+            raise ValueError(
+                "The exact current policy bundle requires four explicit boolean true attestations."
+            )
+    return value
 
 
 class APIModel(BaseModel):
@@ -32,7 +59,28 @@ class RegisterRequest(APIModel):
     intent: Literal["document", "image", "presentation", "resume", "video", "projects"] | None = None
     plan: Literal["professional", "enterprise"] | None = None
     termsAccepted: bool = False
-    termsVersion: Literal["2026-08-01"] | None = None
+    privacyNoticeAcknowledged: bool | None = None
+    age17PlusAttested: bool | None = None
+    aiProviderTransmissionAuthorized: bool | None = None
+    termsVersion: Literal[
+        "2026-08-01",
+        "ask-crump-legal-2026-08-01-bc5e6e1d",
+    ] | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_policy_contract(cls, value):
+        return _validate_current_policy_payload(value, version_field="termsVersion")
+
+    @property
+    def accepts_current_policy_bundle(self) -> bool:
+        return (
+            self.termsVersion == CURRENT_POLICY_BUNDLE_ID
+            and self.termsAccepted is True
+            and self.privacyNoticeAcknowledged is True
+            and self.age17PlusAttested is True
+            and self.aiProviderTransmissionAuthorized is True
+        )
 
 
 class EmailRequest(APIModel):
@@ -63,7 +111,29 @@ class ProfileUpdateRequest(APIModel):
 
 
 class TermsAcceptanceRequest(APIModel):
-    version: Literal["2026-08-01"] = CURRENT_TERMS_VERSION
+    version: Literal[
+        "2026-08-01",
+        "ask-crump-legal-2026-08-01-bc5e6e1d",
+    ] = CURRENT_TERMS_VERSION
+    termsAccepted: bool | None = None
+    privacyNoticeAcknowledged: bool | None = None
+    age17PlusAttested: bool | None = None
+    aiProviderTransmissionAuthorized: bool | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def validate_policy_contract(cls, value):
+        return _validate_current_policy_payload(value, version_field="version")
+
+    @property
+    def accepts_current_policy_bundle(self) -> bool:
+        return (
+            self.version == CURRENT_POLICY_BUNDLE_ID
+            and self.termsAccepted is True
+            and self.privacyNoticeAcknowledged is True
+            and self.age17PlusAttested is True
+            and self.aiProviderTransmissionAuthorized is True
+        )
 
 
 class AIContentReportRequest(APIModel):

@@ -29,6 +29,10 @@ from ..product_analytics import (
     record_account_created_event,
     record_product_event,
 )
+from ..policy_consent import (
+    UNTRUSTED_CLIENT_PLATFORM,
+    record_current_policy_acceptance,
+)
 from ..rate_limit import enforce_auth_rate_limit, enforce_guest_admission_rate_limit
 from ..runtime import (
     db,
@@ -518,6 +522,19 @@ async def register(payload: RegisterRequest, request: Request):
                 'user_settings',
                 {'user_id': user['id'], 'updated_at': now},
                 on_conflict='user_id',
+            )
+        if payload.accepts_current_policy_bundle:
+            await record_current_policy_acceptance(
+                db,
+                user_id=str(user['id']),
+                source='registration',
+                platform=UNTRUSTED_CLIENT_PLATFORM,
+                age_17_plus_attested=payload.age17PlusAttested is True,
+                terms_accepted=payload.termsAccepted is True,
+                privacy_notice_acknowledged=payload.privacyNoticeAcknowledged is True,
+                ai_provider_transmission_authorized=(
+                    payload.aiProviderTransmissionAuthorized is True
+                ),
             )
         await record_account_created_event(
             db,

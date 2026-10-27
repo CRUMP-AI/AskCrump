@@ -908,3 +908,66 @@ jobs:
             --command=rollback
           after="$(psql -X -qAt --set=ON_ERROR_STOP=1 --command="select oid::text || ':' || md5(prosrc) from pg_proc where oid = 'public.read_email_queue_backlog_v1()'::regprocedure")"
           test "$before" = "$after"
+
+  server-policy-consent-receipts:
+    name: Server policy consent receipts
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17.11
+        env:
+          POSTGRES_DB: askcrump_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d askcrump_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGDATABASE: askcrump_test
+      PGUSER: postgres
+      PGPASSWORD: postgres-ci-only
+
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+      - name: Apply policy-receipt baseline
+        run: >-
+          psql -X --set=ON_ERROR_STOP=1
+          --file=tests/postgres/policy_consent_receipts_baseline.sql
+      - name: Apply and idempotently reapply under hostile search path
+        run: |
+          psql -X --set=ON_ERROR_STOP=1 --single-transaction \
+            --file=migrations/20261027075649_server_policy_consent_receipts.sql
+          psql -X --set=ON_ERROR_STOP=1 --single-transaction \
+            --command='set search_path=pg_catalog' \
+            --command='set quote_all_identifiers=on' \
+            --file=migrations/20261027075649_server_policy_consent_receipts.sql
+      - name: Refuse ACL, CHECK, trigger, and overload drift without repair
+        run: bash tests/postgres/test_policy_consent_receipts_drift_guards.sh
+      - name: Exercise manifest, receipt, provenance, ACL, and deletion contracts
+        run: >-
+          psql -X --set=ON_ERROR_STOP=1
+          --file=tests/postgres/test_policy_consent_receipts_migration.sql
+      - name: Prove failed first apply leaves no partial policy objects
+        run: |
+          createdb consent_policy_rollback
+          psql -X --set=ON_ERROR_STOP=1 --dbname=consent_policy_rollback \
+            --file=tests/postgres/policy_consent_receipts_baseline.sql
+          psql -X --set=ON_ERROR_STOP=1 --dbname=consent_policy_rollback \
+            --command=begin \
+            --file=migrations/20261027075649_server_policy_consent_receipts.sql \
+            --command=rollback
+          psql -X -qAt --set=ON_ERROR_STOP=1 --dbname=consent_policy_rollback \
+            --command="select to_regclass('public.consent_policy_bundles') is null and to_regclass('public.user_policy_acceptance_receipts') is null and to_regprocedure('public.record_policy_acceptance_v1(uuid,text,text,text,boolean,boolean,boolean,boolean)') is null and to_regprocedure('public.read_current_policy_acceptance_v1(uuid)') is null" \
+            | grep -Fx 't'
