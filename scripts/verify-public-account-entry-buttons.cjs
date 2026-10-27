@@ -42,7 +42,9 @@ function pageErrors(page) {
   const errors = [];
   page.on('pageerror', error => errors.push(`pageerror: ${error.message}`));
   page.on('console', message => {
-    if (message.type() === 'error') errors.push(`console: ${message.text()}`);
+    if (message.type() !== 'error') return;
+    const sourceUrl = message.location().url;
+    errors.push(`console: ${message.text()}${sourceUrl ? ` (${sourceUrl})` : ''}`);
   });
   return errors;
 }
@@ -249,6 +251,31 @@ function pageErrors(page) {
         windowKind: 'rolling_24h',
         windowSeconds: 86400,
       }),
+    }));
+    await capabilityGuestContext.route('**/api/media/video*', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ jobs: [] }),
+    }));
+    await capabilityGuestContext.route('**/api/code/activity*', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ activity: [] }),
+    }));
+    await capabilityGuestContext.route('**/api/features*', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        internalAccess: false,
+        features: { code_workspace: { configured: false, entitled: false } },
+        providers: { code: { configured: false } },
+      }),
+    }));
+    await capabilityGuestContext.route('**/api/presence/preferences*', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ preferences: {} }),
     }));
     const capabilityGuestUser = {
       ...guestUser,
