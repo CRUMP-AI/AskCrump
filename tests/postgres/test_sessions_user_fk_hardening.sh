@@ -60,15 +60,38 @@ support_index_oid_after="$(psql -X -qAt --set=ON_ERROR_STOP=1 --command="select 
 test "$support_index_oid_before" = "$support_index_oid_after"
 "${psql_base[@]}" --file="$catalog_test"
 
-# A same-name partial index cannot support cascade lookup across revoked rows.
-# Reapply must reject that drift without replacing the hostile object.
+# Production already has this structurally exact index under an alternate name.
+# The migration must reuse it without creating a duplicate, then retain its OID
+# through a hostile-search-path reapply.
 reset_fixture
+"${psql_base[@]}" --command='create index sessions_user_id_idx on public.sessions(user_id)'
+alternate_index_oid_before="$(psql -X -qAt --set=ON_ERROR_STOP=1 --command="select oid from pg_catalog.pg_class where oid='public.sessions_user_id_idx'::regclass")"
+test -n "$alternate_index_oid_before"
+"${psql_base[@]}" --single-transaction --file="$migration"
+alternate_index_oid_after="$(psql -X -qAt --set=ON_ERROR_STOP=1 --command="select oid from pg_catalog.pg_class where oid='public.sessions_user_id_idx'::regclass")"
+test "$alternate_index_oid_before" = "$alternate_index_oid_after"
+test "$(psql -X -qAt --set=ON_ERROR_STOP=1 --command="select count(*) from pg_catalog.pg_class where oid=pg_catalog.to_regclass('public.sessions_user_id_fk_idx')")" = '0'
+test "$(psql -X -qAt --set=ON_ERROR_STOP=1 --command="select count(*) from pg_catalog.pg_index as index_row join pg_catalog.pg_class as index_class on index_class.oid=index_row.indexrelid join pg_catalog.pg_am as access_method on access_method.oid=index_class.relam where index_row.indrelid='public.sessions'::regclass and index_row.indisvalid and index_row.indisready and index_row.indislive and not index_row.indisunique and not index_row.indisprimary and not index_row.indisexclusion and index_row.indnkeyatts=1 and index_row.indnatts=1 and index_row.indpred is null and index_row.indexprs is null and access_method.amname='btree' and pg_catalog.pg_get_indexdef(index_row.indexrelid,1,true)='user_id'")" = '1'
+"${psql_base[@]}" --single-transaction \
+  --command='set search_path=pg_catalog' \
+  --file="$migration"
+alternate_index_oid_reapply="$(psql -X -qAt --set=ON_ERROR_STOP=1 --command="select oid from pg_catalog.pg_class where oid='public.sessions_user_id_idx'::regclass")"
+test "$alternate_index_oid_before" = "$alternate_index_oid_reapply"
+test "$(psql -X -qAt --set=ON_ERROR_STOP=1 --command="select count(*) from pg_catalog.pg_class where oid=pg_catalog.to_regclass('public.sessions_user_id_fk_idx')")" = '0'
+"${psql_base[@]}" --file="$catalog_test"
+
+# A same-name partial index cannot support cascade lookup across revoked rows.
+# Even with a reusable alternate index present, reapply must reject the named
+# drift without replacing or ignoring the hostile object.
+reset_fixture
+"${psql_base[@]}" --command='create index sessions_user_id_idx on public.sessions(user_id)'
 "${psql_base[@]}" --command='create index sessions_user_id_fk_idx on public.sessions(user_id) where revoked_at is null'
 expect_refusal \
   '55000' \
   'Sessions-user FK support index exists with conflicting semantics.' \
   "$index_log"
 test "$(psql -X -qAt --set=ON_ERROR_STOP=1 --command="select count(*) from pg_catalog.pg_index where indexrelid='public.sessions_user_id_fk_idx'::regclass and indpred is not null and indisvalid and indisready")" = '1'
+test "$(psql -X -qAt --set=ON_ERROR_STOP=1 --command="select count(*) from pg_catalog.pg_index where indexrelid='public.sessions_user_id_idx'::regclass and indpred is null and indisvalid and indisready")" = '1'
 test "$(psql -X -qAt --set=ON_ERROR_STOP=1 --command="select count(*) from pg_catalog.pg_constraint where conrelid='public.sessions'::regclass and conname='sessions_user_id_fkey'")" = '0'
 
 # A same-name constraint with weaker delete semantics is malicious drift. The

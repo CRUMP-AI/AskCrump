@@ -76,32 +76,37 @@ begin
     raise exception 'Unexpected duplicate sessions.user_id foreign key.';
   end if;
 
-  v_support_index_oid := pg_catalog.to_regclass(
-    'public.sessions_user_id_fk_idx'
-  );
+  select index_row.indexrelid
+    into v_support_index_oid
+    from pg_catalog.pg_index as index_row
+    join pg_catalog.pg_class as index_class
+      on index_class.oid = index_row.indexrelid
+    join pg_catalog.pg_am as access_method
+      on access_method.oid = index_class.relam
+   where index_row.indrelid = 'public.sessions'::regclass
+     and index_row.indisvalid
+     and index_row.indisready
+     and index_row.indislive
+     and index_row.indisunique is false
+     and index_row.indisprimary is false
+     and index_row.indisexclusion is false
+     and index_row.indnkeyatts = 1
+     and index_row.indnatts = 1
+     and index_row.indpred is null
+     and index_row.indexprs is null
+     and access_method.amname = 'btree'
+     and pg_catalog.pg_get_indexdef(index_row.indexrelid, 1, true)
+          = 'user_id'
+   order by (
+     index_row.indexrelid = pg_catalog.to_regclass(
+       'public.sessions_user_id_fk_idx'
+     )
+   ) desc,
+   index_class.relname,
+   index_row.indexrelid
+   limit 1;
 
-  if v_support_index_oid is null or coalesce((
-    select index_row.indrelid <> 'public.sessions'::regclass
-      or index_row.indisvalid is not true
-      or index_row.indisready is not true
-      or index_row.indislive is not true
-      or index_row.indisunique is true
-      or index_row.indisprimary is true
-      or index_row.indisexclusion is true
-      or index_row.indnkeyatts <> 1
-      or index_row.indnatts <> 1
-      or index_row.indpred is not null
-      or index_row.indexprs is not null
-      or access_method.amname <> 'btree'
-      or pg_catalog.pg_get_indexdef(index_row.indexrelid, 1, true)
-           <> 'user_id'
-      from pg_catalog.pg_index as index_row
-      join pg_catalog.pg_class as index_class
-        on index_class.oid = index_row.indexrelid
-      join pg_catalog.pg_am as access_method
-        on access_method.oid = index_class.relam
-     where index_row.indexrelid = v_support_index_oid
-  ), true) then
+  if v_support_index_oid is null then
     raise exception 'Expected exact full-row sessions.user_id support index.';
   end if;
 

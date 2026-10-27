@@ -38,7 +38,7 @@ declare
   v_sessions_id_attnum smallint;
   v_sessions_user_id_attnum smallint;
   v_constraint_oid oid;
-  v_support_index_oid oid;
+  v_preferred_index_oid oid;
 begin
   if exists (
     select 1
@@ -145,11 +145,11 @@ begin
    where constraint_row.conrelid = v_sessions
      and constraint_row.conname = 'sessions_user_id_fkey';
 
-  v_support_index_oid := pg_catalog.to_regclass(
+  v_preferred_index_oid := pg_catalog.to_regclass(
     'public.sessions_user_id_fk_idx'
   );
 
-  if v_support_index_oid is not null and coalesce((
+  if v_preferred_index_oid is not null and coalesce((
     select index_row.indrelid <> v_sessions
       or index_row.indisvalid is not true
       or index_row.indisready is not true
@@ -169,7 +169,7 @@ begin
         on index_class.oid = index_row.indexrelid
       join pg_catalog.pg_am as access_method
         on access_method.oid = index_class.relam
-     where index_row.indexrelid = v_support_index_oid
+     where index_row.indexrelid = v_preferred_index_oid
   ), true) then
     raise exception 'Sessions-user FK support index exists with conflicting semantics.'
       using errcode = '55000';
@@ -264,8 +264,41 @@ end;
 $locked_preflight$;
 
 do $install_support_index$
+declare
+  v_sessions regclass := 'public.sessions'::regclass;
+  v_support_index_oid oid;
 begin
-  if pg_catalog.to_regclass('public.sessions_user_id_fk_idx') is null then
+  select index_row.indexrelid
+    into v_support_index_oid
+    from pg_catalog.pg_index as index_row
+    join pg_catalog.pg_class as index_class
+      on index_class.oid = index_row.indexrelid
+    join pg_catalog.pg_am as access_method
+      on access_method.oid = index_class.relam
+   where index_row.indrelid = v_sessions
+     and index_row.indisvalid
+     and index_row.indisready
+     and index_row.indislive
+     and index_row.indisunique is false
+     and index_row.indisprimary is false
+     and index_row.indisexclusion is false
+     and index_row.indnkeyatts = 1
+     and index_row.indnatts = 1
+     and index_row.indpred is null
+     and index_row.indexprs is null
+     and access_method.amname = 'btree'
+     and pg_catalog.pg_get_indexdef(index_row.indexrelid, 1, true)
+          = 'user_id'
+   order by (
+     index_row.indexrelid = pg_catalog.to_regclass(
+       'public.sessions_user_id_fk_idx'
+     )
+   ) desc,
+   index_class.relname,
+   index_row.indexrelid
+   limit 1;
+
+  if v_support_index_oid is null then
     create index sessions_user_id_fk_idx
       on public.sessions using btree (user_id);
   end if;
@@ -313,6 +346,7 @@ declare
   v_sessions_user_id_attnum smallint;
   v_constraint_oid oid;
   v_support_index_oid oid;
+  v_preferred_index_oid oid;
 begin
   select attribute_row.attnum
     into v_users_id_attnum
@@ -357,11 +391,11 @@ begin
    where constraint_row.conrelid = v_sessions
      and constraint_row.conname = 'sessions_user_id_fkey';
 
-  v_support_index_oid := pg_catalog.to_regclass(
+  v_preferred_index_oid := pg_catalog.to_regclass(
     'public.sessions_user_id_fk_idx'
   );
 
-  if v_support_index_oid is null or coalesce((
+  if v_preferred_index_oid is not null and coalesce((
     select index_row.indrelid <> v_sessions
       or index_row.indisvalid is not true
       or index_row.indisready is not true
@@ -381,9 +415,42 @@ begin
         on index_class.oid = index_row.indexrelid
       join pg_catalog.pg_am as access_method
         on access_method.oid = index_class.relam
-     where index_row.indexrelid = v_support_index_oid
+     where index_row.indexrelid = v_preferred_index_oid
   ), true) then
     raise exception 'Sessions-user FK support index postflight is incomplete or drifted.'
+      using errcode = '55000';
+  end if;
+
+  select index_row.indexrelid
+    into v_support_index_oid
+    from pg_catalog.pg_index as index_row
+    join pg_catalog.pg_class as index_class
+      on index_class.oid = index_row.indexrelid
+    join pg_catalog.pg_am as access_method
+      on access_method.oid = index_class.relam
+   where index_row.indrelid = v_sessions
+     and index_row.indisvalid
+     and index_row.indisready
+     and index_row.indislive
+     and index_row.indisunique is false
+     and index_row.indisprimary is false
+     and index_row.indisexclusion is false
+     and index_row.indnkeyatts = 1
+     and index_row.indnatts = 1
+     and index_row.indpred is null
+     and index_row.indexprs is null
+     and access_method.amname = 'btree'
+     and pg_catalog.pg_get_indexdef(index_row.indexrelid, 1, true)
+          = 'user_id'
+   order by (
+     index_row.indexrelid = v_preferred_index_oid
+   ) desc,
+   index_class.relname,
+   index_row.indexrelid
+   limit 1;
+
+  if v_support_index_oid is null then
+    raise exception 'Sessions-user FK has no exact full-row support index.'
       using errcode = '55000';
   end if;
 
