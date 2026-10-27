@@ -2,7 +2,7 @@
 
 ## Reporting a vulnerability
 
-Do not open a public issue for a suspected vulnerability. Use GitHub private vulnerability reporting when it is enabled for the repository. Otherwise, contact the repository owner privately using the contact information on their GitHub profile. Include:
+Do not open a public issue for a suspected vulnerability. Use GitHub private vulnerability reporting when it is enabled for the repository. Otherwise, email `askcrump@gmail.com` with the subject `Ask Crump security report`. Include:
 
 - the affected endpoint or component;
 - reproduction steps;

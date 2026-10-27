@@ -153,3 +153,31 @@ def test_you_exposes_the_monitored_product_support_address():
     assert "monitored = 'askcrump@gmail.com'" in config
     assert "support_email=_support_email(os.getenv('SUPPORT_EMAIL'))" in config
     assert 'self.settings.support_email' in email_service
+
+
+def test_public_contact_routes_use_the_monitored_support_inbox():
+    legal = read("public/legal.html")
+    deletion = read("public/delete-account.html")
+    security = read("SECURITY.md")
+    public_pages = (
+        "public/ask-crump.html",
+        "public/ai-project-workspace.html",
+        "public/ai-presentation-maker.html",
+        "public/ai-document-generator.html",
+        "public/ai-resume-builder.html",
+        "public/ai-video-generator.html",
+        "public/guides/audit-ai-resume-bullets.html",
+        "public/guides/editable-ai-powerpoint-review.html",
+        "public/guides/rough-idea-six-week-launch-plan.html",
+        "public/guides/what-ai-project-should-remember.html",
+        "public/guides/word-or-pdf-ai-document-output.html",
+    )
+
+    assert 'Product help: <a href="mailto:askcrump@gmail.com?subject=Ask%20Crump%20support">' in legal
+    assert 'mailto:askcrump@gmail.com?subject=Ask%20Crump%20account%20deletion' in deletion
+    assert "`askcrump@gmail.com`" in security
+    assert "@askcrump.com" not in legal
+    assert "@askcrump.com" not in deletion
+    assert "@askcrump.com" not in security
+    for relative in public_pages:
+        assert 'href="/legal#contact">Support</a>' in read(relative)
