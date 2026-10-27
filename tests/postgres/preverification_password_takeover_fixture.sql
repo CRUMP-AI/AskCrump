@@ -77,18 +77,27 @@ insert into public.sessions (
   (
     '71000000-0000-4000-8000-000000000001',
     '70000000-0000-4000-8000-000000000001',
-    repeat('3', 64), 'planted-registered-session',
+    encode(digest(
+      'askcrump:preverification-takeover:planted-registered-session:v1',
+      'sha256'
+    ), 'hex'), 'planted-registered-session',
     pg_catalog.clock_timestamp() + interval '1 day'
   ),
   (
     '71000000-0000-4000-8000-000000000002',
     '70000000-0000-4000-8000-000000000002',
-    repeat('4', 64), 'planted-guest-session',
+    encode(digest(
+      'askcrump:preverification-takeover:planted-guest-session:v1',
+      'sha256'
+    ), 'hex'), 'planted-guest-session',
     pg_catalog.clock_timestamp() + interval '1 day'
   ),
   (
     '71000000-0000-4000-8000-000000000003',
     '70000000-0000-4000-8000-000000000003',
-    repeat('a', 64), 'already-verified-attacker-session',
+    encode(digest(
+      'askcrump:preverification-takeover:already-verified-attacker-session:v1',
+      'sha256'
+    ), 'hex'), 'already-verified-attacker-session',
     pg_catalog.clock_timestamp() + interval '1 day'
   );
