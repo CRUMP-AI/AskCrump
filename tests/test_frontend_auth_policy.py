@@ -145,7 +145,8 @@ def test_registration_offer_matches_enforced_free_limits_and_canonical_product_m
     assurance = (
         'Free includes up to 5 text messages in any rolling 24-hour window. '
         'Advanced tools require a paid plan. '
-        'We’ll email a secure verification link; no card required.'
+        'We’ll email a secure verification link, then ask you to set your password '
+        'from that verified browser; no card required.'
     )
 
     assert 'Ask, Projects, Files, Library, Video, and Profile' in brand
@@ -167,6 +168,33 @@ def test_registration_offer_matches_enforced_free_limits_and_canonical_product_m
     assert "if (assurance) assurance.textContent = plan" in controller
     assert '25 messages each day' not in app + controller
     assert '2 private Projects' not in app + controller
+
+
+def test_verified_pending_password_is_held_before_workspace_bootstrap():
+    controller = (PUBLIC / 'auth-controller.js').read_text(encoding='utf-8')
+    app = (PUBLIC / 'app.html').read_text(encoding='utf-8')
+
+    gate_start = controller.index('if (\n      session.data.user.isVerified')
+    bootstrap_gate = controller[
+        gate_start:controller.index('await prepareAuthenticatedWorkspace();', gate_start)
+    ]
+    assert 'session.data.user.passwordSetupRequired' in bootstrap_gate
+    assert "configurePasswordForm('setup');" in bootstrap_gate
+    assert "showAuth('reset');" in bootstrap_gate
+    assert 'prepareAuthenticatedWorkspace' not in bootstrap_gate
+
+    setup_submit = controller[
+        controller.index("const initialSetup = resetForm?.dataset.mode === 'setup';"):
+        controller.index("byId('resendVerificationBtn')")
+    ]
+    assert "'/api/auth/complete-password-setup'" in setup_submit
+    assert 'token: resetForm?.dataset.token' in setup_submit
+    assert (
+        "if (initialSetup) {\n          configurePasswordForm('reset');\n"
+        "          await bootstrap();"
+    ) in setup_submit
+    assert 'id="passwordFormTitle"' in app
+    assert 'id="passwordFormFooter"' in app
 
 
 def test_registration_preserves_allowlisted_creation_and_paid_plan_promises():

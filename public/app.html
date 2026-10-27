@@ -118,13 +118,14 @@
               <span data-password-rule="number"><i aria-hidden="true">○</i>One number</span>
             </div>
             <span id="registerPasswordStatus" class="v1-visually-hidden" aria-live="polite">Password requires 10 or more characters, one letter, and one number.</span>
+            <small id="registerPasswordProofNote" class="form-hint">For your security, you’ll set the password again after proving you control the email inbox.</small>
           </div>
           <label class="v1-registration-consent" for="registerTerms">
             <input id="registerTerms" type="checkbox" required>
             <span>I am at least 17, agree to the <a href="/legal.html#terms" target="_blank" rel="noopener">Terms</a> and <a href="/legal.html#privacy" target="_blank" rel="noopener">Privacy Policy</a>, and permit Ask Crump to send the prompts, files, images, or video references I choose to submit to the configured AI providers needed to complete my requests.</span>
           </label>
           <button id="registrationSubmitBtn" type="submit" class="btn btn-primary btn-large btn-block">Create free account</button>
-          <p id="registrationAssurance" class="v1-signup-assurance">Free includes up to 5 text messages in any rolling 24-hour window. Advanced tools require a paid plan. We’ll email a secure verification link; no card required.</p>
+          <p id="registrationAssurance" class="v1-signup-assurance">Free includes up to 5 text messages in any rolling 24-hour window. Advanced tools require a paid plan. We’ll email a secure verification link, then ask you to set your password from that verified browser; no card required.</p>
           <p class="v1-registration-explore"><a id="registrationExploreLink" href="/">Explore Ask Crump first</a></p>
           <p class="auth-footer-text">Already have an account? <a href="#" id="showLoginLink" class="auth-link">Sign in</a></p>
         </form>
@@ -166,10 +167,10 @@
     </div>
 
     <div id="resetPasswordForm" class="auth-form v1-auth-card" style="display:none;">
-      <div class="auth-header">
-        <div class="v1-auth-eyebrow">ACCOUNT RECOVERY</div>
-        <h1>Set new password.</h1>
-        <p>Choose a new password for your account.</p>
+        <div class="auth-header">
+          <div id="passwordFormEyebrow" class="v1-auth-eyebrow">ACCOUNT RECOVERY</div>
+          <h1 id="passwordFormTitle">Set new password.</h1>
+          <p id="passwordFormDescription">Choose a new password for your account.</p>
       </div>
       <form id="resetPasswordFormElement" class="auth-form-content">
         <div class="form-group">
@@ -187,8 +188,8 @@
             <button id="confirmNewPasswordToggle" class="v1-password-toggle" type="button" data-password-target="confirmNewPassword" data-password-label="password confirmation" aria-controls="confirmNewPassword" aria-label="Show password confirmation" aria-pressed="false">Show</button>
           </div>
         </div>
-        <button type="submit" class="btn btn-primary btn-large btn-block">Reset Password</button>
-        <p class="auth-footer-text"><a href="#" id="showLoginFromReset" class="auth-link">Back to sign in</a></p>
+        <button id="passwordFormSubmit" type="submit" class="btn btn-primary btn-large btn-block">Reset Password</button>
+        <p id="passwordFormFooter" class="auth-footer-text"><a href="#" id="showLoginFromReset" class="auth-link">Back to sign in</a></p>
       </form>
       <div id="resetPasswordError" class="auth-error" style="display:none;"></div>
       <div id="resetPasswordSuccess" class="auth-success" role="status" aria-live="polite" style="display:none;"></div>
@@ -692,7 +693,7 @@
 <script defer src="/install-prompt.js?v=5.9.76-update-work-guard-1"></script>
 <script defer src="/auth-resilience.js?v=5.9.76"></script>
 <script defer src="/device-auth.js?v=5.9.76-account-owner-boundary-1"></script>
-<script defer src="/auth-controller.js?v=5.9.76-workspace-opened-retry-1"></script>
+<script defer src="/auth-controller.js?v=5.9.76-inbox-proof-password-1"></script>
 <script defer src="/_vercel/insights/script.js"></script>
 <script defer src="/_vercel/speed-insights/script.js" data-route="/app"></script>
 </body>

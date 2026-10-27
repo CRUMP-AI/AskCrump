@@ -567,8 +567,11 @@ def test_verification_email_promises_the_one_click_workspace_handoff():
     assert 'later uses only confirm that the address is already verified' in email_source
 
 
-def test_verification_result_copy_tells_replay_users_to_sign_in():
+def test_verification_result_copy_tells_replay_users_how_to_recover_password_setup():
     source = Path(auth_routes.__file__).resolve().parents[2] / 'public' / 'auth-controller.js'
     frontend = source.read_text(encoding='utf-8')
 
-    assert "already_verified: 'This email is already verified. Sign in to continue.'" in frontend
+    assert (
+        "already_verified: 'This email is already verified. Sign in, or use Forgot password "
+        "if you have not set one yet.'"
+    ) in frontend

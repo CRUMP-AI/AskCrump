@@ -731,6 +731,27 @@ jobs:
             --file=tests/postgres/atomic_registered_verification_acl_drift_cleanup.sql
           psql -X --set=ON_ERROR_STOP=1 --single-transaction \
             --file=migrations/20261024051228_atomic_password_reset.sql
+      - name: Install planted-password takeover fixture
+        run: >-
+          psql -X --set=ON_ERROR_STOP=1
+          --file=tests/postgres/preverification_password_takeover_fixture.sql
+      - name: Apply pre-verification password takeover repair twice
+        run: |
+          psql -X --set=ON_ERROR_STOP=1 --single-transaction \
+            --file=migrations/20261027013000_preverification_password_takeover_fix.sql
+          psql -X --set=ON_ERROR_STOP=1 --single-transaction \
+            --command='set search_path=pg_catalog' \
+            --file=migrations/20261027013000_preverification_password_takeover_fix.sql
+      - name: Exercise planted-password, guest collision, setup, and reset boundaries
+        run: >-
+          psql -X --set=ON_ERROR_STOP=1
+          --file=tests/postgres/test_preverification_password_takeover_migration.sql
+      - name: Reapply after inbox-bound passwords exist
+        run: |
+          psql -X --set=ON_ERROR_STOP=1 --single-transaction \
+            --file=migrations/20261027013000_preverification_password_takeover_fix.sql
+          psql -X --set=ON_ERROR_STOP=1 \
+            --file=tests/postgres/test_preverification_password_takeover_reapply.sql
 
   chat-claim-and-artifact-versioning:
     name: Chat claim and artifact versioning

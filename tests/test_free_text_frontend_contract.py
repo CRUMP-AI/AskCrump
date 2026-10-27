@@ -149,7 +149,7 @@ def test_guest_and_registered_free_receive_distinct_upgrade_actions():
 def test_guest_free_contract_auth_asset_is_cache_refreshable():
     app = read_public("app.html")
     worker = read_public("sw.js")
-    asset = "/auth-controller.js?v=5.9.76-workspace-opened-retry-1"
+    asset = "/auth-controller.js?v=5.9.76-inbox-proof-password-1"
 
     assert asset in app
     assert asset in worker

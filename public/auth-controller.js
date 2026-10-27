@@ -28,8 +28,8 @@
   const ACQUISITION_KEY = 'askcrump.acquisition-source';
   const ACQUISITION_PLACEMENT_KEY = 'askcrump.acquisition-placement';
   const FIRST_TOUCH_KEY = 'askcrump.first-touch-attribution';
-  const FREE_REGISTRATION_ASSURANCE = 'Free includes up to 5 text messages in any rolling 24-hour window. Advanced tools require a paid plan. We’ll email a secure verification link; no card required.';
-  const PAID_REGISTRATION_ASSURANCE = 'We’ll email a secure verification link. Creating your account does not start billing; checkout remains a separate confirmation.';
+  const FREE_REGISTRATION_ASSURANCE = 'Free includes up to 5 text messages in any rolling 24-hour window. Advanced tools require a paid plan. We’ll email a secure verification link, then ask you to set your password from that verified browser; no card required.';
+  const PAID_REGISTRATION_ASSURANCE = 'We’ll email a secure verification link, then ask you to set your password from that verified browser. Creating your account does not start billing; checkout remains a separate confirmation.';
   const PLAN_INTENT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
   const PLAN_INTENT_DELIVERY_INTERVAL_MS = 500;
   const PLAN_INTENT_DELIVERY_MAX_ATTEMPTS = 32;
@@ -1263,6 +1263,26 @@
     focusAuthView(normalizedView);
   }
 
+  function configurePasswordForm(mode = 'reset') {
+    const setup = mode === 'setup';
+    const form = byId('resetPasswordForm');
+    if (form) form.dataset.mode = setup ? 'setup' : 'reset';
+    const eyebrow = byId('passwordFormEyebrow');
+    const title = byId('passwordFormTitle');
+    const description = byId('passwordFormDescription');
+    const submit = byId('passwordFormSubmit');
+    const footer = byId('passwordFormFooter');
+    if (eyebrow) eyebrow.textContent = setup ? 'EMAIL VERIFIED' : 'ACCOUNT RECOVERY';
+    if (title) title.textContent = setup ? 'Secure your password.' : 'Set new password.';
+    if (description) description.textContent = setup
+      ? 'Set a fresh password now. The password entered before inbox verification was deliberately disabled.'
+      : 'Choose a new password for your account.';
+    if (submit) submit.textContent = setup ? 'Set Password & Continue' : 'Reset Password';
+    if (footer) footer.style.display = setup ? 'none' : '';
+    setText('resetPasswordError', '', false);
+    setText('resetPasswordSuccess', setup ? 'Email verified. Finish securing your account to open the workspace.' : '', setup);
+  }
+
   function handleAuthenticationRequired(event) {
     if (String(event.detail?.reason || '') !== 'checkout') return;
     authFlowRevision += 1;
@@ -1329,7 +1349,7 @@
   function showVerificationResult(value) {
     const messages = {
       success: 'Email verified. Your workspace is ready.',
-      already_verified: 'This email is already verified. Sign in to continue.',
+      already_verified: 'This email is already verified. Sign in, or use Forgot password if you have not set one yet.',
       failed: 'That verification link is invalid, expired, or already used. Enter your email below to resend verification, or sign in if verification already completed.',
     };
     if (!messages[value]) return;
@@ -1353,6 +1373,7 @@
     const returningDeviceHint = hasReturningDeviceHint();
     const resetToken = params.get('token');
     if (resetToken) {
+      configurePasswordForm('reset');
       showAuth('reset');
       byId('resetPasswordForm').dataset.token = resetToken;
       history.replaceState({}, document.title, location.pathname);
@@ -1442,6 +1463,19 @@
       trackSignupIntent('deep-link');
       return;
     }
+    if (
+      session.data.user.isVerified
+      && !isGuestUser(session.data.user)
+      && session.data.user.passwordSetupRequired
+    ) {
+      activeUser = session.data.user;
+      window.currentUser = activeUser;
+      window.configureUserStorage?.(activeUser.id);
+      applyServerSettings(session.data.settings);
+      configurePasswordForm('setup');
+      showAuth('reset');
+      return;
+    }
     await prepareAuthenticatedWorkspace();
     if (authFlowRevision !== bootstrapAuthFlowRevision) return;
     if (authIdentityStorageGeneration !== bootstrapIdentityStorageGeneration) return bootstrap();
@@ -1467,6 +1501,7 @@
       const resetForm = byId('resetPasswordForm');
       if (resetForm) delete resetForm.dataset.token;
       history.replaceState({}, document.title, location.pathname);
+      configurePasswordForm('reset');
       showAuth('login');
     });
   }
@@ -1849,11 +1884,23 @@
       if (password !== byId('confirmNewPassword').value) return setText('resetPasswordError', 'Passwords do not match.');
       const restore = setBusy(event.currentTarget, true, 'Updating…');
       try {
-        const {response, data} = await authRequest('/api/auth/reset-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: byId('resetPasswordForm').dataset.token, newPassword: password }) }, 'Updating your password took too long to confirm. Try signing in before submitting it again.');
-        if (!response.ok) throw new Error(data.error || 'Password reset failed.');
         const resetForm = byId('resetPasswordForm');
+        const initialSetup = resetForm?.dataset.mode === 'setup';
+        const requestBody = initialSetup
+          ? {newPassword: password}
+          : {token: resetForm?.dataset.token, newPassword: password};
+        const {response, data} = await authRequest(initialSetup ? '/api/auth/complete-password-setup' : '/api/auth/reset-password', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(requestBody) }, initialSetup ? 'Securing your password took too long to confirm. Refresh before trying again.' : 'Updating your password took too long to confirm. Try signing in before submitting it again.');
+        if (!response.ok) throw new Error(data.error || 'Password reset failed.');
         if (resetForm) delete resetForm.dataset.token;
+        byId('newPassword').value = '';
+        byId('confirmNewPassword').value = '';
         history.replaceState({}, document.title, location.pathname);
+        if (initialSetup) {
+          configurePasswordForm('reset');
+          await bootstrap();
+          return;
+        }
+        configurePasswordForm('reset');
         showAuth('login');
         setText('loginSuccess', data.message || 'Password updated. Sign in with your new password.');
       } catch (error) { setText('resetPasswordError', error.message); }

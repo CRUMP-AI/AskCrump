@@ -13,6 +13,7 @@ from ..auth_service import (
     AuthenticationError,
     authenticate_guest_for_registration,
     authenticate_request,
+    complete_initial_password_setup,
     create_session,
     finalize_login_session,
     guest_mode_enabled,
@@ -37,6 +38,7 @@ from ..runtime import (
 )
 from ..schemas import (
     CURRENT_TERMS_VERSION,
+    CompletePasswordSetupRequest,
     EmailRequest,
     LoginRequest,
     RegisterRequest,
@@ -57,6 +59,7 @@ from ..password_reset_tokens import (
     password_reset_alias_matches,
 )
 from ..security import (
+    PENDING_PASSWORD_HASH,
     client_ip,
     expiry_iso,
     hash_password,
@@ -453,7 +456,10 @@ async def register(payload: RegisterRequest, request: Request):
             # account behind an unverified address.
             conversion_values = {
                 'email': email,
-                'password_hash': hash_password(payload.password),
+                # A registration submitter has not proved inbox ownership. Do
+                # not let this password become a verified credential.
+                'password_hash': PENDING_PASSWORD_HASH,
+                'password_setup_required': True,
                 'full_name': (payload.fullName or '').strip() or None,
                 **verification_values,
             }
@@ -483,7 +489,8 @@ async def register(payload: RegisterRequest, request: Request):
             user_payload = {
                 'id': new_uuid(),
                 'email': email,
-                'password_hash': hash_password(payload.password),
+                'password_hash': PENDING_PASSWORD_HASH,
+                'password_setup_required': True,
                 'full_name': (payload.fullName or '').strip() or None,
                 'is_verified': False,
                 'verification_token_hash': verification_values['verification_token_hash'],
@@ -674,7 +681,7 @@ async def login(payload: LoginRequest, request: Request, response: Response):
         window_seconds=900,
     )
     user = await db.select_one('users', columns='*', filters={'email': eq(email)})
-    if not user or not verify_password(payload.password, user.get('password_hash')):
+    if not user:
         logger.info(
             'Auth login outcome=invalid_credentials client=%s',
             _auth_client_kind(request),
@@ -700,6 +707,22 @@ async def login(payload: LoginRequest, request: Request, response: Response):
                 'code': 'EMAIL_VERIFICATION_REQUIRED',
                 'needsVerification': True,
                 'email': email,
+            },
+        )
+    if (
+        user.get('password_setup_required') is True
+        or not verify_password(payload.password, user.get('password_hash'))
+    ):
+        logger.info(
+            'Auth login outcome=invalid_credentials client=%s',
+            _auth_client_kind(request),
+        )
+        return JSONResponse(
+            status_code=401,
+            content={
+                'success': False,
+                'error': 'Invalid email or password.',
+                'code': 'INVALID_CREDENTIALS',
             },
         )
 
@@ -965,6 +988,56 @@ async def reset_password(payload: ResetPasswordRequest, request: Request):
             content={'success': False, 'error': 'This reset link is invalid or expired.'},
         )
     return {'success': True, 'message': 'Password updated. Sign in with your new password.'}
+
+
+@router.post('/complete-password-setup')
+async def complete_password_setup(payload: CompletePasswordSetupRequest, request: Request):
+    auth = await authenticate_request(
+        request,
+        db,
+        settings,
+        touch=False,
+        require_account=True,
+        require_expected_owner_header=True,
+    )
+    await enforce_auth_rate_limit(
+        db,
+        request,
+        action='complete-password-setup',
+        identity=str(auth.user['id']),
+        identity_limit=10,
+        ip_limit=30,
+        window_seconds=3600,
+    )
+    password_ok, password_error = validate_password(payload.newPassword)
+    if not password_ok:
+        return JSONResponse(
+            status_code=400,
+            content={'success': False, 'error': password_error},
+        )
+    completed = await complete_initial_password_setup(
+        db,
+        auth,
+        password_hash=hash_password(payload.newPassword),
+    )
+    if completed is None:
+        return JSONResponse(
+            status_code=409,
+            content={
+                'success': False,
+                'error': (
+                    'This password setup session is no longer available. '
+                    'Request a password reset to continue.'
+                ),
+                'code': 'PASSWORD_SETUP_NOT_AVAILABLE',
+            },
+        )
+    user, _revoked_sessions = completed
+    return {
+        'success': True,
+        'message': 'Password secured. Your workspace is ready.',
+        'data': {'user': public_user(user)},
+    }
 
 
 @router.post('/resend-verification')
