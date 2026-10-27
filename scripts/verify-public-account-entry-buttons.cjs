@@ -42,7 +42,9 @@ function pageErrors(page) {
   const errors = [];
   page.on('pageerror', error => errors.push(`pageerror: ${error.message}`));
   page.on('console', message => {
-    if (message.type() === 'error') errors.push(`console: ${message.text()}`);
+    if (message.type() !== 'error') return;
+    const sourceUrl = message.location().url;
+    errors.push(`console: ${message.text()}${sourceUrl ? ` (${sourceUrl})` : ''}`);
   });
   return errors;
 }
@@ -250,6 +252,42 @@ function pageErrors(page) {
         windowSeconds: 86400,
       }),
     }));
+    const fulfillCapabilityGuestGet = (route, pathname, body) => {
+      const request = route.request();
+      if (request.method() !== 'GET' || new URL(request.url()).pathname !== pathname) {
+        return route.continue();
+      }
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify(body),
+      });
+    };
+    await capabilityGuestContext.route('**/api/media/video*', route => fulfillCapabilityGuestGet(
+      route,
+      '/api/media/video',
+      { jobs: [] },
+    ));
+    await capabilityGuestContext.route('**/api/code/activity*', route => fulfillCapabilityGuestGet(
+      route,
+      '/api/code/activity',
+      { activity: [] },
+    ));
+    await capabilityGuestContext.route('**/api/features*', route => fulfillCapabilityGuestGet(
+      route,
+      '/api/features',
+      {
+        success: true,
+        internalAccess: false,
+        features: { code_workspace: { configured: false, entitled: false } },
+        providers: { code: { configured: false } },
+      },
+    ));
+    await capabilityGuestContext.route('**/api/presence/preferences*', route => fulfillCapabilityGuestGet(
+      route,
+      '/api/presence/preferences',
+      { preferences: {} },
+    ));
     const capabilityGuestUser = {
       ...guestUser,
       id: 'capability-free-entry-guest-20261027',
