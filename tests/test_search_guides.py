@@ -17,8 +17,8 @@ GUIDES = {
         "intent": "projects",
         "destination": "/ai-project-workspace",
         "adjacent": "/guides/what-ai-project-should-remember",
-        "modified": "2026-09-08",
-        "updated": "September 8, 2026",
+        "modified": "2026-10-23",
+        "reviewed": "October 23, 2026",
         "guide_css": "5.9.76-guide-proof-to-start-1",
         "og_width": 1280,
         "og_height": 720,
@@ -30,8 +30,8 @@ GUIDES = {
         "intent": "projects",
         "destination": "/ai-project-workspace",
         "adjacent": "/guides/rough-idea-six-week-launch-plan",
-        "modified": "2026-09-08",
-        "updated": "September 8, 2026",
+        "modified": "2026-10-23",
+        "reviewed": "October 23, 2026",
         "guide_css": "5.9.76-guide-start-paths-1",
         "og_width": 1280,
         "og_height": 720,
@@ -43,8 +43,8 @@ GUIDES = {
         "intent": "presentation",
         "destination": "/ai-presentation-maker",
         "adjacent": "/ai-presentation-maker",
-        "modified": "2026-09-08",
-        "updated": "September 8, 2026",
+        "modified": "2026-10-23",
+        "reviewed": "October 23, 2026",
         "guide_css": "5.9.76-guide-start-paths-1",
         "og_width": 1265,
         "og_height": 712,
@@ -77,6 +77,49 @@ def read(relative: str) -> str:
     return (ROOT / relative).read_text(encoding="utf-8")
 
 
+def test_guides_hub_is_indexable_truthful_and_links_every_public_guide_once():
+    page = read("public/guides/index.html")
+    canonical = "https://www.askcrump.com/guides"
+    ordered_slugs = [
+        "word-or-pdf-ai-document-output",
+        "audit-ai-resume-bullets",
+        "editable-ai-powerpoint-review",
+        "rough-idea-six-week-launch-plan",
+        "what-ai-project-should-remember",
+    ]
+
+    assert "<title>Ask Crump Guides | Documents, Résumés, Presentations, and Projects</title>" in page
+    assert f'<link rel="canonical" href="{canonical}">' in page
+    assert f'<meta property="og:url" content="{canonical}">' in page
+    assert '<meta name="robots" content="index,follow,max-image-preview:large">' in page
+    assert '<script defer src="/landing.js?v=5.9.76-free-guest-entry-1"></script>' in page
+    assert 'data-route="/guides"' in page
+    assert page.count("<h1>") == 1
+    assert "No customer content, testimonial, adoption claim, or popularity ranking is presented." in page
+    assert "customer-usage ranking" in page
+
+    structured_block = page.split(
+        '<script type="application/ld+json">', 1
+    )[1].split("</script>", 1)[0]
+    structured = json.loads(structured_block)
+    assert structured["@type"] == "ItemList"
+    assert structured["url"] == canonical
+    assert structured["numberOfItems"] == 5
+    assert [item["position"] for item in structured["itemListElement"]] == [1, 2, 3, 4, 5]
+    assert [item["item"]["url"] for item in structured["itemListElement"]] == [
+        f"{canonical}/{slug}" for slug in ordered_slugs
+    ]
+    for slug in ordered_slugs:
+        assert page.count(f'href="/guides/{slug}"') == 1
+
+    for slug in ordered_slugs:
+        guide = read(f"public/guides/{slug}.html")
+        assert '<a href="/guides">Guides</a>' in guide
+
+    document = read("public/ai-document-generator.html")
+    assert 'href="/guides">Browse all guides</a>' in document
+
+
 def test_search_guides_have_self_referencing_editorial_metadata_and_one_matched_cta():
     for slug, expected in GUIDES.items():
         page = read(f"public/guides/{slug}.html")
@@ -100,7 +143,7 @@ def test_search_guides_have_self_referencing_editorial_metadata_and_one_matched_
         assert page.count('class="button primary"') == 2
         assert "By <strong>Clever Crump</strong>" in page
         assert "Created <strong>August 30, 2026</strong>" in page
-        assert f'Updated <strong>{expected["updated"]}</strong>' in page
+        assert f'Reviewed <strong>{expected["reviewed"]}</strong>' in page
         assert "Evidence and method" in page
         assert "Human-review limit" in page
         assert "customer" in page.lower()
@@ -338,7 +381,7 @@ def test_public_word_pdf_guide_has_exact_search_release_contract():
     assert f'<meta property="og:url" content="{canonical}">' in page
     assert '<meta name="robots" content="index,follow,max-image-preview:large">' in page
     assert '<meta property="article:published_time" content="2026-08-30">' in page
-    assert '<meta property="article:modified_time" content="2026-09-10">' in page
+    assert '<meta property="article:modified_time" content="2026-10-23">' in page
     assert '<script defer src="/landing.js?v=5.9.76-free-guest-entry-1"></script>' in page
     assert '<link rel="stylesheet" href="/guide.css?v=5.9.76-word-pdf-guide-1">' in page
     assert page.count("<h1>") == 1
@@ -349,6 +392,7 @@ def test_public_word_pdf_guide_has_exact_search_release_contract():
         'intent=document&amp;acquisition=direct"'
     ) in page
     assert "Review Professional for Word or PDF documents" in page
+    assert "Reviewed <strong>October 23, 2026</strong>" in page
     assert "Document creation requires a paid plan · Account creation is free · Nothing is purchased until checkout is confirmed" in page
     assert "staged for review" not in page.lower()
     assert 'href="/guides/editable-ai-powerpoint-review"' in page
@@ -371,7 +415,7 @@ def test_public_word_pdf_guide_has_exact_search_release_contract():
     assert structured["mainEntityOfPage"] == canonical
     assert structured["author"]["name"] == "Clever Crump"
     assert structured["datePublished"] == "2026-08-30"
-    assert structured["dateModified"] == "2026-09-10"
+    assert structured["dateModified"] == "2026-10-23"
 
 
 def test_public_word_pdf_guide_uses_only_accepted_authentic_assets():
@@ -393,7 +437,7 @@ def test_public_word_pdf_guide_is_discoverable_once_with_an_honest_inlink():
     sitemap = read("public/sitemap.xml")
     assert sitemap.count(f"<loc>https://www.askcrump.com{route}</loc>") == 1
     entry = sitemap.split(f"<loc>https://www.askcrump.com{route}</loc>", 1)[1].split("</url>", 1)[0]
-    assert "<lastmod>2026-09-10</lastmod>" in entry
+    assert "<lastmod>2026-10-23</lastmod>" in entry
     document_page = read("public/ai-document-generator.html")
     assert f'href="{route}">Compare Word and PDF output</a>' in document_page
 
@@ -433,7 +477,7 @@ def test_public_resume_bullet_guide_has_exact_search_release_contract():
     assert '<meta property="og:image" content="https://www.askcrump.com/assets/social/ask-crump-resumes.png">' in page
     assert '<meta name="robots" content="index,follow,max-image-preview:large">' in page
     assert '<meta property="article:published_time" content="2026-09-10">' in page
-    assert '<meta property="article:modified_time" content="2026-09-10">' in page
+    assert '<meta property="article:modified_time" content="2026-10-23">' in page
     assert '<script defer src="/landing.js?v=5.9.76-free-guest-entry-1"></script>' in page
     assert '<link rel="stylesheet" href="/guide.css?v=5.9.76-resume-bullet-guide-1">' in page
     assert page.count("<h1>") == 1
@@ -444,6 +488,7 @@ def test_public_resume_bullet_guide_has_exact_search_release_contract():
         'intent=resume&amp;acquisition=direct"'
     ) in page
     assert page.count("Review Professional for résumé creation") == 1
+    assert "Reviewed <strong>October 23, 2026</strong>" in page
     assert "Résumé creation requires a paid plan · Account creation is free · Nothing is purchased until checkout is confirmed" in page
     assert "frozen internal quality fixture" in page
     assert "No applicant or customer is represented" in page
@@ -466,7 +511,7 @@ def test_public_resume_bullet_guide_has_exact_search_release_contract():
     assert structured["mainEntityOfPage"] == canonical
     assert structured["author"]["name"] == "Clever Crump"
     assert structured["datePublished"] == "2026-09-10"
-    assert structured["dateModified"] == "2026-09-10"
+    assert structured["dateModified"] == "2026-10-23"
 
 
 def test_public_resume_bullet_guide_uses_only_accepted_authentic_assets():
@@ -496,7 +541,7 @@ def test_public_resume_bullet_guide_is_discoverable_once_with_an_honest_inlink()
     sitemap = read("public/sitemap.xml")
     assert sitemap.count(f"<loc>https://www.askcrump.com{route}</loc>") == 1
     entry = sitemap.split(f"<loc>https://www.askcrump.com{route}</loc>", 1)[1].split("</url>", 1)[0]
-    assert "<lastmod>2026-09-10</lastmod>" in entry
+    assert "<lastmod>2026-10-23</lastmod>" in entry
     resume_page = read("public/ai-resume-builder.html")
     assert f'href="{route}">Fact-check AI résumé bullets with the five-part proof test</a>' in resume_page
     assert "nofollow" not in resume_page.split(f'href="{route}"', 1)[0].split("<a", 1)[-1]
