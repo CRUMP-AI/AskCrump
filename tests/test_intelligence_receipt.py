@@ -75,5 +75,5 @@ def test_intelligence_receipt_assets_are_cache_versioned_atomically():
         assert versioned in runtime
         assert versioned in worker
     for source in (runtime, worker):
-        assert "/app.js?v=5.9.76-native-push-owner-fence-1" in source
+        assert "/app.js?v=5.9.76-server-only-activation-1" in source
     assert "ask-crump-new-body-v1-r276-initial-chat-owner-reconciliation-1" in worker

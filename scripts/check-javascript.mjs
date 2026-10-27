@@ -1245,7 +1245,7 @@ const releasedWorkspaceAsset = url => `${url}&${guestFreeWorkspaceRelease}`;
 const accountOwnerBoundaryVersion = `${releaseVersion}-account-owner-boundary-1`;
 const privateOwnerBoundaryVersion = `${releaseVersion}-private-owner-boundary-1`;
 const legacyAttachmentOwnerBoundaryVersion = `${releaseVersion}-legacy-attachment-owner-fence-1`;
-const workspaceOpenedRetryVersion = `${releaseVersion}-workspace-opened-retry-1`;
+const serverOnlyActivationVersion = `${releaseVersion}-server-only-activation-1`;
 const authControllerVersion = `${releaseVersion}-free-capability-guest-entry-2`;
 const continuityHandoffVersion = `${releaseVersion}-continuity-handoff-1`;
 const composerModeResetVersion = `${releaseVersion}-composer-mode-reset-1`;
@@ -1313,7 +1313,8 @@ const precisionEditStudioVersion = `${releaseVersion}-precision-studio-1`;
 const creationSheetContainmentVersion = `${releaseVersion}-creation-sheet-containment-1`;
 const referenceFidelityVersion = `${releaseVersion}-reference-fidelity-hard-contract-1`;
 const groundedResearchVersion = `${releaseVersion}-grounded-research-1`;
-const appOwnerBoundaryVersion = nativePushOwnerFenceVersion;
+const appOwnerBoundaryVersion = serverOnlyActivationVersion;
+const productAnalyticsVersion = serverOnlyActivationVersion;
 const presenceManagerVersion = nativePushOwnerFenceVersion;
 const productOwnerBoundaryVersion = legacyProjectResumeTruthVersion;
 const libraryOwnerBoundaryVersion = accountOwnerBoundaryVersion;
@@ -1687,7 +1688,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/lifecycle-share.js?v=${settingsInviteVersion}`) ||
     !runtime.includes(`/lifecycle-manager.js?v=${lifecycleIdleSendVersion}`) ||
     !runtime.includes(`/chat-sync.js?v=${chatSyncVersion}`) ||
-    !runtime.includes(`/product-analytics.js?v=${workspaceOpenedRetryVersion}`) ||
+    !runtime.includes(`/product-analytics.js?v=${productAnalyticsVersion}`) ||
     !runtime.includes(`/app.js?v=${appOwnerBoundaryVersion}`) ||
     !runtime.includes(`/crump-v1-body.js?v=${atelierWorkspaceVersion}`) ||
     !runtime.includes(`/crump-v1-body.css?v=${ownedWorkspaceAccessVersion}`) ||
@@ -1990,7 +1991,7 @@ for (const [pathname, expectedUrl] of [
   ['/subscription-ui.js', `/subscription-ui.js?v=${privateOwnerBoundaryVersion}`],
   ['/credit-confirmation.js', `/credit-confirmation.js?v=${privateOwnerBoundaryVersion}`],
   ['/ui-functions.js', `/ui-functions.js?v=${privateOwnerBoundaryVersion}`],
-  ['/product-analytics.js', `/product-analytics.js?v=${workspaceOpenedRetryVersion}`],
+  ['/product-analytics.js', `/product-analytics.js?v=${productAnalyticsVersion}`],
   ['/crump-4.4.js', `/crump-4.4.js?v=${privateOwnerBoundaryVersion}`],
   ['/crump-billing-5.1.js', releasedWorkspaceAsset(`/crump-billing-5.1.js?v=${privateOwnerBoundaryVersion}`)],
   ['/crump-5.2.js', releasedWorkspaceAsset(`/crump-5.2.js?v=${legacyAttachmentOwnerBoundaryVersion}`)],
@@ -2133,7 +2134,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r276-initial-chat-owner-recon
     !serviceWorker.includes(`/device-auth.js?v=${accountOwnerBoundaryVersion}`) ||
     !serviceWorker.includes(`/sync-manager.js?v=${syncQueueVersion}`) ||
     !serviceWorker.includes(`/chat-sync.js?v=${chatSyncVersion}`) ||
-    !serviceWorker.includes(`/product-analytics.js?v=${workspaceOpenedRetryVersion}`) ||
+    !serviceWorker.includes(`/product-analytics.js?v=${productAnalyticsVersion}`) ||
     !serviceWorker.includes(`/auth-controller.js?v=${authControllerVersion}`) ||
     !serviceWorker.includes(`/crump-v1-body.css?v=${ownedWorkspaceAccessVersion}`) ||
     !serviceWorker.includes(`/crump-4.3.js?v=${atelierWorkspaceVersion}`) ||

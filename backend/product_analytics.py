@@ -45,7 +45,6 @@ CLIENT_EVENT_NAMES = frozenset({
     "StarterIntentReached",
     "ProjectSaveOfferShown",
     "ProjectSaveIntentReached",
-    "ActivationReached",
     "OutcomeFeedbackSubmitted",
     "OutcomeIssueCategorized",
     "RecentWorkResumed",

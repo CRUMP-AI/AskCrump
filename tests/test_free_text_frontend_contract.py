@@ -172,7 +172,7 @@ def test_guest_free_frontend_release_is_atomic_across_web_native_and_pwa():
 
     released_assets = (
         "/chat-resilience.js?v=5.9.76-chat-owner-boundary-1&workspaceRelease=guest-free-contract-2",
-        "/app.js?v=5.9.76-native-push-owner-fence-1&workspaceRelease=guest-free-contract-2",
+        "/app.js?v=5.9.76-server-only-activation-1&workspaceRelease=guest-free-contract-2",
         "/crump-5.0.js?v=5.9.76-chat-owner-boundary-1&workspaceRelease=guest-free-contract-2",
         "/crump-billing-5.1.js?v=5.9.76-private-owner-boundary-1&workspaceRelease=guest-free-contract-2",
         "/crump-5.2.js?v=5.9.76-legacy-attachment-owner-fence-1&workspaceRelease=guest-free-contract-2",
