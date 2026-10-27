@@ -753,6 +753,70 @@ jobs:
           psql -X --set=ON_ERROR_STOP=1 \
             --file=tests/postgres/test_preverification_password_takeover_reapply.sql
 
+  guest-start-measurement:
+    name: Forward guest-start measurement
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:17.11
+        env:
+          POSTGRES_DB: askcrump_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d askcrump_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGDATABASE: askcrump_test
+      PGUSER: postgres
+      PGPASSWORD: postgres-ci-only
+
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+      - name: Apply registration and verification prerequisites
+        run: |
+          psql -X --set=ON_ERROR_STOP=1 \
+            --file=tests/postgres/registration_growth_cohort_baseline.sql
+          psql -X --set=ON_ERROR_STOP=1 \
+            --file=tests/postgres/guest_start_measurement_security_baseline.sql
+          psql -X --set=ON_ERROR_STOP=1 \
+            --file=migrations/20260908134343_durable_growth_measurement.sql
+          psql -X --set=ON_ERROR_STOP=1 \
+            --file=migrations/20260913192512_clarify_optional_profile_growth_metric.sql
+          psql -X --set=ON_ERROR_STOP=1 \
+            --file=migrations/20261001084000_project_artifact_continuity_aggregate.sql
+          psql -X --set=ON_ERROR_STOP=1 \
+            --file=migrations/20261023191029_registration_submission_cohorts.sql
+          psql -X --set=ON_ERROR_STOP=1 \
+            --file=migrations/20261024043331_email_verification_measurement.sql
+      - name: Apply and idempotently reapply guest-start measurement
+        run: |
+          psql -X --set=ON_ERROR_STOP=1 \
+            --file=migrations/20261027184134_guest_start_measurement.sql
+          psql -X --set=ON_ERROR_STOP=1 \
+            --command='set search_path=pg_catalog' \
+            --file=migrations/20261027184134_guest_start_measurement.sql
+      - name: Exercise forward cohort, privacy, and boundary contracts
+        run: >-
+          psql -X --set=ON_ERROR_STOP=1
+          --file=tests/postgres/test_guest_start_measurement_migration.sql
+      - name: Exercise same-owner and same-device upsert lock ordering
+        run: bash tests/postgres/test_guest_start_measurement_concurrency.sh
+      - name: Prove source, trigger, index, ACL, and RLS drift fails closed
+        run: bash tests/postgres/test_guest_start_measurement_drift.sh
+
   chat-claim-and-artifact-versioning:
     name: Chat claim and artifact versioning
     runs-on: ubuntu-latest
