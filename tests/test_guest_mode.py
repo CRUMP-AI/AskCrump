@@ -34,6 +34,7 @@ from backend.auth_service import (
     public_user,
 )
 from backend.routes import chat as chat_routes
+from backend.policy_consent import CURRENT_POLICY_BUNDLE_HASH, CURRENT_POLICY_BUNDLE_ID
 from backend.security import token_hash
 
 RAW_TOKEN = '<MASKED_SECRET_001>'
@@ -77,12 +78,19 @@ class FakeDb:
             return self.user
         return None
 
-    async def rpc(self, name, payload):
+    async def rpc(self, name, payload, **_kwargs):
         self.rpc_calls.append((name, payload))
         if name == 'get_guest_mode_control_v1':
             if isinstance(self.guest_mode_control, Exception):
                 raise self.guest_mode_control
             return self.guest_mode_control
+        if name == 'read_current_policy_acceptance_v1':
+            return [{
+                'receipt_id': '33333333-3333-4333-8333-333333333333',
+                'accepted_at': '2026-10-27T00:00:00+00:00',
+                'bundle_id': CURRENT_POLICY_BUNDLE_ID,
+                'bundle_hash': CURRENT_POLICY_BUNDLE_HASH,
+            }]
         return [{'allowed': True}]
 
 
@@ -214,7 +222,10 @@ def test_existing_registered_session_does_not_depend_on_guest_control():
     auth = asyncio.run(authenticate_request(make_request(), db, SETTINGS, touch=False))
 
     assert auth.user['email'] == 'person@example.com'
-    assert db.rpc_calls == []
+    assert db.rpc_calls == [(
+        'read_current_policy_acceptance_v1',
+        {'p_user_id': USER_ID},
+    )]
 
 
 @pytest.mark.parametrize(
@@ -593,12 +604,17 @@ class GuestFlowDb(FakeDb):
     async def update(self, table, payload, filters=None, **kwargs):
         return [payload]
 
-    async def rpc(self, name, payload):
+    async def rpc(self, name, payload, **_kwargs):
         self.rpc_calls.append((name, payload))
         if name == 'get_guest_mode_control_v1':
             if isinstance(self.guest_mode_control, Exception):
                 raise self.guest_mode_control
             return self.guest_mode_control
+        if name == 'read_current_policy_acceptance_v1':
+            return [{
+                'bundle_id': CURRENT_POLICY_BUNDLE_ID,
+                'bundle_hash': CURRENT_POLICY_BUNDLE_HASH,
+            }]
         return [{'allowed': True}]
 
 
@@ -674,7 +690,11 @@ def test_disabled_guest_entry_does_not_interrupt_registered_session(monkeypatch)
 
     assert result['success'] is True
     assert result['data']['guest'] is False
-    assert db.rpc_calls == []
+    assert result['data']['user']['policyAcceptedCurrent'] is True
+    assert db.rpc_calls == [(
+        'read_current_policy_acceptance_v1',
+        {'p_user_id': USER_ID},
+    )]
     assert db.inserted == []
 
 
@@ -776,8 +796,15 @@ class MultiUserDb:
         self.inserted.append((table, payload))
         return [payload]
 
-    async def rpc(self, name, payload):
+    async def rpc(self, name, payload, **_kwargs):
         self.rpc_calls.append((name, payload))
+        if name == 'record_policy_acceptance_v1':
+            return [{
+                'receipt_id': '33333333-3333-4333-8333-333333333333',
+                'accepted_at': '2026-10-27T00:00:00+00:00',
+                'bundle_id': CURRENT_POLICY_BUNDLE_ID,
+                'bundle_hash': CURRENT_POLICY_BUNDLE_HASH,
+            }]
         return [{'allowed': True}]
 
 
@@ -800,7 +827,10 @@ def test_register_guest_with_pending_email_never_mutates_pending_row(monkeypatch
         password='Password123',
         fullName='Pat',
         termsAccepted=True,
-        termsVersion='2026-08-01',
+        privacyNoticeAcknowledged=True,
+        age17PlusAttested=True,
+        aiProviderTransmissionAuthorized=True,
+        termsVersion=CURRENT_POLICY_BUNDLE_ID,
     )
     response = asyncio.run(auth_routes.register(payload, flow_request(RAW_TOKEN)))
     assert response.status_code == 409
@@ -836,7 +866,10 @@ def test_register_converts_the_same_guest_row_without_resetting_usage(monkeypatc
         password='Password123',
         fullName='Pat',
         termsAccepted=True,
-        termsVersion='2026-08-01',
+        privacyNoticeAcknowledged=True,
+        age17PlusAttested=True,
+        aiProviderTransmissionAuthorized=True,
+        termsVersion=CURRENT_POLICY_BUNDLE_ID,
     )
     response = asyncio.run(auth_routes.register(payload, flow_request(RAW_TOKEN)))
     assert response['success'] is True
@@ -882,7 +915,10 @@ def test_register_preserves_control_revoked_guest_row_and_allowance(monkeypatch)
             password='Password123',
             fullName='Pat',
             termsAccepted=True,
-            termsVersion='2026-08-01',
+            privacyNoticeAcknowledged=True,
+            age17PlusAttested=True,
+            aiProviderTransmissionAuthorized=True,
+            termsVersion=CURRENT_POLICY_BUNDLE_ID,
         ),
         flow_request(RAW_TOKEN),
     ))
@@ -1002,6 +1038,14 @@ class CheckinDb:
     async def update(self, table, payload, filters=None, **kwargs):
         self.updates.append((table, payload, filters or {}))
         return [payload]
+
+    async def rpc(self, name, payload, **_kwargs):
+        assert name == 'read_current_policy_acceptance_v1'
+        assert payload == {'p_user_id': self.pref_row['user_id']}
+        return [{
+            'bundle_id': 'ask-crump-legal-2026-08-01-a44e8c36',
+            'bundle_hash': 'a44e8c3637047ccfda406e35310312b4ea068bed73244a753fee5c4f2173a83a',
+        }]
 
 
 class NoGenerateAi:

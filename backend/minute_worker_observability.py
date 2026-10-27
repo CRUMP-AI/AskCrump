@@ -47,6 +47,7 @@ _STATUSES = frozenset(
         "lease_recovery_pending",
         "none",
         "paused",
+        "policy_required",
         "provider_accepted",
         "queued",
         "released",

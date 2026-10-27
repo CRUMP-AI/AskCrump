@@ -536,6 +536,63 @@ class CodeTaskService:
         )
         return updated
 
+    async def hold_for_policy_acceptance(
+        self,
+        task: dict[str, Any],
+        *,
+        delay_seconds: int = 300,
+        failure_code: str = "POLICY_ACCEPTANCE_REQUIRED",
+    ) -> dict[str, Any]:
+        """Release a policy-blocked claim without consuming an execution attempt.
+
+        The task remains resumable after acceptance or a transient receipt-check
+        outage. A bounded delay prevents either condition from turning the shared
+        minute worker into a busy loop.
+        """
+        if str(task.get("status") or "") != "provisioning":
+            raise CodeTaskConflictError("Crump Code task is no longer policy-holdable.")
+        retry_at = datetime.now(timezone.utc) + timedelta(
+            seconds=max(60, min(900, int(delay_seconds)))
+        )
+        filters = {
+            "id": eq(task["id"]),
+            "user_id": eq(task["user_id"]),
+            "status": eq("provisioning"),
+            "lease_token": eq(task.get("lease_token")),
+        }
+        hold_code = (
+            "POLICY_ACCEPTANCE_CHECK_UNAVAILABLE"
+            if failure_code == "POLICY_ACCEPTANCE_CHECK_UNAVAILABLE"
+            else "POLICY_ACCEPTANCE_REQUIRED"
+        )
+        rows = await self.db.update(
+            "code_tasks",
+            {
+                "status": "provisioning",
+                "attempt_count": max(0, int(task.get("attempt_count") or 0) - 1),
+                "failure_code": hold_code,
+                "next_attempt_at": retry_at.isoformat(),
+                "lease_token": None,
+                "lease_expires_at": None,
+                "updated_at": _now(),
+            },
+            filters=filters,
+        )
+        if not rows:
+            raise CodeTaskConflictError(
+                "Crump Code task changed before its policy hold was saved."
+            )
+        updated = rows[0]
+        await self.append_event(
+            updated,
+            "task.requeued",
+            {
+                "failureCode": hold_code,
+                "status": "provisioning",
+            },
+        )
+        return updated
+
     async def next_refund_pending(self) -> dict[str, Any] | None:
         rows = await self.db.select(
             "code_tasks",

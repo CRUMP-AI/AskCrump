@@ -19,6 +19,8 @@ LOG_EVENTS = frozenset(
         "worker_completed",
         "worker_lease_superseded",
         "worker_misconfigured",
+        "worker_policy_blocked",
+        "worker_policy_check_unavailable",
         "worker_retry_scheduled",
         "worker_terminal_failure",
         "worker_terminal_observed",

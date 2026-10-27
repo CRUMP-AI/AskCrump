@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 import pytest
 from fastapi import Request
 
+from backend.policy_consent import CURRENT_POLICY_BUNDLE_HASH
 from backend.product_analytics import record_account_created_event
 from backend.routes import auth as auth_routes
 from backend.schemas import CURRENT_TERMS_VERSION, RegisterRequest
@@ -109,6 +110,14 @@ class IsolatedAttributionDB:
         return updated
 
     async def rpc(self, function_name, payload):
+        if function_name == "record_policy_acceptance_v1":
+            return [{
+                "receipt_id": "registration-consent-receipt",
+                "accepted_at": "2026-10-27T08:00:00+00:00",
+                "bundle_id": payload["p_bundle_id"],
+                "bundle_hash": CURRENT_POLICY_BUNDLE_HASH,
+            }]
+
         if function_name == "record_account_created_event":
             event = {
                 "user_id": payload["p_user_id"],
@@ -229,6 +238,9 @@ async def test_exact_first_touch_is_idempotent_exportable_and_cleanable(monkeypa
             creative=expected["creative"],
             intent=expected["intent"],
             termsAccepted=True,
+            privacyNoticeAcknowledged=True,
+            age17PlusAttested=True,
+            aiProviderTransmissionAuthorized=True,
             termsVersion=CURRENT_TERMS_VERSION,
         ),
         request,
@@ -282,6 +294,11 @@ async def test_exact_first_touch_is_idempotent_exportable_and_cleanable(monkeypa
                 "creative": expected["creative"],
                 "intent": expected["intent"],
             },
+            termsAccepted=True,
+            privacyNoticeAcknowledged=True,
+            age17PlusAttested=True,
+            aiProviderTransmissionAuthorized=True,
+            termsVersion=CURRENT_TERMS_VERSION,
         ),
         request,
     )

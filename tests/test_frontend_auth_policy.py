@@ -57,8 +57,15 @@ def test_registration_has_one_verifiable_password_field_and_tracks_safe_validati
     assert 'href="/legal.html#privacy"' in app
     assert 'Full Name' not in app[app.index('id="registerForm"'):app.index('id="forgotPasswordForm"')]
     assert "fullName: byId('registerName')?.value.trim() || ''" in controller
-    assert "const TERMS_VERSION = '2026-08-01'" in controller
-    assert "termsAccepted: byId('registerTerms')?.checked === true" in controller
+    assert "const TERMS_VERSION = 'ask-crump-legal-2026-08-01-a44e8c36'" in controller
+    assert "const policyBundleAccepted = byId('registerTerms')?.checked === true" in controller
+    for field in (
+        'termsAccepted',
+        'privacyNoticeAcknowledged',
+        'age17PlusAttested',
+        'aiProviderTransmissionAuthorized',
+    ):
+        assert f'{field}: policyBundleAccepted' in controller
     assert 'termsVersion: TERMS_VERSION' in controller
     assert "trackFunnel('SignupValidationFailed', {reason})" in controller
     assert 'password_length' in controller and 'password_rules' in controller and 'terms_required' in controller

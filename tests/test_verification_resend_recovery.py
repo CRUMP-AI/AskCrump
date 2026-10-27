@@ -10,7 +10,7 @@ from starlette.requests import Request
 from backend.auth_service import AuthenticationError
 from backend.db import DatabaseError
 from backend.routes import auth as auth_routes
-from backend.schemas import RegisterRequest, ResendVerificationRequest
+from backend.schemas import CURRENT_TERMS_VERSION, RegisterRequest, ResendVerificationRequest
 from backend.security import token_hash
 from backend.verification_email_queue import VerificationEmailQueueUnavailable
 from backend.verification_tokens import (
@@ -544,7 +544,10 @@ async def test_pending_reregistration_queues_without_rotating_anchor(
             password='StrongPass1',
             fullName='Replacement Name',
             termsAccepted=True,
-            termsVersion='2026-08-01',
+            privacyNoticeAcknowledged=True,
+            age17PlusAttested=True,
+            aiProviderTransmissionAuthorized=True,
+            termsVersion=CURRENT_TERMS_VERSION,
         ),
         _request('/api/auth/register'),
     )

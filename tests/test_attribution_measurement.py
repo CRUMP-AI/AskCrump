@@ -13,8 +13,9 @@ from backend.product_analytics import (
     normalize_attribution,
     record_account_created_event,
 )
+from backend.policy_consent import CURRENT_POLICY_BUNDLE_HASH
 from backend.routes import auth as auth_routes
-from backend.schemas import RegisterRequest
+from backend.schemas import CURRENT_TERMS_VERSION, RegisterRequest
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -777,6 +778,15 @@ class RegistrationDB:
     async def update(self, *args, **kwargs):
         return []
 
+    async def rpc(self, function_name, payload):
+        assert function_name == "record_policy_acceptance_v1"
+        return [{
+            "receipt_id": "registration-consent-receipt",
+            "accepted_at": "2026-10-27T08:00:00+00:00",
+            "bundle_id": payload["p_bundle_id"],
+            "bundle_hash": CURRENT_POLICY_BUNDLE_HASH,
+        }]
+
 
 class VerificationEmailQueue:
     def __init__(self) -> None:
@@ -814,6 +824,11 @@ async def test_registration_records_first_touch_once_on_the_authoritative_event(
             campaign="presentation-proof-current",
             creative=None,
             intent="presentation",
+            termsAccepted=True,
+            privacyNoticeAcknowledged=True,
+            age17PlusAttested=True,
+            aiProviderTransmissionAuthorized=True,
+            termsVersion=CURRENT_TERMS_VERSION,
         ),
         request_for("www.askcrump.com"),
     )

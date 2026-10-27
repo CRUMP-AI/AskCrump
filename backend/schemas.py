@@ -4,10 +4,11 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
 
 
-CURRENT_TERMS_VERSION = "2026-08-01"
+CURRENT_TERMS_VERSION = "ask-crump-legal-2026-08-01-a44e8c36"
+CURRENT_POLICY_BUNDLE_HASH = "a44e8c3637047ccfda406e35310312b4ea068bed73244a753fee5c4f2173a83a"
 
 
 class APIModel(BaseModel):
@@ -31,8 +32,24 @@ class RegisterRequest(APIModel):
     creative: str | None = Field(default=None, max_length=32)
     intent: Literal["document", "image", "presentation", "resume", "video", "projects"] | None = None
     plan: Literal["professional", "enterprise"] | None = None
-    termsAccepted: bool = False
-    termsVersion: Literal["2026-08-01"] | None = None
+    termsAccepted: Literal[True]
+    privacyNoticeAcknowledged: Literal[True]
+    age17PlusAttested: Literal[True]
+    aiProviderTransmissionAuthorized: Literal[True]
+    termsVersion: Literal["ask-crump-legal-2026-08-01-a44e8c36"]
+
+    @field_validator(
+        "termsAccepted",
+        "privacyNoticeAcknowledged",
+        "age17PlusAttested",
+        "aiProviderTransmissionAuthorized",
+        mode="before",
+    )
+    @classmethod
+    def require_explicit_boolean_true(cls, value):
+        if value is not True or not isinstance(value, bool):
+            raise ValueError("Each policy-bundle attestation must be explicit boolean true.")
+        return value
 
 
 class EmailRequest(APIModel):
@@ -63,7 +80,24 @@ class ProfileUpdateRequest(APIModel):
 
 
 class TermsAcceptanceRequest(APIModel):
-    version: Literal["2026-08-01"] = CURRENT_TERMS_VERSION
+    version: Literal["ask-crump-legal-2026-08-01-a44e8c36"]
+    termsAccepted: Literal[True]
+    privacyNoticeAcknowledged: Literal[True]
+    age17PlusAttested: Literal[True]
+    aiProviderTransmissionAuthorized: Literal[True]
+
+    @field_validator(
+        "termsAccepted",
+        "privacyNoticeAcknowledged",
+        "age17PlusAttested",
+        "aiProviderTransmissionAuthorized",
+        mode="before",
+    )
+    @classmethod
+    def require_explicit_boolean_true(cls, value):
+        if value is not True or not isinstance(value, bool):
+            raise ValueError("Each policy-bundle attestation must be explicit boolean true.")
+        return value
 
 
 class AIContentReportRequest(APIModel):

@@ -12,6 +12,11 @@ from fastapi.responses import JSONResponse
 
 from .config import Settings
 from .db import SupabaseDB, eq, gt
+from .policy_consent import (
+    CURRENT_POLICY_BUNDLE_HASH,
+    CURRENT_POLICY_BUNDLE_ID,
+    read_current_policy_acceptance,
+)
 from .security import client_ip, expiry_iso, iso_now, new_uuid, random_token, token_hash
 from .usage_service import tier_name
 
@@ -436,6 +441,13 @@ def public_user(user: dict[str, Any]) -> dict[str, Any]:
         'trialEnd': user.get('trial_end'),
         'termsAcceptedAt': user.get('terms_accepted_at'),
         'termsVersion': user.get('terms_version'),
+        'policyBundleId': CURRENT_POLICY_BUNDLE_ID,
+        'policyBundleHash': CURRENT_POLICY_BUNDLE_HASH,
+        # Never promote the legacy timestamp/version mirror to authoritative
+        # acceptance. Emergency rollback code can write those fields without
+        # creating an append-only receipt. Only authenticate_request or a
+        # successful receipt writer may set this private response marker.
+        'policyAcceptedCurrent': user.get('_policy_accepted_current') is True,
     }
 
 
@@ -904,6 +916,8 @@ async def authenticate_request(
     touch: bool = True,
     require_account: bool = False,
     require_expected_owner_header: bool = False,
+    require_current_policy_acceptance: bool = True,
+    include_policy_acceptance_state: bool = False,
 ) -> AuthenticatedUser:
     raw_tokens = session_tokens_from_request(request, settings)
     if not raw_tokens:
@@ -951,6 +965,22 @@ async def authenticate_request(
             'Guest preview is temporarily unavailable. Sign in or create an account.',
             status_code=503,
         )
+    receipt = None
+    if require_current_policy_acceptance or include_policy_acceptance_state:
+        receipt = await read_current_policy_acceptance(db, user_id=str(user['id']))
+        user['_policy_accepted_current'] = receipt is not None
+    if require_current_policy_acceptance:
+        if receipt is None:
+            raise AuthenticationError(
+                'Accept the current Terms, Privacy Notice, age attestation, and AI provider disclosure to continue.',
+                status_code=403,
+                code='POLICY_ACCEPTANCE_REQUIRED',
+                details={
+                    'policyAcceptanceRequired': True,
+                    'requiredPolicyBundle': CURRENT_POLICY_BUNDLE_ID,
+                    'requiredPolicyBundleHash': CURRENT_POLICY_BUNDLE_HASH,
+                },
+            )
     if require_account and is_guest_user(user):
         raise AuthenticationError(
             'Create your free account to use this feature.',

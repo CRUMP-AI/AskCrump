@@ -11,6 +11,7 @@ import pytest
 from backend.code_runner import CodeRunnerError
 from backend.code_service import CodeTaskService
 from backend.code_worker import CodeWorker
+from backend.policy_consent import CURRENT_POLICY_BUNDLE_HASH, CURRENT_POLICY_BUNDLE_ID
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -50,6 +51,8 @@ class WorkerService:
         self.requeues = []
         self.transitions = []
         self.refunded = []
+        self.policy_holds = []
+        self.policy_hold_options = []
 
     async def next_refund_pending(self):
         return self.refund_pending
@@ -74,6 +77,34 @@ class WorkerService:
         updated = {**item, **kwargs.get("changes", {}), "status": target}
         self.current = updated
         return updated
+
+    async def hold_for_policy_acceptance(self, item, **kwargs):
+        self.policy_holds.append(dict(item))
+        self.policy_hold_options.append(dict(kwargs))
+        return {**item, "status": "queued", "lease_token": None}
+
+
+class WorkerDB:
+    def __init__(self, consent="current"):
+        self.consent = consent
+        self.calls = []
+
+    async def rpc(self, name, payload, *, retry_transient=False):
+        self.calls.append((name, dict(payload), retry_transient))
+        assert name == "read_current_policy_acceptance_v1"
+        if self.consent == "missing":
+            return []
+        if self.consent == "stale":
+            return [{
+                "bundle_id": "ask-crump-legal-stale",
+                "bundle_hash": "0" * 64,
+            }]
+        if self.consent == "error":
+            raise RuntimeError("private receipt-check failure")
+        return [{
+            "bundle_id": CURRENT_POLICY_BUNDLE_ID,
+            "bundle_hash": CURRENT_POLICY_BUNDLE_HASH,
+        }]
 
 
 class WorkerFeatures:
@@ -112,14 +143,14 @@ class UnexpectedRunner:
         raise RuntimeError("private failure detail must not reach operations logs")
 
 
-def worker(service, runner, features=None, *, enabled=True):
+def worker(service, runner, features=None, *, enabled=True, consent="current"):
     return CodeWorker(
         SimpleNamespace(
             code_workspace_enabled=enabled,
             anthropic_api_key="configured" if enabled else None,
             code_max_duration_seconds=30,
         ),
-        SimpleNamespace(),
+        WorkerDB(consent),
         service,
         runner,
         features or WorkerFeatures(),
@@ -202,6 +233,114 @@ async def test_worker_claim_token_is_unique_and_success_is_content_free(caplog):
     assert TASK_ID not in caplog.text
     assert USER_ID not in caplog.text
     assert LEASE_ID not in caplog.text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "failure_code",
+    ["POLICY_ACCEPTANCE_REQUIRED", "POLICY_ACCEPTANCE_CHECK_UNAVAILABLE"],
+)
+async def test_policy_hold_releases_lease_without_consuming_attempt_or_usage(failure_code):
+    class HoldDB:
+        def __init__(self):
+            self.update_call = None
+            self.insert_call = None
+
+        async def update(self, table, payload, *, filters):
+            self.update_call = (table, dict(payload), dict(filters))
+            return [{**task(), **payload}]
+
+        async def insert(self, table, payload):
+            self.insert_call = (table, dict(payload))
+            return [payload]
+
+    database = HoldDB()
+    service = CodeTaskService(database, SimpleNamespace())
+
+    held = await service.hold_for_policy_acceptance(
+        task(),
+        failure_code=failure_code,
+    )
+
+    assert held["status"] == "provisioning"
+    assert held["attempt_count"] == 0
+    table, changes, filters = database.update_call
+    assert table == "code_tasks"
+    assert changes["failure_code"] == failure_code
+    assert changes["lease_token"] is None
+    assert changes["lease_expires_at"] is None
+    assert "usage_receipt" not in changes
+    assert "payment_source" not in changes
+    assert "credits_spent" not in changes
+    assert filters["lease_token"] == f"eq.{LEASE_ID}"
+    assert database.insert_call[0] == "code_task_events"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("consent", ["missing", "stale"])
+async def test_worker_defers_claim_without_provider_or_usage_mutation_when_policy_is_not_current(
+    caplog, consent
+):
+    service = WorkerService(claimed=task())
+    features = WorkerFeatures()
+    caplog.set_level(logging.INFO, logger="askcrump.code_worker")
+
+    result = await worker(
+        service,
+        NeverRunner(),
+        features,
+        consent=consent,
+    ).process_next(oidc_token="oidc")
+
+    assert result == {
+        "handled": True,
+        "claimed": True,
+        "status": "policy_required",
+    }
+    assert service.policy_holds == [task()]
+    assert service.transitions == []
+    assert service.requeues == []
+    assert service.refunded == []
+    assert features.refunds == []
+    emitted = [json.loads(record.message) for record in caplog.records]
+    assert [record["event"] for record in emitted] == ["worker_policy_blocked"]
+    assert emitted[0]["status"] == "policy_required"
+    assert TASK_ID not in caplog.text
+    assert USER_ID not in caplog.text
+
+
+@pytest.mark.asyncio
+async def test_policy_check_outage_restores_attempt_without_runner_or_usage_mutation(caplog):
+    service = WorkerService(claimed=task())
+    features = WorkerFeatures()
+    caplog.set_level(logging.INFO, logger="askcrump.code_worker")
+
+    result = await worker(
+        service,
+        NeverRunner(),
+        features,
+        consent="error",
+    ).process_next(oidc_token="oidc")
+
+    assert result == {
+        "handled": True,
+        "claimed": True,
+        "status": "policy_check_unavailable",
+    }
+    assert service.policy_holds == [task()]
+    assert service.policy_hold_options == [{
+        "failure_code": "POLICY_ACCEPTANCE_CHECK_UNAVAILABLE",
+    }]
+    assert service.transitions == []
+    assert service.requeues == []
+    assert service.refunded == []
+    assert features.refunds == []
+    emitted = [json.loads(record.message) for record in caplog.records]
+    assert [record["event"] for record in emitted] == [
+        "worker_policy_check_unavailable",
+    ]
+    assert emitted[0]["error_type"] == "RuntimeError"
+    assert "private receipt-check failure" not in caplog.text
 
 
 @pytest.mark.asyncio

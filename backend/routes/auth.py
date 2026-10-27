@@ -29,6 +29,11 @@ from ..product_analytics import (
     record_account_created_event,
     record_product_event,
 )
+from ..policy_consent import (
+    policy_client_platform,
+    read_current_policy_acceptance,
+    record_current_policy_acceptance,
+)
 from ..rate_limit import enforce_auth_rate_limit, enforce_guest_admission_rate_limit
 from ..runtime import (
     db,
@@ -37,7 +42,6 @@ from ..runtime import (
     verification_emails,
 )
 from ..schemas import (
-    CURRENT_TERMS_VERSION,
     CompletePasswordSetupRequest,
     EmailRequest,
     LoginRequest,
@@ -92,19 +96,6 @@ def _guest_rate_identity(request: Request, ip: str) -> str:
     if _GUEST_INSTALLATION_ID.fullmatch(installation_id):
         return f'installation:{installation_id}'
     return f'ip:{ip}'
-
-
-def _registration_terms_values(
-    payload: RegisterRequest,
-    *,
-    accepted_at: str,
-) -> dict[str, str]:
-    if not payload.termsAccepted or payload.termsVersion != CURRENT_TERMS_VERSION:
-        return {}
-    return {
-        'terms_accepted_at': accepted_at,
-        'terms_version': CURRENT_TERMS_VERSION,
-    }
 
 
 def _is_guest_placeholder_email(value: object, user_id: object) -> bool:
@@ -388,7 +379,10 @@ async def register(payload: RegisterRequest, request: Request):
     verification_token = random_token(40)
     now = iso_now()
     registration_environment = environment_for_request(request)
-    terms_values = _registration_terms_values(payload, accepted_at=now)
+    # Request validation requires an explicit true acceptance of this exact
+    # bundle before any account, queue, analytics, or provider work begins.
+    # The database RPC below is the only authoritative receipt writer.
+    terms_values: dict[str, str] = {}
     verification_values = {
         'verification_token_hash': token_hash(verification_token),
         'verification_token_expires': expiry_iso(hours=24),
@@ -519,6 +513,18 @@ async def register(payload: RegisterRequest, request: Request):
                 {'user_id': user['id'], 'updated_at': now},
                 on_conflict='user_id',
             )
+        receipt = await record_current_policy_acceptance(
+            db,
+            user_id=str(user['id']),
+            source='registration',
+            platform=policy_client_platform(request.headers),
+            age_17_plus_attested=payload.age17PlusAttested,
+            terms_accepted=payload.termsAccepted,
+            privacy_notice_acknowledged=payload.privacyNoticeAcknowledged,
+            ai_provider_transmission_authorized=payload.aiProviderTransmissionAuthorized,
+        )
+        user['terms_accepted_at'] = receipt['accepted_at']
+        user['terms_version'] = receipt['bundle_id']
         await record_account_created_event(
             db,
             user_id=user['id'],
@@ -568,7 +574,14 @@ async def start_guest_session(request: Request, response: Response):
     # A browser that already holds any valid session keeps it; guest sessions
     # are minted only for genuinely signed-out visitors.
     try:
-        current = await authenticate_request(request, db, settings, touch=False)
+        current = await authenticate_request(
+            request,
+            db,
+            settings,
+            touch=False,
+            require_current_policy_acceptance=False,
+            include_policy_acceptance_state=True,
+        )
         return {
             'success': True,
             'data': {
@@ -648,6 +661,7 @@ async def start_guest_session(request: Request, response: Response):
     }
     inserted = await db.insert('users', user_payload)
     user = inserted[0] if isinstance(inserted, list) and inserted else user_payload
+    user['_policy_accepted_current'] = False
     await db.upsert(
         'user_settings',
         {'user_id': user['id'], 'updated_at': now},
@@ -755,6 +769,9 @@ async def login(payload: LoginRequest, request: Request, response: Response):
             },
         )
     raw_token, user, session = finalized
+    user['_policy_accepted_current'] = (
+        await read_current_policy_acceptance(db, user_id=str(user['id']))
+    ) is not None
     set_session_cookie(response, raw_token, request)
     logger.info(
         'Auth login outcome=session_issued client=%s',
@@ -779,7 +796,13 @@ async def login(payload: LoginRequest, request: Request, response: Response):
 @router.api_route('/check-session', methods=['GET', 'POST'])
 async def check_session(request: Request, response: Response):
     try:
-        auth = await authenticate_request(request, db, settings)
+        auth = await authenticate_request(
+            request,
+            db,
+            settings,
+            require_current_policy_acceptance=False,
+            include_policy_acceptance_state=True,
+        )
     except AuthenticationError as exc:
         # A stale browser tab must not translate an explicit owner mismatch
         # into an ordinary signed-out answer.  Preserve the 409 so the client
@@ -813,7 +836,13 @@ async def check_session(request: Request, response: Response):
 
 @router.post('/refresh')
 async def refresh_session(request: Request, response: Response):
-    auth = await authenticate_request(request, db, settings)
+    auth = await authenticate_request(
+        request,
+        db,
+        settings,
+        require_current_policy_acceptance=False,
+        include_policy_acceptance_state=True,
+    )
     # Do not re-emit an old credential from a delayed response. Login and
     # verification are the credential-issuing boundaries; this endpoint only
     # renews the server-side session lifetime.
@@ -833,6 +862,7 @@ async def logout(request: Request, response: Response):
             settings,
             touch=False,
             require_expected_owner_header=True,
+            require_current_policy_acceptance=False,
         )
         await db.update(
             'sessions',
@@ -860,6 +890,7 @@ async def logout_all(request: Request, response: Response):
         db,
         settings,
         require_expected_owner_header=True,
+        require_current_policy_acceptance=False,
     )
     now = iso_now()
     await db.update(
@@ -877,6 +908,7 @@ async def list_devices(request: Request):
         db,
         settings,
         require_expected_owner_header=True,
+        require_current_policy_acceptance=False,
     )
     sessions = await db.select(
         'sessions',
@@ -904,6 +936,7 @@ async def revoke_device(payload: RevokeDeviceRequest, request: Request):
         db,
         settings,
         require_expected_owner_header=True,
+        require_current_policy_acceptance=False,
     )
     session = await db.select_one(
         'sessions',
@@ -999,6 +1032,7 @@ async def complete_password_setup(payload: CompletePasswordSetupRequest, request
         touch=False,
         require_account=True,
         require_expected_owner_header=True,
+        require_current_policy_acceptance=False,
     )
     await enforce_auth_rate_limit(
         db,
@@ -1033,6 +1067,7 @@ async def complete_password_setup(payload: CompletePasswordSetupRequest, request
             },
         )
     user, _revoked_sessions = completed
+    user['_policy_accepted_current'] = auth.user.get('_policy_accepted_current') is True
     return {
         'success': True,
         'message': 'Password secured. Your workspace is ready.',

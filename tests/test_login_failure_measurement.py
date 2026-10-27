@@ -67,6 +67,11 @@ class UpgradeLoginDB:
     async def select_one(self, table, *_args, **_kwargs):
         return self.user if table == "users" else None
 
+    async def rpc(self, name, payload, **_kwargs):
+        assert name == "read_current_policy_acceptance_v1"
+        assert payload == {"p_user_id": self.user["id"]}
+        return []
+
 
 @pytest.mark.asyncio
 async def test_successful_legacy_login_upgrades_password_hash(monkeypatch) -> None:

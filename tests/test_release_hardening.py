@@ -12,9 +12,10 @@ from starlette.requests import Request
 from backend.auth_service import create_session
 from backend.config import _canonical_app_name, _support_email
 from backend.email_service import EmailDeliveryError, EmailService
+from backend.policy_consent import CURRENT_POLICY_BUNDLE_HASH
 from backend.routes import auth as auth_routes
 from backend.routes import billing as billing_routes
-from backend.schemas import RegisterRequest
+from backend.schemas import CURRENT_TERMS_VERSION, RegisterRequest
 from backend.usage_service import tier_name
 from backend.verification_email_queue import VerificationEmailQueueUnavailable
 
@@ -138,6 +139,15 @@ class RegistrationDB:
     async def update(self, *args, **kwargs):
         return []
 
+    async def rpc(self, function_name, payload):
+        assert function_name == 'record_policy_acceptance_v1'
+        return [{
+            'receipt_id': 'registration-consent-receipt',
+            'accepted_at': '2026-10-27T08:00:00+00:00',
+            'bundle_id': payload['p_bundle_id'],
+            'bundle_hash': CURRENT_POLICY_BUNDLE_HASH,
+        }]
+
 
 class FailedVerificationQueue:
     async def enqueue_resend(self, **_kwargs):
@@ -173,6 +183,11 @@ async def test_registration_queue_failure_returns_recoverable_pending_account(mo
         password='StrongPass1',
         fullName='New User',
         source='instagram',
+        termsAccepted=True,
+        privacyNoticeAcknowledged=True,
+        age17PlusAttested=True,
+        aiProviderTransmissionAuthorized=True,
+        termsVersion=CURRENT_TERMS_VERSION,
     )
     request = Request({
         "type": "http", "method": "POST", "path": "/api/auth/register",

@@ -4,6 +4,7 @@ from types import SimpleNamespace
 import pytest
 
 from backend import auth_service
+from backend.policy_consent import CURRENT_POLICY_BUNDLE_HASH, CURRENT_POLICY_BUNDLE_ID
 from backend.routes import auth as auth_routes
 from backend.security import token_hash
 from backend.verification_tokens import create_resend_verification_alias
@@ -253,7 +254,14 @@ class AtomicGuestVerificationDB:
             return [dict(session)]
         raise AssertionError(f'unexpected update: {table}')
 
-    async def rpc(self, name, payload):
+    async def rpc(self, name, payload, **_kwargs):
+        if name == 'read_current_policy_acceptance_v1':
+            return [{
+                'receipt_id': 'guest-consent-receipt',
+                'accepted_at': '2026-10-27T08:00:00+00:00',
+                'bundle_id': CURRENT_POLICY_BUNDLE_ID,
+                'bundle_hash': CURRENT_POLICY_BUNDLE_HASH,
+            }]
         assert name == 'verify_guest_and_create_session_v1'
         self.rpc_calls.append((name, dict(payload)))
         assert payload['p_user_id'] == self.user['id']

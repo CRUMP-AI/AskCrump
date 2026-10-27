@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from .ai_service import AIService
 from .db import SupabaseDB, eq, lte, lt
 from .push_service import PushService
+from .policy_consent import read_current_policy_acceptance
 from .security import iso_now, new_uuid
 from .usage_service import tier_name
 
@@ -16,6 +17,7 @@ FREQUENCY_HOURS = {
     'balanced': 36,
     'active': 18,
 }
+POLICY_RETRY_HOURS = 6
 DEFAULT_PREFERENCES: dict[str, Any] = {
     'enabled': False,
     'frequency': 'balanced',
@@ -205,7 +207,15 @@ async def run_check_ins(
         order='next_eligible_at.asc',
         limit=batch_size,
     )
-    summary = {'eligible': len(rows), 'sent': 0, 'skipped': 0, 'quiet': 0, 'unanswered': 0, 'pushDelivered': 0}
+    summary = {
+        'eligible': len(rows),
+        'sent': 0,
+        'skipped': 0,
+        'quiet': 0,
+        'unanswered': 0,
+        'policyRequired': 0,
+        'pushDelivered': 0,
+    }
 
     for row in rows:
         user_id = str(row.get('user_id') or '')
@@ -214,6 +224,48 @@ async def run_check_ins(
         preferences = serialize_preferences(row)
         if in_quiet_hours(preferences):
             summary['quiet'] += 1
+            continue
+
+        acceptance = await read_current_policy_acceptance(db, user_id=user_id)
+        if acceptance is None:
+            # Preserve the opt-in preference while deferring this account by a
+            # fixed, bounded interval. Do not inspect chats, mutate check-in
+            # events, call a provider, or push content until the exact current
+            # policy bundle has a durable server receipt.
+            await db.update(
+                'check_in_preferences',
+                {
+                    'next_eligible_at': (
+                        datetime.now(timezone.utc)
+                        + timedelta(hours=POLICY_RETRY_HOURS)
+                    ).isoformat(),
+                    'updated_at': iso_now(),
+                },
+                filters={'user_id': eq(user_id)},
+            )
+            summary['policyRequired'] += 1
+            continue
+
+        user = await db.select_one(
+            'users',
+            columns=(
+                'id,email,full_name,subscription_tier,subscription_status,'
+                'subscription_current_period_end,internal_tier,is_guest'
+            ),
+            filters={'id': eq(user_id)},
+        ) or {}
+        if user.get('is_guest'):
+            # Fail closed: proactive check-ins are an account capability
+            # and their generation is not metered by the guest chat
+            # allowance. A stored guest preference — however it got
+            # there — never generates, and the invalid enrollment is
+            # switched off so it cannot reactivate later.
+            await db.update(
+                'check_in_preferences',
+                {'enabled': False, 'updated_at': iso_now()},
+                filters={'user_id': eq(user_id)},
+            )
+            summary['skipped'] += 1
             continue
 
         aged = await _age_out_unanswered(db, user_id)
@@ -242,27 +294,6 @@ async def run_check_ins(
             summary['skipped'] += 1
             continue
 
-        user = await db.select_one(
-            'users',
-            columns=(
-                'id,email,full_name,subscription_tier,subscription_status,'
-                'subscription_current_period_end,internal_tier,is_guest'
-            ),
-            filters={'id': eq(user_id)},
-        ) or {}
-        if user.get('is_guest'):
-            # Fail closed: proactive check-ins are an account capability
-            # and their generation is not metered by the guest chat
-            # allowance. A stored guest preference — however it got
-            # there — never generates, and the invalid enrollment is
-            # switched off so it cannot reactivate later.
-            await db.update(
-                'check_in_preferences',
-                {'enabled': False, 'updated_at': iso_now()},
-                filters={'user_id': eq(user_id)},
-            )
-            summary['skipped'] += 1
-            continue
         user_settings = await db.select_one('user_settings', columns='assistant_name', filters={'user_id': eq(user_id)}) or {}
         content = await ai.generate_check_in(
             assistant_name=str(user_settings.get('assistant_name') or 'Crump'),
