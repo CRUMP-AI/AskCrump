@@ -1,236 +1,161 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#f7f5ef">
-  <title>Clever Crump — Thoughtful software, built to last</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Clever Crump — Independent Software, Built to Last</title>
   <meta name="description" content="Clever Crump is an independent software company in Savannah, Georgia. Makers of Ask Crump, Dabblebit, and Outpost.">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Clever Crump — Thoughtful software, built to last">
-  <meta property="og:description" content="Independent software from Savannah. Meet Ask Crump, Dabblebit, and Outpost.">
+  <meta property="og:title" content="Clever Crump — Independent Software, Built to Last">
+  <meta property="og:description" content="Makers of Ask Crump, Dabblebit, and Outpost. Built in Savannah.">
   <meta property="og:url" content="https://clevercrump.com/">
   <meta name="twitter:card" content="summary">
-  <link rel="canonical" href="https://clevercrump.com/">
-  <link rel="icon" type="image/png" href="assets/img/monogram.png?v=20261013-studio">
-  <link rel="apple-touch-icon" href="assets/img/monogram.png?v=20261013-studio">
-  <script>document.documentElement.classList.add('js');</script>
-  <link rel="stylesheet" href="assets/css/style.css?v=20261013-studio">
+  <meta name="twitter:title" content="Clever Crump — Independent Software, Built to Last">
+  <meta name="twitter:description" content="Makers of Ask Crump, Dabblebit, and Outpost. Built in Savannah.">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="stylesheet" href="assets/css/style.css">
 </head>
 <body>
-  <a class="skip-link" href="#main">Skip to content</a>
 
-  <nav class="site-nav" aria-label="Main navigation">
-    <div class="shell nav-shell">
-      <a class="wordmark" href="index.html" aria-label="Clever Crump home">
-        <img src="assets/img/monogram.png?v=20261013-studio" alt="" width="288" height="321">
-        <span>Clever Crump</span>
+  <nav class="nav" aria-label="Main navigation">
+    <div class="wrap nav-inner">
+      <a class="brand" href="index.html" aria-label="Clever Crump home">
+        <svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="50" cy="50" r="30" fill="none" stroke="#d5b971" stroke-width="11" stroke-linecap="round" stroke-dasharray="150 39" transform="rotate(38 50 50)"/><line x1="73" y1="73" x2="95" y2="95" stroke="#d5b971" stroke-width="11" stroke-linecap="round"/></svg>
+        Clever Crump
       </a>
-
-      <button class="nav-toggle" type="button" aria-label="Open menu" aria-expanded="false" aria-controls="nav-links">
-        <span></span><span></span>
+      <button class="nav-toggle" aria-label="Open menu" aria-expanded="false" aria-controls="nav-menu">
+        <span></span><span></span><span></span>
       </button>
-
-      <div class="nav-links" id="nav-links">
-        <a href="#products">Products</a>
-        <a href="#company">Company</a>
-        <a href="contact.html">Contact</a>
-      </div>
+      <ul class="nav-links" id="nav-menu">
+        <li><a href="#products">Products</a></li>
+        <li><a href="#philosophy">Philosophy</a></li>
+        <li><a href="contact.html">Contact</a></li>
+      </ul>
     </div>
   </nav>
 
-  <main id="main">
-    <section class="hero" aria-labelledby="hero-title">
-      <div class="hero-glow" aria-hidden="true"></div>
-      <div class="shell hero-shell">
-        <div class="hero-copy reveal">
-          <p class="kicker"><span></span> Independent software from Savannah</p>
-          <h1 id="hero-title">We make ambitious software feel <em>remarkably simple.</em></h1>
-          <p class="hero-intro">Clever Crump builds focused products for thinking, learning, and bringing people together—designed with care, shipped with conviction, and made to earn a lasting place in your day.</p>
-          <div class="hero-actions">
-            <a class="button button-dark" href="#products">Explore our products <span aria-hidden="true">↓</span></a>
-            <a class="button button-text" href="#company">Why we build <span aria-hidden="true">↗</span></a>
-          </div>
-        </div>
+  <header class="hero">
+    <div class="wrap hero-inner">
+      <svg class="monogram" viewBox="0 0 120 120" role="img" aria-label="Clever Crump monogram — a gold C with a magnifying glass"><circle cx="50" cy="50" r="30" fill="none" stroke="#d5b971" stroke-width="9" stroke-linecap="round" stroke-dasharray="150 39" transform="rotate(38 50 50)"/><line x1="73" y1="73" x2="95" y2="95" stroke="#d5b971" stroke-width="9" stroke-linecap="round"/></svg>
+      <span class="eyebrow">Clever Crump</span>
+      <h1>Independent software, <em>built to last.</em></h1>
+      <p class="sub">We're a small software company in Savannah, Georgia. We build products we'd want to use ourselves — and we hold them to a standard we'd defend in person.</p>
+      <div class="btn-row">
+        <a class="btn btn-gold" href="#products">See what we make</a>
+        <a class="btn btn-ghost" href="#philosophy">How we work</a>
+      </div>
+      <p class="hero-foot">Built in Savannah</p>
+    </div>
+    <div class="scroll-hint" aria-hidden="true"></div>
+  </header>
 
-        <div class="hero-signature reveal" aria-label="Clever Crump">
-          <div class="signature-orbit" aria-hidden="true"></div>
-          <img src="assets/img/monogram.png?v=20261013-studio" alt="Clever Crump gold C and magnifying glass mark" width="288" height="321">
-          <p><span>THINK CLEARLY</span><i></i><span>BUILD CAREFULLY</span></p>
+  <section class="products" id="products">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="eyebrow">Our Products</span>
+        <h2>A short shelf of good tools.</h2>
+        <p>We'd rather make one thing well than ten things forgettably. Here's what we're working on.</p>
+      </div>
+      <div class="product-grid">
+
+        <article class="product-card reveal">
+          <span class="flag">Flagship</span>
+          <div class="product-mark" aria-hidden="true">A</div>
+          <h3>Ask Crump</h3>
+          <p class="tagline">The AI workspace for work that survives one conversation.</p>
+          <p class="desc">Projects with durable memory, guided research, and keepsakes you can actually keep — documents, presentations, and media that don't vanish when the chat ends.</p>
+          <a class="go" href="https://www.askcrump.com/" target="_blank" rel="noopener">Visit www.askcrump.com <span class="arrow" aria-hidden="true">&rarr;</span></a>
+        </article>
+
+        <article class="product-card reveal">
+          <div class="product-mark" aria-hidden="true">D</div>
+          <h3>Dabblebit</h3>
+          <p class="tagline">Learn to code, hatch a duck.</p>
+          <p class="desc">A game that teaches real programming — seven languages, bite-sized lessons, and a duck egg that hatches as you learn. Python is free forever.</p>
+          <p class="status">Coming to iOS</p>
+          <a class="go" href="https://dabblebit.com" target="_blank" rel="noopener">Visit dabblebit.com <span class="arrow" aria-hidden="true">&rarr;</span></a>
+        </article>
+
+        <article class="product-card reveal">
+          <div class="product-mark" aria-hidden="true">R</div>
+          <h3>Outpost</h3>
+          <p class="tagline">Get people together.</p>
+          <p class="desc">A Clever Crump social product, currently in development.</p>
+          <p class="status">In development</p>
+        </article>
+
+      </div>
+    </div>
+  </section>
+
+  <section class="philosophy" id="philosophy">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="eyebrow">What we believe</span>
+        <h2>Built like it matters.</h2>
+        <p>Three principles behind everything with our name on it.</p>
+      </div>
+      <div class="beliefs">
+        <div class="belief reveal">
+          <h3>Fewer, better.</h3>
+          <p>We keep a short list of products and give each one our full attention. If it isn't worth doing well, it isn't worth doing.</p>
+        </div>
+        <div class="belief reveal">
+          <h3>Respect is a feature.</h3>
+          <p>No dark patterns. No shouting. No treating you like a metric. Software should earn its place on your phone — and keep earning it.</p>
+        </div>
+        <div class="belief reveal">
+          <h3>Built in Savannah.</h3>
+          <p>We're an independent company in Savannah, Georgia — not a pitch deck with a logo. What we ship has our name on it, and we stand behind it.</p>
         </div>
       </div>
+    </div>
+  </section>
 
-      <div class="hero-marquee" aria-label="Clever Crump products">
-        <div class="hero-marquee-track">
-          <span>Ask Crump</span><i></i><span>Dabblebit</span><i></i><span>Outpost</span><i></i><span>Built in Savannah</span><i></i>
-          <span aria-hidden="true">Ask Crump</span><i aria-hidden="true"></i><span aria-hidden="true">Dabblebit</span><i aria-hidden="true"></i><span aria-hidden="true">Outpost</span><i aria-hidden="true"></i><span aria-hidden="true">Built in Savannah</span><i aria-hidden="true"></i>
+  <section class="founder">
+    <div class="wrap reveal">
+      <blockquote>&ldquo;I started Clever Crump to build the kind of software I couldn't find — <em>tools that respect your time and your intelligence.</em> Everything we make has to clear that bar.&rdquo;</blockquote>
+      <cite>Gregory Crump &mdash; Founder, Clever Crump</cite>
+    </div>
+  </section>
+
+  <footer>
+    <div class="wrap">
+      <div class="foot-grid">
+        <div class="foot-brand">
+          <a class="brand" href="index.html" aria-label="Clever Crump home">
+            <svg viewBox="0 0 120 120" aria-hidden="true"><circle cx="50" cy="50" r="30" fill="none" stroke="#d5b971" stroke-width="11" stroke-linecap="round" stroke-dasharray="150 39" transform="rotate(38 50 50)"/><line x1="73" y1="73" x2="95" y2="95" stroke="#d5b971" stroke-width="11" stroke-linecap="round"/></svg>
+            Clever Crump
+          </a>
+          <p>An independent software company in Savannah, Georgia.</p>
         </div>
-      </div>
-    </section>
-
-    <section class="portfolio" id="products" aria-labelledby="products-title">
-      <div class="shell">
-        <header class="section-heading reveal">
-          <p class="kicker"><span></span> The product studio</p>
-          <h2 id="products-title">A small portfolio.<br>A serious standard.</h2>
-          <p>Each product begins with a simple question: can this be clearer, kinder, and more useful than what already exists?</p>
-        </header>
-
-        <article class="product-story product-story-ask reveal" aria-labelledby="ask-title">
-          <div class="product-copy">
-            <div class="product-meta"><span>01</span><strong>Available now</strong></div>
-            <p class="product-name">Ask Crump</p>
-            <h3 id="ask-title">An AI workspace for work that continues.</h3>
-            <p>Move from a rough thought to useful work—then keep the conversation, Project context, files, manuscripts, media, and deliverables together when you come back.</p>
-            <ul class="product-points" aria-label="Ask Crump highlights">
-              <li>Conversations that continue across devices</li>
-              <li>Projects for durable context and files</li>
-              <li>Documents, presentations, images, and video</li>
+        <nav class="foot-links" aria-label="Footer navigation">
+          <div>
+            <h4>Products</h4>
+            <ul>
+              <li><a href="https://www.askcrump.com/" target="_blank" rel="noopener">Ask Crump</a></li>
+              <li><a href="https://dabblebit.com" target="_blank" rel="noopener">Dabblebit</a></li>
+              <li><a href="#products">Outpost</a></li>
             </ul>
-            <a class="product-link" href="https://www.askcrump.com/" target="_blank" rel="noopener">Open Ask Crump <span aria-hidden="true">↗</span></a>
           </div>
-          <div class="ask-stage" aria-label="Ask Crump workspace preview">
-            <div class="browser-frame">
-              <div class="browser-chrome" aria-hidden="true"><span></span><span></span><span></span><b>askcrump.com</b></div>
-              <img src="assets/img/ask-crump-workspace.png" alt="Ask Crump workspace showing a detailed project plan" width="1280" height="720" loading="lazy">
-            </div>
-            <img class="ask-owl" src="assets/img/ask-crump-owl.webp" alt="Crump, the Ask Crump owl" width="600" height="600" loading="lazy">
-            <div class="product-badge"><span>✦</span> Your work stays connected</div>
-          </div>
-        </article>
-
-        <article class="product-story product-story-dabblebit reveal" aria-labelledby="dabblebit-title">
-          <div class="product-copy">
-            <div class="product-meta"><span>02</span><strong>Coming to iOS</strong></div>
-            <p class="product-name">Dabblebit</p>
-            <h3 id="dabblebit-title">Learn to code like it’s your new favorite game.</h3>
-            <p>Short, playful lessons teach the idea first and quiz second. Build a streak, earn gym badges, and crack open Puddles’ egg one level at a time.</p>
-            <ul class="product-points" aria-label="Dabblebit highlights">
-              <li>Python is free forever</li>
-              <li>Real code that runs on your device</li>
-              <li>Friendly lessons built for absolute beginners</li>
+          <div>
+            <h4>Company</h4>
+            <ul>
+              <li><a href="#philosophy">Philosophy</a></li>
+              <li><a href="contact.html">Contact</a></li>
+              <li><a href="privacy.html">Privacy</a></li>
+              <li><a href="terms.html">Terms</a></li>
             </ul>
-            <a class="product-link" href="https://dabblebit.com" target="_blank" rel="noopener">Meet Dabblebit <span aria-hidden="true">↗</span></a>
           </div>
-          <div class="dabblebit-stage" aria-label="Dabblebit app preview">
-            <div class="phone-frame">
-              <div class="phone-sensor" aria-hidden="true"></div>
-              <img src="assets/img/dabblebit-home.png" alt="Dabblebit home screen with Puddles' egg, learning paths, and badges" width="1080" height="1920" loading="lazy">
-            </div>
-            <img class="puddles" src="assets/img/puddles-wave.webp" alt="Puddles the duck waving" width="432" height="595" loading="lazy">
-            <div class="dabblebit-note">A little progress.<br><strong>Every day.</strong></div>
-          </div>
-        </article>
-
-        <article class="product-story product-story-outpost reveal" aria-labelledby="outpost-title">
-          <div class="outpost-copy">
-            <div class="product-meta"><span>03</span><strong>In development</strong></div>
-            <p class="product-name">Outpost</p>
-            <h3 id="outpost-title">Make a plan.<br>Bring people together.</h3>
-            <p>Our next social product is being built around a simple belief: getting together should feel easier than the group chat that came before it.</p>
-          </div>
-          <div class="outpost-art" aria-hidden="true">
-            <span class="outpost-dot outpost-dot-a"></span>
-            <span class="outpost-dot outpost-dot-b"></span>
-            <span class="outpost-dot outpost-dot-c"></span>
-            <span class="outpost-dot outpost-dot-d"></span>
-            <svg viewBox="0 0 500 260"><path d="M52 167C126 87 204 213 279 119S408 55 455 109"/><path d="M79 84c71 17 88 92 155 100s108-74 189-45"/></svg>
-            <strong>OUTPOST</strong>
-          </div>
-        </article>
+        </nav>
       </div>
-    </section>
-
-    <section class="company" id="company" aria-labelledby="company-title">
-      <div class="shell company-shell">
-        <div class="company-statement reveal">
-          <p class="kicker kicker-light"><span></span> Our standard</p>
-          <h2 id="company-title">Independent by design.<br><em>Personal by default.</em></h2>
-          <p>We’re building a durable software company, not a collection of disposable launches. That means fewer products, clearer promises, and care that survives past release day.</p>
-        </div>
-
-        <div class="principles">
-          <article class="principle reveal">
-            <span>01</span>
-            <h3>Make it understandable.</h3>
-            <p>People should know what a product does, where their work lives, and what happens when they press a button.</p>
-          </article>
-          <article class="principle reveal">
-            <span>02</span>
-            <h3>Respect is a feature.</h3>
-            <p>No dark patterns. No artificial urgency. No treating attention like something to extract.</p>
-          </article>
-          <article class="principle reveal">
-            <span>03</span>
-            <h3>Stand behind the work.</h3>
-            <p>Every product carries our name. We ship thoughtfully, listen closely, and keep improving what people rely on.</p>
-          </article>
-        </div>
-      </div>
-    </section>
-
-    <section class="founder" aria-labelledby="founder-title">
-      <div class="shell founder-shell reveal">
-        <div class="founder-mark" aria-hidden="true">
-          <img src="assets/img/monogram.png?v=20261013-studio" alt="" width="288" height="321">
-        </div>
-        <div>
-          <p class="kicker"><span></span> From the founder</p>
-          <blockquote id="founder-title">“I started Clever Crump to build the kind of software I couldn’t find—tools with ambition, personality, and respect for the person using them.”</blockquote>
-          <p class="founder-name">Gregory Crump Jr. <span>Founder, Clever Crump</span></p>
-        </div>
-      </div>
-    </section>
-
-    <section class="closing" aria-labelledby="closing-title">
-      <div class="shell closing-shell reveal">
-        <p class="kicker"><span></span> Clever Crump</p>
-        <h2 id="closing-title">Small company.<br>Long horizon.</h2>
-        <p>We’re building from Savannah for people everywhere—and we’re only getting started.</p>
-        <div class="closing-actions">
-          <a class="button button-light" href="contact.html">Talk to us <span aria-hidden="true">↗</span></a>
-          <a class="button button-outline" href="#products">Explore the portfolio</a>
-        </div>
-      </div>
-    </section>
-  </main>
-
-  <footer class="site-footer">
-    <div class="shell">
-      <div class="footer-top">
-        <a class="wordmark footer-wordmark" href="index.html" aria-label="Clever Crump home">
-          <img src="assets/img/monogram.png?v=20261013-studio" alt="" width="288" height="321">
-          <span>Clever Crump</span>
-        </a>
-        <p>Thoughtful software for thinking, learning, and bringing people together.</p>
-      </div>
-
-      <div class="footer-grid">
-        <div>
-          <h3>Products</h3>
-          <a href="https://www.askcrump.com/" target="_blank" rel="noopener">Ask Crump</a>
-          <a href="https://dabblebit.com" target="_blank" rel="noopener">Dabblebit</a>
-          <a href="#products">Outpost</a>
-        </div>
-        <div>
-          <h3>Company</h3>
-          <a href="#company">Our standard</a>
-          <a href="contact.html">Contact</a>
-        </div>
-        <div>
-          <h3>Legal</h3>
-          <a href="privacy.html">Privacy</a>
-          <a href="terms.html">Terms</a>
-        </div>
-      </div>
-
-      <div class="footer-base">
-        <span>© <span data-year>2026</span> Clever Crump. All rights reserved.</span>
-        <span>Built in Savannah, Georgia</span>
+      <div class="foot-base">
+        <span>&copy; <span data-year>2026</span> Clever Crump. All rights reserved.</span>
+        <span class="savannah">Built in Savannah</span>
       </div>
     </div>
   </footer>
 
-  <script src="assets/js/main.js?v=20261013-studio"></script>
+  <script src="assets/js/main.js"></script>
 </body>
 </html>
