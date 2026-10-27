@@ -40,6 +40,21 @@ select pg_temp.assert_true(
 
 select pg_temp.assert_true(
   (
+    select attribute_row.attcollation =
+        'pg_catalog."default"'::regcollation
+      and collation_row.collisdeterministic
+      from pg_catalog.pg_attribute as attribute_row
+      join pg_catalog.pg_collation as collation_row
+        on collation_row.oid = attribute_row.attcollation
+     where attribute_row.attrelid = 'public.users'::regclass
+       and attribute_row.attname = 'guest_start_environment'
+       and not attribute_row.attisdropped
+  ),
+  'guest-start environment collation is not exact deterministic default'
+);
+
+select pg_temp.assert_true(
+  (
     select users_relation.relrowsecurity
       and sessions_relation.relrowsecurity
     from pg_catalog.pg_class as users_relation
@@ -78,6 +93,8 @@ select pg_temp.assert_true(
       and index_row.indisvalid
       and index_row.indisready
       and index_row.indislive
+      and index_row.indcollation[0] =
+        'pg_catalog."default"'::regcollation::oid
       and not index_row.indisunique
       and not index_row.indisprimary
       and not index_row.indisexclusion
@@ -92,6 +109,18 @@ select pg_temp.assert_true(
       'public.users_guest_start_cohort_idx'::regclass
   ),
   'guest-start cohort index shape drifted'
+);
+
+select pg_temp.assert_true(
+  (
+    select pg_catalog.count(*) = 1
+      from pg_catalog.pg_trigger as trigger_row
+     where trigger_row.tgrelid = 'public.sessions'::regclass
+       and not trigger_row.tgisinternal
+       and trigger_row.tgfoid =
+         'public.enforce_guest_mode_on_session_v1()'::regprocedure
+  ),
+  'duplicate companion guest-mode session guard trigger exists'
 );
 
 select pg_temp.assert_true(
@@ -218,6 +247,49 @@ select pg_temp.assert_true(
       'public.stamp_guest_start_from_session_v1()'::regprocedure
   ),
   'private guest-start trigger functions have unsafe security attributes'
+);
+
+select pg_temp.assert_true(
+  (
+    select function_row.proowner = current_user::regrole::oid
+      and language_row.lanname = 'plpgsql'
+      and function_row.prokind = 'f'
+      and function_row.prorettype = 'trigger'::regtype
+      and function_row.provolatile = 'v'
+      and function_row.prosecdef is true
+      and function_row.proisstrict is false
+      and function_row.proleakproof is false
+      and function_row.proparallel = 'u'
+      and function_row.proconfig = array['search_path=""']::text[]
+      and pg_catalog.md5(function_row.prosrc) =
+        '8f7dc4fb3f294b06dc5f9dbcf50d89c6'
+    from pg_catalog.pg_proc as function_row
+    join pg_catalog.pg_language as language_row
+      on language_row.oid = function_row.prolang
+    where function_row.oid =
+      'public.enforce_guest_mode_on_session_v1()'::regprocedure
+  )
+  and not has_function_privilege(
+    'service_role', 'public.enforce_guest_mode_on_session_v1()', 'EXECUTE'
+  ),
+  'companion guest-mode session guard function drifted'
+);
+
+select pg_temp.assert_true(
+  (
+    select trigger_row.tgtype = 23
+      and trigger_row.tgenabled = 'O'
+      and trigger_row.tgqual is null
+      and pg_catalog.cardinality(trigger_row.tgattr::smallint[]) = 0
+      and trigger_row.tgfoid =
+        'public.enforce_guest_mode_on_session_v1()'::regprocedure
+      and not trigger_row.tgisinternal
+      and 'a_guest_start_owner_lock_v1' < trigger_row.tgname
+    from pg_catalog.pg_trigger as trigger_row
+    where trigger_row.tgrelid = 'public.sessions'::regclass
+      and trigger_row.tgname = 'enforce_guest_mode_on_session_v1'
+  ),
+  'enabled companion session guard shape or lexical order drifted'
 );
 
 select pg_temp.assert_true(

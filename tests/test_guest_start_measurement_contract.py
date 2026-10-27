@@ -20,7 +20,10 @@ def test_forward_only_columns_and_successful_session_boundary() -> None:
     assert "add column if not exists guest_start_tracking_version smallint" in sql
     assert "alter column guest_start_tracking_version set default 1" in sql
     assert "add column if not exists guest_started_at timestamptz" in sql
-    assert "add column if not exists guest_start_environment text" in sql
+    assert "add column if not exists guest_start_environment" in sql
+    assert 'text collate pg_catalog."default"' in sql
+    assert "'pg_catalog.\"default\"'::regcollation" in sql
+    assert "collation_row.collisdeterministic" in sql
     assert "guest_start_tracking_version is null" in sql
     assert "account.guest_start_tracking_version = 1" in sql
     assert "after insert or update of user_id" in sql
@@ -73,6 +76,10 @@ def test_private_trigger_and_service_only_aggregate_contract() -> None:
     assert "function_row.proleakproof is false" in sql
     assert "function_row.proparallel = 'u'" in sql
     assert "if p_environment is null" in sql
+    assert "Guest-start session guard prerequisite drift exists" in sql
+    assert "'8f7dc4fb3f294b06dc5f9dbcf50d89c6'" in sql
+    assert "select pg_catalog.count(*) <> 1" in sql
+    assert "trigger_row.tgfoid = (" in sql
     aggregate_sql = sql.split(
         "create or replace function public.product_guest_start_funnel_snapshot", 1
     )[1]
@@ -119,6 +126,14 @@ def test_postgres_gate_covers_required_behavior_and_concurrency() -> None:
     assert "function STRICT/parallel attributes" in drift_test
     assert "user trigger columns/WHEN" in drift_test
     assert "index parent/key/include/opclass" in drift_test
+    assert "guest-start environment collation" in drift_test
+    assert "companion guard function source" in drift_test
+    assert "renamed companion guard" in drift_test
+    assert "disabled companion guard" in drift_test
+    assert "missing companion guard" in drift_test
+    assert "companion guard event/columns/WHEN shape" in drift_test
+    assert "lexically earlier duplicate companion guard" in drift_test
+    assert '"0_duplicate_guest_mode_session_guard"' in drift_test
     assert "users table ACL" in drift_test
     assert "users column ACL" in drift_test
     assert "users RLS" in drift_test
@@ -129,3 +144,5 @@ def test_postgres_gate_covers_required_behavior_and_concurrency() -> None:
     assert "guest_start_measurement_security_baseline.sql" in workflow
     assert "alter table public.users enable row level security" in security_baseline
     assert "alter table public.sessions enable row level security" in security_baseline
+    assert "create trigger enforce_guest_mode_on_session_v1" in security_baseline
+    assert "before insert or update on public.sessions" in security_baseline

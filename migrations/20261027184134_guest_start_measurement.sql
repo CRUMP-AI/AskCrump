@@ -82,6 +82,88 @@ begin
       using errcode = '55000';
   end if;
 
+  -- This exact companion contract comes from
+  -- 20261021040000_guest_mode_control.sql. The existing guard takes a SHARE
+  -- owner lock on INSERT. Our exclusive owner lock must remain an enabled
+  -- BEFORE INSERT trigger whose name sorts first, or the reviewed lock order
+  -- no longer holds.
+  if (
+    select pg_catalog.count(*) <> 1
+      from pg_catalog.pg_proc as function_row
+      join pg_catalog.pg_namespace as namespace_row
+        on namespace_row.oid = function_row.pronamespace
+     where namespace_row.nspname = 'public'
+       and function_row.proname = 'enforce_guest_mode_on_session_v1'
+  ) or not exists (
+    select 1
+      from pg_catalog.pg_proc as function_row
+      join pg_catalog.pg_namespace as namespace_row
+        on namespace_row.oid = function_row.pronamespace
+      join pg_catalog.pg_language as language_row
+        on language_row.oid = function_row.prolang
+     where namespace_row.nspname = 'public'
+       and function_row.proname = 'enforce_guest_mode_on_session_v1'
+       and function_row.pronargs = 0
+       and function_row.proowner = current_user::regrole::oid
+       and language_row.lanname = 'plpgsql'
+       and function_row.prokind = 'f'
+       and function_row.prorettype = 'trigger'::regtype
+       and function_row.provolatile = 'v'
+       and function_row.prosecdef is true
+       and function_row.proisstrict is false
+       and function_row.proleakproof is false
+       and function_row.proparallel = 'u'
+       and function_row.proconfig = array['search_path=""']::text[]
+       and pg_catalog.md5(function_row.prosrc) =
+         '8f7dc4fb3f294b06dc5f9dbcf50d89c6'
+       and not exists (
+         select 1
+           from pg_catalog.aclexplode(
+             coalesce(
+               function_row.proacl,
+               pg_catalog.acldefault('f', function_row.proowner)
+             )
+           ) as acl_row
+          where acl_row.grantee <> function_row.proowner
+       )
+  ) or (
+    select pg_catalog.count(*) <> 1
+      from pg_catalog.pg_trigger as trigger_row
+     where trigger_row.tgrelid = 'public.sessions'::regclass
+       and not trigger_row.tgisinternal
+       and trigger_row.tgfoid = (
+         select function_row.oid
+           from pg_catalog.pg_proc as function_row
+           join pg_catalog.pg_namespace as namespace_row
+             on namespace_row.oid = function_row.pronamespace
+          where namespace_row.nspname = 'public'
+            and function_row.proname = 'enforce_guest_mode_on_session_v1'
+            and function_row.pronargs = 0
+       )
+  ) or not exists (
+    select 1
+      from pg_catalog.pg_trigger as trigger_row
+      join pg_catalog.pg_proc as function_row
+        on function_row.oid = trigger_row.tgfoid
+      join pg_catalog.pg_namespace as namespace_row
+        on namespace_row.oid = function_row.pronamespace
+     where trigger_row.tgrelid = 'public.sessions'::regclass
+       and trigger_row.tgname = 'enforce_guest_mode_on_session_v1'
+       and namespace_row.nspname = 'public'
+       and function_row.proname = 'enforce_guest_mode_on_session_v1'
+       and function_row.pronargs = 0
+       and trigger_row.tgtype = 23
+       and trigger_row.tgenabled = 'O'
+       and trigger_row.tgqual is null
+       and pg_catalog.cardinality(trigger_row.tgattr::smallint[]) = 0
+       and not trigger_row.tgisinternal
+       and 'a_guest_start_owner_lock_v1' < trigger_row.tgname
+  ) then
+    raise exception
+      'Guest-start session guard prerequisite drift exists; refusing migration.'
+      using errcode = '55000';
+  end if;
+
   select pg_catalog.count(*)
     into v_existing_columns
     from pg_catalog.pg_attribute as attribute_row
@@ -178,7 +260,17 @@ begin
          )
          or (
            measured_column.attname = 'guest_start_environment'
-           and measured_column.atttypid <> 'text'::regtype
+            and (
+              measured_column.atttypid <> 'text'::regtype
+              or measured_column.attcollation <>
+                'pg_catalog."default"'::regcollation
+              or not exists (
+                select 1
+                  from pg_catalog.pg_collation as collation_row
+                 where collation_row.oid = measured_column.attcollation
+                   and collation_row.collisdeterministic
+              )
+            )
          )
        )
   ) then
@@ -278,12 +370,7 @@ begin
        'pg_catalog.uuid_ops'
      ]::text[]
      or v_index_collations is distinct from array[
-       (
-         select attribute_row.attcollation
-           from pg_catalog.pg_attribute as attribute_row
-          where attribute_row.attrelid = 'public.users'::regclass
-            and attribute_row.attname = 'guest_start_environment'
-       ),
+       'pg_catalog."default"'::regcollation::oid,
        0::oid,
        0::oid
      ]::oid[]
@@ -495,7 +582,8 @@ alter table public.users
 alter table public.users
   add column if not exists guest_started_at timestamptz;
 alter table public.users
-  add column if not exists guest_start_environment text;
+  add column if not exists guest_start_environment
+    text collate pg_catalog."default";
 
 alter table public.users
   alter column guest_start_tracking_version set default 1;
@@ -534,6 +622,14 @@ begin
        or (
          attribute_row.attname = 'guest_start_environment'
          and attribute_row.atttypid = 'text'::regtype
+          and attribute_row.attcollation =
+            'pg_catalog."default"'::regcollation
+          and exists (
+            select 1
+              from pg_catalog.pg_collation as collation_row
+             where collation_row.oid = attribute_row.attcollation
+               and collation_row.collisdeterministic
+          )
        )
      );
 

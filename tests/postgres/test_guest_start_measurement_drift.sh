@@ -81,6 +81,83 @@ run_refusal \
   "Guest-start cohort index drift exists; refusing migration."
 
 cat >"$fixture_sql" <<'SQL'
+drop trigger users_guest_start_immutability_v1 on public.users;
+alter table public.users
+  alter column guest_start_environment
+  type text collate pg_catalog."C";
+create trigger users_guest_start_immutability_v1
+before insert or update of
+  guest_start_tracking_version, guest_started_at, guest_start_environment
+on public.users
+for each row
+execute function public.enforce_guest_start_immutability_v1();
+SQL
+run_refusal \
+  "guest-start environment collation" \
+  "Guest-start column/default drift exists; refusing migration."
+
+cat >"$fixture_sql" <<'SQL'
+create or replace function public.enforce_guest_mode_on_session_v1()
+returns trigger
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  return new;
+end;
+$$;
+SQL
+run_refusal \
+  "companion guard function source" \
+  "Guest-start session guard prerequisite drift exists; refusing migration."
+
+cat >"$fixture_sql" <<'SQL'
+alter trigger enforce_guest_mode_on_session_v1 on public.sessions
+  rename to renamed_guest_mode_session_guard;
+SQL
+run_refusal \
+  "renamed companion guard" \
+  "Guest-start session guard prerequisite drift exists; refusing migration."
+
+cat >"$fixture_sql" <<'SQL'
+alter table public.sessions
+  disable trigger enforce_guest_mode_on_session_v1;
+SQL
+run_refusal \
+  "disabled companion guard" \
+  "Guest-start session guard prerequisite drift exists; refusing migration."
+
+cat >"$fixture_sql" <<'SQL'
+drop trigger enforce_guest_mode_on_session_v1 on public.sessions;
+SQL
+run_refusal \
+  "missing companion guard" \
+  "Guest-start session guard prerequisite drift exists; refusing migration."
+
+cat >"$fixture_sql" <<'SQL'
+drop trigger enforce_guest_mode_on_session_v1 on public.sessions;
+create trigger enforce_guest_mode_on_session_v1
+before update of user_id on public.sessions
+for each row
+when (new.revoked_at is null)
+execute function public.enforce_guest_mode_on_session_v1();
+SQL
+run_refusal \
+  "companion guard event/columns/WHEN shape" \
+  "Guest-start session guard prerequisite drift exists; refusing migration."
+
+cat >"$fixture_sql" <<'SQL'
+create trigger "0_duplicate_guest_mode_session_guard"
+before insert or update on public.sessions
+for each row
+execute function public.enforce_guest_mode_on_session_v1();
+SQL
+run_refusal \
+  "lexically earlier duplicate companion guard" \
+  "Guest-start session guard prerequisite drift exists; refusing migration."
+
+cat >"$fixture_sql" <<'SQL'
 grant execute on function public.stamp_guest_start_from_session_v1()
   to anon;
 SQL
