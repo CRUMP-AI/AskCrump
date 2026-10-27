@@ -80,6 +80,10 @@ def test_each_high_intent_capability_page_has_one_attributed_guest_path() -> Non
 
 def test_capability_free_intent_is_analytics_only_not_a_paid_tool_handoff() -> None:
     controller = (PUBLIC / "auth-controller.js").read_text(encoding="utf-8")
+    plan_capture = controller[
+        controller.index("function capturePlanIntent()") :
+        controller.index("function creationIntentValue(")
+    ]
     capture = controller[
         controller.index("function captureCreationIntent()") :
         controller.index("function pendingCreationIntent()")
@@ -88,12 +92,20 @@ def test_capability_free_intent_is_analytics_only_not_a_paid_tool_handoff() -> N
         controller.index("function dispatchPendingCreationIntent()") :
         controller.index("function pendingPlanIntent()")
     ]
+    plan_dispatch = controller[
+        controller.index("function dispatchPendingPlanIntent()") :
+        controller.index("function applyServerSettings(")
+    ]
 
     assert "function isFreeGuestEntryRequest" in controller
     assert "params.get('plan') === 'free' && params.get('signup') !== '1'" in controller
     assert "if (isFreeGuestEntryRequest(params))" in capture
     assert "localStorage.removeItem(CREATION_INTENT_KEY)" in capture
     assert "if (isFreeGuestEntryRequest()) return '';" in dispatch
+    assert "if (isFreeGuestEntryRequest(params))" in plan_capture
+    assert "discardPendingPlanIntent();" in plan_capture
+    assert "if (isFreeGuestEntryRequest())" in plan_dispatch
+    assert "discardPendingPlanIntent();" in plan_dispatch
 
 
 def test_every_public_signin_link_forces_the_login_path() -> None:
@@ -162,8 +174,13 @@ def test_browser_proof_exercises_the_mobile_free_guest_entry_boundary() -> None:
     assert "capability free entry did not authenticate the minted guest" in verifier
     assert "capability free entry retained an executable creation intent" in verifier
     assert "capability free entry dispatched a paid creation tool" in verifier
+    assert "capability free entry retained an executable paid plan intent" in verifier
+    assert "capability free entry dispatched a paid plan intent" in verifier
+    assert "capability free entry opened the billing modal" in verifier
     assert "askcrump.pending-creation-intent" in verifier
+    assert "askcrump.pending-plan-intent" in verifier
     assert "window.__creationIntentEvents" in verifier
+    assert "window.__planIntentEvents" in verifier
     assert "capability free entry lost analytics intent in /app" in verifier
     assert "new URL(request.url()).pathname === '/api/auth/guest'" in verifier
     assert "guestSessionChecks[0] === false && guestSessionChecks[1] === true" in verifier

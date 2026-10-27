@@ -392,6 +392,10 @@
   function capturePlanIntent() {
     const context = funnelContext();
     const params = new URLSearchParams(location.search);
+    if (isFreeGuestEntryRequest(params)) {
+      discardPendingPlanIntent();
+      return;
+    }
     if (params.get('signup') === '1' && context.plan === 'free') {
       pagePlanIntent = null;
       try { localStorage.removeItem(PLAN_INTENT_KEY); } catch (_) {}
@@ -604,6 +608,10 @@
   }
 
   function dispatchPendingPlanIntent() {
+    if (isFreeGuestEntryRequest()) {
+      discardPendingPlanIntent();
+      return;
+    }
     if (planIntentDispatched) return;
     const intent = pendingPlanIntent();
     if (!intent) return;

@@ -207,13 +207,23 @@ function pageErrors(page) {
     const capabilityGuestContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
     await capabilityGuestContext.addInitScript(() => {
       window.__creationIntentEvents = [];
+      window.__planIntentEvents = [];
       window.addEventListener('crump:creation-intent', event => {
         window.__creationIntentEvents.push(event.detail || {});
+      });
+      window.addEventListener('crump:plan-intent', event => {
+        window.__planIntentEvents.push(event.detail || {});
       });
       localStorage.setItem('askcrump.pending-creation-intent', JSON.stringify({
         kind: 'video',
         source: 'stale-paid-entry',
         acquisition: 'direct',
+        capturedAt: Date.now(),
+      }));
+      localStorage.setItem('askcrump.pending-plan-intent', JSON.stringify({
+        plan: 'professional',
+        source: 'direct',
+        location: 'stale-paid-entry',
         capturedAt: Date.now(),
       }));
     });
@@ -309,7 +319,10 @@ function pageErrors(page) {
     const capabilityGuestState = await capabilityGuestPage.evaluate(() => ({
       isGuest: window.currentUser?.isGuest === true,
       pendingCreationIntent: localStorage.getItem('askcrump.pending-creation-intent'),
+      pendingPlanIntent: localStorage.getItem('askcrump.pending-plan-intent'),
       creationIntentEvents: window.__creationIntentEvents,
+      planIntentEvents: window.__planIntentEvents,
+      billingOpen: document.body.classList.contains('billing51-open'),
       url: location.href,
     }));
     const capabilityGuestDestination = new URL(capabilityGuestState.url);
@@ -318,6 +331,10 @@ function pageErrors(page) {
     assert(!(await capabilityGuestPage.locator('#loginForm').isVisible()), 'capability free entry opened login');
     assert(capabilityGuestState.pendingCreationIntent === null, 'capability free entry retained an executable creation intent');
     assert(capabilityGuestState.creationIntentEvents.length === 0, 'capability free entry dispatched a paid creation tool');
+    assert(capabilityGuestState.pendingPlanIntent === null, 'capability free entry retained an executable paid plan intent');
+    assert(capabilityGuestState.planIntentEvents.length === 0, 'capability free entry dispatched a paid plan intent');
+    assert(!capabilityGuestState.billingOpen, 'capability free entry opened the billing modal');
+    assert(await capabilityGuestPage.locator('.billing51-modal.is-visible').count() === 0, 'capability free entry rendered a visible billing modal');
     assert(capabilityGuestDestination.searchParams.get('source') === 'projects-free', 'capability free entry lost source attribution in /app');
     assert(capabilityGuestDestination.searchParams.get('plan') === 'free', 'capability free entry lost the Free plan in /app');
     assert(capabilityGuestDestination.searchParams.get('intent') === 'projects', 'capability free entry lost analytics intent in /app');
@@ -743,7 +760,7 @@ function pageErrors(page) {
     assert(socialErrors.length === 0, `Facebook mobile browser errors: ${socialErrors.join(' | ')}`);
     await socialContext.close();
 
-    console.log('Public account-entry button proof passed: free homepage actions carry one stable valid opaque X-Installation-ID through the signed-out check, guest mint and authenticated follow-up, then reach the guest Terms gate without showing login or registration; a concurrent registered-session takeover routes that account normally without a false guest failure; an explicit Sign in URL keeps an authenticated guest on login without Terms, workspace, registration or a guest remint; an explicit Free CTA overrides a stale registered-device cache after the server reports no session and reaches guest Terms; a separate 429 renders truthful shared-network retry guidance instead of Welcome back; five guide sign-in actions including an attributed organic-search path preserve campaign context while opening login without minting a guest; all five paid creation surfaces preserve their primary paid destination and disclosure while each visible Try Ask Crump free path preserves source and analytics intent, avoids forced registration, and records one MarketingCTA on phone width; a real capability-page handoff completes guest mint and Terms acceptance into /app while clearing stale executable intent and dispatching no paid creation tool; the homepage Video action opens the exact Video + Professional handoff; all five auth navigation actions work on phone width; and a Facebook embedded-mobile handoff reaches Projects registration with one privacy-safe signup milestone sequence.');
+    console.log('Public account-entry button proof passed: free homepage actions carry one stable valid opaque X-Installation-ID through the signed-out check, guest mint and authenticated follow-up, then reach the guest Terms gate without showing login or registration; a concurrent registered-session takeover routes that account normally without a false guest failure; an explicit Sign in URL keeps an authenticated guest on login without Terms, workspace, registration or a guest remint; an explicit Free CTA overrides a stale registered-device cache after the server reports no session and reaches guest Terms; a separate 429 renders truthful shared-network retry guidance instead of Welcome back; five guide sign-in actions including an attributed organic-search path preserve campaign context while opening login without minting a guest; all five paid creation surfaces preserve their primary paid destination and disclosure while each visible Try Ask Crump free path preserves source and analytics intent, avoids forced registration, and records one MarketingCTA on phone width; a real capability-page handoff completes guest mint and Terms acceptance into /app while clearing stale executable creation and plan intents, dispatching no paid creation or plan event, and opening no billing modal; the homepage Video action opens the exact Video + Professional handoff; all five auth navigation actions work on phone width; and a Facebook embedded-mobile handoff reaches Projects registration with one privacy-safe signup milestone sequence.');
   } finally {
     await browser.close();
   }
