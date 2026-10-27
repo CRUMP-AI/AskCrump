@@ -60,6 +60,7 @@ def test_private_trigger_and_service_only_aggregate_contract() -> None:
     assert f"revoke all on function {signature}" in sql
     assert f"grant execute on function {signature} to service_role" in sql
     assert "account.guest_start_environment = p_environment" in sql
+    assert "and account.deleted_at is null" in sql
     assert "pg_catalog.md5(function_row.prosrc)" in sql
     assert "trigger_row.tgqual is null" in sql
     assert "index_row.indnkeyatts = 3" in sql
@@ -103,6 +104,8 @@ def test_postgres_gate_covers_required_behavior_and_concurrency() -> None:
         "soft-deleted guest session was counted as a guest start",
         "future app created_at rejected or rewrote the database guest-start stamp",
         "null environment unexpectedly succeeded",
+        "soft deletion rewrote immutable facts needed to prove aggregate exclusion",
+        "unexpected deletion-adjusted forward guest funnel",
     ):
         assert contract in postgres_test
 

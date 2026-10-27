@@ -671,6 +671,81 @@ select
 from public.users as account
 where account.id = '30000000-0000-4000-8000-000000000002';
 
+-- A fully progressed account must disappear from every product-funnel stage
+-- after a privacy soft deletion, while its immutable database facts remain
+-- stored for the separate deletion lifecycle to erase.
+insert into public.users (
+  id, email, is_guest, is_verified, created_at,
+  registration_environment, subscription_tier, subscription_status
+) values (
+  '30000000-0000-4000-8000-000000000010',
+  'guest-30000000-0000-4000-8000-000000000010@guest.askcrump.local',
+  true,
+  false,
+  pg_catalog.statement_timestamp() - interval '4 minutes',
+  'production',
+  'free',
+  'inactive'
+);
+
+insert into public.sessions (
+  user_id, token_hash, device_id, expires_at
+) values (
+  '30000000-0000-4000-8000-000000000010',
+  'guest-start-soft-delete-token',
+  'guest-start-soft-delete-device',
+  pg_catalog.statement_timestamp() + interval '1 day'
+);
+
+create temporary table deleted_guest_start_test_clock as
+select account.id as user_id, account.guest_started_at
+  from public.users as account
+ where account.id = '30000000-0000-4000-8000-000000000010';
+
+update public.users
+   set email = 'soft-deleted-converted@example.test',
+       is_verified = true,
+       is_guest = false,
+       registration_environment = 'preview'
+ where id = '30000000-0000-4000-8000-000000000010';
+
+insert into public.product_events (
+  user_id, environment, event_name, event_key, source, created_at
+)
+select
+  account.id,
+  'preview',
+  'ActivationReached',
+  'guest-start-soft-delete-activation',
+  'postgres-gate',
+  account.email_verified_at + interval '1 second'
+from public.users as account
+where account.id = '30000000-0000-4000-8000-000000000010';
+
+update public.users
+   set deleted_at = pg_catalog.statement_timestamp()
+ where id = '30000000-0000-4000-8000-000000000010';
+
+select pg_temp.assert_true(
+  (
+    select account.deleted_at is not null
+      and account.guest_started_at = clock.guest_started_at
+      and account.guest_start_environment = 'production'
+      and account.registration_submitted_at is not null
+      and account.email_verified_at is not null
+      and exists (
+        select 1
+          from public.product_events as event
+         where event.user_id = account.id
+           and event.event_name = 'ActivationReached'
+      )
+    from public.users as account
+    join deleted_guest_start_test_clock as clock on clock.user_id = account.id
+    where account.id = '30000000-0000-4000-8000-000000000010'
+  ),
+  'soft deletion rewrote immutable facts needed to prove aggregate exclusion'
+);
+
 do $$
 declare
   v_since timestamptz := pg_catalog.statement_timestamp() - interval '1 hour';
@@ -695,7 +770,7 @@ begin
      or v_verified <> 1
      or v_activated <> 1 then
     raise exception
-      'unexpected forward guest funnel: starts=% registrations=% verified=% activation=%',
+      'unexpected deletion-adjusted forward guest funnel: starts=% registrations=% verified=% activation=%',
       v_guest_started, v_registered, v_verified, v_activated;
   end if;
 end;
@@ -724,7 +799,7 @@ select pg_temp.assert_true(
       and function_row.provolatile = 's'
       and function_row.proconfig = array['search_path=""']::text[]
       and pg_catalog.md5(function_row.prosrc) =
-        'a7965f41c9413af126455e9f3c24a160'
+        '24b9351b22511f827e259b94d7c1d67d'
     from pg_catalog.pg_proc as function_row
     where function_row.oid =
       'public.product_guest_start_funnel_snapshot(timestamptz,timestamptz,text,boolean)'::regprocedure

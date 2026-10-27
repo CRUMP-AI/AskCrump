@@ -362,7 +362,7 @@ begin
       and pg_catalog.pg_get_function_arguments(function_row.oid) =
         $arguments$p_since timestamp with time zone, p_until timestamp with time zone DEFAULT now(), p_environment text DEFAULT 'production'::text, p_include_internal boolean DEFAULT false$arguments$
       and pg_catalog.md5(function_row.prosrc) =
-        'a7965f41c9413af126455e9f3c24a160'
+        '24b9351b22511f827e259b94d7c1d67d'
     from pg_catalog.pg_proc as function_row
     join pg_catalog.pg_language as language_row
       on language_row.oid = function_row.prolang
@@ -940,6 +940,7 @@ begin
       and account.guest_started_at >= p_since
       and account.guest_started_at < p_until
       and account.guest_start_environment = p_environment
+      and account.deleted_at is null
       and (
         p_include_internal
         or coalesce(account.internal_tier, '') = ''
@@ -1056,7 +1057,7 @@ $$;
 comment on function public.product_guest_start_funnel_snapshot(
   timestamptz, timestamptz, text, boolean
 ) is
-  'Service-role-only, content-free forward acquisition cohort selected by exact immutable guest-start environment, then followed through durable registration, verification, and activation on any later surface. Soft-deleted rows remain aggregate-only; hard deletion erases them. Legacy timing remains unavailable.';
+  'Service-role-only, content-free forward acquisition cohort selected by exact immutable guest-start environment, then followed through durable registration, verification, and activation on any later surface. Soft-deleted and hard-deleted accounts are excluded. Legacy timing remains unavailable.';
 
 revoke all on function public.product_guest_start_funnel_snapshot(
   timestamptz, timestamptz, text, boolean
