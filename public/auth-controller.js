@@ -414,6 +414,10 @@
     return CREATION_INTENTS.has(normalized) ? normalized : '';
   }
 
+  function isFreeGuestEntryRequest(params = new URLSearchParams(location.search)) {
+    return params.get('plan') === 'free' && params.get('signup') !== '1';
+  }
+
   function configureRegistrationExploreLink() {
     const link = byId('registrationExploreLink');
     if (!link) return;
@@ -470,6 +474,10 @@
 
   function captureCreationIntent() {
     const params = new URLSearchParams(location.search);
+    if (isFreeGuestEntryRequest(params)) {
+      try { localStorage.removeItem(CREATION_INTENT_KEY); } catch (_) {}
+      return;
+    }
     const kind = creationIntentValue(params.get('intent'));
     if (!kind) {
       if (params.has('intent') || params.get('signup') === '1') {
@@ -510,6 +518,7 @@
   }
 
   function dispatchPendingCreationIntent() {
+    if (isFreeGuestEntryRequest()) return '';
     const intent = pendingCreationIntent();
     if (!intent) return '';
 

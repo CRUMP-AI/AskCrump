@@ -124,6 +124,7 @@ function pageErrors(page) {
     });
     const page = await context.newPage();
     const errors = pageErrors(page);
+    let capabilityFreeHref = '';
 
     for (const [path, expected] of creationPages) {
       await page.goto(`${baseUrl}${path}`, { waitUntil: 'networkidle' });
@@ -150,6 +151,7 @@ function pageErrors(page) {
       assert(ctas.length > 0, `${path} has no account-entry actions`);
       const freeCtas = ctas.filter(cta => cta.name === expected.freeCta);
       assert(freeCtas.length === 1, `${path} has ${freeCtas.length} ${expected.freeCta} guest-entry actions`);
+      if (path === '/ai-project-workspace.html') capabilityFreeHref = freeCtas[0].href;
       const freeLayout = await page.locator(`[data-cta="${expected.freeCta}"]`).evaluate(node => {
         const rect = node.getBoundingClientRect();
         const style = getComputedStyle(node);
@@ -200,6 +202,130 @@ function pageErrors(page) {
         assert(disclosure === paidCreationDisclosures.get(path), `${path} paid-access disclosure drifted`);
       }
     }
+
+    assert(capabilityFreeHref, 'Projects capability page did not expose its free guest destination');
+    const capabilityGuestContext = await browser.newContext({ viewport: { width: 390, height: 844 } });
+    await capabilityGuestContext.addInitScript(() => {
+      window.__creationIntentEvents = [];
+      window.addEventListener('crump:creation-intent', event => {
+        window.__creationIntentEvents.push(event.detail || {});
+      });
+      localStorage.setItem('askcrump.pending-creation-intent', JSON.stringify({
+        kind: 'video',
+        source: 'stale-paid-entry',
+        acquisition: 'direct',
+        capturedAt: Date.now(),
+      }));
+    });
+    await capabilityGuestContext.route('**/_vercel/**', route => route.fulfill({ status: 204, body: '' }));
+    await capabilityGuestContext.route('**/api/billing/credits/status*', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, credits: { balance: 0 } }),
+    }));
+    await capabilityGuestContext.route('**/api/intelligence/preferences*', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ success: true, preferences: {}, entitlements: {} }),
+    }));
+    await capabilityGuestContext.route('**/api/usage/check*', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        success: true,
+        limit: 5,
+        used: 0,
+        remaining: 5,
+        windowKind: 'rolling_24h',
+        windowSeconds: 86400,
+      }),
+    }));
+    const capabilityGuestUser = {
+      ...guestUser,
+      id: 'capability-free-entry-guest-20261027',
+      email: 'capability-free-entry@guest.askcrump.local',
+    };
+    let capabilityGuestMinted = false;
+    let capabilityGuestMintRequests = 0;
+    let capabilityTermsAcceptRequests = 0;
+    await capabilityGuestContext.route('**/api/auth/check-session*', route => route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(capabilityGuestMinted ? {
+        success: true,
+        authenticated: true,
+        data: { user: capabilityGuestUser, settings: {} },
+      } : {
+        success: true,
+        authenticated: false,
+      }),
+    }));
+    await capabilityGuestContext.route('**/api/auth/guest*', route => {
+      capabilityGuestMintRequests += 1;
+      capabilityGuestMinted = true;
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          message: 'Guest session started.',
+          data: { user: capabilityGuestUser, guest: true },
+        }),
+      });
+    });
+    await capabilityGuestContext.route('**/api/account/accept-terms*', route => {
+      capabilityTermsAcceptRequests += 1;
+      return route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          user: {
+            ...capabilityGuestUser,
+            termsAcceptedAt: new Date().toISOString(),
+            termsVersion: '2026-08-01',
+          },
+        }),
+      });
+    });
+    const capabilityGuestPage = await capabilityGuestContext.newPage();
+    const capabilityGuestErrors = pageErrors(capabilityGuestPage);
+    const capabilityGuestRequest = capabilityGuestPage.waitForRequest(request => (
+      request.method() === 'POST'
+      && new URL(request.url()).pathname === '/api/auth/guest'
+    ));
+    await capabilityGuestPage.goto(normalizedAppUrl(capabilityFreeHref), { waitUntil: 'networkidle' });
+    await capabilityGuestRequest;
+    await capabilityGuestPage.locator('#tosModal').waitFor({ state: 'visible' });
+    await capabilityGuestPage.evaluate(() => {
+      window.initializeApp = () => {};
+      window.initializeAuthenticatedApp = () => {};
+      window.CrumpAnalytics = { recordWorkspaceOpenedWhenVisible: () => {} };
+      window.tutorial = { autoStart: () => {} };
+    });
+    await capabilityGuestPage.locator('#tosAccept').check();
+    await capabilityGuestPage.locator('#tosAcceptBtn').click();
+    await capabilityGuestPage.locator('#appContainer').waitFor({ state: 'visible' });
+    const capabilityGuestState = await capabilityGuestPage.evaluate(() => ({
+      isGuest: window.currentUser?.isGuest === true,
+      pendingCreationIntent: localStorage.getItem('askcrump.pending-creation-intent'),
+      creationIntentEvents: window.__creationIntentEvents,
+      url: location.href,
+    }));
+    const capabilityGuestDestination = new URL(capabilityGuestState.url);
+    assert(capabilityGuestState.isGuest, 'capability free entry did not authenticate the minted guest');
+    assert(!(await capabilityGuestPage.locator('#registerForm').isVisible()), 'capability free entry opened registration');
+    assert(!(await capabilityGuestPage.locator('#loginForm').isVisible()), 'capability free entry opened login');
+    assert(capabilityGuestState.pendingCreationIntent === null, 'capability free entry retained an executable creation intent');
+    assert(capabilityGuestState.creationIntentEvents.length === 0, 'capability free entry dispatched a paid creation tool');
+    assert(capabilityGuestDestination.searchParams.get('source') === 'projects-free', 'capability free entry lost source attribution in /app');
+    assert(capabilityGuestDestination.searchParams.get('plan') === 'free', 'capability free entry lost the Free plan in /app');
+    assert(capabilityGuestDestination.searchParams.get('intent') === 'projects', 'capability free entry lost analytics intent in /app');
+    assert(!capabilityGuestDestination.searchParams.has('signup'), 'capability free entry added signup=1 in /app');
+    assert(capabilityGuestMintRequests === 1, `capability free entry issued ${capabilityGuestMintRequests} guest mint requests`);
+    assert(capabilityTermsAcceptRequests === 1, `capability free entry issued ${capabilityTermsAcceptRequests} terms acceptance requests`);
+    assert(capabilityGuestErrors.length === 0, `capability guest browser errors: ${capabilityGuestErrors.join(' | ')}`);
+    await capabilityGuestContext.close();
 
     await page.goto(`${baseUrl}/ask-crump.html`, { waitUntil: 'networkidle' });
     const freeCtas = await page.locator('[data-cta][data-plan="free"]').evaluateAll(nodes => nodes.map(node => ({
@@ -617,7 +743,7 @@ function pageErrors(page) {
     assert(socialErrors.length === 0, `Facebook mobile browser errors: ${socialErrors.join(' | ')}`);
     await socialContext.close();
 
-    console.log('Public account-entry button proof passed: free homepage actions carry one stable valid opaque X-Installation-ID through the signed-out check, guest mint and authenticated follow-up, then reach the guest Terms gate without showing login or registration; a concurrent registered-session takeover routes that account normally without a false guest failure; an explicit Sign in URL keeps an authenticated guest on login without Terms, workspace, registration or a guest remint; an explicit Free CTA overrides a stale registered-device cache after the server reports no session and reaches guest Terms; a separate 429 renders truthful shared-network retry guidance instead of Welcome back; five guide sign-in actions including an attributed organic-search path preserve campaign context while opening login without minting a guest; all five paid creation surfaces preserve their primary paid destination and disclosure while each visible Try Ask Crump free path preserves source and intent, avoids forced registration, and records one MarketingCTA on phone width; the homepage Video action opens the exact Video + Professional handoff; all five auth navigation actions work on phone width; and a Facebook embedded-mobile handoff reaches Projects registration with one privacy-safe signup milestone sequence.');
+    console.log('Public account-entry button proof passed: free homepage actions carry one stable valid opaque X-Installation-ID through the signed-out check, guest mint and authenticated follow-up, then reach the guest Terms gate without showing login or registration; a concurrent registered-session takeover routes that account normally without a false guest failure; an explicit Sign in URL keeps an authenticated guest on login without Terms, workspace, registration or a guest remint; an explicit Free CTA overrides a stale registered-device cache after the server reports no session and reaches guest Terms; a separate 429 renders truthful shared-network retry guidance instead of Welcome back; five guide sign-in actions including an attributed organic-search path preserve campaign context while opening login without minting a guest; all five paid creation surfaces preserve their primary paid destination and disclosure while each visible Try Ask Crump free path preserves source and analytics intent, avoids forced registration, and records one MarketingCTA on phone width; a real capability-page handoff completes guest mint and Terms acceptance into /app while clearing stale executable intent and dispatching no paid creation tool; the homepage Video action opens the exact Video + Professional handoff; all five auth navigation actions work on phone width; and a Facebook embedded-mobile handoff reaches Projects registration with one privacy-safe signup milestone sequence.');
   } finally {
     await browser.close();
   }

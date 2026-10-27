@@ -78,6 +78,24 @@ def test_each_high_intent_capability_page_has_one_attributed_guest_path() -> Non
         assert "signup" not in query, (filename, anchor)
 
 
+def test_capability_free_intent_is_analytics_only_not_a_paid_tool_handoff() -> None:
+    controller = (PUBLIC / "auth-controller.js").read_text(encoding="utf-8")
+    capture = controller[
+        controller.index("function captureCreationIntent()") :
+        controller.index("function pendingCreationIntent()")
+    ]
+    dispatch = controller[
+        controller.index("function dispatchPendingCreationIntent()") :
+        controller.index("function pendingPlanIntent()")
+    ]
+
+    assert "function isFreeGuestEntryRequest" in controller
+    assert "params.get('plan') === 'free' && params.get('signup') !== '1'" in controller
+    assert "if (isFreeGuestEntryRequest(params))" in capture
+    assert "localStorage.removeItem(CREATION_INTENT_KEY)" in capture
+    assert "if (isFreeGuestEntryRequest()) return '';" in dispatch
+
+
 def test_every_public_signin_link_forces_the_login_path() -> None:
     signin_links: list[tuple[Path, dict[str, str]]] = []
     for path in PUBLIC.rglob("*.html"):
@@ -141,6 +159,12 @@ def test_browser_proof_exercises_the_mobile_free_guest_entry_boundary() -> None:
     assert "hides its Try Ask Crump free path" in verifier
     assert "loses source attribution" in verifier
     assert "has unclear guest-entry copy" in verifier
+    assert "capability free entry did not authenticate the minted guest" in verifier
+    assert "capability free entry retained an executable creation intent" in verifier
+    assert "capability free entry dispatched a paid creation tool" in verifier
+    assert "askcrump.pending-creation-intent" in verifier
+    assert "window.__creationIntentEvents" in verifier
+    assert "capability free entry lost analytics intent in /app" in verifier
     assert "new URL(request.url()).pathname === '/api/auth/guest'" in verifier
     assert "guestSessionChecks[0] === false && guestSessionChecks[1] === true" in verifier
     assert "x-installation-id" in verifier.lower()
