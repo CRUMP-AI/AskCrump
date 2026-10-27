@@ -392,6 +392,10 @@
   function capturePlanIntent() {
     const context = funnelContext();
     const params = new URLSearchParams(location.search);
+    if (isFreeGuestEntryRequest(params)) {
+      discardPendingPlanIntent();
+      return;
+    }
     if (params.get('signup') === '1' && context.plan === 'free') {
       pagePlanIntent = null;
       try { localStorage.removeItem(PLAN_INTENT_KEY); } catch (_) {}
@@ -412,6 +416,10 @@
   function creationIntentValue(value) {
     const normalized = String(value || '').trim().toLowerCase();
     return CREATION_INTENTS.has(normalized) ? normalized : '';
+  }
+
+  function isFreeGuestEntryRequest(params = new URLSearchParams(location.search)) {
+    return params.get('plan') === 'free' && params.get('signup') !== '1';
   }
 
   function configureRegistrationExploreLink() {
@@ -470,6 +478,10 @@
 
   function captureCreationIntent() {
     const params = new URLSearchParams(location.search);
+    if (isFreeGuestEntryRequest(params)) {
+      try { localStorage.removeItem(CREATION_INTENT_KEY); } catch (_) {}
+      return;
+    }
     const kind = creationIntentValue(params.get('intent'));
     if (!kind) {
       if (params.has('intent') || params.get('signup') === '1') {
@@ -510,6 +522,7 @@
   }
 
   function dispatchPendingCreationIntent() {
+    if (isFreeGuestEntryRequest()) return '';
     const intent = pendingCreationIntent();
     if (!intent) return '';
 
@@ -595,6 +608,10 @@
   }
 
   function dispatchPendingPlanIntent() {
+    if (isFreeGuestEntryRequest()) {
+      discardPendingPlanIntent();
+      return;
+    }
     if (planIntentDispatched) return;
     const intent = pendingPlanIntent();
     if (!intent) return;

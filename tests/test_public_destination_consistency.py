@@ -64,16 +64,17 @@ def test_homepage_preview_names_the_friendly_workspace_destinations_and_boundari
 
 def test_public_creation_ctas_preserve_the_exact_workspace_promise():
     expected_intents = {
-        "public/ai-document-generator.html": ("document", "professional"),
-        "public/ai-presentation-maker.html": ("presentation", "professional"),
-        "public/ai-project-workspace.html": ("projects", "professional"),
-        "public/ai-resume-builder.html": ("resume", "professional"),
-        "public/ai-video-generator.html": ("video", "professional"),
+        "public/ai-document-generator.html": ("document", "professional", "document-free"),
+        "public/ai-presentation-maker.html": ("presentation", "professional", "presentation-free"),
+        "public/ai-project-workspace.html": ("projects", "professional", "projects-free"),
+        "public/ai-resume-builder.html": ("resume", "professional", "resume-free"),
+        "public/ai-video-generator.html": ("video", "professional", "video-page-free"),
     }
 
-    for relative, (expected_intent, expected_signup_plan) in expected_intents.items():
+    for relative, (expected_intent, expected_signup_plan, expected_free_cta) in expected_intents.items():
         ctas = [link for link in links(relative) if link.get("data-cta")]
         assert ctas, f"{relative} must expose at least one account-entry action"
+        assert sum(cta["data-cta"] == expected_free_cta for cta in ctas) == 1
         for cta in ctas:
             destination = urlsplit(cta["href"])
             query = parse_qs(destination.query)
@@ -81,6 +82,10 @@ def test_public_creation_ctas_preserve_the_exact_workspace_promise():
             assert query.get("intent") == [expected_intent]
             assert query.get("plan") == [cta["data-plan"]]
             if "signin" in cta["data-cta"]:
+                assert "signup" not in query
+            elif cta["data-cta"] == expected_free_cta:
+                assert cta["data-plan"] == "free"
+                assert query.get("source") == [expected_free_cta]
                 assert "signup" not in query
             else:
                 assert cta["data-plan"] == expected_signup_plan
@@ -90,7 +95,9 @@ def test_public_creation_ctas_preserve_the_exact_workspace_promise():
     for relative, disclosure in {
         "public/ai-document-generator.html": "Document creation requires a paid plan · Account creation is free · Nothing is purchased until checkout is confirmed",
         "public/ai-presentation-maker.html": "Presentation creation requires a paid plan · Account creation is free · Nothing is purchased until checkout is confirmed",
+        "public/ai-project-workspace.html": "Projects require a paid plan · Account creation is free · Nothing is purchased until checkout is confirmed",
         "public/ai-resume-builder.html": "Résumé creation requires a paid plan · Account creation is free · Nothing is purchased until checkout is confirmed",
+        "public/ai-video-generator.html": "Video generation uses Crump Credits · Current cost is shown before generation · Availability and output can vary",
     }.items():
         assert disclosure in read(relative)
 
