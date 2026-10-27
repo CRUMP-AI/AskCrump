@@ -5,17 +5,19 @@ const executablePath = process.env.ASK_CRUMP_BROWSER_PATH
   || 'C:\\Program Files (x86)\\Microsoft\\Edge\\Application\\msedge.exe';
 
 const creationPages = new Map([
-  ['/ai-document-generator.html', { intent: 'document', signupPlan: 'professional' }],
-  ['/ai-presentation-maker.html', { intent: 'presentation', signupPlan: 'professional' }],
-  ['/ai-project-workspace.html', { intent: 'projects', signupPlan: 'professional' }],
-  ['/ai-resume-builder.html', { intent: 'resume', signupPlan: 'professional' }],
-  ['/ai-video-generator.html', { intent: 'video', signupPlan: 'professional' }],
+  ['/ai-document-generator.html', { intent: 'document', signupPlan: 'professional', freeCta: 'document-free' }],
+  ['/ai-presentation-maker.html', { intent: 'presentation', signupPlan: 'professional', freeCta: 'presentation-free' }],
+  ['/ai-project-workspace.html', { intent: 'projects', signupPlan: 'professional', freeCta: 'projects-free' }],
+  ['/ai-resume-builder.html', { intent: 'resume', signupPlan: 'professional', freeCta: 'resume-free' }],
+  ['/ai-video-generator.html', { intent: 'video', signupPlan: 'professional', freeCta: 'video-page-free' }],
 ]);
 
 const paidCreationDisclosures = new Map([
   ['/ai-document-generator.html', 'Document creation requires a paid plan · Account creation is free · Nothing is purchased until checkout is confirmed'],
   ['/ai-presentation-maker.html', 'Presentation creation requires a paid plan · Account creation is free · Nothing is purchased until checkout is confirmed'],
+  ['/ai-project-workspace.html', 'Projects require a paid plan · Account creation is free · Nothing is purchased until checkout is confirmed'],
   ['/ai-resume-builder.html', 'Résumé creation requires a paid plan · Account creation is free · Nothing is purchased until checkout is confirmed'],
+  ['/ai-video-generator.html', 'Video generation uses Crump Credits · Current cost is shown before generation · Availability and output can vary'],
 ]);
 
 const guideSigninPages = [
@@ -143,8 +145,23 @@ function pageErrors(page) {
         name: node.dataset.cta,
         plan: node.dataset.plan,
         href: node.getAttribute('href'),
+        text: node.textContent.trim(),
       })));
       assert(ctas.length > 0, `${path} has no account-entry actions`);
+      const freeCtas = ctas.filter(cta => cta.name === expected.freeCta);
+      assert(freeCtas.length === 1, `${path} has ${freeCtas.length} ${expected.freeCta} guest-entry actions`);
+      const freeLayout = await page.locator(`[data-cta="${expected.freeCta}"]`).evaluate(node => {
+        const rect = node.getBoundingClientRect();
+        const style = getComputedStyle(node);
+        return {
+          visible: rect.width > 0 && rect.height > 0 && style.display !== 'none' && style.visibility !== 'hidden',
+          left: rect.left,
+          right: rect.right,
+          viewportWidth: window.innerWidth,
+        };
+      });
+      assert(freeLayout.visible, `${path} hides its Try Ask Crump free path`);
+      assert(freeLayout.left >= 0 && freeLayout.right <= freeLayout.viewportWidth, `${path} clips its Try Ask Crump free path on phone width`);
       for (const cta of ctas) {
         const destination = new URL(cta.href, baseUrl);
         assert(destination.pathname === '/app', `${path} ${cta.name} misses /app`);
@@ -152,11 +169,32 @@ function pageErrors(page) {
         assert(destination.searchParams.get('plan') === cta.plan, `${path} ${cta.name} plan mismatch`);
         if (cta.name.includes('signin')) {
           assert(!destination.searchParams.has('signup'), `${path} ${cta.name} incorrectly opens registration`);
+        } else if (cta.name === expected.freeCta) {
+          assert(cta.text === 'Try Ask Crump free', `${path} ${cta.name} has unclear guest-entry copy`);
+          assert(cta.plan === 'free', `${path} ${cta.name} must enter the Free plan`);
+          assert(destination.searchParams.get('source') === expected.freeCta, `${path} ${cta.name} loses source attribution`);
+          assert(!destination.searchParams.has('signup'), `${path} ${cta.name} incorrectly forces registration`);
         } else {
           assert(cta.plan === expected.signupPlan, `${path} ${cta.name} must review ${expected.signupPlan}`);
           assert(destination.searchParams.get('signup') === '1', `${path} ${cta.name} does not open registration`);
         }
       }
+      await page.locator(`[data-cta="${expected.freeCta}"]`).evaluate(node => {
+        node.addEventListener('click', event => event.preventDefault(), { once: true });
+      });
+      await page.locator(`[data-cta="${expected.freeCta}"]`).click();
+      const freeEntryEvents = await page.evaluate(() => window.__entryFunnelEvents);
+      const freeStarts = freeEntryEvents.filter(event => (
+        event?.name === 'MarketingCTA'
+        && event?.data?.location === expected.freeCta
+        && event?.data?.plan === 'free'
+        && event?.data?.intent === expected.intent
+      ));
+      assert(freeStarts.length === 1, `${path} ${expected.freeCta} recorded ${freeStarts.length} MarketingCTA events`);
+      assert(
+        !freeEntryEvents.some(event => event?.name === 'MarketingSignin' && event?.data?.location === expected.freeCta),
+        `${path} ${expected.freeCta} is misclassified as a sign-in event`,
+      );
       if (paidCreationDisclosures.has(path)) {
         const disclosure = (await page.locator('.hero-foot').textContent()).trim();
         assert(disclosure === paidCreationDisclosures.get(path), `${path} paid-access disclosure drifted`);
@@ -579,7 +617,7 @@ function pageErrors(page) {
     assert(socialErrors.length === 0, `Facebook mobile browser errors: ${socialErrors.join(' | ')}`);
     await socialContext.close();
 
-    console.log('Public account-entry button proof passed: free homepage actions carry one stable valid opaque X-Installation-ID through the signed-out check, guest mint and authenticated follow-up, then reach the guest Terms gate without showing login or registration; a concurrent registered-session takeover routes that account normally without a false guest failure; an explicit Sign in URL keeps an authenticated guest on login without Terms, workspace, registration or a guest remint; an explicit Free CTA overrides a stale registered-device cache after the server reports no session and reaches guest Terms; a separate 429 renders truthful shared-network retry guidance instead of Welcome back; five guide sign-in actions including an attributed organic-search path preserve campaign context while opening login without minting a guest; five paid creation surfaces preserve their destination; the homepage Video action opens the exact Video + Professional handoff; all five auth navigation actions work on phone width; and a Facebook embedded-mobile handoff reaches Projects registration with one privacy-safe signup milestone sequence.');
+    console.log('Public account-entry button proof passed: free homepage actions carry one stable valid opaque X-Installation-ID through the signed-out check, guest mint and authenticated follow-up, then reach the guest Terms gate without showing login or registration; a concurrent registered-session takeover routes that account normally without a false guest failure; an explicit Sign in URL keeps an authenticated guest on login without Terms, workspace, registration or a guest remint; an explicit Free CTA overrides a stale registered-device cache after the server reports no session and reaches guest Terms; a separate 429 renders truthful shared-network retry guidance instead of Welcome back; five guide sign-in actions including an attributed organic-search path preserve campaign context while opening login without minting a guest; all five paid creation surfaces preserve their primary paid destination and disclosure while each visible Try Ask Crump free path preserves source and intent, avoids forced registration, and records one MarketingCTA on phone width; the homepage Video action opens the exact Video + Professional handoff; all five auth navigation actions work on phone width; and a Facebook embedded-mobile handoff reaches Projects registration with one privacy-safe signup milestone sequence.');
   } finally {
     await browser.close();
   }

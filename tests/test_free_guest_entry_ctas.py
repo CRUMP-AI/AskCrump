@@ -8,6 +8,14 @@ from urllib.parse import parse_qs, urlparse
 ROOT = Path(__file__).resolve().parents[1]
 PUBLIC = ROOT / "public"
 
+CAPABILITY_FREE_CTAS = {
+    "ai-project-workspace.html": ("projects-free", "projects"),
+    "ai-presentation-maker.html": ("presentation-free", "presentation"),
+    "ai-document-generator.html": ("document-free", "document"),
+    "ai-resume-builder.html": ("resume-free", "resume"),
+    "ai-video-generator.html": ("video-page-free", "video"),
+}
+
 
 class _AnchorParser(HTMLParser):
     def __init__(self) -> None:
@@ -45,6 +53,29 @@ def test_every_public_free_cta_enters_guest_mode_instead_of_forcing_signup() -> 
         assert destination.path == "/app", (path, anchor)
         assert query.get("plan") == ["free"], (path, anchor)
         assert "signup" not in query, (path, anchor)
+
+
+def test_each_high_intent_capability_page_has_one_attributed_guest_path() -> None:
+    for filename, (source, intent) in CAPABILITY_FREE_CTAS.items():
+        matching = [
+            anchor
+            for anchor in _anchors(PUBLIC / filename)
+            if anchor.get("data-cta") == source
+        ]
+
+        assert len(matching) == 1, (filename, matching)
+        anchor = matching[0]
+        destination = urlparse(anchor["href"])
+        query = parse_qs(destination.query)
+        assert destination.path == "/app", (filename, anchor)
+        assert query == {
+            "source": [source],
+            "plan": ["free"],
+            "intent": [intent],
+        }, (filename, anchor)
+        assert anchor.get("data-plan") == "free", (filename, anchor)
+        assert "secondary" in anchor.get("class", "").split(), (filename, anchor)
+        assert "signup" not in query, (filename, anchor)
 
 
 def test_every_public_signin_link_forces_the_login_path() -> None:
@@ -105,6 +136,11 @@ def test_browser_proof_exercises_the_mobile_free_guest_entry_boundary() -> None:
     )
 
     assert "homepage Start free still opens registration" in verifier
+    for source in ("projects-free", "presentation-free", "document-free", "resume-free", "video-page-free"):
+        assert f"freeCta: '{source}'" in verifier
+    assert "hides its Try Ask Crump free path" in verifier
+    assert "loses source attribution" in verifier
+    assert "has unclear guest-entry copy" in verifier
     assert "new URL(request.url()).pathname === '/api/auth/guest'" in verifier
     assert "guestSessionChecks[0] === false && guestSessionChecks[1] === true" in verifier
     assert "x-installation-id" in verifier.lower()

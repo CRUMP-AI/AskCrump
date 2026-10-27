@@ -104,6 +104,63 @@ def test_marketing_ctas_are_first_party_analytics_events():
     assert 'href="https://askcrump.com/app' not in page
 
 
+def test_capability_pages_keep_paid_creation_primary_and_offer_free_guest_entry():
+    expectations = (
+        (
+            "public/ai-project-workspace.html",
+            "projects-hero",
+            "projects-free",
+            "projects",
+            "Projects require a paid plan · Account creation is free · Nothing is purchased until checkout is confirmed",
+        ),
+        (
+            "public/ai-presentation-maker.html",
+            "presentation-hero",
+            "presentation-free",
+            "presentation",
+            "Presentation creation requires a paid plan · Account creation is free · Nothing is purchased until checkout is confirmed",
+        ),
+        (
+            "public/ai-document-generator.html",
+            "document-hero",
+            "document-free",
+            "document",
+            "Document creation requires a paid plan · Account creation is free · Nothing is purchased until checkout is confirmed",
+        ),
+        (
+            "public/ai-resume-builder.html",
+            "resume-hero",
+            "resume-free",
+            "resume",
+            "Résumé creation requires a paid plan · Account creation is free · Nothing is purchased until checkout is confirmed",
+        ),
+        (
+            "public/ai-video-generator.html",
+            "video-page-hero",
+            "video-page-free",
+            "video",
+            "Video generation uses Crump Credits · Current cost is shown before generation · Availability and output can vary",
+        ),
+    )
+
+    for filename, paid_source, free_source, intent, disclosure in expectations:
+        page = read(filename)
+        paid_marker = (
+            f'data-cta="{paid_source}" data-plan="professional" '
+            f'href="/app?signup=1&amp;source={paid_source}&amp;plan=professional&amp;intent={intent}"'
+        )
+        free_marker = (
+            f'class="button secondary" data-cta="{free_source}" data-plan="free" '
+            f'href="/app?source={free_source}&amp;plan=free&amp;intent={intent}">Try Ask Crump free</a>'
+        )
+
+        assert page.count(f'data-cta="{free_source}"') == 1
+        assert paid_marker in page
+        assert free_marker in page
+        assert page.index(paid_marker) < page.index(free_marker)
+        assert disclosure in page
+
+
 def test_known_search_referrers_are_privacy_minimized_as_organic():
     script = read("public/landing.js")
     controller = read("public/auth-controller.js")
