@@ -54,12 +54,21 @@ def test_settings_profile_save_is_truthful_and_refreshes_the_optional_nudge():
 def test_terms_remain_a_required_server_saved_fallback_gate_before_workspace_entry():
     controller = read("auth-controller.js")
 
-    terms_gate = controller[controller.index("if (!user.termsAcceptedAt)"):controller.index("if (user.fullName)")]
+    terms_gate = controller[controller.index("if (\n      !user.policyAcceptedCurrent"):controller.index("if (user.fullName)")]
     assert "show('tosModal', 'flex')" in terms_gate
     assert "return;" in terms_gate
+    assert "user.termsVersion !== TERMS_VERSION" in terms_gate
+    assert "user.policyBundleHash !== TERMS_BUNDLE_HASH" in terms_gate
     assert "authRequest('/api/account/accept-terms'" in controller
-    assert "body: JSON.stringify({ version: TERMS_VERSION })" in controller
-    assert "const TERMS_VERSION = '2026-08-01'" in controller
+    for field in (
+        "version: TERMS_VERSION",
+        "termsAccepted: policyBundleAccepted",
+        "privacyNoticeAcknowledged: policyBundleAccepted",
+        "age17PlusAttested: policyBundleAccepted",
+        "aiProviderTransmissionAuthorized: policyBundleAccepted",
+    ):
+        assert field in controller
+    assert "const TERMS_VERSION = 'ask-crump-legal-2026-08-01-a44e8c36'" in controller
 
 
 def test_name_completion_event_semantics_remain_server_authoritative():

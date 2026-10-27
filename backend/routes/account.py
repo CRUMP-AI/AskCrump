@@ -11,6 +11,7 @@ from fastapi.responses import JSONResponse
 
 from ..auth_service import authenticate_request, public_user
 from ..db import eq
+from ..policy_consent import policy_client_platform, record_current_policy_acceptance
 from ..product_analytics import record_product_event
 from ..runtime import db, settings
 from ..schemas import DeleteAccountRequest, ProfileUpdateRequest, TermsAcceptanceRequest
@@ -127,15 +128,21 @@ async def accept_terms(payload: TermsAcceptanceRequest, request: Request):
         db,
         settings,
         require_expected_owner_header=True,
+        require_current_policy_acceptance=False,
     )
-    accepted_at = iso_now()
-    await db.update('users', {
-        'terms_accepted_at': accepted_at,
-        'terms_version': payload.version,
-        'updated_at': accepted_at,
-    }, filters={'id': eq(auth.user['id'])})
-    auth.user['terms_accepted_at'] = accepted_at
-    auth.user['terms_version'] = payload.version
+    receipt = await record_current_policy_acceptance(
+        db,
+        user_id=str(auth.user['id']),
+        source='guest_gate' if auth.user.get('is_guest') else 'account_gate',
+        platform=policy_client_platform(request.headers),
+        age_17_plus_attested=payload.age17PlusAttested,
+        terms_accepted=payload.termsAccepted,
+        privacy_notice_acknowledged=payload.privacyNoticeAcknowledged,
+        ai_provider_transmission_authorized=payload.aiProviderTransmissionAuthorized,
+    )
+    auth.user['terms_accepted_at'] = receipt['accepted_at']
+    auth.user['terms_version'] = receipt['bundle_id']
+    auth.user['_policy_accepted_current'] = True
     return {'success': True, 'user': public_user(auth.user)}
 
 
@@ -146,6 +153,7 @@ async def delete_account(payload: DeleteAccountRequest, request: Request, respon
         db,
         settings,
         require_expected_owner_header=True,
+        require_current_policy_acceptance=False,
     )
     if payload.confirmation.strip().upper() != 'DELETE':
         return JSONResponse(status_code=400, content={'success': False, 'error': 'Type DELETE to confirm.'})

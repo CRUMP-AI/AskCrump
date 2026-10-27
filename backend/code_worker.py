@@ -13,6 +13,7 @@ from .code_service import CodeTaskConflictError, CodeTaskService, TERMINAL_STATU
 from .config import Settings
 from .db import SupabaseDB
 from .feature_service import FeatureService
+from .policy_consent import read_current_policy_acceptance
 
 
 logger = logging.getLogger("askcrump.code_worker")
@@ -120,6 +121,44 @@ class CodeWorker:
         )
         if not task:
             return {"handled": False, "claimed": False}
+
+        try:
+            acceptance = await read_current_policy_acceptance(
+                self.db,
+                user_id=str(task["user_id"]),
+            )
+        except Exception as exc:
+            await self.service.hold_for_policy_acceptance(
+                task,
+                failure_code="POLICY_ACCEPTANCE_CHECK_UNAVAILABLE",
+            )
+            code_log(
+                logger,
+                logging.WARNING,
+                "worker_policy_check_unavailable",
+                error_type=type(exc).__name__,
+                status="policy_check_unavailable",
+                outcome="deferred",
+            )
+            return {
+                "handled": True,
+                "claimed": True,
+                "status": "policy_check_unavailable",
+            }
+        if acceptance is None:
+            await self.service.hold_for_policy_acceptance(task)
+            code_log(
+                logger,
+                logging.INFO,
+                "worker_policy_blocked",
+                status="policy_required",
+                outcome="deferred",
+            )
+            return {
+                "handled": True,
+                "claimed": True,
+                "status": "policy_required",
+            }
 
         started = monotonic()
         attempt = int(task.get("attempt_count") or 0)

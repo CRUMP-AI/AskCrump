@@ -8,7 +8,8 @@ from pydantic import ValidationError
 from starlette.requests import Request
 
 from backend.routes import auth as auth_routes
-from backend.schemas import RegisterRequest, ResendVerificationRequest
+from backend.policy_consent import CURRENT_POLICY_BUNDLE_HASH
+from backend.schemas import CURRENT_TERMS_VERSION, RegisterRequest, ResendVerificationRequest
 from backend.verification_handoff import (
     creation_intent,
     paid_plan_intent,
@@ -112,6 +113,15 @@ class _RegistrationDB:
         assert on_conflict == "user_id"
         return [dict(payload)]
 
+    async def rpc(self, function_name, payload):
+        assert function_name == "record_policy_acceptance_v1"
+        return [{
+            "receipt_id": "registration-consent-receipt",
+            "accepted_at": "2026-10-27T08:00:00+00:00",
+            "bundle_id": payload["p_bundle_id"],
+            "bundle_hash": CURRENT_POLICY_BUNDLE_HASH,
+        }]
+
 
 class _VerificationQueueCapture:
     def __init__(self) -> None:
@@ -154,6 +164,11 @@ async def test_registration_and_resend_preserve_the_promised_destination(
             password="StrongPass1",
             intent=intent,
             plan="professional",
+            termsAccepted=True,
+            privacyNoticeAcknowledged=True,
+            age17PlusAttested=True,
+            aiProviderTransmissionAuthorized=True,
+            termsVersion=CURRENT_TERMS_VERSION,
         ),
         request,
     )

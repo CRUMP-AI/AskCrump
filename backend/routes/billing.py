@@ -834,6 +834,9 @@ async def reconcile_stripe_checkout_session(
         )
         if not current_user:
             raise RuntimeError('The billing account changed while checkout was processing.')
+        current_user['_policy_accepted_current'] = (
+            user.get('_policy_accepted_current') is True
+        )
         logger.info(
             'Checkout reconciliation lost subscription compare-and-swap '
             'session=%s subscription=%s current_subscription=%s',

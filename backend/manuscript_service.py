@@ -29,6 +29,7 @@ from .db import DatabaseError, SupabaseDB, eq, in_
 from .feature_service import FeatureAccessError, FeatureService
 from .file_service import FileService
 from .project_service import ProjectService
+from .policy_consent import read_current_policy_acceptance
 from .security import normalize_chat_id
 
 
@@ -1124,6 +1125,51 @@ User brief:
                 },
             )
             return {"claimed": True, "runId": run["id"], "status": "failed"}
+
+        try:
+            acceptance = await read_current_policy_acceptance(
+                self.db,
+                user_id=str(user["id"]),
+            )
+        except Exception:
+            retry_at = datetime.now(timezone.utc) + timedelta(minutes=5)
+            await self._lease_update(
+                run,
+                {
+                    "status": "queued",
+                    "attempt_count": max(0, int(run.get("attempt_count") or 0) - 1),
+                    "not_before": retry_at.isoformat(),
+                    "lease_token": None,
+                    "lease_expires_at": None,
+                    "last_error_code": "POLICY_ACCEPTANCE_CHECK_UNAVAILABLE",
+                    "last_error_message": "Policy acceptance could not be verified. Retrying shortly.",
+                },
+            )
+            logger.warning(
+                "Manuscript policy acceptance check unavailable; run deferred."
+            )
+            return {
+                "claimed": True,
+                "runId": run["id"],
+                "status": "policy_check_unavailable",
+            }
+        if acceptance is None:
+            await self._lease_update(
+                run,
+                {
+                    "status": "paused",
+                    "attempt_count": max(0, int(run.get("attempt_count") or 0) - 1),
+                    "lease_token": None,
+                    "lease_expires_at": None,
+                    "last_error_code": "POLICY_ACCEPTANCE_REQUIRED",
+                    "last_error_message": "Current policy acceptance is required to resume.",
+                },
+            )
+            return {
+                "claimed": True,
+                "runId": run["id"],
+                "status": "policy_required",
+            }
 
         try:
             stage = str(run.get("stage") or "blueprint")

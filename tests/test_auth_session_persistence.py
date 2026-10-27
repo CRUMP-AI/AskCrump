@@ -15,6 +15,7 @@ from backend.auth_service import (
     touch_authenticated_session,
 )
 from backend.db import eq
+from backend.policy_consent import CURRENT_POLICY_BUNDLE_HASH, CURRENT_POLICY_BUNDLE_ID
 from backend.security import token_hash
 
 
@@ -129,6 +130,15 @@ class DuplicateCookieDB:
             return {'id': 'user-1', 'email': 'user@example.com', 'deleted_at': None}
         return None
 
+    async def rpc(self, name, payload, **_kwargs):
+        assert name == 'read_current_policy_acceptance_v1'
+        return [{
+            'receipt_id': '33333333-3333-4333-8333-333333333333',
+            'accepted_at': '2026-10-27T00:00:00+00:00',
+            'bundle_id': CURRENT_POLICY_BUNDLE_ID,
+            'bundle_hash': CURRENT_POLICY_BUNDLE_HASH,
+        }]
+
 
 class ExpectedOwnerDB:
     owner_id = '22222222-2222-4222-8222-222222222222'
@@ -153,6 +163,15 @@ class ExpectedOwnerDB:
     async def update(self, table, payload, *, filters):
         self.updates.append((table, dict(payload), dict(filters)))
         return []
+
+    async def rpc(self, name, payload, **_kwargs):
+        assert name == 'read_current_policy_acceptance_v1'
+        return [{
+            'receipt_id': '33333333-3333-4333-8333-333333333333',
+            'accepted_at': '2026-10-27T00:00:00+00:00',
+            'bundle_id': CURRENT_POLICY_BUNDLE_ID,
+            'bundle_hash': CURRENT_POLICY_BUNDLE_HASH,
+        }]
 
 
 def owner_request(*, expected_owner=None, bearer=False):

@@ -8,6 +8,7 @@ from fastapi.testclient import TestClient
 
 import app as app_module
 from backend.routes import media as media_routes
+from backend.policy_consent import CURRENT_POLICY_BUNDLE_HASH, CURRENT_POLICY_BUNDLE_ID
 from backend.video_service import VideoService
 
 
@@ -118,6 +119,7 @@ def test_video_lease_cron_runs_bounded_sweep_and_returns_only_aggregate_counts(
             "failed": 0,
             "retryable": 0,
             "errors": 0,
+            "policyRequired": 0,
         },
     }
     assert cron_context.calls == [
@@ -136,17 +138,27 @@ def test_video_lease_cron_runs_bounded_sweep_and_returns_only_aggregate_counts(
 
 
 class ProcessingDB:
-    def __init__(self, rows, *, finalizing_rows=None):
+    def __init__(self, rows, *, finalizing_rows=None, policy_receipt="current"):
         self.rows = list(rows)
         self.finalizing_rows = list(finalizing_rows or [])
+        self.policy_receipt = policy_receipt
         self.calls = []
         self.select_calls = []
 
     async def rpc(self, function_name, payload, *, retry_transient=False):
         self.calls.append((function_name, dict(payload), retry_transient))
-        assert function_name == "claim_video_reconciliation_batch"
-        limit = int(payload.get("p_limit") or 0)
-        return [*self.finalizing_rows, *self.rows][:limit]
+        if function_name == "claim_video_reconciliation_batch":
+            limit = int(payload.get("p_limit") or 0)
+            return [*self.finalizing_rows, *self.rows][:limit]
+        assert function_name == "read_current_policy_acceptance_v1"
+        if self.policy_receipt == "missing":
+            return []
+        if self.policy_receipt == "stale":
+            return [{"bundle_id": "stale", "bundle_hash": "0" * 64}]
+        return [{
+            "bundle_id": CURRENT_POLICY_BUNDLE_ID,
+            "bundle_hash": CURRENT_POLICY_BUNDLE_HASH,
+        }]
 
     async def select(self, table, **kwargs):
         self.select_calls.append((table, dict(kwargs)))
@@ -200,22 +212,26 @@ async def test_processing_reconciliation_is_bounded_and_isolates_provider_failur
         "failed": 1,
         "retryable": 1,
         "errors": 1,
+        "policyRequired": 0,
     }
     assert seen == [
         ("owner-a", "00000000-0000-0000-0000-000000000011"),
         ("owner-b", "00000000-0000-0000-0000-000000000012"),
         ("owner-c", "00000000-0000-0000-0000-000000000013"),
     ]
-    assert database.calls == [
-        (
-            "claim_video_reconciliation_batch",
-            {
-                "p_limit": 25,
-                "p_stale_seconds": 60,
-                "p_backoff_seconds": 600,
-            },
-            True,
-        )
+    assert database.calls[0] == (
+        "claim_video_reconciliation_batch",
+        {
+            "p_limit": 25,
+            "p_stale_seconds": 60,
+            "p_backoff_seconds": 600,
+        },
+        True,
+    )
+    assert [call[0] for call in database.calls[1:]] == [
+        "read_current_policy_acceptance_v1",
+        "read_current_policy_acceptance_v1",
+        "read_current_policy_acceptance_v1",
     ]
 
 
@@ -251,18 +267,67 @@ async def test_expired_finalization_is_retried_in_background_after_user_leaves()
         "failed": 0,
         "retryable": 0,
         "errors": 0,
+        "policyRequired": 0,
     }
-    assert database.calls == [
-        (
-            "claim_video_reconciliation_batch",
-            {
-                "p_limit": 10,
-                "p_stale_seconds": 120,
-                "p_backoff_seconds": 600,
-            },
-            True,
-        )
+    assert database.calls[0] == (
+        "claim_video_reconciliation_batch",
+        {
+            "p_limit": 10,
+            "p_stale_seconds": 120,
+            "p_backoff_seconds": 600,
+        },
+        True,
+    )
+    assert database.calls[1][0] == "read_current_policy_acceptance_v1"
+
+
+@pytest.mark.parametrize("policy_receipt", ["missing", "stale"])
+@pytest.mark.asyncio
+async def test_reconciliation_policy_hold_skips_provider_work_and_preserves_jobs(
+    policy_receipt,
+):
+    finalization_token = "00000000-0000-4000-8000-000000000099"
+    rows = [{
+        "id": "00000000-0000-0000-0000-000000000081",
+        "user_id": "owner-policy",
+        "video_phase": "processing",
+        "lease_token": None,
+    }]
+    finalizing = [{
+        "id": "00000000-0000-0000-0000-000000000082",
+        "user_id": "owner-policy",
+        "video_phase": "finalizing",
+        "lease_token": finalization_token,
+    }]
+    database = ProcessingDB(
+        rows,
+        finalizing_rows=finalizing,
+        policy_receipt=policy_receipt,
+    )
+    service = VideoService(SimpleNamespace(), database, SimpleNamespace())
+
+    async def forbidden_poll(**_kwargs):
+        raise AssertionError("policy hold must precede provider poll/download")
+
+    service.poll = forbidden_poll
+    summary = await service.reconcile_stale_processing(limit=10, stale_seconds=120)
+
+    assert summary == {
+        "scanned": 2,
+        "processing": 0,
+        "ready": 0,
+        "failed": 0,
+        "retryable": 0,
+        "errors": 0,
+        "policyRequired": 2,
+    }
+    assert [call[0] for call in database.calls] == [
+        "claim_video_reconciliation_batch",
+        "read_current_policy_acceptance_v1",
+        "read_current_policy_acceptance_v1",
     ]
+    assert database.select_calls == []
+    assert finalizing[0]["lease_token"] == finalization_token
 
 
 @pytest.mark.asyncio

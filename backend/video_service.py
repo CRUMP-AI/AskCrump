@@ -14,6 +14,7 @@ from PIL import Image, ImageOps, UnidentifiedImageError
 from .config import Settings
 from .db import SupabaseDB, eq, gte
 from .file_service import FileService, FileServiceError
+from .policy_consent import read_current_policy_acceptance
 from .security import normalize_chat_id
 from .video_providers import GeminiVeoProvider, ProviderError, RunwayProvider
 
@@ -1656,6 +1657,7 @@ class VideoService:
             "failed": 0,
             "retryable": 0,
             "errors": 0,
+            "policyRequired": 0,
         }
         for item in rows:
             job_id = str(item.get("id") or "").strip()
@@ -1664,6 +1666,17 @@ class VideoService:
                 summary["errors"] += 1
                 continue
             try:
+                acceptance = await read_current_policy_acceptance(
+                    self.db,
+                    user_id=owner_id,
+                )
+                if acceptance is None:
+                    # The atomic claim already advances sweep_retry_after by a
+                    # bounded interval. Preserve the job and every receipt,
+                    # but do not read its prompt/references or contact the
+                    # provider until the owner has accepted the current bundle.
+                    summary["policyRequired"] += 1
+                    continue
                 row = await self.poll(user_id=owner_id, job_id=job_id)
             except VideoServiceError as exc:
                 summary["errors"] += 1

@@ -7,6 +7,7 @@ from pydantic import ValidationError
 from starlette.requests import Request
 
 from backend.routes import auth as auth_routes
+from backend.policy_consent import CURRENT_POLICY_BUNDLE_HASH, CURRENT_POLICY_BUNDLE_ID
 from backend.schemas import (
     CURRENT_TERMS_VERSION,
     RegisterRequest,
@@ -17,6 +18,7 @@ from backend.schemas import (
 class RegistrationDB:
     def __init__(self) -> None:
         self.inserted_user: dict | None = None
+        self.receipt_calls: list[dict] = []
 
     async def select_one(self, table, **kwargs):
         return None
@@ -33,6 +35,16 @@ class RegistrationDB:
 
     async def update(self, *args, **kwargs):
         return []
+
+    async def rpc(self, name, payload, **_kwargs):
+        assert name == 'record_policy_acceptance_v1'
+        self.receipt_calls.append(dict(payload))
+        return [{
+            'receipt_id': '11111111-1111-4111-8111-111111111111',
+            'accepted_at': '2026-10-27T00:00:00+00:00',
+            'bundle_id': CURRENT_POLICY_BUNDLE_ID,
+            'bundle_hash': CURRENT_POLICY_BUNDLE_HASH,
+        }]
 
 
 class QueuedVerificationEmail:
@@ -67,6 +79,9 @@ async def test_current_registration_consent_is_saved_before_verification(monkeyp
             password='StrongPass1',
             source='facebook',
             termsAccepted=True,
+            privacyNoticeAcknowledged=True,
+            age17PlusAttested=True,
+            aiProviderTransmissionAuthorized=True,
             termsVersion=CURRENT_TERMS_VERSION,
         ),
         Request({
@@ -78,8 +93,10 @@ async def test_current_registration_consent_is_saved_before_verification(monkeyp
 
     assert response['success'] is True
     assert fake_db.inserted_user is not None
-    assert fake_db.inserted_user['terms_version'] == CURRENT_TERMS_VERSION
-    assert fake_db.inserted_user['terms_accepted_at']
+    assert 'terms_version' not in fake_db.inserted_user
+    assert 'terms_accepted_at' not in fake_db.inserted_user
+    assert fake_db.receipt_calls[0]['p_bundle_id'] == CURRENT_TERMS_VERSION
+    assert fake_db.receipt_calls[0]['p_acceptance_source'] == 'registration'
     assert (
         fake_db.inserted_user['registration_submitted_at']
         == fake_db.inserted_user['created_at']
@@ -94,15 +111,12 @@ async def test_current_registration_consent_is_saved_before_verification(monkeyp
     }]
 
 
-def test_legacy_registration_omission_keeps_the_authenticated_terms_fallback():
-    payload = RegisterRequest(
-        email='legacy-client@example.com',
-        password='StrongPass1',
-    )
-
-    assert payload.termsAccepted is False
-    assert payload.termsVersion is None
-    assert auth_routes._registration_terms_values(payload, accepted_at='2026-08-29T00:00:00Z') == {}
+def test_registration_omission_cannot_create_an_unconsented_account():
+    with pytest.raises(ValidationError):
+        RegisterRequest(
+            email='legacy-client@example.com',
+            password='StrongPass1',
+        )
 
 
 @pytest.mark.asyncio
@@ -134,6 +148,17 @@ async def test_guest_registration_preserves_existing_settings_without_redundant_
         async def upsert(self, *_args, **_kwargs):
             raise AssertionError('guest conversion must preserve its existing settings row')
 
+        async def rpc(self, name, payload, **_kwargs):
+            assert name == 'record_policy_acceptance_v1'
+            assert payload['p_user_id'] == 'guest-user'
+            assert payload['p_acceptance_source'] == 'registration'
+            return [{
+                'receipt_id': '11111111-1111-4111-8111-111111111111',
+                'accepted_at': '2026-10-27T00:00:00+00:00',
+                'bundle_id': CURRENT_POLICY_BUNDLE_ID,
+                'bundle_hash': CURRENT_POLICY_BUNDLE_HASH,
+            }]
+
     fake_db = GuestRegistrationDB()
     queue = QueuedVerificationEmail()
 
@@ -159,6 +184,9 @@ async def test_guest_registration_preserves_existing_settings_without_redundant_
             email='converted@example.com',
             password='StrongPass1',
             termsAccepted=True,
+            privacyNoticeAcknowledged=True,
+            age17PlusAttested=True,
+            aiProviderTransmissionAuthorized=True,
             termsVersion=CURRENT_TERMS_VERSION,
         ),
         Request({
@@ -185,13 +213,24 @@ async def test_guest_registration_preserves_existing_settings_without_redundant_
 
 
 def test_stale_legal_versions_are_rejected_by_both_consent_contracts():
-    assert CURRENT_TERMS_VERSION == '2026-08-01'
+    assert CURRENT_TERMS_VERSION == 'ask-crump-legal-2026-08-01-a44e8c36'
+    with pytest.raises(ValidationError):
+        TermsAcceptanceRequest()
     with pytest.raises(ValidationError):
         RegisterRequest(
             email='stale@example.com',
             password='StrongPass1',
             termsAccepted=True,
+            privacyNoticeAcknowledged=True,
+            age17PlusAttested=True,
+            aiProviderTransmissionAuthorized=True,
             termsVersion='2026-07-30',
         )
     with pytest.raises(ValidationError):
-        TermsAcceptanceRequest(version='2026-07-30')
+        TermsAcceptanceRequest(
+            version='2026-07-30',
+            termsAccepted=True,
+            privacyNoticeAcknowledged=True,
+            age17PlusAttested=True,
+            aiProviderTransmissionAuthorized=True,
+        )

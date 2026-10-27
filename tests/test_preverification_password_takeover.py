@@ -9,8 +9,9 @@ from fastapi import Request, Response
 
 from backend import auth_service
 from backend.auth_service import AuthenticatedUser, complete_initial_password_setup
+from backend.policy_consent import CURRENT_POLICY_BUNDLE_HASH
 from backend.routes import auth as auth_routes
-from backend.schemas import LoginRequest, RegisterRequest
+from backend.schemas import CURRENT_TERMS_VERSION, LoginRequest, RegisterRequest
 from backend.security import PENDING_PASSWORD_HASH, hash_password, token_hash, verify_password
 
 
@@ -47,6 +48,15 @@ class NewRegistrationDB:
     async def upsert(self, *_args, **_kwargs):
         return []
 
+    async def rpc(self, function_name, payload):
+        assert function_name == 'record_policy_acceptance_v1'
+        return [{
+            'receipt_id': 'registration-consent-receipt',
+            'accepted_at': '2026-10-27T08:00:00+00:00',
+            'bundle_id': payload['p_bundle_id'],
+            'bundle_hash': CURRENT_POLICY_BUNDLE_HASH,
+        }]
+
 
 @pytest.mark.asyncio
 async def test_registration_never_persists_the_unverified_submitted_password(
@@ -81,7 +91,15 @@ async def test_registration_never_persists_the_unverified_submitted_password(
     )
 
     result = await auth_routes.register(
-        RegisterRequest(email='victim@example.com', password=ATTACKER_PASSWORD),
+        RegisterRequest(
+            email='victim@example.com',
+            password=ATTACKER_PASSWORD,
+            termsAccepted=True,
+            privacyNoticeAcknowledged=True,
+            age17PlusAttested=True,
+            aiProviderTransmissionAuthorized=True,
+            termsVersion=CURRENT_TERMS_VERSION,
+        ),
         request('/api/auth/register'),
     )
 
