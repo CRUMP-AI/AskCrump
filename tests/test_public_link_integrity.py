@@ -75,6 +75,7 @@ def _public_target(path: str, source: Path) -> Path | None:
         "/clever-crump": "clever-crump.html",
         "/legal": "legal.html",
         "/delete-account": "delete-account.html",
+        "/guides": "guides/index.html",
     }
     if clean in route_map:
         return PUBLIC / route_map[clean]
@@ -138,5 +139,5 @@ def test_public_reference_inventory_is_reviewed() -> None:
         for reference in _parse(path).references
     ]
 
-    assert len(PUBLIC_HTML) == 15
-    assert len(references) == 481
+    assert len(PUBLIC_HTML) == 16
+    assert len(references) == 517
