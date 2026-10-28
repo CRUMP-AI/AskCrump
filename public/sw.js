@@ -49,7 +49,7 @@ const CORE = [
   '/crump-media-save.js?v=5.9.76-library-crud-privacy-1',
   '/crump-library-loader.js?v=5.9.76-account-owner-boundary-1',
   '/crump-subscriptions-5.3.2.js?v=5.9.76-private-owner-boundary-1',
-  '/runtime-body-v1.js?v=5.9.76-legacy-project-resume-truth-1',
+  '/runtime-body-v1.js?v=5.9.76-server-only-activation-1',
   '/home-document-entry.js?v=5.9.76-home-document-entry-1',
   '/native-runtime.js',
   '/mobile-bridge.js?v=5.9.76-private-owner-boundary-1',

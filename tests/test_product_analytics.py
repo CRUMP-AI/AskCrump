@@ -1514,7 +1514,7 @@ def test_workspace_opened_retry_assets_are_cache_version_coherent():
     analytics_version = "5.9.76-server-only-activation-1"
     app_version = "5.9.76-server-only-activation-1"
     auth_version = "5.9.76-free-capability-guest-entry-2"
-    runtime_body_version = "5.9.76-legacy-project-resume-truth-1"
+    runtime_body_version = "5.9.76-server-only-activation-1"
     shell = (ROOT / "public" / "app.html").read_text(encoding="utf-8")
     runtime = (ROOT / "public" / "runtime-body-v1.js").read_text(encoding="utf-8")
     worker = (ROOT / "public" / "sw.js").read_text(encoding="utf-8")
