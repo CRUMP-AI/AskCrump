@@ -574,8 +574,8 @@ def test_changed_activation_assets_are_release_versioned():
     for asset in (
         "/conversation.css?v=5.9.76-muse-release-repair-1",
             "/ui-functions.js?v=5.9.76-private-owner-boundary-1",
-        "/product-analytics.js?v=5.9.76-workspace-opened-retry-1",
-        "/app.js?v=5.9.76-native-push-owner-fence-1",
+        "/product-analytics.js?v=5.9.76-server-only-activation-1",
+        "/app.js?v=5.9.76-server-only-activation-1",
     ):
         assert asset not in shell
         assert asset in runtime

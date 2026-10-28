@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 from fastapi import HTTPException, Request
+from pydantic import ValidationError
 
 from backend.routes import analytics as analytics_routes
 from backend.routes import files as files_routes
@@ -126,6 +127,16 @@ def test_project_save_measurement_separates_client_intent_from_server_completion
     assert "ProjectSaveCompleted" not in CLIENT_EVENT_NAMES
 
 
+def test_activation_is_server_only():
+    assert "ActivationReached" in EVENT_NAMES
+    assert "ActivationReached" not in CLIENT_EVENT_NAMES
+    with pytest.raises(ValidationError):
+        ProductEventRequest(
+            eventName="ActivationReached",
+            eventKey="first-successful-response",
+        )
+
+
 def test_navigation_destination_measurement_is_fixed_and_content_free():
     assert NAVIGATION_DESTINATIONS == frozenset({
         "ask",
@@ -235,6 +246,27 @@ async def test_recorder_sends_only_the_allowlisted_database_contract():
         "p_plan": "professional",
         "p_artifact_type": None,
     }
+
+
+@pytest.mark.asyncio
+async def test_authenticated_client_cannot_submit_activation(monkeypatch):
+    async def unexpected_call(*_args, **_kwargs):
+        raise AssertionError("rejected client events must not authenticate or write")
+
+    monkeypatch.setattr(analytics_routes, "authenticate_request", unexpected_call)
+    monkeypatch.setattr(analytics_routes, "record_product_event", unexpected_call)
+
+    result = await analytics_routes.create_product_event(
+        ProductEventRequest.model_construct(
+            eventName="ActivationReached",
+            eventKey="first-successful-response",
+            source=None,
+            plan=None,
+        ),
+        request_for("www.askcrump.com"),
+    )
+
+    assert result == {"success": False, "recorded": False}
 
 
 @pytest.mark.asyncio
@@ -1432,10 +1464,11 @@ def test_frontend_intake_is_narrow_and_wired_before_authentication_bootstrap():
     assert '/product-analytics.js' not in app
     assert runtime.index('/app.js') < runtime.index('/product-analytics.js')
     assert (
-        "new Set(['WorkspaceOpened', 'NavigationDestinationSelected', 'StarterIntentReached', 'ProjectSaveOfferShown', 'ProjectSaveIntentReached', 'ActivationReached', "
+        "new Set(['WorkspaceOpened', 'NavigationDestinationSelected', 'StarterIntentReached', 'ProjectSaveOfferShown', 'ProjectSaveIntentReached', "
         "'OutcomeFeedbackSubmitted', 'OutcomeIssueCategorized', 'RecentWorkResumed', 'PlanCenterViewed', 'PlanIntentReached', "
         "'ResponseShared'])"
     ) in client
+    assert "ActivationReached" not in client
     assert "prompt" not in client.lower()
     assert "filename" not in client.lower()
     assert "ResponseShared" in client
@@ -1478,9 +1511,10 @@ def test_workspace_return_waits_for_a_visible_authenticated_workspace():
 
 
 def test_workspace_opened_retry_assets_are_cache_version_coherent():
-    workspace_opened_retry_version = "5.9.76-workspace-opened-retry-1"
+    analytics_version = "5.9.76-server-only-activation-1"
+    app_version = "5.9.76-server-only-activation-1"
     auth_version = "5.9.76-free-capability-guest-entry-2"
-    runtime_body_version = "5.9.76-legacy-project-resume-truth-1"
+    runtime_body_version = "5.9.76-server-only-activation-1"
     shell = (ROOT / "public" / "app.html").read_text(encoding="utf-8")
     runtime = (ROOT / "public" / "runtime-body-v1.js").read_text(encoding="utf-8")
     worker = (ROOT / "public" / "sw.js").read_text(encoding="utf-8")
@@ -1488,7 +1522,8 @@ def test_workspace_opened_retry_assets_are_cache_version_coherent():
 
     runtime_url = f"/runtime-body-v1.js?v={runtime_body_version}"
     auth_url = f"/auth-controller.js?v={auth_version}"
-    analytics_url = f"/product-analytics.js?v={workspace_opened_retry_version}"
+    analytics_url = f"/product-analytics.js?v={analytics_version}"
+    app_url = f"/app.js?v={app_version}&workspaceRelease=guest-free-contract-2"
     assert runtime_url in shell
     assert runtime_url in worker
     assert auth_url in shell
@@ -1496,21 +1531,20 @@ def test_workspace_opened_retry_assets_are_cache_version_coherent():
     assert analytics_url in runtime
     assert analytics_url in worker
     assert analytics_url in native
+    assert app_url in runtime
+    assert app_url in worker
+    assert app_url in native
 
 
-def test_first_successful_response_records_activation_without_message_content():
+def test_first_successful_response_is_not_client_recorded():
     app_js = (ROOT / "public" / "app.js").read_text(encoding="utf-8")
+    client = (ROOT / "public" / "product-analytics.js").read_text(encoding="utf-8")
+    chat = (ROOT / "backend" / "routes" / "chat.py").read_text(encoding="utf-8")
 
-    tracker = app_js[
-        app_js.index("async function recordFirstSuccessfulResponse"):
-        app_js.index("async function processUserMessage")
-    ]
-    assert "'ActivationReached'" in tracker
-    assert "eventKey: 'first-successful-response'" in tracker
-    assert "ACTIVATION_RECORDED" in tracker
-    assert "message" not in tracker.lower()
-    assert "content" not in tracker.lower()
-    assert "void recordFirstSuccessfulResponse();" in app_js
+    assert "recordFirstSuccessfulResponse" not in app_js
+    assert "ActivationReached" not in client
+    assert "event_name='ActivationReached'" in chat
+    assert "event_key='first-successful-response'" in chat
 
 
 def test_launchpad_records_only_an_allowlisted_first_task_category():

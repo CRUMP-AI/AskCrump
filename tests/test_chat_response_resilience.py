@@ -237,7 +237,7 @@ def test_completed_reply_sync_is_best_effort_and_cannot_relabel_durable_success(
         "async function studioSendMessage", 1
     )[0]
     fallback_completion = fallback.split("function completeUserMessage", 1)[1].split(
-        "async function recordFirstSuccessfulResponse", 1
+        "async function processUserMessage", 1
     )[0]
 
     assert "function syncCompletedReplyInBackground()" in primary
@@ -259,7 +259,7 @@ def test_completed_reply_creation_handoff_cannot_relabel_durable_success():
         "async function studioSendMessage", 1
     )[0]
     fallback_completion = fallback.split("function completeUserMessage", 1)[1].split(
-        "async function recordFirstSuccessfulResponse", 1
+        "async function processUserMessage", 1
     )[0]
 
     for source, completion in (

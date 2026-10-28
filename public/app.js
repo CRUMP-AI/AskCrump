@@ -930,7 +930,6 @@ function completeUserMessage(chat, userMessage, data) {
     window.CrumpPresence?.haptic?.('success');
     runCompletedCreationHandoffInBackground(data);
     syncCompletedReplyInBackground();
-    void recordFirstSuccessfulResponse();
     setTimeout(() => { void window.CrumpLifecycle?.evaluate?.({force: true}); }, 1200);
 }
 
@@ -951,14 +950,6 @@ function applyCompletedReplySafely(chat, userMessage, data) {
         } catch (_) {}
         return false;
     }
-}
-
-async function recordFirstSuccessfulResponse() {
-    if (SafeStorage.getItem(STORAGE_KEYS.ACTIVATION_RECORDED) === 'true') return;
-    const recorded = await window.CrumpAnalytics?.track?.('ActivationReached', {
-        eventKey: 'first-successful-response',
-    });
-    if (recorded) SafeStorage.setItem(STORAGE_KEYS.ACTIVATION_RECORDED, 'true');
 }
 
 async function processUserMessage(chat, userMessage, attachment = null, authBoundary = captureConversationAuthBoundary()) {

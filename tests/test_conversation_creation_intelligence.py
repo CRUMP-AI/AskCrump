@@ -284,7 +284,7 @@ def test_reload_opens_a_clean_conversation_without_discarding_history():
     assert "chats = []" not in fresh_start
     assert "recordChatDeletion" not in fresh_start
     assert 'src="/app.js?v=5.9.76-intelligence-receipt-1"' not in shell
-    released_app = "/app.js?v=5.9.76-native-push-owner-fence-1&workspaceRelease=guest-free-contract-2"
+    released_app = "/app.js?v=5.9.76-server-only-activation-1&workspaceRelease=guest-free-contract-2"
     assert f"['{released_app}', 'workspaceapp']" in runtime
     assert f"'{released_app}'" in worker
 
