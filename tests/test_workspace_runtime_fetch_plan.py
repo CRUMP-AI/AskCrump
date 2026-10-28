@@ -57,8 +57,8 @@ def test_parallel_runtime_asset_is_versioned_for_web_pwa_and_native():
     asset = "/runtime-body-v1.js?v=5.9.76-server-only-activation-1"
     assert asset in shell
     assert asset in worker
-    assert "ask-crump-new-body-v1-r276-initial-chat-owner-reconciliation-1" in worker
-    assert "ask-crump-new-body-v1-r276-initial-chat-owner-reconciliation-1" in checker
+    assert "ask-crump-new-body-v1-r277-guest-signin-escape-1" in worker
+    assert "ask-crump-new-body-v1-r277-guest-signin-escape-1" in checker
 
 
 def test_runtime_fetch_fixture_is_credential_free_and_measures_the_full_plan():
@@ -134,7 +134,7 @@ def test_owner_boundary_release_replaces_frozen_r272_on_first_controlled_load_an
     )
     assert "tests', 'fixtures', 'sw-r272-project-resume.js'" in verifier
     assert "previous.cache, 'ask-crump-new-body-v1-r272-project-resume-auth-boundary-1'" in verifier
-    assert "current.cache, 'ask-crump-new-body-v1-r276-initial-chat-owner-reconciliation-1'" in verifier
+    assert "current.cache, 'ask-crump-new-body-v1-r277-guest-signin-escape-1'" in verifier
     assert "immediatePredecessor.runtime" in verifier
     assert "current.runtime, immediatePredecessor.runtime" in verifier
     assert "current.billing52, immediatePredecessor.billing52" in verifier

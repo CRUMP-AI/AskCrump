@@ -201,3 +201,76 @@ def test_browser_proof_exercises_the_mobile_free_guest_entry_boundary() -> None:
     assert "askcrump.acquisition-placement" in verifier
     assert "rough-idea-launch-plan" in verifier
     assert "viewport: { width: 390, height: 844 }" in verifier
+
+
+def test_guest_workspace_has_a_non_destructive_signin_escape_contract() -> None:
+    shell = (PUBLIC / "app.html").read_text(encoding="utf-8")
+    controller = (PUBLIC / "auth-controller.js").read_text(encoding="utf-8")
+
+    assert 'id="signOutLabel"' in shell
+    assert 'id="signOutHelp"' in shell
+    assert 'id="guestSigninNotice"' in shell
+    assert 'id="returnToGuestLink"' in shell
+    assert "free-text-allowance-signin" in controller
+    assert "Sign in to another account" in controller
+    assert "without ending this guest session" in controller.lower()
+    assert "guestAccountSwitchPending" in controller
+    assert "this guest conversation will not move with you" in shell.lower()
+    assert "save conversation" in shell.lower()
+    assert "workspace-signin" in controller
+    assert "logout-signin" in controller
+
+    login = controller[
+        controller.index("function wireLogin()") :
+        controller.index("function wireRegistration()")
+    ]
+    assert login.index("renderGuestSigninNotice(false)") < login.index(
+        "await prepareAuthenticatedWorkspace()"
+    )
+
+    logout = controller[
+        controller.index("window.logoutUser = async function logoutUser()") :
+        controller.index("window.restartTutorial")
+    ]
+    guest_branch = logout[: logout.index("window.deviceAuth.logout()")]
+    assert "isGuestUser" in guest_branch
+    assert "signin" in guest_branch.lower()
+    assert "window.deviceAuth.logout()" not in guest_branch
+    assert "location.replace" in logout
+
+
+def test_guest_signin_escape_has_isolated_browser_regression_coverage() -> None:
+    fixture = (ROOT / "tests" / "fixtures" / "guest-access-journey.html").read_text(
+        encoding="utf-8"
+    )
+    verifier = (ROOT / "scripts" / "verify-guest-access-journey.cjs").read_text(
+        encoding="utf-8"
+    )
+
+    assert 'id="signOutLabel"' in fixture
+    assert 'id="signOutHelp"' in fixture
+    assert 'id="guestSigninNotice"' in fixture
+    assert 'id="returnToGuestLink"' in fixture
+    assert "async function guestSignInEscape" in verifier
+    assert "workspace Sign in cleared the guest session" in verifier
+    assert "workspace Sign in minted another guest" in verifier
+    assert "guest Settings Sign in called logout" in verifier
+    assert "returning from Sign in lost the guest session" in verifier
+    assert "this guest conversation will not move with you" in verifier.lower()
+    assert "async function registeredLogoutToLogin" in verifier
+    assert "registered Sign out minted a guest" in verifier
+    assert "async function guestSigninPostLoginFailureBoundary" in verifier
+    assert "post-login failure left a false guest return action" in verifier
+    assert "guestSigninPostLoginFailure: await guestSigninPostLoginFailureBoundary" in verifier
+    assert "async function mobileMarketingSigninVisibility" in verifier
+    assert "phone homepage hides the Sign in action" in verifier
+    assert "mobileMarketingSignin: await mobileMarketingSigninVisibility(browser)" in verifier
+
+
+def test_phone_homepage_keeps_signin_visible_next_to_free_entry() -> None:
+    homepage = (PUBLIC / "ask-crump.html").read_text(encoding="utf-8")
+    css = (PUBLIC / "landing-5.6.css").read_text(encoding="utf-8")
+
+    assert 'class="nav-signin"' in homepage
+    assert 'href="/app?source=nav-signin&amp;plan=free">Sign in</a>' in homepage
+    assert ".nav-signin { display: none; }" not in css

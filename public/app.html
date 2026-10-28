@@ -51,6 +51,11 @@
         <h1>Welcome back.</h1>
         <p>Pick up exactly where you left off.</p>
       </div>
+      <div id="guestSigninNotice" class="guest-wall-note" role="note" hidden>
+        <strong>Switching accounts:</strong> Signing in switches to that account. This guest conversation will not move with you.
+        To keep it in a new account, <a id="returnToGuestLink" class="auth-link" href="/app?source=guest-return&amp;plan=free">return to your guest workspace</a>
+        and choose <strong>Save conversation</strong>.
+      </div>
       <form id="loginFormElement" class="auth-form-content">
         <div class="form-group">
           <label for="loginEmail">Email</label>
@@ -627,7 +632,7 @@
               <div class="settings-chevron" aria-hidden="true">›</div>
             </button>
             <button id="signOutBtn" class="settings-row settings-danger" type="button">
-              <div class="settings-row-text"><div class="settings-label">Sign out</div><div class="settings-help">Log out of this device</div></div>
+              <div class="settings-row-text"><div id="signOutLabel" class="settings-label">Sign out</div><div id="signOutHelp" class="settings-help">Log out of this device</div></div>
               <div class="settings-chevron" aria-hidden="true">›</div>
             </button>
             <button id="deleteAccountBtn" class="settings-row settings-danger v1-delete-row" type="button">
@@ -693,7 +698,7 @@
 <script defer src="/install-prompt.js?v=5.9.76-update-work-guard-1"></script>
 <script defer src="/auth-resilience.js?v=5.9.76"></script>
 <script defer src="/device-auth.js?v=5.9.76-account-owner-boundary-1"></script>
-<script defer src="/auth-controller.js?v=5.9.76-free-capability-guest-entry-2"></script>
+<script defer src="/auth-controller.js?v=5.9.76-guest-signin-escape-1"></script>
 <script defer src="/_vercel/insights/script.js"></script>
 <script defer src="/_vercel/speed-insights/script.js" data-route="/app"></script>
 </body>

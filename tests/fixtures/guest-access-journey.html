@@ -59,6 +59,7 @@
       productOpens: [],
       upgradePrompts: [],
       workspaceLoads: 0,
+      failWorkspaceLoadOnce: false,
       storageRemovals: [],
     };
     const fixtureStorageRemoveItem = Storage.prototype.removeItem;
@@ -72,7 +73,13 @@
       installationId: () => 'fixture-web',
     });
     window.CrumpWorkspaceRuntime = Object.freeze({
-      load: async () => { window.__fixture.workspaceLoads += 1; },
+      load: async () => {
+        window.__fixture.workspaceLoads += 1;
+        if (window.__fixture.failWorkspaceLoadOnce) {
+          window.__fixture.failWorkspaceLoadOnce = false;
+          throw new Error('Fixture workspace preparation failed after login.');
+        }
+      },
     });
     window.CrumpAnalytics = Object.freeze({
       track: async (name, detail) => {
@@ -108,6 +115,11 @@
   <div id="authContainer" class="auth-container" style="display:none">
     <div id="loginForm" class="auth-form">
       <h1>Sign in</h1>
+      <div id="guestSigninNotice" class="guest-wall-note" role="note" hidden>
+        <strong>Switching accounts:</strong> Signing in switches to that account. This guest conversation will not move with you.
+        To keep it in a new account, <a id="returnToGuestLink" href="/app?source=guest-return&amp;plan=free">return to your guest workspace</a>
+        and choose <strong>Save conversation</strong>.
+      </div>
       <form id="loginFormElement" class="auth-form-content">
         <label>Email <input id="loginEmail" class="form-input" type="email" required></label>
         <label>Password <input id="loginPassword" class="form-input" type="password" required></label>
@@ -204,6 +216,12 @@
           <button id="menuBtn" type="button" data-v1-command="library" aria-expanded="false">Chats</button>
           <strong id="v1WorkspaceTitle">New conversation</strong>
         </header>
+        <section id="settingsPanelAccount" aria-label="Security and data">
+          <button id="signOutBtn" type="button">
+            <span id="signOutLabel">Sign out</span>
+            <span id="signOutHelp">Log out of this device</span>
+          </button>
+        </section>
         <section id="v1Launchpad">
           <button id="focusTool" class="tool-button" type="button" data-v1-command="focus">Ask Crump</button>
           <button id="imageTool" class="tool-button" type="button" data-v1-command="image">Image Studio</button>
