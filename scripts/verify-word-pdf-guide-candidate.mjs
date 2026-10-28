@@ -35,7 +35,7 @@ for (const marker of [
   `<link rel="canonical" href="${canonical}">`,
   '<h1>Word or PDF? Start with what happens next.</h1>',
   '"datePublished": "2026-08-30"',
-  '"dateModified": "2026-09-10"',
+  '"dateModified": "2026-10-23"',
   exactHref,
   'data-cta="word-pdf-start"',
   'Review Professional for Word or PDF documents',
