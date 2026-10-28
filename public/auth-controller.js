@@ -15,6 +15,7 @@
   let workspaceRuntimeGateRevealFrame = 0;
   let reauthenticationPreparation = Promise.resolve();
   let guestEntryFailure = null;
+  let guestAccountSwitchPending = false;
   let onboardingProfileController = null;
   let onboardingProfileGeneration = 0;
   let onboardingBoundaryUnregister = null;
@@ -28,6 +29,7 @@
   const ACQUISITION_KEY = 'askcrump.acquisition-source';
   const ACQUISITION_PLACEMENT_KEY = 'askcrump.acquisition-placement';
   const FIRST_TOUCH_KEY = 'askcrump.first-touch-attribution';
+  const WORKSPACE_SIGN_IN_SOURCE = 'workspace-signin';
   const FREE_REGISTRATION_ASSURANCE = 'Free includes up to 5 text messages in any rolling 24-hour window. Advanced tools require a paid plan. We’ll email a secure verification link, then ask you to set your password from that verified browser; no card required.';
   const PAID_REGISTRATION_ASSURANCE = 'We’ll email a secure verification link, then ask you to set your password from that verified browser. Creating your account does not start billing; checkout remains a separate confirmation.';
   const PLAN_INTENT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
@@ -925,6 +927,34 @@
     return Boolean(user?.isGuest);
   }
 
+  function explicitSignInPath(source = WORKSPACE_SIGN_IN_SOURCE) {
+    const params = new URLSearchParams({
+      source: String(source || WORKSPACE_SIGN_IN_SOURCE),
+      plan: 'free',
+    });
+    return `/app?${params.toString()}`;
+  }
+
+  function renderAccountAccessControls(user) {
+    const guest = isGuestUser(user);
+    const button = byId('signOutBtn');
+    const label = byId('signOutLabel');
+    const help = byId('signOutHelp');
+    button?.classList.toggle('settings-danger', !guest);
+    button?.classList.toggle('settings-row-action', guest);
+    if (label) label.textContent = guest ? 'Sign in to another account' : 'Sign out';
+    if (help) {
+      help.textContent = guest
+        ? 'Open sign in without ending this guest session'
+        : 'Log out of this device';
+    }
+  }
+
+  function renderGuestSigninNotice(visible) {
+    const notice = byId('guestSigninNotice');
+    if (notice) notice.hidden = !visible;
+  }
+
   function effectiveTier(user = window.currentUser || activeUser) {
     return String(user?.subscriptionTier || user?.tier || '').trim().toLowerCase();
   }
@@ -1059,6 +1089,7 @@
 
   function renderFreeAllowancePill() {
     const user = window.currentUser || activeUser;
+    renderAccountAccessControls(user);
     const existing = byId('freeTextAllowancePill') || byId('guestPreviewPill');
     const ownerId = String(user?.id || '');
     if (freeAllowanceState?.ownerId && freeAllowanceState.ownerId !== ownerId) freeAllowanceState = null;
@@ -1092,12 +1123,18 @@
         if (isGuestUser(window.currentUser || activeUser)) showGuestWall();
         else showPaidToolPrompt('More messages');
       });
-      pill.append(copy, link);
+      const signIn = document.createElement('a');
+      signIn.href = explicitSignInPath();
+      signIn.className = 'free-text-allowance-link free-text-allowance-signin';
+      signIn.textContent = 'Sign in';
+      signIn.setAttribute('aria-label', 'Sign in to an existing Ask Crump account');
+      pill.append(copy, link, signIn);
       document.querySelector('.v1-workspace-header')?.append(pill);
     }
     const guest = isGuestUser(user);
     const copy = pill.querySelector('.free-text-allowance-copy');
     const link = pill.querySelector('.free-text-allowance-link');
+    const signIn = pill.querySelector('.free-text-allowance-signin');
     if (copy) {
       copy.textContent = freeAllowanceState
         ? `${guest ? 'Guest' : 'Free'} · ${freeAllowanceState.remaining} of ${freeAllowanceState.limit} free text messages left`
@@ -1107,6 +1144,7 @@
         : 'Ask Crump is checking the server-authoritative rolling 24-hour allowance.';
     }
     if (link) link.textContent = guest ? 'Save conversation' : 'Compare plans';
+    if (signIn) signIn.hidden = !guest;
   }
 
   function showGuestNote(text) {
@@ -1276,6 +1314,7 @@
       resetRegistrationView();
       configureRegistrationHandoff();
     }
+    renderGuestSigninNotice(normalizedView === 'login' && guestAccountSwitchPending);
     show(AUTH_VIEWS[normalizedView].containerId);
     focusAuthView(normalizedView);
   }
@@ -1465,9 +1504,10 @@
     }
     if (signInRequested && isGuestUser(session.data.user)) {
       // An explicit Sign in action must keep its promise even when this
-      // browser currently holds a guest session. Preserve that session until
-      // registered login succeeds, but do not route the visitor back into the
-      // guest workspace or mint another guest.
+      // browser currently holds a guest session. Keep that guest session
+      // active while credentials are entered, disclose that successful login
+      // switches accounts, and do not mint another guest.
+      guestAccountSwitchPending = true;
       showAuth('login');
       return;
     }
@@ -1755,6 +1795,12 @@
         await reauthenticationPreparation;
         const result = await window.deviceAuth.login(byId('loginEmail').value.trim(), byId('loginPassword').value);
         if (!result.success || !result.data?.user) throw Object.assign(new Error(result.error || 'Sign in failed.'), { result });
+        // The issued credential has already switched this installation to the
+        // registered account. Remove the guest-return affordance before any
+        // fallible workspace preparation so a later error cannot misrepresent
+        // the now-replaced guest session as recoverable.
+        guestAccountSwitchPending = false;
+        renderGuestSigninNotice(false);
         await prepareAuthenticatedWorkspace();
         activeUser = result.data.user;
         window.currentUser = activeUser;
@@ -2022,6 +2068,14 @@
   };
 
   window.logoutUser = async function logoutUser() {
+    if (isGuestUser(window.currentUser || activeUser)) {
+      // A guest choosing the account action is trying to reach an existing
+      // account, not erase the only session holding the current conversation.
+      // Keep it active while credentials are entered; the login screen makes
+      // the account switch and conversation boundary explicit.
+      location.assign(explicitSignInPath('guest-settings-signin'));
+      return;
+    }
     try {
       const result = await window.deviceAuth.logout();
       if (result?.stale) return;
@@ -2030,7 +2084,7 @@
       const currentOwner = String(window.CrumpAuthBoundary?.authenticatedUserId?.() || '').trim();
       if (currentOwner) return;
     }
-    location.replace('/app');
+    location.replace(explicitSignInPath('logout-signin'));
   };
 
   window.restartTutorial = function restartTutorial() {

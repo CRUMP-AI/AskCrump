@@ -1246,7 +1246,7 @@ const accountOwnerBoundaryVersion = `${releaseVersion}-account-owner-boundary-1`
 const privateOwnerBoundaryVersion = `${releaseVersion}-private-owner-boundary-1`;
 const legacyAttachmentOwnerBoundaryVersion = `${releaseVersion}-legacy-attachment-owner-fence-1`;
 const serverOnlyActivationVersion = `${releaseVersion}-server-only-activation-1`;
-const authControllerVersion = `${releaseVersion}-free-capability-guest-entry-2`;
+const authControllerVersion = `${releaseVersion}-guest-signin-escape-1`;
 const continuityHandoffVersion = `${releaseVersion}-continuity-handoff-1`;
 const composerModeResetVersion = `${releaseVersion}-composer-mode-reset-1`;
 const accountDeletionStorageVersion = `${releaseVersion}-account-storage-deletion-1`;
@@ -2089,7 +2089,7 @@ for (const [pathname, expectedVersion] of [
     }
   }
 }
-if (!serviceWorker.includes('ask-crump-new-body-v1-r276-initial-chat-owner-reconciliation-1') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r277-guest-signin-escape-1') ||
     !serviceWorker.includes(`'${shellBrandUrl}'`) ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||

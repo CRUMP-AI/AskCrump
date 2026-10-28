@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r276-initial-chat-owner-reconciliation-1';
+const CACHE_NAME = 'ask-crump-new-body-v1-r277-guest-signin-escape-1';
 
 const CORE = [
   '/app',
@@ -8,7 +8,7 @@ const CORE = [
   '/manifest.json',
   '/appearance-theme.js?v=5.9.76-appearance-choice-3',
   '/appearance-controls.css?v=5.9.76-appearance-choice-3',
-  '/landing-5.6.css?v=5.9.76-accessibility-1',
+  '/landing-5.6.css?v=5.9.76-signin-escape-1',
   '/use-case.css?v=5.9.76',
   '/landing.js?v=5.9.76-free-guest-entry-1',
   '/styles.css',
@@ -74,7 +74,7 @@ const CORE = [
   '/lifecycle-share.js?v=5.9.76-settings-invite-1',
   '/lifecycle-manager.js?v=5.9.76-lifecycle-idle-send-1',
   '/crump-activity-center-1.0.js?v=5.9.76-private-owner-boundary-1',
-  '/auth-controller.js?v=5.9.76-free-capability-guest-entry-2',
+  '/auth-controller.js?v=5.9.76-guest-signin-escape-1',
   '/crump-4.3.css',
   '/crump-4.3.js?v=5.9.76-atelier-workspace-1',
   '/crump-4.4.css?v=5.9.76-friendly-workspace-1',

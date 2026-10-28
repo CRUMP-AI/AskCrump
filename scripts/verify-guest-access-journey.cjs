@@ -9,6 +9,7 @@ const root = path.resolve(__dirname, '..');
 const fixturePath = '/tests/fixtures/guest-access-journey.html';
 const staticFiles = new Map([
   [fixturePath, path.join(root, 'tests', 'fixtures', 'guest-access-journey.html')],
+  ['/app', path.join(root, 'tests', 'fixtures', 'guest-access-journey.html')],
   ...[
     'safe-storage.js',
     'auth-resilience.js',
@@ -79,6 +80,8 @@ function startFixtureServer() {
     verifications: [],
     verificationReplays: [],
     termsAcceptances: [],
+    logouts: [],
+    logins: [],
     unexpectedApi: [],
   };
 
@@ -193,7 +196,7 @@ function startFixtureServer() {
         const body = await readFile(staticFiles.get(url.pathname));
         response.writeHead(200, {
           ...commonHeaders,
-          'Content-Type': url.pathname.endsWith('.html')
+          'Content-Type': url.pathname === '/app' || url.pathname.endsWith('.html')
             ? 'text/html; charset=utf-8'
             : 'text/javascript; charset=utf-8',
         });
@@ -316,6 +319,42 @@ function startFixtureServer() {
           version,
         });
         json(200, {success: true, user: publicUser(session)});
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/api/auth/logout') {
+        records.logouts.push({
+          caseName,
+          sessionId: storedSession?.sessionId || null,
+          kind: storedSession?.kind || null,
+        });
+        if (storedSession) storedSession.revokedAt = fixedNow;
+        json(200, {success: true}, {
+          'Set-Cookie': 'fixture_session=; Path=/; Max-Age=0; HttpOnly; SameSite=Lax',
+        });
+        return;
+      }
+
+      if (request.method === 'POST' && url.pathname === '/api/auth/login') {
+        const body = await readJson(request);
+        const registered = createRegisteredSession(caseName, storedSession?.used || 0);
+        records.logins.push({
+          caseName,
+          previousSessionId: storedSession?.sessionId || null,
+          previousKind: storedSession?.kind || null,
+          sessionId: registered.sessionId,
+          email: String(body.email || ''),
+        });
+        json(200, {
+          success: true,
+          data: {
+            user: publicUser(registered),
+            settings: {},
+            expiresAt: '2026-10-24T20:00:00.000Z',
+          },
+        }, {
+          'Set-Cookie': `fixture_session=${encodeURIComponent(registered.sessionId)}; Path=/; HttpOnly; SameSite=Lax`,
+        });
         return;
       }
 
@@ -1357,6 +1396,180 @@ async function registeredUnaffected(browser, fixture) {
   }
 }
 
+async function guestSignInEscape(browser, fixture) {
+  const caseName = 'guest-signin-escape';
+  const harness = await createHarness(browser, fixture, {
+    caseName,
+    viewport: {width: 390, height: 844},
+  });
+  try {
+    await openFixture(harness, fixture, '?source=pwa');
+    await waitForApp(harness.page, {guest: true});
+    const originalSessionId = await sessionCookie(harness.context);
+    assert.ok(originalSessionId, 'guest workspace did not retain its session cookie');
+    assert.equal(fixture.records.guestMints.filter(row => row.caseName === caseName).length, 1);
+    assert.equal(fixture.records.logouts.filter(row => row.caseName === caseName).length, 0);
+
+    const workspaceSignin = harness.page.locator('.free-text-allowance-signin');
+    await workspaceSignin.waitFor({state: 'visible'});
+    const workspaceSigninHref = await workspaceSignin.getAttribute('href');
+    assert.match(workspaceSigninHref || '', /^\/app\?[^#]*source=[^&]*signin/i);
+    assert.match(workspaceSigninHref || '', /(?:\?|&)plan=free(?:&|$)/);
+    await workspaceSignin.click();
+    await waitForLogin(harness.page);
+    assert.match(new URL(harness.page.url()).searchParams.get('source') || '', /signin/i);
+    const guestSigninNotice = harness.page.locator('#guestSigninNotice');
+    await guestSigninNotice.waitFor({state: 'visible'});
+    assert.match(await guestSigninNotice.textContent(), /this guest conversation will not move with you/i);
+    assert.match(await guestSigninNotice.textContent(), /save conversation/i);
+    assert.equal(await sessionCookie(harness.context), originalSessionId, 'workspace Sign in cleared the guest session');
+    assert.equal(fixture.records.guestMints.filter(row => row.caseName === caseName).length, 1, 'workspace Sign in minted another guest');
+    assert.equal(fixture.records.logouts.filter(row => row.caseName === caseName).length, 0, 'workspace Sign in logged out the guest');
+
+    await harness.page.locator('#returnToGuestLink').click();
+    await waitForApp(harness.page, {guest: true});
+    assert.equal(await sessionCookie(harness.context), originalSessionId, 'returning from Sign in lost the guest session');
+    assert.equal(fixture.records.guestMints.filter(row => row.caseName === caseName).length, 1, 'returning from Sign in minted another guest');
+    assert.equal(fixture.records.logouts.filter(row => row.caseName === caseName).length, 0, 'returning from Sign in logged out the guest');
+    assert.equal(await harness.page.locator('#signOutLabel').textContent(), 'Sign in to another account');
+    assert.match(await harness.page.locator('#signOutHelp').textContent(), /without ending this guest session/i);
+    await harness.page.locator('#signOutBtn').click();
+    await waitForLogin(harness.page);
+    assert.match(new URL(harness.page.url()).searchParams.get('source') || '', /signin/i);
+    await harness.page.locator('#guestSigninNotice').waitFor({state: 'visible'});
+    assert.equal(await sessionCookie(harness.context), originalSessionId, 'guest Settings Sign in cleared the guest session');
+    assert.equal(fixture.records.guestMints.filter(row => row.caseName === caseName).length, 1, 'guest Settings Sign in minted another guest');
+    assert.equal(fixture.records.logouts.filter(row => row.caseName === caseName).length, 0, 'guest Settings Sign in called logout');
+    assertIsolated(harness);
+    return {
+      viewport: '390x844',
+      sessionPreserved: true,
+      guestMints: 1,
+      guestLogouts: 0,
+      workspaceSigninVisible: true,
+      guestReturnPreservesSession: true,
+      accountSwitchBoundaryDisclosed: true,
+      settingsSigninPreservesSessionBeforeAccountSwitch: true,
+    };
+  } finally {
+    await harness.context.close();
+  }
+}
+
+async function registeredLogoutToLogin(browser, fixture) {
+  const caseName = 'registered-logout-signin';
+  const registered = fixture.createRegisteredSession(caseName, 0);
+  const harness = await createHarness(browser, fixture, {
+    caseName,
+    sessionId: registered.sessionId,
+    viewport: {width: 390, height: 844},
+  });
+  try {
+    await openFixture(harness, fixture, '?source=pwa');
+    await waitForApp(harness.page, {guest: false});
+    assert.equal(await harness.page.locator('#signOutLabel').textContent(), 'Sign out');
+    assert.match(await harness.page.locator('#signOutHelp').textContent(), /log out of this device/i);
+    await harness.page.locator('#signOutBtn').click();
+    await waitForLogin(harness.page);
+    assert.match(new URL(harness.page.url()).searchParams.get('source') || '', /signin/i);
+    assert.equal(await sessionCookie(harness.context), '', 'registered Sign out retained the session cookie');
+    assert.equal(fixture.records.guestMints.filter(row => row.caseName === caseName).length, 0, 'registered Sign out minted a guest');
+    assert.deepEqual(
+      fixture.records.logouts.filter(row => row.caseName === caseName),
+      [{caseName, sessionId: registered.sessionId, kind: 'registered'}],
+    );
+    assertIsolated(harness);
+    return {
+      viewport: '390x844',
+      logoutCalls: 1,
+      guestMints: 0,
+      explicitLoginVisible: true,
+    };
+  } finally {
+    await harness.context.close();
+  }
+}
+
+async function guestSigninPostLoginFailureBoundary(browser, fixture) {
+  const caseName = 'guest-signin-post-login-failure';
+  const harness = await createHarness(browser, fixture, {
+    caseName,
+    viewport: {width: 390, height: 844},
+  });
+  try {
+    await openFixture(harness, fixture, '?source=pwa');
+    await waitForApp(harness.page, {guest: true});
+    const originalSessionId = await sessionCookie(harness.context);
+    await harness.page.locator('.free-text-allowance-signin').click();
+    await waitForLogin(harness.page);
+    await harness.page.locator('#guestSigninNotice').waitFor({state: 'visible'});
+
+    await harness.page.evaluate(() => { window.__fixture.failWorkspaceLoadOnce = true; });
+    await harness.page.locator('#loginEmail').fill('existing-account@fixture.invalid');
+    await harness.page.locator('#loginPassword').fill('fixture-password');
+    await harness.page.locator('#loginFormElement').evaluate(form => form.requestSubmit());
+    await harness.page.locator('#loginError').waitFor({state: 'visible'});
+    assert.match(await harness.page.locator('#loginError').textContent(), /workspace preparation failed after login/i);
+
+    const registeredSessionId = await sessionCookie(harness.context);
+    assert.notEqual(registeredSessionId, originalSessionId, 'successful login did not rotate the guest session');
+    assert.equal(await harness.page.locator('#guestSigninNotice').isHidden(), true, 'post-login failure retained the guest account-switch warning');
+    assert.equal(await harness.page.locator('#returnToGuestLink').isHidden(), true, 'post-login failure left a false guest return action');
+    assert.deepEqual(
+      fixture.records.logins.filter(row => row.caseName === caseName).map(row => row.previousKind),
+      ['guest'],
+    );
+    assert.equal(fixture.records.guestMints.filter(row => row.caseName === caseName).length, 1);
+    assert.equal(fixture.records.logouts.filter(row => row.caseName === caseName).length, 0);
+    assertIsolated(harness);
+    return {
+      guestSessionRotated: true,
+      postLoginFailureNoticeHidden: true,
+      falseGuestReturnHidden: true,
+      guestMints: 1,
+      guestLogouts: 0,
+    };
+  } finally {
+    await harness.context.close();
+  }
+}
+
+async function mobileMarketingSigninVisibility(browser) {
+  const context = await browser.newContext({viewport: {width: 390, height: 844}});
+  const page = await context.newPage();
+  const pageErrors = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  try {
+    await page.setContent(`<!doctype html><html><head><meta name="viewport" content="width=device-width, initial-scale=1"></head><body>
+      <nav class="navbar">
+        <a class="brand-lockup" href="#"><img class="nav-logo" alt="Ask Crump"></a>
+        <div class="navlinks">
+          <a class="nav-signin" href="/app?source=nav-signin&amp;plan=free">Sign in</a>
+          <a class="nav-cta" href="/app?source=nav&amp;plan=free">Start free</a>
+        </div>
+      </nav>
+    </body></html>`);
+    await page.addStyleTag({path: path.join(root, 'public', 'landing-5.6.css')});
+    const signin = page.locator('.nav-signin');
+    assert(await signin.isVisible(), 'phone homepage hides the Sign in action');
+    const geometry = await page.evaluate(() => {
+      const node = document.querySelector('.nav-signin').getBoundingClientRect();
+      return {
+        viewport: window.innerWidth,
+        scrollWidth: document.documentElement.scrollWidth,
+        left: node.left,
+        right: node.right,
+      };
+    });
+    assert.ok(geometry.left >= 0 && geometry.right <= geometry.viewport, 'phone homepage Sign in leaves the viewport');
+    assert.ok(geometry.scrollWidth <= geometry.viewport, 'phone homepage navigation overflows horizontally');
+    assert.deepEqual(pageErrors, []);
+    return {viewport: '390x844', visible: true, noHorizontalOverflow: true};
+  } finally {
+    await context.close();
+  }
+}
+
 async function mobileFixtureShellCheck(browser, fixture) {
   const caseName = 'mobile-spot-check';
   const harness = await createHarness(browser, fixture, {
@@ -1432,6 +1645,10 @@ async function mobileFixtureShellCheck(browser, fixture) {
       capturedGuest: await capturedGuestToken(browser, fixture),
       controlRevokedRegistration: await controlRevokedRegistrationRecovery(browser, fixture),
       registered: await registeredUnaffected(browser, fixture),
+      guestSigninEscape: await guestSignInEscape(browser, fixture),
+      registeredLogout: await registeredLogoutToLogin(browser, fixture),
+      guestSigninPostLoginFailure: await guestSigninPostLoginFailureBoundary(browser, fixture),
+      mobileMarketingSignin: await mobileMarketingSigninVisibility(browser),
       mobileFixtureShell: await mobileFixtureShellCheck(browser, fixture),
     };
 
@@ -1458,6 +1675,8 @@ async function mobileFixtureShellCheck(browser, fixture) {
         verifications: fixture.records.verifications.length,
         verificationReplays: fixture.records.verificationReplays.length,
         termsAcceptances: fixture.records.termsAcceptances.length,
+        logouts: fixture.records.logouts.length,
+        logins: fixture.records.logins.length,
         unexpectedApi: fixture.records.unexpectedApi.length,
       },
     }, null, 2));
