@@ -1,0 +1,83 @@
+{
+  "schemaVersion": 1,
+  "pages": [
+    {
+      "url": "https://www.askcrump.com/",
+      "source": "public/ask-crump.html",
+      "lastmod": "2026-10-23",
+      "kind": "page"
+    },
+    {
+      "url": "https://www.askcrump.com/ai-project-workspace",
+      "source": "public/ai-project-workspace.html",
+      "lastmod": "2026-10-27",
+      "kind": "page"
+    },
+    {
+      "url": "https://www.askcrump.com/ai-presentation-maker",
+      "source": "public/ai-presentation-maker.html",
+      "lastmod": "2026-10-27",
+      "kind": "page"
+    },
+    {
+      "url": "https://www.askcrump.com/ai-document-generator",
+      "source": "public/ai-document-generator.html",
+      "lastmod": "2026-10-27",
+      "kind": "page"
+    },
+    {
+      "url": "https://www.askcrump.com/ai-resume-builder",
+      "source": "public/ai-resume-builder.html",
+      "lastmod": "2026-10-27",
+      "kind": "page"
+    },
+    {
+      "url": "https://www.askcrump.com/ai-video-generator",
+      "source": "public/ai-video-generator.html",
+      "lastmod": "2026-10-27",
+      "kind": "page"
+    },
+    {
+      "url": "https://www.askcrump.com/guides",
+      "source": "public/guides/index.html",
+      "lastmod": "2026-10-27",
+      "kind": "page"
+    },
+    {
+      "url": "https://www.askcrump.com/guides/rough-idea-six-week-launch-plan",
+      "source": "public/guides/rough-idea-six-week-launch-plan.html",
+      "lastmod": "2026-10-23",
+      "kind": "guide"
+    },
+    {
+      "url": "https://www.askcrump.com/guides/what-ai-project-should-remember",
+      "source": "public/guides/what-ai-project-should-remember.html",
+      "lastmod": "2026-10-23",
+      "kind": "guide"
+    },
+    {
+      "url": "https://www.askcrump.com/guides/editable-ai-powerpoint-review",
+      "source": "public/guides/editable-ai-powerpoint-review.html",
+      "lastmod": "2026-10-23",
+      "kind": "guide"
+    },
+    {
+      "url": "https://www.askcrump.com/guides/word-or-pdf-ai-document-output",
+      "source": "public/guides/word-or-pdf-ai-document-output.html",
+      "lastmod": "2026-10-23",
+      "kind": "guide"
+    },
+    {
+      "url": "https://www.askcrump.com/guides/audit-ai-resume-bullets",
+      "source": "public/guides/audit-ai-resume-bullets.html",
+      "lastmod": "2026-10-23",
+      "kind": "guide"
+    },
+    {
+      "url": "https://www.askcrump.com/legal",
+      "source": "public/legal.html",
+      "lastmod": "2026-10-27",
+      "kind": "page"
+    }
+  ]
+}

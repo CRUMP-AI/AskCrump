@@ -72,7 +72,7 @@ async function inspect(page, viewport, screenshotName) {
   assert(state.canonical === expectedCanonical, 'canonical drifted');
   assert(state.ogUrl === expectedCanonical, 'Open Graph URL drifted');
   assert(state.ogImage === 'https://www.askcrump.com/assets/social/ask-crump-resumes.png', 'Open Graph image drifted');
-  assert(state.published === '2026-09-10' && state.modified === '2026-09-10', 'article dates drifted');
+  assert(state.published === '2026-09-10' && state.modified === '2026-10-23', 'article dates drifted');
   assert(state.bodyWidth <= state.viewportWidth, `horizontal overflow ${state.bodyWidth}/${state.viewportWidth}: ${JSON.stringify(state.overflowers)}`);
   assert(state.overflowers.length === 0, `unexpected viewport overflow: ${JSON.stringify(state.overflowers)}`);
   assert(state.primaryCount === 1, `expected one primary CTA, found ${state.primaryCount}`);
