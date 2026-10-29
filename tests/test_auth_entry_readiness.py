@@ -65,7 +65,8 @@ def test_bootstrap_exposes_a_truthful_surface_before_the_bounded_session_probe()
     assert "const returningDeviceHint = hasReturningDeviceHint();" in bootstrap
     assert "const bootstrapAuthFlowRevision = authFlowRevision;" in bootstrap
     assert "if (signupRequested)" in bootstrap
-    assert "const freeGuestRequested = params.get('plan') === 'free' && !signupRequested && !signInRequested;" in bootstrap
+    assert "registeredAccountSeen || (returningDeviceHint && !cachedHintUser?.isGuest)" in bootstrap
+    assert "&& !accountOnDevice;" in bootstrap
     assert "const mayStartGuest = !signupRequested" in bootstrap
     assert "&& !verification" in bootstrap
     assert "&& !signInRequested" in bootstrap
