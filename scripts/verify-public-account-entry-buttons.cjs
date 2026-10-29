@@ -681,16 +681,44 @@ function pageErrors(page) {
     const staleRegisteredHintPage = await staleRegisteredHintContext.newPage();
     const staleRegisteredHintErrors = pageErrors(staleRegisteredHintPage);
     await staleRegisteredHintPage.goto(normalizedAppUrl(heroHref), { waitUntil: 'networkidle' });
+    await staleRegisteredHintPage.locator('#loginForm').waitFor({ state: 'visible' });
+    assert(!(await staleRegisteredHintPage.locator('#tosModal').isVisible()), 'restored Free URL silently replaces a registered sign-in with guest Terms');
+    assert(staleRegisteredHintMints === 0, `restored Free URL issued ${staleRegisteredHintMints} guest mint requests`);
+    assert(
+      await staleRegisteredHintPage.evaluate(() => localStorage.getItem('askcrump.registered-account-seen-v1')) === '1',
+      'restored registered cache did not retain a durable account marker',
+    );
+    // The static test server serves app.html directly; preserve the real link
+    // navigation and user gesture while mapping its extensionless app route.
+    await staleRegisteredHintContext.route(url => url.pathname === '/app', route => (
+      route.continue({url: normalizedAppUrl(route.request().url())})
+    ));
+    await staleRegisteredHintPage.goto(`${baseUrl}/ask-crump.html`, { waitUntil: 'networkidle' });
+    await staleRegisteredHintPage.locator('[data-cta="hero"]').click();
     await staleRegisteredHintPage.locator('#tosModal').waitFor({ state: 'visible' });
     assert(!(await staleRegisteredHintPage.locator('#loginForm').isVisible()), 'stale registered-device hint blocks explicit Free CTA with Welcome back');
-    assert(!(await staleRegisteredHintPage.locator('#registerForm').isVisible()), 'stale registered-device hint forces Free CTA registration');
+    assert(!(await staleRegisteredHintPage.locator('#registerForm').isVisible()), 'fresh Free CTA gesture forces registration');
     assert(staleRegisteredHintMints === 1, `stale registered-device hint issued ${staleRegisteredHintMints} guest mint requests`);
     assert(
-      staleRegisteredHintChecks.length >= 2
+      staleRegisteredHintChecks.length >= 3
         && staleRegisteredHintChecks[0] === false
-        && staleRegisteredHintChecks[1] === true,
+        && staleRegisteredHintChecks[1] === false
+        && staleRegisteredHintChecks[2] === true,
       `stale registered-device hint checks drifted: ${JSON.stringify(staleRegisteredHintChecks)}`,
     );
+    assert(
+      await staleRegisteredHintPage.evaluate(() => sessionStorage.getItem('askcrump.explicit-guest-entry-v1')) === null,
+      'fresh Free CTA intent was not consumed after navigation',
+    );
+    assert(
+      await staleRegisteredHintPage.evaluate(() => localStorage.getItem('askcrump.registered-account-seen-v1')) === '1',
+      'fresh Free CTA gesture erased the durable registered-account marker',
+    );
+    staleRegisteredHintMinted = false;
+    await staleRegisteredHintPage.goto(normalizedAppUrl(heroHref), { waitUntil: 'networkidle' });
+    await staleRegisteredHintPage.locator('#loginForm').waitFor({ state: 'visible' });
+    assert(!(await staleRegisteredHintPage.locator('#tosModal').isVisible()), 'consumed Free CTA intent was replayed on a restored URL');
+    assert(staleRegisteredHintMints === 1, 'restored URL replayed a consumed Free CTA guest mint');
     assert(staleRegisteredHintErrors.length === 0, `stale registered-device hint browser errors: ${staleRegisteredHintErrors.join(' | ')}`);
     await staleRegisteredHintContext.close();
 
@@ -749,7 +777,7 @@ function pageErrors(page) {
     await socialContext.route('**/api/auth/check-session*', route => route.fulfill({
       status: 200,
       contentType: 'application/json',
-      body: JSON.stringify({ authenticated: false }),
+      body: JSON.stringify({ success: true, authenticated: false }),
     }));
     await socialContext.route('**/api/auth/guest*', route => route.fulfill({
       status: 200,

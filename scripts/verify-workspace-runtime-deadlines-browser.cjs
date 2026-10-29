@@ -34,13 +34,23 @@ const server = createServer(async (request, response) => {
         const credentials = JSON.parse(Buffer.concat(chunks));
         assert.equal(credentials.email, 'runtime-deadline@example.test');
         assert.equal(credentials.password, 'Fixture-password-123');
+        if (mode === 'setup-response-loss') {
+          // The existing setup cookie proves inbox verification. Withhold a
+          // rejected login's body so its matching-cookie readback is exercised.
+          const headers = {'Content-Type': 'application/json', 'Cache-Control': 'no-store'};
+          response.writeHead(401, headers);
+          response.flushHeaders();
+          held.push({response, body: JSON.stringify({success: false, code: 'INVALID_CREDENTIALS'}), headers});
+          return;
+        }
         json(response, {success: true, data: {user: fixtureUser, settings: {}}}, {'Set-Cookie': 'runtime-fixture-session=active; HttpOnly; SameSite=Lax; Path=/'});
         return;
       }
       if (pathname === '/api/auth/check-session') {
         checkCalls += 1;
         const authenticated = String(request.headers.cookie || '').includes('runtime-fixture-session=active');
-        json(response, authenticated ? {success: true, authenticated: true, data: {user: fixtureUser, settings: {}}} : {success: true, authenticated: false});
+        const user = mode === 'setup-response-loss' ? {...fixtureUser, passwordSetupRequired: true} : fixtureUser;
+        json(response, authenticated ? {success: true, authenticated: true, data: {user, settings: {}}} : {success: true, authenticated: false});
         return;
       }
       json(response, {
@@ -61,6 +71,9 @@ const server = createServer(async (request, response) => {
     if (pathname === '/runtime-body-v1.js') {
       // Exercise the production algorithm with shorter clock budgets only.
       body = original.toString().replace('ASSET_TIMEOUT_MS = 12_000', 'ASSET_TIMEOUT_MS = 350').replace('WORKSPACE_BOOT_TIMEOUT_MS = 35_000', 'WORKSPACE_BOOT_TIMEOUT_MS = 2_500');
+    }
+    if (mode === 'setup-response-loss' && pathname === '/auth-resilience.js') {
+      body = original.toString().replace('LOGIN_TIMEOUT_MS = 30_000', 'LOGIN_TIMEOUT_MS = 350');
     }
     const headers = {'Content-Type': mime[path.extname(file)] || 'application/octet-stream', 'Cache-Control': 'no-store'};
     if ((mode === 'style-hang' && pathname === '/billing.css') || (mode === 'script-hang' && pathname === '/profile-manager.js')) {
@@ -167,6 +180,53 @@ async function releaseHeld() {
       evidence.push({scenario, failed, recovered, loginPosts, checkCalls});
       await context.close();
     }
+    mode = 'setup-response-loss';
+    loginPosts = 0;
+    checkCalls = 0;
+    const setupContext = await browser.newContext({serviceWorkers: 'block'});
+    const setupErrors = [];
+    await setupContext.route('**/*', route => new URL(route.request().url()).origin === origin ? route.continue() : route.abort());
+    await setupContext.addCookies([{name: 'runtime-fixture-session', value: 'active', url: origin, httpOnly: true, sameSite: 'Lax'}]);
+    await setupContext.addInitScript(() => {
+      window.__runtimeReadyEvents = 0;
+      window.addEventListener('crump:body-runtime-ready', () => { window.__runtimeReadyEvents += 1; });
+    });
+    const setupPage = await setupContext.newPage();
+    setupPage.on('pageerror', error => setupErrors.push(error.message));
+    await setupPage.goto(`${origin}/app?source=recovered-setup-signin`, {waitUntil: 'domcontentloaded'});
+    await setupPage.locator('#resetPasswordForm').waitFor({state: 'visible'});
+    // A previous reset email can open its ordinary reset form while this
+    // browser still holds the inbox-proof session that requires setup.
+    await setupPage.goto(`${origin}/app?token=synthetic-old-reset-link`, {waitUntil: 'domcontentloaded'});
+    await setupPage.locator('#showLoginFromReset').click();
+    await setupPage.locator('#loginEmail').fill('runtime-deadline@example.test');
+    await setupPage.locator('#loginPassword').fill('Fixture-password-123');
+    await setupPage.locator('#loginFormElement button[type="submit"]').click();
+    const assertSetupGate = async phase => {
+      await setupPage.locator('#resetPasswordForm').waitFor({state: 'visible'});
+      const result = await setupPage.evaluate(() => ({
+        mode: document.getElementById('resetPasswordForm').dataset.mode,
+        owner: window.currentUser?.id,
+        setupRequired: window.currentUser?.passwordSetupRequired,
+        workspaceVisible: getComputedStyle(document.getElementById('appContainer')).display !== 'none',
+        runtimeState: document.documentElement.dataset.crumpBodyRuntime || 'unloaded',
+        readyEvents: window.__runtimeReadyEvents,
+        workspaceScripts: document.querySelectorAll('script[data-workspaceapp]').length,
+        loginDisabled: document.querySelector('#loginFormElement button[type="submit"]').disabled,
+      }));
+      assert.deepEqual(result, {mode: 'setup', owner: fixtureUser.id, setupRequired: true, workspaceVisible: false, runtimeState: 'unloaded', readyEvents: 0, workspaceScripts: 0, loginDisabled: false}, phase);
+      return result;
+    };
+    const recoveredSetup = await assertSetupGate('matching-email login readback must not bypass initial password setup');
+    assert.equal(loginPosts, 1);
+    assert.equal(checkCalls, 2, 'ambiguous login response gets one readback after the initial bootstrap check');
+    await setupPage.reload({waitUntil: 'domcontentloaded'});
+    const bootstrappedSetup = await assertSetupGate('persisted setup cookie must stay gated after reload');
+    assert.equal(loginPosts, 1, 'setup recovery must not replay credentials');
+    assert.deepEqual(setupErrors, []);
+    evidence.push({scenario: 'recovered-password-setup', recoveredSetup, bootstrappedSetup, loginPosts, checkCalls});
+    await setupContext.close();
+    await releaseHeld();
     console.log(JSON.stringify({success: true, productionShell: true, realAuthAndWorkspaceScripts: true, cases: evidence, fixtureApiPaths: [...apiPaths].sort()}, null, 2));
   } finally {
     await browser.close();

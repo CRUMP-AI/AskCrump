@@ -1221,7 +1221,7 @@ assertAttribution(storedAttribution(immutableStore), {
 const repoRoot = new URL('../', import.meta.url);
 const packageJson = JSON.parse(await readFile(new URL('package.json', repoRoot), 'utf8'));
 const releaseVersion = String(packageJson.version || '');
-const landingVersion = `${releaseVersion}-free-guest-entry-1`;
+const landingVersion = `${releaseVersion}-explicit-guest-entry-1`;
 const planRendererVersion = `${releaseVersion}-credit-pack-accessibility-1`;
 const commerceRecoveryVersion = `${releaseVersion}-commerce-recovery-1`;
 const creditEntitlementSyncVersion = `${releaseVersion}-credit-entitlement-sync-1`;

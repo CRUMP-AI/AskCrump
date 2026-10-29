@@ -92,7 +92,7 @@ def test_guides_hub_is_indexable_truthful_and_links_every_public_guide_once():
     assert f'<link rel="canonical" href="{canonical}">' in page
     assert f'<meta property="og:url" content="{canonical}">' in page
     assert '<meta name="robots" content="index,follow,max-image-preview:large">' in page
-    assert '<script defer src="/landing.js?v=5.9.76-free-guest-entry-1"></script>' in page
+    assert '<script defer src="/landing.js?v=5.9.76-explicit-guest-entry-1"></script>' in page
     assert 'data-route="/guides"' in page
     assert page.count("<h1>") == 1
     assert "No customer content, testimonial, adoption claim, or popularity ranking is presented." in page
@@ -135,7 +135,7 @@ def test_search_guides_have_self_referencing_editorial_metadata_and_one_matched_
         assert '<meta name="robots" content="index,follow,max-image-preview:large">' in page
         assert '<meta property="article:published_time" content="2026-08-30">' in page
         assert f'<meta property="article:modified_time" content="{expected["modified"]}">' in page
-        assert '<script defer src="/landing.js?v=5.9.76-free-guest-entry-1"></script>' in page
+        assert '<script defer src="/landing.js?v=5.9.76-explicit-guest-entry-1"></script>' in page
         assert f'<link rel="stylesheet" href="/guide.css?v={expected["guide_css"]}">' in page
         assert '/_vercel/insights/script.js' in page
         assert '/_vercel/speed-insights/script.js' in page
@@ -382,7 +382,7 @@ def test_public_word_pdf_guide_has_exact_search_release_contract():
     assert '<meta name="robots" content="index,follow,max-image-preview:large">' in page
     assert '<meta property="article:published_time" content="2026-08-30">' in page
     assert '<meta property="article:modified_time" content="2026-10-23">' in page
-    assert '<script defer src="/landing.js?v=5.9.76-free-guest-entry-1"></script>' in page
+    assert '<script defer src="/landing.js?v=5.9.76-explicit-guest-entry-1"></script>' in page
     assert '<link rel="stylesheet" href="/guide.css?v=5.9.76-word-pdf-guide-1">' in page
     assert page.count("<h1>") == 1
     assert page.count('class="button primary"') == 1
@@ -478,7 +478,7 @@ def test_public_resume_bullet_guide_has_exact_search_release_contract():
     assert '<meta name="robots" content="index,follow,max-image-preview:large">' in page
     assert '<meta property="article:published_time" content="2026-09-10">' in page
     assert '<meta property="article:modified_time" content="2026-10-23">' in page
-    assert '<script defer src="/landing.js?v=5.9.76-free-guest-entry-1"></script>' in page
+    assert '<script defer src="/landing.js?v=5.9.76-explicit-guest-entry-1"></script>' in page
     assert '<link rel="stylesheet" href="/guide.css?v=5.9.76-resume-bullet-guide-1">' in page
     assert page.count("<h1>") == 1
     assert page.count('class="button primary"') == 1

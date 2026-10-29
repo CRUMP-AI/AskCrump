@@ -7,6 +7,7 @@ const path = require('node:path');
 
 const root = path.resolve(__dirname, '..');
 const fixturePath = '/tests/fixtures/guest-access-journey.html';
+const productionRecoveryPath = '/tests/fixtures/session-unavailable-production-shell.html';
 const staticFiles = new Map([
   [fixturePath, path.join(root, 'tests', 'fixtures', 'guest-access-journey.html')],
   ['/app', path.join(root, 'tests', 'fixtures', 'guest-access-journey.html')],
@@ -163,7 +164,9 @@ function startFixtureServer() {
     const url = new URL(request.url || '/', 'http://127.0.0.1');
     const cookies = parseCookies(request.headers.cookie);
     const caseName = cookies.fixture_case || 'unlabelled';
-    const mode = cookies.fixture_mode === 'disabled' ? 'disabled' : 'enabled';
+    const mode = ['disabled', 'session-503', 'session-malformed'].includes(cookies.fixture_mode)
+      ? cookies.fixture_mode
+      : 'enabled';
     const storedSession = sessions.get(cookies.fixture_session) || null;
     const session = storedSession && !storedSession.revokedAt ? storedSession : null;
     records.requests.push({method: request.method, pathname: url.pathname, caseName, mode});
@@ -192,6 +195,35 @@ function startFixtureServer() {
     };
 
     try {
+      if (request.method === 'GET' && url.pathname === productionRecoveryPath) {
+        const [shell, ...styles] = await Promise.all([
+          readFile(path.join(root, 'public', 'app.html'), 'utf8'),
+          ...['styles.css', 'auth-styles.css', 'crump-v1-body.css'].map(name => readFile(path.join(root, 'public', name), 'utf8')),
+        ]);
+        // Keep the actual production DOM/styles and auth scripts. The context
+        // supplies only private-workspace readiness and telemetry fixture stubs.
+        const body = shell
+          .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, tag =>
+            /src="\/(?:safe-storage|auth-resilience|device-auth|auth-controller)\.js(?:\?|\")/.test(tag) ? tag : ''
+          )
+          .replace(/<link\b[^>]*>/gi, '')
+          .replace('</head>', `<style>${styles.join('\n')}</style></head>`);
+        response.writeHead(200, {...commonHeaders, 'Content-Type': 'text/html; charset=utf-8'});
+        response.end(body);
+        return;
+      }
+
+      if (request.method === 'GET' && url.pathname.startsWith('/assets/')) {
+        const publicRoot = path.join(root, 'public');
+        const assetPath = path.resolve(publicRoot, url.pathname.slice(1));
+        if (!assetPath.startsWith(`${publicRoot}${path.sep}`)) throw new Error('Fixture asset escaped the public directory.');
+        const body = await readFile(assetPath);
+        const contentType = {'.webp': 'image/webp', '.png': 'image/png', '.svg': 'image/svg+xml'}[path.extname(assetPath)] || 'application/octet-stream';
+        response.writeHead(200, {...commonHeaders, 'Content-Type': contentType});
+        response.end(body);
+        return;
+      }
+
       if (request.method === 'GET' && staticFiles.has(url.pathname)) {
         const body = await readFile(staticFiles.get(url.pathname));
         response.writeHead(200, {
@@ -215,6 +247,17 @@ function startFixtureServer() {
           authenticated: false,
         };
         records.sessionChecks.push(check);
+        if (mode === 'session-503') {
+          check.status = 503;
+          json(503, {success: false, error: 'Fixture session verification is temporarily unavailable.'});
+          return;
+        }
+        if (mode === 'session-malformed') {
+          check.malformed = true;
+          response.writeHead(200, {...commonHeaders, 'Content-Type': 'application/json; charset=utf-8'});
+          response.end('{"success":true,"authenticated":');
+          return;
+        }
         // Production check-session converts every AuthenticationError, including
         // a disabled/revoked guest token, into a definitive HTTP 200 signed-out
         // response. The browser may then clear only its local identity state.
@@ -1368,6 +1411,96 @@ async function controlRevokedRegistrationRecovery(browser, fixture) {
   }
 }
 
+async function unavailableRegisteredSessionRecovery(browser, fixture) {
+  const evidence = [];
+  for (const mode of ['session-503', 'session-malformed']) {
+    for (const staleFreeLink of [false, true]) {
+      const caseName = `${mode}-${staleFreeLink ? 'stale-free' : 'plain'}-registered`;
+      const registered = fixture.createRegisteredSession(caseName);
+      const cachedUser = {
+        id: registered.userId, email: registered.email, fullName: registered.fullName,
+        isGuest: false, isVerified: true, termsAcceptedAt: registered.termsAcceptedAt,
+      };
+      const accountCacheKey = `crump_chats_v4:${registered.userId}`;
+      const cachedChats = JSON.stringify([{id: 'preserved-fixture-chat', messages: [{role: 'user', content: 'Fixture cache continuity'}]}]);
+      const harness = await createHarness(browser, fixture, {
+        caseName, mode, sessionId: registered.sessionId, viewport: {width: 390, height: 500},
+        contextOptions: {hasTouch: true, isMobile: true},
+      });
+      await harness.context.addInitScript(({cachedUser, accountCacheKey, cachedChats}) => {
+        localStorage.setItem('askcrump.registered-account-seen-v1', '1');
+        localStorage.setItem('crump_user_cache_v4', JSON.stringify(cachedUser));
+        localStorage.setItem(accountCacheKey, cachedChats);
+        window.__sessionRecoveryStorageRemovals = [];
+        const remove = Storage.prototype.removeItem;
+        Storage.prototype.removeItem = function(key) {
+          window.__sessionRecoveryStorageRemovals.push(String(key));
+          return remove.call(this, key);
+        };
+        window.va = () => {};
+        window.CrumpAPI = {ready: Promise.resolve(), isNative: false};
+        window.CrumpWorkspaceRuntime = {load: async () => {
+          document.documentElement.dataset.crumpBodyRuntime = 'ready';
+        }};
+      }, {cachedUser, accountCacheKey, cachedChats});
+      try {
+        const suffix = staleFreeLink ? '?source=pwa&plan=free' : '?source=pwa';
+        await harness.page.goto(`${fixture.baseUrl}${productionRecoveryPath}${suffix}`, {waitUntil: 'load'});
+        await waitForLogin(harness.page);
+        await harness.page.locator('#loginError').waitFor({state: 'visible'});
+        assert.match(
+          await harness.page.locator('#loginError').textContent(),
+          /could not verify your existing session.*saved sign-in was preserved.*try again/i,
+          'unavailable bootstrap must show actionable session recovery instead of a ReferenceError',
+        );
+        assert.equal(await harness.page.locator('#loginEmail').isVisible(), true);
+        assert.equal(await harness.page.locator('#loginPassword').isVisible(), true);
+        assert.equal(await harness.page.locator('#loginFormElement button[type="submit"]').isEnabled(), true);
+        const preserved = await harness.page.evaluate(accountCacheKey => ({
+          cachedUser: window.deviceAuth.cachedUser(),
+          accountHint: localStorage.getItem('askcrump.registered-account-seen-v1'),
+          accountCache: localStorage.getItem(accountCacheKey),
+          removals: window.__sessionRecoveryStorageRemovals,
+          privateWorkspaceVisible: getComputedStyle(document.getElementById('appContainer')).display !== 'none',
+        }), accountCacheKey);
+        assert.deepEqual(preserved.cachedUser, cachedUser, 'unavailable bootstrap cleared or replaced the registered identity');
+        assert.equal(preserved.accountHint, '1');
+        assert.equal(preserved.accountCache, cachedChats, 'unavailable bootstrap cleared registered chat cache');
+        assert.equal(preserved.removals.includes('crump_user_cache_v4'), false);
+        assert.equal(preserved.removals.includes(accountCacheKey), false);
+        assert.equal(preserved.privateWorkspaceVisible, false);
+        assert.equal(await sessionCookie(harness.context), registered.sessionId, 'unavailable bootstrap changed the issued session cookie');
+        assert.equal(fixture.records.guestAttempts.filter(row => row.caseName === caseName).length, 0);
+        assert.equal(fixture.records.requests.filter(row => row.caseName === caseName && row.method === 'POST' && row.pathname === '/api/auth/guest').length, 0);
+        assert.equal(fixture.records.logins.filter(row => row.caseName === caseName).length, 0);
+        const failedCheck = fixture.records.sessionChecks.find(row => row.caseName === caseName);
+        assert.equal(failedCheck.status, mode === 'session-503' ? 503 : 200);
+        assert.equal(Boolean(failedCheck.malformed), mode === 'session-malformed');
+        assertIsolated(harness, {allowConsole: [/\b503\b/]});
+
+        // Recover through the saved cookie; never submit the sign-in form or
+        // exchange the account for a guest, even with the old Free URL intent.
+        await harness.context.addCookies([{name: 'fixture_mode', value: 'enabled', url: fixture.baseUrl, sameSite: 'Lax'}]);
+        await harness.page.reload({waitUntil: 'load'});
+        await harness.page.waitForFunction(userId => window.currentUser?.id === userId
+          && getComputedStyle(document.getElementById('appContainer')).display !== 'none', registered.userId);
+        assert.equal(await sessionCookie(harness.context), registered.sessionId);
+        assert.equal(fixture.records.guestAttempts.filter(row => row.caseName === caseName).length, 0);
+        assert.equal(fixture.records.logins.filter(row => row.caseName === caseName).length, 0);
+        assertIsolated(harness, {allowConsole: [/\b503\b/]});
+        evidence.push({
+          mode, staleFreeLink, source: 'production app.html/styles + real auth controller and transport',
+          actionableLogin: true, savedIdentityAndAccountCachePreserved: true,
+          cookiePreserved: true, recoveredThroughCookie: true, guestPosts: 0, loginPosts: 0,
+        });
+      } finally {
+        await harness.context.close();
+      }
+    }
+  }
+  return evidence;
+}
+
 async function registeredUnaffected(browser, fixture) {
   const caseName = 'registered-unaffected';
   const registered = fixture.createRegisteredSession(caseName, 2);
@@ -1869,6 +2002,7 @@ async function mobileFixtureShellCheck(browser, fixture) {
       disabledMint: await disabledMint(browser, fixture),
       capturedGuest: await capturedGuestToken(browser, fixture),
       controlRevokedRegistration: await controlRevokedRegistrationRecovery(browser, fixture),
+      unavailableRegisteredSession: await unavailableRegisteredSessionRecovery(browser, fixture),
       registered: await registeredUnaffected(browser, fixture),
       guestSigninEscape: await guestSignInEscape(browser, fixture),
       registeredLogout: await registeredLogoutToLogin(browser, fixture),

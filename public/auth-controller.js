@@ -24,6 +24,7 @@
   let authIdentityStorageGeneration = 0;
   const AUTH_USER_CACHE_KEY = 'crump_user_cache_v4';
   const REGISTERED_ACCOUNT_HINT_KEY = 'askcrump.registered-account-seen-v1';
+  const EXPLICIT_GUEST_INTENT_KEY = 'askcrump.explicit-guest-entry-v1';
   const TERMS_VERSION = '2026-08-01';
   const PLAN_INTENT_KEY = 'askcrump.pending-plan-intent';
   const CREATION_INTENT_KEY = 'askcrump.pending-creation-intent';
@@ -797,6 +798,31 @@
     try { localStorage.setItem(REGISTERED_ACCOUNT_HINT_KEY, '1'); } catch (_) {}
   }
 
+  function routePasswordSetupRequiredUser(user, serverSettings) {
+    if (!user?.isVerified || isGuestUser(user) || !user.passwordSetupRequired) return false;
+    rememberRegisteredAccount(user);
+    activeUser = user;
+    window.currentUser = user;
+    window.configureUserStorage?.(user.id);
+    applyServerSettings(serverSettings);
+    setText('loginSuccess', '', false);
+    configurePasswordForm('setup');
+    showAuth('reset');
+    return true;
+  }
+
+  function consumeExplicitGuestEntryIntent() {
+    try {
+      const stored = sessionStorage.getItem(EXPLICIT_GUEST_INTENT_KEY);
+      sessionStorage.removeItem(EXPLICIT_GUEST_INTENT_KEY);
+      const createdAt = JSON.parse(stored || 'null')?.createdAt;
+      const age = Date.now() - createdAt;
+      return Number.isFinite(createdAt) && age >= 0 && age <= 30_000;
+    } catch (_) {
+      return false;
+    }
+  }
+
   async function prepareAuthenticatedWorkspace() {
     const runtime = window.CrumpWorkspaceRuntime;
     if (!runtime || typeof runtime.load !== 'function') {
@@ -1252,6 +1278,7 @@
         guestEntryFailure = {code: 'SESSION_NOT_READY', retryAfter: 0, status: 503};
         return false;
       }
+      if (routePasswordSetupRequiredUser(session.data.user, session.data.settings)) return true;
       await prepareAuthenticatedWorkspace();
       activeUser = session.data.user;
       window.currentUser = activeUser;
@@ -1444,6 +1471,9 @@
     const params = new URLSearchParams(location.search);
     const signupRequested = params.get('signup') === '1';
     const signInRequested = (params.get('source') || '').toLowerCase().includes('signin');
+    const explicitGuestIntent = consumeExplicitGuestEntryIntent();
+    const explicitGuestRequested = params.get('plan') === 'free'
+      && !signupRequested && !signInRequested && explicitGuestIntent;
     const returningDeviceHint = hasReturningDeviceHint();
     const resetToken = params.get('token');
     if (resetToken) {
@@ -1482,15 +1512,11 @@
     }
     if (session.unavailable) {
       if (!signupRequested) {
-        if (freeGuestRequested) {
-          showGuestEntryFailure({code: 'SESSION_UNAVAILABLE'});
-        } else {
-          showAuth('login');
-          setText(
-            'loginError',
-            'Ask Crump could not verify your existing session right now. Your saved sign-in was preserved; try again in a moment.',
-          );
-        }
+        showAuth('login');
+        setText(
+          'loginError',
+          'Ask Crump could not verify your existing session right now. Your saved sign-in was preserved; try again in a moment.',
+        );
       }
       if (verification) showVerificationResult(verification);
       return;
@@ -1508,7 +1534,7 @@
       const mayStartGuest = !signupRequested
         && !verification
         && !signInRequested
-        && !accountOnDevice;
+        && (explicitGuestRequested || !accountOnDevice);
       if (mayStartGuest && await enterAsGuest()) return;
       if (authFlowRevision !== bootstrapAuthFlowRevision) return;
       if (signupRequested) {
@@ -1541,19 +1567,7 @@
       return;
     }
     rememberRegisteredAccount(session.data.user);
-    if (
-      session.data.user.isVerified
-      && !isGuestUser(session.data.user)
-      && session.data.user.passwordSetupRequired
-    ) {
-      activeUser = session.data.user;
-      window.currentUser = activeUser;
-      window.configureUserStorage?.(activeUser.id);
-      applyServerSettings(session.data.settings);
-      configurePasswordForm('setup');
-      showAuth('reset');
-      return;
-    }
+    if (routePasswordSetupRequiredUser(session.data.user, session.data.settings)) return;
     await prepareAuthenticatedWorkspace();
     if (authFlowRevision !== bootstrapAuthFlowRevision) return;
     if (authIdentityStorageGeneration !== bootstrapIdentityStorageGeneration) return bootstrap();
@@ -1861,6 +1875,7 @@
         // the now-replaced guest session as recoverable.
         guestAccountSwitchPending = false;
         renderGuestSigninNotice(false);
+        if (routePasswordSetupRequiredUser(result.data.user, result.data.settings)) return;
         await prepareAuthenticatedWorkspace();
         activeUser = result.data.user;
         window.currentUser = activeUser;

@@ -174,14 +174,23 @@ def test_verified_pending_password_is_held_before_workspace_bootstrap():
     controller = (PUBLIC / 'auth-controller.js').read_text(encoding='utf-8')
     app = (PUBLIC / 'app.html').read_text(encoding='utf-8')
 
-    gate_start = controller.index('if (\n      session.data.user.isVerified')
-    bootstrap_gate = controller[
-        gate_start:controller.index('await prepareAuthenticatedWorkspace();', gate_start)
+    setup_gate = controller[
+        controller.index('function routePasswordSetupRequiredUser('):
+        controller.index('function consumeExplicitGuestEntryIntent(')
     ]
-    assert 'session.data.user.passwordSetupRequired' in bootstrap_gate
-    assert "configurePasswordForm('setup');" in bootstrap_gate
-    assert "showAuth('reset');" in bootstrap_gate
-    assert 'prepareAuthenticatedWorkspace' not in bootstrap_gate
+    assert '!user?.isVerified || isGuestUser(user) || !user.passwordSetupRequired' in setup_gate
+    assert "configurePasswordForm('setup');" in setup_gate
+    assert "showAuth('reset');" in setup_gate
+    assert 'prepareAuthenticatedWorkspace' not in setup_gate
+    for start, end, data in (
+        ('async function bootstrap()', 'function wireNavigation()', 'session.data'),
+        ('function wireLogin()', 'function wireRegistration()', 'result.data'),
+        ('async function enterAsGuest()', 'function showGuestEntryFailure(', 'session.data'),
+    ):
+        entry = controller[controller.index(start):controller.index(end)]
+        assert entry.index(f'routePasswordSetupRequiredUser({data}.user, {data}.settings)') < entry.index(
+            'await prepareAuthenticatedWorkspace();'
+        )
 
     setup_submit = controller[
         controller.index("const initialSetup = resetForm?.dataset.mode === 'setup';"):

@@ -197,7 +197,7 @@ def test_explicit_signup_intent_never_bootstraps_or_routes_a_guest_into_the_work
 
     assert "if (signupRequested) {\n      showAuth('register');" in auth
     assert "const mayStartGuest = !signupRequested" in auth
-    assert "&& !accountOnDevice;" in auth
+    assert "&& (explicitGuestRequested || !accountOnDevice);" in auth
     assert "if (signupRequested && isGuestUser(session.data.user))" in auth
     guest_signup = auth[auth.index("if (signupRequested && isGuestUser(session.data.user))") :]
     guest_signup = guest_signup[:guest_signup.index("await prepareAuthenticatedWorkspace();")]
