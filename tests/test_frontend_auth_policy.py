@@ -294,6 +294,7 @@ def test_auth_view_transitions_move_focus_to_the_first_actionable_field():
 
 
 def test_login_validation_failures_are_visible_and_observable_before_network_submission():
+    app = (PUBLIC / 'app.html').read_text(encoding='utf-8')
     controller = (PUBLIC / 'auth-controller.js').read_text(encoding='utf-8')
 
     login = controller[
@@ -309,6 +310,50 @@ def test_login_validation_failures_are_visible_and_observable_before_network_sub
     assert "trackFunnel('LoginSubmitted')" in login
     assert "trackFunnel('LoginCompleted')" in login
     assert "trackFunnel('LoginFailed'" in login
+    assert "showLoginError(message)" in login
+    assert "error.scrollIntoView?.({block: 'nearest', inline: 'nearest'})" in controller
+    login_form = app[app.index('id="loginFormElement"'):app.index('</form>', app.index('id="loginFormElement"'))]
+    assert 'id="loginError"' in login_form
+    assert login_form.index('id="loginError"') < login_form.index('type="submit"')
+
+
+def test_login_busy_state_precedes_fail_open_measurement():
+    controller = (PUBLIC / 'auth-controller.js').read_text(encoding='utf-8')
+    funnel = controller[
+        controller.index('function trackFunnel'):
+        controller.index('function trackSignupIntent')
+    ]
+    login = controller[
+        controller.index('function wireLogin()'):
+        controller.index('function wireRegistration()')
+    ]
+
+    assert 'try {' in funnel
+    assert 'window.va?.(' in funnel
+    assert 'catch (_)' in funnel
+    assert 'return false;' in funnel
+    assert login.index("setBusy(event.currentTarget, true, 'Signing in…')") < login.index(
+        "trackFunnel('LoginSubmitted')"
+    )
+    assert "button.setAttribute('aria-busy', String(Boolean(busy)))" in controller
+    assert "button.removeAttribute('aria-busy')" in controller
+
+
+def test_registered_account_hint_is_content_free_and_survives_identity_cache_clear():
+    controller = (PUBLIC / 'auth-controller.js').read_text(encoding='utf-8')
+
+    assert "REGISTERED_ACCOUNT_HINT_KEY = 'askcrump.registered-account-seen-v1'" in controller
+    assert "localStorage.setItem(REGISTERED_ACCOUNT_HINT_KEY, '1')" in controller
+    assert "localStorage.getItem(REGISTERED_ACCOUNT_HINT_KEY) === '1'" in controller
+    assert "rememberRegisteredAccount(user);" in controller
+    assert 'localStorage.removeItem(REGISTERED_ACCOUNT_HINT_KEY)' not in controller
+    login = controller[
+        controller.index('function wireLogin()'):
+        controller.index('function wireRegistration()')
+    ]
+    assert login.index('rememberRegisteredAccount(result.data.user);') < login.index(
+        'await prepareAuthenticatedWorkspace();'
+    )
 
 
 def test_signup_success_has_durable_verification_handoff_and_recovery_ui():

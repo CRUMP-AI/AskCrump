@@ -28,15 +28,16 @@ def test_same_page_login_is_serialized_and_confirmed():
     worker = (PUBLIC / 'sw.js').read_text(encoding='utf-8')
     assert 'this.loginPromise = null' in source
     assert 'if (this.loginPromise) return this.loginPromise' in source
-    assert 'confirmIssuedSession()' in source
+    assert 'confirmIssuedSession(expectedOwnerId = null, expectedEmail = null)' in source
     assert "CrumpAuthTransport.request('/api/auth/check-session'" in source
     assert 'for (const delay of [0, 100, 300, 750, 1500])' in source
-    assert 'for (const delay of [0, 150, 500, 1000, 2000])' in source
-    assert "code !== 'AUTH_REQUEST_TIMEOUT'" in source
+    assert 'const confirmation = await this.confirmIssuedSession(null, email)' in source
+    assert "code === 'AUTH_REQUEST_TIMEOUT'" in source
+    assert "code === 'AUTH_INVALID_RESPONSE'" in source
     assert 'for (let attempt = 0; attempt < 2; attempt += 1)' not in source
     assert "code: 'SESSION_ESTABLISHMENT_FAILED'" in source
-    assert 'src="/device-auth.js?v=5.9.76-account-owner-boundary-1"' in shell
-    assert "'/device-auth.js?v=5.9.76-account-owner-boundary-1'" in worker
+    assert 'src="/device-auth.js?v=5.9.76-login-workspace-recovery-2"' in shell
+    assert "'/device-auth.js?v=5.9.76-login-workspace-recovery-2'" in worker
     assert "url.pathname === '/device-auth.js'" in worker
 
 

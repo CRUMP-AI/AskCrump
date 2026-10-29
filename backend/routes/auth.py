@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 from datetime import datetime, timezone
@@ -79,6 +80,26 @@ router = APIRouter(prefix="/api/auth", tags=["authentication"])
 logger = logging.getLogger("askcrump.auth")
 
 _GUEST_INSTALLATION_ID = re.compile(r'^[A-Za-z0-9._:-]{16,200}$')
+_AUTH_SETTINGS_TIMEOUT_SECONDS = 1.0
+
+
+async def _optional_auth_settings(user_id: str) -> tuple[dict | None, bool]:
+    """Keep optional preferences from withholding an authenticated response.
+
+    Null is deliberately not a set of defaults: entry clients leave existing
+    preferences alone and the ordinary authenticated sync loads them later.
+    Session validation and issuance happen before this narrow fallback.
+    """
+    try:
+        async with asyncio.timeout(_AUTH_SETTINGS_TIMEOUT_SECONDS):
+            user_settings = await db.select_one(
+                'user_settings',
+                filters={'user_id': eq(user_id)},
+            )
+        return user_settings, False
+    except (TimeoutError, DatabaseError):
+        logger.warning('Auth optional settings outcome=unavailable')
+        return None, True
 
 
 def _guest_rate_identity(request: Request, ip: str) -> str:
@@ -760,16 +781,14 @@ async def login(payload: LoginRequest, request: Request, response: Response):
         'Auth login outcome=session_issued client=%s',
         _auth_client_kind(request),
     )
-    user_settings = await db.select_one(
-        'user_settings',
-        filters={'user_id': eq(user['id'])},
-    )
+    user_settings, settings_unavailable = await _optional_auth_settings(user['id'])
     return {
         'success': True,
         'message': 'Login successful',
         'data': {
             'user': public_user(user),
             'settings': user_settings,
+            'settingsUnavailable': settings_unavailable,
             'expiresAt': session.get('expires_at'),
             **native_token_payload(request, raw_token),
         },
@@ -781,11 +800,10 @@ async def check_session(request: Request, response: Response):
     try:
         auth = await authenticate_request(request, db, settings)
     except AuthenticationError as exc:
-        # A stale browser tab must not translate an explicit owner mismatch
-        # into an ordinary signed-out answer.  Preserve the 409 so the client
-        # can scrub the previous account's private UI and reload against the
-        # authoritative HttpOnly-cookie owner.
-        if exc.code == 'AUTH_OWNER_MISMATCH':
+        # Only an authoritative invalid/expired credential means signed out.
+        # Preserve owner conflicts and temporary guest-control unavailability
+        # so the client keeps its saved identity while resolving the failure.
+        if exc.status_code != 401:
             raise
         logger.info(
             'Auth session outcome=unauthenticated client=%s',
@@ -796,16 +814,14 @@ async def check_session(request: Request, response: Response):
         'Auth session outcome=authenticated client=%s',
         _auth_client_kind(request),
     )
-    user_settings = await db.select_one(
-        'user_settings',
-        filters={'user_id': eq(auth.user['id'])},
-    )
+    user_settings, settings_unavailable = await _optional_auth_settings(auth.user['id'])
     return {
         'success': True,
         'authenticated': True,
         'data': {
             'user': public_user(auth.user),
             'settings': user_settings,
+            'settingsUnavailable': settings_unavailable,
             'expiresAt': auth.session.get('expires_at'),
         },
     }

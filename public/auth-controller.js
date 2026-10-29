@@ -23,6 +23,7 @@
   let termsBoundaryUnregister = null;
   let authIdentityStorageGeneration = 0;
   const AUTH_USER_CACHE_KEY = 'crump_user_cache_v4';
+  const REGISTERED_ACCOUNT_HINT_KEY = 'askcrump.registered-account-seen-v1';
   const TERMS_VERSION = '2026-08-01';
   const PLAN_INTENT_KEY = 'askcrump.pending-plan-intent';
   const CREATION_INTENT_KEY = 'askcrump.pending-creation-intent';
@@ -382,7 +383,16 @@
   }
 
   function trackFunnel(name, data = {}) {
-    window.va('event', {name, data: {...funnelContext(), ...data}});
+    try {
+      const delivery = window.va?.('event', {name, data: {...funnelContext(), ...data}});
+      delivery?.catch?.(() => {});
+      return true;
+    } catch (_) {
+      // Measurement must never become an authentication dependency. Vercel
+      // Analytics can be blocked, injected late, or throw in privacy-focused
+      // browsers; the visible auth flow still has to continue.
+      return false;
+    }
   }
 
   function trackSignupIntent(locationName) {
@@ -772,11 +782,19 @@
   }
 
   function hasReturningDeviceHint() {
-    try {
-      return Boolean(window.deviceAuth?.cachedUser?.());
-    } catch (_) {
-      return false;
+    let cachedUser = null;
+    try { cachedUser = window.deviceAuth?.cachedUser?.() || null; } catch (_) {}
+    if (cachedUser && !isGuestUser(cachedUser)) {
+      try { localStorage.setItem(REGISTERED_ACCOUNT_HINT_KEY, '1'); } catch (_) {}
     }
+    let registeredAccountSeen = false;
+    try { registeredAccountSeen = localStorage.getItem(REGISTERED_ACCOUNT_HINT_KEY) === '1'; } catch (_) {}
+    return Boolean(cachedUser || registeredAccountSeen);
+  }
+
+  function rememberRegisteredAccount(user) {
+    if (!user || isGuestUser(user)) return;
+    try { localStorage.setItem(REGISTERED_ACCOUNT_HINT_KEY, '1'); } catch (_) {}
   }
 
   async function prepareAuthenticatedWorkspace() {
@@ -895,6 +913,7 @@
   window.addEventListener('crump:body-runtime-ready', ensureOnboardingBoundaryRegistration, {once: true});
 
   function routeAuthenticatedUser(user) {
+    rememberRegisteredAccount(user);
     activeUser = user;
     window.currentUser = user;
     window.configureUserStorage?.(user.id);
@@ -1425,7 +1444,6 @@
     const params = new URLSearchParams(location.search);
     const signupRequested = params.get('signup') === '1';
     const signInRequested = (params.get('source') || '').toLowerCase().includes('signin');
-    const freeGuestRequested = params.get('plan') === 'free' && !signupRequested && !signInRequested;
     const returningDeviceHint = hasReturningDeviceHint();
     const resetToken = params.get('token');
     if (resetToken) {
@@ -1484,11 +1502,13 @@
       // finishes on the auth screens, and an explicit Sign in link
       // (source=*signin*) always lands on the login form it promised.
       const cachedHintUser = window.deviceAuth?.cachedUser?.() || null;
-      const accountOnDevice = returningDeviceHint && !cachedHintUser?.isGuest;
+      let registeredAccountSeen = false;
+      try { registeredAccountSeen = localStorage.getItem(REGISTERED_ACCOUNT_HINT_KEY) === '1'; } catch (_) {}
+      const accountOnDevice = registeredAccountSeen || (returningDeviceHint && !cachedHintUser?.isGuest);
       const mayStartGuest = !signupRequested
         && !verification
         && !signInRequested
-        && (freeGuestRequested || !accountOnDevice);
+        && !accountOnDevice;
       if (mayStartGuest && await enterAsGuest()) return;
       if (authFlowRevision !== bootstrapAuthFlowRevision) return;
       if (signupRequested) {
@@ -1520,6 +1540,7 @@
       trackSignupIntent('deep-link');
       return;
     }
+    rememberRegisteredAccount(session.data.user);
     if (
       session.data.user.isVerified
       && !isGuestUser(session.data.user)
@@ -1646,8 +1667,37 @@
     const original = button.dataset.originalText || button.textContent;
     button.dataset.originalText = original;
     button.disabled = busy;
+    button.setAttribute('aria-busy', String(Boolean(busy)));
     button.textContent = busy ? label : original;
-    return () => { button.disabled = false; button.textContent = original; };
+    return () => {
+      button.disabled = false;
+      button.removeAttribute('aria-busy');
+      button.textContent = original;
+    };
+  }
+
+  function showLoginError(message) {
+    setText('loginError', message);
+    requestAnimationFrame(() => {
+      const error = byId('loginError');
+      if (!error || getComputedStyle(error).display === 'none') return;
+      error.scrollIntoView?.({block: 'nearest', inline: 'nearest'});
+    });
+  }
+
+  function showWorkspaceLoginRecovery() {
+    let button = byId('loginWorkspaceRecovery');
+    if (!button) {
+      button = document.createElement('button');
+      button.id = 'loginWorkspaceRecovery';
+      button.type = 'button';
+      button.className = 'auth-submit-btn';
+      button.textContent = 'Reload workspace';
+      button.addEventListener('click', () => window.location.reload());
+      byId('loginError')?.insertAdjacentElement('afterend', button);
+    }
+    button.hidden = false;
+    requestAnimationFrame(() => button.scrollIntoView?.({block: 'nearest', inline: 'nearest'}));
   }
 
   function passwordRuleState(password) {
@@ -1776,7 +1826,7 @@
         ? 'Enter a valid email address.'
         : (isEmail ? 'Enter your email.' : 'Enter your password.');
       field?.setAttribute('aria-invalid', 'true');
-      setText('loginError', message);
+      showLoginError(message);
       trackFunnel('LoginValidationFailed', {reason});
     }, true);
 
@@ -1786,15 +1836,25 @@
 
     form.addEventListener('submit', async event => {
       event.preventDefault();
+      if (form.querySelector('button[type="submit"]')?.disabled) return;
       authFlowRevision += 1;
       setText('loginError', '', false);
+      setText('loginSuccess', '', false);
+      const workspaceRecovery = byId('loginWorkspaceRecovery');
+      if (workspaceRecovery) workspaceRecovery.hidden = true;
       hide('verificationNeeded');
-      trackFunnel('LoginSubmitted');
       const restore = setBusy(event.currentTarget, true, 'Signing in…');
+      trackFunnel('LoginSubmitted');
+      let credentialsConfirmed = false;
       try {
         await reauthenticationPreparation;
         const result = await window.deviceAuth.login(byId('loginEmail').value.trim(), byId('loginPassword').value);
         if (!result.success || !result.data?.user) throw Object.assign(new Error(result.error || 'Sign in failed.'), { result });
+        credentialsConfirmed = true;
+        const submitButton = form.querySelector('button[type="submit"]');
+        if (submitButton) submitButton.textContent = 'Opening workspace…';
+        setText('loginSuccess', 'Signed in. Opening your workspace…');
+        rememberRegisteredAccount(result.data.user);
         // The issued credential has already switched this installation to the
         // registered account. Remove the guest-return affordance before any
         // fallible workspace preparation so a later error cannot misrepresent
@@ -1810,7 +1870,12 @@
         trackFunnel('LoginCompleted');
         routeAuthenticatedUser(activeUser);
       } catch (error) {
-        setText('loginError', error.message || 'Network error. Try again.');
+        setText('loginSuccess', '', false);
+        const recoveryHint = error.result?.code === 'INVALID_CREDENTIALS'
+          ? ' Use Forgot password to restore access to an existing account.'
+          : '';
+        showLoginError((error.message || 'Network error. Try again.') + recoveryHint);
+        if (credentialsConfirmed) showWorkspaceLoginRecovery();
         trackFunnel('LoginFailed', {
           reason: loginFailureReason(error),
         });

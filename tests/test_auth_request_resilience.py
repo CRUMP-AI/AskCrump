@@ -47,7 +47,8 @@ def test_login_session_and_logout_requests_are_bounded_and_login_reconciles():
 
     assert "fetch(" not in device
     assert device.count("window.CrumpAuthTransport.request") >= 5
-    assert "error?.code !== 'AUTH_REQUEST_TIMEOUT'" in device
+    assert "error?.code === 'AUTH_REQUEST_TIMEOUT'" in device
+    assert "error?.code === 'AUTH_INVALID_RESPONSE'" in device
     assert "A web login can set its HttpOnly cookie" in device
     assert "return {success: true, data: confirmation.data, recovered: true}" in device
     assert "timeoutMs: window.CrumpAuthTransport.SESSION_TIMEOUT_MS" in device
@@ -58,13 +59,13 @@ def test_auth_transport_is_release_versioned_and_network_first():
     shell = read_public("app.html")
     worker = read_public("sw.js")
 
-    assert '<script defer src="/auth-resilience.js?v=5.9.76"></script>' in shell
-    assert shell.index("/auth-resilience.js?v=5.9.76") < shell.index(
-        "/device-auth.js?v=5.9.76-account-owner-boundary-1"
+    assert '<script defer src="/auth-resilience.js?v=5.9.76-login-workspace-recovery-2"></script>' in shell
+    assert shell.index("/auth-resilience.js?v=5.9.76-login-workspace-recovery-2") < shell.index(
+        "/device-auth.js?v=5.9.76-login-workspace-recovery-2"
     )
-    assert "'/auth-resilience.js?v=5.9.76'" in worker
+    assert "'/auth-resilience.js?v=5.9.76-login-workspace-recovery-2'" in worker
     assert "url.pathname === '/auth-resilience.js'" in worker
-    assert "ask-crump-new-body-v1-r277-guest-signin-escape-1" in worker
+    assert "ask-crump-new-body-v1-r280-login-workspace-recovery-2" in worker
 
 
 def test_auth_stall_fixtures_are_loopback_only_and_load_real_runtime_assets():

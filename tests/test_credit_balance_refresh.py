@@ -39,7 +39,7 @@ def test_credit_refresh_release_is_cache_addressable():
 
     assert asset in runtime
     assert asset in worker
-    assert "ask-crump-new-body-v1-r277-guest-signin-escape-1" in worker
+    assert "ask-crump-new-body-v1-r280-login-workspace-recovery-2" in worker
 
 
 def test_credit_refresh_fixture_uses_only_local_mocked_responses():

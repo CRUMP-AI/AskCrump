@@ -396,6 +396,7 @@
 
       fixture.releaseStaleWork = async () => {
         fixture.identityResolve({
+          success: true,
           authenticated: true,
           data: {user: {id: fixture.ownerA, email: 'alice@example.test', fullName: 'Alice Returned'}},
         });

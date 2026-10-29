@@ -262,6 +262,18 @@ def test_guest_signin_escape_has_isolated_browser_regression_coverage() -> None:
     assert "async function guestSigninPostLoginFailureBoundary" in verifier
     assert "post-login failure left a false guest return action" in verifier
     assert "guestSigninPostLoginFailure: await guestSigninPostLoginFailureBoundary" in verifier
+    assert "async function physicalTapLoginPersistence" in verifier
+    assert "await submit.tap()" in verifier
+    assert "window.__fixture.throwAnalytics = true" in verifier
+    assert "Signing in…" in verifier
+    assert "390x500 keyboard-sized" in verifier
+    assert "Safari 18 mobile user agent and touch input" in verifier
+    assert "same browser-context page close/reopen lost the registered session" in verifier
+    assert "a known account device silently fell back to a guest" in verifier
+    assert "physicalTapLoginPersistence: await physicalTapLoginPersistence" in verifier
+    assert "async function productionLoginKeyboardLayout" in verifier
+    assert "public/app.html + production styles" in verifier
+    assert "productionLoginKeyboardLayout: await productionLoginKeyboardLayout" in verifier
     assert "async function mobileMarketingSigninVisibility" in verifier
     assert "phone homepage hides the Sign in action" in verifier
     assert "mobileMarketingSignin: await mobileMarketingSigninVisibility(browser)" in verifier

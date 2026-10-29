@@ -337,6 +337,9 @@ function startFixtureServer() {
 
       if (request.method === 'POST' && url.pathname === '/api/auth/login') {
         const body = await readJson(request);
+        if (caseName === 'physical-tap-login-persistence') {
+          await new Promise(resolve => setTimeout(resolve, 180));
+        }
         const registered = createRegisteredSession(caseName, storedSession?.used || 0);
         records.logins.push({
           caseName,
@@ -602,10 +605,12 @@ async function createHarness(browser, fixture, {
   mode = 'enabled',
   sessionId = '',
   viewport = {width: 1440, height: 900},
+  contextOptions = {},
 } = {}) {
   const context = await browser.newContext({
     viewport,
     serviceWorkers: 'block',
+    ...contextOptions,
   });
   await context.addInitScript(() => {
     window.__guestJourneySignals = {authenticatedReady: []};
@@ -654,14 +659,17 @@ async function createHarness(browser, fixture, {
     requests.push({method: request.method(), url: url.href, pathname: url.pathname});
   });
 
-  const page = await context.newPage();
   const pageErrors = [];
   const consoleErrors = [];
-  page.on('pageerror', error => pageErrors.push(error.message));
-  page.on('console', message => {
-    if (message.type() === 'error') consoleErrors.push(message.text());
-  });
-  return {caseName, context, page, blocked, requests, pageErrors, consoleErrors};
+  const observePage = page => {
+    page.on('pageerror', error => pageErrors.push(error.message));
+    page.on('console', message => {
+      if (message.type() === 'error') consoleErrors.push(message.text());
+    });
+    return page;
+  };
+  const page = observePage(await context.newPage());
+  return {caseName, context, page, blocked, requests, pageErrors, consoleErrors, observePage};
 }
 
 function assertIsolated(harness, {allowConsole = []} = {}) {
@@ -1510,6 +1518,13 @@ async function guestSigninPostLoginFailureBoundary(browser, fixture) {
     await harness.page.locator('#loginFormElement').evaluate(form => form.requestSubmit());
     await harness.page.locator('#loginError').waitFor({state: 'visible'});
     assert.match(await harness.page.locator('#loginError').textContent(), /workspace preparation failed after login/i);
+    assert.equal(await harness.page.locator('#loginEmail').inputValue(), 'existing-account@fixture.invalid');
+    assert.equal(await harness.page.locator('#loginPassword').inputValue(), 'fixture-password');
+    assert.equal(
+      await harness.page.evaluate(() => localStorage.getItem('askcrump.registered-account-seen-v1')),
+      '1',
+      'a confirmed login did not persist the account hint before workspace preparation failed',
+    );
 
     const registeredSessionId = await sessionCookie(harness.context);
     assert.notEqual(registeredSessionId, originalSessionId, 'successful login did not rotate the guest session');
@@ -1531,6 +1546,213 @@ async function guestSigninPostLoginFailureBoundary(browser, fixture) {
     };
   } finally {
     await harness.context.close();
+  }
+}
+
+async function physicalTapLoginPersistence(browser, fixture) {
+  const caseName = 'physical-tap-login-persistence';
+  const safariTouchOptions = {
+    hasTouch: true,
+    isMobile: true,
+    userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) '
+      + 'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
+  };
+  const harness = await createHarness(browser, fixture, {
+    caseName,
+    viewport: {width: 390, height: 500},
+    contextOptions: safariTouchOptions,
+  });
+  try {
+    await openFixture(harness, fixture, '?source=pwa-signin');
+    await waitForLogin(harness.page);
+    const mobileInput = await harness.page.evaluate(() => ({
+      touchPoints: navigator.maxTouchPoints,
+      coarsePointer: matchMedia('(pointer: coarse)').matches,
+      viewportWidth: window.innerWidth,
+    }));
+    assert.equal(mobileInput.viewportWidth, 390, 'the mobile auth journey did not use the mobile viewport');
+    await harness.page.evaluate(() => {
+      window.__authTouchEvidence = [];
+      document.addEventListener('touchstart', event => {
+        window.__authTouchEvidence.push({trusted: event.isTrusted, touches: event.touches.length});
+      }, {capture: true, passive: true});
+    });
+
+    const submit = harness.page.locator('#loginFormElement button[type="submit"]');
+    await submit.tap();
+    const touchEvents = await harness.page.evaluate(() => window.__authTouchEvidence);
+    assert.ok(
+      touchEvents.some(event => event.trusted && event.touches > 0),
+      'the mobile auth journey did not receive trusted touchscreen input',
+    );
+    await harness.page.locator('#loginError').waitFor({state: 'visible'});
+    assert.match(await harness.page.locator('#loginError').textContent(), /enter your email/i);
+    const validationGeometry = await harness.page.locator('#loginError').evaluate(node => {
+      const rect = node.getBoundingClientRect();
+      return {
+        top: rect.top,
+        bottom: rect.bottom,
+        viewportHeight: window.visualViewport?.height || window.innerHeight,
+      };
+    });
+    assert.ok(validationGeometry.top >= 0, 'login validation feedback was above the keyboard-sized viewport');
+    assert.ok(
+      validationGeometry.bottom <= validationGeometry.viewportHeight,
+      'login validation feedback was below the keyboard-sized viewport',
+    );
+
+    const email = 'physical-tap-account@fixture.invalid';
+    const password = 'fixture-password';
+    await harness.page.locator('#loginEmail').fill(email);
+    await harness.page.locator('#loginPassword').fill(password);
+    await harness.page.evaluate(() => { window.__fixture.throwAnalytics = true; });
+    await submit.tap();
+    await harness.page.waitForFunction(() => {
+      const button = document.querySelector('#loginFormElement button[type="submit"]');
+      return button?.disabled
+        && button.getAttribute('aria-busy') === 'true'
+        && button.textContent.trim() === 'Signing in…';
+    });
+    assert.equal(
+      await harness.page.locator('#loginEmail').inputValue(),
+      email,
+      'login email was cleared while the request was pending',
+    );
+    assert.equal(
+      await harness.page.locator('#loginPassword').inputValue(),
+      password,
+      'login password was cleared while the request was pending',
+    );
+
+    await waitForApp(harness.page, {guest: false});
+    const registeredSessionId = await sessionCookie(harness.context);
+    const registeredUser = fixture.sessions.get(registeredSessionId);
+    assert.ok(registeredUser, 'physical-tap login did not establish the fixture session');
+    assert.equal(registeredUser.kind, 'registered');
+    assert.equal(fixture.records.logins.filter(row => row.caseName === caseName).length, 1);
+    assert.equal(fixture.records.guestMints.filter(row => row.caseName === caseName).length, 0);
+    assert.equal(
+      await harness.page.evaluate(() => localStorage.getItem('askcrump.registered-account-seen-v1')),
+      '1',
+      'successful login did not leave a content-free registered-account hint',
+    );
+
+    await harness.page.close();
+    harness.page = harness.observePage(await harness.context.newPage());
+    await openFixture(harness, fixture, '?source=pwa');
+    await waitForApp(harness.page, {guest: false});
+    assert.equal(
+      await sessionCookie(harness.context),
+      registeredSessionId,
+      'same browser-context page close/reopen lost the registered session',
+    );
+    assert.equal((await harness.page.evaluate(() => window.currentUser)).id, registeredUser.userId);
+    assert.equal(fixture.records.guestMints.filter(row => row.caseName === caseName).length, 0);
+
+    await harness.page.close();
+    await harness.context.clearCookies();
+    await harness.context.addCookies([
+      {name: 'fixture_case', value: caseName, url: fixture.baseUrl, sameSite: 'Lax'},
+      {name: 'fixture_mode', value: 'enabled', url: fixture.baseUrl, sameSite: 'Lax'},
+    ]);
+    harness.page = harness.observePage(await harness.context.newPage());
+    await openFixture(harness, fixture, '?plan=free&source=pwa');
+    await waitForLogin(harness.page);
+    assert.equal(
+      fixture.records.guestMints.filter(row => row.caseName === caseName).length,
+      0,
+      'a known account device silently fell back to a guest after session loss',
+    );
+    assert.equal(
+      fixture.records.guestAttempts.filter(row => row.caseName === caseName).length,
+      0,
+      'a known account device attempted a guest remint after session loss',
+    );
+    assertIsolated(harness);
+    return {
+      engine: browser.browserType().name(),
+      emulationProfile: 'Safari 18 mobile user agent and touch input',
+      mobileInput,
+      trustedTouchEvent: true,
+      viewport: '390x500 keyboard-sized',
+      physicalTap: true,
+      tapDriver: 'Playwright touchscreen input',
+      analyticsThrowFailOpen: true,
+      busyBeforeTelemetry: true,
+      validationFeedbackVisible: true,
+      credentialsPreservedWhilePending: true,
+      sameContextPageReopenedRegisteredSession: true,
+      knownAccountSessionLossShowsLogin: true,
+      guestMints: 0,
+    };
+  } finally {
+    await harness.context.close();
+  }
+}
+
+async function productionLoginKeyboardLayout(browser) {
+  const [shell, styles, authStyles, bodyStyles] = await Promise.all([
+    readFile(path.join(root, 'public', 'app.html'), 'utf8'),
+    readFile(path.join(root, 'public', 'styles.css'), 'utf8'),
+    readFile(path.join(root, 'public', 'auth-styles.css'), 'utf8'),
+    readFile(path.join(root, 'public', 'crump-v1-body.css'), 'utf8'),
+  ]);
+  const context = await browser.newContext({
+    viewport: {width: 390, height: 500},
+    hasTouch: true,
+    isMobile: true,
+    userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) '
+      + 'AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1',
+    serviceWorkers: 'block',
+  });
+  const page = await context.newPage();
+  const pageErrors = [];
+  page.on('pageerror', error => pageErrors.push(error.message));
+  await context.route('**/*', route => route.abort());
+  try {
+    const inertShell = shell
+      .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, '')
+      .replace(/<link\b[^>]*>/gi, '')
+      .replace(
+        '</head>',
+        `<style>${styles}\n${authStyles}\n${bodyStyles}</style></head>`,
+      );
+    await page.setContent(inertShell, {waitUntil: 'domcontentloaded'});
+    const geometry = await page.evaluate(() => {
+      const auth = document.getElementById('authContainer');
+      const login = document.getElementById('loginForm');
+      const error = document.getElementById('loginError');
+      if (!auth || !login || !error) return null;
+      auth.style.display = 'flex';
+      login.style.display = 'block';
+      error.textContent = 'Enter your email.';
+      error.style.display = 'block';
+      error.scrollIntoView({block: 'nearest', inline: 'nearest'});
+      const rect = error.getBoundingClientRect();
+      const form = document.getElementById('loginFormElement');
+      const submit = form?.querySelector('button[type="submit"]');
+      return {
+        top: rect.top,
+        bottom: rect.bottom,
+        viewportHeight: window.visualViewport?.height || window.innerHeight,
+        errorBeforeSubmit: Boolean(
+          submit && (error.compareDocumentPosition(submit) & Node.DOCUMENT_POSITION_FOLLOWING)
+        ),
+      };
+    });
+    assert.ok(geometry, 'production login shell was missing keyboard-layout nodes');
+    assert.equal(geometry.errorBeforeSubmit, true, 'production login error did not precede the submit control');
+    assert.ok(geometry.top >= 0, 'production login error was above the keyboard-sized viewport');
+    assert.ok(geometry.bottom <= geometry.viewportHeight, 'production login error was below the keyboard-sized viewport');
+    assert.deepEqual(pageErrors, []);
+    return {
+      source: 'public/app.html + production styles',
+      viewport: '390x500 keyboard-sized',
+      feedbackBeforeSubmit: true,
+      feedbackVisible: true,
+    };
+  } finally {
+    await context.close();
   }
 }
 
@@ -1627,15 +1849,18 @@ async function mobileFixtureShellCheck(browser, fixture) {
 (async () => {
   // Resolve the already-installed automation library before opening a socket.
   // A module-load failure therefore cannot strand a listening fixture server.
-  const {chromium} = loadPlaywright();
+  const playwright = loadPlaywright();
+  const browserEngine = String(process.env.ASKCRUMP_AUTH_BROWSER || 'chromium').trim().toLowerCase();
+  assert.ok(['chromium', 'webkit'].includes(browserEngine), 'ASKCRUMP_AUTH_BROWSER must be chromium or webkit');
+  const browserType = playwright[browserEngine];
   let fixture = null;
   let browser = null;
   try {
     fixture = await startFixtureServer();
     const executablePath = process.env.CODEX_BROWSER_EXECUTABLE || '';
-    browser = await chromium.launch({
+    browser = await browserType.launch({
       headless: true,
-      ...(executablePath ? {executablePath} : {}),
+      ...(browserEngine === 'chromium' && executablePath ? {executablePath} : {}),
     });
 
     const evidence = {
@@ -1648,6 +1873,8 @@ async function mobileFixtureShellCheck(browser, fixture) {
       guestSigninEscape: await guestSignInEscape(browser, fixture),
       registeredLogout: await registeredLogoutToLogin(browser, fixture),
       guestSigninPostLoginFailure: await guestSigninPostLoginFailureBoundary(browser, fixture),
+      physicalTapLoginPersistence: await physicalTapLoginPersistence(browser, fixture),
+      productionLoginKeyboardLayout: await productionLoginKeyboardLayout(browser),
       mobileMarketingSignin: await mobileMarketingSigninVisibility(browser),
       mobileFixtureShell: await mobileFixtureShellCheck(browser, fixture),
     };
@@ -1656,6 +1883,7 @@ async function mobileFixtureShellCheck(browser, fixture) {
     const allBrowserRequests = fixture.records.requests.length;
     console.log(JSON.stringify({
       ok: true,
+      browser: {engine: browser.browserType().name(), version: browser.version()},
       isolation: {
         server: fixture.baseUrl.replace(/:\d+$/, ':<ephemeral>'),
         bind: '127.0.0.1',

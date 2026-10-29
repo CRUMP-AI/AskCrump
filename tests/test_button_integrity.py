@@ -38,6 +38,7 @@ EXPECTED_BUTTON_INVENTORY = {
     "public/subscription-ui.js": 3,
 }
 DYNAMIC_BUTTON_INVENTORY = {
+    "public/auth-controller.js": 1,
     "public/account-manager.js": 1,
     "public/app.js": 2,
     "public/crump-4.3.js": 1,
@@ -315,8 +316,8 @@ def test_programmatically_created_button_inventory_requires_explicit_review() ->
             inventory[path.relative_to(ROOT).as_posix()] = count
 
     assert inventory == DYNAMIC_BUTTON_INVENTORY
-    assert sum(inventory.values()) == 104
-    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 331
+    assert sum(inventory.values()) == 105
+    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 332
 
 
 def test_programmatically_created_buttons_declare_type_and_runtime_owner() -> None:
@@ -651,7 +652,7 @@ def test_browser_control_matrix_is_fail_closed_and_one_command() -> None:
     workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     verifier_names = sorted(path.name for path in (ROOT / "scripts").glob("verify-*.cjs"))
 
-    assert len(verifier_names) == 67
+    assert len(verifier_names) == 70
     for name in verifier_names:
         assert f"'{name}'" in runner
     assert "Browser verifier inventory drifted." in runner

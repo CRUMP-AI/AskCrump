@@ -1246,7 +1246,7 @@ const accountOwnerBoundaryVersion = `${releaseVersion}-account-owner-boundary-1`
 const privateOwnerBoundaryVersion = `${releaseVersion}-private-owner-boundary-1`;
 const legacyAttachmentOwnerBoundaryVersion = `${releaseVersion}-legacy-attachment-owner-fence-1`;
 const serverOnlyActivationVersion = `${releaseVersion}-server-only-activation-1`;
-const authControllerVersion = `${releaseVersion}-guest-signin-escape-1`;
+const authControllerVersion = `${releaseVersion}-login-workspace-recovery-2`;
 const continuityHandoffVersion = `${releaseVersion}-continuity-handoff-1`;
 const composerModeResetVersion = `${releaseVersion}-composer-mode-reset-1`;
 const accountDeletionStorageVersion = `${releaseVersion}-account-storage-deletion-1`;
@@ -1288,7 +1288,7 @@ const libraryReconciliationVersion = `${releaseVersion}-library-reconciliation-1
 const homeDocumentEntryVersion = `${releaseVersion}-home-document-entry-1`;
 const autonomousContinuityVersion = `${releaseVersion}-autonomous-continuity-1`;
 const precisionAiPersistenceVersion = `${releaseVersion}-precision-ai-persistence-1`;
-const runtimeBodyVersion = serverOnlyActivationVersion;
+const runtimeBodyVersion = authControllerVersion;
 const appearanceChoiceVersion = `${releaseVersion}-appearance-choice-3`;
 const uiReleaseAuditVersion = `${releaseVersion}-ui-release-audit-2`;
 const activityCenterVersion = autonomousContinuityVersion;
@@ -1583,7 +1583,7 @@ const requiredHtmlSignals = [
   `/auth-controller.js?v=${authControllerVersion}`,
   `/telemetry-config.js?v=${releaseVersion}`,
   '/_vercel/speed-insights/script.js',
-  `/auth-resilience.js?v=${releaseVersion}`,
+  `/auth-resilience.js?v=${authControllerVersion}`,
   `/install-prompt.js?v=${authUpdateGuardVersion}`,
   '/crump-v1-body.css',
   'class="crump-v1-body"',
@@ -1776,6 +1776,8 @@ const runtimeDocument = {
   },
 };
 const runtimeWindow = {
+  setTimeout,
+  clearTimeout,
   addEventListener() {},
   dispatchEvent(event) { dispatchedRuntimeEvents.push(event.type); },
 };
@@ -1783,6 +1785,8 @@ class RuntimeCustomEvent {
   constructor(type) { this.type = type; }
 }
 runInContext(runtime, createContext({
+  setTimeout,
+  clearTimeout,
   CustomEvent: RuntimeCustomEvent,
   document: runtimeDocument,
   Promise,
@@ -2089,7 +2093,7 @@ for (const [pathname, expectedVersion] of [
     }
   }
 }
-if (!serviceWorker.includes('ask-crump-new-body-v1-r277-guest-signin-escape-1') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r280-login-workspace-recovery-2') ||
     !serviceWorker.includes(`'${shellBrandUrl}'`) ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||
@@ -2128,10 +2132,10 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r277-guest-signin-escape-1') 
     !serviceWorker.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-1`) ||
     !serviceWorker.includes(`/lifecycle-share.js?v=${settingsInviteVersion}`) ||
     !serviceWorker.includes(`/lifecycle-manager.js?v=${lifecycleIdleSendVersion}`) ||
-    !serviceWorker.includes(`/auth-resilience.js?v=${releaseVersion}`) ||
+    !serviceWorker.includes(`/auth-resilience.js?v=${authControllerVersion}`) ||
     !serviceWorker.includes(`/install-prompt.js?v=${authUpdateGuardVersion}`) ||
     !serviceWorker.includes(`/install-prompt.css?v=${releaseVersion}`) ||
-    !serviceWorker.includes(`/device-auth.js?v=${accountOwnerBoundaryVersion}`) ||
+    !serviceWorker.includes(`/device-auth.js?v=${authControllerVersion}`) ||
     !serviceWorker.includes(`/sync-manager.js?v=${syncQueueVersion}`) ||
     !serviceWorker.includes(`/chat-sync.js?v=${chatSyncVersion}`) ||
     !serviceWorker.includes(`/product-analytics.js?v=${productAnalyticsVersion}`) ||

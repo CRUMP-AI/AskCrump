@@ -40,7 +40,8 @@ const config = {
   webCredits400PriceLabel: process.env.WEB_CREDITS_400_PRICE_LABEL || '$19.99',
 };
 
-const loader = String.raw`
+// Keep this template identical to the public loader; the deadline verifier checks parity.
+const loader = `
 (() => {
   'use strict';
 
@@ -124,73 +125,155 @@ const loader = String.raw`
     ...finalScripts,
   ]);
 
-  function loadStyleOnce(url, key) {
-    const keyed = document.querySelector('link[data-' + key + ']');
-    if (keyed) return Promise.resolve();
+  const ASSET_TIMEOUT_MS = 12_000;
+  const WORKSPACE_BOOT_TIMEOUT_MS = 35_000;
+  const assets = new Map();
+  let currentBoot = null;
+  let reloadRequiredError = null;
 
-    const existing = document.querySelector('link[href="' + url + '"]');
-    if (existing) {
-      return new Promise((resolve,reject) => {
-        const node = existing.cloneNode();
-        node.dataset[key] = 'true';
-        node.addEventListener('load', resolve, {once:true});
-        node.addEventListener('error', () => {
-          node.remove();
-          reject(new Error('Workspace style unavailable.'));
-        }, {once:true});
-        document.head.appendChild(node);
-      });
+  function runtimeError(message, code, details = {}) {
+    return Object.assign(new Error(message), {code, ...details});
+  }
+
+  function assertCurrentBoot(run) {
+    if (!run || run !== currentBoot || run.cancelled) {
+      throw run?.error || runtimeError('Workspace loading was interrupted.', 'WORKSPACE_BOOT_CANCELLED');
     }
+  }
 
-    return new Promise((resolve,reject) => {
-      const node = document.createElement('link');
+  function cancelBoot(run, error) {
+    if (run.cancelled) return;
+    run.cancelled = true;
+    run.error = error;
+    // Reject every waiter, even when a browser never reports load/error. A
+    // completed asset stays cached; a pending asset is never treated as loaded.
+    for (const cancel of [...run.pending]) cancel(error);
+  }
+
+  function waitForAsset(node, kind, url, key, run) {
+    assertCurrentBoot(run);
+    const record = {node, kind, loaded: false, promise: null};
+    const assetKey = \`\${kind}:\${key}\`;
+    assets.set(assetKey, record);
+    record.promise = new Promise((resolve, reject) => {
+      let settled = false;
+      let timeoutId = 0;
+      const cleanup = () => {
+        window.clearTimeout(timeoutId);
+        node.removeEventListener?.('load', onLoad);
+        node.removeEventListener?.('error', onError);
+        run.pending.delete(cancel);
+      };
+      const fail = error => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        assets.delete(assetKey);
+        node.remove();
+        reject(error);
+      };
+      const cancel = error => {
+        // Removing a prepared classic script cannot reliably cancel execution
+        // in every browser. Never reinsert it or continue the plan in this
+        // document after an ambiguous timeout; reload reuses the issued session.
+        if (kind === 'script') error.reloadRequired = true;
+        fail(error);
+      };
+      const onLoad = () => {
+        if (settled) return;
+        if (run !== currentBoot || run.cancelled) {
+          cancel(run.error || runtimeError('Workspace loading was interrupted.', 'WORKSPACE_BOOT_CANCELLED'));
+          return;
+        }
+        settled = true;
+        record.loaded = true;
+        cleanup();
+        resolve();
+      };
+      const onError = () => fail(runtimeError(
+        kind === 'style' ? 'Workspace style unavailable.' : 'Workspace script unavailable.',
+        'WORKSPACE_ASSET_UNAVAILABLE',
+        {asset: url, assetKind: kind},
+      ));
+      node.addEventListener('load', onLoad, {once: true});
+      node.addEventListener('error', onError, {once: true});
+      run.pending.add(cancel);
+      timeoutId = window.setTimeout(() => cancel(runtimeError(
+        \`Workspace \${kind} took too long to load.\`,
+        'WORKSPACE_ASSET_TIMEOUT',
+        {asset: url, assetKind: kind},
+      )), ASSET_TIMEOUT_MS);
+      try {
+        document.head.appendChild(node);
+      } catch (error) {
+        cancel(error);
+      }
+    });
+    return record.promise;
+  }
+
+  function loadStyleOnce(url, key) {
+    const run = currentBoot;
+    assertCurrentBoot(run);
+    const previous = assets.get(\`style:\${key}\`);
+    if (previous) return previous.promise;
+    const existing = document.querySelector(\`link[href="\${url}"]\`);
+    // Keep the active stylesheet in place. A cached clone can take final
+    // cascade position without detaching the CSS for a workspace frame.
+    if (existing) {
+      const node = existing.cloneNode();
       node.rel = 'stylesheet';
       node.href = url;
       node.dataset[key] = 'true';
-      node.addEventListener('load', resolve, {once:true});
-      node.addEventListener('error', () => {
-        node.remove();
-        reject(new Error('Workspace style unavailable.'));
-      }, {once:true});
-      document.head.appendChild(node);
-    });
+      return waitForAsset(node, 'style', url, key, run);
+    }
+    const node = document.createElement('link');
+    node.rel = 'stylesheet';
+    node.href = url;
+    node.dataset[key] = 'true';
+    return waitForAsset(node, 'style', url, key, run);
   }
 
   async function loadStyle(url, key) {
+    const run = currentBoot;
     try {
-      await loadStyleOnce(url,key);
-    } catch (_) {
-      await loadStyleOnce(url,key);
+      await loadStyleOnce(url, key);
+    } catch (error) {
+      assertCurrentBoot(run);
+      if (error?.reloadRequired) throw error;
+      // Styles cannot execute code, so one retry is safe even after timeout.
+      await loadStyleOnce(url, key);
     }
   }
 
   function loadScriptOnce(url, key) {
-    if (document.querySelector('script[data-' + key + ']')) return Promise.resolve();
-    return new Promise((resolve,reject) => {
-      const node = document.createElement('script');
-      node.src = url;
-      node.async = false;
-      node.dataset[key] = 'true';
-      node.addEventListener('load', resolve, {once:true});
-      node.addEventListener('error', () => {
-        node.remove();
-        reject(new Error('Workspace script unavailable.'));
-      }, {once:true});
-      document.head.appendChild(node);
-    });
+    const run = currentBoot;
+    assertCurrentBoot(run);
+    const previous = assets.get(\`script:\${key}\`);
+    if (previous) return previous.promise;
+    const node = document.createElement('script');
+    node.src = url;
+    node.async = false;
+    node.dataset[key] = 'true';
+    return waitForAsset(node, 'script', url, key, run);
   }
 
   async function loadScript(url, key) {
+    const run = currentBoot;
     try {
-      await loadScriptOnce(url,key);
-    } catch (_) {
-      await loadScriptOnce(url,key);
+      await loadScriptOnce(url, key);
+    } catch (error) {
+      assertCurrentBoot(run);
+      if (error?.reloadRequired || error?.code !== 'WORKSPACE_ASSET_UNAVAILABLE') throw error;
+      // A script error event confirms it did not execute. Retry only that
+      // definitive failure, never a timed-out script with ambiguous execution.
+      await loadScriptOnce(url, key);
     }
   }
 
   function primeScript(url, key) {
-    if (document.querySelector('script[data-' + key + ']') ||
-        document.querySelector('link[data-crump-script-preload="' + key + '"]')) return;
+    if (document.querySelector(\`script[data-\${key}]\`) ||
+        document.querySelector(\`link[data-crump-script-preload="\${key}"]\`)) return;
 
     const node = document.createElement('link');
     node.rel = 'preload';
@@ -201,36 +284,61 @@ const loader = String.raw`
   }
 
   function primeScripts(entries) {
-    entries.forEach(([url,key]) => primeScript(url,key));
+    entries.forEach(([url, key]) => primeScript(url, key));
   }
 
   let runtimePromise = null;
 
-  async function boot() {
+  async function boot(run) {
     document.documentElement.dataset.crumpBodyRuntime = 'loading';
+    // Fetch the base cascade concurrently, including any retry, before inserting
+    // the final refinement sheet so it keeps last-in-cascade authority.
     const baseStylesReady = Promise.all(
-      [...workspaceStyles, ...enhancementStyles].map(([url,key]) => loadStyle(url,key)),
+      [...workspaceStyles, ...enhancementStyles].map(([url, key]) => loadStyle(url, key)),
     );
+    // Fetch classic scripts in parallel, then preserve the proven execution order below.
     primeScripts(scriptPlan);
     await baseStylesReady;
-    for (const [url,key] of finalStyles) await loadStyle(url,key);
+    for (const [url, key] of finalStyles) await loadStyle(url, key);
 
-    for (const [url,key] of scriptPlan) await loadScript(url,key);
+    for (const [url, key] of scriptPlan) {
+      await loadScript(url, key);
+    }
 
+    assertCurrentBoot(run);
     document.documentElement.dataset.crumpBodyRuntime = 'ready';
     window.dispatchEvent(new CustomEvent('crump:body-runtime-ready'));
   }
 
   function load() {
     if (document.documentElement.dataset.crumpBodyRuntime === 'ready') return Promise.resolve();
+    if (reloadRequiredError) return Promise.reject(reloadRequiredError);
     if (runtimePromise) return runtimePromise;
-    runtimePromise = boot().catch(error => {
+    const run = {cancelled: false, error: null, pending: new Set()};
+    currentBoot = run;
+    let timeoutId = 0;
+    const deadline = new Promise((resolve, reject) => {
+      timeoutId = window.setTimeout(() => {
+        const error = runtimeError('Workspace loading took too long.', 'WORKSPACE_BOOT_TIMEOUT');
+        cancelBoot(run, error);
+        reject(error);
+      }, WORKSPACE_BOOT_TIMEOUT_MS);
+    });
+    runtimePromise = Promise.race([boot(run), deadline]).catch(error => {
+      cancelBoot(run, error);
       runtimePromise = null;
       document.documentElement.dataset.crumpBodyRuntime = 'failed';
-      throw new Error(
+      const failure = new Error(
         'Ask Crump could not finish loading your workspace. Your sign-in is safe—check your connection and reload to try again.',
-        {cause:error},
+        {cause: error},
       );
+      failure.code = error?.code || 'WORKSPACE_LOAD_FAILED';
+      failure.reloadRequired = Boolean(error?.reloadRequired);
+      if (failure.reloadRequired) reloadRequiredError = failure;
+      throw failure;
+    }).finally(() => {
+      window.clearTimeout(timeoutId);
+      if (currentBoot === run) currentBoot = null;
     });
     return runtimePromise;
   }

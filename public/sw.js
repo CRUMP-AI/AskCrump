@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r277-guest-signin-escape-1';
+const CACHE_NAME = 'ask-crump-new-body-v1-r280-login-workspace-recovery-2';
 
 const CORE = [
   '/app',
@@ -49,7 +49,7 @@ const CORE = [
   '/crump-media-save.js?v=5.9.76-library-crud-privacy-1',
   '/crump-library-loader.js?v=5.9.76-account-owner-boundary-1',
   '/crump-subscriptions-5.3.2.js?v=5.9.76-private-owner-boundary-1',
-  '/runtime-body-v1.js?v=5.9.76-server-only-activation-1',
+  '/runtime-body-v1.js?v=5.9.76-login-workspace-recovery-2',
   '/home-document-entry.js?v=5.9.76-home-document-entry-1',
   '/native-runtime.js',
   '/mobile-bridge.js?v=5.9.76-private-owner-boundary-1',
@@ -64,8 +64,8 @@ const CORE = [
   '/chat-resilience.js?v=5.9.76-chat-owner-boundary-1&workspaceRelease=guest-free-contract-2',
   '/ui-functions.js?v=5.9.76-private-owner-boundary-1',
   '/presence-manager.js?v=5.9.76-native-push-owner-fence-1',
-  '/auth-resilience.js?v=5.9.76',
-  '/device-auth.js?v=5.9.76-account-owner-boundary-1',
+  '/auth-resilience.js?v=5.9.76-login-workspace-recovery-2',
+  '/device-auth.js?v=5.9.76-login-workspace-recovery-2',
   '/sync-manager.js?v=5.9.76-auth-boundary-sync-1',
   '/chat-sync.js?v=5.9.76-initial-chat-owner-reconciliation-1',
   '/account-manager.js?v=5.9.76-account-owner-boundary-1',
@@ -74,7 +74,7 @@ const CORE = [
   '/lifecycle-share.js?v=5.9.76-settings-invite-1',
   '/lifecycle-manager.js?v=5.9.76-lifecycle-idle-send-1',
   '/crump-activity-center-1.0.js?v=5.9.76-private-owner-boundary-1',
-  '/auth-controller.js?v=5.9.76-guest-signin-escape-1',
+  '/auth-controller.js?v=5.9.76-login-workspace-recovery-2',
   '/crump-4.3.css',
   '/crump-4.3.js?v=5.9.76-atelier-workspace-1',
   '/crump-4.4.css?v=5.9.76-friendly-workspace-1',

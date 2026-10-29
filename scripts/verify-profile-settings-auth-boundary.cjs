@@ -61,6 +61,7 @@ async function startServer() {
     );
     await page.waitForFunction(() => window.__fixture.pendingIdentityCount() > 0);
     await page.evaluate(() => window.__fixture.identityResolve({
+      success: true,
       authenticated: true,
       data: {
         user: {
