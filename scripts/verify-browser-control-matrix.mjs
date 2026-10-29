@@ -15,6 +15,7 @@ const expectedVerifiers = Object.freeze([
   'verify-activity-center-behavior.cjs',
   'verify-appearance-theme.cjs',
   'verify-attach-creation-routing.cjs',
+  'verify-auth-transport-settlement.cjs',
   'verify-button-state-integrity.cjs',
   'verify-chat-action-accessibility.cjs',
   'verify-chat-owner-boundary.cjs',
@@ -79,6 +80,8 @@ const expectedVerifiers = Object.freeze([
   'verify-word-pdf-guide-render.cjs',
   'verify-workspace-opened-retry.cjs',
   'verify-workspace-runtime-fetch-plan.cjs',
+  'verify-workspace-runtime-deadlines.cjs',
+  'verify-workspace-runtime-deadlines-browser.cjs',
 ]);
 
 const serverPlan = Object.freeze([

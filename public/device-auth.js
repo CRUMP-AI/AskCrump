@@ -16,7 +16,7 @@ class DeviceAuth {
     try { localStorage.setItem(this.userCacheKey, JSON.stringify(data.user)); } catch (_) {}
   }
 
-  async confirmIssuedSession() {
+  async confirmIssuedSession(expectedOwnerId = null, expectedEmail = null) {
     try {
       const {response, data} = await window.CrumpAuthTransport.request('/api/auth/check-session', {
         method: 'GET',
@@ -28,10 +28,15 @@ class DeviceAuth {
       if (!response.ok) {
         return { status: 'unavailable', data };
       }
-      if (data.authenticated && data.data?.user) {
+      if (data.success === true && data.authenticated === true && typeof data.data?.user?.id === 'string' && data.data.user.id.trim()) {
+        if ((expectedOwnerId && data.data.user.id !== expectedOwnerId) ||
+            (expectedEmail && String(data.data.user.email || '').trim().toLowerCase() !== String(expectedEmail).trim().toLowerCase())) {
+          return {status: 'owner_mismatch'};
+        }
         return { status: 'valid', data: data.data };
       }
-      return { status: 'invalid', data };
+      if (data.success === true && data.authenticated === false) return { status: 'invalid', data };
+      return {status: 'unavailable', data};
     } catch (error) {
       return { status: 'unavailable', error };
     }
@@ -54,24 +59,29 @@ class DeviceAuth {
         timeoutMs: window.CrumpAuthTransport.LOGIN_TIMEOUT_MS,
         timeoutMessage: 'Signing in took too long to confirm. Check your connection and try again.',
       }));
+      if (response.ok && data.success === true &&
+          (typeof data.data?.user?.id !== 'string' || !data.data.user.id.trim())) {
+        const error = new Error('Ask Crump could not confirm the signed-in account. Your saved session has been kept. Please retry.');
+        error.code = 'AUTH_INVALID_RESPONSE';
+        throw error;
+      }
     } catch (error) {
-      if (error?.code !== 'AUTH_REQUEST_TIMEOUT' || window.CrumpAPI?.isNative) throw error;
+      const ambiguousResponse = error?.code === 'AUTH_REQUEST_TIMEOUT' || error?.code === 'AUTH_INVALID_RESPONSE';
+      if (!ambiguousResponse || window.CrumpAPI?.isNative) throw error;
 
       // A web login can set its HttpOnly cookie before a stalled body finishes.
       // Reconcile that issued session before reporting failure or rotating it again.
-      for (const delay of [0, 150, 500, 1000, 2000]) {
-        if (delay) await new Promise(resolve => setTimeout(resolve, delay));
-        const confirmation = await this.confirmIssuedSession();
-        if (confirmation.status !== 'valid') continue;
+      // One bounded readback reconciles an already issued cookie; never repeat
+      // the credential POST or leave the form waiting through five timeouts.
+      const confirmation = await this.confirmIssuedSession(null, email);
+      if (confirmation.status === 'valid') {
         this.acceptSession(confirmation.data);
         return {success: true, data: confirmation.data, recovered: true};
       }
       throw error;
     }
 
-    if (!(response.ok && data.success && data.data?.user)) {
-      return data;
-    }
+    if (!response.ok || data.success !== true) return {...data, success: false};
 
     const issuedNativeToken = data.data.sessionToken || null;
     if (issuedNativeToken && window.CrumpAPI?.isNative) {
@@ -83,7 +93,10 @@ class DeviceAuth {
     // of rotating the token again while the first response is still being committed.
     for (const delay of [0, 100, 300, 750, 1500]) {
       if (delay) await new Promise(resolve => setTimeout(resolve, delay));
-      const confirmation = await this.confirmIssuedSession();
+      const confirmation = await this.confirmIssuedSession(data.data.user.id);
+      if (confirmation.status === 'owner_mismatch') {
+        return {success: false, code: 'SESSION_OWNER_MISMATCH', error: 'Your active account changed during sign-in. Reload before trying again.'};
+      }
       if (confirmation.status === 'valid') {
         const confirmedData = {
           ...data.data,
@@ -151,7 +164,6 @@ class DeviceAuth {
       this.session?.user?.id || this.cachedUser()?.id || window.currentUser?.id || '',
     ).trim();
     try {
-      await window.CrumpAPI?.ready;
       const {response, data} = await window.CrumpAuthTransport.request('/api/auth/check-session', {
         method: 'GET',
         cache: 'no-store',
@@ -167,9 +179,13 @@ class DeviceAuth {
         );
       }
 
-      if (data.authenticated && data.data?.user) {
+      if (data.success === true && data.authenticated === true && typeof data.data?.user?.id === 'string' && data.data.user.id.trim()) {
         if (commit) this.acceptSession(data.data);
         return data;
+      }
+
+      if (data.success !== true || data.authenticated !== false) {
+        return this.sessionUnavailable(new Error('Session verification returned an incomplete response. Please retry.'), {commit});
       }
 
       // A definitive successful response saying "not authenticated" is the only

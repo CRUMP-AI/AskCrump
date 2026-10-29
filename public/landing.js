@@ -9,6 +9,7 @@
   const ACQUISITION_PLACEMENT_KEY = 'askcrump.acquisition-placement';
   const FIRST_TOUCH_KEY = 'askcrump.first-touch-attribution';
   const MARKETING_LANDING_KEY = 'askcrump.marketing-landing-emitted';
+  const EXPLICIT_GUEST_ENTRY_KEY = 'askcrump.explicit-guest-entry-v1';
   const FIRST_TOUCH_TTL_MS = 24 * 60 * 60 * 1000;
   const MARKETING_LANDING_KINDS = new Set([
     'exact-referral', 'registered-campaign', 'registered-profile', 'rejected',
@@ -434,7 +435,23 @@
         link.setAttribute('href', `${destination.pathname}${destination.search}${destination.hash}`);
       }
     } catch (_) {}
-    link.addEventListener('click', () => {
+    link.addEventListener('click', event => {
+      // A fresh same-tab gesture can request a guest preview on a returning
+      // device. A saved URL alone must never replace that device's sign-in.
+      if (event?.isTrusted && !event.defaultPrevented && event.button === 0
+          && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey
+          && (!link.target || link.target === '_self') && !link.hasAttribute('download')) {
+        try {
+          const destination = new URL(link.getAttribute('href'), location.href);
+          if (destination.origin === location.origin && destination.pathname === '/app'
+              && destination.searchParams.get('plan') === 'free'
+              && !destination.searchParams.has('signup')
+              && !(destination.searchParams.get('source') || '').toLowerCase().includes('signin')
+              && analyticsEvent !== 'MarketingSignin') {
+            sessionStorage.setItem(EXPLICIT_GUEST_ENTRY_KEY, JSON.stringify({createdAt: Date.now()}));
+          }
+        } catch (_) {}
+      }
       window.va('event', {
         name: analyticsEvent,
         data: {

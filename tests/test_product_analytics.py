@@ -1513,8 +1513,8 @@ def test_workspace_return_waits_for_a_visible_authenticated_workspace():
 def test_workspace_opened_retry_assets_are_cache_version_coherent():
     analytics_version = "5.9.76-server-only-activation-1"
     app_version = "5.9.76-server-only-activation-1"
-    auth_version = "5.9.76-guest-signin-escape-1"
-    runtime_body_version = "5.9.76-server-only-activation-1"
+    auth_version = "5.9.76-login-workspace-recovery-2"
+    runtime_body_version = "5.9.76-login-workspace-recovery-2"
     shell = (ROOT / "public" / "app.html").read_text(encoding="utf-8")
     runtime = (ROOT / "public" / "runtime-body-v1.js").read_text(encoding="utf-8")
     worker = (ROOT / "public" / "sw.js").read_text(encoding="utf-8")

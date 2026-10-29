@@ -62,11 +62,15 @@ jobs:
       - name: Audit JavaScript dependencies
         run: npm audit --package-lock-only --audit-level=moderate
       - name: Install browser verifier
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install --with-deps chromium webkit
       - name: Validate browser code
         run: npm test
       - name: Validate interactive controls
         run: npm run test:browser-controls
+      - name: Validate auth workspace recovery in WebKit
+        run: ASKCRUMP_AUTH_BROWSER=webkit node scripts/verify-workspace-runtime-deadlines-browser.cjs
+      - name: Validate mobile sign-in and account persistence in WebKit
+        run: ASKCRUMP_AUTH_BROWSER=webkit node scripts/verify-guest-access-journey.cjs
       - name: Validate public accessibility
         run: npm run test:a11y
       - name: Validate production bundle and store evidence

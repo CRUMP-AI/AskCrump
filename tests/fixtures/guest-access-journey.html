@@ -60,7 +60,12 @@
       upgradePrompts: [],
       workspaceLoads: 0,
       failWorkspaceLoadOnce: false,
+      throwAnalytics: false,
       storageRemovals: [],
+    };
+    window.va = (...args) => {
+      if (window.__fixture.throwAnalytics) throw new Error('Fixture analytics failure.');
+      window.__fixture.analytics.push({provider: 'vercel', args});
     };
     const fixtureStorageRemoveItem = Storage.prototype.removeItem;
     Storage.prototype.removeItem = function fixtureRemoveItem(key) {
@@ -123,11 +128,11 @@
       <form id="loginFormElement" class="auth-form-content">
         <label>Email <input id="loginEmail" class="form-input" type="email" required></label>
         <label>Password <input id="loginPassword" class="form-input" type="password" required></label>
+        <div id="loginError" role="alert" aria-live="assertive" style="display:none;scroll-margin-block:16px"></div>
         <button class="btn btn-primary" type="submit">Sign in</button>
       </form>
       <a id="showRegisterLink" href="#">Create account</a>
       <a id="showForgotPasswordLink" href="#">Forgot password?</a>
-      <div id="loginError" role="alert" style="display:none"></div>
       <div id="loginSuccess" role="status" style="display:none"></div>
       <div id="verificationNeeded" style="display:none">
         <button id="resendVerificationBtn" type="button">Resend verification</button>
