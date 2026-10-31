@@ -1586,7 +1586,11 @@
       trackSignupIntent('auth-link');
     });
     byId('showLoginLink')?.addEventListener('click', event => { event.preventDefault(); showAuth('login'); });
-    byId('showForgotPasswordLink')?.addEventListener('click', event => { event.preventDefault(); showAuth('forgot'); });
+    byId('showForgotPasswordLink')?.addEventListener('click', event => {
+      event.preventDefault();
+      openPasswordRecoveryFromLogin();
+    });
+    byId('loginRecoveryAction')?.addEventListener('click', openPasswordRecoveryFromLogin);
     byId('showLoginFromForgot')?.addEventListener('click', event => { event.preventDefault(); showAuth('login'); });
     byId('showLoginFromReset')?.addEventListener('click', event => {
       event.preventDefault();
@@ -1697,6 +1701,24 @@
       if (!error || getComputedStyle(error).display === 'none') return;
       error.scrollIntoView?.({block: 'nearest', inline: 'nearest'});
     });
+  }
+
+  function setLoginRecoveryActionVisible(visible = false) {
+    const action = byId('loginRecoveryAction');
+    if (!action) return;
+    action.style.display = visible ? 'block' : 'none';
+    if (!visible) return;
+    requestAnimationFrame(() => action.scrollIntoView?.({block: 'nearest', inline: 'nearest'}));
+  }
+
+  function openPasswordRecoveryFromLogin() {
+    const loginEmail = byId('loginEmail')?.value.trim() || '';
+    const forgotEmail = byId('forgotPasswordEmail');
+    if (forgotEmail && loginEmail) forgotEmail.value = loginEmail;
+    setLoginRecoveryActionVisible(false);
+    setText('forgotPasswordError', '', false);
+    setText('forgotPasswordSuccess', '', false);
+    showAuth('forgot');
   }
 
   function showWorkspaceLoginRecovery() {
@@ -1840,12 +1862,14 @@
         ? 'Enter a valid email address.'
         : (isEmail ? 'Enter your email.' : 'Enter your password.');
       field?.setAttribute('aria-invalid', 'true');
+      setLoginRecoveryActionVisible(false);
       showLoginError(message);
       trackFunnel('LoginValidationFailed', {reason});
     }, true);
 
     form.addEventListener('input', event => {
       event.target?.removeAttribute('aria-invalid');
+      setLoginRecoveryActionVisible(false);
     }, {passive: true});
 
     form.addEventListener('submit', async event => {
@@ -1854,6 +1878,7 @@
       authFlowRevision += 1;
       setText('loginError', '', false);
       setText('loginSuccess', '', false);
+      setLoginRecoveryActionVisible(false);
       const workspaceRecovery = byId('loginWorkspaceRecovery');
       if (workspaceRecovery) workspaceRecovery.hidden = true;
       hide('verificationNeeded');
@@ -1886,10 +1911,12 @@
         routeAuthenticatedUser(activeUser);
       } catch (error) {
         setText('loginSuccess', '', false);
-        const recoveryHint = error.result?.code === 'INVALID_CREDENTIALS'
+        const invalidCredentials = error.result?.code === 'INVALID_CREDENTIALS';
+        const recoveryHint = invalidCredentials
           ? ' Use Forgot password to restore access to an existing account.'
           : '';
         showLoginError((error.message || 'Network error. Try again.') + recoveryHint);
+        setLoginRecoveryActionVisible(invalidCredentials);
         if (credentialsConfirmed) showWorkspaceLoginRecovery();
         trackFunnel('LoginFailed', {
           reason: loginFailureReason(error),

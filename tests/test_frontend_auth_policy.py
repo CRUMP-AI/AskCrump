@@ -323,7 +323,21 @@ def test_login_validation_failures_are_visible_and_observable_before_network_sub
     assert "error.scrollIntoView?.({block: 'nearest', inline: 'nearest'})" in controller
     login_form = app[app.index('id="loginFormElement"'):app.index('</form>', app.index('id="loginFormElement"'))]
     assert 'id="loginError"' in login_form
+    assert 'id="loginRecoveryAction"' in login_form
     assert login_form.index('id="loginError"') < login_form.index('type="submit"')
+    assert login_form.index('id="loginRecoveryAction"') < login_form.index('type="submit"')
+
+
+def test_invalid_credentials_expose_a_visible_enumeration_safe_recovery_action():
+    controller = (PUBLIC / 'auth-controller.js').read_text(encoding='utf-8')
+
+    assert 'function setLoginRecoveryActionVisible(visible = false)' in controller
+    assert 'setLoginRecoveryActionVisible(invalidCredentials)' in controller
+    assert controller.count('setLoginRecoveryActionVisible(false)') >= 4
+    assert "byId('loginRecoveryAction')?.addEventListener('click', openPasswordRecoveryFromLogin)" in controller
+    assert 'if (forgotEmail && loginEmail) forgotEmail.value = loginEmail' in controller
+    assert "showAuth('forgot')" in controller
+    assert "action.scrollIntoView?.({block: 'nearest', inline: 'nearest'})" in controller
 
 
 def test_login_busy_state_precedes_fail_open_measurement():
