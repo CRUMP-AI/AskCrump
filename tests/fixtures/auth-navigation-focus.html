@@ -21,11 +21,12 @@
         <label for="loginPassword">Password</label>
         <input id="loginPassword" type="password" required autocomplete="current-password">
         <button id="loginPasswordToggle" type="button" data-password-target="loginPassword" data-password-label="current password" aria-controls="loginPassword" aria-label="Show current password" aria-pressed="false">Show</button>
+        <div id="loginError" role="alert" aria-live="assertive" style="display:none;scroll-margin-block:16px"></div>
+        <button id="loginRecoveryAction" type="button" style="display:none;scroll-margin-block:16px">Reset password</button>
         <button type="submit">Sign in</button>
         <a id="showRegisterLink" href="#">Create account</a>
         <a id="showForgotPasswordLink" href="#">Forgot password?</a>
       </form>
-      <div id="loginError" style="display:none"></div>
       <div id="loginSuccess" style="display:none"></div>
       <div id="verificationNeeded" style="display:none"></div>
       <button id="resendVerificationBtn" type="button">Resend verification email</button>
@@ -97,6 +98,7 @@
     window.__fixture = {events: []};
     Object.assign(window.__fixture, {
       eventPayloads: [],
+      fetchCalls: [],
       loginResult: {success:false, error:'Invalid email or password.', code:'INVALID_CREDENTIALS'},
       loginError: null,
     });
@@ -124,10 +126,13 @@
     window.configureUserStorage = () => {};
     window.profileManager = {applyServerSubscription() {}, updateProfile() {}};
     window.SyncManager = {pull: () => Promise.resolve()};
-    window.fetch = () => Promise.resolve(new Response(JSON.stringify({success:true}), {
-      status:200,
-      headers:{'Content-Type':'application/json'},
-    }));
+    window.fetch = input => {
+      window.__fixture.fetchCalls.push(String(input || ''));
+      return Promise.resolve(new Response(JSON.stringify({success:true}), {
+        status:200,
+        headers:{'Content-Type':'application/json'},
+      }));
+    };
     const recordError = () => {
       const output = document.getElementById('fixtureErrors');
       output.textContent = String(Number(output.textContent || 0) + 1);

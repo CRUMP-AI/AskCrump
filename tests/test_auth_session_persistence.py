@@ -36,8 +36,8 @@ def test_same_page_login_is_serialized_and_confirmed():
     assert "code === 'AUTH_INVALID_RESPONSE'" in source
     assert 'for (let attempt = 0; attempt < 2; attempt += 1)' not in source
     assert "code: 'SESSION_ESTABLISHMENT_FAILED'" in source
-    assert 'src="/device-auth.js?v=5.9.76-login-workspace-recovery-2"' in shell
-    assert "'/device-auth.js?v=5.9.76-login-workspace-recovery-2'" in worker
+    assert 'src="/device-auth.js?v=5.9.76-login-recovery-visible-1"' in shell
+    assert "'/device-auth.js?v=5.9.76-login-recovery-visible-1'" in worker
     assert "url.pathname === '/device-auth.js'" in worker
 
 

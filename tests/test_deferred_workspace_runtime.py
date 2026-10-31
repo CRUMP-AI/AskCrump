@@ -32,7 +32,7 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
     assert scripts == [
         '/telemetry-config.js?v=5.9.76',
         '/crump-vision-demo-1.0.js?v=5.9.76-atelier-workspace-1',
-        '/runtime-body-v1.js?v=5.9.76-login-workspace-recovery-2',
+        '/runtime-body-v1.js?v=5.9.76-login-recovery-visible-1',
         '/home-document-entry.js?v=5.9.76-home-document-entry-1',
         '/crump-vision-shell-1.0.js?v=5.9.76-atelier-workspace-1',
         '/crump-vision-chats-1.0.js?v=5.9.76-atelier-workspace-1',
@@ -42,9 +42,9 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
         '/mobile-bridge.js?v=5.9.76-private-owner-boundary-1',
         '/safe-storage.js',
         '/install-prompt.js?v=5.9.76-update-work-guard-1',
-        '/auth-resilience.js?v=5.9.76-login-workspace-recovery-2',
-        '/device-auth.js?v=5.9.76-login-workspace-recovery-2',
-        '/auth-controller.js?v=5.9.76-login-workspace-recovery-2',
+        '/auth-resilience.js?v=5.9.76-login-recovery-visible-1',
+        '/device-auth.js?v=5.9.76-login-recovery-visible-1',
+        '/auth-controller.js?v=5.9.76-login-recovery-visible-1',
         '/_vercel/insights/script.js',
         '/_vercel/speed-insights/script.js',
     ]

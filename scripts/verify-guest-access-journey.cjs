@@ -1855,34 +1855,56 @@ async function productionLoginKeyboardLayout(browser) {
       const auth = document.getElementById('authContainer');
       const login = document.getElementById('loginForm');
       const error = document.getElementById('loginError');
-      if (!auth || !login || !error) return null;
+      const recovery = document.getElementById('loginRecoveryAction');
+      const guestNotice = document.getElementById('guestSigninNotice');
+      if (!auth || !login || !error || !recovery || !guestNotice) return null;
       auth.style.display = 'flex';
       login.style.display = 'block';
-      error.textContent = 'Enter your email.';
+      guestNotice.hidden = false;
+      error.textContent = 'Invalid email or password. Use Forgot password to restore access to an existing account.';
       error.style.display = 'block';
-      error.scrollIntoView({block: 'nearest', inline: 'nearest'});
-      const rect = error.getBoundingClientRect();
+      recovery.style.display = 'block';
+      recovery.scrollIntoView({block: 'nearest', inline: 'nearest'});
+      const errorRect = error.getBoundingClientRect();
+      const recoveryRect = recovery.getBoundingClientRect();
       const form = document.getElementById('loginFormElement');
       const submit = form?.querySelector('button[type="submit"]');
       return {
-        top: rect.top,
-        bottom: rect.bottom,
+        top: recoveryRect.top,
+        bottom: recoveryRect.bottom,
         viewportHeight: window.visualViewport?.height || window.innerHeight,
+        recoveryHeight: recoveryRect.height,
         errorBeforeSubmit: Boolean(
           submit && (error.compareDocumentPosition(submit) & Node.DOCUMENT_POSITION_FOLLOWING)
         ),
+        errorBeforeRecovery: Boolean(
+          error.compareDocumentPosition(recovery) & Node.DOCUMENT_POSITION_FOLLOWING
+        ),
+        recoveryBeforeSubmit: Boolean(
+          submit && (recovery.compareDocumentPosition(submit) & Node.DOCUMENT_POSITION_FOLLOWING)
+        ),
+        errorRendered: errorRect.height > 0,
+        guestSwitchBoundaryRendered: guestNotice.getBoundingClientRect().height > 0,
       };
     });
     assert.ok(geometry, 'production login shell was missing keyboard-layout nodes');
     assert.equal(geometry.errorBeforeSubmit, true, 'production login error did not precede the submit control');
-    assert.ok(geometry.top >= 0, 'production login error was above the keyboard-sized viewport');
-    assert.ok(geometry.bottom <= geometry.viewportHeight, 'production login error was below the keyboard-sized viewport');
+    assert.equal(geometry.errorBeforeRecovery, true, 'production login error did not precede recovery');
+    assert.equal(geometry.recoveryBeforeSubmit, true, 'production login recovery did not precede sign in');
+    assert.equal(geometry.errorRendered, true, 'production login error was not rendered');
+    assert.equal(geometry.guestSwitchBoundaryRendered, true, 'production guest account-switch notice was not rendered');
+    assert.ok(geometry.recoveryHeight >= 44, 'production login recovery target was smaller than 44px');
+    assert.ok(geometry.top >= 0, 'production login recovery was above the keyboard-sized viewport');
+    assert.ok(geometry.bottom <= geometry.viewportHeight, 'production login recovery was below the keyboard-sized viewport');
     assert.deepEqual(pageErrors, []);
     return {
       source: 'public/app.html + production styles',
       viewport: '390x500 keyboard-sized',
       feedbackBeforeSubmit: true,
       feedbackVisible: true,
+      recoveryBeforeSubmit: true,
+      recoveryVisible: true,
+      guestSwitchBoundaryRendered: true,
     };
   } finally {
     await context.close();

@@ -1,5 +1,8 @@
 const playwrightModule = process.env.ASKCRUMP_PLAYWRIGHT_MODULE || 'playwright';
-const {chromium} = require(playwrightModule);
+const {chromium, webkit} = require(playwrightModule);
+const browserEngineName = process.env.ASKCRUMP_AUTH_BROWSER || 'chromium';
+const browserEngine = {chromium, webkit}[browserEngineName];
+if (!browserEngine) throw new Error('ASKCRUMP_AUTH_BROWSER must be chromium or webkit.');
 
 const cases = [
   {
@@ -51,11 +54,11 @@ const cases = [
 
 (async () => {
   const executablePath = process.env.ASKCRUMP_BROWSER_EXECUTABLE || undefined;
-  const browser = await chromium.launch({headless: true, ...(executablePath ? {executablePath} : {})});
+  const browser = await browserEngine.launch({headless: true, ...(executablePath ? {executablePath} : {})});
   const results = [];
 
   for (const entry of cases) {
-    const page = await browser.newPage();
+    const page = await browser.newPage({viewport: {width: 390, height: 500}});
     const browserErrors = [];
     page.on('console', message => {
       if (message.type() === 'error') browserErrors.push(message.text());
@@ -77,11 +80,36 @@ const cases = [
     await page.waitForFunction(() => window.__fixture.events.includes('LoginFailed'));
     const observed = await page.evaluate(() => {
       const failure = window.__fixture.eventPayloads.find(payload => payload.name === 'LoginFailed');
+      const action = document.getElementById('loginRecoveryAction');
+      const actionRect = action?.getBoundingClientRect();
+      const recoveryVisible = Boolean(action && getComputedStyle(action).display !== 'none');
       return {
         reason: failure?.data?.reason || '',
         error: document.getElementById('loginError')?.textContent || '',
+        recoveryVisible,
+        recoveryInViewport: Boolean(
+          recoveryVisible && actionRect && actionRect.top >= 0 && actionRect.bottom <= innerHeight
+        ),
       };
     });
+    if (entry.name === 'credentials') {
+      await page.locator('#loginEmail').fill('');
+      observed.recoveryClearedAfterEdit = await page.locator('#loginRecoveryAction').isHidden();
+      await page.locator('#loginEmail').fill('login-measurement@example.test');
+      await page.locator('#loginFormElement').evaluate(form => form.requestSubmit());
+      await page.waitForFunction(() => (
+        window.__fixture.events.filter(name => name === 'LoginFailed').length === 2
+        && getComputedStyle(document.getElementById('loginRecoveryAction')).display !== 'none'
+      ));
+      await page.locator('#loginRecoveryAction').click();
+      await page.waitForFunction(() => document.activeElement?.id === 'forgotPasswordEmail');
+      Object.assign(observed, await page.evaluate(() => ({
+        recoveryOpened: getComputedStyle(document.getElementById('forgotPasswordForm')).display !== 'none',
+        recoveryEmail: document.getElementById('forgotPasswordEmail').value,
+        recoveryFocused: document.activeElement?.id === 'forgotPasswordEmail',
+        resetRequests: window.__fixture.fetchCalls.filter(url => url.includes('/api/auth/forgot-password')).length,
+      })));
+    }
     results.push({name: entry.name, expected: entry.reason, ...observed, browserErrors});
     if (entry.offline) await page.context().setOffline(false);
     await page.close();
@@ -91,6 +119,16 @@ const cases = [
   const failed = results.filter(result => (
     result.reason !== result.expected
     || !result.error
+    || (result.name === 'credentials' && (
+      !result.recoveryVisible
+      || !result.recoveryInViewport
+      || !result.recoveryClearedAfterEdit
+      || !result.recoveryOpened
+      || result.recoveryEmail !== 'login-measurement@example.test'
+      || !result.recoveryFocused
+      || result.resetRequests !== 0
+    ))
+    || (result.name !== 'credentials' && result.recoveryVisible)
     || result.browserErrors.length
   ));
   if (failed.length) throw new Error(`Login failure classification failed: ${JSON.stringify(failed)}`);
