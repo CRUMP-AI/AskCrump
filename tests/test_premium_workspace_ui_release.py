@@ -38,28 +38,29 @@ def test_chats_restores_the_prior_mounted_destination_without_duplicate_measurem
     assert "if (!silent) {\n      track(id);\n      dispatchShow(id);\n    }" in shell
 
 
-def test_ui_release_does_not_expose_or_claim_browser_workspace() -> None:
-    release_sources = [
-        read("public/app.html"),
-        read("public/crump-vision-shell-1.0.js"),
-        read("public/onboarding.js"),
-        read("public/runtime-body-v1.js"),
-        read("public/sw.js"),
-        read("store/listing.en-US.json"),
-    ]
-    forbidden = (
-        "crump-browser-workspace",
-        "data-browser-workspace",
-        "/api/browser",
-        "browser: 'browser'",
-        "label: 'Browser'",
-        "Browse with sources",
-    )
-    for source in release_sources:
-        for claim in forbidden:
-            assert claim not in source
-    assert not (ROOT / "public/crump-browser-workspace-1.0.js").exists()
-    assert not (ROOT / "public/crump-browser-workspace-1.0.css").exists()
+def test_browser_workspace_is_prepared_but_remains_fail_closed_until_released() -> None:
+    app = read("public/app.html")
+    browser = read("public/crump-browser-workspace-1.0.js")
+    shell = read("public/crump-vision-shell-1.0.js")
+    source_lock = read("backend/config.py")
+    route = read("backend/routes/browser.py")
+    listing = read("store/listing.en-US.json")
+
+    assert 'data-browser-workspace-entry' in app
+    assert 'data-v1-command="browser"' in app
+    browser_entry = re.search(r'<button\b[^>]*data-browser-workspace-entry[^>]*>', app)
+    assert browser_entry is not None
+    assert re.search(r'\shidden(?:\s|$)', browser_entry.group(0))
+    assert 'aria-hidden="true"' in browser_entry.group(0)
+    assert "entry.hidden = state.released !== true;" in browser
+    assert "entry.setAttribute('aria-hidden', state.released === true ? 'false' : 'true');" in browser
+    assert "if (id === 'browser') return;" in shell
+    assert "AUTONOMOUS_CRUMP_BROWSER_PUBLIC_RELEASED = False" in source_lock
+    assert '"code": "BROWSER_NOT_RELEASED"' in route
+    assert "browser_workspace_environment_released()" in route
+    listing_lower = listing.casefold()
+    assert "browser workspace" not in listing_lower
+    assert "browser control" not in listing_lower
 
 
 def test_premium_palette_typography_and_mobile_utility_are_release_owned() -> None:
@@ -78,7 +79,7 @@ def test_web_service_worker_and_native_loader_use_one_ui_revision() -> None:
     runtime = read("public/runtime-body-v1.js")
     service_worker = read("public/sw.js")
     native = read("scripts/build-native.mjs")
-    revision = "5.9.76-premium-workspace-1"
+    revision = "5.9.76-premium-browser-workspace-1"
 
     for asset in (
         "runtime-body-v1.js",
@@ -86,6 +87,8 @@ def test_web_service_worker_and_native_loader_use_one_ui_revision() -> None:
         "crump-vision-shell-1.0.js",
         "crump-vision-studios-1.0.css",
         "crump-vision-studios-1.0.js",
+        "crump-browser-workspace-1.0.css",
+        "crump-browser-workspace-1.0.js",
     ):
         assert f"/{asset}?v={revision}" in app
         assert f"/{asset}?v={revision}" in service_worker
@@ -98,7 +101,7 @@ def test_web_service_worker_and_native_loader_use_one_ui_revision() -> None:
             "crump-navigation-5.9.30.js",
         ):
             assert f"/{asset}?v={revision}" in source
-    assert "ask-crump-new-body-v1-r282-premium-workspace-1" in service_worker
+    assert "ask-crump-new-body-v1-r283-premium-browser-workspace-1" in service_worker
 
 
 def test_tutorial_and_store_copy_match_the_visible_release() -> None:
@@ -107,8 +110,7 @@ def test_tutorial_and_store_copy_match_the_visible_release() -> None:
     desktop = "Home, Chats, Projects, Library, Studios, and You"
     assert "const DESKTOP_DESTINATIONS = Object.freeze(['Home', 'Chats', 'Projects', 'Library', 'Studios', 'You'])" in tutorial
     assert "const MOBILE_DESTINATIONS = Object.freeze(['Home', 'Chats', 'Projects', 'Library', 'Studios'])" in tutorial
-    assert "Research with sources" in tutorial
-    assert "Browse with sources" not in tutorial
+    assert "Browse with sources" in tutorial
     assert desktop in listing["apple"]["description"]
     assert desktop in listing["google"]["fullDescription"]
 
