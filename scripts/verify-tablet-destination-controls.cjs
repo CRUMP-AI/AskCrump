@@ -3,7 +3,7 @@ const {readFileSync} = require('node:fs');
 const {join} = require('node:path');
 const {chromium} = require('playwright');
 
-const expectedDestinations = ['home', 'chats', 'projects', 'library', 'studios'];
+const expectedDestinations = ['home', 'chats', 'projects', 'library', 'studios', 'you'];
 const legacyDestination = {home: 'ask', projects: 'projects', library: 'library', studios: 'video'};
 
 (async () => {
@@ -12,6 +12,89 @@ const legacyDestination = {home: 'ask', projects: 'projects', library: 'library'
     headless: true,
     ...(executablePath ? {executablePath} : {}),
   });
+  const geometryViewports = [
+    {width: 320, height: 568},
+    {width: 375, height: 812},
+    {width: 390, height: 844},
+    {width: 430, height: 932},
+  ];
+  const mobileProofs = [];
+  for (const viewport of geometryViewports) {
+    const proofPage = await browser.newPage({viewport});
+    const proofErrors = [];
+    proofPage.on('console', message => {
+      if (message.type() === 'error') proofErrors.push(message.text());
+    });
+    proofPage.on('pageerror', error => proofErrors.push(error.message));
+    await proofPage.route('**/assets/brand/crump-mark-320.webp', route => route.fulfill({
+      status: 200,
+      contentType: 'image/png',
+      body: readFileSync(join(process.cwd(), 'public', 'assets', 'brand', 'crump-mark.png')),
+    }));
+    await proofPage.goto(
+      'http://127.0.0.1:8765/tests/fixtures/navigation-consolidation.html',
+      {waitUntil: 'load'},
+    );
+    await proofPage.waitForFunction(() => document.documentElement.dataset.crumpNavigation5930 === 'ready');
+    const proof = await proofPage.evaluate(() => {
+      const workspace = document.querySelector('.v1-workspace');
+      const header = document.createElement('header');
+      header.className = 'header v1-workspace-header';
+      header.innerHTML = `
+        <div class="v1-workspace-context"><span>WORKSPACE</span><strong>New conversation</strong></div>
+        <button id="crumpActivityTrigger" class="crump-activity-trigger" type="button" aria-label="Activity">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"></circle></svg>
+          <span class="crump-activity-trigger-label">Activity</span>
+        </button>
+        <button id="crumpIntelligenceButton" class="crump44-control-button" type="button" aria-label="Crump intelligence controls">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="8" cy="12" r="3"></circle><circle cx="16" cy="12" r="3"></circle></svg>
+        </button>`;
+      workspace.prepend(header);
+      const nav = document.getElementById('cvMobileNav');
+      const buttons = [...nav.querySelectorAll('[data-cv-destination]')]
+        .filter(button => button.getClientRects().length);
+      const boxes = buttons.map(button => button.getBoundingClientRect());
+      const labels = buttons.map(button => ({
+        destination: button.dataset.cvDestination,
+        text: button.querySelector('span')?.textContent?.trim(),
+        visible: getComputedStyle(button.querySelector('span')).display !== 'none',
+      }));
+      const you = document.getElementById('cvMobileYou');
+      const activity = document.getElementById('crumpActivityTrigger').getBoundingClientRect();
+      const intelligence = document.getElementById('crumpIntelligenceButton').getBoundingClientRect();
+      const title = header.querySelector('.v1-workspace-context strong').getBoundingClientRect();
+      const intersects = (a, b) => a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+      const result = {
+        viewport: {width: innerWidth, height: innerHeight},
+        destinations: buttons.map(button => button.dataset.cvDestination),
+        labels,
+        minimumTouchWidth: Math.floor(Math.min(...boxes.map(box => box.width))),
+        minimumTouchHeight: Math.floor(Math.min(...boxes.map(box => box.height))),
+        documentOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
+        youInsideDock: you?.parentElement === nav,
+        duplicateFloatingYou: Boolean(document.querySelector('.cv-mobile-you')),
+        activityIntelligenceOverlap: intersects(activity, intelligence),
+        titleControlOverlap: intersects(title, activity) || intersects(title, intelligence),
+      };
+      document.body.classList.add('crump-v1-keyboard-visible');
+      result.keyboardHidesDock = getComputedStyle(nav).display === 'none';
+      document.body.classList.remove('crump-v1-keyboard-visible');
+      return result;
+    });
+    assert.deepEqual(proof.destinations, expectedDestinations, JSON.stringify(proof));
+    assert(proof.labels.every(label => label.visible && label.text), JSON.stringify(proof));
+    assert(proof.minimumTouchWidth >= 44, JSON.stringify(proof));
+    assert(proof.minimumTouchHeight >= 44, JSON.stringify(proof));
+    assert.equal(proof.documentOverflow, 0, JSON.stringify(proof));
+    assert.equal(proof.youInsideDock, true, JSON.stringify(proof));
+    assert.equal(proof.duplicateFloatingYou, false, JSON.stringify(proof));
+    assert.equal(proof.activityIntelligenceOverlap, false, JSON.stringify(proof));
+    if (viewport.width >= 375) assert.equal(proof.titleControlOverlap, false, JSON.stringify(proof));
+    assert.equal(proof.keyboardHidesDock, true, JSON.stringify(proof));
+    assert.deepEqual(proofErrors, [], JSON.stringify(proof));
+    mobileProofs.push(proof);
+    await proofPage.close();
+  }
   const page = await browser.newPage({viewport: {width: 1024, height: 1366}});
   const errors = [];
   page.on('console', message => {
@@ -73,9 +156,10 @@ const legacyDestination = {home: 'ask', projects: 'projects', library: 'library'
           const box = button.getBoundingClientRect();
           return {
             visible: Boolean(button.getClientRects().length),
-            width: Math.floor(box.width),
-            height: Math.floor(box.height),
+            minimumTouchWidth: Math.floor(box.width),
+            minimumTouchHeight: Math.floor(box.height),
             destination: button.dataset.cvDestination,
+            parent: button.parentElement?.id,
           };
         })(),
       };
@@ -85,7 +169,11 @@ const legacyDestination = {home: 'ask', projects: 'projects', library: 'library'
     assert(baseline.minimumTouchHeight >= 44, JSON.stringify(baseline));
     assert.equal(baseline.documentOverflow, 0);
     assert.equal(baseline.navBottom, baseline.viewportHeight);
-    assert.deepEqual(baseline.you, {visible: true, width: 44, height: 44, destination: 'you'});
+    assert.equal(baseline.you.visible, true, JSON.stringify(baseline));
+    assert(baseline.you.minimumTouchWidth >= 44, JSON.stringify(baseline));
+    assert(baseline.you.minimumTouchHeight >= 44, JSON.stringify(baseline));
+    assert.equal(baseline.you.destination, 'you');
+    assert.equal(baseline.you.parent, 'cvMobileNav');
 
     await clickDestination('projects');
     await page.waitForFunction(() => (
@@ -156,7 +244,7 @@ const legacyDestination = {home: 'ask', projects: 'projects', library: 'library'
     });
     assert.deepEqual(errors, []);
 
-    process.stdout.write(JSON.stringify({baseline, projects, studios, chats, you, plan, errors}));
+    process.stdout.write(JSON.stringify({mobileProofs, baseline, projects, studios, chats, you, plan, errors}));
   } finally {
     await browser.close();
   }

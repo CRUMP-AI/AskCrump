@@ -53,7 +53,7 @@ def test_chats_is_the_single_primary_conversation_destination():
     assert "conversationDrawerIsOpen()" in shell
     assert "button.setAttribute('aria-expanded', expanded ? 'true' : 'false')" in shell
     assert "var ORDER = ['home', 'chats', 'projects', 'library', 'studios', 'you'];" in shell
-    assert "var MOBILE_ORDER = ['home', 'chats', 'projects', 'library', 'studios'];" in shell
+    assert "var MOBILE_ORDER = ['home', 'chats', 'projects', 'library', 'studios', 'you'];" in shell
 
 
 def test_browser_fixture_uses_the_real_rail_assets_without_network_writes():

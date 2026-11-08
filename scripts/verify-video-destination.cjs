@@ -59,7 +59,7 @@ async function inspectTutorial(page) {
     ['You', 'Your account has one clear home.'],
   ];
   const desktopDestinations = ['Home', 'Chats', 'Projects', 'Library', 'Studios', 'You'];
-  const mobileDestinations = ['Home', 'Chats', 'Projects', 'Library', 'Studios'];
+  const mobileDestinations = ['Home', 'Chats', 'Projects', 'Library', 'Studios', 'You'];
   const steps = [];
   for (const [index, [destination, title]] of expectedSteps.entries()) {
     await page.goto('http://127.0.0.1:8765/tests/fixtures/five-destination-tutorial.html', {waitUntil: 'load'});
@@ -91,7 +91,7 @@ async function inspectTutorial(page) {
       desktopDestinations,
       mobileDestinations,
       desktopCurrent: destination,
-      mobileCurrent: destination === 'You' ? '' : destination,
+      mobileCurrent: destination,
       action: `Open ${destination} →`,
     });
     if (destination === 'Studios') {
@@ -121,7 +121,7 @@ async function inspectTutorial(page) {
   const mobile = await inspect(
     await browser.newPage({viewport: {width: 390, height: 844}}),
     '#cvMobileNav',
-    ['home', 'chats', 'projects', 'library', 'studios'],
+    ['home', 'chats', 'projects', 'library', 'studios', 'you'],
   );
   const tutorial = await inspectTutorial(await browser.newPage({viewport: {width: 390, height: 844}}));
   await browser.close();

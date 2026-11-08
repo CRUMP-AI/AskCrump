@@ -26,7 +26,7 @@ textually aligned with it. Reviewer credentials belong only in the ignored
 
 Ask Crump is a multimodal AI workspace built to help you move from an idea to something useful.
 
-The desktop workspace keeps Home, Chats, Projects, Library, Studios, and You in one clear rail. Home brings the Ask Crump composer, useful starts, and recent work together. Chats opens private conversation history. Projects keep instructions, reference context, conversations, files, and creations together. Library is a calm shelf for saved long-form work. Studios brings the released Image and Video tools together. You contains settings, sessions, purchase restoration, privacy, and account controls. On mobile, Home, Chats, Projects, Library, and Studios stay in the bottom bar, with You at the top right.
+The desktop workspace keeps Home, Chats, Projects, Library, Studios, and You in one clear rail. Home brings the Ask Crump composer, useful starts, and recent work together. Chats opens private conversation history. Projects keep instructions, reference context, conversations, files, and creations together. Library is a calm shelf for saved long-form work. Studios brings the released Image and Video tools together. You contains settings, sessions, purchase restoration, privacy, and account controls. On mobile, all six destinations stay in the bottom bar.
 
 Create and organize:
 
@@ -57,7 +57,7 @@ Some features require a paid plan, credits, provider availability, or an interne
 
 Ask Crump is a multimodal AI workspace for turning questions and ideas into useful work.
 
-The desktop workspace keeps Home, Chats, Projects, Library, Studios, and You in one clear rail. Home brings the Ask Crump composer, useful starts, and recent work together. Chats opens private conversation history. Projects keep ongoing work, files, and reference context together. Library is a calm shelf for saved long-form work. Studios brings the released Image and Video tools together. You contains settings, sessions, purchase restoration, privacy, and account controls. On mobile, Home, Chats, Projects, Library, and Studios stay in the bottom bar, with You at the top right.
+The desktop workspace keeps Home, Chats, Projects, Library, Studios, and You in one clear rail. Home brings the Ask Crump composer, useful starts, and recent work together. Chats opens private conversation history. Projects keep ongoing work, files, and reference context together. Library is a calm shelf for saved long-form work. Studios brings the released Image and Video tools together. You contains settings, sessions, purchase restoration, privacy, and account controls. On mobile, all six destinations stay in the bottom bar.
 
 WHAT YOU CAN DO
 

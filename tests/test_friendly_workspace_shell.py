@@ -44,6 +44,7 @@ def test_shell_exposes_one_exact_desktop_and_mobile_information_architecture() -
         "projects",
         "library",
         "studios",
+        "you",
     ]
     assert string_array(shell, "MORE_DESTINATIONS") == []
     assert 'button.id = \'cvMobileYou\'' in shell

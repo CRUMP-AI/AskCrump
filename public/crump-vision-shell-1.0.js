@@ -1,7 +1,7 @@
 /*
  * Crump Vision — application shell (1.0)
  *
- * Owns the calm, product-first destination rail (desktop) and five-item
+ * Owns the calm, product-first destination rail (desktop) and six-item
  * bottom nav (mobile). Home is the real Ask workspace; Chats owns the real
  * conversation drawer; Projects, Library, Studios, and You delegate only to
  * existing production surfaces. Screens register through
@@ -31,7 +31,7 @@
     studios: 'video', you: 'you', files: 'projects', autonomous: 'code',
   };
   var ORDER = ['home', 'chats', 'projects', 'library', 'studios', 'you'];
-  var MOBILE_ORDER = ['home', 'chats', 'projects', 'library', 'studios'];
+  var MOBILE_ORDER = ['home', 'chats', 'projects', 'library', 'studios', 'you'];
   var MORE_DESTINATIONS = [];
   var ANALYTICS_SOURCE = {
     home: 'ask', chats: 'chats', projects: 'projects', files: 'projects', library: 'library',
@@ -702,20 +702,13 @@
     var nav = el('<nav id="cvMobileNav" class="cv-mobile-nav" aria-label="Ask Crump"></nav>');
     if (!nav) return;
     MOBILE_ORDER.forEach(function (id) {
-      nav.appendChild(el(destinationButton(id, 'cv-mnav-item')));
+      var button = el(destinationButton(id, 'cv-mnav-item'));
+      if (!button) return;
+      if (id === 'you') button.id = 'cvMobileYou';
+      nav.appendChild(button);
     });
     app.appendChild(nav);
     wireNav(nav);
-  }
-
-  function takeOverMobileUtility() {
-    var app = document.getElementById('appContainer');
-    if (!app || document.getElementById('cvMobileYou')) return;
-    var button = el(destinationButton('you', 'cv-mobile-you'));
-    if (!button) return;
-    button.id = 'cvMobileYou';
-    app.appendChild(button);
-    wireNav(app);
   }
 
   function wireNav(root) {
@@ -846,7 +839,6 @@
     booted = true;
     takeOverRail();
     takeOverMobileNav();
-    takeOverMobileUtility();
     wireConversationDrawer();
     startDatasetSync();
     window.addEventListener('resize', function () {
