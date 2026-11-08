@@ -2,8 +2,8 @@
  * Crump Vision — application shell (1.0)
  *
  * Owns the calm, product-first destination rail (desktop) and five-item
- * bottom nav (mobile). Ask is the workspace; Projects preserves durable
- * context; Files, Library, Video, Autonomous, and Profile delegate to the
+ * bottom nav (mobile). Home is the real Ask workspace; Chats owns the real
+ * conversation drawer; Projects, Library, Studios, and You delegate only to
  * existing production surfaces. Screens register through
  * window.CrumpVision.registerView; a
  * destination with no registered vision view falls back to the existing
@@ -21,37 +21,41 @@
   if (window.__crumpVisionShellLoaded) return;
 
   var OLD_TO_NEW = {
-    ask: 'ask', chats: 'ask', home: 'ask',
+    ask: 'home', chats: 'chats', home: 'home',
     projects: 'projects', files: 'files', library: 'library',
-    video: 'video', code: 'autonomous', autonomous: 'autonomous',
-    create: 'ask', studios: 'video', you: 'profile', profile: 'profile',
-    more: 'more',
+    video: 'studios', studios: 'studios', code: 'autonomous', autonomous: 'autonomous',
+    create: 'home', you: 'you', profile: 'you', more: 'you',
   };
   var NEW_TO_OLD = {
-    ask: 'ask', projects: 'projects', library: 'library',
-    video: 'video', autonomous: 'code', profile: 'you',
+    home: 'ask', projects: 'projects', library: 'library',
+    studios: 'video', you: 'you', files: 'projects', autonomous: 'code',
   };
-  var ORDER = ['ask', 'projects', 'files', 'library', 'video', 'autonomous'];
-  var MOBILE_ORDER = ['ask', 'projects', 'library', 'video', 'more'];
-  var MORE_DESTINATIONS = ['files', 'autonomous', 'profile'];
+  var ORDER = ['home', 'chats', 'projects', 'library', 'studios', 'you'];
+  var MOBILE_ORDER = ['home', 'chats', 'projects', 'library', 'studios'];
+  var MORE_DESTINATIONS = [];
   var ANALYTICS_SOURCE = {
-    ask: 'ask', projects: 'projects', files: 'projects', library: 'library',
-    video: 'video', autonomous: 'code', profile: 'you',
+    home: 'ask', chats: 'chats', projects: 'projects', files: 'projects', library: 'library',
+    studios: 'video', autonomous: 'code', you: 'you',
   };
+  var ACTIVE_PARENT = {files: 'projects', autonomous: 'home'};
   var LABELS = {
-    ask: 'Ask', projects: 'Projects', files: 'Files', library: 'Library',
-    video: 'Video', autonomous: 'Autonomous', profile: 'Profile & settings',
+    home: 'Home', chats: 'Chats', projects: 'Projects', files: 'Files', library: 'Library',
+    studios: 'Studios', autonomous: 'Autonomous', you: 'You',
     more: 'More',
   };
   var SVG_OPEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">';
   var ICONS = {
+    home: SVG_OPEN + '<path d="M4.2 10.35 12 4.1l7.8 6.25v8.25a1.3 1.3 0 0 1-1.3 1.3h-13a1.3 1.3 0 0 1-1.3-1.3v-8.25Z"/><path d="M9.2 19.75v-5.8h5.6v5.8"/></svg>',
+    chats: SVG_OPEN + '<path d="M6.1 5.15h11.8a2.35 2.35 0 0 1 2.35 2.35v6.2a2.35 2.35 0 0 1-2.35 2.35h-6.25l-4.9 3.1.82-3.1H6.1a2.35 2.35 0 0 1-2.35-2.35V7.5A2.35 2.35 0 0 1 6.1 5.15Z"/><path d="M8 9.25h8M8 12.25h5.35"/></svg>',
     ask: SVG_OPEN + '<path d="M6.15 5.4h11.7a2.35 2.35 0 0 1 2.35 2.35v6.4a2.35 2.35 0 0 1-2.35 2.35h-6.2l-4.85 3.1.8-3.1H6.15a2.35 2.35 0 0 1-2.35-2.35v-6.4A2.35 2.35 0 0 1 6.15 5.4Z"/><path d="m15.8 7.8.42 1.03 1.03.42-1.03.42-.42 1.03-.42-1.03-1.03-.42 1.03-.42.42-1.03Z"/></svg>',
     projects: SVG_OPEN + '<path d="M5.25 7.1h5.15l1.7 1.75h6.65a1.9 1.9 0 0 1 1.9 1.9v6.05a2.2 2.2 0 0 1-2.2 2.2H5.55a2.2 2.2 0 0 1-2.2-2.2V9a1.9 1.9 0 0 1 1.9-1.9Z"/><path d="M5.15 7.1V5.3h5.7l1.65 1.8"/></svg>',
     files: SVG_OPEN + '<path d="M7.15 4.1h6.25l3.45 3.45v9.9a2.05 2.05 0 0 1-2.05 2.05H7.15a2.05 2.05 0 0 1-2.05-2.05V6.15A2.05 2.05 0 0 1 7.15 4.1Z"/><path d="M13.2 4.25v3.7h3.55M8.35 12h5.45M8.35 15.2h4"/></svg>',
     library: SVG_OPEN + '<path d="M4.25 5.15h5.1A2.65 2.65 0 0 1 12 7.8v11.05a3.45 3.45 0 0 0-3.45-2.65h-4.3V5.15Z"/><path d="M19.75 5.15h-5.1A2.65 2.65 0 0 0 12 7.8v11.05a3.45 3.45 0 0 1 3.45-2.65h4.3V5.15Z"/></svg>',
     video: SVG_OPEN + '<rect x="3.8" y="5.25" width="16.4" height="13.5" rx="2.4"/><path d="m10.25 9.15 5 2.85-5 2.85v-5.7Z"/></svg>',
+    studios: SVG_OPEN + '<rect x="3.8" y="4.8" width="16.4" height="14.4" rx="2.4"/><path d="m6.8 15.8 3.65-3.7 2.75 2.7 1.85-1.85 2.15 2.15"/><circle cx="9" cy="9" r="1.25"/></svg>',
     autonomous: SVG_OPEN + '<path d="M7.1 5.1h9.8l3 5.35-3 5.35H7.1l-3-5.35 3-5.35Z"/><path d="m9.4 8.2-2.25 2.25 2.25 2.25M14.6 8.2l2.25 2.25-2.25 2.25M13.05 7.45l-2.1 6"/></svg>',
     profile: SVG_OPEN + '<circle cx="12" cy="8.1" r="3.35"/><path d="M5.6 19.2c.75-3.7 2.9-5.55 6.4-5.55s5.65 1.85 6.4 5.55"/></svg>',
+    you: SVG_OPEN + '<circle cx="12" cy="8.1" r="3.35"/><path d="M5.6 19.2c.75-3.7 2.9-5.55 6.4-5.55s5.65 1.85 6.4 5.55"/></svg>',
     more: SVG_OPEN + '<circle cx="5.25" cy="12" r="1.05" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1.05" fill="currentColor" stroke="none"/><circle cx="18.75" cy="12" r="1.05" fill="currentColor" stroke="none"/></svg>',
     new: SVG_OPEN + '<path d="M12 4.2v15.6M4.2 12h15.6"/><path d="m18.2 4 .35.85.85.35-.85.35-.35.85-.35-.85-.85-.35.85-.35.35-.85Z"/></svg>',
     conversations: SVG_OPEN + '<path d="M6.1 5.15h11.8a2.35 2.35 0 0 1 2.35 2.35v6.2a2.35 2.35 0 0 1-2.35 2.35h-6.25l-4.9 3.1.82-3.1H6.1a2.35 2.35 0 0 1-2.35-2.35V7.5A2.35 2.35 0 0 1 6.1 5.15Z"/><path d="M8 9.25h8M8 12.25h5.35"/></svg>',
@@ -60,7 +64,7 @@
   var ESCAPE_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 
   var views = new Map();
-  var currentId = 'ask';
+  var currentId = 'home';
   var booted = false;
   var explicitNav = false;
   var settling = false;
@@ -70,6 +74,7 @@
   var moreMenu = null;
   var moreMenuOpener = null;
   var conversationDrawerOpener = null;
+  var conversationDrawerReturnId = null;
   var drawerObserver = null;
 
   /* ------------------------------------------------------------------ */
@@ -144,10 +149,10 @@
 
   function registerView(id, def) {
     var sourceKey = String(id == null ? '' : id).toLowerCase();
-    // Home, Studios, and You were presentation-only experiments. Keeping
-    // them out of the registry prevents local-only controls from replacing
-    // the real Ask, Video, and account surfaces.
-    if (sourceKey === 'home' || sourceKey === 'studios' || sourceKey === 'you') return false;
+    // Home and You keep delegating to the authoritative Ask and account
+    // surfaces. Studios can register because its view delegates only to the
+    // released Image and Video tools.
+    if (sourceKey === 'ask' || sourceKey === 'home' || sourceKey === 'profile' || sourceKey === 'you') return false;
     var key = normalizeId(sourceKey);
     if (!key || !def || typeof def.render !== 'function') return false;
     views.set(key, def);
@@ -155,22 +160,23 @@
     return true;
   }
 
-  function navigate(rawId) {
+  function navigate(rawId, options) {
     ensureBoot();
-    var id = normalizeId(rawId) || 'ask';
-    if (id === 'more') {
-      openMoreMenu();
+    var id = normalizeId(rawId) || 'home';
+    if (id === 'chats') {
+      toggleConversationDrawer(document.activeElement);
       return;
     }
     closeMoreMenu(false);
+    closeConversationDrawer(false, false);
     explicitNav = true;
     settling = false;
     var def = views.get(id);
     if (def) {
-      mountView(id, def);
+      mountView(id, def, options);
       return;
     }
-    fallbackToLegacy(id);
+    fallbackToLegacy(id, options);
   }
 
   // The legacy conversation library renders as a second sidebar next to the
@@ -193,7 +199,8 @@
     syncConversationDrawer();
   }
 
-  function mountView(id, def) {
+  function mountView(id, def, options) {
+    var silent = Boolean(options && options.silent);
     if (id === currentId && isMounted()) {
       setActive(id);
       return;
@@ -206,6 +213,7 @@
     }
     try {
       stageBody.innerHTML = '';
+      stageBody.className = 'cv-stage-body';
       def.render(stageBody);
     } catch (_) {
       fallbackToLegacy(id);
@@ -222,8 +230,10 @@
     try {
       stage.focus({ preventScroll: true });
     } catch (_) {}
-    track(id);
-    dispatchShow(id);
+    if (!silent) {
+      track(id);
+      dispatchShow(id);
+    }
   }
 
   function unmountView() {
@@ -233,11 +243,13 @@
       if (def && typeof def.onHide === 'function') def.onHide();
     } catch (_) {}
     stage.hidden = true;
+    if (stageBody) stageBody.className = 'cv-stage-body';
     setWorkspaceInert(false);
     setLegacySidebarHidden(false);
   }
 
-  function fallbackToLegacy(id) {
+  function fallbackToLegacy(id, options) {
+    var silent = Boolean(options && options.silent);
     unmountView();
     currentId = id;
     setActive(id);
@@ -251,22 +263,24 @@
           window.CrumpProductLoader.openFiles();
         } else {
           window.showToast?.('Files are still loading. Try again in a moment.', 'info');
-          currentId = 'ask';
-          setActive('ask');
+          currentId = 'home';
+          setActive('home');
           return;
         }
-        track(id);
-        dispatchShow(id);
+        if (!silent) {
+          track(id);
+          dispatchShow(id);
+        }
         return;
       }
       var legacy = window.CrumpNavigation5930;
       if (legacy && typeof legacy.open === 'function') {
-        legacy.open(oldId);
+        legacy.open(oldId, silent ? { recordSelection: false, focus: false } : undefined);
         // The adapter owns analytics for delegated legacy destinations. Keep
         // one authoritative selection event for each user action.
         trackedByLegacyAdapter = true;
-        if (id === 'profile') {
-          // "Profile" should always land on the account identity panel, even
+        if (id === 'you') {
+          // "You" should always land on the account identity panel, even
           // when the user last left Settings on Plan or About.
           setTimeout(function () {
             var profileTab = document.querySelector('[data-v1-settings-tab="profile"]');
@@ -278,8 +292,8 @@
         if (input && typeof input.focus === 'function') input.focus({ preventScroll: true });
       }
     } catch (_) {}
-    if (!trackedByLegacyAdapter) track(id);
-    dispatchShow(id);
+    if (!silent && !trackedByLegacyAdapter) track(id);
+    if (!silent) dispatchShow(id);
   }
 
   function isMounted() {
@@ -287,10 +301,11 @@
   }
 
   function setActive(id) {
+    var activeId = ACTIVE_PARENT[id] || id;
     var buttons = document.querySelectorAll('[data-cv-destination]');
     for (var i = 0; i < buttons.length; i++) {
       var target = buttons[i].getAttribute('data-cv-destination');
-      var active = target === id || (target === 'more' && MORE_DESTINATIONS.indexOf(id) !== -1);
+      var active = target === activeId || (target === 'more' && MORE_DESTINATIONS.indexOf(activeId) !== -1);
       buttons[i].classList.toggle('is-active', active);
       if (active) buttons[i].setAttribute('aria-current', 'page');
       else buttons[i].removeAttribute('aria-current');
@@ -408,9 +423,11 @@
     var availability = id === 'autonomous'
       ? ' data-crump-code-destination hidden disabled aria-hidden="true"'
       : '';
-    var popup = id === 'more'
-      ? ' aria-haspopup="dialog" aria-controls="cvMoreMenu" aria-expanded="false"'
-      : '';
+    var popup = id === 'chats'
+      ? ' data-cv-drawer-toggle aria-controls="sidebar" aria-expanded="false"'
+      : id === 'more'
+        ? ' aria-haspopup="dialog" aria-controls="cvMoreMenu" aria-expanded="false"'
+        : '';
     return (
       '<button type="button" class="' + cls + '" data-cv-destination="' + id + '"' + availability + ' aria-label="' + esc(LABELS[id]) + '"' + popup + '>' +
       ICONS[id] +
@@ -425,22 +442,15 @@
     }).join('');
     return (
       '<div class="cv-rail-inner">' +
-      '<button type="button" class="cv-rail-brand" data-cv-destination="ask" aria-label="Open Ask Crump">' +
+      '<button type="button" class="cv-rail-brand" data-cv-destination="home" aria-label="Open Home">' +
         '<span class="cv-rail-brand-mark" aria-hidden="true"><img src="/assets/brand/crump-mark-320.webp" alt="" width="320" height="357"></span>' +
         '<span class="cv-rail-brand-copy"><strong>Ask Crump</strong><small>AI workspace</small></span>' +
       '</button>' +
       '<div class="cv-rail-actions" aria-label="Conversation controls">' +
-        '<button type="button" class="cv-rail-new" data-cv-new-conversation>' + ICONS.new + '<span>New conversation</span></button>' +
-        '<button type="button" class="cv-rail-conversations" data-cv-drawer-toggle aria-controls="sidebar" aria-expanded="false">' +
-          ICONS.conversations + '<span>Conversations</span>' +
-        '</button>' +
+        '<button type="button" class="cv-rail-new" data-cv-new-conversation>' + ICONS.new + '<span>New</span></button>' +
       '</div>' +
       '<div class="cv-rail-section-label" aria-hidden="true">Workspace</div>' +
       '<nav class="cv-rail-nav" aria-label="Workspace destinations">' + buttons + '</nav>' +
-      '<div class="cv-rail-foot">' +
-      '<button type="button" class="cv-rail-utility cv-profile-link" data-cv-destination="profile">' +
-      ICONS.profile + '<span><b>Profile</b><small>Settings & plan</small></span></button>' +
-      '</div>' +
       '</div>'
     );
   }
@@ -471,6 +481,7 @@
       button.setAttribute('aria-label', expanded ? 'Hide Conversations' : 'Show Conversations');
       button.setAttribute('title', expanded ? 'Hide Conversations' : 'Show Conversations');
     });
+    setActive(expanded ? 'chats' : currentId);
   }
 
   function focusConversationDrawer() {
@@ -489,10 +500,19 @@
     });
   }
 
-  function closeConversationDrawer(restoreFocus) {
+  function restoreConversationDrawerDestination() {
+    var returnId = conversationDrawerReturnId;
+    conversationDrawerReturnId = null;
+    if (!returnId || returnId === 'home') return;
+    navigate(returnId, { silent: true });
+  }
+
+  function closeConversationDrawer(restoreFocus, restoreDestination) {
     var sidebar = document.getElementById('sidebar');
     if (!sidebar || !conversationDrawerIsOpen()) {
       syncConversationDrawer();
+      if (restoreDestination) restoreConversationDrawerDestination();
+      else conversationDrawerReturnId = null;
       if (restoreFocus) restoreConversationDrawerFocus();
       return;
     }
@@ -502,9 +522,11 @@
       document.getElementById('menuBtn')?.setAttribute('aria-expanded', 'false');
       window.CrumpBodyV1?.syncConversationLibrary?.();
     } else {
-      window.CrumpBodyV1?.toggleConversationLibrary?.();
+      window.CrumpBodyV1?.toggleConversationLibrary?.({ recordSelection: false });
     }
     syncConversationDrawer();
+    if (restoreDestination) restoreConversationDrawerDestination();
+    else conversationDrawerReturnId = null;
     if (restoreFocus) restoreConversationDrawerFocus();
   }
 
@@ -514,25 +536,30 @@
       focusConversationDrawer();
       return;
     }
-    window.CrumpBodyV1?.toggleConversationLibrary?.();
+    window.CrumpBodyV1?.toggleConversationLibrary?.({ recordSelection: false });
     syncConversationDrawer();
     focusConversationDrawer();
   }
 
   function toggleConversationDrawer(opener) {
     conversationDrawerOpener = opener || document.activeElement;
-    if (currentId !== 'ask' || isMounted()) {
-      navigate('ask');
+    track('chats');
+    dispatchShow('chats');
+    if (currentId !== 'home' || isMounted()) {
+      var returnId = currentId !== 'home' ? currentId : null;
+      navigate('home', { silent: true });
+      conversationDrawerReturnId = returnId;
       window.requestAnimationFrame(ensureConversationDrawerOpen);
       return;
     }
-    if (conversationDrawerIsOpen()) closeConversationDrawer(true);
+    if (conversationDrawerIsOpen()) closeConversationDrawer(true, true);
     else ensureConversationDrawerOpen();
   }
 
   function startNewConversation() {
     closeMoreMenu(false);
-    if (currentId !== 'ask' || isMounted()) navigate('ask');
+    closeConversationDrawer(false, false);
+    if (currentId !== 'home' || isMounted()) navigate('home');
     window.requestAnimationFrame(function () {
       document.getElementById('newChatBtn')?.click();
       document.getElementById('userInput')?.focus({ preventScroll: true });
@@ -545,11 +572,6 @@
       if (button.dataset.cvShellControlWired === '1') return;
       button.dataset.cvShellControlWired = '1';
       button.addEventListener('click', startNewConversation);
-    });
-    Array.prototype.forEach.call(host.querySelectorAll('[data-cv-drawer-toggle]'), function (button) {
-      if (button.dataset.cvShellControlWired === '1') return;
-      button.dataset.cvShellControlWired = '1';
-      button.addEventListener('click', function () { toggleConversationDrawer(button); });
     });
     syncConversationDrawer();
   }
@@ -564,13 +586,13 @@
     if (overlay && overlay.dataset.cvDrawerWired !== '1') {
       overlay.dataset.cvDrawerWired = '1';
       overlay.addEventListener('click', function () {
-        closeConversationDrawer(true);
+        closeConversationDrawer(true, true);
       });
     }
     if (close && close.dataset.cvDrawerWired !== '1') {
       close.dataset.cvDrawerWired = '1';
       close.addEventListener('click', function () {
-        closeConversationDrawer(true);
+        closeConversationDrawer(true, true);
       });
     }
     if (mobileMenu && mobileMenu.dataset.cvDrawerWired !== '1') {
@@ -586,8 +608,8 @@
     document.addEventListener('keydown', function (event) {
       if (event.key !== 'Escape' || !conversationDrawerIsOpen()) return;
       event.preventDefault();
-      closeConversationDrawer(true);
-    });
+      closeConversationDrawer(true, true);
+    }, true);
     drawerObserver = new MutationObserver(syncConversationDrawer);
     drawerObserver.observe(sidebar, { attributes: true, attributeFilter: ['class', 'aria-hidden'] });
     drawerObserver.observe(document.body, { attributes: true, attributeFilter: ['class'] });
@@ -684,7 +706,16 @@
     });
     app.appendChild(nav);
     wireNav(nav);
-    ensureMoreMenu(app);
+  }
+
+  function takeOverMobileUtility() {
+    var app = document.getElementById('appContainer');
+    if (!app || document.getElementById('cvMobileYou')) return;
+    var button = el(destinationButton('you', 'cv-mobile-you'));
+    if (!button) return;
+    button.id = 'cvMobileYou';
+    app.appendChild(button);
+    wireNav(app);
   }
 
   function wireNav(root) {
@@ -695,7 +726,8 @@
         button.setAttribute('data-cv-wired', '1');
         button.addEventListener('click', function () {
           var id = button.getAttribute('data-cv-destination');
-          if (id === 'more') openMoreMenu(button);
+          if (id === 'chats') toggleConversationDrawer(button);
+          else if (id === 'more') openMoreMenu(button);
           else navigate(id);
         });
       })(buttons[i]);
@@ -814,14 +846,15 @@
     booted = true;
     takeOverRail();
     takeOverMobileNav();
+    takeOverMobileUtility();
     wireConversationDrawer();
     startDatasetSync();
     window.addEventListener('resize', function () {
       if (window.matchMedia('(min-width: 1101px)').matches) closeMoreMenu(false);
       syncConversationDrawer();
     }, { passive: true });
-    currentId = 'ask';
-    setActive('ask');
+    currentId = 'home';
+    setActive('home');
     document.documentElement.dataset.cvShell = 'ready';
     document.dispatchEvent(new CustomEvent('crumpvision:ready'));
     settling = true;

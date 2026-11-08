@@ -34,7 +34,8 @@ def test_redundant_tools_dropdown_is_retired_without_removing_real_capabilities(
         assert f"createCard('{action}'" in navigation
     assert "data-crump-code-destination hidden" not in navigation
     assert "id: 'code', label: 'Autonomous'" in navigation
-    assert "var ORDER = ['ask', 'projects', 'files', 'library', 'video', 'autonomous'];" in vision_shell
+    assert "var ORDER = ['home', 'chats', 'projects', 'library', 'studios', 'you'];" in vision_shell
+    assert "var MOBILE_ORDER = ['home', 'chats', 'projects', 'library', 'studios'];" in vision_shell
     assert "createCard('code'" not in navigation
     assert "title.textContent = 'Intelligence';" in intelligence
     assert "forwardClick('attachBtn')" in body
@@ -43,7 +44,7 @@ def test_redundant_tools_dropdown_is_retired_without_removing_real_capabilities(
 
 
 def test_retired_tool_assets_are_cache_versioned_atomically():
-    loader_version = "5.9.76-login-recovery-visible-1"
+    loader_version = "5.9.76-premium-workspace-1"
     product_loader_version = "5.9.76-legacy-project-resume-truth-1"
     shell = read("public/app.html")
     runtime = read("public/runtime-body-v1.js")
@@ -59,4 +60,4 @@ def test_retired_tool_assets_are_cache_versioned_atomically():
     for source in (runtime, worker, native):
         assert "/crump-product-5.3.css?v=5.9.76-file-library-window-1" not in source
         assert "/crump-product-5.3.js?v=5.9.76-studio-action-labels-1" not in source
-    assert "ask-crump-new-body-v1-r281-login-recovery-visible-1" in worker
+    assert "ask-crump-new-body-v1-r282-premium-workspace-1" in worker

@@ -40,9 +40,10 @@ def test_files_cold_start_owns_busy_feedback_and_visible_vision_controls():
     assert "Opening Files…" in browser_proof
     assert "coldFilesBusy.filesBusy.every(value => value === 'true')" in browser_proof
     assert "coldFilesBusy.filesDisabled.every(Boolean)" in browser_proof
-    assert "opened.filesActive, true" in browser_proof
-    assert "afterLegacyProjectSync.filesActive, true" in browser_proof
-    assert "afterLegacyProjectSync.projectsActive, false" in browser_proof
+    assert "opened.filesActive, false" in browser_proof
+    assert "opened.projectsActive, true" in browser_proof
+    assert "afterLegacyProjectSync.filesActive, false" in browser_proof
+    assert "afterLegacyProjectSync.projectsActive, true" in browser_proof
 
 
 def test_files_is_a_first_class_surface_with_lazy_active_state_recovery():

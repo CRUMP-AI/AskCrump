@@ -19,23 +19,23 @@ textually aligned with it. Reviewer credentials belong only in the ignored
 ## Apple App Store
 
 - **Subtitle:** Create, research, and build
-- **Promotional text:** Move from questions to continuing work across Ask, Projects, Files, Library, and Video—with Profile controls always within reach.
+- **Promotional text:** Move from an idea to organized work across Home, Chats, Projects, Library, Studios, and You.
 - **Keywords:** `AI,assistant,research,writer,documents,images,video,manuscript,productivity,files`
 
 ### Description
 
 Ask Crump is a multimodal AI workspace built to help you move from an idea to something useful.
 
-The desktop workspace keeps Ask, Projects, Files, Library, and Video in one clear rail, with Profile available as a utility. Ask handles conversations, guided research, document and presentation creation, and image work. Projects keep instructions, reference context, conversations, and creations together. Files is the home for documents, presentations, images, videos, exports, and uploads. Video has a dedicated studio for Quick, Extendable, and Cinematic generation, optional visual references, and returning to a saved active job. Library is reserved for manuscripts and books. Profile contains settings, sessions, purchase restoration, and account controls. On mobile, Files and Profile live inside More.
+The desktop workspace keeps Home, Chats, Projects, Library, Studios, and You in one clear rail. Home brings the Ask Crump composer, useful starts, and recent work together. Chats opens private conversation history. Projects keep instructions, reference context, conversations, files, and creations together. Library is a calm shelf for saved long-form work. Studios brings the released Image and Video tools together. You contains settings, sessions, purchase restoration, privacy, and account controls. On mobile, Home, Chats, Projects, Library, and Studios stay in the bottom bar, with You at the top right.
 
 Create and organize:
 
-- conversational answers and guided research inside Ask
-- continuing work and reference context in Projects
-- images and multi-engine short-form video, including compatible scene continuation
+- conversational answers and guided research from Home
+- private conversation history in Chats
+- continuing work, files, and reference context in Projects
+- images and multi-engine short-form video in Studios
 - editable documents, presentations, and exportable files
-- structured long-form manuscript projects
-- a private manuscript and book Library, with other files kept in Files
+- structured long-form manuscript projects and a private Library
 
 Stay in control:
 
@@ -57,16 +57,16 @@ Some features require a paid plan, credits, provider availability, or an interne
 
 Ask Crump is a multimodal AI workspace for turning questions and ideas into useful work.
 
-The desktop workspace keeps Ask, Projects, Files, Library, and Video in one clear rail, with Profile available as a utility. Ask handles conversations, guided research, document and presentation creation, and image work. Projects keep ongoing work and reference context together. Files is the home for documents, presentations, images, videos, exports, and uploads. Video has a dedicated studio for Quick, Extendable, and Cinematic generation, optional visual references, and returning to a saved active job. Library is reserved for manuscripts and books. Profile contains settings, sessions, purchase restoration, and account controls. On mobile, Files and Profile live inside More.
+The desktop workspace keeps Home, Chats, Projects, Library, Studios, and You in one clear rail. Home brings the Ask Crump composer, useful starts, and recent work together. Chats opens private conversation history. Projects keep ongoing work, files, and reference context together. Library is a calm shelf for saved long-form work. Studios brings the released Image and Video tools together. You contains settings, sessions, purchase restoration, privacy, and account controls. On mobile, Home, Chats, Projects, Library, and Studios stay in the bottom bar, with You at the top right.
 
 WHAT YOU CAN DO
 
-• Ask questions and explore guided research inside Ask
-• Organize continuing work and reference context in Projects
-• Generate images and short-form video with Quick, Extendable, and Cinematic modes
+• Ask questions and explore guided research from Home
+• Return to private conversation history in Chats
+• Organize continuing work, files, and reference context in Projects
+• Generate images and short-form video in Studios
 • Create editable documents, presentations, and exportable files
-• Develop long-form manuscript projects
-• Keep manuscripts and books in Library, with other work in Files
+• Develop long-form manuscript projects and keep them in Library
 • Reopen saved work across supported devices
 
 CONTROL AND SAFETY
@@ -85,14 +85,14 @@ Some features require a paid plan, credits, provider availability, or an interne
 
 Use real output and hide personal data. Keep the same visual language across both stores.
 
-1. **Ask** — polished conversation with a useful, clearly structured answer and `Keep in a Project`.
-2. **Projects** — resume continuing work with its instructions, conversations, and references together.
-3. **Files** — prepared documents, presentations, images, videos, and uploads in the dedicated workspace.
-4. **Video** — the dedicated studio with a reference-ready setup or a safely staged active job.
-5. **Research in Ask** — sourced research result and next-step controls inside the Ask destination.
+1. **Home** — useful starts, recent work, and a polished answer with `Keep in a Project`.
+2. **Chats** — private conversation history with all personal information removed.
+3. **Projects** — resume continuing work with its instructions, conversations, files, and references together.
+4. **Image Studio** — the released image creation and editing workspace with a prepared safe example.
+5. **Video Studio** — the released video workspace with a reference-ready setup or a safely staged active job.
 6. **Editable work** — Document Studio with real document and presentation download controls.
 7. **Library** — manuscripts and books in a dedicated private bookshelf.
-8. **Profile** — settings, sessions, privacy, and account controls without personal data.
+8. **You** — settings, sessions, privacy, and account controls without personal data.
 
 Capture at least one modern large iPhone size and current Android phone size. Apple accepts 1–10 screenshots; Google requires at least two and benefits from four or more high-quality phone screenshots.
 
@@ -105,12 +105,12 @@ Provide the reviewer with a dedicated demo account that has enough credits to te
 Suggested review path:
 
 1. Sign in with the review account.
-2. Use Ask for a normal answer, then start guided research inside Ask.
+2. Use Home for a normal answer, then start guided research.
 3. Open Projects and resume the prepared continuing-work example.
-4. In Ask, test only the file and image creation modes enabled in the signed build, then open Files to confirm the result.
-5. Open Video and verify the available engines, optional reference control, and saved-job return state.
-6. Open Library and verify the prepared books and manuscripts are available, then open Files to verify prepared documents and media.
-7. Open Profile to view session controls, export, legal links, and permanent account deletion.
+4. From Home, test only the file creation modes enabled in the signed build, then open the prepared Project to confirm the result.
+5. Open Studios and verify the released Image and Video tools, optional reference control, and saved-job return state.
+6. Open Library and verify the prepared books and manuscripts are available, then return to Projects for prepared documents and media.
+7. Open You to view session controls, export, legal links, and permanent account deletion.
 8. Open the subscription screen to verify native store billing and Restore Purchases.
 
 If a provider-backed mode is temporarily unavailable, do not submit until reviewer access is stable.

@@ -14,32 +14,32 @@
   },
   "apple": {
     "subtitle": "Create, research, and build",
-    "promotionalText": "Move from questions to continuing work across Ask, Projects, Files, Library, and Video—with Profile controls always within reach.",
+    "promotionalText": "Move from an idea to organized work across Home, Chats, Projects, Library, Studios, and You.",
     "keywords": "AI,assistant,research,writer,documents,images,video,manuscript,productivity,files",
-    "description": "Ask Crump is a multimodal AI workspace built to help you move from an idea to something useful.\n\nThe desktop workspace keeps Ask, Projects, Files, Library, and Video in one clear rail, with Profile available as a utility. Ask handles conversations, guided research, document and presentation creation, and image work. Projects keep instructions, reference context, conversations, and creations together. Files is the home for documents, presentations, images, videos, exports, and uploads. Video has a dedicated studio for Quick, Extendable, and Cinematic generation, optional visual references, and returning to a saved active job. Library is reserved for manuscripts and books. Profile contains settings, sessions, purchase restoration, and account controls. On mobile, Files and Profile live inside More.\n\nCreate and organize:\n\n- conversational answers and guided research inside Ask\n- continuing work and reference context in Projects\n- images and multi-engine short-form video, including compatible scene continuation\n- editable documents, presentations, and exportable files\n- structured long-form manuscript projects\n- a private manuscript and book Library, with other files kept in Files\n\nStay in control:\n\n- review and report an AI response inside the app\n- manage active device sessions\n- export conversations\n- restore eligible store purchases\n- permanently delete your account from the app\n\nAI can make mistakes. Review important results and use qualified professionals for medical, legal, financial, or other high-impact decisions.\n\nSome features require a paid plan, credits, provider availability, or an internet connection. Subscriptions renew unless canceled in your App Store account settings.",
+    "description": "Ask Crump is a multimodal AI workspace built to help you move from an idea to something useful.\n\nThe desktop workspace keeps Home, Chats, Projects, Library, Studios, and You in one clear rail. Home brings the Ask Crump composer, useful starts, and recent work together. Chats opens private conversation history. Projects keep instructions, reference context, conversations, files, and creations together. Library is a calm shelf for saved long-form work. Studios brings the released Image and Video tools together. You contains settings, sessions, purchase restoration, privacy, and account controls. On mobile, Home, Chats, Projects, Library, and Studios stay in the bottom bar, with You at the top right.\n\nCreate and organize:\n\n- conversational answers and guided research from Home\n- private conversation history in Chats\n- continuing work, files, and reference context in Projects\n- images and multi-engine short-form video in Studios\n- editable documents, presentations, and exportable files\n- structured long-form manuscript projects and a private Library\n\nStay in control:\n\n- review and report an AI response inside the app\n- manage active device sessions\n- export conversations\n- restore eligible store purchases\n- permanently delete your account from the app\n\nAI can make mistakes. Review important results and use qualified professionals for medical, legal, financial, or other high-impact decisions.\n\nSome features require a paid plan, credits, provider availability, or an internet connection. Subscriptions renew unless canceled in your App Store account settings.",
     "screenshotPlan": [
-      "Ask — useful structured answer",
+      "Home — useful starts and a structured answer",
+      "Chats — private conversation history",
       "Projects — continue work with context",
-      "Files — documents, presentations, images, videos, and uploads",
-      "Video — generate, reference, and return to active jobs",
-      "Research in Ask — sourced result",
+      "Image Studio — create and edit images",
+      "Video Studio — generate, reference, and return to active jobs",
       "Editable work — document and presentation downloads",
       "Library — manuscripts and books",
-      "Profile — settings, sessions, privacy, and account controls"
+      "You — settings, sessions, privacy, and account controls"
     ]
   },
   "google": {
     "shortDescription": "Ask, research, create files and media, and keep ambitious projects moving.",
-    "fullDescription": "Ask Crump is a multimodal AI workspace for turning questions and ideas into useful work.\n\nThe desktop workspace keeps Ask, Projects, Files, Library, and Video in one clear rail, with Profile available as a utility. Ask handles conversations, guided research, document and presentation creation, and image work. Projects keep ongoing work and reference context together. Files is the home for documents, presentations, images, videos, exports, and uploads. Video has a dedicated studio for Quick, Extendable, and Cinematic generation, optional visual references, and returning to a saved active job. Library is reserved for manuscripts and books. Profile contains settings, sessions, purchase restoration, and account controls. On mobile, Files and Profile live inside More.\n\nWHAT YOU CAN DO\n\n• Ask questions and explore guided research inside Ask\n• Organize continuing work and reference context in Projects\n• Generate images and short-form video with Quick, Extendable, and Cinematic modes\n• Create editable documents, presentations, and exportable files\n• Develop long-form manuscript projects\n• Keep manuscripts and books in Library, with other work in Files\n• Reopen saved work across supported devices\n\nCONTROL AND SAFETY\n\n• Report an AI response without leaving the app\n• Manage active device sessions\n• Export conversations\n• Restore eligible store purchases\n• Permanently delete your account in the app\n\nAI can make mistakes. Review important results and use qualified professionals for medical, legal, financial, or other high-impact decisions.\n\nSome features require a paid plan, credits, provider availability, or an internet connection. Subscriptions renew unless canceled through Google Play.",
+    "fullDescription": "Ask Crump is a multimodal AI workspace for turning questions and ideas into useful work.\n\nThe desktop workspace keeps Home, Chats, Projects, Library, Studios, and You in one clear rail. Home brings the Ask Crump composer, useful starts, and recent work together. Chats opens private conversation history. Projects keep ongoing work, files, and reference context together. Library is a calm shelf for saved long-form work. Studios brings the released Image and Video tools together. You contains settings, sessions, purchase restoration, privacy, and account controls. On mobile, Home, Chats, Projects, Library, and Studios stay in the bottom bar, with You at the top right.\n\nWHAT YOU CAN DO\n\n• Ask questions and explore guided research from Home\n• Return to private conversation history in Chats\n• Organize continuing work, files, and reference context in Projects\n• Generate images and short-form video in Studios\n• Create editable documents, presentations, and exportable files\n• Develop long-form manuscript projects and keep them in Library\n• Reopen saved work across supported devices\n\nCONTROL AND SAFETY\n\n• Report an AI response without leaving the app\n• Manage active device sessions\n• Export conversations\n• Restore eligible store purchases\n• Permanently delete your account in the app\n\nAI can make mistakes. Review important results and use qualified professionals for medical, legal, financial, or other high-impact decisions.\n\nSome features require a paid plan, credits, provider availability, or an internet connection. Subscriptions renew unless canceled through Google Play.",
     "screenshotPlan": [
-      "Ask — useful structured answer",
+      "Home — useful starts and a structured answer",
+      "Chats — private conversation history",
       "Projects — continue work with context",
-      "Files — documents, presentations, images, videos, and uploads",
-      "Video — generate, reference, and return to active jobs",
-      "Research in Ask — sourced result",
+      "Image Studio — create and edit images",
+      "Video Studio — generate, reference, and return to active jobs",
       "Editable work — document and presentation downloads",
       "Library — manuscripts and books",
-      "Profile — settings, sessions, privacy, and account controls"
+      "You — settings, sessions, privacy, and account controls"
     ]
   },
   "review": {

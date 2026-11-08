@@ -3,80 +3,46 @@
 
   const STEPS = Object.freeze([
     {
-      destination: 'Ask',
-      action: 'ask',
-      actionLabel: 'Open Ask',
-      eyebrow: 'ASK',
-      title: 'Start with what you need.',
-      content: 'Ask is the calm center of the workspace. Talk through an idea, research what changed, work from a file, or create an image, document, or presentation without choosing a tool first. Choose Apply changes to return to the conversation with the edited image.',
-      icon: '✦',
-      features: ['Ask naturally', 'Create in conversation', 'Return to recent chats'],
+      destination: 'Home', action: 'home', actionLabel: 'Open Home', eyebrow: 'HOME',
+      title: 'Start with the outcome.',
+      content: 'Home brings your recent work, useful starts, and the Ask Crump composer into one calm place. You can ask, research, create, or return to work without choosing a technical tool first.',
+      icon: '⌂', features: ['Ask naturally', 'Research with sources', 'Continue recent work'],
     },
     {
-      destination: 'Projects',
-      action: 'projects',
-      actionLabel: 'Open Projects',
-      eyebrow: 'PROJECTS',
+      destination: 'Chats', action: 'chats', actionLabel: 'Open Chats', eyebrow: 'CHATS',
+      title: 'Every conversation, easy to find.',
+      content: 'Chats opens your private conversation history without taking you away from the work. Select a conversation, start a new one, or close the drawer and keep going.',
+      icon: '◫', features: ['Recent conversations', 'Open and return', 'Private to your account'],
+    },
+    {
+      destination: 'Projects', action: 'projects', actionLabel: 'Open Projects', eyebrow: 'PROJECTS',
       title: 'Give continuing work a home.',
-      content: 'Projects keep continuing work together. Each Project holds its conversations, instructions, notes, and reference material so you can return without rebuilding the context.',
-      icon: '▣',
-      features: ['Open a named Project', 'Continue its conversations', 'Manage files & canon'],
+      content: 'Projects keep conversations, files, context, outputs, and longer-running work together so you can return without rebuilding the brief.',
+      icon: '▣', features: ['Named workspaces', 'Context and files together', 'Durable activity'],
     },
     {
-      destination: 'Files',
-      action: 'files',
-      actionLabel: 'Open Files',
-      eyebrow: 'FILES',
-      title: 'Find every useful result.',
-      content: 'Files is the home for documents, presentations, images, video exports, and uploads. Open, preview, or download your work without searching through old conversations. On mobile, Files lives inside More.',
-      icon: '◇',
-      features: ['Preview in the app', 'Download originals', 'Organized by Project'],
+      destination: 'Library', action: 'library', actionLabel: 'Open Library', eyebrow: 'LIBRARY',
+      title: 'Keep manuscripts organized.',
+      content: 'Library is the calm shelf for your books and manuscripts. Open a title and return to the current manuscript without digging through old conversations.',
+      icon: '▱', features: ['Books and manuscripts', 'Private reading shelf', 'Open the current manuscript'],
     },
     {
-      destination: 'Library',
-      action: 'library',
-      actionLabel: 'Open Library',
-      eyebrow: 'LIBRARY',
-      title: 'Keep long-form work on its own shelf.',
-      content: 'Library is reserved for books and manuscripts created with Crump or imported into your account. Documents, images, videos, exports, and uploads stay in Files.',
-      icon: '▱',
-      features: ['Books & manuscripts', 'Private to your account', 'Continue across devices'],
+      destination: 'Studios', action: 'studios', actionLabel: 'Open Studios', eyebrow: 'STUDIOS',
+      title: 'Make visuals in one place.',
+      content: 'Studios opens the real Image and Video tools. Create or edit an image, generate motion, and return to saved jobs without crowding the main workspace. Choose Apply changes to return to the conversation with the edited image.',
+      icon: '✦', features: ['Image creation and editing', 'Video generation', 'Saved results'],
     },
     {
-      destination: 'Video',
-      action: 'video',
-      actionLabel: 'Open Video',
-      eyebrow: 'VIDEO',
-      title: 'Give motion its own studio.',
-      content: 'Video opens a dedicated studio for Quick, Extendable, and Cinematic generation. Add optional visual references, leave while a job runs, then return here to check its saved status and result.',
-      icon: '▶',
-      features: ['Three generation modes', 'Optional image references', 'Return to active jobs'],
-    },
-    {
-      destination: 'Autonomous',
-      action: 'autonomous',
-      actionLabel: 'Open Autonomous Crump',
-      eyebrow: 'AUTONOMOUS CRUMP · BETA',
-      title: 'Hand off a bounded coding task.',
-      content: 'Autonomous Crump prepares and verifies coding work in an isolated environment while keeping you in control of the final run. It is a Professional feature in beta. On mobile, find it inside More.',
-      icon: '⌘',
-      features: ['Review before running', 'Isolated workspace', 'Downloadable patch'],
-    },
-    {
-      destination: 'Profile',
-      action: 'profile',
-      actionLabel: 'Open Profile',
-      eyebrow: 'PROFILE',
+      destination: 'You', action: 'you', actionLabel: 'Open You', eyebrow: 'YOU',
       title: 'Your account has one clear home.',
-      content: 'Profile opens your identity, preferences, plan and credits, account controls, product guidance, and legal information. On mobile, Profile lives inside More.',
-      icon: '○',
-      features: ['Profile & behavior', 'Plan & credits', 'Account & about'],
+      content: 'You opens your profile, preferences, plan and credits, account controls, product guidance, and legal information.',
+      icon: '○', features: ['Profile and preferences', 'Plan and credits', 'Privacy and account controls'],
     },
   ]);
 
-  const DESKTOP_DESTINATIONS = Object.freeze(['Ask', 'Projects', 'Files', 'Library', 'Video', 'Autonomous', 'Profile']);
-  const MOBILE_DESTINATIONS = Object.freeze(['Ask', 'Projects', 'Library', 'Video', 'More']);
-  const MOBILE_MORE_DESTINATIONS = Object.freeze(['Files', 'Autonomous', 'Profile']);
+  const DESKTOP_DESTINATIONS = Object.freeze(['Home', 'Chats', 'Projects', 'Library', 'Studios', 'You']);
+  const MOBILE_DESTINATIONS = Object.freeze(['Home', 'Chats', 'Projects', 'Library', 'Studios']);
+  const MOBILE_MORE_DESTINATIONS = Object.freeze([]);
 
   class Tutorial {
     constructor() {
@@ -330,7 +296,7 @@
 
     openDestination(destination) {
       const normalized = String(destination || '').trim().toLowerCase();
-      if (!['ask', 'projects', 'files', 'library', 'video', 'autonomous', 'profile'].includes(normalized)) return;
+      if (!['home', 'chats', 'projects', 'library', 'studios', 'you'].includes(normalized)) return;
       localStorage.setItem(this.storageKey(), 'true');
       this.stop();
       requestAnimationFrame(() => {
@@ -339,17 +305,15 @@
           return;
         }
         if (typeof window.CrumpNavigation5930?.open === 'function') {
-          const legacyDestination = normalized === 'autonomous'
-            ? 'code'
-            : normalized === 'profile' ? 'you' : normalized;
-          if (normalized === 'files' && typeof window.CrumpProduct53?.openFiles === 'function') {
-            window.CrumpProduct53.openFiles();
+          if (normalized === 'chats') {
+            document.getElementById('menuBtn')?.click();
             return;
           }
+          const legacyDestination = {home: 'ask', studios: 'video', you: 'you'}[normalized] || normalized;
           window.CrumpNavigation5930.open(legacyDestination);
           return;
         }
-        if (normalized === 'ask') {
+        if (normalized === 'home') {
           document.getElementById('userInput')?.focus({ preventScroll: true });
           return;
         }

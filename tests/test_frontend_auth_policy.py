@@ -149,16 +149,16 @@ def test_registration_offer_matches_enforced_free_limits_and_canonical_product_m
         'from that verified browser; no card required.'
     )
 
-    assert 'Ask, Projects, Files, Library, Video, and Profile' in brand
+    assert 'Home, Chats, Projects, Library, Studios, and You' in brand
     assert 'Autonomous' not in brand
     assert 'Beta' not in brand
-    for destination in ('Ask', 'Projects', 'Files', 'Library', 'Video', 'Profile'):
+    for destination in ('Home', 'Chats', 'Projects', 'Library', 'Studios', 'You'):
         assert f'<span>{destination}</span>' in brand
-    assert '<span>Home</span>' not in brand
-    assert '<span>Chats</span>' not in brand
+    assert '<span>Ask</span>' not in brand
+    assert '<span>Files</span>' not in brand
     assert '<span>Create</span>' not in brand
-    assert '<span>Studios</span>' not in brand
-    assert '<span>You</span>' not in brand
+    assert '<span>Video</span>' not in brand
+    assert '<span>Profile</span>' not in brand
     assert '<span>Research</span>' not in brand
     assert '<span>Memory</span>' not in brand
     assert 'id="registrationAssurance"' in app

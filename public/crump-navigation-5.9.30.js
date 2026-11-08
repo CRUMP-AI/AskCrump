@@ -409,7 +409,7 @@
     return true;
   }
 
-  function openAsk() {
+  function openAsk(options = {}) {
     closeSidebar();
     suppressPersistentDestinationRestore();
     closeStudio();
@@ -420,8 +420,8 @@
     closeCreateHub();
     closeToolSheet();
     setActive('ask');
-    recordDestinationSelection('ask');
-    requestAnimationFrame(() => byId('userInput')?.focus({preventScroll: true}));
+    if (options.recordSelection !== false) recordDestinationSelection('ask');
+    if (options.focus !== false) requestAnimationFrame(() => byId('userInput')?.focus({preventScroll: true}));
   }
 
   function openProjects() {
@@ -508,14 +508,14 @@
     });
   }
 
-  function openDestination(destination) {
+  function openDestination(destination, options = {}) {
     if (destination === 'projects') openProjects();
     else if (destination === 'code') void openCode();
     else if (destination === 'create') openCreateHub();
     else if (destination === 'video') openVideo();
     else if (destination === 'library') openLibrary();
     else if (destination === 'you') openYou();
-    else openAsk();
+    else openAsk(options);
   }
 
   function wireDestinations() {

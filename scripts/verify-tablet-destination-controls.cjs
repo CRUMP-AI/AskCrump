@@ -3,7 +3,8 @@ const {readFileSync} = require('node:fs');
 const {join} = require('node:path');
 const {chromium} = require('playwright');
 
-const expectedDestinations = ['ask', 'projects', 'library', 'video', 'more'];
+const expectedDestinations = ['home', 'chats', 'projects', 'library', 'studios'];
+const legacyDestination = {home: 'ask', projects: 'projects', library: 'library', studios: 'video'};
 
 (async () => {
   const executablePath = process.env.ASKCRUMP_BROWSER_EXECUTABLE || undefined;
@@ -35,13 +36,13 @@ const expectedDestinations = ['ask', 'projects', 'library', 'video', 'more'];
     );
     const clickDestination = async name => {
       await destination(name).click();
-      if (name !== 'more') {
+      if (legacyDestination[name]) {
         await page.waitForFunction(
           expected => document.documentElement.dataset.crumpNavigationDestination === expected,
-          name,
+          legacyDestination[name],
         );
-        assert.equal(await destination(name).getAttribute('aria-current'), 'page');
       }
+      assert.equal(await destination(name).getAttribute('aria-current'), 'page');
     };
     const surfaceGeometry = async selector => page.locator(selector).evaluate(element => {
       const rect = element.getBoundingClientRect();
@@ -67,6 +68,16 @@ const expectedDestinations = ['ask', 'projects', 'library', 'video', 'more'];
         documentOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
         navBottom: Math.round(nav.getBoundingClientRect().bottom),
         viewportHeight: window.innerHeight,
+        you: (() => {
+          const button = document.getElementById('cvMobileYou');
+          const box = button.getBoundingClientRect();
+          return {
+            visible: Boolean(button.getClientRects().length),
+            width: Math.floor(box.width),
+            height: Math.floor(box.height),
+            destination: button.dataset.cvDestination,
+          };
+        })(),
       };
     });
     assert.deepEqual(baseline.visibleDestinations, expectedDestinations);
@@ -74,6 +85,7 @@ const expectedDestinations = ['ask', 'projects', 'library', 'video', 'more'];
     assert(baseline.minimumTouchHeight >= 44, JSON.stringify(baseline));
     assert.equal(baseline.documentOverflow, 0);
     assert.equal(baseline.navBottom, baseline.viewportHeight);
+    assert.deepEqual(baseline.you, {visible: true, width: 44, height: 44, destination: 'you'});
 
     await clickDestination('projects');
     await page.waitForFunction(() => (
@@ -89,26 +101,25 @@ const expectedDestinations = ['ask', 'projects', 'library', 'video', 'more'];
     assert.equal(await page.locator('#crump53WorkspaceTitle').textContent(), 'Library');
     await page.locator('#crump53Close').click();
 
-    await clickDestination('video');
+    await clickDestination('studios');
     await page.waitForFunction(() => document.getElementById('crump53Sheet')?.dataset.crump53Section === 'video');
     assert.equal(await page.locator('#crump53WorkspaceTitle').textContent(), 'Video Studio');
-    const video = await surfaceGeometry('#crump53Studio');
-    assert.equal(video.bottom, video.navTop, JSON.stringify(video));
+    const studios = await surfaceGeometry('#crump53Studio');
+    assert.equal(studios.bottom, studios.navTop, JSON.stringify(studios));
     await page.locator('#crump53Close').click();
 
-    await page.evaluate(() => window.CrumpNavigation5930.open('create'));
-    await page.waitForFunction(() => (
-      !document.getElementById('crump5930CreateHub')?.hidden
-      && document.getElementById('crump53Studio')?.hidden
-    ));
-    const create = await surfaceGeometry('#crump5930CreateHub');
-    assert.equal(create.bottom, create.navTop, JSON.stringify(create));
-    await page.waitForFunction(() => document.activeElement?.id === 'crump5930CreateClose');
-    assert.equal(await page.evaluate(() => document.activeElement?.id), 'crump5930CreateClose');
-    await page.locator('#crump5930CreateClose').click();
+    await clickDestination('chats');
+    await page.waitForFunction(() => document.getElementById('sidebar')?.classList.contains('active'));
+    await page.waitForFunction(() => document.activeElement?.id === 'newChatBtn');
+    assert.equal(await page.locator('#newChatBtn').evaluate(element => document.activeElement === element), true);
+    const chats = await surfaceGeometry('#sidebar');
+    assert.equal(chats.bottom, chats.navTop, JSON.stringify(chats));
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(() => !document.getElementById('sidebar')?.classList.contains('active'));
+    await page.waitForFunction(() => document.activeElement?.dataset.cvDestination === 'chats');
+    assert.equal(await destination('chats').evaluate(element => document.activeElement === element), true);
 
-    await clickDestination('more');
-    await page.locator('#cvMoreMenu [data-cv-destination="profile"]').click();
+    await page.locator('#cvMobileYou').click();
     await page.waitForFunction(() => {
       const settings = document.getElementById('settingsModal');
       return settings?.style.display && settings.style.display !== 'none';
@@ -118,7 +129,7 @@ const expectedDestinations = ['ask', 'projects', 'library', 'video', 'more'];
     await page.waitForFunction(() => document.activeElement?.id === 'settingsTitle');
 
     await page.locator('#closeSettingsBtn').click();
-    await clickDestination('ask');
+    await clickDestination('home');
     await page.waitForFunction(() => (
       document.getElementById('crump53Studio')?.hidden
       && document.getElementById('crump5930CreateHub')?.hidden
@@ -127,8 +138,7 @@ const expectedDestinations = ['ask', 'projects', 'library', 'video', 'more'];
     await page.waitForFunction(() => document.activeElement?.id === 'userInput');
     assert.equal(await page.evaluate(() => document.activeElement?.id), 'userInput');
 
-    await clickDestination('more');
-    await page.locator('#cvMoreMenu [data-cv-destination="profile"]').click();
+    await page.locator('#cvMobileYou').click();
     await page.locator('[data-v1-settings-tab="plan"]').click();
     await page.locator('#v1OpenPlanBtn').click();
     await page.waitForFunction(() => window.fixtureEvents.billing === 1);
@@ -146,7 +156,7 @@ const expectedDestinations = ['ask', 'projects', 'library', 'video', 'more'];
     });
     assert.deepEqual(errors, []);
 
-    process.stdout.write(JSON.stringify({baseline, projects, video, create, you, plan, errors}));
+    process.stdout.write(JSON.stringify({baseline, projects, studios, chats, you, plan, errors}));
   } finally {
     await browser.close();
   }

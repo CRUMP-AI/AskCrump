@@ -65,8 +65,9 @@ def test_runtime_wires_every_measured_destination_after_visible_open() -> None:
     for destination in ("ask", "projects", "create", "video", "library", "you", "code"):
         assert f"recordDestinationSelection('{destination}')" in navigation
     assert "source: 'chats'" in body
-    assert "if (!wasOpen) recordConversationLibrarySelection()" in body
-    assert "if (wasCollapsed) recordConversationLibrarySelection()" in body
+    assert "const recordSelection = options?.recordSelection !== false;" in body
+    assert "if (recordSelection && !wasOpen) recordConversationLibrarySelection()" in body
+    assert "if (recordSelection && wasCollapsed) recordConversationLibrarySelection()" in body
     assert "source: 'intelligence'" in intelligence
     assert "NavigationDestinationSelected" in navigation
     assert "NavigationDestinationSelected" in body

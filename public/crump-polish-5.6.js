@@ -30,7 +30,7 @@
     button.innerHTML = `
       <div class="settings-row-text">
         <div class="settings-label">Replay workspace guide</div>
-        <div class="settings-help">Desktop: Ask, Projects, Files, Library, Video, Autonomous Crump (Beta), and Profile. Mobile keeps Files, Autonomous, and Profile in More.</div>
+        <div class="settings-help">Desktop: Home, Chats, Projects, Library, Studios, and You. Mobile keeps Home, Chats, Projects, Library, and Studios within one tap, with You at the top right.</div>
       </div>
       <div class="settings-chevron" aria-hidden="true">›</div>`;
     button.addEventListener('click', () => {

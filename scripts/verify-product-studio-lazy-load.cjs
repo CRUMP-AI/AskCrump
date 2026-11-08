@@ -46,6 +46,9 @@ function fixtureHtml(mode) {
     document.getElementById('video').addEventListener('click', () => {
       void window.CrumpProduct53.open('video');
     });
+    document.getElementById('filesLegacy').addEventListener('click', () => {
+      void window.CrumpProduct53.openFiles();
+    });
   </script>
 </body>
 </html>`;
@@ -193,10 +196,13 @@ async function state(page) {
     assert.equal(counts.get(`normal:${assetPaths.script}`) || 0, 0);
     assert.equal(counts.get(`normal:${assetPaths.style}`) || 0, 0);
 
-    await page.click('.cv-destination[data-cv-destination="files"]', {noWaitAfter: true});
-    await page.waitForFunction(() => document.querySelector('.cv-destination[data-cv-destination="files"]')?.getAttribute('aria-busy') === 'true');
+    // Files is intentionally no longer a top-level destination. Exercise the
+    // owned Files handoff from its legacy in-context control and verify the
+    // consolidated Projects parent remains the one active destination.
+    await page.click('#filesLegacy', {noWaitAfter: true});
+    await page.waitForFunction(() => document.getElementById('filesLegacy')?.getAttribute('aria-busy') === 'true');
     const coldFilesBusy = await state(page);
-    assert.ok(coldFilesBusy.filesBusy.length >= 3);
+    assert.ok(coldFilesBusy.filesBusy.length >= 1);
     assert.equal(coldFilesBusy.filesBusy.every(value => value === 'true'), true);
     assert.equal(coldFilesBusy.filesDisabled.every(Boolean), true);
     assert.equal(coldFilesBusy.projectBusy, null);
@@ -209,16 +215,16 @@ async function state(page) {
     assert.equal(opened.filesDisabled.every(value => value === false), true);
     assert.deepEqual(opened.opens, ['files']);
     assert.deepEqual(opened.toasts, [{message: 'Opening Files…', type: 'info'}]);
-    assert.equal(opened.filesActive, true);
-    assert.equal(opened.projectsActive, false);
+    assert.equal(opened.filesActive, false);
+    assert.equal(opened.projectsActive, true);
     assert.equal(opened.visionCurrent, 'files');
     await page.evaluate(() => {
       document.documentElement.dataset.crumpNavigationDestination = 'projects';
     });
     await page.waitForTimeout(30);
     const afterLegacyProjectSync = await state(page);
-    assert.equal(afterLegacyProjectSync.filesActive, true);
-    assert.equal(afterLegacyProjectSync.projectsActive, false);
+    assert.equal(afterLegacyProjectSync.filesActive, false);
+    assert.equal(afterLegacyProjectSync.projectsActive, true);
     assert.equal(afterLegacyProjectSync.visionCurrent, 'files');
     assert.equal(opened.full, true);
     assert.equal(opened.loadedStyleNodes, 1);
