@@ -350,7 +350,8 @@ begin
         item.value ->> 0 as kind,
         pg_catalog.md5(
           pg_catalog.string_agg(
-            item.value::text, E'\n' order by item.value::text
+            item.value::text,
+            E'\n' order by item.value::text collate pg_catalog."C"
           )
         ) as fingerprint
       from target_items as item
@@ -364,7 +365,7 @@ begin
             field_item.value::text,
             E'\n' order by pg_catalog.jsonb_build_array(
               item.value -> 0, item.value -> 1, item.value -> 2
-            )::text
+            )::text collate pg_catalog."C"
           )
         ) as fingerprint
       from target_items as item
@@ -377,21 +378,24 @@ begin
       (
         select pg_catalog.md5(
           pg_catalog.string_agg(
-            item.value::text, E'\n' order by item.value::text
+            item.value::text,
+            E'\n' order by item.value::text collate pg_catalog."C"
           )
         )
         from target_items as item
       ),
       (
         select pg_catalog.jsonb_object_agg(
-          component.kind, component.fingerprint order by component.kind
+          component.kind,
+          component.fingerprint order by component.kind collate pg_catalog."C"
         )
         from target_components as component
       ),
       (
         select pg_catalog.jsonb_object_agg(
           pg_catalog.format('%s.%s', field.kind, field.position),
-          field.fingerprint order by field.kind, field.position
+          field.fingerprint
+            order by field.kind collate pg_catalog."C", field.position
         )
         from target_fields as field
       )

@@ -18,6 +18,8 @@ def test_base_control_plane_reapply_is_attested_before_idempotent_ddl() -> None:
     assert "component fingerprints: %s" in sql
     assert "field fingerprints: %s" in sql
     assert "jsonb_object_agg" in sql
+    assert sql.count('order by item.value::text collate pg_catalog."C"') == 2
+    assert sql.count('collate pg_catalog."C"') >= 5
     assert "partial or drifted connected-app target; refusing repair" in sql
     assert "using errcode = '55000'" in sql
     assert sql.index("observed_target_fingerprint <>") < sql.index(
