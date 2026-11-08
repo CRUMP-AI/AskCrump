@@ -20,6 +20,7 @@ do $preflight$
 declare
   existing_schema oid := pg_catalog.to_regnamespace('connected_app_private');
   observed_target_fingerprint text;
+  observed_target_components jsonb;
 begin
   if pg_catalog.to_regclass('public.users') is null then
     raise exception 'connected-app control plane requires public.users'
@@ -72,10 +73,7 @@ begin
   -- target attestation succeeds.  A partial, mixed, or drifted target is
   -- rejected before any IF NOT EXISTS / CREATE OR REPLACE statement can run.
   if existing_schema is not null then
-    select pg_catalog.md5(
-      pg_catalog.string_agg(item.value::text, E'\n' order by item.value::text)
-    ) into observed_target_fingerprint
-    from (
+    with target_items as (
       select pg_catalog.jsonb_build_array(
         'schema', namespace_row.nspname,
         pg_catalog.pg_get_userbyid(namespace_row.nspowner),
@@ -346,12 +344,42 @@ begin
       from pg_catalog.unnest(
         array['anon', 'authenticated', 'service_role']
       ) as role_name
-    ) as item;
+    ), target_components as (
+      select
+        item.value ->> 0 as kind,
+        pg_catalog.md5(
+          pg_catalog.string_agg(
+            item.value::text, E'\n' order by item.value::text
+          )
+        ) as fingerprint
+      from target_items as item
+      group by item.value ->> 0
+    )
+    select
+      (
+        select pg_catalog.md5(
+          pg_catalog.string_agg(
+            item.value::text, E'\n' order by item.value::text
+          )
+        )
+        from target_items as item
+      ),
+      (
+        select pg_catalog.jsonb_object_agg(
+          component.kind, component.fingerprint order by component.kind
+        )
+        from target_components as component
+      )
+    into observed_target_fingerprint, observed_target_components;
 
     if observed_target_fingerprint <> '3700cbb8e9d67dab331d090b26a70510' then
       raise exception
         'partial or drifted connected-app target; refusing repair: %',
-        observed_target_fingerprint using errcode = '55000';
+        observed_target_fingerprint
+        using errcode = '55000',
+          detail = pg_catalog.format(
+            'component fingerprints: %s', observed_target_components::text
+          );
     end if;
   end if;
 
