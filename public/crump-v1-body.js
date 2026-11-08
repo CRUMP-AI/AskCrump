@@ -170,24 +170,25 @@
     }, 0);
   }
 
-  function openLibrary() {
+  function openLibrary(options) {
     const sidebar = byId('sidebar');
     const overlay = byId('sidebarOverlay');
     if (!sidebar) return;
+    const recordSelection = options?.recordSelection !== false;
 
     if (matchMedia('(max-width: 1100px)').matches) {
       const wasOpen = sidebar.classList.contains('active');
       sidebar.classList.add('active');
       overlay?.classList.add('active');
       syncLibraryControl();
-      if (!wasOpen) recordConversationLibrarySelection();
+      if (recordSelection && !wasOpen) recordConversationLibrarySelection();
       return;
     }
 
     const wasCollapsed = document.body.classList.contains('v1-library-collapsed');
     document.body.classList.toggle('v1-library-collapsed');
     syncLibraryControl();
-    if (wasCollapsed) recordConversationLibrarySelection();
+    if (recordSelection && wasCollapsed) recordConversationLibrarySelection();
   }
 
   function recordConversationLibrarySelection() {

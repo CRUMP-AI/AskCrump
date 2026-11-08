@@ -21,23 +21,24 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
         '/auth-styles.css?v=5.9.76-guest-free-contract-2',
         '/crump-v1-body.css?v=5.9.76-owned-workspace-access-1',
         '/appearance-controls.css?v=5.9.76-appearance-choice-3',
-        # The preview entry and authenticated shell share these presentation
-        # assets. Retired Home/Studios/You view scripts no longer ship.
-        '/crump-vision-shell-1.0.css?v=5.9.76-atelier-workspace-1',
+        # The signed-out shell and authenticated workspace share the small
+        # navigation/view frame; private data still waits for authentication.
+        '/crump-vision-shell-1.0.css?v=5.9.76-premium-workspace-1',
         '/crump-vision-chats-1.0.css?v=5.9.76-atelier-workspace-1',
         '/crump-vision-projects-1.0.css?v=5.9.76-project-resume-1',
         '/crump-vision-library-1.0.css?v=5.9.76-atelier-workspace-1',
-        '/crump-vision-studios-1.0.css?v=5.9.76-atelier-workspace-1',
+        '/crump-vision-studios-1.0.css?v=5.9.76-premium-workspace-1',
     ]
     assert scripts == [
         '/telemetry-config.js?v=5.9.76',
         '/crump-vision-demo-1.0.js?v=5.9.76-atelier-workspace-1',
-        '/runtime-body-v1.js?v=5.9.76-login-recovery-visible-1',
+        '/runtime-body-v1.js?v=5.9.76-premium-workspace-1',
         '/home-document-entry.js?v=5.9.76-home-document-entry-1',
-        '/crump-vision-shell-1.0.js?v=5.9.76-atelier-workspace-1',
+        '/crump-vision-shell-1.0.js?v=5.9.76-premium-workspace-1',
         '/crump-vision-chats-1.0.js?v=5.9.76-atelier-workspace-1',
         '/crump-vision-projects-1.0.js?v=5.9.76-project-resume-owner-boundary-1',
         '/crump-vision-library-1.0.js?v=5.9.76-account-owner-boundary-1',
+        '/crump-vision-studios-1.0.js?v=5.9.76-premium-workspace-1',
         '/native-runtime.js',
         '/mobile-bridge.js?v=5.9.76-private-owner-boundary-1',
         '/safe-storage.js',
@@ -59,7 +60,7 @@ def test_workspace_runtime_is_complete_idempotent_and_authentication_gated():
         '/billing.css',
         '/onboarding.css?v=5.9.76-friendly-workspace-1',
         '/conversation.css?v=5.9.76-muse-release-repair-1',
-        '/onboarding.js?v=5.9.76-friendly-workspace-1',
+        '/onboarding.js?v=5.9.76-premium-workspace-1',
         '/scroll-manager.js?v=5.9.76-muse-release-repair-1',
         '/profile-manager.js?v=5.9.76-account-owner-boundary-1',
         '/billing-manager.js?v=5.9.76-private-owner-boundary-1',

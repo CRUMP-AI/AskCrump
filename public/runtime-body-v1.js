@@ -49,7 +49,7 @@ window.CRUMP_CONFIG = Object.freeze({
   ]);
 
   const workspaceScripts = Object.freeze([
-    ['/onboarding.js?v=5.9.76-friendly-workspace-1', 'workspaceonboarding'],
+    ['/onboarding.js?v=5.9.76-premium-workspace-1', 'workspaceonboarding'],
     ['/scroll-manager.js?v=5.9.76-muse-release-repair-1', 'workspacescroll'],
     ['/profile-manager.js?v=5.9.76-account-owner-boundary-1', 'workspaceprofile'],
     ['/billing-manager.js?v=5.9.76-private-owner-boundary-1', 'workspacebilling'],
@@ -73,7 +73,7 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/crump-billing-5.1.js?v=5.9.76-private-owner-boundary-1&workspaceRelease=guest-free-contract-2', 'billing51'],
     ['/crump-5.2.js?v=5.9.76-legacy-attachment-owner-fence-1&workspaceRelease=guest-free-contract-2', 'crump52'],
     ['/crump-5.2.2.js?v=5.9.76-private-owner-boundary-1&workspaceRelease=guest-free-contract-2', 'crump522'],
-    ['/crump-v1-body.js?v=5.9.76-atelier-workspace-1&workspaceRelease=guest-free-contract-2', 'crumpbodyv1'],
+    ['/crump-v1-body.js?v=5.9.76-premium-workspace-1&workspaceRelease=guest-free-contract-2', 'crumpbodyv1'],
     ['/crump-v1-stability.js?v=5.9.76-intelligence-architecture-1', 'crumpv1stability'],
   ]);
 
@@ -82,10 +82,10 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/crump-product-loader.js?v=5.9.76-legacy-project-resume-truth-1&workspaceRelease=guest-free-contract-2', 'crumpproductloader'],
     ['/crump-product-5.3.1.js?v=5.9.76-conversation-action-labels-2', 'crumpproduct531'],
     ['/crump-subscriptions-5.3.2.js?v=5.9.76-private-owner-boundary-1', 'crumpsubscriptions532'],
-    ['/crump-polish-5.6.js?v=5.9.76-friendly-workspace-1', 'crumppolish56'],
+    ['/crump-polish-5.6.js?v=5.9.76-premium-workspace-1', 'crumppolish56'],
     ['/crump-media-save.js?v=5.9.76-library-crud-privacy-1', 'crumpmediasave'],
     ['/crump-library-loader.js?v=5.9.76-account-owner-boundary-1', 'crumplibraryloader'],
-    ['/crump-navigation-5.9.30.js?v=5.9.76-atelier-workspace-1', 'crumpnav5930'],
+    ['/crump-navigation-5.9.30.js?v=5.9.76-premium-workspace-1', 'crumpnav5930'],
     ['/crump-code-loader.js?v=5.9.76-account-owner-boundary-1&workspaceRelease=guest-free-contract-2', 'crumpcodeloader'],
     ['/lifecycle-share.js?v=5.9.76-settings-invite-1', 'lifecycleshare'],
     ['/lifecycle-manager.js?v=5.9.76-lifecycle-idle-send-1', 'lifecyclemanager'],

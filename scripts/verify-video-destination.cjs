@@ -13,29 +13,30 @@ async function inspect(page, selector, expected) {
     body: readFileSync(join(process.cwd(), 'public', 'assets', 'brand', 'crump-mark.png')),
   }));
   await page.goto('http://127.0.0.1:8765/tests/fixtures/navigation-consolidation.html', {waitUntil: 'load'});
+  await page.waitForFunction(() => document.documentElement.dataset.cvShell === 'ready');
 
   const visible = await page.locator(`${selector} [data-cv-destination]`).evaluateAll(buttons => buttons
     .filter(button => !button.hidden && getComputedStyle(button).display !== 'none')
     .map(button => button.dataset.cvDestination));
   assert.deepEqual(visible, expected);
 
-  await page.locator(`${selector} [data-cv-destination="video"]`).click();
+  await page.locator(`${selector} [data-cv-destination="studios"]`).click();
   const direct = await page.evaluate(() => ({
     studioOpen: !document.getElementById('crump53Studio').hidden,
     section: document.getElementById('crump53Sheet').dataset.crump53Section,
     title: document.getElementById('crump53WorkspaceTitle').textContent,
-    active: document.querySelector('[data-cv-destination="video"].is-active')?.dataset.cvDestination || '',
+    active: document.querySelector('[data-cv-destination="studios"].is-active')?.dataset.cvDestination || '',
   }));
-  assert.deepEqual(direct, {studioOpen: true, section: 'video', title: 'Video Studio', active: 'video'});
+  assert.deepEqual(direct, {studioOpen: true, section: 'video', title: 'Video Studio', active: 'studios'});
 
   await page.evaluate(() => document.getElementById('crump53Close').click());
   await page.evaluate(() => window.CrumpNavigation5930.open('create'));
   await page.locator('[data-crump5930-create="video"]').click();
   const createHandoff = await page.evaluate(() => ({
     section: document.getElementById('crump53Sheet').dataset.crump53Section,
-    active: document.querySelector('[data-cv-destination="video"].is-active')?.dataset.cvDestination || '',
+    active: document.querySelector('[data-cv-destination="studios"].is-active')?.dataset.cvDestination || '',
   }));
-  assert.deepEqual(createHandoff, {section: 'video', active: 'video'});
+  assert.deepEqual(createHandoff, {section: 'video', active: 'studios'});
   assert.deepEqual(errors, []);
   return {visible, direct, createHandoff, errors};
 }
@@ -50,17 +51,15 @@ async function inspectTutorial(page) {
     body: readFileSync(join(process.cwd(), 'public', 'assets', 'brand', 'crump-mark.png')),
   }));
   const expectedSteps = [
-    ['Ask', 'Start with what you need.'],
+    ['Home', 'Start with the outcome.'],
+    ['Chats', 'Every conversation, easy to find.'],
     ['Projects', 'Give continuing work a home.'],
-    ['Files', 'Find every useful result.'],
-    ['Library', 'Keep long-form work on its own shelf.'],
-    ['Video', 'Give motion its own studio.'],
-    ['Autonomous', 'Hand off a bounded coding task.'],
-    ['Profile', 'Your account has one clear home.'],
+    ['Library', 'Keep manuscripts organized.'],
+    ['Studios', 'Make visuals in one place.'],
+    ['You', 'Your account has one clear home.'],
   ];
-  const desktopDestinations = ['Ask', 'Projects', 'Files', 'Library', 'Video', 'Autonomous', 'Profile'];
-  const mobileDestinations = ['Ask', 'Projects', 'Library', 'Video', 'More'];
-  const mobileMore = new Set(['Files', 'Autonomous', 'Profile']);
+  const desktopDestinations = ['Home', 'Chats', 'Projects', 'Library', 'Studios', 'You'];
+  const mobileDestinations = ['Home', 'Chats', 'Projects', 'Library', 'Studios'];
   const steps = [];
   for (const [index, [destination, title]] of expectedSteps.entries()) {
     await page.goto('http://127.0.0.1:8765/tests/fixtures/five-destination-tutorial.html', {waitUntil: 'load'});
@@ -87,17 +86,17 @@ async function inspectTutorial(page) {
       mobileCurrent: guide.mobileCurrent,
       action: guide.action,
     }, {
-      progress: `${index + 1} / 7`,
+      progress: `${index + 1} / 6`,
       title,
       desktopDestinations,
       mobileDestinations,
       desktopCurrent: destination,
-      mobileCurrent: mobileMore.has(destination) ? 'More' : destination,
-      action: destination === 'Autonomous' ? 'Open Autonomous Crump →' : `Open ${destination} →`,
+      mobileCurrent: destination === 'You' ? '' : destination,
+      action: `Open ${destination} →`,
     });
-    if (destination === 'Files') {
-      assert.match(guide.description, /home for documents, presentations, images, video exports, and uploads/i);
-      assert.deepEqual(guide.features, ['Preview in the app', 'Download originals', 'Organized by Project']);
+    if (destination === 'Studios') {
+      assert.match(guide.description, /real Image and Video tools/i);
+      assert.deepEqual(guide.features, ['Image creation and editing', 'Video generation', 'Saved results']);
     }
     await page.locator('.tutorial-open-destination').click();
     await page.waitForFunction(expected => document.getElementById('fixtureDestination')?.textContent === expected, destination.toLowerCase());
@@ -117,12 +116,12 @@ async function inspectTutorial(page) {
     // This fixture intentionally has no authenticated coding-provider probe.
     // Autonomous therefore remains fail-closed here; its configured and
     // entitled states are exercised by verify-code-lazy-load.cjs.
-    ['ask', 'projects', 'files', 'library', 'video'],
+    ['home', 'chats', 'projects', 'library', 'studios', 'you'],
   );
   const mobile = await inspect(
     await browser.newPage({viewport: {width: 390, height: 844}}),
     '#cvMobileNav',
-    ['ask', 'projects', 'library', 'video', 'more'],
+    ['home', 'chats', 'projects', 'library', 'studios'],
   );
   const tutorial = await inspectTutorial(await browser.newPage({viewport: {width: 390, height: 844}}));
   await browser.close();

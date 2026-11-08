@@ -43,7 +43,7 @@ async function verify(browser, viewport) {
       ? document.getElementById('cvMobileNav')
       : document.querySelector('.cv-rail');
     const createButton = window.innerWidth <= 1100
-      ? document.querySelector('#cvMobileNav [data-cv-destination="ask"]')
+      ? document.querySelector('#cvMobileNav [data-cv-destination="home"]')
       : document.querySelector('.cv-rail [data-cv-new-conversation]');
     return {
       ariaModal: hub.querySelector('[role="dialog"]')?.getAttribute('aria-modal'),
@@ -75,7 +75,7 @@ async function verify(browser, viewport) {
     assert(opened.navigation.width >= 240);
   }
 
-  await visibleDestination('video').click();
+  await visibleDestination('studios').click();
   await page.waitForFunction(() => (
     document.getElementById('crump5930CreateHub')?.hidden
     && !document.getElementById('crump53Studio')?.hidden
@@ -105,7 +105,7 @@ async function verify(browser, viewport) {
     createHidden: true,
     studioOpen: true,
     section: 'video',
-    active: 'video',
+    active: 'studios',
     focus: 'crump53WorkspaceTitle',
   });
   if (viewport.width <= 1100) {
@@ -113,15 +113,15 @@ async function verify(browser, viewport) {
   }
 
   // Product workspaces stop above the persistent mobile navigation, so the
-  // visible Ask destination remains a direct, reliable way home.
-  await visibleDestination('ask').click();
+  // visible Home destination remains a direct, reliable way home.
+  await visibleDestination('home').click();
   await page.waitForFunction(() => document.getElementById('crump53Studio')?.hidden);
   const returned = await page.evaluate(() => ({
     studioHidden: document.getElementById('crump53Studio').hidden,
     workspaceInert: document.querySelector('.v1-workspace').hasAttribute('inert'),
     active: document.querySelector('[data-cv-destination].is-active')?.dataset.cvDestination,
   }));
-  assert.deepEqual(returned, {studioHidden: true, workspaceInert: false, active: 'ask'});
+  assert.deepEqual(returned, {studioHidden: true, workspaceInert: false, active: 'home'});
 
   let desktopRail = null;
   if (viewport.width > 1100) {

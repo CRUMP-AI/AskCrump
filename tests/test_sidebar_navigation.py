@@ -100,7 +100,7 @@ def test_vision_shell_owns_the_accessible_conversation_drawer_toggle():
     assert "data-cv-drawer-toggle" in shell
     assert 'aria-controls="sidebar"' in shell
     assert "function toggleConversationDrawer(opener)" in shell
-    assert "window.CrumpBodyV1?.toggleConversationLibrary?.()" in shell
+    assert "window.CrumpBodyV1?.toggleConversationLibrary?.({ recordSelection: false })" in shell
     assert "document.getElementById('newChatBtn')" in shell
     assert "if (event.key === 'Escape')" in shell
     assert "syncConversationLibrary: syncLibraryControl" in body
@@ -144,5 +144,5 @@ def test_runtime_and_native_shell_load_the_chats_language_revision():
     native = (ROOT / "scripts" / "build-native.mjs").read_text(encoding="utf-8")
 
     for source in (runtime, native):
-        assert "/crump-v1-body.js?v=5.9.76-atelier-workspace-1" in source
+        assert "/crump-v1-body.js?v=5.9.76-premium-workspace-1" in source
         assert "/crump-navigation-5.2.5.js?v=5.9.76-chats-language-1" in source

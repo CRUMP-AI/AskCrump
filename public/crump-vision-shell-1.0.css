@@ -1,18 +1,18 @@
 /* Crump Vision — application shell (1.0)
  *
- * Product-first rail, five-item mobile nav, and vision stage. Warm graphite,
- * clear system typography, comfortable spacing, and restrained gold.
+ * Product-first rail, five-item mobile nav, and vision stage. Deep graphite,
+ * Georgia display type, Inter body type, restrained gold, and an 8px rhythm.
  */
 
 :root {
-  --cv-bg: #0d1015;
-  --cv-panel: #15191f;
-  --cv-panel-raised: #1a1f26;
+  --cv-bg: #070a0e;
+  --cv-panel: #0f1419;
+  --cv-panel-raised: #151a20;
   --cv-hairline: rgba(255, 255, 255, 0.09);
-  --cv-gold: #dec57e;
-  --cv-deep-gold: #b99a55;
-  --cv-text: #f7f4ec;
-  --cv-muted: #a9afb5;
+  --cv-gold: #d5b971;
+  --cv-deep-gold: #b69855;
+  --cv-text: #f1efe9;
+  --cv-muted: #8a9196;
   --cv-mobile-nav: 72px;
 }
 
@@ -38,8 +38,9 @@
   color: var(--cv-text);
   font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   min-height: 100%;
-  padding: 46px 34px 100px;
+  padding: 48px 32px 96px;
   box-sizing: border-box;
+  overflow-wrap: anywhere;
 }
 
 .cv-wrap {
@@ -47,16 +48,17 @@
      collapsing into a narrow strip. The stage centers this with balanced
      left/right margins. */
   max-width: 1150px;
+  min-width: 0;
   margin: 0 auto;
 }
 
 .cv-headline {
-  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  font-weight: 720;
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 500;
   font-size: clamp(32px, 4.4vw, 48px);
   line-height: 1.04;
   letter-spacing: -0.045em;
-  margin: 0 0 14px;
+  margin: 0 0 16px;
   color: var(--cv-text);
 }
 
@@ -64,15 +66,15 @@
   font-size: 16px;
   line-height: 1.65;
   color: var(--cv-muted);
-  margin: 0 0 44px;
+  margin: 0 0 40px;
   max-width: 60ch;
 }
 
 .cv-card {
   background: var(--cv-panel);
   border: 1px solid var(--cv-hairline);
-  border-radius: 18px;
-  padding: 28px;
+  border-radius: 16px;
+  padding: 24px;
   margin-bottom: 24px;
 }
 
@@ -89,7 +91,7 @@
 }
 
 .cv-card-title {
-  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: Georgia, "Times New Roman", serif;
   font-size: 22px;
   font-weight: 700;
   margin: 0;
@@ -188,8 +190,8 @@
   html[data-cv-shell="ready"] body.crump-v1-body .v1-rail.cv-rail {
     align-items: stretch;
     justify-content: flex-start;
-    padding: 26px 16px 18px;
-    background: #10141a;
+    padding: 24px 16px 16px;
+    background: var(--cv-bg);
     border-right: 1px solid var(--cv-hairline);
   }
 }
@@ -225,7 +227,7 @@
 .cv-rail-nav {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 8px;
 }
 
 .cv-destination {
@@ -381,6 +383,12 @@
     display: none !important;
   }
 
+  /* Chats belongs to the exact five-item bottom navigation once the Vision
+     shell is ready; hide the superseded legacy header trigger. */
+  html[data-cv-shell="ready"] body.crump-v1-body #menuBtn {
+    display: none !important;
+  }
+
   html[data-cv-shell="ready"] body.crump-v1-body .cv-mobile-nav {
     display: grid;
     grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -391,7 +399,9 @@
     z-index: 490;
     min-height: calc(var(--cv-mobile-nav) + env(safe-area-inset-bottom));
     padding: 7px 5px env(safe-area-inset-bottom);
-    background: rgba(14, 17, 22, 0.96);
+    box-sizing: border-box;
+    max-width: 100vw;
+    background: rgba(7, 10, 14, 0.96);
     border-top: 1px solid var(--cv-hairline);
     -webkit-backdrop-filter: blur(20px);
     backdrop-filter: blur(20px);
@@ -432,6 +442,53 @@
 
 .cv-mnav-item.is-active svg { color: var(--cv-gold); }
 .cv-mnav-item small { display: none; }
+
+.cv-mobile-you {
+  display: none;
+}
+
+@media (max-width: 1100px) {
+  html[data-cv-shell="ready"] body.crump-v1-body .cv-mobile-you {
+    position: fixed;
+    top: calc(8px + env(safe-area-inset-top));
+    right: calc(8px + env(safe-area-inset-right));
+    z-index: 495;
+    display: grid;
+    width: 44px;
+    height: 44px;
+    place-items: center;
+    padding: 0;
+    border: 1px solid rgba(213, 185, 113, .28);
+    border-radius: 50%;
+    background: rgba(7, 10, 14, .92);
+    color: var(--cv-muted);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, .24);
+    cursor: pointer;
+  }
+
+  html[data-cv-shell="ready"] body.crump-v1-body .cv-mobile-you > span {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  html[data-cv-shell="ready"] body.crump-v1-body .cv-mobile-you svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  html[data-cv-shell="ready"] body.crump-v1-body .cv-mobile-you:is(:hover,.is-active) {
+    border-color: var(--cv-gold);
+    color: var(--cv-text);
+  }
+
+  html[data-cv-shell="ready"] body.crump-v1-body.crump-v1-keyboard-visible .cv-mobile-you {
+    display: none !important;
+  }
+}
 
 /* Mobile More sheet keeps secondary surfaces discoverable without cramming
    six or seven labels into a phone-width tab bar. */
@@ -529,9 +586,10 @@ html[data-cv-shell="ready"] body.crump-v1-body .v1-workspace {
   inset: 0;
   z-index: 400;
   display: flex;
+  min-width: 0;
   flex-direction: column;
   background:
-    radial-gradient(circle at 86% 4%, rgba(222, 197, 126, .045), transparent 28%),
+    radial-gradient(circle at 86% 4%, rgba(213, 185, 113, .045), transparent 28%),
     var(--cv-bg);
 }
 
@@ -549,6 +607,14 @@ html[data-cv-shell="ready"] body.crump-v1-body .v1-workspace {
 
 /* Fixed mobile nav must never cover card content. */
 @media (max-width: 1100px) {
+  html[data-cv-shell="ready"] body.crump-v1-body #sidebar,
+  html[data-cv-shell="ready"] body.crump-v1-body #sidebarOverlay {
+    top: 0 !important;
+    bottom: calc(68px + env(safe-area-inset-bottom)) !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+
   html[data-cv-shell="ready"] body.crump-v1-body .cv-stage-scroll {
     padding-bottom: calc(var(--cv-mobile-nav) + env(safe-area-inset-bottom) + 28px);
   }
@@ -559,15 +625,16 @@ html[data-cv-shell="ready"] body.crump-v1-body .v1-workspace {
 }
 
 @media (max-width: 680px) {
-  .cv-view { padding: 28px 18px 88px; }
-  .cv-card { padding: 21px; border-radius: 16px; }
-  .cv-sub { margin-bottom: 30px; font-size: 15px; }
+  .cv-view { padding: 32px 16px 88px; }
+  .cv-card { padding: 24px; border-radius: 16px; }
+  .cv-sub { margin-bottom: 32px; font-size: 15px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .cv-destination,
   .cv-mnav-item,
   .cv-rail-utility,
+  .cv-mobile-you,
   .cv-credits,
   .cv-btn {
     transition: none;

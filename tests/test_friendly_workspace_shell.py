@@ -12,7 +12,7 @@ def read(path: str) -> str:
 
 
 def string_array(source: str, name: str) -> list[str]:
-    match = re.search(rf"var {re.escape(name)} = \[([^\]]+)\];", source)
+    match = re.search(rf"var {re.escape(name)} = \[([^\]]*)\];", source)
     assert match, f"missing {name}"
     return re.findall(r"'([^']+)'", match.group(1))
 
@@ -31,68 +31,76 @@ def test_shell_exposes_one_exact_desktop_and_mobile_information_architecture() -
     shell = read("public/crump-vision-shell-1.0.js")
 
     assert string_array(shell, "ORDER") == [
-        "ask",
+        "home",
+        "chats",
         "projects",
-        "files",
         "library",
-        "video",
-        "autonomous",
+        "studios",
+        "you",
     ]
     assert string_array(shell, "MOBILE_ORDER") == [
-        "ask",
+        "home",
+        "chats",
         "projects",
         "library",
-        "video",
-        "more",
+        "studios",
     ]
-    assert string_array(shell, "MORE_DESTINATIONS") == [
-        "files",
-        "autonomous",
-        "profile",
-    ]
-    assert 'class="cv-rail-utility cv-profile-link" data-cv-destination="profile"' in shell
-    assert "var beta = id === 'autonomous' ? '<small>Beta</small>' : '';" in shell
+    assert string_array(shell, "MORE_DESTINATIONS") == []
+    assert 'button.id = \'cvMobileYou\'' in shell
+    assert "'browser'" not in string_array(shell, "ORDER")
 
 
-def test_more_sheet_is_keyboard_accessible_and_restores_focus() -> None:
+def test_chats_drawer_is_keyboard_accessible_and_restores_focus() -> None:
     shell = read("public/crump-vision-shell-1.0.js")
 
-    assert 'aria-haspopup="dialog" aria-controls="cvMoreMenu" aria-expanded="false"' in shell
-    assert 'role="dialog" aria-modal="true" aria-labelledby="cvMoreTitle"' in shell
-    assert "if (event.key === 'Escape')" in shell
-    assert "if (event.key !== 'Tab') return;" in shell
-    assert "if (event.shiftKey && document.activeElement === first)" in shell
-    assert "else if (!event.shiftKey && document.activeElement === last)" in shell
-    assert "moreMenuOpener.focus({ preventScroll: true });" in shell
-    assert "button.setAttribute('aria-expanded', 'true');" in shell
-    assert "button.setAttribute('aria-expanded', 'false');" in shell
-    assert 'class="cv-more-backdrop" data-cv-more-close tabindex="-1"' in shell
+    assert "? ' data-cv-drawer-toggle aria-controls=\"sidebar\" aria-expanded=\"false\"'" in shell
+    assert "if (event.key !== 'Escape' || !conversationDrawerIsOpen()) return;" in shell
+    assert "closeConversationDrawer(true, true);" in shell
+    assert "conversationDrawerOpener = opener || document.activeElement;" in shell
+    assert "opener.focus({ preventScroll: true });" in shell
+    assert "target.focus({ preventScroll: true });" in shell
+    assert "button.setAttribute('aria-expanded', expanded ? 'true' : 'false');" in shell
+    toggle = shell[shell.index("function toggleConversationDrawer(opener)") : shell.index("function startNewConversation()")]
+    assert "track('chats');" in toggle
+    assert "toggleConversationLibrary?.({ recordSelection: false })" in shell
 
 
 def test_public_names_keep_legacy_owners_and_analytics_compatible() -> None:
     shell = read("public/crump-vision-shell-1.0.js")
 
     assert string_object(shell, "NEW_TO_OLD") == {
-        "ask": "ask",
+        "home": "ask",
         "projects": "projects",
         "library": "library",
-        "video": "video",
+        "studios": "video",
+        "you": "you",
+        "files": "projects",
         "autonomous": "code",
-        "profile": "you",
     }
     assert string_object(shell, "ANALYTICS_SOURCE") == {
-        "ask": "ask",
+        "home": "ask",
+        "chats": "chats",
         "projects": "projects",
         "files": "projects",
         "library": "library",
-        "video": "video",
+        "studios": "video",
         "autonomous": "code",
-        "profile": "you",
+        "you": "you",
     }
     assert "window.CrumpProduct53.openFiles();" in shell
     assert "window.CrumpProductLoader.openFiles();" in shell
-    assert "legacy.open(oldId);" in shell
+    assert "legacy.open(oldId, silent ? { recordSelection: false, focus: false } : undefined);" in shell
+    assert "browser: 'browser'" not in shell
     assert "[data-v1-settings-tab=\"profile\"]" in shell
+
+
+def test_compact_shell_has_one_chats_control() -> None:
+    styles = read("public/crump-vision-shell-1.0.css")
+
+    assert 'body.crump-v1-body #menuBtn' in styles
+    assert 'display: none !important;' in styles[
+        styles.index('body.crump-v1-body #menuBtn') : styles.index('body.crump-v1-body #menuBtn') + 180
+    ]
 
 
 def test_files_destination_only_stays_active_while_its_surface_is_visible() -> None:
@@ -106,16 +114,17 @@ def test_files_destination_only_stays_active_while_its_surface_is_visible() -> N
     assert "document.addEventListener('crump:product-view-changed'" in shell
 
 
-def test_presentation_only_views_cannot_replace_real_product_owners() -> None:
+def test_authoritative_home_and_account_views_cannot_be_replaced() -> None:
     shell = read("public/crump-vision-shell-1.0.js")
 
-    assert "sourceKey === 'home' || sourceKey === 'studios' || sourceKey === 'you'" in shell
+    assert "sourceKey === 'ask' || sourceKey === 'home' || sourceKey === 'profile' || sourceKey === 'you'" in shell
     assert "return false;" in shell[
-        shell.index("sourceKey === 'home'") : shell.index("var key = normalizeId(sourceKey)")
+        shell.index("sourceKey === 'ask'") : shell.index("var key = normalizeId(sourceKey)")
     ]
-    assert "create: 'ask'" in shell
+    assert "create: 'home'" in shell
     assert "studios: 'video'" in shell
-    assert "you: 'profile'" in shell
+    assert "you: 'you'" in shell
+    assert "browser: 'browser'" not in shell
 
 
 def test_projects_use_real_api_data_without_a_local_next_steps_store() -> None:

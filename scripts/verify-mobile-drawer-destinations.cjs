@@ -38,16 +38,29 @@ const {chromium} = require('playwright');
       navigation: box('cvMobileNav'),
     };
   });
-  assert.equal(geometry.drawer.bottom, 844);
-  assert.equal(geometry.overlay.bottom, 844);
+  assert.equal(geometry.drawer.bottom, geometry.navigation.top);
+  assert.equal(geometry.overlay.bottom, geometry.navigation.top);
   assert.equal(geometry.navigation.bottom, 844);
   assert(geometry.navigation.height >= 58);
+  assert.equal(await page.locator('#menuBtn').isHidden(), true, 'legacy mobile Chats control must be replaced by the five-tab shell');
 
   // The Atelier shell no longer renders a duplicate close control inside the
   // legacy conversation list.  Compact drawers close through the shell's
   // universal Escape/backdrop interaction instead.
   await page.keyboard.press('Escape');
   await page.waitForFunction(() => !document.getElementById('sidebar')?.classList.contains('active'));
+  await page.evaluate(() => { window.fixtureEvents.analytics = []; });
+  await page.locator('#cvMobileNav [data-cv-destination="chats"]').click();
+  await page.waitForFunction(() => document.getElementById('sidebar')?.classList.contains('active'));
+  const chatsAnalytics = await page.evaluate(() => window.fixtureEvents.analytics);
+  assert.deepEqual(chatsAnalytics, [{
+    eventName: 'NavigationDestinationSelected',
+    eventKey: 'navigation-destination-selected',
+    source: 'chats',
+  }]);
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => !document.getElementById('sidebar')?.classList.contains('active'));
+  await page.evaluate(() => { window.fixtureEvents.analytics = []; });
   await page.locator('#cvMobileNav [data-cv-destination="projects"]').click();
   const projects = await page.evaluate(() => ({
     drawerOpen: document.getElementById('sidebar').classList.contains('active'),
@@ -68,10 +81,61 @@ const {chromium} = require('playwright');
     }],
   });
 
+  await page.evaluate(() => {
+    window.CrumpVision.registerView('projects', {
+      render(host) {
+        host.innerHTML = '<section id="cvDrawerReturnProbe">Projects return probe</section>';
+      },
+    });
+    window.fixtureEvents.analytics = [];
+  });
+  await page.evaluate(() => { window.fixtureEvents.analytics = []; });
+  await page.locator('#cvMobileNav [data-cv-destination="chats"]').click();
+  await page.waitForFunction(() => document.getElementById('sidebar')?.classList.contains('active'));
+  const chatsFromProjects = await page.evaluate(() => ({
+    analytics: window.fixtureEvents.analytics,
+    projectSurfaceHidden: document.getElementById('crump53Studio').hidden,
+    projectStageHidden: document.getElementById('cvStage').hidden,
+  }));
+  assert.deepEqual(chatsFromProjects, {
+    analytics: [{
+      eventName: 'NavigationDestinationSelected',
+      eventKey: 'navigation-destination-selected',
+      source: 'chats',
+    }],
+    projectSurfaceHidden: true,
+    projectStageHidden: true,
+  });
+
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => (
+    !document.getElementById('sidebar')?.classList.contains('active')
+    && window.CrumpVision.current() === 'projects'
+    && document.getElementById('cvStage')?.hidden === false
+  ));
+  const restoredFromChats = await page.evaluate(() => ({
+    current: window.CrumpVision.current(),
+    projectStageHidden: document.getElementById('cvStage').hidden,
+    projectContentRestored: Boolean(document.getElementById('cvDrawerReturnProbe')),
+    projectsActive: document.querySelector('#cvMobileNav [data-cv-destination="projects"]')?.getAttribute('aria-current'),
+    analytics: window.fixtureEvents.analytics,
+  }));
+  assert.deepEqual(restoredFromChats, {
+    current: 'projects',
+    projectStageHidden: false,
+    projectContentRestored: true,
+    projectsActive: 'page',
+    analytics: [{
+      eventName: 'NavigationDestinationSelected',
+      eventKey: 'navigation-destination-selected',
+      source: 'chats',
+    }],
+  });
+
   assert.deepEqual(errors, []);
 
   await browser.close();
-  process.stdout.write(JSON.stringify({geometry, projects, errors}));
+  process.stdout.write(JSON.stringify({geometry, chatsAnalytics, projects, chatsFromProjects, restoredFromChats, errors}));
 })().catch(error => {
   console.error(error);
   process.exit(1);

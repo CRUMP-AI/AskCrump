@@ -43,7 +43,7 @@ def test_conversation_library_control_exposes_and_tracks_its_state():
     assert 'body.crump-v1-body .v1-rail-button[aria-expanded="true"]' in styles
 
 
-def test_conversations_is_a_shell_utility_instead_of_a_competing_destination():
+def test_chats_is_the_single_primary_conversation_destination():
     navigation = read("public/crump-navigation-5.9.30.js")
     shell = read("public/crump-vision-shell-1.0.js")
 
@@ -52,8 +52,8 @@ def test_conversations_is_a_shell_utility_instead_of_a_competing_destination():
     assert "data-cv-drawer-toggle" in shell
     assert "conversationDrawerIsOpen()" in shell
     assert "button.setAttribute('aria-expanded', expanded ? 'true' : 'false')" in shell
-    assert "var ORDER = ['ask', 'projects', 'files', 'library', 'video', 'autonomous'];" in shell
-    assert "'chats'" not in shell.split("var ORDER =", 1)[1].split(";", 1)[0]
+    assert "var ORDER = ['home', 'chats', 'projects', 'library', 'studios', 'you'];" in shell
+    assert "var MOBILE_ORDER = ['home', 'chats', 'projects', 'library', 'studios'];" in shell
 
 
 def test_browser_fixture_uses_the_real_rail_assets_without_network_writes():

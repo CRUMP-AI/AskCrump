@@ -22,11 +22,11 @@ def test_six_destination_navigation_is_final_runtime_layer_and_boot_critical():
 
     assert runtime.index("/crump-library-loader.js") < runtime.index("/crump-navigation-5.9.30.js")
     assert "/crump-library-5.7.js" not in runtime
-    assert "ask-crump-new-body-v1-r281-login-recovery-visible-1" in worker
+    assert "ask-crump-new-body-v1-r282-premium-workspace-1" in worker
     navigation_css = "/crump-navigation-5.9.30.css?v=5.9.76-nav-focus-visibility-1"
     for source in (runtime, worker, native):
         assert navigation_css in source
-    assert "/crump-navigation-5.9.30.js?v=5.9.76-atelier-workspace-1" in runtime
+    assert "/crump-navigation-5.9.30.js?v=5.9.76-premium-workspace-1" in runtime
 
 
 def test_vision_shell_owns_navigation_while_adapter_preserves_destinations():
@@ -189,7 +189,7 @@ def test_navigation_consolidation_fixture_uses_the_production_layers():
     assert '/public/crump-product-5.3.css?v=5.9.76-file-library-window-1' in fixture
     assert '/public/crump-navigation-5.9.30.js' in fixture
     assert '5.9.76-mobile-drawer-destinations-1' in fixture
-    assert '5.9.76-atelier-workspace-1' in fixture
+    assert '5.9.76-premium-workspace-1' in fixture
     assert 'window.fixtureErrors = []' in fixture
     assert "dataset.fixtureErrorCount = '0'" in fixture
     assert 'id="v1OpenPlanBtn"' in fixture
@@ -208,9 +208,9 @@ def test_create_destination_handoff_has_desktop_and_mobile_browser_proof():
     assert "opened.destinationInsideInert, false" in verifier
     assert "opened.overlay.bottom - opened.navigation.top" in verifier
     assert "opened.overlay.left - opened.navigation.right" in verifier
-    assert "await visibleDestination('video').click()" in verifier
+    assert "await visibleDestination('studios').click()" in verifier
     assert "section: 'video'" in verifier
-    assert "await visibleDestination('ask').click()" in verifier
+    assert "await visibleDestination('home').click()" in verifier
     assert "[data-cv-drawer-toggle]" in verifier
     assert "document.body.classList.contains('cv-conversations-open')" in verifier
     assert "await page.keyboard.press('Escape')" in verifier
@@ -223,11 +223,10 @@ def test_tablet_navigation_has_a_complete_destination_and_account_action_journey
     matrix = read("scripts/verify-browser-control-matrix.mjs")
 
     assert "{width: 1024, height: 1366}" in verifier
-    assert "const expectedDestinations = ['ask', 'projects', 'library', 'video', 'more'];" in verifier
-    for destination in ("ask", "projects", "library", "video", "more"):
+    assert "const expectedDestinations = ['home', 'chats', 'projects', 'library', 'studios'];" in verifier
+    for destination in ("home", "chats", "projects", "library", "studios"):
         assert f"clickDestination('{destination}')" in verifier
-    assert "window.CrumpNavigation5930.open('create')" in verifier
-    assert '#cvMoreMenu [data-cv-destination="profile"]' in verifier
+    assert "#cvMobileYou" in verifier
     assert "minimumTouchWidth >= 44" in verifier
     assert "minimumTouchHeight >= 44" in verifier
     assert "documentOverflow, 0" in verifier
