@@ -49,8 +49,8 @@ begin
   );
   select connected_app_private.oauth_operator_target_fingerprint_v1()
     into target_fingerprint;
-  if helper_fingerprint <> '1bce6135686a0d64ec522a9217c9ea0c'
-     or target_fingerprint <> '95612aca01e069376fb82aca32e286e9' then
+  if helper_fingerprint <> '8301bd9a80009d13127f3b0c65361ec4'
+     or target_fingerprint <> '42ca512dbff523dbc0f4f15736854789' then
     raise exception 'connected external reconciliation predecessor drifted'
       using errcode = '55000';
   end if;

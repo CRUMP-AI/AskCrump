@@ -30,7 +30,7 @@ begin
   end if;
   select connected_loop_private.multi_step_target_fingerprint_v1()
     into predecessor_fingerprint;
-  if predecessor_fingerprint <> '911134df6337047466b663f2859e247f' then
+  if predecessor_fingerprint <> 'a63bd463531f048bac9024b17d5823c1' then
     raise exception 'connected cancellation snapshot predecessor drifted: %',
       predecessor_fingerprint using errcode='55000';
   end if;
@@ -837,7 +837,9 @@ grant execute on function public.connected_app_begin_cancel_snapshot_schedule_v1
 
 create or replace function connected_cancel_private.cancel_snapshot_target_fingerprint_v1()
 returns text language sql stable security definer set search_path='' as $fingerprint$
-  select pg_catalog.md5(pg_catalog.string_agg(item,E'\n' order by item))
+  select pg_catalog.md5(pg_catalog.string_agg(
+    item, E'\n' order by item collate pg_catalog."C"
+  ))
   from (
     select pg_catalog.concat_ws('|','schema',namespace_row.nspname,
       pg_catalog.pg_get_userbyid(namespace_row.nspowner),

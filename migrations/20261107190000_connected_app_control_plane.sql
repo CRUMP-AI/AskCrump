@@ -255,7 +255,17 @@ begin
       select pg_catalog.jsonb_build_array(
         'policy', class_row.relname, policy_row.polname,
         policy_row.polpermissive, policy_row.polcmd,
-        policy_row.polroles::text,
+        (
+          select pg_catalog.array_agg(
+            case when policy_role.role_oid = 0 then 'public'::text
+              else pg_catalog.pg_get_userbyid(policy_role.role_oid)::text end
+            order by (case when policy_role.role_oid = 0 then 'public'::text
+              else pg_catalog.pg_get_userbyid(policy_role.role_oid)::text end)
+              collate pg_catalog."C"
+          )::text
+          from pg_catalog.unnest(policy_row.polroles)
+            as policy_role(role_oid)
+        ),
         pg_catalog.pg_get_expr(policy_row.polqual, policy_row.polrelid),
         pg_catalog.pg_get_expr(policy_row.polwithcheck, policy_row.polrelid)
       )
@@ -5744,7 +5754,8 @@ declare
   trigger_oid oid;
   owner_delete_function_oid oid;
 begin
-  select pg_catalog.array_agg(class_row.relname order by class_row.relname)
+  select pg_catalog.array_agg(
+    class_row.relname order by class_row.relname collate pg_catalog."C")
     into found_tables
   from pg_catalog.pg_class as class_row
   join pg_catalog.pg_namespace as namespace_row
@@ -5760,7 +5771,7 @@ begin
     select pg_catalog.array_agg(
       authority.action || '|' || authority.resource || '|'
       || authority.mutates_external_state::text || '|' || authority.approval_class
-      order by authority.action
+      order by authority.action collate pg_catalog."C"
     )
     from connected_app_private.action_authority as authority
   ) is distinct from array[
@@ -5780,7 +5791,8 @@ begin
       using errcode = '55000';
   end if;
 
-  select pg_catalog.array_agg(proc_row.proname order by proc_row.proname)
+  select pg_catalog.array_agg(
+    proc_row.proname order by proc_row.proname collate pg_catalog."C")
     into found_functions
   from pg_catalog.pg_proc as proc_row
   join pg_catalog.pg_namespace as namespace_row

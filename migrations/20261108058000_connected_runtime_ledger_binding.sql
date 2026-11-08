@@ -79,8 +79,9 @@ begin
          and attribute_row.attnum > 0 and not attribute_row.attisdropped),
       (select pg_catalog.string_agg(
          pg_catalog.pg_get_functiondef(proc_row.oid), E'\n'
-         order by proc_row.proname,
+         order by proc_row.proname collate pg_catalog."C",
                   pg_catalog.pg_get_function_identity_arguments(proc_row.oid)
+                    collate pg_catalog."C"
        )
        from pg_catalog.pg_proc as proc_row
        join pg_catalog.pg_namespace as namespace_row
@@ -94,7 +95,7 @@ begin
          )),
       (select pg_catalog.string_agg(
          proc_row.proname || ':' || proc_row.proacl::text,
-         ',' order by proc_row.proname
+         ',' order by proc_row.proname collate pg_catalog."C"
        )
        from pg_catalog.pg_proc as proc_row
        join pg_catalog.pg_namespace as namespace_row

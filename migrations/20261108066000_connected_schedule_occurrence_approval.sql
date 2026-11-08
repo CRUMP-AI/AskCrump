@@ -7,7 +7,10 @@ select pg_catalog.set_config('quote_all_identifiers','off',true);
 -- approval objects it extends plus the exact 065000 reconciliation tail.
 create or replace function pg_temp.connected_schedule_approval_predecessor_fingerprint()
 returns text language sql stable set search_path='' as $fingerprint$
-  select pg_catalog.md5(pg_catalog.string_agg(item.value::text,E'\n' order by item.value::text))
+  select pg_catalog.md5(pg_catalog.string_agg(
+    item.value::text,
+    E'\n' order by item.value::text collate pg_catalog."C"
+  ))
   from (
     select pg_catalog.jsonb_build_array(
       'schema',namespace_row.nspname,pg_catalog.pg_get_userbyid(namespace_row.nspowner),
@@ -131,7 +134,7 @@ begin
      ) is not null then
     select connected_schedule_private.schedule_approval_target_fingerprint_v1()
       into existing_target_fingerprint;
-    if existing_target_fingerprint<>'9982356cca7a3769378917c5bd4d48bc' then
+    if existing_target_fingerprint<>'fd7caa733d4112ade452de4755f39a45' then
       raise exception 'connected schedule approval existing target drifted: %',
         existing_target_fingerprint using errcode='55000';
     end if;
@@ -813,7 +816,10 @@ $fn$;
 
 create or replace function connected_schedule_private.schedule_approval_target_fingerprint_v1()
 returns text language sql stable security definer set search_path='' as $fingerprint$
-  select pg_catalog.md5(pg_catalog.string_agg(item.value::text,E'\n' order by item.value::text))
+  select pg_catalog.md5(pg_catalog.string_agg(
+    item.value::text,
+    E'\n' order by item.value::text collate pg_catalog."C"
+  ))
   from (
     select pg_catalog.jsonb_build_array(
       'relation',namespace_row.nspname,class_row.relname,class_row.relkind,
@@ -973,7 +979,7 @@ begin
   end if;
   select connected_schedule_private.schedule_approval_target_fingerprint_v1()
     into target_fingerprint;
-  if target_fingerprint<>'9982356cca7a3769378917c5bd4d48bc' then
+  if target_fingerprint<>'fd7caa733d4112ade452de4755f39a45' then
     raise exception 'connected schedule approval postflight drifted: %',target_fingerprint
       using errcode='55000';
   end if;

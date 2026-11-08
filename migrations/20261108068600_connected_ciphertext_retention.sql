@@ -431,7 +431,9 @@ grant execute on function public.connected_app_purge_expired_ciphertext_v1(
 
 create or replace function connected_retention_private.retention_target_fingerprint_v1()
 returns text language sql stable security definer set search_path='' as $fingerprint$
-  select pg_catalog.md5(pg_catalog.string_agg(item,E'\n' order by item))
+  select pg_catalog.md5(pg_catalog.string_agg(
+    item, E'\n' order by item collate pg_catalog."C"
+  ))
   from (
     select pg_catalog.concat_ws('|','schema',namespace_row.nspname,
       pg_catalog.pg_get_userbyid(namespace_row.nspowner),

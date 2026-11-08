@@ -38,7 +38,7 @@ begin
                'runtime_readiness_target_fingerprint_v1',
                'runtime_readiness_catalog_fingerprint_v1'))<>1
        or (select pg_catalog.md5(pg_catalog.pg_get_functiondef(proc_row.oid))<>
-                    'ea00734dc01645ca3402fcca70840cf5'
+                    'fd14fc0ab96a67b31ae329f6686b98c4'
                   or pg_catalog.pg_get_userbyid(proc_row.proowner)<>'postgres'
                   or not proc_row.prosecdef or proc_row.provolatile<>'s'
                   or proc_row.proleakproof or proc_row.proretset
@@ -59,7 +59,7 @@ begin
     end if;
     select connected_readiness_private.runtime_readiness_target_fingerprint_v1()
       into observed_target;
-    if observed_target<>'59714dce4c61f8140eddc1a2c8606b70' then
+    if observed_target<>'2e2bde8ec7137a2c5486532f48499f5a' then
       raise exception 'connected approval-effect predecessor drifted: %',
         observed_target using errcode='55000';
     end if;
@@ -91,7 +91,7 @@ begin
              on language_row.oid=proc_row.prolang
            where proc_row.oid=fingerprint_oid)
        or (select pg_catalog.md5(pg_catalog.pg_get_functiondef(proc_row.oid))<>
-                    '0c205a01197b172b8227a2b86a7cd34b'
+                    'b4b16acc52dac4d535742d359bebc632'
                   or pg_catalog.pg_get_userbyid(proc_row.proowner)<>'postgres'
                   or not proc_row.prosecdef or proc_row.provolatile<>'s'
                   or proc_row.proleakproof or proc_row.proretset
@@ -115,7 +115,7 @@ begin
     select connected_readiness_private.runtime_readiness_target_fingerprint_v1()
       into observed_target;
     if observed_catalog is distinct from observed_target
-       or observed_target<>'cf569b2cb16003caaa4fed92e94c0057' then
+       or observed_target<>'c339945387929ed735b591d967f536dc' then
       raise exception 'connected approval-effect target drifted: %, %',
         observed_catalog,observed_target using errcode='55000';
     end if;
@@ -404,7 +404,7 @@ begin
            on language_row.oid=proc_row.prolang
          where proc_row.oid=fingerprint_oid)
      or (select pg_catalog.md5(pg_catalog.pg_get_functiondef(proc_row.oid))<>
-                  '0c205a01197b172b8227a2b86a7cd34b'
+                  'b4b16acc52dac4d535742d359bebc632'
                 or pg_catalog.pg_get_userbyid(proc_row.proowner)<>'postgres'
                 or not proc_row.prosecdef or proc_row.provolatile<>'s'
                 or proc_row.proleakproof or proc_row.proretset
@@ -425,7 +425,16 @@ begin
      or pg_catalog.has_function_privilege(
        'service_role',catalog_fingerprint_oid,'execute') then
     raise exception 'connected approval-effect function authority drifted'
-      using errcode='55000';
+      using errcode='55000',
+        detail=pg_catalog.format(
+          'target_helper=%s catalog_helper=%s',
+          (select pg_catalog.md5(pg_catalog.pg_get_functiondef(proc_row.oid))
+           from pg_catalog.pg_proc as proc_row
+           where proc_row.oid=fingerprint_oid),
+          (select pg_catalog.md5(pg_catalog.pg_get_functiondef(proc_row.oid))
+           from pg_catalog.pg_proc as proc_row
+           where proc_row.oid=catalog_fingerprint_oid)
+        );
   end if;
   if pg_catalog.has_function_privilege(
        'service_role',create_approval_oid,'execute')
@@ -471,7 +480,7 @@ begin
   select connected_readiness_private.runtime_readiness_target_fingerprint_v1()
     into observed_target;
   if observed_catalog is distinct from observed_target
-     or observed_target<>'cf569b2cb16003caaa4fed92e94c0057' then
+     or observed_target<>'c339945387929ed735b591d967f536dc' then
     raise exception 'connected approval-effect postflight drifted: %, %',
       observed_catalog,observed_target using errcode='55000';
   end if;

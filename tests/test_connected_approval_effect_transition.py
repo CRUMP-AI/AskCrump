@@ -105,9 +105,9 @@ def test_fingerprint_helpers_are_source_attested_before_reapply_mutation() -> No
     preflight = normalized[: normalized.index("create or replace function public.")]
     assert "pg_catalog.pg_get_functiondef" in preflight
     for definition_md5 in (
-        "ea00734dc01645ca3402fcca70840cf5",
+        "fd14fc0ab96a67b31ae329f6686b98c4",
         "81801876eb127d22939d77fb2e2fa0e0",
-        "0c205a01197b172b8227a2b86a7cd34b",
+        "b4b16acc52dac4d535742d359bebc632",
     ):
         assert definition_md5 in preflight
         assert definition_md5 in normalized

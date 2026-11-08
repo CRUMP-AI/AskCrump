@@ -6,7 +6,10 @@ select pg_catalog.set_config('quote_all_identifiers', 'off', true);
 create or replace function pg_temp.connected_cleanup_target_fingerprint()
 returns text language sql stable set search_path = '' as $fingerprint$
   select pg_catalog.md5(
-    pg_catalog.string_agg(item.value::text, E'\n' order by item.value::text)
+    pg_catalog.string_agg(
+      item.value::text,
+      E'\n' order by item.value::text collate pg_catalog."C"
+    )
   )
   from (
     select pg_catalog.jsonb_build_array(
@@ -158,12 +161,22 @@ returns text language sql stable set search_path = '' as $fingerprint$
 
     union all
     select pg_catalog.jsonb_build_array(
-      'policy', schemaname, tablename, policyname, permissive, roles::text,
-      cmd, coalesce(qual, ''), coalesce(with_check, '')
+      'policy', policy_row.schemaname, policy_row.tablename,
+      policy_row.policyname, policy_row.permissive,
+      (
+        select pg_catalog.array_agg(
+          policy_role.role_name
+          order by policy_role.role_name collate pg_catalog."C"
+        )::text
+        from pg_catalog.unnest(policy_row.roles::text[])
+          as policy_role(role_name)
+      ),
+      policy_row.cmd, coalesce(policy_row.qual, ''),
+      coalesce(policy_row.with_check, '')
     )
-    from pg_catalog.pg_policies
-    where schemaname = 'connected_app_private'
-      and tablename in (
+    from pg_catalog.pg_policies as policy_row
+    where policy_row.schemaname = 'connected_app_private'
+      and policy_row.tablename in (
         'credential_refresh_lease_history', 'provider_grant_cleanup_jobs',
         'provider_grant_cleanup_claim_history'
       )

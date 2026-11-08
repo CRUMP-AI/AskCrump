@@ -14,7 +14,7 @@ def test_snapshot_migration_is_forward_exact_and_predecessor_pinned():
     assert "__PREDECESSOR_FINGERPRINT__" not in SQL
     assert "__TARGET_FINGERPRINT__" not in SQL
     assert "connected_loop_private.multi_step_target_fingerprint_v1()" in SQL
-    assert "911134df6337047466b663f2859e247f" in SQL
+    assert "a63bd463531f048bac9024b17d5823c1" in SQL
     assert SQL.count("755dbb418bb4cef4d102f1587ee1c99a") == 2
     assert "using errcode='55000'" in SQL
     assert "begin;" in SQL

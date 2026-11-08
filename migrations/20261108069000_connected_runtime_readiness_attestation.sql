@@ -33,7 +33,7 @@ begin
         and proc_row.prorettype='pg_catalog.text'::pg_catalog.regtype
         and proc_row.pronargs=0
         and pg_catalog.md5(proc_row.prosrc)=
-          'd9060896d2e302e6476949dac7702125'
+          '5d020cc249d289d47beeaa2242bf2f5c'
         and proc_row.proconfig=
           array['search_path=""']::pg_catalog.text[]
         and proc_row.proacl::text='{postgres=X/postgres}'
@@ -45,7 +45,7 @@ begin
     end if;
     select connected_readiness_private.runtime_readiness_target_fingerprint_v1()
       into existing_target_fingerprint;
-    if existing_target_fingerprint<>'59714dce4c61f8140eddc1a2c8606b70' then
+    if existing_target_fingerprint<>'2e2bde8ec7137a2c5486532f48499f5a' then
       raise exception 'connected runtime readiness target drifted: %',
         existing_target_fingerprint using errcode='55000';
     end if;
@@ -58,7 +58,7 @@ begin
     end if;
     select connected_multi_account_private.multi_account_target_fingerprint_v1()
       into predecessor_fingerprint;
-    if predecessor_fingerprint<>'bf14a3339a25e4e2cdab12ef18523599' then
+    if predecessor_fingerprint<>'4f6897dd07f0dca3fda59946c9f5c295' then
       raise exception 'connected runtime readiness predecessor drifted: %',
         predecessor_fingerprint using errcode='55000';
     end if;
@@ -1653,7 +1653,9 @@ grant execute on function public.connected_app_release_preview_retire_connection
 create or replace function
   connected_readiness_private.runtime_readiness_target_fingerprint_v1()
 returns text language sql stable security definer set search_path='' as $fingerprint$
-  select pg_catalog.md5(pg_catalog.string_agg(item::text,E'\n' order by item::text))
+  select pg_catalog.md5(pg_catalog.string_agg(
+    item::text, E'\n' order by item::text collate pg_catalog."C"
+  ))
   from (
     select pg_catalog.jsonb_build_array(
       'schema',namespace_row.nspname,
@@ -1665,7 +1667,8 @@ returns text language sql stable security definer set search_path='' as $fingerp
     union all
     select pg_catalog.jsonb_build_array(
       'relation',namespace_row.nspname,class_row.relname,class_row.relkind,
-      class_row.relpersistence,class_row.relam,class_row.reltablespace,
+      class_row.relpersistence,coalesce(relation_access_method.amname,''),
+      coalesce(relation_tablespace.spcname,''),
       class_row.relrowsecurity,class_row.relforcerowsecurity,
       class_row.relreplident,class_row.relispopulated,class_row.relispartition,
       pg_catalog.pg_get_userbyid(class_row.relowner),
@@ -1676,6 +1679,10 @@ returns text language sql stable security definer set search_path='' as $fingerp
     from pg_catalog.pg_class as class_row
     join pg_catalog.pg_namespace as namespace_row
       on namespace_row.oid=class_row.relnamespace
+    left join pg_catalog.pg_am as relation_access_method
+      on relation_access_method.oid=class_row.relam
+    left join pg_catalog.pg_tablespace as relation_tablespace
+      on relation_tablespace.oid=class_row.reltablespace
     where namespace_row.nspname like 'connected\_%\_private' escape '\'
       and class_row.relkind in ('r','p','S','v','m','f')
     union all
@@ -1740,7 +1747,8 @@ returns text language sql stable security definer set search_path='' as $fingerp
       attribute_row.attstattarget,attribute_row.atthasmissing,
       coalesce(attribute_row.attmissingval::text,''),
       attribute_row.attinhcount,attribute_row.attislocal,
-      attribute_row.attcollation,
+      coalesce(collation_namespace.nspname || '.','')
+        || coalesce(collation_row.collname,''),
       coalesce(attribute_row.attoptions::text,''),
       coalesce(pg_catalog.pg_get_expr(default_row.adbin,default_row.adrelid),''),
       coalesce(attribute_row.attacl::text,''),
@@ -1752,6 +1760,10 @@ returns text language sql stable security definer set search_path='' as $fingerp
     left join pg_catalog.pg_attrdef as default_row
       on default_row.adrelid=attribute_row.attrelid
       and default_row.adnum=attribute_row.attnum
+    left join pg_catalog.pg_collation as collation_row
+      on collation_row.oid=attribute_row.attcollation
+    left join pg_catalog.pg_namespace as collation_namespace
+      on collation_namespace.oid=collation_row.collnamespace
     where namespace_row.nspname like 'connected\_%\_private' escape '\'
       and attribute_row.attnum>0 and not attribute_row.attisdropped
     union all
@@ -1768,7 +1780,8 @@ returns text language sql stable security definer set search_path='' as $fingerp
     union all
     select pg_catalog.jsonb_build_array(
       'index',namespace_row.nspname,class_row.relname,index_class.relname,
-      index_class.relpersistence,index_class.relam,index_class.reltablespace,
+      index_class.relpersistence,coalesce(index_access_method.amname,''),
+      coalesce(index_tablespace.spcname,''),
       coalesce(index_class.reloptions::text,''),
       pg_catalog.pg_get_userbyid(index_class.relowner),
       coalesce(index_class.relacl::text,''),
@@ -1778,7 +1791,32 @@ returns text language sql stable security definer set search_path='' as $fingerp
       index_row.indcheckxmin,index_row.indisready,index_row.indislive,
       index_row.indisreplident,index_row.indnkeyatts,index_row.indnatts,
       index_row.indnullsnotdistinct,index_row.indkey::text,
-      index_row.indcollation::text,index_row.indclass::text,
+      (
+        select pg_catalog.array_agg(
+          coalesce(index_collation_namespace.nspname || '.','')
+            || coalesce(index_collation_row.collname,'')
+          order by index_collation.position
+        )::text
+        from pg_catalog.unnest(index_row.indcollation::oid[])
+          with ordinality as index_collation(collation_oid,position)
+        left join pg_catalog.pg_collation as index_collation_row
+          on index_collation_row.oid=index_collation.collation_oid
+        left join pg_catalog.pg_namespace as index_collation_namespace
+          on index_collation_namespace.oid=index_collation_row.collnamespace
+      ),
+      (
+        select pg_catalog.array_agg(
+          coalesce(index_opclass_namespace.nspname || '.','')
+            || coalesce(index_opclass_row.opcname,'')
+          order by index_opclass.position
+        )::text
+        from pg_catalog.unnest(index_row.indclass::oid[])
+          with ordinality as index_opclass(opclass_oid,position)
+        left join pg_catalog.pg_opclass as index_opclass_row
+          on index_opclass_row.oid=index_opclass.opclass_oid
+        left join pg_catalog.pg_namespace as index_opclass_namespace
+          on index_opclass_namespace.oid=index_opclass_row.opcnamespace
+      ),
       index_row.indoption::text,
       pg_catalog.pg_get_indexdef(index_row.indexrelid))
     from pg_catalog.pg_index as index_row
@@ -1786,6 +1824,10 @@ returns text language sql stable security definer set search_path='' as $fingerp
     join pg_catalog.pg_class as index_class on index_class.oid=index_row.indexrelid
     join pg_catalog.pg_namespace as namespace_row
       on namespace_row.oid=class_row.relnamespace
+    left join pg_catalog.pg_am as index_access_method
+      on index_access_method.oid=index_class.relam
+    left join pg_catalog.pg_tablespace as index_tablespace
+      on index_tablespace.oid=index_class.reltablespace
     where namespace_row.nspname like 'connected\_%\_private' escape '\'
     union all
     select pg_catalog.jsonb_build_array(
@@ -1826,7 +1868,11 @@ returns text language sql stable security definer set search_path='' as $fingerp
     select pg_catalog.jsonb_build_array(
       'type',namespace_row.nspname,type_row.typname,type_row.typtype,
       type_row.typcategory,type_row.typispreferred,type_row.typnotnull,
-      type_row.typbasetype,type_row.typtypmod,type_row.typcollation,
+      case when type_row.typbasetype=0 then ''
+        else pg_catalog.format_type(type_row.typbasetype,type_row.typtypmod) end,
+      type_row.typtypmod,
+      coalesce(type_collation_namespace.nspname || '.','')
+        || coalesce(type_collation_row.collname,''),
       coalesce(type_row.typdefaultbin::text,''),coalesce(type_row.typdefault,''),
       pg_catalog.pg_get_userbyid(type_row.typowner),
       coalesce(type_row.typacl::text,''),
@@ -1834,6 +1880,10 @@ returns text language sql stable security definer set search_path='' as $fingerp
     from pg_catalog.pg_type as type_row
     join pg_catalog.pg_namespace as namespace_row
       on namespace_row.oid=type_row.typnamespace
+    left join pg_catalog.pg_collation as type_collation_row
+      on type_collation_row.oid=type_row.typcollation
+    left join pg_catalog.pg_namespace as type_collation_namespace
+      on type_collation_namespace.oid=type_collation_row.collnamespace
     where namespace_row.nspname like 'connected\_%\_private' escape '\'
     union all
     select pg_catalog.jsonb_build_array(
@@ -1847,7 +1897,15 @@ returns text language sql stable security definer set search_path='' as $fingerp
     union all
     select pg_catalog.jsonb_build_array(
       'policy',policy_row.schemaname,policy_row.tablename,
-      policy_row.policyname,policy_row.permissive,policy_row.roles::text,
+      policy_row.policyname,policy_row.permissive,
+      (
+        select pg_catalog.array_agg(
+          policy_role.role_name
+          order by policy_role.role_name collate pg_catalog."C"
+        )::text
+        from pg_catalog.unnest(policy_row.roles::text[])
+          as policy_role(role_name)
+      ),
       policy_row.cmd,coalesce(policy_row.qual,''),
       coalesce(policy_row.with_check,''))
     from pg_catalog.pg_policies as policy_row
@@ -1966,7 +2024,7 @@ declare
 begin
   select connected_readiness_private.runtime_readiness_target_fingerprint_v1()
     into target_fingerprint;
-  if target_fingerprint<>'59714dce4c61f8140eddc1a2c8606b70' then
+  if target_fingerprint<>'2e2bde8ec7137a2c5486532f48499f5a' then
     raise exception 'connected runtime readiness postflight drifted: %',
       target_fingerprint using errcode='55000';
   end if;

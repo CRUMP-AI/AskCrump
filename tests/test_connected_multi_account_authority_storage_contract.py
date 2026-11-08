@@ -64,7 +64,7 @@ def test_migration_is_exact_predecessor_and_exact_target_guarded() -> None:
 
 
 def test_fresh_stack_oauth_bridge_predecessor_pin_is_reproducible() -> None:
-    assert "19213a47c265e0d80bc06a4dfbdd18f8" in OAUTH_BRIDGE
+    assert "aea97e8570dd3521ca7dc9da4476a321" in OAUTH_BRIDGE
     assert "59771080b2eddba748998c7ba3ba30fc" not in OAUTH_BRIDGE
 
 
@@ -82,6 +82,9 @@ def test_target_attests_acl_rls_search_path_owner_and_hidden_objects() -> None:
     assert "from public,anon,authenticated" in SQL
     assert "to service_role" in SQL
     assert "has_schema_privilege" in SQL
+    assert "policy_row.polroles::text" not in SQL
+    assert "from pg_catalog.unnest(policy_row.polroles)" in SQL
+    assert 'collate pg_catalog."C"' in SQL
 
 
 def test_postgres_gate_covers_both_winner_orders_and_no_repair_drifts() -> None:

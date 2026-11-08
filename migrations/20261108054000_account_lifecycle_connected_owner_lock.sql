@@ -57,7 +57,9 @@ begin
   select pg_catalog.array_agg(
     function_row.proname || '(' || pg_catalog.pg_get_function_identity_arguments(function_row.oid) || ')|' ||
     pg_catalog.md5(function_row.prosrc)
-    order by function_row.proname, pg_catalog.pg_get_function_identity_arguments(function_row.oid)
+    order by function_row.proname collate pg_catalog."C",
+      pg_catalog.pg_get_function_identity_arguments(function_row.oid)
+        collate pg_catalog."C"
   ) into observed
   from pg_catalog.pg_proc as function_row
   join pg_catalog.pg_namespace as namespace_row on namespace_row.oid = function_row.pronamespace
@@ -96,8 +98,9 @@ begin
     function_row.proname || '(' ||
     pg_catalog.pg_get_function_identity_arguments(function_row.oid) || ')|' ||
     pg_catalog.pg_get_function_result(function_row.oid)
-    order by function_row.proname,
+    order by function_row.proname collate pg_catalog."C",
       pg_catalog.pg_get_function_identity_arguments(function_row.oid)
+        collate pg_catalog."C"
   ) into observed_results
   from pg_catalog.pg_proc as function_row
   join pg_catalog.pg_namespace as namespace_row
@@ -1317,8 +1320,9 @@ begin
     function_row.proname || '(' ||
     pg_catalog.pg_get_function_identity_arguments(function_row.oid) || ')|' ||
     pg_catalog.md5(function_row.prosrc)
-    order by function_row.proname,
+    order by function_row.proname collate pg_catalog."C",
       pg_catalog.pg_get_function_identity_arguments(function_row.oid)
+        collate pg_catalog."C"
   ) into observed
   from pg_catalog.pg_proc as function_row
   join pg_catalog.pg_namespace as namespace_row
@@ -1348,8 +1352,9 @@ begin
     function_row.proname || '(' ||
     pg_catalog.pg_get_function_identity_arguments(function_row.oid) || ')|' ||
     pg_catalog.pg_get_function_result(function_row.oid)
-    order by function_row.proname,
+    order by function_row.proname collate pg_catalog."C",
       pg_catalog.pg_get_function_identity_arguments(function_row.oid)
+        collate pg_catalog."C"
   ) into observed_results
   from pg_catalog.pg_proc as function_row
   join pg_catalog.pg_namespace as namespace_row

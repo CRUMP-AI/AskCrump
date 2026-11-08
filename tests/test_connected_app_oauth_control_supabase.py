@@ -369,6 +369,11 @@ def test_operator_bridge_migration_is_private_hash_only_and_service_role_scoped(
         "relpersistence",
         "attacl",
         "indisvalid",
+        'collate pg_catalog."c"',
+        "from pg_catalog.unnest(policy_row.polroles)",
+        "pg_catalog.pg_am",
+        "pg_catalog.pg_tablespace",
+        "pg_catalog.pg_opclass",
         "force row level security",
         "to service_role",
         "set search_path = ''",
@@ -378,3 +383,6 @@ def test_operator_bridge_migration_is_private_hash_only_and_service_role_scoped(
     assert "refresh_token" not in folded
     assert "access_token" not in folded
     assert "pkce_verifier" not in folded
+    assert "policy_row.polroles," not in folded
+    assert "index_link.indcollation::text" not in folded
+    assert "index_link.indclass::text" not in folded

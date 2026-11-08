@@ -19,7 +19,7 @@ as $fingerprint$
         pg_catalog.pg_get_userbyid(namespace_row.nspowner),
         namespace_row.nspacl::text,
         pg_catalog.obj_description(namespace_row.oid, 'pg_namespace')
-      ) order by namespace_row.nspname)
+      ) order by namespace_row.nspname collate pg_catalog."C")
       from pg_catalog.pg_namespace namespace_row
       where namespace_row.nspname in (
         'connected_app_private', 'connected_plan_private'
@@ -28,7 +28,8 @@ as $fingerprint$
     'relations', (
       select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_array(
         namespace_row.nspname, class_row.relname, class_row.relkind,
-        class_row.relpersistence, class_row.relam, class_row.reltablespace,
+        class_row.relpersistence, coalesce(relation_access_method.amname, ''),
+        coalesce(relation_tablespace.spcname, ''),
         class_row.relreplident, class_row.reloptions,
         pg_catalog.pg_get_userbyid(class_row.relowner),
         class_row.relrowsecurity, class_row.relforcerowsecurity,
@@ -36,10 +37,15 @@ as $fingerprint$
         case when class_row.relkind in ('v', 'm')
           then pg_catalog.pg_get_viewdef(class_row.oid, true) else null end,
         pg_catalog.obj_description(class_row.oid, 'pg_class')
-      ) order by namespace_row.nspname, class_row.relname)
+      ) order by namespace_row.nspname collate pg_catalog."C",
+        class_row.relname collate pg_catalog."C")
       from pg_catalog.pg_class class_row
       join pg_catalog.pg_namespace namespace_row
         on namespace_row.oid = class_row.relnamespace
+      left join pg_catalog.pg_am relation_access_method
+        on relation_access_method.oid = class_row.relam
+      left join pg_catalog.pg_tablespace relation_tablespace
+        on relation_tablespace.oid = class_row.reltablespace
       where namespace_row.nspname in (
           'connected_app_private', 'connected_plan_private'
         )
@@ -67,12 +73,15 @@ as $fingerprint$
         attribute_row.attstorage, attribute_row.attstattarget,
         attribute_row.atthasmissing, attribute_row.attmissingval,
         attribute_row.attinhcount, attribute_row.attislocal,
-        attribute_row.attacl::text, attribute_row.attcollation,
+        attribute_row.attacl::text,
+        coalesce(collation_namespace.nspname || '.', '')
+          || coalesce(collation_row.collname, ''),
         pg_catalog.pg_get_expr(default_row.adbin, default_row.adrelid),
         pg_catalog.col_description(
           attribute_row.attrelid, attribute_row.attnum
         )
-      ) order by namespace_row.nspname, class_row.relname,
+      ) order by namespace_row.nspname collate pg_catalog."C",
+        class_row.relname collate pg_catalog."C",
         attribute_row.attnum)
       from pg_catalog.pg_attribute attribute_row
       join pg_catalog.pg_class class_row
@@ -82,6 +91,10 @@ as $fingerprint$
       left join pg_catalog.pg_attrdef default_row
         on default_row.adrelid = attribute_row.attrelid
        and default_row.adnum = attribute_row.attnum
+      left join pg_catalog.pg_collation collation_row
+        on collation_row.oid = attribute_row.attcollation
+      left join pg_catalog.pg_namespace collation_namespace
+        on collation_namespace.oid = collation_row.collnamespace
       where namespace_row.nspname in (
           'connected_app_private', 'connected_plan_private'
         )
@@ -107,8 +120,9 @@ as $fingerprint$
         constraint_row.condeferrable, constraint_row.condeferred,
         constraint_row.convalidated, constraint_row.connoinherit,
         pg_catalog.pg_get_constraintdef(constraint_row.oid, true)
-      ) order by namespace_row.nspname, class_row.relname,
-        constraint_row.conname)
+      ) order by namespace_row.nspname collate pg_catalog."C",
+        class_row.relname collate pg_catalog."C",
+        constraint_row.conname collate pg_catalog."C")
       from pg_catalog.pg_constraint constraint_row
       join pg_catalog.pg_class class_row
         on class_row.oid = constraint_row.conrelid
@@ -124,7 +138,8 @@ as $fingerprint$
     'indexes', (
       select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_array(
         namespace_row.nspname, table_row.relname, index_row.relname,
-        index_row.relpersistence, index_row.relam, index_row.reltablespace,
+        index_row.relpersistence, coalesce(index_access_method.amname, ''),
+        coalesce(index_tablespace.spcname, ''),
         index_row.reloptions, pg_catalog.pg_get_userbyid(index_row.relowner),
         index_link.indisunique, index_link.indisprimary,
         index_link.indisexclusion, index_link.indimmediate,
@@ -133,10 +148,37 @@ as $fingerprint$
         index_link.indislive, index_link.indisreplident,
         index_link.indnkeyatts, index_link.indnatts,
         index_link.indnullsnotdistinct, index_link.indkey::text,
-        index_link.indcollation::text, index_link.indclass::text,
+        (
+          select pg_catalog.array_agg(
+            coalesce(index_collation_namespace.nspname || '.', '')
+              || coalesce(index_collation_row.collname, '')
+            order by index_collation.position
+          )::text
+          from pg_catalog.unnest(index_link.indcollation::oid[])
+            with ordinality as index_collation(collation_oid, position)
+          left join pg_catalog.pg_collation index_collation_row
+            on index_collation_row.oid = index_collation.collation_oid
+          left join pg_catalog.pg_namespace index_collation_namespace
+            on index_collation_namespace.oid = index_collation_row.collnamespace
+        ),
+        (
+          select pg_catalog.array_agg(
+            coalesce(index_opclass_namespace.nspname || '.', '')
+              || coalesce(index_opclass_row.opcname, '')
+            order by index_opclass.position
+          )::text
+          from pg_catalog.unnest(index_link.indclass::oid[])
+            with ordinality as index_opclass(opclass_oid, position)
+          left join pg_catalog.pg_opclass index_opclass_row
+            on index_opclass_row.oid = index_opclass.opclass_oid
+          left join pg_catalog.pg_namespace index_opclass_namespace
+            on index_opclass_namespace.oid = index_opclass_row.opcnamespace
+        ),
         index_link.indoption::text,
         pg_catalog.pg_get_indexdef(index_row.oid)
-      ) order by namespace_row.nspname, table_row.relname, index_row.relname)
+      ) order by namespace_row.nspname collate pg_catalog."C",
+        table_row.relname collate pg_catalog."C",
+        index_row.relname collate pg_catalog."C")
       from pg_catalog.pg_index index_link
       join pg_catalog.pg_class table_row
         on table_row.oid = index_link.indrelid
@@ -144,6 +186,10 @@ as $fingerprint$
         on index_row.oid = index_link.indexrelid
       join pg_catalog.pg_namespace namespace_row
         on namespace_row.oid = table_row.relnamespace
+      left join pg_catalog.pg_am index_access_method
+        on index_access_method.oid = index_row.relam
+      left join pg_catalog.pg_tablespace index_tablespace
+        on index_tablespace.oid = index_row.reltablespace
       where namespace_row.nspname in (
           'connected_app_private', 'connected_plan_private'
         )
@@ -162,7 +208,8 @@ as $fingerprint$
           dependency_namespace.nspname || '.' || dependency_table.relname,
           dependency_attribute.attname
         )
-      ) order by namespace_row.nspname, class_row.relname)
+      ) order by namespace_row.nspname collate pg_catalog."C",
+        class_row.relname collate pg_catalog."C")
       from pg_catalog.pg_sequence sequence_row
       join pg_catalog.pg_class class_row on class_row.oid = sequence_row.seqrelid
       join pg_catalog.pg_namespace namespace_row
@@ -186,15 +233,24 @@ as $fingerprint$
       select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_array(
         namespace_row.nspname, type_row.typname, type_row.typtype,
         type_row.typcategory, type_row.typispreferred,
-        type_row.typnotnull, type_row.typbasetype,
-        type_row.typtypmod, type_row.typcollation,
+        type_row.typnotnull,
+        case when type_row.typbasetype = 0 then ''
+          else pg_catalog.format_type(type_row.typbasetype, type_row.typtypmod) end,
+        type_row.typtypmod,
+        coalesce(type_collation_namespace.nspname || '.', '')
+          || coalesce(type_collation_row.collname, ''),
         type_row.typdefaultbin, type_row.typdefault,
         pg_catalog.pg_get_userbyid(type_row.typowner), type_row.typacl::text,
         pg_catalog.obj_description(type_row.oid, 'pg_type')
-      ) order by namespace_row.nspname, type_row.typname)
+      ) order by namespace_row.nspname collate pg_catalog."C",
+        type_row.typname collate pg_catalog."C")
       from pg_catalog.pg_type type_row
       join pg_catalog.pg_namespace namespace_row
         on namespace_row.oid = type_row.typnamespace
+      left join pg_catalog.pg_collation type_collation_row
+        on type_collation_row.oid = type_row.typcollation
+      left join pg_catalog.pg_namespace type_collation_namespace
+        on type_collation_namespace.oid = type_collation_row.collnamespace
       where namespace_row.nspname in (
           'connected_app_private', 'connected_plan_private'
         )
@@ -214,8 +270,10 @@ as $fingerprint$
         proc_row.proconfig, proc_row.proacl::text,
         pg_catalog.obj_description(proc_row.oid, 'pg_proc'),
         pg_catalog.pg_get_functiondef(proc_row.oid)
-      ) order by namespace_row.nspname, proc_row.proname,
-        pg_catalog.pg_get_function_identity_arguments(proc_row.oid))
+      ) order by namespace_row.nspname collate pg_catalog."C",
+        proc_row.proname collate pg_catalog."C",
+        pg_catalog.pg_get_function_identity_arguments(proc_row.oid)
+          collate pg_catalog."C")
       from pg_catalog.pg_proc proc_row
       join pg_catalog.pg_namespace namespace_row
         on namespace_row.oid = proc_row.pronamespace
@@ -244,7 +302,9 @@ as $fingerprint$
         namespace_row.nspname, class_row.relname, trigger_row.tgname,
         trigger_row.tgenabled,
         pg_catalog.pg_get_triggerdef(trigger_row.oid, true)
-      ) order by namespace_row.nspname, class_row.relname, trigger_row.tgname)
+      ) order by namespace_row.nspname collate pg_catalog."C",
+        class_row.relname collate pg_catalog."C",
+        trigger_row.tgname collate pg_catalog."C")
       from pg_catalog.pg_trigger trigger_row
       join pg_catalog.pg_class class_row
         on class_row.oid = trigger_row.tgrelid
@@ -263,7 +323,9 @@ as $fingerprint$
         namespace_row.nspname, class_row.relname, rewrite_row.rulename,
         rewrite_row.ev_enabled, rewrite_row.is_instead,
         pg_catalog.pg_get_ruledef(rewrite_row.oid, true)
-      ) order by namespace_row.nspname, class_row.relname, rewrite_row.rulename)
+      ) order by namespace_row.nspname collate pg_catalog."C",
+        class_row.relname collate pg_catalog."C",
+        rewrite_row.rulename collate pg_catalog."C")
       from pg_catalog.pg_rewrite rewrite_row
       join pg_catalog.pg_class class_row on class_row.oid = rewrite_row.ev_class
       join pg_catalog.pg_namespace namespace_row
@@ -279,10 +341,23 @@ as $fingerprint$
     'policies', (
       select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_array(
         namespace_row.nspname, class_row.relname, policy_row.polname,
-        policy_row.polpermissive, policy_row.polcmd, policy_row.polroles,
+        policy_row.polpermissive, policy_row.polcmd,
+        (
+          select pg_catalog.array_agg(
+            case when policy_role.role_oid = 0 then 'public'::text
+              else pg_catalog.pg_get_userbyid(policy_role.role_oid)::text end
+            order by (case when policy_role.role_oid = 0 then 'public'::text
+              else pg_catalog.pg_get_userbyid(policy_role.role_oid)::text end)
+              collate pg_catalog."C"
+          )
+          from pg_catalog.unnest(policy_row.polroles)
+            as policy_role(role_oid)
+        ),
         pg_catalog.pg_get_expr(policy_row.polqual, policy_row.polrelid),
         pg_catalog.pg_get_expr(policy_row.polwithcheck, policy_row.polrelid)
-      ) order by namespace_row.nspname, class_row.relname, policy_row.polname)
+      ) order by namespace_row.nspname collate pg_catalog."C",
+        class_row.relname collate pg_catalog."C",
+        policy_row.polname collate pg_catalog."C")
       from pg_catalog.pg_policy policy_row
       join pg_catalog.pg_class class_row on class_row.oid = policy_row.polrelid
       join pg_catalog.pg_namespace namespace_row
@@ -298,9 +373,10 @@ as $fingerprint$
       select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_array(
         namespace_row.nspname, pg_catalog.pg_get_userbyid(default_acl.defaclrole),
         default_acl.defaclobjtype, default_acl.defaclacl::text
-      ) order by namespace_row.nspname,
-        pg_catalog.pg_get_userbyid(default_acl.defaclrole),
-        default_acl.defaclobjtype)
+      ) order by namespace_row.nspname collate pg_catalog."C",
+        pg_catalog.pg_get_userbyid(default_acl.defaclrole)
+          collate pg_catalog."C",
+        default_acl.defaclobjtype::text collate pg_catalog."C")
       from pg_catalog.pg_default_acl default_acl
       join pg_catalog.pg_namespace namespace_row
         on namespace_row.oid = default_acl.defaclnamespace
@@ -314,7 +390,7 @@ as $fingerprint$
         role_row.rolcreaterole, role_row.rolcreatedb, role_row.rolcanlogin,
         role_row.rolreplication, role_row.rolbypassrls, role_row.rolconnlimit,
         role_row.rolconfig
-      ) order by role_row.rolname)
+      ) order by role_row.rolname collate pg_catalog."C")
       from pg_catalog.pg_roles role_row
       where role_row.rolname in (
         'postgres', 'service_role', 'authenticated', 'anon', 'authenticator'
@@ -325,7 +401,8 @@ as $fingerprint$
         member_role.rolname, granted_role.rolname,
         membership.admin_option, membership.inherit_option,
         membership.set_option
-      ) order by member_role.rolname, granted_role.rolname)
+      ) order by member_role.rolname collate pg_catalog."C",
+        granted_role.rolname collate pg_catalog."C")
       from pg_catalog.pg_auth_members membership
       join pg_catalog.pg_roles member_role on member_role.oid = membership.member
       join pg_catalog.pg_roles granted_role on granted_role.oid = membership.roleid
@@ -340,7 +417,7 @@ as $fingerprint$
       select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_array(
         authority.action, authority.resource,
         authority.mutates_external_state, authority.approval_class
-      ) order by authority.action)
+      ) order by authority.action collate pg_catalog."C")
       from connected_app_private.action_authority authority
     ),
     'all_table_publications', (
@@ -349,14 +426,15 @@ as $fingerprint$
         publication_row.pubinsert, publication_row.pubupdate,
         publication_row.pubdelete, publication_row.pubtruncate,
         publication_row.pubviaroot
-      ) order by publication_row.pubname)
+      ) order by publication_row.pubname collate pg_catalog."C")
       from pg_catalog.pg_publication publication_row
       where publication_row.puballtables
     ),
     'schema_publications', (
       select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_array(
         publication_row.pubname, namespace_row.nspname
-      ) order by publication_row.pubname, namespace_row.nspname)
+      ) order by publication_row.pubname collate pg_catalog."C",
+        namespace_row.nspname collate pg_catalog."C")
       from pg_catalog.pg_publication_namespace publication_namespace
       join pg_catalog.pg_publication publication_row
         on publication_row.oid = publication_namespace.pnpubid
@@ -369,8 +447,9 @@ as $fingerprint$
     'direct_publications', (
       select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_array(
         publication_row.pubname, namespace_row.nspname, class_row.relname
-      ) order by publication_row.pubname, namespace_row.nspname,
-        class_row.relname)
+      ) order by publication_row.pubname collate pg_catalog."C",
+        namespace_row.nspname collate pg_catalog."C",
+        class_row.relname collate pg_catalog."C")
       from pg_catalog.pg_publication_rel publication_relation
       join pg_catalog.pg_publication publication_row
         on publication_row.oid = publication_relation.prpubid
@@ -407,7 +486,7 @@ begin
 
   predecessor_fingerprint :=
     pg_temp.connected_oauth_operator_predecessor_fingerprint();
-  if predecessor_fingerprint <> '19213a47c265e0d80bc06a4dfbdd18f8' then
+  if predecessor_fingerprint <> 'aea97e8570dd3521ca7dc9da4476a321' then
     raise exception 'connected OAuth operator composed predecessor drifted: %',
       predecessor_fingerprint
       using errcode = '55000';
@@ -478,13 +557,13 @@ begin
     where proc.oid = pg_catalog.to_regprocedure(
       'connected_app_private.oauth_operator_target_fingerprint_v1()'
     );
-    if helper_fingerprint <> '1bce6135686a0d64ec522a9217c9ea0c' then
+    if helper_fingerprint <> '8301bd9a80009d13127f3b0c65361ec4' then
       raise exception 'connected OAuth operator fingerprint helper drifted'
         using errcode = '55000';
     end if;
     select connected_app_private.oauth_operator_target_fingerprint_v1()
       into target_fingerprint;
-    if target_fingerprint <> '95612aca01e069376fb82aca32e286e9' then
+    if target_fingerprint <> '42ca512dbff523dbc0f4f15736854789' then
       raise exception 'connected OAuth operator bridge target drifted'
         using errcode = '55000';
     end if;
@@ -1049,16 +1128,21 @@ as $fn$
     'relations', (
       select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_array(
         class_row.relname, class_row.relkind, class_row.relpersistence,
-        class_row.relreplident, class_row.relam, class_row.reltablespace,
+        class_row.relreplident, coalesce(relation_access_method.amname, ''),
+        coalesce(relation_tablespace.spcname, ''),
         class_row.reloptions,
         pg_catalog.pg_get_userbyid(class_row.relowner),
         class_row.relrowsecurity, class_row.relforcerowsecurity,
         class_row.relacl::text,
         pg_catalog.obj_description(class_row.oid, 'pg_class')
-      ) order by class_row.relname)
+      ) order by class_row.relname collate pg_catalog."C")
       from pg_catalog.pg_class class_row
       join pg_catalog.pg_namespace namespace_row
         on namespace_row.oid = class_row.relnamespace
+      left join pg_catalog.pg_am relation_access_method
+        on relation_access_method.oid = class_row.relam
+      left join pg_catalog.pg_tablespace relation_tablespace
+        on relation_tablespace.oid = class_row.reltablespace
       where namespace_row.nspname = 'connected_app_private'
         and class_row.relname in (
           'oauth_operator_starts', 'oauth_callback_requests'
@@ -1075,14 +1159,16 @@ as $fn$
         attribute_row.atthasmissing, attribute_row.attmissingval,
         attribute_row.attinhcount, attribute_row.attislocal,
         attribute_row.attacl,
-        attribute_row.attcollation,
+        coalesce(collation_namespace.nspname || '.', '')
+          || coalesce(collation_row.collname, ''),
         coalesce(collation_namespace.nspname || '.', '')
           || coalesce(collation_row.collname, ''),
         pg_catalog.pg_get_expr(default_row.adbin, default_row.adrelid),
         pg_catalog.col_description(
           attribute_row.attrelid, attribute_row.attnum
         )
-      ) order by class_row.relname, attribute_row.attnum)
+      ) order by class_row.relname collate pg_catalog."C",
+        attribute_row.attnum)
       from pg_catalog.pg_attribute attribute_row
       join pg_catalog.pg_class class_row
         on class_row.oid = attribute_row.attrelid
@@ -1107,7 +1193,8 @@ as $fn$
         constraint_row.condeferrable, constraint_row.condeferred,
         constraint_row.convalidated, constraint_row.connoinherit,
         pg_catalog.pg_get_constraintdef(constraint_row.oid, true)
-      ) order by class_row.relname, constraint_row.conname)
+      ) order by class_row.relname collate pg_catalog."C",
+        constraint_row.conname collate pg_catalog."C")
       from pg_catalog.pg_constraint constraint_row
       join pg_catalog.pg_class class_row
         on class_row.oid = constraint_row.conrelid
@@ -1122,7 +1209,7 @@ as $fn$
       select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_array(
         table_row.relname, index_row.relname,
         index_row.relpersistence, index_row.reloptions,
-        index_row.reltablespace,
+        coalesce(index_tablespace.spcname, ''),
         pg_catalog.pg_get_userbyid(index_row.relowner),
         index_link.indisunique, index_link.indisprimary,
         index_link.indisexclusion, index_link.indimmediate,
@@ -1131,10 +1218,36 @@ as $fn$
         index_link.indislive, index_link.indisreplident,
         index_link.indnkeyatts, index_link.indnatts,
         index_link.indnullsnotdistinct, index_link.indkey::text,
-        index_link.indcollation::text, index_link.indclass::text,
+        (
+          select pg_catalog.array_agg(
+            coalesce(index_collation_namespace.nspname || '.', '')
+              || coalesce(index_collation_row.collname, '')
+            order by index_collation.position
+          )::text
+          from pg_catalog.unnest(index_link.indcollation::oid[])
+            with ordinality as index_collation(collation_oid, position)
+          left join pg_catalog.pg_collation index_collation_row
+            on index_collation_row.oid = index_collation.collation_oid
+          left join pg_catalog.pg_namespace index_collation_namespace
+            on index_collation_namespace.oid = index_collation_row.collnamespace
+        ),
+        (
+          select pg_catalog.array_agg(
+            coalesce(index_opclass_namespace.nspname || '.', '')
+              || coalesce(index_opclass_row.opcname, '')
+            order by index_opclass.position
+          )::text
+          from pg_catalog.unnest(index_link.indclass::oid[])
+            with ordinality as index_opclass(opclass_oid, position)
+          left join pg_catalog.pg_opclass index_opclass_row
+            on index_opclass_row.oid = index_opclass.opclass_oid
+          left join pg_catalog.pg_namespace index_opclass_namespace
+            on index_opclass_namespace.oid = index_opclass_row.opcnamespace
+        ),
         index_link.indoption::text,
         pg_catalog.pg_get_indexdef(index_row.oid)
-      ) order by table_row.relname, index_row.relname)
+      ) order by table_row.relname collate pg_catalog."C",
+        index_row.relname collate pg_catalog."C")
       from pg_catalog.pg_index index_link
       join pg_catalog.pg_class table_row
         on table_row.oid = index_link.indrelid
@@ -1142,6 +1255,8 @@ as $fn$
         on index_row.oid = index_link.indexrelid
       join pg_catalog.pg_namespace namespace_row
         on namespace_row.oid = table_row.relnamespace
+      left join pg_catalog.pg_tablespace index_tablespace
+        on index_tablespace.oid = index_row.reltablespace
       where namespace_row.nspname = 'connected_app_private'
         and table_row.relname in (
           'oauth_operator_starts', 'oauth_callback_requests'
@@ -1158,8 +1273,9 @@ as $fn$
         language_row.lanname, proc_row.proconfig, proc_row.proacl::text,
         pg_catalog.obj_description(proc_row.oid, 'pg_proc'),
         pg_catalog.pg_get_functiondef(proc_row.oid)
-      ) order by proc_row.proname,
-        pg_catalog.pg_get_function_identity_arguments(proc_row.oid))
+      ) order by proc_row.proname collate pg_catalog."C",
+        pg_catalog.pg_get_function_identity_arguments(proc_row.oid)
+          collate pg_catalog."C")
       from pg_catalog.pg_proc proc_row
       join pg_catalog.pg_namespace namespace_row
         on namespace_row.oid = proc_row.pronamespace
@@ -1179,7 +1295,8 @@ as $fn$
         class_row.relname, trigger_row.tgname,
         trigger_row.tgenabled,
         pg_catalog.pg_get_triggerdef(trigger_row.oid, true)
-      ) order by class_row.relname, trigger_row.tgname)
+      ) order by class_row.relname collate pg_catalog."C",
+        trigger_row.tgname collate pg_catalog."C")
       from pg_catalog.pg_trigger trigger_row
       join pg_catalog.pg_class class_row
         on class_row.oid = trigger_row.tgrelid
@@ -1195,7 +1312,8 @@ as $fn$
         class_row.relname, rewrite_row.rulename,
         rewrite_row.ev_enabled, rewrite_row.is_instead,
         pg_catalog.pg_get_ruledef(rewrite_row.oid, true)
-      ) order by class_row.relname, rewrite_row.rulename)
+      ) order by class_row.relname collate pg_catalog."C",
+        rewrite_row.rulename collate pg_catalog."C")
       from pg_catalog.pg_rewrite rewrite_row
       join pg_catalog.pg_class class_row
         on class_row.oid = rewrite_row.ev_class
@@ -1210,10 +1328,21 @@ as $fn$
       select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_array(
         class_row.relname, policy_row.polname, policy_row.polpermissive,
         policy_row.polcmd,
-        policy_row.polroles,
+        (
+          select pg_catalog.array_agg(
+            case when policy_role.role_oid = 0 then 'public'::text
+              else pg_catalog.pg_get_userbyid(policy_role.role_oid)::text end
+            order by (case when policy_role.role_oid = 0 then 'public'::text
+              else pg_catalog.pg_get_userbyid(policy_role.role_oid)::text end)
+              collate pg_catalog."C"
+          )
+          from pg_catalog.unnest(policy_row.polroles)
+            as policy_role(role_oid)
+        ),
         pg_catalog.pg_get_expr(policy_row.polqual, policy_row.polrelid),
         pg_catalog.pg_get_expr(policy_row.polwithcheck, policy_row.polrelid)
-      ) order by class_row.relname, policy_row.polname)
+      ) order by class_row.relname collate pg_catalog."C",
+        policy_row.polname collate pg_catalog."C")
       from pg_catalog.pg_policy policy_row
       join pg_catalog.pg_class class_row
         on class_row.oid = policy_row.polrelid
@@ -1230,14 +1359,15 @@ as $fn$
         publication_row.pubinsert, publication_row.pubupdate,
         publication_row.pubdelete, publication_row.pubtruncate,
         publication_row.pubviaroot
-      ) order by publication_row.pubname)
+      ) order by publication_row.pubname collate pg_catalog."C")
       from pg_catalog.pg_publication publication_row
       where publication_row.puballtables
     ),
     'schema_publications', (
       select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_array(
         publication_row.pubname, namespace_row.nspname
-      ) order by publication_row.pubname, namespace_row.nspname)
+      ) order by publication_row.pubname collate pg_catalog."C",
+        namespace_row.nspname collate pg_catalog."C")
       from pg_catalog.pg_publication_namespace publication_namespace
       join pg_catalog.pg_publication publication_row
         on publication_row.oid = publication_namespace.pnpubid
@@ -1248,7 +1378,8 @@ as $fn$
     'direct_publications', (
       select pg_catalog.jsonb_agg(pg_catalog.jsonb_build_array(
         publication_row.pubname, namespace_row.nspname, class_row.relname
-      ) order by publication_row.pubname, class_row.relname)
+      ) order by publication_row.pubname collate pg_catalog."C",
+        class_row.relname collate pg_catalog."C")
       from pg_catalog.pg_publication_rel publication_link
       join pg_catalog.pg_publication publication_row
         on publication_row.oid = publication_link.prpubid
@@ -1383,10 +1514,13 @@ begin
   );
   select connected_app_private.oauth_operator_target_fingerprint_v1()
     into target_fingerprint;
-  if helper_fingerprint <> '1bce6135686a0d64ec522a9217c9ea0c'
-     or target_fingerprint <> '95612aca01e069376fb82aca32e286e9' then
+  if helper_fingerprint <> '8301bd9a80009d13127f3b0c65361ec4'
+     or target_fingerprint <> '42ca512dbff523dbc0f4f15736854789' then
     raise exception 'connected OAuth operator bridge exact target failed'
-      using errcode = '55000';
+      using errcode = '55000',
+        detail = pg_catalog.format(
+          'helper=%s target=%s', helper_fingerprint, target_fingerprint
+        );
   end if;
 end;
 $postflight$;

@@ -34,8 +34,10 @@ begin
        pg_catalog.pg_get_userbyid(proc_row.proowner) || '|' ||
        pg_catalog.md5(proc_row.prosrc) || '|' ||
        coalesce(pg_catalog.obj_description(proc_row.oid, 'pg_proc'), ''),
-       E'\n' order by namespace_row.nspname, proc_row.proname,
+       E'\n' order by namespace_row.nspname collate pg_catalog."C",
+         proc_row.proname collate pg_catalog."C",
          pg_catalog.pg_get_function_identity_arguments(proc_row.oid)
+           collate pg_catalog."C"
      )
      from pg_catalog.pg_proc as proc_row
      join pg_catalog.pg_namespace as namespace_row
@@ -58,7 +60,8 @@ begin
        pg_catalog.format_type(attribute_row.atttypid, attribute_row.atttypmod) || '|' ||
        attribute_row.attnotnull::text || '|' ||
        coalesce(pg_catalog.pg_get_expr(default_row.adbin, default_row.adrelid), ''),
-       E'\n' order by attribute_row.attrelid::pg_catalog.regclass::text,
+       E'\n' order by attribute_row.attrelid::pg_catalog.regclass::text
+         collate pg_catalog."C",
          attribute_row.attnum
      )
      from pg_catalog.pg_attribute as attribute_row
@@ -78,8 +81,9 @@ begin
        constraint_row.conrelid::pg_catalog.regclass::text || '|' ||
        constraint_row.conname || '|' ||
        pg_catalog.pg_get_constraintdef(constraint_row.oid, true),
-       E'\n' order by constraint_row.conrelid::pg_catalog.regclass::text,
-         constraint_row.conname
+       E'\n' order by constraint_row.conrelid::pg_catalog.regclass::text
+         collate pg_catalog."C",
+         constraint_row.conname collate pg_catalog."C"
      )
      from pg_catalog.pg_constraint as constraint_row
      where constraint_row.conrelid in (
@@ -94,8 +98,10 @@ begin
     (select pg_catalog.string_agg(
        index_row.indrelid::pg_catalog.regclass::text || '|' ||
        pg_catalog.pg_get_indexdef(index_row.indexrelid),
-       E'\n' order by index_row.indrelid::pg_catalog.regclass::text,
+       E'\n' order by index_row.indrelid::pg_catalog.regclass::text
+         collate pg_catalog."C",
          index_row.indexrelid::pg_catalog.regclass::text
+           collate pg_catalog."C"
      )
      from pg_catalog.pg_index as index_row
      where index_row.indrelid in (
@@ -111,6 +117,7 @@ begin
        class_row.relrowsecurity::text || '|' || class_row.relforcerowsecurity::text || '|' ||
        coalesce(pg_catalog.obj_description(class_row.oid, 'pg_class'), ''),
        E'\n' order by class_row.oid::pg_catalog.regclass::text
+         collate pg_catalog."C"
      )
      from pg_catalog.pg_class as class_row
      where class_row.oid in (
@@ -124,7 +131,9 @@ begin
        policy_row.polcmd::text || '|' || policy_row.polpermissive::text || '|' ||
        coalesce(pg_catalog.pg_get_expr(policy_row.polqual, policy_row.polrelid), '') || '|' ||
        coalesce(pg_catalog.pg_get_expr(policy_row.polwithcheck, policy_row.polrelid), ''),
-       E'\n' order by policy_row.polrelid::pg_catalog.regclass::text, policy_row.polname
+       E'\n' order by policy_row.polrelid::pg_catalog.regclass::text
+         collate pg_catalog."C",
+         policy_row.polname collate pg_catalog."C"
      )
      from pg_catalog.pg_policy as policy_row
      where policy_row.polrelid in (
@@ -136,7 +145,9 @@ begin
     (select pg_catalog.string_agg(
        trigger_row.tgrelid::pg_catalog.regclass::text || '|' ||
        pg_catalog.pg_get_triggerdef(trigger_row.oid, true),
-       E'\n' order by trigger_row.tgrelid::pg_catalog.regclass::text, trigger_row.tgname
+       E'\n' order by trigger_row.tgrelid::pg_catalog.regclass::text
+         collate pg_catalog."C",
+         trigger_row.tgname collate pg_catalog."C"
      )
      from pg_catalog.pg_trigger as trigger_row
      where trigger_row.tgrelid in (
@@ -148,7 +159,9 @@ begin
     (select pg_catalog.string_agg(
        rule_row.ev_class::pg_catalog.regclass::text || '|' ||
        pg_catalog.pg_get_ruledef(rule_row.oid, true),
-       E'\n' order by rule_row.ev_class::pg_catalog.regclass::text, rule_row.rulename
+       E'\n' order by rule_row.ev_class::pg_catalog.regclass::text
+         collate pg_catalog."C",
+         rule_row.rulename collate pg_catalog."C"
      )
      from pg_catalog.pg_rewrite as rule_row
      where rule_row.ev_class in (
@@ -217,8 +230,9 @@ begin
        attribute_row.attname || '|' ||
        pg_catalog.format_type(attribute_row.atttypid, attribute_row.atttypmod) || '|' ||
        attribute_row.attnotnull::text,
-       E'\n' order by attribute_row.attrelid::pg_catalog.regclass::text,
-                     attribute_row.attname
+       E'\n' order by attribute_row.attrelid::pg_catalog.regclass::text
+         collate pg_catalog."C",
+         attribute_row.attname collate pg_catalog."C"
      )
      from pg_catalog.pg_attribute as attribute_row
      where attribute_row.attnum > 0 and not attribute_row.attisdropped
@@ -246,7 +260,7 @@ begin
     (select pg_catalog.string_agg(
        constraint_row.conname || '|' ||
        pg_catalog.pg_get_constraintdef(constraint_row.oid, true),
-       E'\n' order by constraint_row.conname
+       E'\n' order by constraint_row.conname collate pg_catalog."C"
      )
      from pg_catalog.pg_constraint as constraint_row
      where constraint_row.conrelid = pg_catalog.to_regclass(
@@ -262,8 +276,9 @@ begin
               'connected_app_oauth_completion_issued_check')),
     (select pg_catalog.string_agg(
        pg_catalog.pg_get_functiondef(proc_row.oid), E'\n'
-       order by proc_row.proname,
+       order by proc_row.proname collate pg_catalog."C",
          pg_catalog.pg_get_function_identity_arguments(proc_row.oid)
+           collate pg_catalog."C"
      )
      from pg_catalog.pg_proc as proc_row
      join pg_catalog.pg_namespace as namespace_row
@@ -295,8 +310,9 @@ begin
        pg_catalog.pg_get_userbyid(proc_row.proowner) || '|' ||
        coalesce(proc_row.proacl::text, '') || '|' ||
        coalesce(pg_catalog.obj_description(proc_row.oid, 'pg_proc'), ''),
-       E'\n' order by proc_row.proname,
+       E'\n' order by proc_row.proname collate pg_catalog."C",
          pg_catalog.pg_get_function_identity_arguments(proc_row.oid)
+           collate pg_catalog."C"
      )
      from pg_catalog.pg_proc as proc_row
      join pg_catalog.pg_namespace as namespace_row

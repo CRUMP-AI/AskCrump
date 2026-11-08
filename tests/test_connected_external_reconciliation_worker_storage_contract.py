@@ -15,10 +15,10 @@ def test_reconciliation_migration_pins_exact_reviewed_operator_predecessor():
     sql = MIGRATION.read_text(encoding="utf-8")
 
     assert hashlib.sha256(PREDECESSOR.read_bytes()).hexdigest().upper() == (
-        "92F0FB26CEC7D25525DDD6F694A65DD8F42EE7DC2F1E0E6571D8F0FA689E7D9F"
+        "B8377BC051B4160C739812A3A024F35DFA4F33DEFF76AD57FBAA658908BE0013"
     )
-    assert "1bce6135686a0d64ec522a9217c9ea0c" in sql
-    assert "95612aca01e069376fb82aca32e286e9" in sql
+    assert "8301bd9a80009d13127f3b0c65361ec4" in sql
+    assert "42ca512dbff523dbc0f4f15736854789" in sql
     assert "52629ef0c6f07fe7ac8eb4292bfc59aa" in sql
     assert "connected external reconciliation predecessor drifted" in sql
     assert "connected external reconciliation target drifted" in sql

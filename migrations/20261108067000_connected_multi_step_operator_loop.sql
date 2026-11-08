@@ -16,7 +16,7 @@ begin
      ) is not null then
     select connected_loop_private.multi_step_target_fingerprint_v1()
       into existing_target_fingerprint;
-    if existing_target_fingerprint <> '911134df6337047466b663f2859e247f' then
+    if existing_target_fingerprint <> 'a63bd463531f048bac9024b17d5823c1' then
       raise exception 'connected multi-step existing target drifted: %',
         existing_target_fingerprint using errcode='55000';
     end if;
@@ -30,7 +30,7 @@ begin
     end if;
     select connected_schedule_private.schedule_approval_target_fingerprint_v1()
       into predecessor_fingerprint;
-    if predecessor_fingerprint <> '9982356cca7a3769378917c5bd4d48bc' then
+    if predecessor_fingerprint <> 'fd7caa733d4112ade452de4755f39a45' then
       raise exception 'connected multi-step predecessor drifted: %',
         predecessor_fingerprint using errcode='55000';
     end if;
@@ -1660,8 +1660,10 @@ comment on function public.connected_multi_step_resume_approved_v1(
 
 create or replace function connected_loop_private.multi_step_target_fingerprint_v1()
 returns text language sql stable security definer set search_path='' as $fn$
-  select pg_catalog.md5(pg_catalog.string_agg(item.value::text,E'\n'
-    order by item.value::text))
+  select pg_catalog.md5(pg_catalog.string_agg(
+    item.value::text,
+    E'\n' order by item.value::text collate pg_catalog."C"
+  ))
   from (
     select pg_catalog.jsonb_build_array(
       'schema',namespace_row.nspname,
@@ -1835,8 +1837,8 @@ declare
 begin
   select connected_loop_private.multi_step_target_fingerprint_v1()
     into target_fingerprint;
-  if length('911134df6337047466b663f2859e247f')=32
-     and target_fingerprint<>'911134df6337047466b663f2859e247f' then
+  if length('a63bd463531f048bac9024b17d5823c1')=32
+     and target_fingerprint<>'a63bd463531f048bac9024b17d5823c1' then
     raise exception 'connected multi-step target drifted: %',target_fingerprint
       using errcode='55000';
   end if;
@@ -1846,7 +1848,7 @@ begin
     on namespace_row.oid=proc_row.pronamespace
   where namespace_row.nspname='public'
     and proc_row.proname like 'connected_multi_step_%';
-  if length('911134df6337047466b663f2859e247f')=32 and (target_function_count<>18
+  if length('a63bd463531f048bac9024b17d5823c1')=32 and (target_function_count<>18
      or exists(
        select 1 from pg_catalog.pg_class as class_row
        join pg_catalog.pg_namespace as namespace_row

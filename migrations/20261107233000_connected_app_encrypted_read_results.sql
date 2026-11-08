@@ -62,7 +62,7 @@ begin
       (select pg_catalog.string_agg(
          constraint_row.conname || ':'
            || pg_catalog.pg_get_constraintdef(constraint_row.oid, true),
-         ',' order by constraint_row.conname
+         ',' order by constraint_row.conname collate pg_catalog."C"
        )
        from pg_catalog.pg_constraint as constraint_row
        where constraint_row.conrelid in (
@@ -81,7 +81,10 @@ begin
       pg_catalog.pg_get_functiondef(pg_catalog.to_regprocedure(
         'public.connected_app_payload_reference_get_v1(uuid,uuid,uuid,uuid,text,text)'
       )),
-      (select pg_catalog.string_agg(authority.action, ',' order by authority.action)
+      (select pg_catalog.string_agg(
+         authority.action,
+         ',' order by authority.action collate pg_catalog."C"
+       )
        from connected_app_private.action_authority as authority)
     )) into predecessor_fingerprint;
 
@@ -121,13 +124,13 @@ begin
       (select pg_catalog.string_agg(
          constraint_row.conname || ':'
            || pg_catalog.pg_get_constraintdef(constraint_row.oid, true),
-         ',' order by constraint_row.conname
+         ',' order by constraint_row.conname collate pg_catalog."C"
        ) from pg_catalog.pg_constraint as constraint_row
        where constraint_row.conrelid =
          pg_catalog.to_regclass('connected_app_private.read_results')),
       (select pg_catalog.string_agg(
          index_row.relname || ':' || pg_catalog.pg_get_indexdef(index_row.oid),
-         ',' order by index_row.relname
+         ',' order by index_row.relname collate pg_catalog."C"
        ) from pg_catalog.pg_index as index_meta
        join pg_catalog.pg_class as index_row on index_row.oid = index_meta.indexrelid
        where index_meta.indrelid =

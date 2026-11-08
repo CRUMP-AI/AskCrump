@@ -26,7 +26,7 @@ def test_continuation_migration_is_exactly_pinned_and_immutable() -> None:
     assert "continuation target drifted" in sql
     assert "continuation postflight drifted" in sql
     assert hashlib.sha256(MIGRATION.read_bytes()).hexdigest().upper() == (
-        "2C9B0C082E0121EE430824CFC50E1A1AA6EAD50B7579CD37A35D3247E39079D3"
+        "7C6B2DA97050F5D21C6BC60BAE15C448DA839860890CFF18A222EA301B5148C5"
     )
 
 

@@ -72,7 +72,10 @@ begin
   -- directly consumed by this layer while remaining stable under later layers.
   if target_relations <> 0 or target_functions <> 0 or target_triggers <> 0 then
     select pg_catalog.md5(
-      pg_catalog.string_agg(item.value::text, E'\n' order by item.value::text)
+      pg_catalog.string_agg(
+        item.value::text,
+        E'\n' order by item.value::text collate pg_catalog."C"
+      )
     ) into observed_target_fingerprint
     from (
       select pg_catalog.jsonb_build_array(
@@ -348,7 +351,17 @@ begin
       select pg_catalog.jsonb_build_array(
         'policy', class_row.relname, policy_row.polname,
         policy_row.polpermissive, policy_row.polcmd,
-        policy_row.polroles::text,
+        (
+          select pg_catalog.array_agg(
+            case when policy_role.role_oid = 0 then 'public'::text
+              else pg_catalog.pg_get_userbyid(policy_role.role_oid)::text end
+            order by (case when policy_role.role_oid = 0 then 'public'::text
+              else pg_catalog.pg_get_userbyid(policy_role.role_oid)::text end)
+              collate pg_catalog."C"
+          )::text
+          from pg_catalog.unnest(policy_row.polroles)
+            as policy_role(role_oid)
+        ),
         pg_catalog.pg_get_expr(policy_row.polqual, policy_row.polrelid),
         pg_catalog.pg_get_expr(policy_row.polwithcheck, policy_row.polrelid)
       )
@@ -559,14 +572,20 @@ begin
     (select pg_catalog.string_agg(
        constraint_row.conname || ':'
          || pg_catalog.pg_get_constraintdef(constraint_row.oid, true),
-       ',' order by constraint_row.conname
+       ',' order by constraint_row.conname collate pg_catalog."C"
      )
      from pg_catalog.pg_constraint as constraint_row
      where constraint_row.conrelid =
        pg_catalog.to_regclass('connected_app_private.connections')),
-    (select pg_catalog.string_agg(authority.action, ',' order by authority.action)
+    (select pg_catalog.string_agg(
+       authority.action,
+       ',' order by authority.action collate pg_catalog."C"
+     )
      from connected_app_private.action_authority as authority),
-    (select pg_catalog.string_agg(class_row.relname, ',' order by class_row.relname)
+    (select pg_catalog.string_agg(
+       class_row.relname,
+       ',' order by class_row.relname collate pg_catalog."C"
+     )
      from pg_catalog.pg_class as class_row
      join pg_catalog.pg_namespace as namespace_row
        on namespace_row.oid = class_row.relnamespace
@@ -575,8 +594,9 @@ begin
     (select pg_catalog.string_agg(
        proc_row.proname || '('
          || pg_catalog.pg_get_function_identity_arguments(proc_row.oid) || ')',
-       ',' order by proc_row.proname,
+       ',' order by proc_row.proname collate pg_catalog."C",
          pg_catalog.pg_get_function_identity_arguments(proc_row.oid)
+           collate pg_catalog."C"
      )
      from pg_catalog.pg_proc as proc_row
      join pg_catalog.pg_namespace as namespace_row
@@ -585,8 +605,9 @@ begin
     (select pg_catalog.string_agg(
        proc_row.proname || '('
          || pg_catalog.pg_get_function_identity_arguments(proc_row.oid) || ')',
-       ',' order by proc_row.proname,
+       ',' order by proc_row.proname collate pg_catalog."C",
          pg_catalog.pg_get_function_identity_arguments(proc_row.oid)
+           collate pg_catalog."C"
      )
      from pg_catalog.pg_proc as proc_row
      join pg_catalog.pg_namespace as namespace_row
@@ -614,7 +635,7 @@ begin
      )
      or (
        select pg_catalog.array_agg(
-         authority.action order by authority.action
+          authority.action order by authority.action collate pg_catalog."C"
        )
        from connected_app_private.action_authority as authority
      ) is distinct from array[
@@ -1810,7 +1831,8 @@ declare
   relation_row record;
   function_row record;
 begin
-  select pg_catalog.array_agg(class_row.relname order by class_row.relname)
+  select pg_catalog.array_agg(
+    class_row.relname order by class_row.relname collate pg_catalog."C")
   into relation_names
   from pg_catalog.pg_class as class_row
   join pg_catalog.pg_namespace as namespace_row
@@ -1830,7 +1852,8 @@ begin
       using errcode = '55000';
   end if;
 
-  select pg_catalog.array_agg(proc_row.proname order by proc_row.proname)
+  select pg_catalog.array_agg(
+    proc_row.proname order by proc_row.proname collate pg_catalog."C")
   into function_names
   from pg_catalog.pg_proc as proc_row
   join pg_catalog.pg_namespace as namespace_row
@@ -1862,7 +1885,8 @@ begin
       using errcode = '55000';
   end if;
 
-  select pg_catalog.array_agg(proc_row.proname order by proc_row.proname)
+  select pg_catalog.array_agg(
+    proc_row.proname order by proc_row.proname collate pg_catalog."C")
   into private_function_names
   from pg_catalog.pg_proc as proc_row
   join pg_catalog.pg_namespace as namespace_row

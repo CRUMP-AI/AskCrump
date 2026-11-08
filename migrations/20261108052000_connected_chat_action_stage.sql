@@ -30,7 +30,9 @@ begin
     );
 
   if target_any then
-    select pg_catalog.md5(pg_catalog.string_agg(item, E'\n' order by item))
+    select pg_catalog.md5(pg_catalog.string_agg(
+      item, E'\n' order by item collate pg_catalog."C"
+    ))
       into target_fingerprint
     from (
       select pg_catalog.concat_ws(
@@ -165,7 +167,9 @@ begin
       using errcode = '55000';
   end if;
 
-  select pg_catalog.md5(pg_catalog.string_agg(item, E'\n' order by item))
+  select pg_catalog.md5(pg_catalog.string_agg(
+    item, E'\n' order by item collate pg_catalog."C"
+  ))
     into predecessor_turns
   from (
     select pg_catalog.concat_ws('|','rel',class.relkind,class.relrowsecurity,
@@ -208,7 +212,9 @@ begin
       and rule_row.rulename<>'_RETURN'
   ) as manifest;
 
-  select pg_catalog.md5(pg_catalog.string_agg(item, E'\n' order by item))
+  select pg_catalog.md5(pg_catalog.string_agg(
+    item, E'\n' order by item collate pg_catalog."C"
+  ))
     into predecessor_plan
   from (
     select pg_catalog.concat_ws('|','rel',class.relkind,class.relrowsecurity,
@@ -251,7 +257,9 @@ begin
       and rule_row.rulename<>'_RETURN'
   ) as manifest;
 
-  select pg_catalog.md5(pg_catalog.string_agg(item, E'\n' order by item))
+  select pg_catalog.md5(pg_catalog.string_agg(
+    item, E'\n' order by item collate pg_catalog."C"
+  ))
     into predecessor_preparations
   from (
     select pg_catalog.concat_ws('|','rel',class.relkind,class.relrowsecurity,
@@ -294,7 +302,9 @@ begin
       and rule_row.rulename<>'_RETURN'
   ) as manifest;
 
-  select pg_catalog.md5(pg_catalog.string_agg(item,E'\n' order by item))
+  select pg_catalog.md5(pg_catalog.string_agg(
+    item, E'\n' order by item collate pg_catalog."C"
+  ))
     into predecessor_jobs
   from (
     select pg_catalog.concat_ws('|','rel',class.relkind,class.relrowsecurity,
@@ -327,7 +337,9 @@ begin
     where rule_row.ev_class='public.chat_jobs'::pg_catalog.regclass and rule_row.rulename<>'_RETURN'
   ) as manifest;
 
-  select pg_catalog.md5(pg_catalog.string_agg(item,E'\n' order by item))
+  select pg_catalog.md5(pg_catalog.string_agg(
+    item, E'\n' order by item collate pg_catalog."C"
+  ))
     into predecessor_sessions
   from (
     select pg_catalog.concat_ws('|','rel',class.relkind,class.relrowsecurity,
@@ -750,7 +762,9 @@ do $postflight$
 declare
   target_fingerprint text;
 begin
-  select pg_catalog.md5(pg_catalog.string_agg(item,E'\n' order by item))
+  select pg_catalog.md5(pg_catalog.string_agg(
+    item, E'\n' order by item collate pg_catalog."C"
+  ))
     into target_fingerprint
   from (
     select pg_catalog.concat_ws('|','function',procedure.oid::pg_catalog.regprocedure::text,

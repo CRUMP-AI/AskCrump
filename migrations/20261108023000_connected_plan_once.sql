@@ -51,7 +51,8 @@ begin
   with classes as (
     select pg_catalog.jsonb_agg(
       class_row.relkind::text || '|' || class_row.relname
-      order by class_row.relkind::text, class_row.relname
+      order by class_row.relkind::text collate pg_catalog."C",
+        class_row.relname collate pg_catalog."C"
     ) as value
     from pg_catalog.pg_class as class_row
     join pg_catalog.pg_namespace as namespace_row
@@ -63,8 +64,10 @@ begin
       pg_catalog.pg_get_function_identity_arguments(proc_row.oid) || '|' ||
       pg_catalog.md5(proc_row.prosrc) || '|' || proc_row.prosecdef::text || '|' ||
       coalesce(proc_row.proconfig::text, '') || '|' || coalesce(proc_row.proacl::text, '')
-      order by namespace_row.nspname, proc_row.proname,
+      order by namespace_row.nspname collate pg_catalog."C",
+        proc_row.proname collate pg_catalog."C",
         pg_catalog.pg_get_function_identity_arguments(proc_row.oid)
+          collate pg_catalog."C"
     ) as value
     from pg_catalog.pg_proc as proc_row
     join pg_catalog.pg_namespace as namespace_row
@@ -100,19 +103,23 @@ begin
           select pg_catalog.jsonb_agg(
             constraint_row.contype::text || '|' ||
             pg_catalog.pg_get_constraintdef(constraint_row.oid, true)
-            order by constraint_row.contype::text,
+            order by constraint_row.contype::text collate pg_catalog."C",
               pg_catalog.pg_get_constraintdef(constraint_row.oid, true)
+                collate pg_catalog."C"
           )
           from pg_catalog.pg_constraint as constraint_row
           where constraint_row.conrelid = class_row.oid
         ),
         'indexes', (
-          select pg_catalog.jsonb_agg(pg_catalog.pg_get_indexdef(index_row.indexrelid)
-                                     order by pg_catalog.pg_get_indexdef(index_row.indexrelid))
+          select pg_catalog.jsonb_agg(
+            pg_catalog.pg_get_indexdef(index_row.indexrelid)
+            order by pg_catalog.pg_get_indexdef(index_row.indexrelid)
+              collate pg_catalog."C"
+          )
           from pg_catalog.pg_index as index_row
           where index_row.indrelid = class_row.oid
         )
-      ) order by class_row.relname
+      ) order by class_row.relname collate pg_catalog."C"
     ) as value
     from pg_catalog.pg_class as class_row
     join pg_catalog.pg_namespace as namespace_row

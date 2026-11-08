@@ -20,6 +20,8 @@ def test_base_control_plane_reapply_is_attested_before_idempotent_ddl() -> None:
     assert "jsonb_object_agg" in sql
     assert sql.count('order by item.value::text collate pg_catalog."C"') == 2
     assert sql.count('collate pg_catalog."C"') >= 5
+    assert "polroles::text" not in sql
+    assert "from pg_catalog.unnest(policy_row.polroles)" in sql
     assert "partial or drifted connected-app target; refusing repair" in sql
     assert "using errcode = '55000'" in sql
     assert sql.index("observed_target_fingerprint <>") < sql.index(
@@ -67,6 +69,8 @@ def test_exact_target_manifest_covers_security_and_catalog_boundaries() -> None:
         "has_table_privilege",
         "has_function_privilege",
         "pg_has_role",
+        'collate pg_catalog."C"',
+        "pg_catalog.pg_get_userbyid(policy_role.role_oid)",
     )
     for fragment in required_fragments:
         assert fragment in sql

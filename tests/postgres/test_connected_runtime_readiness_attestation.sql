@@ -167,7 +167,7 @@ declare
   recorded jsonb;
   readiness jsonb;
 begin
-  target_fingerprint:='59714dce4c61f8140eddc1a2c8606b70';
+  target_fingerprint:='2e2bde8ec7137a2c5486532f48499f5a';
 
   begin
     perform * from public.connected_app_runtime_readiness_v1(
@@ -385,7 +385,7 @@ begin
     repeat('2',64),repeat('3',64),repeat('a',64),'personal',effects,
     repeat('4',64),
     '4a1b678715584712f96f1ca224f3c3311bc7b62f63fdd0fde7c8fa937786226a',
-    '59714dce4c61f8140eddc1a2c8606b70',
+    '2e2bde8ec7137a2c5486532f48499f5a',
     'aed6387ef7b1e401b9a126138c47efa5ff9313af78b55fd1b43bbda66bd684d6',
     'dpl_87654321dcba',repeat('6',40),repeat('7',64),'gkms1');
   if begun->>'invocation_id'<>invocation_id::text then
@@ -577,7 +577,7 @@ grant execute on function public.connected_app_runtime_readiness_v1(
   text,text,text,text,text,text,text,text,text) to authenticated;
 set local role service_role;
 do $catalog_drift$
-declare target_fingerprint text:='59714dce4c61f8140eddc1a2c8606b70';
+declare target_fingerprint text:='2e2bde8ec7137a2c5486532f48499f5a';
 begin
   begin
     perform * from public.connected_app_runtime_readiness_v1(

@@ -114,14 +114,14 @@ begin
       (select pg_catalog.string_agg(
          constraint_row.conname || ':'
            || pg_catalog.pg_get_constraintdef(constraint_row.oid, true),
-         ',' order by constraint_row.conname
+         ',' order by constraint_row.conname collate pg_catalog."C"
        )
        from pg_catalog.pg_constraint as constraint_row
        where constraint_row.conrelid =
          pg_catalog.to_regclass('connected_dispatch_private.execution_outbox')),
       (select pg_catalog.string_agg(
          index_row.relname || ':' || pg_catalog.pg_get_indexdef(index_row.oid),
-         ',' order by index_row.relname
+         ',' order by index_row.relname collate pg_catalog."C"
        )
        from pg_catalog.pg_index as index_meta
        join pg_catalog.pg_class as index_row
@@ -130,8 +130,10 @@ begin
          pg_catalog.to_regclass('connected_dispatch_private.execution_outbox')),
       (select pg_catalog.string_agg(
          pg_catalog.pg_get_functiondef(proc_row.oid), E'\n'
-         order by namespace_row.nspname, proc_row.proname,
+         order by namespace_row.nspname collate pg_catalog."C",
+                  proc_row.proname collate pg_catalog."C",
                   pg_catalog.pg_get_function_identity_arguments(proc_row.oid)
+                    collate pg_catalog."C"
        )
        from pg_catalog.pg_proc as proc_row
        join pg_catalog.pg_namespace as namespace_row

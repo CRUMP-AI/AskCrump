@@ -16,13 +16,13 @@ def _sql() -> str:
 def test_multi_step_migration_is_exactly_pinned_and_immutable():
     sql = _sql()
 
-    assert "9982356cca7a3769378917c5bd4d48bc" in sql
-    assert sql.count("911134df6337047466b663f2859e247f") == 4
+    assert "fd7caa733d4112ade452de4755f39a45" in sql
+    assert sql.count("a63bd463531f048bac9024b17d5823c1") == 4
     assert "connected multi-step predecessor drifted" in sql
     assert "connected multi-step existing target drifted" in sql
     assert "connected multi-step target drifted" in sql
     assert hashlib.sha256(MIGRATION.read_bytes()).hexdigest().upper() == (
-        "3519FF515927848749B7557D7234076CEF704C9FD21D4FE67CAB8971208A430C"
+        "F52DCE5AB7EFAA3DBBD3727F4A394FF8BBD88745B99024B32287CC4CD0D5BB1D"
     )
 
 

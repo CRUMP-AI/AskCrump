@@ -192,7 +192,7 @@ try {
         "-d", $targetDb, "-c",
         "select connected_multi_account_private.multi_account_target_fingerprint_v1()"
     )
-    if ($LASTEXITCODE -ne 0 -or $target -ne "bf14a3339a25e4e2cdab12ef18523599") {
+    if ($LASTEXITCODE -ne 0 -or $target -ne "4f6897dd07f0dca3fda59946c9f5c295") {
         throw "multi-account target fingerprint drifted: $target"
     }
     Write-Host "PASS behavior, deletion, both-winner races, and exact target"

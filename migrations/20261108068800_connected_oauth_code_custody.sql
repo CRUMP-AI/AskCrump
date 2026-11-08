@@ -884,7 +884,9 @@ grant execute on function public.connected_app_release_bootstrap_read_dedicated_
 
 create or replace function connected_oauth_code_private.oauth_code_custody_target_fingerprint_v1()
 returns text language sql stable security definer set search_path='' as $fingerprint$
-  select pg_catalog.md5(pg_catalog.string_agg(item,E'\n' order by item))
+  select pg_catalog.md5(pg_catalog.string_agg(
+    item, E'\n' order by item collate pg_catalog."C"
+  ))
   from (
     select pg_catalog.concat_ws('|','predecessor',
       connected_oauth_binding_private.oauth_binding_target_fingerprint_v1()) item
@@ -940,12 +942,23 @@ returns text language sql stable security definer set search_path='' as $fingerp
       pg_catalog.count(policy_row.oid),
       coalesce(pg_catalog.md5(pg_catalog.string_agg(
         pg_catalog.concat_ws('|',policy_row.polname,policy_row.polcmd,
-          policy_row.polpermissive,policy_row.polroles::text,
+          policy_row.polpermissive,
+          (
+            select pg_catalog.array_agg(
+              case when policy_role.role_oid = 0 then 'public'::text
+                else pg_catalog.pg_get_userbyid(policy_role.role_oid)::text end
+              order by (case when policy_role.role_oid = 0 then 'public'::text
+                else pg_catalog.pg_get_userbyid(policy_role.role_oid)::text end)
+                collate pg_catalog."C"
+            )::text
+            from pg_catalog.unnest(policy_row.polroles)
+              as policy_role(role_oid)
+          ),
           coalesce(pg_catalog.pg_get_expr(
             policy_row.polqual,policy_row.polrelid),''),
           coalesce(pg_catalog.pg_get_expr(
             policy_row.polwithcheck,policy_row.polrelid),'')),
-        E'\n' order by policy_row.polname)),''))
+        E'\n' order by policy_row.polname collate pg_catalog."C")),''))
     from pg_catalog.pg_class as class_row
     join pg_catalog.pg_namespace as namespace_row
       on namespace_row.oid=class_row.relnamespace

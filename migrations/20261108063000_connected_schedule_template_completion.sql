@@ -9,7 +9,10 @@ select pg_catalog.set_config('quote_all_identifiers', 'off', true);
 create or replace function pg_temp.connected_schedule_cleanup_predecessor_fingerprint()
 returns text language sql stable set search_path='' as $fingerprint$
   select pg_catalog.md5(
-    pg_catalog.string_agg(item.value::text,E'\n' order by item.value::text)
+    pg_catalog.string_agg(
+      item.value::text,
+      E'\n' order by item.value::text collate pg_catalog."C"
+    )
   )
   from (
     select pg_catalog.jsonb_build_array(
@@ -142,11 +145,21 @@ returns text language sql stable set search_path='' as $fingerprint$
 
     union all
     select pg_catalog.jsonb_build_array(
-      'policy',schemaname,tablename,policyname,permissive,roles::text,
-      cmd,coalesce(qual,''),coalesce(with_check,''))
-    from pg_catalog.pg_policies
-    where schemaname='connected_app_private'
-      and tablename in (
+      'policy',policy_row.schemaname,policy_row.tablename,
+      policy_row.policyname,policy_row.permissive,
+      (
+        select pg_catalog.array_agg(
+          policy_role.role_name
+          order by policy_role.role_name collate pg_catalog."C"
+        )::text
+        from pg_catalog.unnest(policy_row.roles::text[])
+          as policy_role(role_name)
+      ),
+      policy_row.cmd,coalesce(policy_row.qual,''),
+      coalesce(policy_row.with_check,''))
+    from pg_catalog.pg_policies as policy_row
+    where policy_row.schemaname='connected_app_private'
+      and policy_row.tablename in (
         'credential_refresh_lease_history','provider_grant_cleanup_jobs',
         'provider_grant_cleanup_claim_history')
 
@@ -232,8 +245,9 @@ begin
        ) and attribute_row.attnum > 0 and not attribute_row.attisdropped),
     (select pg_catalog.string_agg(
        pg_catalog.pg_get_functiondef(proc_row.oid), E'\n'
-       order by proc_row.proname,
-                pg_catalog.pg_get_function_identity_arguments(proc_row.oid))
+       order by proc_row.proname collate pg_catalog."C",
+                pg_catalog.pg_get_function_identity_arguments(proc_row.oid)
+                  collate pg_catalog."C")
      from pg_catalog.pg_proc as proc_row
      join pg_catalog.pg_namespace as namespace_row
        on namespace_row.oid = proc_row.pronamespace
@@ -244,7 +258,7 @@ begin
        )),
     (select pg_catalog.string_agg(
        proc_row.proname || ':' || proc_row.proacl::text,
-       ',' order by proc_row.proname)
+       ',' order by proc_row.proname collate pg_catalog."C")
      from pg_catalog.pg_proc as proc_row
      join pg_catalog.pg_namespace as namespace_row
        on namespace_row.oid = proc_row.pronamespace
@@ -389,7 +403,8 @@ begin
          class_row.relrowsecurity::text || '|' || class_row.relforcerowsecurity::text ||
          '|owner=' || pg_catalog.pg_get_userbyid(class_row.relowner) ||
          '|acl=' || coalesce(class_row.relacl::text,''),
-         E'\n' order by namespace_row.nspname, class_row.relname)
+         E'\n' order by namespace_row.nspname collate pg_catalog."C",
+           class_row.relname collate pg_catalog."C")
        from pg_catalog.pg_class as class_row
        join pg_catalog.pg_namespace as namespace_row
          on namespace_row.oid = class_row.relnamespace
@@ -404,7 +419,8 @@ begin
            default_row.adbin, default_row.adrelid), '') || ':' ||
          coalesce(pg_catalog.col_description(
            attribute_row.attrelid,attribute_row.attnum),''),
-         E'\n' order by namespace_row.nspname, class_row.relname,
+         E'\n' order by namespace_row.nspname collate pg_catalog."C",
+           class_row.relname collate pg_catalog."C",
            attribute_row.attnum)
        from pg_catalog.pg_attribute as attribute_row
        join pg_catalog.pg_class as class_row on class_row.oid=attribute_row.attrelid
@@ -423,8 +439,10 @@ begin
          pg_catalog.pg_get_userbyid(proc_row.proowner) || '|' ||
          proc_row.prosecdef::text || '|' || proc_row.provolatile::text || '|' ||
          coalesce(proc_row.proconfig::text,'') || '|' || proc_row.proacl::text,
-         E'\n' order by namespace_row.nspname, proc_row.proname,
-           pg_catalog.pg_get_function_identity_arguments(proc_row.oid))
+         E'\n' order by namespace_row.nspname collate pg_catalog."C",
+           proc_row.proname collate pg_catalog."C",
+           pg_catalog.pg_get_function_identity_arguments(proc_row.oid)
+             collate pg_catalog."C")
        from pg_catalog.pg_proc as proc_row
        join pg_catalog.pg_namespace as namespace_row on namespace_row.oid=proc_row.pronamespace
        where (namespace_row.nspname, proc_row.proname) in (
@@ -446,7 +464,8 @@ begin
          pg_catalog.pg_get_indexdef(index_row.indexrelid) || '|' ||
          index_row.indisunique::text || '|' || index_row.indisvalid::text || '|' ||
          index_row.indisready::text,
-         E'\n' order by index_namespace.nspname,index_class.relname),'NONE')
+         E'\n' order by index_namespace.nspname collate pg_catalog."C",
+           index_class.relname collate pg_catalog."C"),'NONE')
        from pg_catalog.pg_index as index_row
        join pg_catalog.pg_class as table_class
          on table_class.oid=index_row.indrelid
@@ -461,7 +480,7 @@ begin
       (select pg_catalog.string_agg(
          constraint_row.conname || '|' ||
          pg_catalog.pg_get_constraintdef(constraint_row.oid, true),
-         E'\n' order by constraint_row.conname)
+         E'\n' order by constraint_row.conname collate pg_catalog."C")
        from pg_catalog.pg_constraint as constraint_row
        where constraint_row.conrelid in (
          pg_catalog.to_regclass('connected_schedule_private.templates'),
@@ -473,7 +492,7 @@ begin
        )),
       (select pg_catalog.string_agg(
          trigger_row.tgname || '|' || pg_catalog.pg_get_triggerdef(trigger_row.oid,true),
-         E'\n' order by trigger_row.tgname)
+         E'\n' order by trigger_row.tgname collate pg_catalog."C")
        from pg_catalog.pg_trigger as trigger_row
        where trigger_row.tgrelid=pg_catalog.to_regclass('connected_app_private.schedules')
          and trigger_row.tgname='connected_schedule_scrub_cancelled_template_v2'
@@ -513,7 +532,7 @@ begin
              pg_catalog.to_regclass('connected_schedule_private.templates'),
              pg_catalog.to_regclass('connected_schedule_private.run_completions'))))),
       (select pg_catalog.string_agg(proc_row.proname || '|' || proc_row.proacl::text,
-         E'\n' order by proc_row.proname)
+         E'\n' order by proc_row.proname collate pg_catalog."C")
        from pg_catalog.pg_proc as proc_row
        join pg_catalog.pg_namespace as namespace_row on namespace_row.oid=proc_row.pronamespace
        where namespace_row.nspname='public' and proc_row.proname in (
@@ -1429,7 +1448,8 @@ begin
        class_row.relrowsecurity::text || '|' || class_row.relforcerowsecurity::text ||
        '|owner=' || pg_catalog.pg_get_userbyid(class_row.relowner) ||
        '|acl=' || coalesce(class_row.relacl::text,''),
-       E'\n' order by namespace_row.nspname, class_row.relname)
+       E'\n' order by namespace_row.nspname collate pg_catalog."C",
+         class_row.relname collate pg_catalog."C")
      from pg_catalog.pg_class as class_row
      join pg_catalog.pg_namespace as namespace_row on namespace_row.oid=class_row.relnamespace
      where namespace_row.nspname='connected_schedule_private'
@@ -1442,7 +1462,8 @@ begin
        coalesce(pg_catalog.pg_get_expr(default_row.adbin,default_row.adrelid),'') || ':' ||
        coalesce(pg_catalog.col_description(
          attribute_row.attrelid,attribute_row.attnum),''),
-       E'\n' order by namespace_row.nspname,class_row.relname,attribute_row.attnum)
+       E'\n' order by namespace_row.nspname collate pg_catalog."C",
+         class_row.relname collate pg_catalog."C", attribute_row.attnum)
      from pg_catalog.pg_attribute as attribute_row
      join pg_catalog.pg_class as class_row on class_row.oid=attribute_row.attrelid
      join pg_catalog.pg_namespace as namespace_row on namespace_row.oid=class_row.relnamespace
@@ -1459,8 +1480,10 @@ begin
        pg_catalog.pg_get_userbyid(proc_row.proowner) || '|' ||
        proc_row.prosecdef::text || '|' || proc_row.provolatile::text || '|' ||
        coalesce(proc_row.proconfig::text,'') || '|' || proc_row.proacl::text,
-       E'\n' order by namespace_row.nspname,proc_row.proname,
-         pg_catalog.pg_get_function_identity_arguments(proc_row.oid))
+       E'\n' order by namespace_row.nspname collate pg_catalog."C",
+         proc_row.proname collate pg_catalog."C",
+         pg_catalog.pg_get_function_identity_arguments(proc_row.oid)
+           collate pg_catalog."C")
      from pg_catalog.pg_proc as proc_row
      join pg_catalog.pg_namespace as namespace_row on namespace_row.oid=proc_row.pronamespace
      where (namespace_row.nspname,proc_row.proname) in (
@@ -1481,7 +1504,8 @@ begin
        pg_catalog.pg_get_indexdef(index_row.indexrelid) || '|' ||
        index_row.indisunique::text || '|' || index_row.indisvalid::text || '|' ||
        index_row.indisready::text,
-       E'\n' order by index_namespace.nspname,index_class.relname),'NONE')
+       E'\n' order by index_namespace.nspname collate pg_catalog."C",
+         index_class.relname collate pg_catalog."C"),'NONE')
      from pg_catalog.pg_index as index_row
      join pg_catalog.pg_class as table_class
        on table_class.oid=index_row.indrelid
@@ -1495,7 +1519,7 @@ begin
        and table_class.relname in ('templates','run_completions')),
     (select pg_catalog.string_agg(constraint_row.conname || '|' ||
        pg_catalog.pg_get_constraintdef(constraint_row.oid,true),
-       E'\n' order by constraint_row.conname)
+       E'\n' order by constraint_row.conname collate pg_catalog."C")
      from pg_catalog.pg_constraint as constraint_row
      where constraint_row.conrelid in (
        pg_catalog.to_regclass('connected_schedule_private.templates'),
@@ -1505,7 +1529,8 @@ begin
          pg_catalog.to_regclass('connected_app_private.schedules')
          or constraint_row.conname='connected_app_schedules_template_v2_fkey')),
     (select pg_catalog.string_agg(trigger_row.tgname || '|' ||
-       pg_catalog.pg_get_triggerdef(trigger_row.oid,true),E'\n' order by trigger_row.tgname)
+       pg_catalog.pg_get_triggerdef(trigger_row.oid,true), E'\n'
+       order by trigger_row.tgname collate pg_catalog."C")
      from pg_catalog.pg_trigger as trigger_row
      where trigger_row.tgrelid=pg_catalog.to_regclass('connected_app_private.schedules')
        and trigger_row.tgname='connected_schedule_scrub_cancelled_template_v2'
@@ -1545,7 +1570,7 @@ begin
            pg_catalog.to_regclass('connected_schedule_private.templates'),
            pg_catalog.to_regclass('connected_schedule_private.run_completions'))))),
     (select pg_catalog.string_agg(proc_row.proname || '|' || proc_row.proacl::text,
-       E'\n' order by proc_row.proname)
+       E'\n' order by proc_row.proname collate pg_catalog."C")
      from pg_catalog.pg_proc as proc_row
      join pg_catalog.pg_namespace as namespace_row on namespace_row.oid=proc_row.pronamespace
      where namespace_row.nspname='public' and proc_row.proname in (

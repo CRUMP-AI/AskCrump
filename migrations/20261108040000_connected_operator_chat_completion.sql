@@ -96,7 +96,7 @@ begin
 
   select pg_catalog.array_agg(
     proc_row.proname || '|' || pg_catalog.md5(proc_row.prosrc)
-    order by proc_row.proname
+    order by proc_row.proname collate pg_catalog."C"
   ) into found_function_hashes
   from pg_catalog.pg_proc as proc_row
   join pg_catalog.pg_namespace as namespace_row
@@ -110,8 +110,9 @@ begin
   select pg_catalog.array_agg(
     constraint_row.contype::text || '|' ||
     pg_catalog.pg_get_constraintdef(constraint_row.oid, true)
-    order by constraint_row.contype::text,
+    order by constraint_row.contype::text collate pg_catalog."C",
       pg_catalog.pg_get_constraintdef(constraint_row.oid, true)
+        collate pg_catalog."C"
   ) into found_constraints
   from pg_catalog.pg_constraint as constraint_row
   where constraint_row.conrelid =
@@ -120,6 +121,7 @@ begin
   select pg_catalog.array_agg(
     pg_catalog.pg_get_indexdef(index_row.indexrelid)
     order by pg_catalog.pg_get_indexdef(index_row.indexrelid)
+      collate pg_catalog."C"
   ) into found_indexes
   from pg_catalog.pg_index as index_row
   where index_row.indrelid =
@@ -127,7 +129,8 @@ begin
 
   select pg_catalog.array_agg(
     class_row.relkind::text || '|' || class_row.relname
-    order by class_row.relkind::text, class_row.relname
+    order by class_row.relkind::text collate pg_catalog."C",
+      class_row.relname collate pg_catalog."C"
   ) into found_classes
   from pg_catalog.pg_class as class_row
   join pg_catalog.pg_namespace as namespace_row
@@ -136,7 +139,8 @@ begin
 
   select pg_catalog.array_agg(
     type_row.typtype::text || '|' || type_row.typname
-    order by type_row.typtype::text, type_row.typname
+    order by type_row.typtype::text collate pg_catalog."C",
+      type_row.typname collate pg_catalog."C"
   ) into found_types
   from pg_catalog.pg_type as type_row
   join pg_catalog.pg_namespace as namespace_row
@@ -149,7 +153,7 @@ begin
     pg_catalog.pg_get_function_result(proc_row.oid) || '|' ||
     coalesce(pg_catalog.obj_description(proc_row.oid, 'pg_proc'), '') ||
     '|' || coalesce(proc_row.proacl::text, '')
-    order by proc_row.proname
+    order by proc_row.proname collate pg_catalog."C"
   ) into found_function_manifest
   from pg_catalog.pg_proc as proc_row
   join pg_catalog.pg_namespace as namespace_row
@@ -715,7 +719,7 @@ begin
 
   select pg_catalog.array_agg(
     proc_row.proname || '|' || pg_catalog.md5(proc_row.prosrc)
-    order by proc_row.proname
+    order by proc_row.proname collate pg_catalog."C"
   ) into found_function_hashes
   from pg_catalog.pg_proc as proc_row
   join pg_catalog.pg_namespace as namespace_row

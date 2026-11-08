@@ -33,6 +33,7 @@ def test_readiness_migration_is_forward_exact_and_contract_bound() -> None:
     assert BEHAVIOR_SQL.count(CONNECTED_PROVIDER_CONTRACT_SHA256) >= 8
     targets = re.findall(r"[0-9a-f]{32}", SQL)
     assert len(set(targets)) >= 2
+    assert "5d020cc249d289d47beeaa2242bf2f5c" in SQL
     assert SQL.count("using errcode='55000'") >= 6
     assert SQL.startswith("\\set ON_ERROR_STOP on\n\nbegin;")
     assert SQL.rstrip().endswith("commit;")
@@ -156,10 +157,17 @@ def test_full_stack_fingerprint_covers_authority_privacy_and_hidden_objects() ->
         "settle_ai_gateway_cost_receipt",
     ):
         assert item in SQL
+    assert 'order by item::text collate pg_catalog."C"' in SQL
+    assert "policy_row.roles::text," not in SQL
+    assert "from pg_catalog.unnest(policy_row.roles::text[])" in SQL
+    assert "index_row.indcollation::text" not in SQL
+    assert "index_row.indclass::text" not in SQL
+    assert "coalesce(index_access_method.amname,'')" in SQL
+    assert "coalesce(index_tablespace.spcname,'')" in SQL
 
 
 def test_final_readiness_target_is_the_atomic_691_catalog() -> None:
-    assert "59714dce4c61f8140eddc1a2c8606b70" in TRANSITION_SQL
+    assert "2e2bde8ec7137a2c5486532f48499f5a" in TRANSITION_SQL
     assert config.CONNECTED_APPS_DATABASE_TARGET_FINGERPRINT in TRANSITION_SQL
     assert "runtime_readiness_catalog_fingerprint_v1()" in TRANSITION_SQL
     assert "runtime_readiness_target_fingerprint_v1()" in TRANSITION_SQL

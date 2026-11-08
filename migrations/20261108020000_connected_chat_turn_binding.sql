@@ -73,7 +73,8 @@ begin
       'classes', (
         select pg_catalog.jsonb_agg(
           class_row.relkind::text || '|' || class_row.relname
-          order by class_row.relkind::text, class_row.relname
+          order by class_row.relkind::text collate pg_catalog."C",
+            class_row.relname collate pg_catalog."C"
         )
         from pg_catalog.pg_class as class_row
         join pg_catalog.pg_namespace as namespace_row
@@ -83,7 +84,8 @@ begin
       'types', (
         select pg_catalog.jsonb_agg(
           type_row.typtype::text || '|' || type_row.typname
-          order by type_row.typtype::text, type_row.typname
+          order by type_row.typtype::text collate pg_catalog."C",
+            type_row.typname collate pg_catalog."C"
         )
         from pg_catalog.pg_type as type_row
         join pg_catalog.pg_namespace as namespace_row
@@ -95,8 +97,9 @@ begin
           proc_row.proname || '|' ||
           pg_catalog.pg_get_function_identity_arguments(proc_row.oid) || '|' ||
           pg_catalog.md5(proc_row.prosrc)
-          order by proc_row.proname,
+          order by proc_row.proname collate pg_catalog."C",
             pg_catalog.pg_get_function_identity_arguments(proc_row.oid)
+              collate pg_catalog."C"
         )
         from pg_catalog.pg_proc as proc_row
         join pg_catalog.pg_namespace as namespace_row
@@ -107,8 +110,9 @@ begin
         select pg_catalog.jsonb_agg(
           proc_row.proname || '|' ||
           pg_catalog.pg_get_function_identity_arguments(proc_row.oid)
-          order by proc_row.proname,
+          order by proc_row.proname collate pg_catalog."C",
             pg_catalog.pg_get_function_identity_arguments(proc_row.oid)
+              collate pg_catalog."C"
         )
         from pg_catalog.pg_proc as proc_row
         join pg_catalog.pg_namespace as namespace_row
@@ -147,8 +151,9 @@ begin
         select pg_catalog.jsonb_agg(
           constraint_row.contype::text || '|' ||
           pg_catalog.pg_get_constraintdef(constraint_row.oid, true)
-          order by constraint_row.contype::text,
+          order by constraint_row.contype::text collate pg_catalog."C",
             pg_catalog.pg_get_constraintdef(constraint_row.oid, true)
+              collate pg_catalog."C"
         )
         from pg_catalog.pg_constraint as constraint_row, target
         where constraint_row.conrelid = target.relid
@@ -157,6 +162,7 @@ begin
         select pg_catalog.jsonb_agg(
           pg_catalog.pg_get_indexdef(index_row.indexrelid)
           order by pg_catalog.pg_get_indexdef(index_row.indexrelid)
+            collate pg_catalog."C"
         )
         from pg_catalog.pg_index as index_row, target
         where index_row.indrelid = target.relid
@@ -173,7 +179,7 @@ begin
             'config', proc_row.proconfig,
             'acl', proc_row.proacl::text,
             'comment', pg_catalog.obj_description(proc_row.oid, 'pg_proc')
-          ) order by proc_row.proname
+          ) order by proc_row.proname collate pg_catalog."C"
         )
         from pg_catalog.pg_proc as proc_row
         join pg_catalog.pg_namespace as namespace_row
@@ -522,7 +528,7 @@ begin
 
   select pg_catalog.array_agg(
     proc_row.proname || '|' || pg_catalog.md5(proc_row.prosrc)
-    order by proc_row.proname
+    order by proc_row.proname collate pg_catalog."C"
   ) into found_function_hashes
   from pg_catalog.pg_proc as proc_row
   join pg_catalog.pg_namespace as namespace_row

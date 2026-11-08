@@ -15,7 +15,7 @@ begin
      ) is not null then
     select connected_multi_account_private.multi_account_target_fingerprint_v1()
       into target_fingerprint;
-    if target_fingerprint<>'bf14a3339a25e4e2cdab12ef18523599' then
+    if target_fingerprint<>'4f6897dd07f0dca3fda59946c9f5c295' then
       raise exception 'connected multi-account target drifted: %',
         target_fingerprint using errcode='55000';
     end if;
@@ -756,7 +756,9 @@ grant execute on function public.connected_app_oauth_finalize_v2(
 create or replace function
   connected_multi_account_private.multi_account_target_fingerprint_v1()
 returns text language sql stable security definer set search_path='' as $fingerprint$
-  select pg_catalog.md5(pg_catalog.string_agg(item,E'\n' order by item))
+  select pg_catalog.md5(pg_catalog.string_agg(
+    item, E'\n' order by item collate pg_catalog."C"
+  ))
   from (
     select pg_catalog.concat_ws('|','schema',namespace_row.nspname,
       pg_catalog.pg_get_userbyid(namespace_row.nspowner),
@@ -906,7 +908,17 @@ returns text language sql stable security definer set search_path='' as $fingerp
     union all
     select pg_catalog.concat_ws('|','policy',class_row.relname,
       policy_row.polname,policy_row.polpermissive,policy_row.polcmd,
-      coalesce(policy_row.polroles::text,''),
+      coalesce((
+        select pg_catalog.array_agg(
+          case when policy_role.role_oid = 0 then 'public'::text
+            else pg_catalog.pg_get_userbyid(policy_role.role_oid)::text end
+          order by (case when policy_role.role_oid = 0 then 'public'::text
+            else pg_catalog.pg_get_userbyid(policy_role.role_oid)::text end)
+            collate pg_catalog."C"
+        )::text
+        from pg_catalog.unnest(policy_row.polroles)
+          as policy_role(role_oid)
+      ),''),
       coalesce(pg_catalog.pg_get_expr(
         policy_row.polqual,policy_row.polrelid,true),''),
       coalesce(pg_catalog.pg_get_expr(
@@ -968,7 +980,7 @@ declare
 begin
   select connected_multi_account_private.multi_account_target_fingerprint_v1()
     into target_fingerprint;
-  if target_fingerprint<>'bf14a3339a25e4e2cdab12ef18523599' then
+  if target_fingerprint<>'4f6897dd07f0dca3fda59946c9f5c295' then
     raise exception 'connected multi-account postflight drifted: %',
       target_fingerprint using errcode='55000';
   end if;

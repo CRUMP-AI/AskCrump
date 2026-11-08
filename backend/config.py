@@ -47,7 +47,7 @@ CONNECTED_APPS_COMPOSITION_MANIFEST_SHA256 = ''
 # that full-catalog manifest while adding the one-transaction approval/effect
 # boundary.  The secure host compares live readiness to this final 69100
 # catalog before constructing any production graph.
-CONNECTED_APPS_DATABASE_TARGET_FINGERPRINT = 'cf569b2cb16003caaa4fed92e94c0057'
+CONNECTED_APPS_DATABASE_TARGET_FINGERPRINT = 'c339945387929ed735b591d967f536dc'
 
 # Exact nonsecret Vercel production identity. The request assertion is accepted
 # by the source-pinned Google WIF provider; after that exchange, the release
