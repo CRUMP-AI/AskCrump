@@ -82,7 +82,7 @@ def test_checkout_recovery_fixture_is_local_and_content_free():
 
 def test_checkout_recovery_assets_are_cache_addressable_on_web_pwa_and_native():
     billing_version = "5.9.76-private-owner-boundary-1"
-    runtime_version = "5.9.76-premium-workspace-1"
+    runtime_version = "5.9.76-premium-browser-workspace-1"
     auth_version = "5.9.76-login-recovery-visible-1"
     shell = read_public("app.html")
     runtime = read_public("runtime-body-v1.js")
@@ -108,4 +108,4 @@ def test_checkout_recovery_assets_are_cache_addressable_on_web_pwa_and_native():
         assert versioned in worker
         assert versioned in native
     assert f"/auth-controller.js?v={auth_version}" in worker
-    assert "ask-crump-new-body-v1-r282-connected-operator-workspace-5" in worker
+    assert "ask-crump-new-body-v1-r283-premium-browser-workspace-1" in worker

@@ -483,7 +483,7 @@
     requestAnimationFrame(() => setTimeout(() => input.click(), 40));
   }
 
-  function attachChoice(icon, title, detail, handler) {
+  function attachChoice(icon, title, detail, handler, options = {}) {
     const button = document.createElement('button');
     button.type = 'button';
     button.className = 'crump52-attach-choice';
@@ -499,6 +499,12 @@
     const arrow = document.createElement('b');
     arrow.textContent = '›';
     button.append(glyph, copy, arrow);
+    if (options.browserWorkspace === true) {
+      button.dataset.browserWorkspaceEntry = '1';
+      const released = window.CrumpBrowserWorkspace?.isReleased?.() === true;
+      button.hidden = !released;
+      button.setAttribute('aria-hidden', released ? 'false' : 'true');
+    }
     button.addEventListener('click', event => {
       event.preventDefault();
       event.stopPropagation();
@@ -545,7 +551,15 @@
           return;
         }
         window.showToast?.('Document Studio is still loading. Try again in a moment.', 'info');
-      })
+      }),
+      attachChoice('◎', 'Browse and research', 'Explore the web with sources and reviewed actions', () => {
+        closeAttachMenu();
+        if (typeof window.CrumpBrowserWorkspace?.open === 'function') {
+          window.CrumpBrowserWorkspace.open({mode: 'research'});
+          return;
+        }
+        window.showToast?.('Browser workspace is still loading. Try again in a moment.', 'info');
+      }, {browserWorkspace: true})
     );
 
     document.body.appendChild(overlay);

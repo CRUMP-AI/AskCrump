@@ -90,7 +90,7 @@ def test_public_names_keep_legacy_owners_and_analytics_compatible() -> None:
     assert "window.CrumpProduct53.openFiles();" in shell
     assert "window.CrumpProductLoader.openFiles();" in shell
     assert "legacy.open(oldId, silent ? { recordSelection: false, focus: false } : undefined);" in shell
-    assert "browser: 'browser'" not in shell
+    assert "if (id === 'browser') return;" in shell
     assert "[data-v1-settings-tab=\"profile\"]" in shell
 
 
@@ -124,7 +124,7 @@ def test_authoritative_home_and_account_views_cannot_be_replaced() -> None:
     assert "create: 'home'" in shell
     assert "studios: 'video'" in shell
     assert "you: 'you'" in shell
-    assert "browser: 'browser'" not in shell
+    assert "browser: 'browser'" in shell
 
 
 def test_projects_use_real_api_data_without_a_local_next_steps_store() -> None:
@@ -167,14 +167,14 @@ def test_primary_projects_view_restores_the_owned_conversation_resume_contract()
     assert projects.index("if (!openAsk())") < projects.index("recordProjectResume();")
 
 
-def test_first_screen_has_five_clear_jumps_without_a_second_destination_map() -> None:
+def test_first_screen_has_six_clear_jumps_without_a_second_destination_map() -> None:
     app = read("public/app.html")
 
     assert "<h1>What can I help you get done?</h1>" in app
     assert '<p class="v1-launchpad-actions-label">Ways to begin</p>' in app
-    assert app.count('class="v1-launch-card') == 5
+    assert app.count('class="v1-launch-card') == 6
     assert app.count('data-home-document-entry') == 1
-    for command in ("projects", "file", "image", "video"):
+    for command in ("projects", "browser", "file", "image", "video"):
         assert app.count(f'data-v1-command="{command}"') == 1
     assert 'data-v1-command="focus"' not in app
     assert 'class="v1-launchpad-foot"' not in app

@@ -20,7 +20,9 @@ def test_authenticated_home_has_one_semantic_document_studio_entry() -> None:
     assert 'aria-describedby="v1LaunchDocumentDescription"' in launchpad
     assert 'id="v1LaunchDocumentTitle">Create a document</strong>' in launchpad
     assert "Word, PDF, presentation, spreadsheet, or text file" in launchpad
-    assert launchpad.count('class="v1-launch-card') == 5
+    assert launchpad.count('class="v1-launch-card') == 6
+    assert 'data-browser-workspace-entry' in launchpad
+    assert 'hidden aria-hidden="true"' in launchpad
     assert [f'data-v1-index="0{index}"' in launchpad for index in range(1, 6)] == [True] * 5
 
 
@@ -87,7 +89,7 @@ def test_document_home_asset_is_atomic_for_web_and_pwa_updates() -> None:
 
     assert app.count(expected) == 1
     assert worker.count(expected) == 1
-    assert "ask-crump-new-body-v1-r282-connected-operator-workspace-5" in worker
+    assert "ask-crump-new-body-v1-r283-premium-browser-workspace-1" in worker
     assert "url.pathname === '/home-document-entry.js'" in worker
     assert "home-document-entry.js" in checker
     assert "homeDocumentEntryVersion" in checker

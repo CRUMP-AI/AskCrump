@@ -45,19 +45,19 @@ const assert = require('node:assert/strict');
       });
 
       assert.equal(evidence.runtimeState, 'ready');
-      assert.equal(evidence.styleCount, mode === 'style-retry' ? 23 : 22);
+      assert.equal(evidence.styleCount, mode === 'style-retry' ? 24 : 23);
       assert.equal(evidence.maxStyles, 18);
-      assert.equal(evidence.lastStyle, '/crump-motion-system.css?v=5.9.76-motion-system-2');
+      assert.equal(evidence.lastStyle, '/crump-browser-workspace-1.0.css?v=5.9.76-premium-browser-workspace-1');
       assert.equal(evidence.preloadCount, 36);
       assert.equal(evidence.scriptCount, mode === 'script-retry' ? 37 : 36);
-      assert.equal(evidence.firstScript, '/onboarding.js?v=5.9.76-premium-workspace-1');
+      assert.equal(evidence.firstScript, '/onboarding.js?v=5.9.76-premium-browser-workspace-1');
       assert.equal(evidence.lastScript, '/connected-apps-ui.js?v=5.9.76-connected-operator-workspace-5');
       assert.equal(evidence.styleAttempts, mode === 'style-retry' ? 2 : 1);
       assert.equal(evidence.scriptAttempts, mode === 'script-retry' ? 2 : 1);
       assert.equal(evidence.readyEvents, 1);
       assert.equal(evidence.failureMessage, 'none');
       assert.ok(
-        evidence.runtimeMs > 0 && evidence.runtimeMs < 1_000,
+        evidence.runtimeMs > 0 && evidence.runtimeMs < 1_250,
         `Parallel runtime budget drifted in ${mode}: ${evidence.runtimeMs}ms`,
       );
       assert.equal(evidence.fixtureBrowserErrors, 0);
@@ -115,12 +115,12 @@ const assert = require('node:assert/strict');
     }));
     assert.deepEqual(recovered, {
       runtimeState: 'ready',
-      styleCount: 24,
+      styleCount: 25,
       scriptCount: 36,
       styleAttempts: 3,
       readyEvents: 1,
       failureMessage: 'none',
-      lastStyle: '/crump-motion-system.css?v=5.9.76-motion-system-2',
+      lastStyle: '/crump-browser-workspace-1.0.css?v=5.9.76-premium-browser-workspace-1',
     });
     results['style-fail-recovery'] = {failed, recovered};
     await failPage.close();

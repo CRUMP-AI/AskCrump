@@ -5,8 +5,8 @@
     {
       destination: 'Home', action: 'home', actionLabel: 'Open Home', eyebrow: 'HOME',
       title: 'Start with the outcome.',
-      content: 'Home brings your recent work, useful starts, and the Ask Crump composer into one calm place. You can ask, research, create, or return to work without choosing a technical tool first.',
-      icon: '⌂', features: ['Ask naturally', 'Research with sources', 'Continue recent work'],
+      content: 'Home brings your recent work, useful starts, and the Ask Crump composer into one calm place. You can ask, browse, create, or return to work without choosing a technical tool first.',
+      icon: '⌂', features: ['Ask naturally', 'Browse with sources', 'Continue recent work'],
     },
     {
       destination: 'Chats', action: 'chats', actionLabel: 'Open Chats', eyebrow: 'CHATS',

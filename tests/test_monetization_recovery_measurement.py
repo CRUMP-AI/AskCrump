@@ -96,8 +96,8 @@ def test_private_monetization_report_keeps_old_metrics_and_adds_credit_and_recov
 
 def test_monetization_measurement_assets_are_registered_for_web_pwa_and_native():
     credit_truth_version = "5.9.76-private-owner-boundary-1"
-    attach_creation_version = "5.9.76-legacy-attachment-owner-fence-1"
-    loader_version = "5.9.76-premium-workspace-1"
+    attach_creation_version = "5.9.76-premium-browser-workspace-1"
+    loader_version = "5.9.76-premium-browser-workspace-1"
     runtime = read("public/runtime-body-v1.js")
     worker = read("public/sw.js")
     native = read("scripts/build-native.mjs")
@@ -110,4 +110,4 @@ def test_monetization_measurement_assets_are_registered_for_web_pwa_and_native()
         assert asset in runtime
         assert asset in worker
         assert asset in native
-    assert "ask-crump-new-body-v1-r282-connected-operator-workspace-5" in worker
+    assert "ask-crump-new-body-v1-r283-premium-browser-workspace-1" in worker

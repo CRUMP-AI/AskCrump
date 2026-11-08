@@ -17,6 +17,7 @@ const expectedVerifiers = Object.freeze([
   'verify-attach-creation-routing.cjs',
   'verify-auth-transport-settlement.cjs',
   'verify-button-state-integrity.cjs',
+  'verify-browser-workspace-ui.cjs',
   'verify-chat-action-accessibility.cjs',
   'verify-chat-owner-boundary.cjs',
   'verify-create-destination-handoff.cjs',

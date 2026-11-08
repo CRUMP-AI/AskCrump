@@ -12,6 +12,13 @@ from urllib.parse import urlparse
 # refund, monitoring, rollback, quality, and cost gates have a reviewed release.
 CODE_WORKSPACE_PUBLIC_RELEASED = False
 
+# General browser work is a separate capability from repository coding and
+# connected mail/calendar. It cannot be exposed by an environment variable
+# alone. Keep this source lock false until the provider-neutral action ledger,
+# isolated runtime, approval boundary, cleanup recovery, and device matrix are
+# integrated and reviewed on the same candidate.
+AUTONOMOUS_CRUMP_BROWSER_PUBLIC_RELEASED = False
+
 # Connected mail and calendar access cannot be exposed by an environment
 # variable alone. Keep this source lock false until OAuth, credential-broker,
 # provider-contract, approval, deletion, privacy, rollback, and device gates
@@ -121,6 +128,15 @@ def connected_apps_environment_released() -> bool:
 
     return connected_apps_release_candidate_source_released() and _bool(
         os.getenv('CRUMP_ENABLE_CONNECTED_APPS'),
+        False,
+    )
+
+
+def browser_workspace_environment_released() -> bool:
+    """Require both a reviewed source release and the operator switch."""
+
+    return AUTONOMOUS_CRUMP_BROWSER_PUBLIC_RELEASED is True and _bool(
+        os.getenv('CRUMP_ENABLE_BROWSER_WORKSPACE'),
         False,
     )
 

@@ -113,13 +113,13 @@ function assertClean(fixture) {
   assert.equal(first.error, null);
   assert.equal(first.settled, true);
   assert.equal(successful.state(), 'ready');
-  assert.equal(successful.attempts.filter(item => item.kind === 'style').length, 22);
+  assert.equal(successful.attempts.filter(item => item.kind === 'style').length, 23);
   assert.equal(successful.executed.length, 36);
   assert.equal(new Set(successful.executed).size, 36, 'each ordered script must execute once');
   assert.match(successful.executed[0], /^\/onboarding\.js/);
   assert.match(successful.executed.at(-1), /^\/connected-apps-ui\.js/);
   assert.equal(successful.nodes.filter(node => node.rel === 'preload').length, 36);
-  assert.match(successful.attempts.filter(item => item.kind === 'style').at(-1).url, /^\/crump-motion-system\.css/);
+  assert.match(successful.attempts.filter(item => item.kind === 'style').at(-1).url, /^\/crump-browser-workspace-1\.0\.css/);
   const count = successful.attempts.length;
   await successful.window.CrumpWorkspaceRuntime.load();
   assert.equal(successful.attempts.length, count, 'ready runtime must reuse loaded assets');

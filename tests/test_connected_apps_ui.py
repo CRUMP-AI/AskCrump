@@ -265,9 +265,9 @@ def test_assets_are_loaded_and_cache_busted_as_one_release() -> None:
     for source in (RUNTIME, SW, NATIVE_BUILD):
         assert f"/connected-apps-ui.css?v={version}" in source
         assert f"/connected-apps-ui.js?v={version}" in source
-    assert "/runtime-body-v1.js?v=5.9.76-login-recovery-visible-1" in APP
-    assert "/runtime-body-v1.js?v=5.9.76-login-recovery-visible-1" in SW
-    assert "ask-crump-new-body-v1-r282-connected-operator-workspace-5" in SW
+    assert "/runtime-body-v1.js?v=5.9.76-premium-browser-workspace-1" in APP
+    assert "/runtime-body-v1.js?v=5.9.76-premium-browser-workspace-1" in SW
+    assert "ask-crump-new-body-v1-r283-premium-browser-workspace-1" in SW
     assert "url.pathname === '/connected-apps-ui.css'" in SW
     assert "url.pathname === '/connected-apps-ui.js'" in SW
 

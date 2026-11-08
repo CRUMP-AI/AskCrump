@@ -17,7 +17,7 @@ from .connected_app_request_activation import connected_request_activation_defer
 from .http import register_exception_handlers, request_guards
 from .logging_privacy import enforce_transport_log_privacy
 from .routes import (
-    account, analytics, auth, billing, chat, code, connected_apps, credits, features, files,
+    account, analytics, auth, billing, browser, chat, code, connected_apps, credits, features, files,
     health, intelligence, library, lifecycle, manuscripts, media, presence, projects, safety,
     sync, voice,
 )
@@ -73,6 +73,7 @@ def create_app() -> FastAPI:
     application.include_router(files.router)
     application.include_router(projects.router)
     application.include_router(code.router)
+    application.include_router(browser.router)
     application.include_router(connected_apps.router)
     application.include_router(connected_apps.cron_router)
     application.include_router(voice.router)

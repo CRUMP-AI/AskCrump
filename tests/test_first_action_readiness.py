@@ -73,7 +73,10 @@ def test_launchpad_actions_have_clean_names_and_described_purpose():
         assert f'id="v1Launch{suffix}Title">{label}</strong>' in shell
 
     launchpad = shell[shell.index('<div class="v1-launchpad-grid">'):shell.index('</section>', shell.index('<div class="v1-launchpad-grid">'))]
-    assert launchpad.count('<b aria-hidden="true">↗</b>') == 5
+    assert launchpad.count('<b aria-hidden="true">↗</b>') == 6
+    assert 'data-browser-workspace-entry' in launchpad
+    assert 'data-browser-workspace-entry data-v1-index="06"' in launchpad
+    assert 'hidden aria-hidden="true"' in launchpad
     assert '<span class="v1-launch-icon">✦</span>' not in launchpad
     assert 'data-v1-command="focus"' not in launchpad
     assert 'data-v1-command="research"' not in launchpad

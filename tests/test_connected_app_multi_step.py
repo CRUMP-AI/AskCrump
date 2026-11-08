@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 
@@ -1261,12 +1262,11 @@ async def test_vault_tamper_and_cross_owner_open_fail_closed():
             now=NOW,
         )
     stored = envelope_store.records[reference.proposal_id]
+    ciphertext = bytearray(base64.urlsafe_b64decode(stored.payload_ciphertext + "=" * (-len(stored.payload_ciphertext) % 4)))
+    ciphertext[-1] ^= 1
     envelope_store.records[reference.proposal_id] = replace(
         stored,
-        payload_ciphertext=(
-            stored.payload_ciphertext[:-1]
-            + ("B" if stored.payload_ciphertext.endswith("A") else "A")
-        ),
+        payload_ciphertext=base64.urlsafe_b64encode(ciphertext).decode("ascii").rstrip("="),
     )
     with pytest.raises(ConnectedMultiStepError) as corrupt:
         await encrypted_vault.open(
