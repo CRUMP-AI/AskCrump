@@ -339,7 +339,7 @@ def test_store_metadata_source_is_structured_private_and_within_static_limits():
     for description in (apple['description'], google['fullDescription']):
         assert 'Home, Chats, Projects, Library, Studios, and You' in description
         assert 'You' in description
-        assert 'with You at the top right' in description
+        assert 'all six destinations stay in the bottom bar' in description
         assert 'Autonomous' not in description
         assert 'beta' not in description.lower()
     expected_frames = ('Home —', 'Chats —', 'Projects —', 'Image Studio —', 'Video Studio —', 'Editable work —', 'Library —', 'You —')

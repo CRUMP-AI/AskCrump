@@ -41,7 +41,7 @@
   ]);
 
   const DESKTOP_DESTINATIONS = Object.freeze(['Home', 'Chats', 'Projects', 'Library', 'Studios', 'You']);
-  const MOBILE_DESTINATIONS = Object.freeze(['Home', 'Chats', 'Projects', 'Library', 'Studios']);
+  const MOBILE_DESTINATIONS = Object.freeze(['Home', 'Chats', 'Projects', 'Library', 'Studios', 'You']);
   const MOBILE_MORE_DESTINATIONS = Object.freeze([]);
 
   class Tutorial {

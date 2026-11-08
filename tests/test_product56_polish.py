@@ -17,7 +17,7 @@ def test_56_polish_layer_is_last_on_web_and_native():
         assert source.index("/crump-4.3.js") < source.index("/crump-4.4.js")
         assert source.index("/crump-product-5.3.1.js") < source.index("/crump-polish-5.6.js")
         assert "/crump-polish-5.6.css" in source
-    assert "ask-crump-new-body-v1-r282-premium-workspace-1" in worker
+    assert "ask-crump-new-body-v1-r283-mobile-nav-apple-polish-1" in worker
     assert "/crump-polish-5.6.css" in worker and "/crump-polish-5.6.js" in worker
     assert "crump-polish-5.6.js" in checker
 
@@ -31,7 +31,7 @@ def test_tutorial_is_current_and_no_longer_bootstraps_legacy_runtime():
         assert f"destination: '{destination}'" in tutorial
     assert "destination: 'Create'" not in tutorial
     assert "destination: 'Autonomous'" not in tutorial
-    assert "MOBILE_DESTINATIONS = Object.freeze(['Home', 'Chats', 'Projects', 'Library', 'Studios'])" in tutorial
+    assert "MOBILE_DESTINATIONS = Object.freeze(['Home', 'Chats', 'Projects', 'Library', 'Studios', 'You'])" in tutorial
     assert "MOBILE_MORE_DESTINATIONS = Object.freeze([])" in tutorial
     assert "Studios opens the real Image and Video tools" in tutorial
     assert "Library is the calm shelf for your books and manuscripts" in tutorial
@@ -42,7 +42,7 @@ def test_tutorial_is_current_and_no_longer_bootstraps_legacy_runtime():
     assert "aria-current', 'step'" in tutorial
     assert "Replay workspace guide" in polish
     assert "Home, Chats, Projects, Library, Studios, and You" in polish
-    assert "You at the top right" in polish
+    assert "stay within one tap on desktop and mobile" in polish
     assert "loadRevampAssets" not in tutorial
     assert "crump-4.3.js" not in tutorial
     assert "event.key === 'Tab'" in tutorial
@@ -97,7 +97,7 @@ def test_navigation_tutorial_and_store_sources_share_one_exact_destination_contr
 
     assert "const desktopDestinationIds = Object.freeze(['home', 'chats', 'projects', 'library', 'studios', 'you']);" in checker
     assert "const desktopDestinationLabels = Object.freeze(['Home', 'Chats', 'Projects', 'Library', 'Studios', 'You']);" in checker
-    assert "const mobileDestinationIds = Object.freeze(['home', 'chats', 'projects', 'library', 'studios']);" in checker
+    assert "const mobileDestinationIds = Object.freeze(['home', 'chats', 'projects', 'library', 'studios', 'you']);" in checker
     assert "const moreDestinationIds = Object.freeze([]);" in checker
     assert "studios: 'video', you: 'you'" in checker
     assert "files: 'projects'" in checker
@@ -201,7 +201,7 @@ def test_store_and_pwa_copy_match_current_creation_surface():
     manifest = read("public/manifest.json")
     assert "released Image and Video tools" in listing
     assert "Home, Chats, Projects, Library, Studios, and You" in listing
-    assert "with You at the top right" in listing
+    assert "all six destinations stay in the bottom bar" in listing
     assert "guided research from Home" in listing
     assert "Open Projects and resume" in listing
     assert "From Home, test only the file creation modes" in listing

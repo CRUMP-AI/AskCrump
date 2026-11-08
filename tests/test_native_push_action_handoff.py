@@ -88,13 +88,13 @@ def test_native_push_consumer_and_runtime_loader_are_cache_busted_together() -> 
     runtime = read("public/runtime-body-v1.js")
     checker = read("scripts/check-javascript.mjs")
 
-    runtime_url = "/runtime-body-v1.js?v=5.9.76-premium-workspace-1"
+    runtime_url = "/runtime-body-v1.js?v=5.9.76-mobile-nav-apple-polish-1"
     presence_url = "/presence-manager.js?v=5.9.76-native-push-owner-fence-1"
-    cache_name = "ask-crump-new-body-v1-r282-premium-workspace-1"
+    cache_name = "ask-crump-new-body-v1-r283-mobile-nav-apple-polish-1"
     assert runtime_url in shell
     assert runtime_url in worker
     assert presence_url in runtime
     assert presence_url in worker
     assert cache_name in worker
     assert cache_name in checker
-    assert "const runtimeBodyVersion = premiumWorkspaceVersion;" in checker
+    assert "const runtimeBodyVersion = mobileNavApplePolishVersion;" in checker

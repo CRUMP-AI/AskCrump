@@ -153,7 +153,7 @@ body.tutorial-open { overflow: hidden !important; }
   background: rgba(0,0,0,.16);
 }
 .tutorial-destination-group:last-child .tutorial-destination-map {
-  grid-template-columns: repeat(5,minmax(0,1fr));
+  grid-template-columns: repeat(6,minmax(0,1fr));
 }
 .tutorial-destination-map span {
   display: grid;
@@ -293,7 +293,7 @@ body.tutorial-open { overflow: hidden !important; }
   .tutorial-description { font-size: 13px; }
   .tutorial-destination-group { grid-template-columns: 1fr; gap: 5px; }
   .tutorial-destination-map { grid-template-columns: repeat(4,minmax(0,1fr)); }
-  .tutorial-destination-group:last-child .tutorial-destination-map { grid-template-columns: repeat(5,minmax(0,1fr)); }
+  .tutorial-destination-group:last-child .tutorial-destination-map { grid-template-columns: repeat(6,minmax(0,1fr)); }
   .tutorial-destination-map span { min-height: 34px; font-size: 9px; }
   .tutorial-feature-grid { grid-template-columns: 1fr; gap: 6px; margin-top: 20px; }
   .tutorial-feature { min-height: 42px; }

@@ -21,7 +21,7 @@ def js_array(source: str, name: str) -> list[str]:
 def test_shell_exposes_one_truthful_desktop_and_mobile_information_architecture() -> None:
     shell = read("public/crump-vision-shell-1.0.js")
     assert js_array(shell, "ORDER") == ["home", "chats", "projects", "library", "studios", "you"]
-    assert js_array(shell, "MOBILE_ORDER") == ["home", "chats", "projects", "library", "studios"]
+    assert js_array(shell, "MOBILE_ORDER") == ["home", "chats", "projects", "library", "studios", "you"]
     assert js_array(shell, "MORE_DESTINATIONS") == []
     assert "button.id = 'cvMobileYou'" in shell
     assert '<span>New</span>' in shell
@@ -62,15 +62,16 @@ def test_ui_release_does_not_expose_or_claim_browser_workspace() -> None:
     assert not (ROOT / "public/crump-browser-workspace-1.0.css").exists()
 
 
-def test_premium_palette_typography_and_mobile_utility_are_release_owned() -> None:
+def test_premium_palette_typography_and_mobile_dock_are_release_owned() -> None:
     css = read("public/crump-vision-shell-1.0.css")
     for token in ("#070a0e", "#d5b971", "#b69855", "#f1efe9", "#8a9196"):
         assert token in css
     assert 'font-family: Georgia, "Times New Roman", serif' in css
     assert 'font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' in css
-    assert ".cv-mobile-you" in css
-    assert "min-width: 44px" in css
-    assert "min-height: 44px" in css
+    assert "grid-template-columns: repeat(6, minmax(44px, 1fr))" in css
+    assert ".cv-mnav-item.is-active::before" in css
+    assert "backdrop-filter: blur(28px) saturate(180%)" in css
+    assert ".cv-mobile-you" not in css
 
 
 def test_web_service_worker_and_native_loader_use_one_ui_revision() -> None:
@@ -78,27 +79,24 @@ def test_web_service_worker_and_native_loader_use_one_ui_revision() -> None:
     runtime = read("public/runtime-body-v1.js")
     service_worker = read("public/sw.js")
     native = read("scripts/build-native.mjs")
-    revision = "5.9.76-premium-workspace-1"
+    revision = "5.9.76-mobile-nav-apple-polish-1"
 
     for asset in (
         "runtime-body-v1.js",
         "crump-vision-shell-1.0.css",
         "crump-vision-shell-1.0.js",
-        "crump-vision-studios-1.0.css",
-        "crump-vision-studios-1.0.js",
     ):
         assert f"/{asset}?v={revision}" in app
         assert f"/{asset}?v={revision}" in service_worker
 
     for source in (runtime, native, service_worker):
         for asset in (
+            "onboarding.css",
             "onboarding.js",
-            "crump-v1-body.js",
             "crump-polish-5.6.js",
-            "crump-navigation-5.9.30.js",
         ):
             assert f"/{asset}?v={revision}" in source
-    assert "ask-crump-new-body-v1-r282-premium-workspace-1" in service_worker
+    assert "ask-crump-new-body-v1-r283-mobile-nav-apple-polish-1" in service_worker
 
 
 def test_tutorial_and_store_copy_match_the_visible_release() -> None:
@@ -106,7 +104,7 @@ def test_tutorial_and_store_copy_match_the_visible_release() -> None:
     listing = json.loads(read("store/listing.en-US.json"))
     desktop = "Home, Chats, Projects, Library, Studios, and You"
     assert "const DESKTOP_DESTINATIONS = Object.freeze(['Home', 'Chats', 'Projects', 'Library', 'Studios', 'You'])" in tutorial
-    assert "const MOBILE_DESTINATIONS = Object.freeze(['Home', 'Chats', 'Projects', 'Library', 'Studios'])" in tutorial
+    assert "const MOBILE_DESTINATIONS = Object.freeze(['Home', 'Chats', 'Projects', 'Library', 'Studios', 'You'])" in tutorial
     assert "Research with sources" in tutorial
     assert "Browse with sources" not in tutorial
     assert desktop in listing["apple"]["description"]

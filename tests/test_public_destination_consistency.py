@@ -139,7 +139,7 @@ def test_truthful_destination_assets_and_sitemaps_share_one_release_boundary():
         assert f'/landing-5.6.css?v={version}' in read(relative)
 
     worker = read("public/sw.js")
-    assert "ask-crump-new-body-v1-r282-premium-workspace-1" in worker
+    assert "ask-crump-new-body-v1-r283-mobile-nav-apple-polish-1" in worker
     assert f"/landing-5.6.css?v={version}" in worker
     assert "<lastmod>2026-08-30</lastmod>" in read("public/clever-crump-sitemap.xml")
 
