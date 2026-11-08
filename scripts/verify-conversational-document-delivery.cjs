@@ -6,7 +6,12 @@ const {chromium} = require('playwright');
 
 const root = path.resolve(__dirname, '..');
 const localPython = path.join(root, '.venv', process.platform === 'win32' ? 'Scripts/python.exe' : 'bin/python');
-const pythonExecutable = process.env.ASKCRUMP_PYTHON
+// The matrix's static file servers only need the standard library, while this
+// fixture needs FastAPI/Uvicorn. Keep those interpreter choices separate so a
+// sanitized dependency-rich fixture process does not weaken the matrix's
+// fail-closed static-server boundary.
+const pythonExecutable = process.env.ASKCRUMP_FIXTURE_PYTHON
+  || process.env.ASKCRUMP_PYTHON
   || (existsSync(localPython) ? localPython : (process.platform === 'win32' ? 'python' : 'python3'));
 const serverScript = path.join(root, 'scripts', 'serve-conversational-document-delivery-fixture.py');
 const readyPrefix = 'ASKCRUMP_DOCUMENT_FIXTURE_READY=';

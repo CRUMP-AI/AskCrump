@@ -1140,6 +1140,183 @@
     return receipt;
   }
 
+  function createConnectedResultReceipt(message) {
+    const card = message?.connectedOperator;
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+    const readActions = new Set([
+      'mail.search', 'mail.get', 'calendar.list', 'calendar.get', 'calendar.free_busy',
+    ]);
+    if (
+      !card || typeof card !== 'object' || Array.isArray(card)
+      || card.version !== 1 || card.state !== 'completed'
+      || typeof card.actionId !== 'string' || !uuid.test(card.actionId)
+      || typeof card.resultReferenceId !== 'string' || !uuid.test(card.resultReferenceId)
+      || !['google', 'microsoft'].includes(card.provider)
+      || !['mail', 'calendar'].includes(card.resource)
+      || !readActions.has(card.action) || !card.action.startsWith(`${card.resource}.`)
+      || !Number.isSafeInteger(card.itemCount) || card.itemCount < 0 || card.itemCount > 10_000
+    ) return null;
+
+    const receipt = document.createElement('aside');
+    receipt.className = 'connected-result-receipt';
+    receipt.setAttribute('aria-label', 'Connected result ready');
+    const copy = document.createElement('div');
+    copy.className = 'connected-result-receipt-copy';
+    const title = document.createElement('strong');
+    title.textContent = 'Connected result ready';
+    const detail = document.createElement('span');
+    detail.textContent = `${card.itemCount} ${card.itemCount === 1 ? 'item' : 'items'} · Opens only when you choose`;
+    copy.append(title, detail);
+    const open = document.createElement('button');
+    open.type = 'button';
+    open.className = 'connected-result-open';
+    open.textContent = 'View result';
+    open.dataset.connectedResultReference = card.resultReferenceId;
+    open.dataset.connectedActionId = card.actionId;
+    open.addEventListener('click', () => {
+      void window.CrumpConnectedAppsUI?.openResult?.(
+        card.resultReferenceId,
+        card.actionId,
+        open,
+      );
+    });
+    receipt.append(copy, open);
+    return receipt;
+  }
+
+  function createConnectedOperatorCard(message) {
+    const card = message?.connectedOperator;
+    const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+    const connectedActions = new Set([
+      'mail.search', 'mail.get', 'mail.create_draft', 'mail.send', 'mail.reply',
+      'calendar.list', 'calendar.get', 'calendar.free_busy',
+      'calendar.create', 'calendar.update', 'calendar.cancel',
+    ]);
+    if (!card || typeof card !== 'object' || Array.isArray(card) || card.version !== 1) return null;
+    const keysAre = (...names) => {
+      const actual = Object.keys(card).sort();
+      const expected = ['version', 'state', ...names].sort();
+      return actual.length === expected.length
+        && actual.every((name, index) => name === expected[index]);
+    };
+    const loopShape = extra => (
+      keysAre('loopId', 'currentStep', 'maxSteps', ...extra)
+      && typeof card.loopId === 'string' && uuid.test(card.loopId)
+      && Number.isSafeInteger(card.currentStep) && card.currentStep >= 0
+      && card.maxSteps === 8 && card.currentStep <= card.maxSteps
+    );
+    const actionShape = () => (
+      typeof card.actionId === 'string' && uuid.test(card.actionId)
+      && typeof card.approvalId === 'string' && uuid.test(card.approvalId)
+    );
+    const providerActionShape = () => (
+      ['google', 'microsoft'].includes(card.provider)
+      && ['mail', 'calendar'].includes(card.resource)
+      && connectedActions.has(card.action) && card.action.startsWith(`${card.resource}.`)
+    );
+
+    let title = '';
+    let detail = '';
+    let actionLabel = '';
+    let action = null;
+    if (card.state === 'needs_connection' && keysAre()) {
+      title = 'Connect mail or calendar';
+      detail = 'Choose the exact account and permission before Crump can use it.';
+      actionLabel = 'Open Connections';
+      action = () => window.CrumpConnectedAppsUI?.openWorkspace?.('connections');
+    } else if (card.state === 'pending_approval') {
+      const single = keysAre(
+        'requestId', 'actionId', 'approvalId', 'provider', 'resource', 'action',
+      ) && typeof card.requestId === 'string' && uuid.test(card.requestId)
+        && actionShape() && providerActionShape();
+      const multi = (
+        loopShape(['actionId', 'approvalId'])
+        || loopShape(['actionId', 'approvalId', 'resultReferenceId'])
+      ) && actionShape()
+        && (card.resultReferenceId === undefined
+          || (typeof card.resultReferenceId === 'string' && uuid.test(card.resultReferenceId)));
+      if (!single && !multi) return null;
+      title = 'Exact review required';
+      detail = 'Nothing has been sent or changed. Approve or deny this one action.';
+      actionLabel = 'Review action';
+      action = () => window.CrumpConnectedAppsUI?.openWorkspace?.('approvals');
+    } else if (card.state === 'schedule_created' && keysAre(
+      'scheduleId', 'nextRunAt', 'provider', 'action',
+    )) {
+      const next = new Date(card.nextRunAt);
+      if (
+        typeof card.scheduleId !== 'string' || !uuid.test(card.scheduleId)
+        || !['google', 'microsoft'].includes(card.provider)
+        || !connectedActions.has(card.action) || !Number.isFinite(next.getTime())
+      ) return null;
+      title = 'Schedule created';
+      detail = `Next run ${new Intl.DateTimeFormat(undefined, {dateStyle: 'medium', timeStyle: 'short'}).format(next)}. You can pause or cancel it.`;
+      actionLabel = 'View schedule';
+      action = () => window.CrumpConnectedAppsUI?.openWorkspace?.('schedules');
+    } else if (card.state === 'schedule_unavailable' && keysAre()) {
+      title = 'Schedule not created';
+      detail = 'Recurring connected work is unavailable on this build. No schedule was saved.';
+    } else if (card.state === 'clarification') {
+      const simple = keysAre();
+      const multi = loopShape([]) || loopShape(['resultReferenceId']);
+      if (!simple && !multi) return null;
+      if (card.resultReferenceId !== undefined
+        && (typeof card.resultReferenceId !== 'string' || !uuid.test(card.resultReferenceId))) return null;
+      title = 'Your reply is needed';
+      detail = 'This request will not continue on its own. Reply with the missing detail.';
+      actionLabel = 'Reply in chat';
+      action = () => window.CrumpConnectedAppsUI?.focusComposer?.();
+    } else if (['completed', 'cancelled', 'expired', 'limit_reached', 'effect_unknown', 'failed', 'active'].includes(card.state)) {
+      const multi = loopShape([]) || loopShape(['resultReferenceId']);
+      if (!multi) return null;
+      if (card.resultReferenceId !== undefined
+        && (typeof card.resultReferenceId !== 'string' || !uuid.test(card.resultReferenceId))) return null;
+      const copy = {
+        active: ['Connected task active', 'Crump is working within your connected permissions.'],
+        completed: ['Connected task completed', 'All planned connected steps finished.'],
+        cancelled: ['Connected task cancelled', 'No further connected steps will run.'],
+        expired: ['Connected task expired', 'The task stopped before it could finish.'],
+        limit_reached: ['Safety limit reached', 'Crump stopped after the eight-step limit.'],
+        effect_unknown: ['External effect uncertain', 'Crump will not repeat the action automatically.'],
+        failed: ['Connected task stopped', 'The task stopped after a failure.'],
+      }[card.state];
+      [title, detail] = copy;
+      actionLabel = 'View task';
+      action = () => window.CrumpConnectedAppsUI?.openWorkspace?.('tasks');
+    } else {
+      return null;
+    }
+
+    const receipt = document.createElement('aside');
+    receipt.className = `connected-operator-card connected-operator-card-${String(card.state).replace(/[^a-z_]/g, '')}`;
+    receipt.dataset.connectedOperatorCard = card.state;
+    receipt.hidden = window.CrumpConnectedAppsUI?.isReleased?.() !== true;
+    receipt.setAttribute('aria-hidden', receipt.hidden ? 'true' : 'false');
+    receipt.setAttribute('aria-label', title);
+    const copy = document.createElement('div');
+    copy.className = 'connected-operator-card-copy';
+    const eyebrow = document.createElement('span');
+    eyebrow.className = 'connected-operator-card-eyebrow';
+    eyebrow.textContent = 'CONNECTED WORK';
+    const heading = document.createElement('strong');
+    heading.textContent = title;
+    const description = document.createElement('span');
+    description.textContent = detail;
+    copy.append(eyebrow, heading, description);
+    receipt.appendChild(copy);
+    if (action && actionLabel) {
+      const controls = document.createElement('div');
+      controls.className = 'connected-operator-card-actions';
+      const control = document.createElement('button');
+      control.type = 'button';
+      control.textContent = actionLabel;
+      control.addEventListener('click', action);
+      controls.appendChild(control);
+      receipt.appendChild(controls);
+    }
+    return receipt;
+  }
+
   function renderMessages(messages) {
     const container = document.getElementById('chatContainer');
     if (!container) return;
@@ -1227,6 +1404,10 @@
       }
 
       if (!isUser) {
+        const connectedResultReceipt = createConnectedResultReceipt(message);
+        if (connectedResultReceipt) wrapper.appendChild(connectedResultReceipt);
+        const connectedOperatorCard = createConnectedOperatorCard(message);
+        if (connectedOperatorCard) wrapper.appendChild(connectedOperatorCard);
         const intelligenceReceipt = createIntelligenceReceipt(message);
         if (intelligenceReceipt) wrapper.appendChild(intelligenceReceipt);
         const actions = document.createElement('div');

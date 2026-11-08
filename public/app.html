@@ -415,6 +415,13 @@
               <span><strong id="v1LaunchProjectsTitle">Open a Project</strong><small id="v1LaunchProjectsDescription">Continue with its context, conversations, and files intact.</small></span>
               <b aria-hidden="true">↗</b>
             </button>
+            <button type="button" class="v1-launch-card" data-v1-command="browser" data-browser-mode="research" data-browser-workspace-entry data-v1-index="06" aria-labelledby="v1LaunchBrowserTitle" aria-describedby="v1LaunchBrowserDescription" hidden aria-hidden="true">
+              <span class="v1-launch-icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.25"/><path d="M3.9 12h16.2M12 3.75c2.2 2.25 3.35 5 3.35 8.25S14.2 18 12 20.25C9.8 18 8.65 15.25 8.65 12S9.8 6 12 3.75Z"/></svg>
+              </span>
+              <span><strong id="v1LaunchBrowserTitle">Browse and research</strong><small id="v1LaunchBrowserDescription">Explore the web with live progress, sources, and review before external changes.</small></span>
+              <b aria-hidden="true">↗</b>
+            </button>
             <button type="button" class="v1-launch-card" data-home-document-entry data-v1-index="02" aria-labelledby="v1LaunchDocumentTitle" aria-describedby="v1LaunchDocumentDescription">
               <span class="v1-launch-icon" aria-hidden="true">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7.25 3.75h6.35l3.9 3.9v12.6H7.25z"/><path d="M13.6 3.75v4.2h4.15"/><path d="M9.8 11.75h5.5M9.8 14.75h5.5M9.8 17.75h3.5"/></svg>
@@ -493,6 +500,7 @@
         <button id="settingsNavProfile" type="button" class="is-active" data-v1-settings-tab="profile" aria-current="page" aria-controls="settingsPanelProfile">Profile</button>
         <button id="settingsNavAppearance" type="button" data-v1-settings-tab="appearance" aria-controls="settingsPanelAppearance">Appearance</button>
         <button id="settingsNavBehavior" type="button" data-v1-settings-tab="behavior" aria-controls="settingsPanelBehavior">Behavior</button>
+        <button id="settingsNavConnections" type="button" data-v1-settings-tab="connections" aria-controls="settingsPanelConnections" aria-hidden="true" hidden>Connections</button>
         <button id="settingsNavPlan" type="button" data-v1-settings-tab="plan" aria-controls="settingsPanelPlan">Plan &amp; credits</button>
         <button id="settingsNavAccount" type="button" data-v1-settings-tab="account" aria-controls="settingsPanelAccount">Account</button>
         <button id="settingsNavAbout" type="button" data-v1-settings-tab="about" aria-controls="settingsPanelAbout">About</button>
@@ -605,6 +613,143 @@
           </div>
         </section>
 
+        <section id="settingsPanelConnections" class="settings-group v1-settings-panel connected-apps-panel" data-v1-settings-panel="connections" aria-labelledby="settingsNavConnections" aria-hidden="true" hidden>
+          <div class="v1-settings-panel-head connected-apps-heading">
+            <div><div class="settings-group-title">Connections</div><h3>Mail and calendar</h3></div>
+            <p>Choose exactly what Crump may access. Reading and writing are separate permissions, and external writes stay behind a review step.</p>
+          </div>
+
+          <div id="connectedAppsAvailability" class="connected-apps-availability" role="status" aria-live="polite">Checking secure connection availability…</div>
+
+          <div id="connectedAppsWorkspace" hidden>
+            <div class="connected-apps-safety" role="note">
+              <strong>You stay in control.</strong>
+              <span>Crump never receives your password. You can disconnect at any time. Creating a provider draft, sending mail, replying, or changing a calendar requires an exact, short-lived approval—including every scheduled write.</span>
+            </div>
+            <div class="connected-apps-safety connected-apps-ai-disclosure" role="note">
+              <strong>How connected content is processed.</strong>
+              <span>When a request needs reasoning across mail or calendar results, Ask Crump may send only the excerpts needed for that request through its configured AI gateway and selected model provider. Those calls require zero-data-retention and no-training routing and fail if no eligible provider is available. Provider security, abuse-prevention, and legally required processing may still apply.</span>
+            </div>
+
+            <section class="connected-operator-overview" aria-labelledby="connectedOperatorOverviewTitle">
+              <div class="connected-operator-overview-copy">
+                <span>CONNECTED WORKSPACE</span>
+                <h4 id="connectedOperatorOverviewTitle">Delegate with proof, not guesswork.</h4>
+                <p>Ask in the conversation, review every external change, and follow durable progress and receipts here.</p>
+              </div>
+              <ol class="connected-operator-flow" aria-label="Connected task flow">
+                <li><span>1</span><strong>Ask in chat</strong><small>Describe the mail or calendar outcome.</small></li>
+                <li><span>2</span><strong>Review changes</strong><small>Approve one exact external action.</small></li>
+                <li><span>3</span><strong>Follow proof</strong><small>See progress, results, and uncertain effects.</small></li>
+              </ol>
+            </section>
+
+            <nav class="connected-workspace-nav" aria-label="Connected workspace sections">
+              <button type="button" data-connected-jump="connections" aria-controls="connectedAppsAccounts">Accounts</button>
+              <button type="button" data-connected-jump="approvals" aria-controls="connectedAppsApprovals">Reviews</button>
+              <button type="button" data-connected-jump="tasks" aria-controls="connectedAppsTasks">Tasks <span id="connectedAppsTaskCount" aria-label="Active and waiting tasks">0</span></button>
+              <button type="button" data-connected-jump="schedules" aria-controls="connectedAppsSchedules">Schedules</button>
+              <button type="button" data-connected-jump="activity" aria-controls="connectedAppsActivity">Activity</button>
+            </nav>
+
+            <div id="connectedAppsAccounts" class="connected-provider-grid" aria-label="Available providers" tabindex="-1">
+              <article class="connected-provider-card" data-connected-provider-card="google">
+                <div class="connected-provider-head">
+                  <div class="connected-provider-mark" aria-hidden="true">G</div>
+                  <div><h4>Google</h4><p>Gmail and Google Calendar</p></div>
+                </div>
+                <label class="connected-account-kind">Account type
+                  <select data-connected-account-kind="google" aria-label="Google account type">
+                    <option value="personal">Personal Google account</option>
+                    <option value="work_school">Google Workspace account</option>
+                  </select>
+                </label>
+                <div class="connected-resource-row">
+                  <div><strong>Gmail</strong><small>Begin with search and read. Drafting and sending are a separate permission.</small><span data-connected-grant="google:mail">Not connected</span></div>
+                  <div class="connected-resource-actions">
+                    <button type="button" data-connected-start="google:mail:read">Connect read-only</button>
+                    <button type="button" data-connected-start="google:mail:manage">Add drafting &amp; sending</button>
+                  </div>
+                </div>
+                <div class="connected-resource-row">
+                  <div><strong>Calendar</strong><small>Begin with events and availability. Scheduling is a separate permission.</small><span data-connected-grant="google:calendar">Not connected</span></div>
+                  <div class="connected-resource-actions">
+                    <button type="button" data-connected-start="google:calendar:read">Connect read-only</button>
+                    <button type="button" data-connected-start="google:calendar:manage">Add scheduling</button>
+                  </div>
+                </div>
+              </article>
+
+              <article class="connected-provider-card" data-connected-provider-card="microsoft">
+                <div class="connected-provider-head">
+                  <div class="connected-provider-mark connected-provider-mark-microsoft" aria-hidden="true">M</div>
+                  <div><h4>Microsoft</h4><p>Outlook Mail and Calendar</p></div>
+                </div>
+                <label class="connected-account-kind">Account type
+                  <select data-connected-account-kind="microsoft" aria-label="Microsoft account type">
+                    <option value="personal">Personal Microsoft account</option>
+                    <option value="work_school">Work or school account</option>
+                  </select>
+                </label>
+                <div class="connected-resource-row">
+                  <div><strong>Outlook Mail</strong><small>Begin with search and read. Drafting and sending are a separate permission.</small><span data-connected-grant="microsoft:mail">Not connected</span></div>
+                  <div class="connected-resource-actions">
+                    <button type="button" data-connected-start="microsoft:mail:read">Connect read-only</button>
+                    <button type="button" data-connected-start="microsoft:mail:manage">Add drafting &amp; sending</button>
+                  </div>
+                </div>
+                <div class="connected-resource-row">
+                  <div><strong>Calendar</strong><small>Begin with events. Availability for work accounts and scheduling are separate permissions.</small><span data-connected-grant="microsoft:calendar">Not connected</span></div>
+                  <div class="connected-resource-actions">
+                    <button type="button" data-connected-start="microsoft:calendar:read">Connect read-only</button>
+                    <button type="button" data-connected-start="microsoft:calendar:manage">Add scheduling</button>
+                  </div>
+                </div>
+              </article>
+            </div>
+
+            <div class="connected-apps-toolbar">
+              <div><strong>Connected access</strong><small id="connectedAppsLastUpdated">Only metadata is shown here.</small></div>
+              <button id="connectedAppsRefresh" type="button">Refresh</button>
+            </div>
+            <div id="connectedAppsConnections" class="connected-apps-list" aria-live="polite"></div>
+
+            <section class="connected-apps-section" aria-labelledby="connectedAppsApprovalsTitle">
+              <div class="connected-apps-section-head"><div><h4 id="connectedAppsApprovalsTitle" tabindex="-1">Waiting for your review</h4><p>Approval is bound to one exact action and expires quickly.</p></div><span id="connectedAppsApprovalCount" aria-label="Pending approvals">0</span></div>
+              <div id="connectedAppsApprovals" class="connected-apps-list" aria-live="polite"></div>
+            </section>
+
+            <section class="connected-apps-section" aria-labelledby="connectedAppsTasksTitle">
+              <div class="connected-apps-section-head"><div><h4 id="connectedAppsTasksTitle" tabindex="-1">Connected tasks</h4><p>Durable progress for multi-step work. Nothing continues after a stop state.</p></div></div>
+              <div id="connectedAppsTasks" class="connected-apps-list" aria-live="polite"></div>
+            </section>
+
+            <section class="connected-apps-section" aria-labelledby="connectedAppsSchedulesTitle">
+              <div class="connected-apps-section-head"><div><h4 id="connectedAppsSchedulesTitle" tabindex="-1">Schedules</h4><p>Pause or cancel recurring work at any time.</p></div></div>
+              <div id="connectedAppsSchedules" class="connected-apps-list"></div>
+            </section>
+
+            <section class="connected-apps-section" aria-labelledby="connectedAppsActivityTitle">
+              <div class="connected-apps-section-head"><div><h4 id="connectedAppsActivityTitle" tabindex="-1">Recent activity</h4><p>Content-free receipts for connected actions.</p></div></div>
+              <div id="connectedAppsActivity" class="connected-apps-list"></div>
+            </section>
+          </div>
+
+          <dialog id="connectedAppsConsentDialog" class="connected-consent-dialog" aria-labelledby="connectedAppsConsentTitle" aria-describedby="connectedAppsConsentDescription">
+            <form method="dialog">
+              <div class="settings-group-title">REVIEW PERMISSION</div>
+              <h3 id="connectedAppsConsentTitle">Connect an account</h3>
+              <p id="connectedAppsConsentDescription"></p>
+              <ul id="connectedAppsConsentScopes"></ul>
+              <p class="connected-consent-note">The provider will show its own permission screen next. Nothing is connected until you approve it there. Connected excerpts needed to complete your requests may be processed by Ask Crump’s configured AI gateway and selected model provider under required zero-data-retention and no-training routing.</p>
+              <div class="connected-consent-actions">
+                <button id="connectedAppsConsentCancel" type="button">Cancel</button>
+                <button id="connectedAppsConsentContinue" type="button">Continue securely</button>
+              </div>
+            </form>
+          </dialog>
+        </section>
+
         <section id="settingsPanelPlan" class="settings-group v1-settings-panel" data-v1-settings-panel="plan" aria-labelledby="settingsNavPlan" hidden>
           <div class="v1-settings-panel-head">
             <div><div class="settings-group-title">Plan &amp; credits</div><h3>Your access and usage</h3></div>
@@ -682,18 +827,20 @@
 
 <script defer src="/telemetry-config.js?v=5.9.76"></script>
 <script defer src="/crump-vision-demo-1.0.js?v=5.9.76-atelier-workspace-1"></script>
-<script defer src="/runtime-body-v1.js?v=5.9.76-premium-workspace-1"></script>
+<script defer src="/runtime-body-v1.js?v=5.9.76-premium-browser-workspace-1"></script>
 <script defer src="/home-document-entry.js?v=5.9.76-home-document-entry-1"></script>
-<link rel="stylesheet" href="/crump-vision-shell-1.0.css?v=5.9.76-premium-workspace-1" />
-<script defer src="/crump-vision-shell-1.0.js?v=5.9.76-premium-workspace-1"></script>
+<link rel="stylesheet" href="/crump-vision-shell-1.0.css?v=5.9.76-premium-browser-workspace-1" />
+<script defer src="/crump-vision-shell-1.0.js?v=5.9.76-premium-browser-workspace-1"></script>
 <link rel="stylesheet" href="/crump-vision-chats-1.0.css?v=5.9.76-atelier-workspace-1" />
 <script defer src="/crump-vision-chats-1.0.js?v=5.9.76-atelier-workspace-1"></script>
 <link rel="stylesheet" href="/crump-vision-projects-1.0.css?v=5.9.76-project-resume-1" />
 <script defer src="/crump-vision-projects-1.0.js?v=5.9.76-project-resume-owner-boundary-1"></script>
 <link rel="stylesheet" href="/crump-vision-library-1.0.css?v=5.9.76-atelier-workspace-1" />
 <script defer src="/crump-vision-library-1.0.js?v=5.9.76-account-owner-boundary-1"></script>
-<link rel="stylesheet" href="/crump-vision-studios-1.0.css?v=5.9.76-premium-workspace-1" />
-<script defer src="/crump-vision-studios-1.0.js?v=5.9.76-premium-workspace-1"></script>
+<link rel="stylesheet" href="/crump-vision-studios-1.0.css?v=5.9.76-premium-browser-workspace-1" />
+<script defer src="/crump-vision-studios-1.0.js?v=5.9.76-premium-browser-workspace-1"></script>
+<link rel="stylesheet" href="/crump-browser-workspace-1.0.css?v=5.9.76-premium-browser-workspace-1" />
+<script defer src="/crump-browser-workspace-1.0.js?v=5.9.76-premium-browser-workspace-1"></script>
 <script defer src="/native-runtime.js"></script>
 <script defer src="/mobile-bridge.js?v=5.9.76-private-owner-boundary-1"></script>
 <script defer src="/safe-storage.js"></script>

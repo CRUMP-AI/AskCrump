@@ -153,6 +153,9 @@ def test_worker_reuses_existing_cron_slot_and_browser_only_dispatches():
         "path": "/api/cron/videos",
         "schedule": "*/5 * * * *",
     } in vercel["crons"]
+    assert not any(
+        item["path"] == "/api/cron/connected-apps" for item in vercel["crons"]
+    )
     cron_route = read("backend/routes/manuscripts.py")
     assert cron_route.index("account_deletions.process_next()") < cron_route.index(
         "code_worker.process_next("

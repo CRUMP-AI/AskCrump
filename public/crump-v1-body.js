@@ -367,6 +367,10 @@
         window.triggerWebSearch?.();
         requestAnimationFrame(() => focusComposer('What should Crump research?'));
         break;
+      case 'browser':
+        if (!requireOwnedWorkspace('Browser workspace')) break;
+        window.CrumpBrowserWorkspace?.open?.({mode: 'research'});
+        break;
       case 'image':
         if (!requirePaidTool('Image Studio')) break;
         if (window.CrumpImageStudio?.open) window.CrumpImageStudio.open();

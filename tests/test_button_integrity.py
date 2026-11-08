@@ -16,7 +16,7 @@ DYNAMIC_BUTTON_PATTERN = re.compile(
     re.IGNORECASE,
 )
 EXPECTED_BUTTON_INVENTORY = {
-    "public/app.html": 53,
+    "public/app.html": 71,
     "public/credit-confirmation.js": 3,
     "public/crump-5.0.js": 4,
     "public/crump-5.2.js": 5,
@@ -58,7 +58,7 @@ DYNAMIC_BUTTON_INVENTORY = {
     "public/crump-vision-shell-1.0.js": 1,
     "public/install-prompt.js": 1,
     "public/onboarding.js": 1,
-    "public/ui-functions.js": 16,
+    "public/ui-functions.js": 18,
 }
 INDIRECT_DYNAMIC_BUTTON_OWNERS = {
     "public/crump-5.0.js:2027:close": (
@@ -73,7 +73,7 @@ INDIRECT_DYNAMIC_BUTTON_OWNERS = {
         "wireOutputProjectAction(project, {",
         "button.addEventListener('click', async () => {",
     ),
-    "public/crump-5.2.js:771:buy": (
+    "public/crump-5.2.js:785:buy": (
         "buy.dataset.crumpPack =",
         "modal.addEventListener('click', event => {",
         "event.target.closest?.('[data-crump-pack]')",
@@ -305,7 +305,7 @@ def test_rendered_button_inventory_requires_explicit_review() -> None:
             inventory[page.relative_to(ROOT).as_posix()] = len(parser.buttons)
 
     assert inventory == EXPECTED_BUTTON_INVENTORY
-    assert sum(inventory.values()) == 225
+    assert sum(inventory.values()) == 243
 
 
 def test_programmatically_created_button_inventory_requires_explicit_review() -> None:
@@ -316,8 +316,8 @@ def test_programmatically_created_button_inventory_requires_explicit_review() ->
             inventory[path.relative_to(ROOT).as_posix()] = count
 
     assert inventory == DYNAMIC_BUTTON_INVENTORY
-    assert sum(inventory.values()) == 105
-    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 330
+    assert sum(inventory.values()) == 107
+    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 350
 
 
 def test_programmatically_created_buttons_declare_type_and_runtime_owner() -> None:
@@ -652,7 +652,7 @@ def test_browser_control_matrix_is_fail_closed_and_one_command() -> None:
     workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     verifier_names = sorted(path.name for path in (ROOT / "scripts").glob("verify-*.cjs"))
 
-    assert len(verifier_names) == 70
+    assert len(verifier_names) == 72
     for name in verifier_names:
         assert f"'{name}'" in runner
     assert "Browser verifier inventory drifted." in runner

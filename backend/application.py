@@ -9,11 +9,17 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
+from .connected_app_activation import connected_application_lifespan
+from .connected_app_bootstrap import prepare_connected_application_activation
+from .connected_app_host_bootstrap import configure_connected_production_host
+from .connected_app_production import register_connected_production_application_factory
+from .connected_app_request_activation import connected_request_activation_deferred
 from .http import register_exception_handlers, request_guards
 from .logging_privacy import enforce_transport_log_privacy
 from .routes import (
-    account, analytics, auth, billing, chat, code, credits, features, files, health, intelligence,
-    library, lifecycle, manuscripts, media, presence, projects, safety, sync, voice,
+    account, analytics, auth, billing, browser, chat, code, connected_apps, credits, features, files,
+    health, intelligence, library, lifecycle, manuscripts, media, presence, projects, safety,
+    sync, voice,
 )
 from .runtime import settings
 from .version import __version__
@@ -34,12 +40,17 @@ def configure_logging() -> None:
 
 def create_app() -> FastAPI:
     configure_logging()
+    configure_connected_production_host()
+    if not connected_request_activation_deferred():
+        register_connected_production_application_factory()
+        prepare_connected_application_activation()
     application = FastAPI(
         title='Ask Crump API',
         version=__version__,
         docs_url='/api/docs' if not settings.is_production else None,
         redoc_url=None,
         openapi_url='/api/openapi.json' if not settings.is_production else None,
+        lifespan=connected_application_lifespan,
     )
     application.add_middleware(
         CORSMiddleware,
@@ -62,6 +73,9 @@ def create_app() -> FastAPI:
     application.include_router(files.router)
     application.include_router(projects.router)
     application.include_router(code.router)
+    application.include_router(browser.router)
+    application.include_router(connected_apps.router)
+    application.include_router(connected_apps.cron_router)
     application.include_router(voice.router)
     application.include_router(features.router)
     application.include_router(media.router)

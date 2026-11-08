@@ -17,7 +17,7 @@ def test_56_polish_layer_is_last_on_web_and_native():
         assert source.index("/crump-4.3.js") < source.index("/crump-4.4.js")
         assert source.index("/crump-product-5.3.1.js") < source.index("/crump-polish-5.6.js")
         assert "/crump-polish-5.6.css" in source
-    assert "ask-crump-new-body-v1-r282-premium-workspace-1" in worker
+    assert "ask-crump-new-body-v1-r283-premium-browser-workspace-1" in worker
     assert "/crump-polish-5.6.css" in worker and "/crump-polish-5.6.js" in worker
     assert "crump-polish-5.6.js" in checker
 
@@ -114,9 +114,9 @@ def test_home_surface_exposes_projects_and_video_without_hiding_core_chat():
     assert "Ways to begin" in app
     assert 'class="v1-launchpad-foot"' not in app
     assert 'data-v1-command="focus"' not in app
-    for command in ("projects", "file", "image", "video"):
+    for command in ("projects", "browser", "file", "image", "video"):
         assert app.count(f'data-v1-command="{command}"') == 1
-    assert app.count('class="v1-launch-card') == 5
+    assert app.count('class="v1-launch-card') == 6
     assert app.count('data-home-document-entry') == 1
     assert "case 'projects':" in body and "openProduct('projects')" in body
     assert "case 'video':" in body and "openProduct('video')" in body
@@ -213,6 +213,18 @@ def test_store_and_pwa_copy_match_current_creation_surface():
     assert "Saved Library" not in listing
     assert "Image Studio" in listing and "Video Studio" in listing
     assert "manuscripts" in manifest and "video" in manifest and "Projects" in manifest
+
+
+def test_studios_only_offer_controls_owned_by_the_real_generators():
+    studios = read("public/crump-vision-studios-1.0.js")
+
+    assert "IMAGE_MODES" not in studios
+    assert "data-cv-image-mode" not in studios
+    assert "function launchImageStudio(statusEl)" in studios
+    assert "open();" in studios
+    assert "Choose aspect ratio, quality, and optional references inside Image Studio" in studios
+    assert "data-cv-mode" in studios
+    assert "engine.value = modeId" in studios
 
 
 def test_native_bundle_paths_are_windows_safe():

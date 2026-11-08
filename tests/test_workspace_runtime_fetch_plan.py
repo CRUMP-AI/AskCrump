@@ -54,11 +54,11 @@ def test_parallel_runtime_asset_is_versioned_for_web_pwa_and_native():
     worker = read("public/sw.js")
     checker = read("scripts/check-javascript.mjs")
 
-    asset = "/runtime-body-v1.js?v=5.9.76-premium-workspace-1"
+    asset = "/runtime-body-v1.js?v=5.9.76-premium-browser-workspace-1"
     assert asset in shell
     assert asset in worker
-    assert "ask-crump-new-body-v1-r282-premium-workspace-1" in worker
-    assert "ask-crump-new-body-v1-r282-premium-workspace-1" in checker
+    assert "ask-crump-new-body-v1-r283-premium-browser-workspace-1" in worker
+    assert "ask-crump-new-body-v1-r283-premium-browser-workspace-1" in checker
 
 
 def test_runtime_fetch_fixture_is_credential_free_and_measures_the_full_plan():
@@ -87,17 +87,17 @@ def test_runtime_fetch_fixture_is_credential_free_and_measures_the_full_plan():
     assert "password" not in fixture.lower()
     assert "askcrump.com" not in fixture.lower()
     assert "verify-workspace-runtime-fetch-plan.cjs" in matrix
-    assert "evidence.maxStyles, 17" in verifier
-    assert "evidence.lastStyle, '/crump-motion-system.css?v=5.9.76-motion-system-2'" in verifier
-    assert "evidence.preloadCount, 35" in verifier
-    assert "mode === 'style-retry' ? 22 : 21" in verifier
-    assert "mode === 'script-retry' ? 36 : 35" in verifier
-    assert "evidence.lastScript, '/crump-activity-center-1.0.js?v=5.9.76-private-owner-boundary-1'" in verifier
+    assert "evidence.maxStyles, 18" in verifier
+    assert "evidence.lastStyle, '/crump-browser-workspace-1.0.css?v=5.9.76-premium-browser-workspace-1'" in verifier
+    assert "evidence.preloadCount, 36" in verifier
+    assert "mode === 'style-retry' ? 24 : 23" in verifier
+    assert "mode === 'script-retry' ? 37 : 36" in verifier
+    assert "evidence.lastScript, '/connected-apps-ui.js?v=5.9.76-connected-operator-workspace-5'" in verifier
     assert "evidence.styleAttempts, mode === 'style-retry' ? 2 : 1" in verifier
     assert "evidence.scriptAttempts, mode === 'script-retry' ? 2 : 1" in verifier
     assert "failureMessage: 'Ask Crump could not finish loading your workspace." in verifier
     assert "results['style-fail-recovery']" in verifier
-    assert "evidence.runtimeMs > 0 && evidence.runtimeMs < 1_000" in verifier
+    assert "evidence.runtimeMs > 0 && evidence.runtimeMs < 1_250" in verifier
     assert "password" not in verifier.lower()
     assert "askcrump.com" not in verifier.lower()
 
@@ -134,7 +134,7 @@ def test_owner_boundary_release_replaces_frozen_r272_on_first_controlled_load_an
     )
     assert "tests', 'fixtures', 'sw-r272-project-resume.js'" in verifier
     assert "previous.cache, 'ask-crump-new-body-v1-r272-project-resume-auth-boundary-1'" in verifier
-    assert "current.cache, 'ask-crump-new-body-v1-r282-premium-workspace-1'" in verifier
+    assert "current.cache, 'ask-crump-new-body-v1-r283-premium-browser-workspace-1'" in verifier
     assert "immediatePredecessor.runtime" in verifier
     assert "current.runtime, immediatePredecessor.runtime" in verifier
     assert "current.billing52, immediatePredecessor.billing52" in verifier

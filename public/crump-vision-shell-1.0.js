@@ -24,6 +24,7 @@
     ask: 'home', chats: 'chats', home: 'home',
     projects: 'projects', files: 'files', library: 'library',
     video: 'studios', studios: 'studios', code: 'autonomous', autonomous: 'autonomous',
+    browser: 'browser', research: 'browser',
     create: 'home', you: 'you', profile: 'you', more: 'you',
   };
   var NEW_TO_OLD = {
@@ -37,10 +38,10 @@
     home: 'ask', chats: 'chats', projects: 'projects', files: 'projects', library: 'library',
     studios: 'video', autonomous: 'code', you: 'you',
   };
-  var ACTIVE_PARENT = {files: 'projects', autonomous: 'home'};
+  var ACTIVE_PARENT = {files: 'projects', browser: 'home', autonomous: 'home'};
   var LABELS = {
     home: 'Home', chats: 'Chats', projects: 'Projects', files: 'Files', library: 'Library',
-    studios: 'Studios', autonomous: 'Autonomous', you: 'You',
+    studios: 'Studios', autonomous: 'Autonomous', browser: 'Browser', you: 'You',
     more: 'More',
   };
   var SVG_OPEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">';
@@ -53,6 +54,7 @@
     library: SVG_OPEN + '<path d="M4.25 5.15h5.1A2.65 2.65 0 0 1 12 7.8v11.05a3.45 3.45 0 0 0-3.45-2.65h-4.3V5.15Z"/><path d="M19.75 5.15h-5.1A2.65 2.65 0 0 0 12 7.8v11.05a3.45 3.45 0 0 1 3.45-2.65h4.3V5.15Z"/></svg>',
     video: SVG_OPEN + '<rect x="3.8" y="5.25" width="16.4" height="13.5" rx="2.4"/><path d="m10.25 9.15 5 2.85-5 2.85v-5.7Z"/></svg>',
     studios: SVG_OPEN + '<rect x="3.8" y="4.8" width="16.4" height="14.4" rx="2.4"/><path d="m6.8 15.8 3.65-3.7 2.75 2.7 1.85-1.85 2.15 2.15"/><circle cx="9" cy="9" r="1.25"/></svg>',
+    browser: SVG_OPEN + '<circle cx="12" cy="12" r="8.25"/><path d="M3.9 12h16.2M12 3.75c2.2 2.25 3.35 5 3.35 8.25S14.2 18 12 20.25C9.8 18 8.65 15.25 8.65 12S9.8 6 12 3.75Z"/></svg>',
     autonomous: SVG_OPEN + '<path d="M7.1 5.1h9.8l3 5.35-3 5.35H7.1l-3-5.35 3-5.35Z"/><path d="m9.4 8.2-2.25 2.25 2.25 2.25M14.6 8.2l2.25 2.25-2.25 2.25M13.05 7.45l-2.1 6"/></svg>',
     profile: SVG_OPEN + '<circle cx="12" cy="8.1" r="3.35"/><path d="M5.6 19.2c.75-3.7 2.9-5.55 6.4-5.55s5.65 1.85 6.4 5.55"/></svg>',
     you: SVG_OPEN + '<circle cx="12" cy="8.1" r="3.35"/><path d="M5.6 19.2c.75-3.7 2.9-5.55 6.4-5.55s5.65 1.85 6.4 5.55"/></svg>',
@@ -150,8 +152,8 @@
   function registerView(id, def) {
     var sourceKey = String(id == null ? '' : id).toLowerCase();
     // Home and You keep delegating to the authoritative Ask and account
-    // surfaces. Studios can register because its view delegates only to the
-    // released Image and Video tools.
+    // surfaces. Studios and Browser can register because their views delegate
+    // only to released tools and a fail-closed browser task boundary.
     if (sourceKey === 'ask' || sourceKey === 'home' || sourceKey === 'profile' || sourceKey === 'you') return false;
     var key = normalizeId(sourceKey);
     if (!key || !def || typeof def.render !== 'function') return false;
@@ -313,6 +315,10 @@
   }
 
   function track(id) {
+    // Browser gets its own destination source only after the server/database
+    // event contract is versioned for it. Do not emit a knowingly rejected
+    // or mislabeled event while the Browser release lock remains false.
+    if (id === 'browser') return;
     try {
       if (window.CrumpAnalytics && typeof window.CrumpAnalytics.track === 'function') {
         window.CrumpAnalytics.track('NavigationDestinationSelected', {

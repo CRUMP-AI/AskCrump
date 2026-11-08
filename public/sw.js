@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r282-premium-workspace-1';
+const CACHE_NAME = 'ask-crump-new-body-v1-r283-premium-browser-workspace-1';
 
 const CORE = [
   '/app',
@@ -22,41 +22,44 @@ const CORE = [
   '/lifecycle.css?v=5.9.76-lifecycle-activation-1',
   '/crump-design-pass.css?v=5.9.76-ui-release-audit-2',
   '/crump-activity-center-1.0.css?v=5.9.76-autonomous-continuity-1',
+  '/connected-apps-ui.css?v=5.9.76-connected-operator-workspace-5',
   '/crump-ui-guardrails.css?v=5.9.76-ui-guardrails-1',
   '/crump-motion-system.css?v=5.9.76-motion-system-2',
-  '/crump-v1-body.js?v=5.9.76-premium-workspace-1&workspaceRelease=guest-free-contract-2',
+  '/crump-v1-body.js?v=5.9.76-premium-browser-workspace-1&workspaceRelease=guest-free-contract-2',
   '/crump-v1-stability.css',
   '/crump-v1-stability.js?v=5.9.76-intelligence-architecture-1',
   '/crump-navigation-5.2.5.css',
   '/crump-navigation-5.2.5.js?v=5.9.76-chats-language-1',
   '/crump-navigation-5.9.30.css?v=5.9.76-nav-focus-visibility-1',
-  '/crump-navigation-5.9.30.js?v=5.9.76-premium-workspace-1',
-  '/crump-vision-shell-1.0.css?v=5.9.76-premium-workspace-1',
-  '/crump-vision-shell-1.0.js?v=5.9.76-premium-workspace-1',
+  '/crump-navigation-5.9.30.js?v=5.9.76-premium-browser-workspace-1',
+  '/crump-vision-shell-1.0.css?v=5.9.76-premium-browser-workspace-1',
+  '/crump-vision-shell-1.0.js?v=5.9.76-premium-browser-workspace-1',
   '/crump-vision-chats-1.0.css?v=5.9.76-atelier-workspace-1',
   '/crump-vision-chats-1.0.js?v=5.9.76-atelier-workspace-1',
   '/crump-vision-library-1.0.css?v=5.9.76-atelier-workspace-1',
   '/crump-vision-library-1.0.js?v=5.9.76-account-owner-boundary-1',
   '/crump-vision-projects-1.0.css?v=5.9.76-project-resume-1',
   '/crump-vision-projects-1.0.js?v=5.9.76-project-resume-owner-boundary-1',
-  '/crump-vision-studios-1.0.css?v=5.9.76-premium-workspace-1',
-  '/crump-vision-studios-1.0.js?v=5.9.76-premium-workspace-1',
+  '/crump-vision-studios-1.0.css?v=5.9.76-premium-browser-workspace-1',
+  '/crump-vision-studios-1.0.js?v=5.9.76-premium-browser-workspace-1',
+  '/crump-browser-workspace-1.0.css?v=5.9.76-premium-browser-workspace-1',
+  '/crump-browser-workspace-1.0.js?v=5.9.76-premium-browser-workspace-1',
   '/crump-code-loader.js?v=5.9.76-account-owner-boundary-1&workspaceRelease=guest-free-contract-2',
   '/crump-product-loader.js?v=5.9.76-legacy-project-resume-truth-1&workspaceRelease=guest-free-contract-2',
   '/crump-product-5.3.1.css',
   '/crump-product-5.3.1.js?v=5.9.76-conversation-action-labels-2',
   '/crump-polish-5.6.css',
-  '/crump-polish-5.6.js?v=5.9.76-premium-workspace-1',
+  '/crump-polish-5.6.js?v=5.9.76-premium-browser-workspace-1',
   '/crump-media-save.js?v=5.9.76-library-crud-privacy-1',
   '/crump-library-loader.js?v=5.9.76-account-owner-boundary-1',
   '/crump-subscriptions-5.3.2.js?v=5.9.76-private-owner-boundary-1',
-  '/runtime-body-v1.js?v=5.9.76-premium-workspace-1',
+  '/runtime-body-v1.js?v=5.9.76-premium-browser-workspace-1',
   '/home-document-entry.js?v=5.9.76-home-document-entry-1',
   '/native-runtime.js',
   '/mobile-bridge.js?v=5.9.76-private-owner-boundary-1',
   '/safe-storage.js',
   '/install-prompt.js?v=5.9.76-update-work-guard-1',
-  '/onboarding.js?v=5.9.76-premium-workspace-1',
+  '/onboarding.js?v=5.9.76-premium-browser-workspace-1',
   '/scroll-manager.js?v=5.9.76-muse-release-repair-1',
   '/profile-manager.js?v=5.9.76-account-owner-boundary-1',
   '/billing-manager.js?v=5.9.76-private-owner-boundary-1',
@@ -75,6 +78,7 @@ const CORE = [
   '/lifecycle-share.js?v=5.9.76-settings-invite-1',
   '/lifecycle-manager.js?v=5.9.76-lifecycle-idle-send-1',
   '/crump-activity-center-1.0.js?v=5.9.76-private-owner-boundary-1',
+  '/connected-apps-ui.js?v=5.9.76-connected-operator-workspace-5',
   '/auth-controller.js?v=5.9.76-login-recovery-visible-1',
   '/crump-4.3.css',
   '/crump-4.3.js?v=5.9.76-atelier-workspace-1',
@@ -86,7 +90,7 @@ const CORE = [
   '/crump-billing-5.1.css?v=5.9.76-credit-truth-1',
   '/crump-billing-5.1.js?v=5.9.76-private-owner-boundary-1&workspaceRelease=guest-free-contract-2',
   '/crump-5.2.css',
-  '/crump-5.2.js?v=5.9.76-legacy-attachment-owner-fence-1&workspaceRelease=guest-free-contract-2',
+  '/crump-5.2.js?v=5.9.76-premium-browser-workspace-1&workspaceRelease=guest-free-contract-2',
   '/crump-5.2.2.css?v=5.9.76-new-response-cue-1',
   '/crump-5.2.2.js?v=5.9.76-private-owner-boundary-1&workspaceRelease=guest-free-contract-2',
   '/assets/brand/crump-shell-lockup-light.webp?v=5.9.76-shell-no-tagline-1',
@@ -132,6 +136,14 @@ function bootCritical(request, url) {
     url.pathname === '/lifecycle.css' ||
     url.pathname === '/crump-activity-center-1.0.css' ||
     url.pathname === '/crump-activity-center-1.0.js' ||
+    url.pathname === '/connected-apps-ui.css' ||
+    url.pathname === '/connected-apps-ui.js' ||
+    url.pathname === '/crump-vision-shell-1.0.css' ||
+    url.pathname === '/crump-vision-shell-1.0.js' ||
+    url.pathname === '/crump-vision-studios-1.0.css' ||
+    url.pathname === '/crump-vision-studios-1.0.js' ||
+    url.pathname === '/crump-browser-workspace-1.0.css' ||
+    url.pathname === '/crump-browser-workspace-1.0.js' ||
     url.pathname === '/crump-ui-guardrails.css' ||
     url.pathname === '/crump-motion-system.css' ||
     url.pathname === '/crump-v1-stability.js' ||

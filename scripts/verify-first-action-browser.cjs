@@ -172,7 +172,8 @@ async function documentEntryLayout(browser) {
           const bodyBackground = getComputedStyle(document.body).backgroundColor;
           return {
             cardCount: grid.querySelectorAll('.v1-launch-card').length,
-            indices: [...grid.querySelectorAll('.v1-launch-card')].map(node => node.dataset.v1Index),
+            visibleCardCount: [...grid.querySelectorAll('.v1-launch-card')].filter(node => !node.hidden).length,
+            visibleIndices: [...grid.querySelectorAll('.v1-launch-card')].filter(node => !node.hidden).map(node => node.dataset.v1Index),
             focused: document.activeElement === card,
             documentOverflow: document.documentElement.scrollWidth - document.documentElement.clientWidth,
             launchOverflow: launch.scrollWidth - launch.clientWidth,
@@ -187,8 +188,9 @@ async function documentEntryLayout(browser) {
             descriptionContrast: contrast(getComputedStyle(description).color, bodyBackground),
           };
         });
-        assert.equal(state.cardCount, 5, `${viewport.name}/${theme} card count`);
-        assert.deepEqual(state.indices, ['01', '02', '03', '04', '05']);
+        assert.equal(state.cardCount, 6, `${viewport.name}/${theme} source card count`);
+        assert.equal(state.visibleCardCount, 5, `${viewport.name}/${theme} visible card count`);
+        assert.deepEqual(state.visibleIndices, ['01', '02', '03', '04', '05']);
         assert.equal(state.focused, true, `${viewport.name}/${theme} keyboard focus`);
         assert.ok(state.documentOverflow <= 1, `${viewport.name}/${theme} document overflow`);
         assert.ok(state.launchOverflow <= 1, `${viewport.name}/${theme} launchpad overflow`);

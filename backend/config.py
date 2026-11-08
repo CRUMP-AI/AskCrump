@@ -12,6 +12,72 @@ from urllib.parse import urlparse
 # refund, monitoring, rollback, quality, and cost gates have a reviewed release.
 CODE_WORKSPACE_PUBLIC_RELEASED = False
 
+# General browser work is a separate capability from repository coding and
+# connected mail/calendar. It cannot be exposed by an environment variable
+# alone. Keep this source lock false until the provider-neutral action ledger,
+# isolated runtime, approval boundary, cleanup recovery, and device matrix are
+# integrated and reviewed on the same candidate.
+AUTONOMOUS_CRUMP_BROWSER_PUBLIC_RELEASED = False
+
+# Connected mail and calendar access cannot be exposed by an environment
+# variable alone. Keep this source lock false until OAuth, credential-broker,
+# provider-contract, approval, deletion, privacy, rollback, and device gates
+# have a reviewed release.
+CONNECTED_APPS_PUBLIC_RELEASED = False
+
+# Durable multi-step execution is part of the complete connected operator, not
+# an optional post-release add-on.  The release-preview, public-entry, and
+# multi-step locks must move together in one reviewed candidate; readiness
+# keeps that exact deployment inert until its same-deployment ceremony passes.
+CONNECTED_MULTI_STEP_SOURCE_RELEASED = False
+
+# A release preview is a separate, one-shot security ceremony. Its internal
+# same-deployment route cannot be enabled by a deployment variable and cannot
+# acquire the ordinary application graph. Keep this source lock false until an
+# exact release candidate and dedicated non-customer provider accounts are
+# ready for the supervised outside matrix.
+CONNECTED_APPS_RELEASE_PREVIEW_SOURCE_RELEASED = False
+
+# Exact, source-reviewed production graph identity.  It remains intentionally
+# unset while the feature source lock is false; a release must pin the reviewed
+# provider/KMS/database/UI composition in the same change that flips the lock.
+CONNECTED_APPS_COMPOSITION_MANIFEST_SHA256 = ''
+# Exact final target fingerprint of the atomic approval/effect migration
+# (69100).  It preflights the exact 69000 runtime-readiness target and retains
+# that full-catalog manifest while adding the one-transaction approval/effect
+# boundary.  The secure host compares live readiness to this final 69100
+# catalog before constructing any production graph.
+CONNECTED_APPS_DATABASE_TARGET_FINGERPRINT = 'c339945387929ed735b591d967f536dc'
+
+# Exact nonsecret Vercel production identity. The request assertion is accepted
+# by the source-pinned Google WIF provider; after that exchange, the release
+# ceremony also binds the signed assertion's owner/project/environment claims
+# to these source values and the platform-authored runtime identity.
+CONNECTED_APPS_VERCEL_TEAM_ID = ''
+CONNECTED_APPS_VERCEL_PROJECT_ID = ''
+CONNECTED_APPS_VERCEL_ENVIRONMENT = 'production'
+
+# Nonsecret production custody identity. These values are source locks rather
+# than deployment settings: a release must pin the exact reviewed Vercel WIF
+# provider, impersonated service account, CryptoKey, and custody-policy
+# attestation in the same reviewed source change as the composition manifest.
+# Runtime configuration may carry only the encrypted root and encrypted host
+# registration envelope; it cannot redirect custody by changing an env var.
+CONNECTED_APPS_KMS_PROJECT_NUMBER = ''
+CONNECTED_APPS_KMS_WIF_POOL_ID = ''
+CONNECTED_APPS_KMS_WIF_PROVIDER_ID = ''
+CONNECTED_APPS_KMS_SERVICE_ACCOUNT_EMAIL = ''
+CONNECTED_APPS_KMS_CRYPTO_KEY_RESOURCE = ''
+CONNECTED_APPS_KMS_ROOT_KEY_ID = ''
+CONNECTED_APPS_KMS_CUSTODY_ATTESTATION_SHA256 = ''
+# Hash of the exact encrypted root ciphertext. The ciphertext itself remains a
+# deployment value, but swapping the encrypted root and CryptoKey as a pair is
+# impossible without a reviewed source change.
+CONNECTED_APPS_KMS_ENCRYPTED_ROOT_SHA256 = ''
+CONNECTED_APPS_RELEASE_OPERATOR_OWNER_SHA256 = ''
+CONNECTED_APPS_KMS_PROTECTION_LEVEL = 'HSM'
+CONNECTED_APPS_KMS_ROOT_TTL_SECONDS = 600
+
 # Vercel's static CSP cannot read SUPABASE_URL at request time. Keep the exact
 # public project origin as a source-controlled production contract: runtime
 # validation prevents a deployment from switching projects until the static
@@ -48,6 +114,41 @@ def _bool(value: str | None, default: bool = False) -> bool:
     if value is None:
         return default
     return value.strip().lower() in {'1', 'true', 'yes', 'on'}
+
+
+def connected_apps_environment_released() -> bool:
+    """Read only the nonsecret operator switch, and only after source release.
+
+    The secure host bootstrap uses this tiny boundary before importing the
+    process runtime.  That keeps the connected secret/ciphertext path entirely
+    untouched unless the preview, public-entry, and durable multi-step source
+    pins all belong to the same reviewed candidate, while ordinary Ask Crump
+    AI settings remain independently available to the rest of the application.
+    """
+
+    return connected_apps_release_candidate_source_released() and _bool(
+        os.getenv('CRUMP_ENABLE_CONNECTED_APPS'),
+        False,
+    )
+
+
+def browser_workspace_environment_released() -> bool:
+    """Require both a reviewed source release and the operator switch."""
+
+    return AUTONOMOUS_CRUMP_BROWSER_PUBLIC_RELEASED is True and _bool(
+        os.getenv('CRUMP_ENABLE_BROWSER_WORKSPACE'),
+        False,
+    )
+
+
+def connected_apps_release_candidate_source_released() -> bool:
+    """Require the complete operator and its one-shot ceremony in one commit."""
+
+    return (
+        CONNECTED_APPS_RELEASE_PREVIEW_SOURCE_RELEASED is True
+        and CONNECTED_APPS_PUBLIC_RELEASED is True
+        and CONNECTED_MULTI_STEP_SOURCE_RELEASED is True
+    )
 
 
 def _transactional_from_email(environment: str, configured: str | None) -> str:
@@ -133,6 +234,7 @@ class Settings:
     video_generation_enabled: bool
     manuscript_generation_enabled: bool
     code_workspace_enabled: bool
+    connected_apps_enabled: bool
     project_limit_plan_experiment_enabled: bool
     code_max_duration_seconds: int
     code_max_agent_steps: int
@@ -327,6 +429,9 @@ def get_settings() -> Settings:
             CODE_WORKSPACE_PUBLIC_RELEASED
             and _bool(os.getenv('CRUMP_ENABLE_CODE_WORKSPACE'), False)
         ),
+        # Owner-connected mail/calendar remains inert unless both a reviewed
+        # source release and an explicit operator switch are present.
+        connected_apps_enabled=connected_apps_environment_released(),
         # Prepared monetization experiment. Keep dormant unless an operator
         # deliberately enables the server path after every release gate passes.
         project_limit_plan_experiment_enabled=_bool(
