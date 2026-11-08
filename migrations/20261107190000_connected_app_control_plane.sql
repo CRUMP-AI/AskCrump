@@ -21,6 +21,7 @@ declare
   existing_schema oid := pg_catalog.to_regnamespace('connected_app_private');
   observed_target_fingerprint text;
   observed_target_components jsonb;
+  observed_target_fields jsonb;
 begin
   if pg_catalog.to_regclass('public.users') is null then
     raise exception 'connected-app control plane requires public.users'
@@ -354,6 +355,23 @@ begin
         ) as fingerprint
       from target_items as item
       group by item.value ->> 0
+    ), target_fields as (
+      select
+        item.value ->> 0 as kind,
+        field_item.position,
+        pg_catalog.md5(
+          pg_catalog.string_agg(
+            field_item.value::text,
+            E'\n' order by pg_catalog.jsonb_build_array(
+              item.value -> 0, item.value -> 1, item.value -> 2
+            )::text
+          )
+        ) as fingerprint
+      from target_items as item
+      cross join lateral pg_catalog.jsonb_array_elements(item.value)
+        with ordinality as field_item(value, position)
+      where item.value ->> 0 in ('schema', 'column', 'constraint', 'type')
+      group by item.value ->> 0, field_item.position
     )
     select
       (
@@ -369,8 +387,18 @@ begin
           component.kind, component.fingerprint order by component.kind
         )
         from target_components as component
+      ),
+      (
+        select pg_catalog.jsonb_object_agg(
+          pg_catalog.format('%s.%s', field.kind, field.position),
+          field.fingerprint order by field.kind, field.position
+        )
+        from target_fields as field
       )
-    into observed_target_fingerprint, observed_target_components;
+    into
+      observed_target_fingerprint,
+      observed_target_components,
+      observed_target_fields;
 
     if observed_target_fingerprint <> '3700cbb8e9d67dab331d090b26a70510' then
       raise exception
@@ -378,7 +406,9 @@ begin
         observed_target_fingerprint
         using errcode = '55000',
           detail = pg_catalog.format(
-            'component fingerprints: %s', observed_target_components::text
+            'component fingerprints: %s; field fingerprints: %s',
+            observed_target_components::text,
+            observed_target_fields::text
           );
     end if;
   end if;

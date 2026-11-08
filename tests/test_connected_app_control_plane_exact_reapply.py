@@ -14,7 +14,9 @@ def test_base_control_plane_reapply_is_attested_before_idempotent_ddl() -> None:
     assert "observed_target_fingerprint" in sql
     assert "observed_target_components jsonb" in sql
     assert "target_components as" in sql
+    assert "target_fields as" in sql
     assert "component fingerprints: %s" in sql
+    assert "field fingerprints: %s" in sql
     assert "jsonb_object_agg" in sql
     assert "partial or drifted connected-app target; refusing repair" in sql
     assert "using errcode = '55000'" in sql
