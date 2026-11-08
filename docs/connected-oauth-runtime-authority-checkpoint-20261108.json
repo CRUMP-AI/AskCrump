@@ -1,0 +1,76 @@
+{
+  "checkpoint": "connected-oauth-runtime-authority-20261108",
+  "status": {
+    "scope": "local-only",
+    "source_lock": false,
+    "release_lock": false,
+    "committed": false,
+    "pushed": false,
+    "schema_applied_to_production": false,
+    "provider_or_network_traffic": false,
+    "credentials_used": false
+  },
+  "migration": {
+    "version": "20261108050000",
+    "file": "migrations/20261108050000_connected_oauth_runtime_authority.sql",
+    "predecessor_fingerprint": "b370daab7379a1e09a620719948d6699",
+    "target_fingerprint": "cfd262b61a4f8c408b74b2ca18d97d8d"
+  },
+  "files": {
+    "backend/connected_app_oauth_supabase.py": "54C0E3001CAC14EE14F497569788773991505B55C742BD83B88D2469B9AF784A",
+    "migrations/20261108050000_connected_oauth_runtime_authority.sql": "ACECE15FA773021E6EE8DF7528A47E5AF5B3065C40F2ED44785EBA9386E25C6E",
+    "tests/test_connected_app_oauth_supabase.py": "4D38DEA40CE714D4D777CC28DB085E3DBBA0D9E39A6A911C5892A3F427DC7B7A",
+    "tests/test_connected_oauth_runtime_authority_storage_contract.py": "B05BAAD78018B88194D1575CC1C46A57239D345B6B8BAC425DCD902E74A35E78",
+    "tests/postgres/test_connected_oauth_runtime_authority.sql": "275688115C70B326BC7CF04991550B51C6F501C26E227E133F0F6DB22CC4339E",
+    "docs/CONNECTED_OAUTH_RUNTIME_AUTHORITY_2026-11-08.md": "431384E9B8A4943C91AE4688930DEB7B56A3C05BE9DADABEDFA07CC40C02F3AE"
+  },
+  "validation": {
+    "owned_adapter_storage_and_core_tests": {
+      "passed": 147,
+      "failed": 0
+    },
+    "related_durable_oauth_tests": {
+      "passed": 7,
+      "integration_rerun_pending": 1,
+      "note": "concurrent owner is updating one upstream static contract for idempotent migration syntax"
+    },
+    "python": [
+      "ruff-check",
+      "py-compile"
+    ],
+    "postgresql": {
+      "version": "17.11",
+      "fresh_ordered_apply": "passed",
+      "exact_reapply": "passed",
+      "hostile_search_path_exact_reapply": "passed",
+      "behavior_and_rollback": "passed",
+      "encrypted_permit_restart_recovery": "passed",
+      "fresh_dispatch_winner_and_replay_refusal": "passed",
+      "authorization_and_completion_hash_separation": "passed",
+      "credential_vault_activation_and_restart_reconstruction": "passed",
+      "active_to_revoked_issued_at_compatibility_and_cleanup": "passed",
+      "predecessor_drift_refusal_sqlstate_55000_zero_target": "passed",
+      "target_drift_refusal_sqlstate_55000_no_repair": "passed"
+    }
+  },
+  "durable_contracts": [
+    "separate authorization snapshot and OAuth completion replay hashes",
+    "exact persisted authorization issued_at on connection and completed flow",
+    "deterministic scope reconstruction with exact scope-hash verification",
+    "restart-safe authorization snapshot reconstruction and hash verification",
+    "concrete Supabase OAuth flow and completion repositories",
+    "existing encrypted OAuth state/PKCE/provisional custody reused",
+    "encrypted one-use exchange-permit capability custody",
+    "fresh dispatch winner only and replay refusal",
+    "denial, stale completion, revocation, and response-loss cleanup paths",
+    "service-role-only exact-shape RPC boundary with private forced-RLS storage"
+  ],
+  "release_blockers": [
+    "provider-side reconciliation when deletion wins after grant but before provisional custody",
+    "external KMS and key lifecycle",
+    "continuously invoked cleanup and reconciliation workers",
+    "production provider composition and contract proof",
+    "version-preserving schema application and converged PostgREST cache",
+    "authenticated bounded provider preview smoke and deliberate release approval"
+  ]
+}

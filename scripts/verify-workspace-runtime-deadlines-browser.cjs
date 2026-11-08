@@ -174,7 +174,7 @@ async function releaseHeld() {
         uniqueScripts: new Set(window.__runtimeInsertedScripts).size,
         composerEnabled: !document.getElementById('userInput').disabled,
       }));
-      assert.deepEqual(recovered, {state: 'ready', owner: fixtureUser.id, readyEvents: 1, scriptCount: 35, uniqueScripts: 35, composerEnabled: true});
+      assert.deepEqual(recovered, {state: 'ready', owner: fixtureUser.id, readyEvents: 1, scriptCount: 36, uniqueScripts: 36, composerEnabled: true});
       assert.equal(loginPosts, 1, 'Reload workspace must reuse the cookie instead of replaying credentials');
       assert.deepEqual(errors, []);
       evidence.push({scenario, failed, recovered, loginPosts, checkCalls});

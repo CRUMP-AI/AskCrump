@@ -14,12 +14,15 @@ PUBLIC = ROOT / "public"
 PUBLIC_SUFFIXES = frozenset({".html", ".js"})
 API_STRING = re.compile(r"(?P<quote>['\"`])(?P<value>/api/.*?)(?P=quote)")
 TEMPLATE_EXPRESSION = re.compile(r"\$\{[^{}]*\}")
-EXPECTED_RAW_REFERENCES = 108
-EXPECTED_SOURCE_FILES = 33
+EXPECTED_RAW_REFERENCES = 109
+EXPECTED_SOURCE_FILES = 34
 OWNER_FENCED_MEDIA_REFERENCES = {
     "/api/files/${encodeURIComponent(operation.fileId)}/signed": frozenset({"public/crump-media-save.js"}),
     "/api/files/${encodeURIComponent(operation.fileId)}/content?download=1": frozenset({"public/crump-media-save.js"}),
 }
+API_NAMESPACE_REFERENCES = frozenset({
+    "/api/connected-apps",
+})
 
 # The final manuscript-run segment is deliberately selected from a fixed UI action.
 # Keeping the exact source expression and its three server destinations here makes
@@ -96,7 +99,7 @@ def test_every_browser_api_destination_has_a_backend_route():
 
     missing: list[str] = []
     for raw, sources in sorted(references.items()):
-        if raw == "/api/":
+        if raw == "/api/" or raw in API_NAMESPACE_REFERENCES:
             # Namespace classification in the service worker, not a request.
             continue
         if raw in DYNAMIC_ROUTE_FAMILIES:

@@ -17,6 +17,8 @@ _RETRYABLE_READ_METHODS = frozenset({"GET", "HEAD"})
 _RETRYABLE_READ_STATUSES = frozenset({408, 500, 502, 503, 504, 520})
 _RETRYABLE_IDEMPOTENT_WRITE_STATUSES = frozenset({408, 502, 503, 504, 520})
 _READ_RETRY_DELAYS_SECONDS = (0.25, 0.75, 1.5, 3.0)
+_POSTGRES_DEADLOCK_CODE = "40P01"
+_DATABASE_RETRY_AFTER_SECONDS = 2
 
 
 @dataclass(slots=True)
@@ -146,12 +148,23 @@ class SupabaseDB:
                         details = response.json()
                     except ValueError:
                         details = response.text[:1000]
+                    deadlock_detected = (
+                        isinstance(details, dict)
+                        and details.get("code") == _POSTGRES_DEADLOCK_CODE
+                    )
+                    retryable_error = (
+                        retryable_request and transient_status
+                    ) or deadlock_detected
                     raise DatabaseError(
                         'Database operation failed',
                         response.status_code,
                         details,
-                        retryable=retryable_request and transient_status,
-                        retry_after=2 if retryable_request and transient_status else 0,
+                        retryable=retryable_error,
+                        retry_after=(
+                            _DATABASE_RETRY_AFTER_SECONDS
+                            if retryable_error
+                            else 0
+                        ),
                         attempts=attempt + 1,
                     )
 

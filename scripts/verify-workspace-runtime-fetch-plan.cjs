@@ -45,13 +45,13 @@ const assert = require('node:assert/strict');
       });
 
       assert.equal(evidence.runtimeState, 'ready');
-      assert.equal(evidence.styleCount, mode === 'style-retry' ? 22 : 21);
-      assert.equal(evidence.maxStyles, 17);
+      assert.equal(evidence.styleCount, mode === 'style-retry' ? 23 : 22);
+      assert.equal(evidence.maxStyles, 18);
       assert.equal(evidence.lastStyle, '/crump-motion-system.css?v=5.9.76-motion-system-2');
-      assert.equal(evidence.preloadCount, 35);
-      assert.equal(evidence.scriptCount, mode === 'script-retry' ? 36 : 35);
+      assert.equal(evidence.preloadCount, 36);
+      assert.equal(evidence.scriptCount, mode === 'script-retry' ? 37 : 36);
       assert.equal(evidence.firstScript, '/onboarding.js?v=5.9.76-premium-workspace-1');
-      assert.equal(evidence.lastScript, '/crump-activity-center-1.0.js?v=5.9.76-private-owner-boundary-1');
+      assert.equal(evidence.lastScript, '/connected-apps-ui.js?v=5.9.76-connected-operator-workspace-5');
       assert.equal(evidence.styleAttempts, mode === 'style-retry' ? 2 : 1);
       assert.equal(evidence.scriptAttempts, mode === 'script-retry' ? 2 : 1);
       assert.equal(evidence.readyEvents, 1);
@@ -88,7 +88,7 @@ const assert = require('node:assert/strict');
     }));
     assert.deepEqual(failed, {
       runtimeState: 'failed',
-      styleCount: 18,
+      styleCount: 19,
       scriptCount: 0,
       styleAttempts: 2,
       readyEvents: 0,
@@ -115,8 +115,8 @@ const assert = require('node:assert/strict');
     }));
     assert.deepEqual(recovered, {
       runtimeState: 'ready',
-      styleCount: 23,
-      scriptCount: 35,
+      styleCount: 24,
+      scriptCount: 36,
       styleAttempts: 3,
       readyEvents: 1,
       failureMessage: 'none',

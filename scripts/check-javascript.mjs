@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { createContext, runInContext } from 'node:vm';
 
 const expectedFiles = new Set([
-  'account-manager.js', 'app.js', 'appearance-theme.js', 'auth-controller.js', 'auth-resilience.js', 'billing-manager.js', 'chat-resilience.js', 'chat-sync.js',
+  'account-manager.js', 'app.js', 'appearance-theme.js', 'auth-controller.js', 'auth-resilience.js', 'billing-manager.js', 'chat-resilience.js', 'chat-sync.js', 'connected-apps-ui.js',
   'crump-4.3.js', 'crump-4.4.js', 'crump-5.0.js', 'crump-billing-5.1.js',
   'crump-precision-image-edit.js', 'crump-precision-image-edit-loader.js',
   'crump-5.2.js', 'crump-5.2.2.js', 'crump-5.2.4.js', 'crump-navigation-5.2.5.js',
@@ -1810,14 +1810,14 @@ await runtimeWindow.CrumpWorkspaceRuntime.load();
 if (runtimeDocument.documentElement.dataset.crumpBodyRuntime !== 'ready' ||
     dispatchedRuntimeEvents.filter(type => type === 'crump:body-runtime-ready').length !== 1 ||
     appendedRuntimeAssets.length !== loadedRuntimeAssetCount ||
-    loadedRuntimeStyles.length !== 21 ||
-    preloadedRuntimeScripts.length !== 35 ||
-    loadedRuntimeScripts.length !== 35 ||
+    loadedRuntimeStyles.length !== 22 ||
+    preloadedRuntimeScripts.length !== 36 ||
+    loadedRuntimeScripts.length !== 36 ||
     !loadedRuntimeScripts.every(asset => preloadedRuntimeScripts.includes(asset)) ||
     loadedRuntimeStyles.at(-1) !== expectedFinalStyles.at(-1) ||
     loadedRuntimeScripts.indexOf(`/credit-confirmation.js?v=${privateOwnerBoundaryVersion}`) > loadedRuntimeScripts.indexOf(releasedWorkspaceAsset(`/app.js?v=${appOwnerBoundaryVersion}`)) ||
     loadedRuntimeScripts.indexOf(releasedWorkspaceAsset(`/app.js?v=${appOwnerBoundaryVersion}`)) > loadedRuntimeScripts.indexOf(`/crump-4.3.js?v=${atelierWorkspaceVersion}`) ||
-    loadedRuntimeScripts.at(-1) !== `/crump-activity-center-1.0.js?v=${privateOwnerBoundaryVersion}`) {
+    loadedRuntimeScripts.at(-1) !== '/connected-apps-ui.js?v=5.9.76-connected-operator-workspace-5') {
   console.error('Authenticated workspace runtime load order or completion contract failed.');
   process.exit(1);
 }
@@ -2095,7 +2095,7 @@ for (const [pathname, expectedVersion] of [
     }
   }
 }
-if (!serviceWorker.includes('ask-crump-new-body-v1-r282-premium-workspace-1') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r282-connected-operator-workspace-5') ||
     !serviceWorker.includes(`'${shellBrandUrl}'`) ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||

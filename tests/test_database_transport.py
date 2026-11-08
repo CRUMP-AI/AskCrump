@@ -122,6 +122,63 @@ async def test_non_idempotent_write_is_never_retried_after_transient_status():
 
 
 @pytest.mark.asyncio
+async def test_deadlock_marks_non_idempotent_rpc_retryable_without_auto_retry():
+    calls: list[httpx.Request] = []
+    sleeps: list[float] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(
+            409,
+            json={
+                "code": "40P01",
+                "message": "deadlock detected",
+                "details": None,
+            },
+        )
+
+    async def fake_sleep(delay: float) -> None:
+        sleeps.append(delay)
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        database = SupabaseDB(db_settings(), client=client, sleep=fake_sleep)
+        with pytest.raises(DatabaseError) as captured:
+            await database.rpc(
+                "delete_user_account",
+                {"p_user_id": "00000000-0000-4000-8000-000000000001"},
+            )
+
+    assert len(calls) == 1
+    assert sleeps == []
+    assert captured.value.retryable is True
+    assert captured.value.retry_after == 2
+    assert captured.value.attempts == 1
+    assert captured.value.details["code"] == "40P01"
+
+
+@pytest.mark.asyncio
+async def test_nearby_transaction_rollback_code_is_not_deadlock_metadata():
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(500, json={"code": "40001"})
+
+    async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+        database = SupabaseDB(db_settings(), client=client)
+        with pytest.raises(DatabaseError) as captured:
+            await database.rpc(
+                "delete_user_account",
+                {"p_user_id": "00000000-0000-4000-8000-000000000001"},
+            )
+
+    assert len(calls) == 1
+    assert captured.value.retryable is False
+    assert captured.value.retry_after == 0
+    assert captured.value.attempts == 1
+
+
+@pytest.mark.asyncio
 async def test_transient_gateway_timeout_can_recover_on_final_bounded_read_attempt():
     calls: list[httpx.Request] = []
     sleeps: list[float] = []

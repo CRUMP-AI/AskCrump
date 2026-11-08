@@ -1,0 +1,154 @@
+{
+  "checkpoint_id": "connected-operator-local-completion-20261108",
+  "created_at": "2026-11-08T07:06:20.6268222-05:00",
+  "product": "Ask Crump Connected Operator",
+  "scope": "Permissioned email and calendar operation, durable autonomous tasks and schedules, exact review and approval, encrypted credential and payload custody, provider reconciliation, account cleanup, production composition, and truthful user interface.",
+  "repository": {
+    "branch": "feat/connected-app-kernel-20261107",
+    "exact_starting_commit": "583adf10941e52868faee53e7950a866ce841e2e",
+    "starting_release": "Ask Crump 5.9.76-login-recovery-visible-1",
+    "working_tree_state": "local_uncommitted",
+    "pushed": false,
+    "pull_request_opened": false,
+    "production_schema_applied": false,
+    "deployed": false,
+    "live": false
+  },
+  "capabilities": {
+    "providers": [
+      "Google personal and Workspace",
+      "Microsoft personal and work-school"
+    ],
+    "mail": [
+      "search",
+      "get",
+      "create_draft",
+      "send",
+      "reply"
+    ],
+    "calendar": [
+      "list",
+      "get",
+      "free_busy",
+      "create",
+      "update",
+      "cancel"
+    ],
+    "autonomy": {
+      "durable_tasks": true,
+      "durable_schedules": true,
+      "multi_step_max_actions": 8,
+      "cancellable": true,
+      "owner_scoped": true,
+      "encrypted_results": true,
+      "scheduled_writes_require_fresh_approval_per_occurrence": true
+    },
+    "user_interface": [
+      "Accounts",
+      "Reviews",
+      "Tasks",
+      "Schedules",
+      "Activity",
+      "Ask to Review to Proof journey",
+      "owner-switch scrub",
+      "offline and cache upgrade handling",
+      "AI use disclosure"
+    ],
+    "intentionally_unsupported": [
+      "mail archive",
+      "mail trash or delete",
+      "mail forwarding",
+      "attachment actions",
+      "general browser operation",
+      "voice operation"
+    ]
+  },
+  "safety_contract": {
+    "inbound_mail_calendar_and_agent_content_is_untrusted": true,
+    "untrusted_content_cannot_grant_authority": true,
+    "writes_require_exact_preview_and_one_use_approval": true,
+    "approval_consumption_and_external_effect_begin_are_atomic": true,
+    "ambiguous_external_effects_reconcile_before_retry": true,
+    "oauth_denial_and_shape_drift_fail_closed": true,
+    "ai_gateway_requires_zero_data_retention": true,
+    "ai_gateway_disallows_prompt_training": true,
+    "ai_provider_and_model_are_pinned_and_audited": true,
+    "provider_revocation_precedes_local_credential_erasure": true,
+    "cleanup_is_monotonic_after_revocation_begins": true,
+    "personal_gmail_used_as_business_fallback": false
+  },
+  "release_locks": {
+    "CONNECTED_APPS_PUBLIC_RELEASED": false,
+    "CONNECTED_MULTI_STEP_SOURCE_RELEASED": false,
+    "CONNECTED_APPS_RELEASE_PREVIEW_SOURCE_RELEASED": false
+  },
+  "source_hashes_sha256": {
+    "docs/CONNECTED_OPERATOR_PRODUCT_ACCEPTANCE_2026-11-07.md": "3ECE982AA80D74DC0C64D508ACD4BDA8BFCC1689B3515956DAF397B3606017B2",
+    "docs/CONNECTED_OPERATOR_OUTSIDE_RELEASE_RUNBOOK_2026-11-08.md": "33D2F8315A6B37E7EB5BA90B797C6D31DC30F493F88F3430505C9D3D5BD227EC",
+    "docs/CONNECTED_OPERATOR_UI_CONTRACT_2026-11-08.md": "CF7A9A588F55A118B150E7217E5145815A1ECCACE417548067E53A6674D5A8EB",
+    "public/connected-apps-ui.js": "FD2A90758835DFAF14352B33ACC9DB4534B10B2240E294913BD7BB5B340B419D",
+    "public/connected-apps-ui.css": "ACF80D489FA68C57605617ADE22FF63821F1497D1D38F17289E1CE6A493C3FDA",
+    "public/app.html": "6E27AA5793DF7791CECB2D843299D485B068ED7452E537AA496484EA2D8D0800",
+    "backend/connected_app_production.py": "87B080713961D73516CD31540DA41DB874E43DD26E6F091BF1C75FE8DA0A5164",
+    "backend/routes/connected_apps.py": "81C81774161C3D957D70BF766A74DC884444CC0B29C56EE618A1CA21C16AB0CD",
+    "scripts/provision-connected-operator-secrets.py": "327D80EDD796824B5EDDF8F87BD27A1BB6E91330A299F5CF1A888ABEEE447A98",
+    "migrations/20261108069000_connected_runtime_readiness_attestation.sql": "794071EBCD32F5323334386E1386B6DD22585CF3407BDCE5B30E66C64DAEE4D2",
+    "migrations/20261108069100_connected_approval_effect_transition.sql": "8B4537099AA75CD6481B06B29A69BB7E7117688D18F1623FF152DF77C4D5AF39",
+    "scripts/verify-connected-operator-stack-pg17.ps1": "0D21D82EB8E97C1617C2E8733B4FA3D015A5E08535506025FDD324CFB2D495ED",
+    ".github/workflows/postgres-migration-gate.yml": "96B07166C3F25D410F05E5C00D64B8364A17E994F821D8163227A46D472024DF"
+  },
+  "database_evidence": {
+    "postgres_version": "17.11",
+    "ordered_first_apply_and_hostile_exact_reapply_migrations": 27,
+    "isolated_behavior_and_race_sql_files": 46,
+    "sqlstate_55000_refusal_without_repair_cases": 28,
+    "harness_database_leftovers": 0,
+    "final_target_fingerprint": "cf569b2cb16003caaa4fed92e94c0057",
+    "migration_690_target_fingerprint": "59714dce4c61f8140eddc1a2c8606b70",
+    "postgres_transcript_sha256": "9C6BAF0FB956085B6481D40CDA00C9A723DD616BC984F035CF1FC4A81DA823C6",
+    "database_contract_sha256": "4A1B678715584712F96F1CA224F3C3311BC7B62F63FDD0FDE7C8FA937786226A",
+    "grant_cleanup_race_sha256": "04AD9DC26597DF2EA792BD75FD3BB6384EFC6518953557F6A3273798CD12B214",
+    "external_reconciliation_race_sha256": "FD6AA93B0436888576C8FB2F572795AF8F9E68E05EBD7A2ADCA880F384DCAA26"
+  },
+  "validation": {
+    "full_python_suite": {
+      "collected": 3797,
+      "passed": 3796,
+      "intentional_skips": 1
+    },
+    "browser_control_matrix": "71/71",
+    "javascript_files_checked": 66,
+    "store_packet_gate": "21/21",
+    "ruff_files_checked": 210,
+    "python_files_compiled": 73,
+    "workflow_yaml_parse": "passed",
+    "git_diff_check": "passed",
+    "offline_cache_upgrade": "r272_to_r282_passed",
+    "independent_exact_review": "clean_no_P0_P1_P2_or_P3"
+  },
+  "muse_coordination": {
+    "existing_liaison_thread_reused": "01a182e5-2c24-7ce1-a458-1802899b4325",
+    "direct_native_muse_access_attempted": true,
+    "delivered": false,
+    "exact_blocker": "GetCursorPos failed: Access is denied. (0x80070005)",
+    "fallback": "Codex implemented the truthful UI from the shared connected-operator UI contract without attributing unverified feedback to Muse."
+  },
+  "side_effects": {
+    "provider_network_or_billable_traffic": false,
+    "provider_app_registration": false,
+    "account_connection": false,
+    "credentials_or_persistent_secrets_created": false,
+    "production_schema_or_customer_data_changed": false,
+    "metric_or_financial_state_changed": false,
+    "commit_push_pr_merge_or_deployment": false
+  },
+  "outside_release_blockers": [
+    "User-controlled Google and Microsoft application registration, verification, and tenant-consent steps",
+    "User-controlled production KMS or HSM and workload-identity secret ceremony",
+    "Version-preserving Supabase migration dry run, exact application, and PostgREST cache convergence",
+    "Dedicated provider test accounts and physical-device production-candidate matrix",
+    "Any required provider-plan spend or external security assessment",
+    "One deliberate same-deployment release ceremony after exact evidence and all three locks are intentionally changed"
+  ],
+  "exact_next_action": "Keep all release locks false until the user performs the provider-registration and credential ceremony; then execute the outside release runbook from the exact production candidate."
+}

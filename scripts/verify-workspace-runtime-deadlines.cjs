@@ -113,12 +113,12 @@ function assertClean(fixture) {
   assert.equal(first.error, null);
   assert.equal(first.settled, true);
   assert.equal(successful.state(), 'ready');
-  assert.equal(successful.attempts.filter(item => item.kind === 'style').length, 21);
-  assert.equal(successful.executed.length, 35);
-  assert.equal(new Set(successful.executed).size, 35, 'each ordered script must execute once');
+  assert.equal(successful.attempts.filter(item => item.kind === 'style').length, 22);
+  assert.equal(successful.executed.length, 36);
+  assert.equal(new Set(successful.executed).size, 36, 'each ordered script must execute once');
   assert.match(successful.executed[0], /^\/onboarding\.js/);
-  assert.match(successful.executed.at(-1), /^\/crump-activity-center-1\.0\.js/);
-  assert.equal(successful.nodes.filter(node => node.rel === 'preload').length, 35);
+  assert.match(successful.executed.at(-1), /^\/connected-apps-ui\.js/);
+  assert.equal(successful.nodes.filter(node => node.rel === 'preload').length, 36);
   assert.match(successful.attempts.filter(item => item.kind === 'style').at(-1).url, /^\/crump-motion-system\.css/);
   const count = successful.attempts.length;
   await successful.window.CrumpWorkspaceRuntime.load();
@@ -149,7 +149,7 @@ function assertClean(fixture) {
   assert.equal(style.state(), 'ready');
   assert.equal(style.attempts.filter(item => item.url === '/billing.css').length, 3);
   assert.equal(style.attempts.filter(item => item.url === '/conversation.css?v=5.9.76-muse-release-repair-1').length, 1, 'successful styles survive asset-only recovery');
-  assert.equal(style.executed.length, 35);
+  assert.equal(style.executed.length, 36);
   assert.deepEqual(style.events, ['crump:body-runtime-ready']);
   assertClean(style);
 
@@ -158,9 +158,9 @@ function assertClean(fixture) {
   await definitive.advance(100);
   assert.equal(definitiveResult.error, null);
   assert.equal(definitive.state(), 'ready');
-  assert.equal(definitive.attempts.filter(item => item.kind === 'script').length, 36, 'a definitive network error gets exactly one retry');
-  assert.equal(definitive.executed.length, 35);
-  assert.equal(new Set(definitive.executed).size, 35);
+  assert.equal(definitive.attempts.filter(item => item.kind === 'script').length, 37, 'a definitive network error gets exactly one retry');
+  assert.equal(definitive.executed.length, 36);
+  assert.equal(new Set(definitive.executed).size, 36);
   assertClean(definitive);
 
   const script = harness(attempt => attempt.kind === 'script' && /profile-manager/.test(attempt.url) ? {} : {event: 'load'});
@@ -196,8 +196,8 @@ function assertClean(fixture) {
   await overall.advance(100);
   assert.equal(overallRecovery.error, null);
   assert.equal(overall.state(), 'ready');
-  assert.equal(overall.executed.length, 35);
-  assert.equal(new Set(overall.executed).size, 35);
+  assert.equal(overall.executed.length, 36);
+  assert.equal(new Set(overall.executed).size, 36);
   await overall.advance(5_000); // Deliver the abandoned stylesheet's old event.
   assert.deepEqual(overall.events, ['crump:body-runtime-ready']);
   assertClean(overall);
@@ -224,7 +224,7 @@ function assertClean(fixture) {
   await native.advance(100);
   assert.equal(nativeRecovery.error, null);
   assert.equal(native.state(), 'ready');
-  assert.equal(native.executed.length, 35);
+  assert.equal(native.executed.length, 36);
   assertClean(native);
 
   console.log(JSON.stringify({success: true, nativeParity: true, cases: ['ordered cached success', 'style timeout and asset-only recovery', 'definitive script error retry', 'script timeout quarantine', 'total budget and style recovery', 'total budget script quarantine', 'native timeout and recovery']}));

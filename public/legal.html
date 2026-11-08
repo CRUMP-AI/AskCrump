@@ -227,7 +227,7 @@
         <p class="eyebrow">Legal and privacy</p>
         <h1>Clear terms for a conversational AI product.</h1>
         <p class="intro">This page explains the rules for using Ask Crump, the information the service processes, and the limits that apply to AI-generated responses and third-party data.</p>
-        <p class="updated">Effective August 1, 2026</p>
+        <p class="updated">Effective November 8, 2026</p>
 
         <nav class="section-nav" aria-label="Sections">
             <a href="#terms">Terms of use</a>
@@ -264,6 +264,8 @@
 
             <p>Conversational responses are generated through configured AI providers. Free-plan conversations may be routed through Vercel AI Gateway to a configured open-weight model provider; paid-plan conversations use the configured premium provider. Ask Crump applies zero-data-retention and prompt-training restrictions to routed free-plan requests. Provider security, abuse-prevention, and legally required processing may still apply outside the content-retention restriction. Image requests may be sent to OpenAI. Video requests may be processed by Google Gemini/Veo or Runway depending on the video engine selected; continuation may send a short-lived reference to a prior Veo-generated video back to Google so the scene can continue from its ending. Current-information requests may use Brave Search or OpenWeather. Provider availability and behavior may change.</p>
 
+            <p>When you choose to connect mail or calendar accounts, Ask Crump uses the provider permissions you select to complete your requests. A multi-step request may send only the connected mail or calendar excerpts needed for that request through the configured AI gateway and selected model provider. These connected-content calls require zero-data-retention and no-prompt-training routing and fail when no eligible provider is available. Provider security, abuse-prevention, and legally required processing may still apply. Mail, calendar, and tool output are treated as untrusted data and cannot grant permission or bypass an approval.</p>
+
             <h3>No professional advice</h3>
             <p>Ask Crump does not replace a physician, attorney, financial adviser, mental-health professional, emergency service, or other licensed professional. Do not rely on the service as the sole basis for a high-impact decision.</p>
 
@@ -286,6 +288,7 @@
                     <tr><td>Name and email</td><td>Account creation, verification, recovery, and support</td><td>Supabase and the configured email provider</td></tr>
                     <tr><td>Conversation content</td><td>Generate responses, retain history, and synchronize devices</td><td>Supabase; Vercel AI Gateway and its selected provider for routed requests; or the relevant premium AI/context provider</td></tr>
                     <tr><td>Submitted files</td><td>Perform the analysis requested by the user</td><td>Relevant AI provider during processing</td></tr>
+                    <tr><td>Connected mail and calendar content</td><td>Perform the connected read, scheduling, drafting, or multi-step task you request</td><td>Google or Microsoft for the connected account; Vercel AI Gateway and its selected zero-data-retention model provider only when AI reasoning over limited excerpts is needed</td></tr>
                     <tr><td>Video prompts, settings, and generated media</td><td>Generate, continue, save, play, and download requested video</td><td>Google Gemini/Veo or Runway for generation; Supabase for private durable storage</td></tr>
                     <tr><td>Session and device information</td><td>Persistent sign-in, security, revocation, and troubleshooting</td><td>Supabase and hosting logs</td></tr>
                     <tr><td>Usage and delivery events</td><td>Limits, reliability, abuse prevention, and message status</td><td>Supabase</td></tr>

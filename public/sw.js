@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r282-premium-workspace-1';
+const CACHE_NAME = 'ask-crump-new-body-v1-r282-connected-operator-workspace-5';
 
 const CORE = [
   '/app',
@@ -22,6 +22,7 @@ const CORE = [
   '/lifecycle.css?v=5.9.76-lifecycle-activation-1',
   '/crump-design-pass.css?v=5.9.76-ui-release-audit-2',
   '/crump-activity-center-1.0.css?v=5.9.76-autonomous-continuity-1',
+  '/connected-apps-ui.css?v=5.9.76-connected-operator-workspace-5',
   '/crump-ui-guardrails.css?v=5.9.76-ui-guardrails-1',
   '/crump-motion-system.css?v=5.9.76-motion-system-2',
   '/crump-v1-body.js?v=5.9.76-premium-workspace-1&workspaceRelease=guest-free-contract-2',
@@ -75,6 +76,7 @@ const CORE = [
   '/lifecycle-share.js?v=5.9.76-settings-invite-1',
   '/lifecycle-manager.js?v=5.9.76-lifecycle-idle-send-1',
   '/crump-activity-center-1.0.js?v=5.9.76-private-owner-boundary-1',
+  '/connected-apps-ui.js?v=5.9.76-connected-operator-workspace-5',
   '/auth-controller.js?v=5.9.76-login-recovery-visible-1',
   '/crump-4.3.css',
   '/crump-4.3.js?v=5.9.76-atelier-workspace-1',
@@ -132,6 +134,8 @@ function bootCritical(request, url) {
     url.pathname === '/lifecycle.css' ||
     url.pathname === '/crump-activity-center-1.0.css' ||
     url.pathname === '/crump-activity-center-1.0.js' ||
+    url.pathname === '/connected-apps-ui.css' ||
+    url.pathname === '/connected-apps-ui.js' ||
     url.pathname === '/crump-ui-guardrails.css' ||
     url.pathname === '/crump-motion-system.css' ||
     url.pathname === '/crump-v1-stability.js' ||

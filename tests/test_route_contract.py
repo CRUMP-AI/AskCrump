@@ -31,6 +31,7 @@ EXPECTED_ROUTES = {
     ('POST', '/api/notifications/register'),
     ('DELETE', '/api/notifications/register'),
     ('GET', '/api/cron/check-ins'),
+    ('GET', '/api/cron/connected-apps'),
     ('GET', '/api/cron/videos'),
     ('GET', '/api/media/video'),
     ('POST', '/api/stripe/create-checkout-session'),

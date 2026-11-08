@@ -819,6 +819,7 @@ def test_existing_cron_slot_is_reused_and_storage_purge_runs_first():
         '/api/cron/check-ins',
         '/api/cron/manuscripts',
         '/api/cron/videos',
+        '/api/cron/connected-apps',
     ]
     assert source.index('account_deletions.process_next()') < source.index(
         'code_worker.process_next('

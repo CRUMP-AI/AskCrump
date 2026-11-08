@@ -39,6 +39,7 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/crump-polish-5.6.css', 'crumppolish56'],
     ['/crump-v1-stability.css', 'crumpv1stability'],
     ['/crump-navigation-5.9.30.css?v=5.9.76-nav-focus-visibility-1', 'crumpnav5930'],
+    ['/connected-apps-ui.css?v=5.9.76-connected-operator-workspace-5', 'connectedappsui'],
   ]);
 
   const finalStyles = Object.freeze([
@@ -90,6 +91,7 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/lifecycle-share.js?v=5.9.76-settings-invite-1', 'lifecycleshare'],
     ['/lifecycle-manager.js?v=5.9.76-lifecycle-idle-send-1', 'lifecyclemanager'],
     ['/crump-activity-center-1.0.js?v=5.9.76-private-owner-boundary-1', 'crumpactivitycenter10'],
+    ['/connected-apps-ui.js?v=5.9.76-connected-operator-workspace-5', 'connectedappsui'],
   ]);
 
   const scriptPlan = Object.freeze([

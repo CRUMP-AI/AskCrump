@@ -23,6 +23,12 @@ from ..auth_service import (
     reserve_free_text_message,
 )
 from ..checkin_service import mark_check_in_responded
+from ..connected_app_agent import connected_operator_candidate
+from ..connected_app_chat_operator import (
+    ConnectedOperatorChatError,
+    ConnectedOperatorChatRequest,
+    ConnectedOperatorChatService,
+)
 from ..db import eq
 from ..feature_service import FeatureAccessError
 from ..file_service import FileServiceError
@@ -50,6 +56,22 @@ from ..usage_service import limit_for, refund_usage, tier_name
 router = APIRouter(prefix='/api/chat', tags=['chat'])
 logger = logging.getLogger('askcrump.chat')
 MANUSCRIPT_EXPORT_FORMATS = {'docx', 'pdf', 'epub'}
+
+# Deliberately uncomposed at import time. Production composition may inject the
+# reviewed operator only when the source/environment release lock, schema,
+# encrypted custody, provider runtime, reconciliation workers, and readiness
+# attestation all agree. The checked-in source lock remains false.
+connected_operator_chat_service: ConnectedOperatorChatService | None = None
+
+
+async def acquire_connected_request_activation(assertion_source):
+    """Lazy import avoids the activation -> route -> activation cycle."""
+
+    from ..connected_app_request_activation import (
+        acquire_connected_request_activation as acquire,
+    )
+
+    return await acquire(assertion_source)
 
 
 class DurableReplyLookupUnavailable(RuntimeError):
@@ -586,6 +608,130 @@ def _file_ids(payload: dict) -> list[str]:
     return result
 
 
+def _connected_operator_time_zone(payload: dict) -> str:
+    current = payload.get('currentDateTime')
+    if not isinstance(current, dict):
+        return 'UTC'
+    value = current.get('timezone')
+    return str(value).strip() if isinstance(value, str) and value.strip() else 'UTC'
+
+
+async def _connected_operator_response(
+    *,
+    request: Request,
+    auth,
+    request_payload: dict,
+    original_message: str,
+    chat_id: str | None,
+    message_id: str | None,
+) -> JSONResponse | None:
+    """Route one released registered connected request before legacy claiming.
+
+    Returning ``None`` is permitted only while connected apps are unreleased,
+    for a guest, or for a deterministic non-candidate. Once the release is on,
+    a matching request fails closed rather than falling through to an ordinary
+    model that could imply an external action occurred.
+    """
+
+    if (
+        not settings.connected_apps_enabled
+        or is_guest_user(auth.user)
+        or not connected_operator_candidate(original_message)
+    ):
+        return None
+    if not chat_id or not message_id:
+        return JSONResponse(
+            status_code=400,
+            headers={'Cache-Control': 'private, no-store'},
+            content={
+                'success': False,
+                'code': 'CONNECTED_OPERATOR_CHAT_INVALID',
+                'message': 'Use a saved conversation for connected mail or calendar requests.',
+                'shouldRetry': False,
+            },
+        )
+    attachment_ids: list[str] = []
+    for value in _file_ids(request_payload):
+        normalized = normalize_chat_id(value)
+        if normalized not in attachment_ids:
+            attachment_ids.append(normalized)
+    try:
+        command = ConnectedOperatorChatRequest(
+            owner_id=str(auth.user.get('id') or ''),
+            session_id=str(auth.session.get('id') or ''),
+            chat_id=chat_id,
+            message_id=message_id,
+            message=original_message,
+            attachment_ids=tuple(attachment_ids),
+            time_zone=_connected_operator_time_zone(request_payload),
+        )
+        try:
+            activation_lease = await acquire_connected_request_activation(
+                lambda: request.headers.get('x-vercel-oidc-token')
+            )
+        except Exception:
+            raise ConnectedOperatorChatError(
+                'CONNECTED_OPERATOR_CHAT_NOT_READY',
+                status_code=503,
+            ) from None
+        try:
+            service = connected_operator_chat_service
+            if service is None:
+                raise ConnectedOperatorChatError(
+                    'CONNECTED_OPERATOR_CHAT_NOT_READY',
+                    status_code=503,
+                )
+            response = await service.handle(command)
+        finally:
+            if activation_lease is not None:
+                await activation_lease.release()
+    except (ConnectedOperatorChatError, TypeError, ValueError) as exc:
+        if isinstance(exc, ConnectedOperatorChatError):
+            code = exc.code
+            status_code = exc.status_code
+            retryable = exc.retryable
+            retry_after = exc.retry_after
+        else:
+            code = 'CONNECTED_OPERATOR_CHAT_INVALID'
+            status_code = 400
+            retryable = False
+            retry_after = None
+        if code == 'CONNECTED_OPERATOR_CHAT_EFFECT_UNKNOWN':
+            message = (
+                'Crump may already have handled part of this connected request. '
+                'Do not repeat it; review Connected Apps activity first.'
+            )
+        elif code == 'CONNECTED_OPERATOR_CHAT_BUSY':
+            message = 'Crump is already handling this connected request.'
+        elif code == 'CONNECTED_OPERATOR_CHAT_INVALID':
+            message = 'This connected request could not be safely validated.'
+        elif code == 'CONNECTED_OPERATOR_ATTACHMENT_UNSUPPORTED':
+            message = (
+                'Connected mail and calendar requests cannot use attachments yet. '
+                'Send this request again without an attachment.'
+            )
+        else:
+            message = 'Connected mail and calendar are temporarily unavailable.'
+        content = {
+            'success': False,
+            'code': code,
+            'message': message,
+            'shouldRetry': retryable,
+        }
+        if retry_after is not None:
+            content['retryAfter'] = retry_after
+        return JSONResponse(
+            status_code=status_code,
+            headers={'Cache-Control': 'private, no-store'},
+            content=content,
+        )
+    return JSONResponse(
+        status_code=response.status_code,
+        headers={'Cache-Control': 'private, no-store'},
+        content=response.content,
+    )
+
+
 def _history_file_ids(payload: dict, limit: int = 6) -> list[str]:
     result: list[str] = []
     history = payload.get('history') or []
@@ -788,6 +934,18 @@ async def _chat_impl(request: Request):
     raw_message_id = str(request_payload.get('messageId') or '').strip()
     chat_id = normalize_chat_id(raw_chat_id) if raw_chat_id else None
     message_id = normalize_chat_id(raw_message_id) if raw_message_id else None
+
+    connected_response = await _connected_operator_response(
+        request=request,
+        auth=auth,
+        request_payload=request_payload,
+        original_message=original_message,
+        chat_id=chat_id,
+        message_id=message_id,
+    )
+    if connected_response is not None:
+        return connected_response
+
     chat_job_claim_token: str | None = None
 
     def claimed_job_filters() -> dict[str, str]:
