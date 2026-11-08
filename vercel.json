@@ -189,10 +189,6 @@
     {
       "path": "/api/cron/videos",
       "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/cron/connected-apps",
-      "schedule": "* * * * *"
     }
   ],
   "functions": {

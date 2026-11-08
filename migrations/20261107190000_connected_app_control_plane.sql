@@ -349,8 +349,9 @@ begin
     ) as item;
 
     if observed_target_fingerprint <> '3700cbb8e9d67dab331d090b26a70510' then
-      raise exception 'partial or drifted connected-app target; refusing repair'
-        using errcode = '55000';
+      raise exception
+        'partial or drifted connected-app target; refusing repair: %',
+        observed_target_fingerprint using errcode = '55000';
     end if;
   end if;
 

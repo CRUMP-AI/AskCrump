@@ -380,7 +380,7 @@ async def test_cron_is_get_only(monkeypatch):
     assert response.status_code == 405
 
 
-def test_vercel_cron_wakes_the_exact_get_route_with_bounded_function_headroom() -> None:
+def test_unreleased_connected_worker_does_not_schedule_production_invocations() -> None:
     deployment = json.loads((ROOT / "vercel.json").read_text(encoding="utf-8"))
     matching = [
         item
@@ -388,12 +388,7 @@ def test_vercel_cron_wakes_the_exact_get_route_with_bounded_function_headroom() 
         if item["path"] == "/api/cron/connected-apps"
     ]
 
-    assert matching == [
-        {
-            "path": "/api/cron/connected-apps",
-            "schedule": "* * * * *",
-        }
-    ]
+    assert matching == []
     assert len({item["path"] for item in deployment["crons"]}) == len(
         deployment["crons"]
     )
