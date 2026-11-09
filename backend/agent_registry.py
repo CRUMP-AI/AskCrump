@@ -430,7 +430,11 @@ _CAPABILITIES: tuple[Capability, ...] = (
         entitlement='account',
         connector='internal',
         result_card='plain',
-        status='live',
+        # Emergency pause: browser.read stays planned until the pinned
+        # fetch lands — the current fetch resolves twice (validate, then
+        # connect by hostname), which allows DNS rebinding to private
+        # addresses. Do not flip back to live without that fix.
+        status='planned',
     ),
 )
 

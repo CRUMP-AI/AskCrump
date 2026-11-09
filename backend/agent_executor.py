@@ -566,6 +566,15 @@ class AgentExecutor:
     async def _run_browser_read(
         self, run: dict[str, Any], payload: dict[str, Any]
     ) -> dict[str, Any]:
+        # Emergency pause: the browser fetch validates one DNS resolution
+        # and connects by hostname on a second one (rebinding/TOCTOU to
+        # private or metadata addresses). Fail closed before any fetch
+        # until the pinned-connection fix lands.
+        return await self._fail(
+            run,
+            'AGENT_EXECUTION_PAUSED',
+            'Page reading is paused while a safety fix is completed.',
+        )
         try:
             result = await browser_agent.execute(
                 'browser.read', run['user_id'], payload
