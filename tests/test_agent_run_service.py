@@ -72,7 +72,10 @@ class FakeDB:
 
 def make_service():
     db = FakeDB()
-    return AgentRunService(db), db
+    # Lifecycle tests set up runs for capabilities that are not live
+    # yet; the create-time status enforcement is opted out here
+    # explicitly and covered in tests/test_agent_execution_pause.py.
+    return AgentRunService(db, enforce_capability_status=False), db
 
 
 @pytest.mark.asyncio

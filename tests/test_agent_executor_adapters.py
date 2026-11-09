@@ -65,8 +65,15 @@ class FakeDB:
 
 def make_executor():
     db = FakeDB()
-    service = AgentRunService(db)
-    executor = AgentExecutor(service, google_connector=object())
+    # Adapter tests set up runs for capabilities that are not live yet
+    # and exercise dispatch while production execution is paused; both
+    # fail-closed defaults are opted out here explicitly and covered in
+    # tests/test_agent_execution_pause.py. The browser test below still
+    # proves the adapter-level gate, which sits behind the executor's.
+    service = AgentRunService(db, enforce_capability_status=False)
+    executor = AgentExecutor(
+        service, google_connector=object(), execution_paused=False
+    )
     return executor, service, db
 
 

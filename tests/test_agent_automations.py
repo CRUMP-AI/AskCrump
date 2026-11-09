@@ -372,7 +372,9 @@ async def test_executor_morning_brief_run_succeeds():
     db = FakeDB()
     runs = AgentRunService(db)
     executor = AgentExecutor(
-        runs, google_connector=FakeGoogleConnector(connected=True)
+        runs,
+        google_connector=FakeGoogleConnector(connected=True),
+        execution_paused=False,
     )
     run = await runs.create_run(
         user_id=USER,
@@ -413,6 +415,18 @@ def run_due_context(monkeypatch):
         agent_routes,
         '_google_connector',
         lambda: FakeGoogleConnector(connected=True),
+    )
+    # The endpoint's happy-path test exercises dispatch, so it uses an
+    # executor with the production pause explicitly lifted; the paused
+    # due-work behavior is covered in tests/test_agent_execution_pause.py.
+    monkeypatch.setattr(
+        agent_routes,
+        '_executor',
+        lambda: AgentExecutor(
+            runs,
+            google_connector=FakeGoogleConnector(connected=True),
+            execution_paused=False,
+        ),
     )
     return db, runs, automations
 
