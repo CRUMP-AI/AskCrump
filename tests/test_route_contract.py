@@ -41,6 +41,8 @@ EXPECTED_ROUTES = {
     ('GET', '/api/billing/status'),
     ('POST', '/api/billing/revenuecat/webhook'),
     ('POST', '/api/safety/reports'),
+    ('GET', '/api/agent/capabilities'),
+    ('GET', '/api/agent/capabilities/{capability_id}'),
 }
 
 
