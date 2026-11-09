@@ -118,9 +118,15 @@ class FakeGoogleConnector:
 
 def make_executor(*, connected: bool):
     db = FakeDB()
-    service = AgentRunService(db)
+    # Adapter tests exercise dispatch for capabilities that are not
+    # live yet and run while production execution is paused; both
+    # fail-closed defaults are opted out here explicitly and covered
+    # in tests/test_agent_execution_pause.py.
+    service = AgentRunService(db, enforce_capability_status=False)
     connector = FakeGoogleConnector(connected=connected)
-    executor = AgentExecutor(service, google_connector=connector)
+    executor = AgentExecutor(
+        service, google_connector=connector, execution_paused=False
+    )
     return executor, service, db, connector
 
 

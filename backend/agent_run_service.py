@@ -92,8 +92,15 @@ def _validate_payload(capability: Capability, payload: Any) -> dict[str, Any]:
 
 
 class AgentRunService:
-    def __init__(self, db: SupabaseDB) -> None:
+    def __init__(
+        self, db: SupabaseDB, *, enforce_capability_status: bool = True
+    ) -> None:
         self.db = db
+        # Registry status is enforced at run creation: only live
+        # capabilities may create runs. Production wiring never opts
+        # out; the flag exists so adapter unit tests can set up runs
+        # for capabilities that are not live yet.
+        self.enforce_capability_status = enforce_capability_status
 
     # -- shape ------------------------------------------------------------
     @staticmethod
@@ -189,6 +196,12 @@ class AgentRunService:
         if capability is None:
             raise AgentRunError(
                 'That capability is not available.', 404, 'CAPABILITY_NOT_FOUND'
+            )
+        if self.enforce_capability_status and capability.status != 'live':
+            raise AgentRunError(
+                'That capability is not live yet.',
+                409,
+                'CAPABILITY_NOT_LIVE',
             )
         payload = _validate_payload(capability, payload)
         needs_approval = capability.approval in {'card', 'card_with_cost'}
@@ -323,11 +336,19 @@ class AgentRunService:
             raise AgentRunConflictError('This action has already been decided.')
         expires_at = str(action.get('expires_at') or '')
         if expires_at and expires_at <= iso_now():
-            await self.db.update(
+            expired = await self.db.update(
                 'agent_pending_actions',
                 {'status': 'expired', 'updated_at': iso_now()},
-                filters={'id': eq(action['id']), 'user_id': eq(user_id)},
+                filters={
+                    'id': eq(action['id']),
+                    'user_id': eq(user_id),
+                    'status': eq('pending'),
+                },
             )
+            if not expired:
+                raise AgentRunConflictError(
+                    'This action has already been decided.'
+                )
             raise AgentRunConflictError('This approval has expired.')
         run = await self._get_owned_run(user_id=user_id, run_id=str(action['run_id']))
         payload = action.get('exact_payload') or {}
@@ -339,7 +360,11 @@ class AgentRunService:
                 )
             payload = _validate_payload(capability, edited_payload)
         now = iso_now()
-        await self.db.update(
+        # Compare-and-swap: the decision lands only while the action is
+        # still pending. A concurrent decision that already landed makes
+        # this update match zero rows, and the loser gets a conflict
+        # instead of queueing (and executing) the run a second time.
+        updated = await self.db.update(
             'agent_pending_actions',
             {
                 'status': normalized,
@@ -347,8 +372,14 @@ class AgentRunService:
                 'decided_at': now,
                 'updated_at': now,
             },
-            filters={'id': eq(action['id']), 'user_id': eq(user_id)},
+            filters={
+                'id': eq(action['id']),
+                'user_id': eq(user_id),
+                'status': eq('pending'),
+            },
         )
+        if not updated:
+            raise AgentRunConflictError('This action has already been decided.')
         decided = {**action, 'status': normalized, 'exact_payload': payload, 'decided_at': now}
         if normalized == 'approved':
             run = await self._set_status(run, 'queued')

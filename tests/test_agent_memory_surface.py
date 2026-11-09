@@ -147,7 +147,12 @@ def make_executor():
     db = FakeDB()
     service = AgentRunService(db)
     memory = FakeIntelligenceService()
-    executor = AgentExecutor(service, intelligence_service=memory)
+    # Memory capabilities are live, so run creation stays enforced;
+    # dispatch tests opt out of the production execution pause
+    # explicitly (covered in tests/test_agent_execution_pause.py).
+    executor = AgentExecutor(
+        service, intelligence_service=memory, execution_paused=False
+    )
     return executor, service, db, memory
 
 

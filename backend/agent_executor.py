@@ -32,7 +32,11 @@ import json
 from typing import Any
 
 from . import agent_gmail_write, browser_agent
-from .agent_run_service import AgentRunConflictError, AgentRunService
+from .agent_run_service import (
+    AgentRunConflictError,
+    AgentRunError,
+    AgentRunService,
+)
 from .browser_agent import BrowserAgentError
 from .db import eq
 from .google_connector import ConnectionRequiredError, GoogleConnectorError
@@ -230,10 +234,20 @@ class AgentExecutor:
         run_service: AgentRunService,
         google_connector: Any | None = None,
         intelligence_service: Any | None = None,
+        *,
+        execution_paused: bool = True,
     ) -> None:
         self.run_service = run_service
         self.google_connector = google_connector
         self.intelligence_service = intelligence_service
+        # Emergency pause: execution is disabled at this single choke
+        # point until the payload-of-record/CAS execution fix and the
+        # pinned browser fetch land and are re-reviewed. Every caller
+        # (execute route, approval decisions, automation triggers) goes
+        # through execute_run_record, so pausing here closes them all.
+        # Production wiring never opts out; the flag exists so adapter
+        # unit tests can exercise dispatch explicitly.
+        self.execution_paused = execution_paused
 
     # -- connector ------------------------------------------------------
 
@@ -630,6 +644,13 @@ class AgentExecutor:
         self, run: dict[str, Any], *, payload: dict[str, Any] | None = None
     ) -> dict[str, Any]:
         """Execute one loaded run row. The run must be queued."""
+        if self.execution_paused:
+            raise AgentRunError(
+                'Agent execution is paused while a safety fix is '
+                'completed. No run was executed.',
+                503,
+                'AGENT_EXECUTION_PAUSED',
+            )
         if run.get('status') != 'queued':
             raise AgentRunConflictError('This run is not queued for execution.')
         run = await self.run_service._set_status(run, 'running')
