@@ -584,9 +584,9 @@ async def test_worker_reports_integrity_release_outcome(
     assert 'pending@example.com' not in caplog.text
 
 
-def test_cron_rotation_gives_every_lane_first_position_once_per_five_minutes():
+def test_cron_rotation_gives_every_lane_first_position_once_per_six_minutes():
     base = datetime(2026, 10, 24, 14, 0, tzinfo=timezone.utc)
-    orders = [_cron_lane_order(base + timedelta(minutes=offset)) for offset in range(5)]
+    orders = [_cron_lane_order(base + timedelta(minutes=offset)) for offset in range(6)]
 
     assert {order[0] for order in orders} == {
         'account-storage-deletion',
@@ -594,8 +594,9 @@ def test_cron_rotation_gives_every_lane_first_position_once_per_five_minutes():
         'password-reset-email',
         'code',
         'manuscripts',
+        'agent-automations',
     }
-    assert all(len(order) == len(set(order)) == 5 for order in orders)
+    assert all(len(order) == len(set(order)) == 6 for order in orders)
 
 
 def test_queue_migration_is_bound_to_the_postgresql_17_release_gate():
