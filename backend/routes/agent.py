@@ -209,10 +209,11 @@ async def decide_approval(action_id: str, request: Request):
     run = result.get('run') or {}
     if action.get('status') == 'approved' and run.get('status') == 'queued':
         try:
+            # No payload is passed: the executor resolves the approved
+            # action's frozen exact payload from the run's own record.
             executed = await _executor().execute_run(
                 user_id=auth.user['id'],
                 run_id=str(run.get('id') or ''),
-                payload=action.get('payload'),
             )
             result = {**result, 'run': executed}
         except Exception:
@@ -294,10 +295,11 @@ async def process_due_automations() -> dict:
             )
             run = created
             if created.get('status') == 'queued':
+                # The run executes its stored creation payload (the
+                # automation's payload, stored by create_run above).
                 run = await _executor().execute_run(
                     user_id=row['user_id'],
                     run_id=str(created['id']),
-                    payload=run_payload,
                 )
             # The run happened (its outcome lives in the ledger), so
             # the schedule advances even when the run itself failed.

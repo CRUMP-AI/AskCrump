@@ -210,14 +210,12 @@ async def test_executor_calendar_list_success_records_steps_and_summary():
 
 
 @pytest.mark.asyncio
-async def test_executor_gmail_search_success_with_supplied_payload():
+async def test_executor_gmail_search_success_with_stored_payload():
     executor, service, db, connector = make_executor(connected=True)
     run = await service.create_run(
         user_id=USER, capability_id='gmail.search', payload={'query': 'invoice'}
     )
-    result = await executor.execute_run(
-        user_id=USER, run_id=run['id'], payload={'query': 'invoice'}
-    )
+    result = await executor.execute_run(user_id=USER, run_id=run['id'])
     assert result['status'] == 'succeeded'
     summary = json.loads(result['resultSummary'])
     assert summary['kind'] == 'gmail.search'
@@ -232,9 +230,7 @@ async def test_executor_gmail_search_without_connection_fails_honestly():
     run = await service.create_run(
         user_id=USER, capability_id='gmail.search', payload={'query': 'invoice'}
     )
-    result = await executor.execute_run(
-        user_id=USER, run_id=run['id'], payload={'query': 'invoice'}
-    )
+    result = await executor.execute_run(user_id=USER, run_id=run['id'])
     assert result['status'] == 'failed'
     summary = json.loads(result['resultSummary'])
     assert summary['error']['code'] == 'CONNECTION_REQUIRED'
