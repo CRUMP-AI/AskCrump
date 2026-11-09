@@ -32,11 +32,7 @@ import json
 from typing import Any
 
 from . import agent_gmail_write, browser_agent
-from .agent_run_service import (
-    AgentRunConflictError,
-    AgentRunError,
-    AgentRunService,
-)
+from .agent_run_service import AgentRunError, AgentRunService
 from .browser_agent import BrowserAgentError
 from .db import eq
 from .google_connector import ConnectionRequiredError, GoogleConnectorError
@@ -323,24 +319,29 @@ class AgentExecutor:
 
     # -- payload resolution ----------------------------------------------
 
-    async def _resolve_payload(
-        self, run: dict[str, Any], payload: dict[str, Any] | None
-    ) -> dict[str, Any]:
-        if isinstance(payload, dict):
-            return payload
-        # Approval-gated runs freeze their exact payload on the pending
-        # action; an approved action is the payload of record.
+    async def _resolve_payload(self, run: dict[str, Any]) -> dict[str, Any]:
+        """Resolve the payload of record for a run — and only that.
+
+        Execution never accepts caller-supplied input: a run executes
+        exactly what was stored for it. Approval-gated runs freeze their
+        exact payload on the pending action, and the approved action is
+        the payload of record; every other run executes the payload
+        stored on the run row at creation.
+        """
         try:
             detail = await self.run_service.get_run(
                 user_id=run['user_id'], run_id=run['id']
             )
         except Exception:
-            return {}
+            detail = {}
         for action in detail.get('pendingActions') or []:
             if action.get('status') == 'approved' and isinstance(
                 action.get('payload'), dict
             ):
                 return action['payload']
+        stored = run.get('input_payload')
+        if isinstance(stored, dict):
+            return stored
         return {}
 
     # -- adapters ---------------------------------------------------------
@@ -640,10 +641,14 @@ class AgentExecutor:
 
     # -- dispatch ---------------------------------------------------------
 
-    async def execute_run_record(
-        self, run: dict[str, Any], *, payload: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
-        """Execute one loaded run row. The run must be queued."""
+    async def execute_run_record(self, run: dict[str, Any]) -> dict[str, Any]:
+        """Execute one loaded run row. The run must be queued.
+
+        The queued -> running transition is a compare-and-swap claim:
+        exactly one concurrent caller executes the run, and the others
+        get a conflict. The executed payload comes only from the run's
+        record (see ``_resolve_payload``) — never from the caller.
+        """
         if self.execution_paused:
             raise AgentRunError(
                 'Agent execution is paused while a safety fix is '
@@ -651,11 +656,9 @@ class AgentExecutor:
                 503,
                 'AGENT_EXECUTION_PAUSED',
             )
-        if run.get('status') != 'queued':
-            raise AgentRunConflictError('This run is not queued for execution.')
-        run = await self.run_service._set_status(run, 'running')
+        run = await self.run_service.claim_run(run)
         await self._record_step(run, 'run.started', {})
-        resolved = await self._resolve_payload(run, payload)
+        resolved = await self._resolve_payload(run)
         await self._record_step(
             run, 'step.started', {'capabilityId': run['capability_id']}
         )
@@ -680,28 +683,24 @@ class AgentExecutor:
         *,
         user_id: str,
         run_id: str,
-        payload: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
         run = await self.run_service._get_owned_run(user_id=user_id, run_id=run_id)
-        return await self.execute_run_record(run, payload=payload)
+        return await self.execute_run_record(run)
 
-    async def execute_run_dict(
-        self, run: dict[str, Any], *, payload: dict[str, Any] | None = None
-    ) -> dict[str, Any]:
+    async def execute_run_dict(self, run: dict[str, Any]) -> dict[str, Any]:
         """Dispatch a single run dict (raw row or public shape)."""
         run_id = run.get('id')
         user_id = run.get('user_id') or run.get('userId')
         if run_id and user_id:
-            return await self.execute_run(
-                user_id=str(user_id), run_id=str(run_id), payload=payload
-            )
+            return await self.execute_run(user_id=str(user_id), run_id=str(run_id))
         normalized = {
             'id': run_id,
             'user_id': user_id,
             'capability_id': run.get('capability_id') or run.get('capabilityId'),
             'status': run.get('status'),
+            'input_payload': run.get('input_payload') or run.get('inputPayload'),
         }
-        return await self.execute_run_record(normalized, payload=payload)
+        return await self.execute_run_record(normalized)
 
     async def execute_queued_runs(
         self, *, user_id: str, limit: int = 10

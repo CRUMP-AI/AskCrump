@@ -162,16 +162,45 @@ class AgentRunService:
             },
         )
 
-    async def _set_status(self, run: dict[str, Any], status: str) -> dict[str, Any]:
+    async def _set_status(
+        self,
+        run: dict[str, Any],
+        status: str,
+        *,
+        expected_status: str | None = None,
+    ) -> dict[str, Any]:
         if status not in RUN_STATUSES:
             raise AgentRunError(f'Unknown run status: {status}', 500, 'AGENT_RUN_ERROR')
+        filters: dict[str, Any] = {'id': eq(run['id']), 'user_id': eq(run['user_id'])}
+        if expected_status is not None:
+            # Compare-and-swap: the transition only lands while the run
+            # is still in the state the caller observed. Zero updated
+            # rows means another caller already moved the run.
+            filters['status'] = eq(expected_status)
         updated = await self.db.update(
             'agent_runs',
             {'status': status, 'updated_at': iso_now()},
-            filters={'id': eq(run['id']), 'user_id': eq(run['user_id'])},
+            filters=filters,
         )
+        if expected_status is not None:
+            if not (isinstance(updated, list) and updated):
+                raise AgentRunConflictError(
+                    'This run has already been claimed or has finished.'
+                )
+            return updated[0]
         row = updated[0] if isinstance(updated, list) and updated else {**run, 'status': status}
         return row
+
+    async def claim_run(self, run: dict[str, Any]) -> dict[str, Any]:
+        """Claim a queued run for execution (queued -> running).
+
+        The transition is a compare-and-swap on ``status='queued'``:
+        exactly one concurrent caller wins it, and every other caller
+        gets a conflict instead of executing the run a second time.
+        """
+        if run.get('status') != 'queued':
+            raise AgentRunConflictError('This run is not queued for execution.')
+        return await self._set_status(run, 'running', expected_status='queued')
 
     async def _get_owned_run(self, *, user_id: str, run_id: str) -> dict[str, Any]:
         row = await self.db.select_one(
@@ -213,6 +242,7 @@ class AgentRunService:
             'conversation_id': (str(conversation_id)[:160] if conversation_id else None),
             'capability_id': capability.id,
             'status': 'waiting_approval' if needs_approval else 'queued',
+            'input_payload': payload,
             'input_summary': _summarize_input(payload),
             'result_summary': None,
             'credit_cost': capability.credit_cost,
@@ -382,7 +412,13 @@ class AgentRunService:
             raise AgentRunConflictError('This action has already been decided.')
         decided = {**action, 'status': normalized, 'exact_payload': payload, 'decided_at': now}
         if normalized == 'approved':
-            run = await self._set_status(run, 'queued')
+            current_status = str(run.get('status') or '')
+            if current_status:
+                run = await self._set_status(
+                    run, 'queued', expected_status=current_status
+                )
+            else:
+                run = await self._set_status(run, 'queued')
             await self._record_step(
                 run=run,
                 step_type='approval.decided',

@@ -98,11 +98,7 @@ async def test_browser_read_dispatch_is_paused_and_never_fetches(monkeypatch):
         capability_id='browser.read',
         payload={'url': 'https://example.com/story'},
     )
-    result = await executor.execute_run(
-        user_id=USER,
-        run_id=run['id'],
-        payload={'url': 'https://example.com/story'},
-    )
+    result = await executor.execute_run(user_id=USER, run_id=run['id'])
     assert result['status'] == 'failed'
     assert (
         json.loads(result['resultSummary'])['error']['code']

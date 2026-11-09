@@ -230,8 +230,13 @@ async def test_calendar_create_missing_fields_fail_before_any_provider_call():
     run = await service.create_run(
         user_id=USER, capability_id='calendar.create', payload=dict(EVENT_PAYLOAD)
     )
+    # Execution resolves only the payload of record, so a stored
+    # approved payload that lost its fields (direct tamper with the
+    # stored action) must fail in the adapter before any provider call.
+    action_row = db.tables['agent_pending_actions'][0]
+    action_row['exact_payload'] = {}
     await approve_run(service, run)
-    result = await executor.execute_run(user_id=USER, run_id=run['id'], payload={})
+    result = await executor.execute_run(user_id=USER, run_id=run['id'])
     assert result['status'] == 'failed'
     summary = json.loads(result['resultSummary'])
     assert summary['error']['code'] == 'INVALID_RUN_INPUT'
@@ -244,9 +249,7 @@ async def test_gmail_read_success_returns_the_message_summary():
     run = await service.create_run(
         user_id=USER, capability_id='gmail.read', payload={'messageId': 'm1'}
     )
-    result = await executor.execute_run(
-        user_id=USER, run_id=run['id'], payload={'messageId': 'm1'}
-    )
+    result = await executor.execute_run(user_id=USER, run_id=run['id'])
     assert result['status'] == 'succeeded'
     assert connector.read_message_ids == ['m1']
     summary = json.loads(result['resultSummary'])
@@ -266,9 +269,7 @@ async def test_gmail_read_summary_never_carries_a_message_body():
     run = await service.create_run(
         user_id=USER, capability_id='gmail.read', payload={'messageId': 'm1'}
     )
-    result = await executor.execute_run(
-        user_id=USER, run_id=run['id'], payload={'messageId': 'm1'}
-    )
+    result = await executor.execute_run(user_id=USER, run_id=run['id'])
     assert result['status'] == 'succeeded'
     summary_text = result['resultSummary']
     assert 'body' not in json.loads(summary_text)['message']
@@ -285,7 +286,11 @@ async def test_gmail_read_missing_message_id_fails_honestly():
     run = await service.create_run(
         user_id=USER, capability_id='gmail.read', payload={'messageId': 'm1'}
     )
-    result = await executor.execute_run(user_id=USER, run_id=run['id'], payload={})
+    # Execution reads only the stored payload of record; a stored
+    # payload without the message id must fail before any provider call.
+    run_row = next(r for r in db.tables['agent_runs'] if r['id'] == run['id'])
+    run_row['input_payload'] = {}
+    result = await executor.execute_run(user_id=USER, run_id=run['id'])
     assert result['status'] == 'failed'
     summary = json.loads(result['resultSummary'])
     assert summary['error']['code'] == 'INVALID_RUN_INPUT'
@@ -298,9 +303,7 @@ async def test_gmail_read_without_connection_fails_honestly():
     run = await service.create_run(
         user_id=USER, capability_id='gmail.read', payload={'messageId': 'm1'}
     )
-    result = await executor.execute_run(
-        user_id=USER, run_id=run['id'], payload={'messageId': 'm1'}
-    )
+    result = await executor.execute_run(user_id=USER, run_id=run['id'])
     assert result['status'] == 'failed'
     summary = json.loads(result['resultSummary'])
     assert summary['error']['code'] == 'CONNECTION_REQUIRED'
