@@ -5,16 +5,19 @@ the capability registry. It speaks to Google's REST endpoints directly
 with httpx, keeps the requested scopes to the minimal separable set in
 the registry, and reads access tokens only through the token vault.
 
-Scope note: the connect flow requests the read set only --
+Scope note: the connect flow requests the read set by default --
 ``gmail.readonly`` and ``calendar.readonly`` -- and the default
-authorization URL is unchanged. The write scopes are staged here as
-constants for the Slice 2 write path: ``gmail.compose`` (drafts),
-``gmail.send`` (sends), and ``calendar.events`` (``calendar.create``
-is registered with it). They are not requested by the connect flow
-in this change; a write-scope connect step lands once a production
-OAuth client is in place. Drafting and sending run behind the
-approval flow: the run service freezes the exact payload on an
-approval card before any adapter executes it.
+authorization URL is unchanged. Write access is a separate, explicit
+step-up: a connect request with ``level=write`` builds the
+authorization URL from ``WRITE_SCOPES`` (the read set plus
+``gmail.compose`` for drafts, ``gmail.send`` for sends, and
+``calendar.events``, which ``calendar.create`` is registered with).
+The requested level is bound into the HMAC-signed state, so a state
+minted for one level cannot be replayed for the other. The stored
+connection records the scopes Google actually granted in the token
+response, never the scopes that were requested. Drafting and sending
+run behind the approval flow: the run service freezes the exact
+payload on an approval card before any adapter executes it.
 """
 from __future__ import annotations
 
@@ -43,6 +46,8 @@ CALENDAR_BASE_URL = 'https://www.googleapis.com/calendar/v3/calendars/primary'
 
 STATE_TTL_SECONDS = 600
 
+CONNECT_LEVELS = frozenset({'read', 'write'})
+
 
 class GoogleConnectorError(RuntimeError):
     def __init__(self, message: str, code: str, status_code: int = 400) -> None:
@@ -66,6 +71,17 @@ class InsufficientScopeError(GoogleConnectorError):
         ),
     ) -> None:
         super().__init__(message, 'INSUFFICIENT_SCOPE', 403)
+
+
+def _normalize_level(level: str | None) -> str:
+    normalized = str(level or 'read')
+    if normalized not in CONNECT_LEVELS:
+        raise GoogleConnectorError(
+            'The connection level is invalid.',
+            'INVALID_CONNECT_LEVEL',
+            400,
+        )
+    return normalized
 
 
 def _scope_union(capability_ids: tuple[str, ...]) -> tuple[str, ...]:
@@ -189,16 +205,19 @@ class GoogleConnector:
         digest = hmac.new(secret, payload_part.encode('ascii'), hashlib.sha256).digest()
         return _b64encode(digest)
 
-    def make_state(self, user_id: str) -> str:
+    def make_state(self, user_id: str, level: str = 'read') -> str:
         payload = {
             'uid': str(user_id),
+            'level': _normalize_level(level),
             'nonce': uuid.uuid4().hex,
             'exp': int(time.time()) + STATE_TTL_SECONDS,
         }
         part = _b64encode(json.dumps(payload, separators=(',', ':')).encode('utf-8'))
         return f'{part}.{self._sign(part)}'
 
-    def validate_state(self, state: str, user_id: str) -> dict[str, Any]:
+    def validate_state(
+        self, state: str, user_id: str, *, expected_level: str | None = None
+    ) -> dict[str, Any]:
         try:
             part, signature = str(state or '').split('.', 1)
             payload = json.loads(_b64decode(part).decode('utf-8'))
@@ -222,6 +241,23 @@ class GoogleConnector:
                 'The sign-in link has expired. Start the connection again.',
                 'GOOGLE_STATE_INVALID',
             )
+        # The level lives inside the signed payload, so it cannot be
+        # changed without breaking the signature above. States minted
+        # before levels existed carry no level; those were read
+        # connects, so they validate as read and nothing else.
+        level = str(payload.get('level') or 'read')
+        if level not in CONNECT_LEVELS:
+            raise GoogleConnectorError(
+                'The sign-in link is invalid. Start the connection again.',
+                'GOOGLE_STATE_INVALID',
+            )
+        if expected_level is not None and level != _normalize_level(expected_level):
+            raise GoogleConnectorError(
+                'The sign-in link does not match the requested access '
+                'level. Start the connection again.',
+                'GOOGLE_STATE_INVALID',
+            )
+        payload['level'] = level
         return payload
 
     def state_user_id(self, state: str) -> str:
@@ -242,7 +278,11 @@ class GoogleConnector:
     # -- OAuth ---------------------------------------------------------
 
     def authorization_url(
-        self, user_id: str, scopes: tuple[str, ...] | None = None
+        self,
+        user_id: str,
+        scopes: tuple[str, ...] | None = None,
+        *,
+        level: str | None = None,
     ) -> str:
         if not self.oauth_configured:
             raise GoogleConnectorError(
@@ -256,7 +296,18 @@ class GoogleConnector:
                 'GOOGLE_VAULT_NOT_CONFIGURED',
                 503,
             )
-        requested = tuple(scopes) if scopes else READ_SCOPES
+        if scopes is not None:
+            requested = tuple(scopes)
+        elif _normalize_level(level) == 'write':
+            requested = WRITE_SCOPES
+        else:
+            requested = READ_SCOPES
+        if level is not None:
+            bound_level = _normalize_level(level)
+        elif scopes is not None:
+            bound_level = 'write' if set(requested) - set(READ_SCOPES) else 'read'
+        else:
+            bound_level = 'read'
         params = {
             'client_id': self.settings.google_oauth_client_id,
             'redirect_uri': self.settings.google_oauth_redirect_uri,
@@ -265,7 +316,7 @@ class GoogleConnector:
             'access_type': 'offline',
             'prompt': 'consent',
             'include_granted_scopes': 'true',
-            'state': self.make_state(user_id),
+            'state': self.make_state(user_id, bound_level),
         }
         return f'{GOOGLE_AUTHORIZATION_URL}?{urlencode(params)}'
 
@@ -307,7 +358,12 @@ class GoogleConnector:
         return payload if isinstance(payload, dict) else {}
 
     async def exchange_code(
-        self, code: str, *, user_id: str, state: str
+        self,
+        code: str,
+        *,
+        user_id: str,
+        state: str,
+        expected_level: str | None = None,
     ) -> dict[str, Any]:
         if not self.oauth_configured:
             raise GoogleConnectorError(
@@ -315,7 +371,7 @@ class GoogleConnector:
                 'GOOGLE_NOT_CONFIGURED',
                 503,
             )
-        self.validate_state(state, user_id)
+        self.validate_state(state, user_id, expected_level=expected_level)
         token_payload = await self._request(
             'POST',
             GOOGLE_TOKEN_URL,
@@ -346,9 +402,14 @@ class GoogleConnector:
                 'GOOGLE_API_ERROR',
                 502,
             )
+        # Store what Google granted, not what was requested: the
+        # token response's scope field is the granted set, which can
+        # be a subset of the request. A token response with no scope
+        # field leaves the grant unknown, so store no scopes rather
+        # than assuming a set was granted.
         scopes = tuple(
             str(item) for item in str(token_payload.get('scope') or '').split() if item
-        ) or READ_SCOPES
+        )
         expires_in = int(token_payload.get('expires_in') or 3600)
         expires_at = datetime.now(timezone.utc) + timedelta(seconds=expires_in)
         connection = await self._store_connection(
