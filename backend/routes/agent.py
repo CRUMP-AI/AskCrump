@@ -6,13 +6,23 @@ created only for registered capabilities — unknown ids fail closed
 with ``CAPABILITY_NOT_FOUND`` — and every run, step, and approval
 decision is recorded in the durable ledger behind these routes.
 Queued runs execute through the agent executor, and the Today brief
-is composed from the same ledger and connection state.
+is composed from the same ledger and connection state. Users can
+also save automations (standing daily schedules) for schedulable
+capabilities; the internal trigger endpoint runs the ones that are
+due and stamps their schedules forward.
 """
 from __future__ import annotations
+
+from datetime import datetime, timezone
+import hmac
 
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse
 
+from ..agent_automation_service import (
+    AgentAutomationError,
+    AgentAutomationService,
+)
 from ..agent_executor import AgentExecutor, build_today_brief
 from ..agent_registry import get_capability, public_catalog
 from ..agent_run_service import AgentRunError
@@ -22,6 +32,7 @@ from ..google_vault import GoogleVault
 from ..runtime import agent_runs, db, settings
 
 router = APIRouter(prefix='/api/agent', tags=['agent'])
+internal_router = APIRouter(prefix='/api/internal/agent', tags=['agent-internal'])
 
 
 def _google_connector() -> GoogleConnector:
@@ -32,7 +43,11 @@ def _executor() -> AgentExecutor:
     return AgentExecutor(agent_runs, google_connector=_google_connector())
 
 
-def _error(exc: AgentRunError) -> JSONResponse:
+def _automations() -> AgentAutomationService:
+    return AgentAutomationService(db)
+
+
+def _error(exc: AgentRunError | AgentAutomationError) -> JSONResponse:
     return JSONResponse(
         status_code=exc.status_code,
         content={'success': False, 'error': exc.message, 'code': exc.code},
@@ -207,3 +222,113 @@ async def decide_approval(action_id: str, request: Request):
         except Exception:
             pass
     return _private({'success': True, **result})
+
+
+@router.get('/automations')
+async def list_automations(request: Request):
+    auth = await _auth(request)
+    automations = await _automations().list_automations(user_id=auth.user['id'])
+    return _private({'success': True, 'automations': automations})
+
+
+@router.post('/automations')
+async def create_automation(request: Request):
+    auth = await _auth(request)
+    try:
+        payload = await request.json()
+    except Exception:
+        payload = {}
+    if not isinstance(payload, dict):
+        return _error(
+            AgentAutomationError(
+                'Invalid automation request.', 400, 'INVALID_AUTOMATION_INPUT'
+            )
+        )
+    enabled = payload.get('enabled')
+    try:
+        automation = await _automations().create_automation(
+            user_id=auth.user['id'],
+            capability_id=str(payload.get('capabilityId') or ''),
+            schedule=payload.get('schedule'),
+            payload=payload.get('payload', payload.get('input')),
+            enabled=True if enabled is None else bool(enabled),
+        )
+        return JSONResponse(
+            status_code=201,
+            content={'success': True, 'automation': automation},
+            headers={'Cache-Control': 'private, no-store'},
+        )
+    except AgentAutomationError as exc:
+        return _error(exc)
+
+
+@router.delete('/automations/{automation_id}')
+async def delete_automation(automation_id: str, request: Request):
+    auth = await _auth(request)
+    try:
+        automation = await _automations().delete_automation(
+            user_id=auth.user['id'], automation_id=automation_id
+        )
+        return _private({'success': True, 'automation': automation})
+    except AgentAutomationError as exc:
+        return _error(exc)
+
+
+@internal_router.api_route('/automations/run-due', methods=['GET', 'POST'])
+async def run_due_automations(request: Request):
+    # Same cron authentication as the other internal cron endpoints:
+    # Vercel Cron sends the configured secret as a bearer token, and
+    # the endpoint fails closed when no secret is configured. GET is
+    # accepted alongside POST because Vercel Cron issues GET requests.
+    expected = settings.cron_secret
+    authorization = request.headers.get('authorization', '')
+    if not expected or not hmac.compare_digest(
+        authorization, f'Bearer {expected}'
+    ):
+        return JSONResponse(
+            status_code=401,
+            content={'success': False, 'error': 'Unauthorized.'},
+        )
+    service = _automations()
+    now = datetime.now(timezone.utc)
+    due = await service.due_automations(now)
+    triggered: list[dict] = []
+    errors = 0
+    for row in due:
+        try:
+            run_payload = AgentAutomationService.run_payload_for(row)
+            created = await agent_runs.create_run(
+                user_id=row['user_id'],
+                capability_id=row['capability_id'],
+                payload=run_payload,
+            )
+            run = created
+            if created.get('status') == 'queued':
+                run = await _executor().execute_run(
+                    user_id=row['user_id'],
+                    run_id=str(created['id']),
+                    payload=run_payload,
+                )
+            # The run happened (its outcome lives in the ledger), so
+            # the schedule advances even when the run itself failed.
+            await service.record_run(row, ran_at=now)
+            triggered.append(
+                {
+                    'automationId': row['id'],
+                    'runId': created['id'],
+                    'status': run.get('status'),
+                }
+            )
+        except Exception:
+            # One bad automation must not block the rest of the pass;
+            # it stays due and is retried on the next trigger.
+            errors += 1
+    return _private(
+        {
+            'success': True,
+            'due': len(due),
+            'triggered': len(triggered),
+            'errors': errors,
+            'runs': triggered,
+        }
+    )

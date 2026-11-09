@@ -77,6 +77,7 @@ def create_app() -> FastAPI:
     application.include_router(credits.router)
     application.include_router(safety.router)
     application.include_router(agent.router)
+    application.include_router(agent.internal_router)
     application.include_router(connected_apps.router)
 
     if PUBLIC_DIR.exists():

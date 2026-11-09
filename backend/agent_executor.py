@@ -9,9 +9,11 @@ view and the audit trail keep reading from one store.
 Adapters are deliberately narrow. ``gmail.search`` and ``calendar.list``
 run against the signed-in user's Google connection and fail honestly
 with ``CONNECTION_REQUIRED`` when there is none. ``agent.today_brief``
-composes the Today brief from real service calls only. Every other
-registered capability fails with ``EXECUTOR_NOT_AVAILABLE`` rather than
-pretending to have run — an adapter lands here capability by capability.
+composes the Today brief from real service calls only, and
+``agent.morning_brief`` composes that same brief for a scheduled run.
+Every other registered capability fails with ``EXECUTOR_NOT_AVAILABLE``
+rather than pretending to have run — an adapter lands here capability
+by capability.
 No adapter charges credits: the capabilities wired here are registered
 with a ``none`` credit cost.
 """
@@ -349,8 +351,8 @@ class AgentExecutor:
         }
         return await self._succeed(run, summary)
 
-    async def _run_today_brief(
-        self, run: dict[str, Any], payload: dict[str, Any]
+    async def _run_brief(
+        self, run: dict[str, Any], kind: str
     ) -> dict[str, Any]:
         brief = await build_today_brief(
             run['user_id'],
@@ -360,7 +362,7 @@ class AgentExecutor:
         calendar = brief.get('calendar')
         inbox = brief.get('inboxHighlights')
         summary = {
-            'kind': 'agent.today_brief',
+            'kind': kind,
             'generatedAt': brief.get('generatedAt'),
             'pendingApprovals': len(brief.get('pendingApprovals') or []),
             'recentRuns': len(brief.get('recentRuns') or []),
@@ -372,10 +374,21 @@ class AgentExecutor:
         }
         return await self._succeed(run, summary)
 
+    async def _run_today_brief(
+        self, run: dict[str, Any], payload: dict[str, Any]
+    ) -> dict[str, Any]:
+        return await self._run_brief(run, 'agent.today_brief')
+
+    async def _run_morning_brief(
+        self, run: dict[str, Any], payload: dict[str, Any]
+    ) -> dict[str, Any]:
+        return await self._run_brief(run, 'agent.morning_brief')
+
     _ADAPTERS = {
         'gmail.search': _run_gmail_search,
         'calendar.list': _run_calendar_list,
         'agent.today_brief': _run_today_brief,
+        'agent.morning_brief': _run_morning_brief,
     }
 
     # -- dispatch ---------------------------------------------------------

@@ -333,7 +333,7 @@ _CAPABILITIES: tuple[Capability, ...] = (
         entitlement='account',
         connector='internal',
         result_card='brief',
-        status='planned',
+        status='live',
     ),
     # --- Slice 2 planned capabilities -----------------------------------
     Capability(
