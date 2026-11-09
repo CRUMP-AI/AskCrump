@@ -7,14 +7,15 @@ badges, or download calls to action.
 
 Required sequence:
 
-1. Home — useful starts, recent work, and a structured answer with the direct `Keep in a Project` action.
-2. Chats — private conversation history with all personal information removed.
-3. Projects — resume prepared continuing work with its instructions, conversations, files, and references.
-4. Image Studio — the released image creation and editing workspace with a prepared safe example.
-5. Video Studio — the released video workspace with a reference-ready setup or safely staged active job.
-6. Editable work — Document Studio with real document and presentation download controls.
-7. Library — prepared manuscripts and books in the dedicated private bookshelf.
-8. You — settings, sessions, privacy, and account controls with all personal data removed.
+1. Today — approvals, live work, and a structured answer with the direct `Keep in a Project` action.
+2. Tasks — agent work and approval history with all personal information removed.
+3. Chats — private conversation history with all personal information removed.
+4. Projects — resume prepared continuing work with its instructions, conversations, files, and references.
+5. Image Studio — the released image creation and editing workspace with a prepared safe example.
+6. Video Studio — the released video workspace with a reference-ready setup or safely staged active job.
+7. Editable work — Document Studio with real document and presentation download controls.
+8. Library — prepared manuscripts and books in the dedicated private bookshelf.
+9. You — settings, sessions, privacy, and account controls with all personal data removed.
 
 Use the exact destination labels shown in the signed build. The screenshot sequence must agree with
 the in-app tutorial and reviewer path before either store packet is approved.

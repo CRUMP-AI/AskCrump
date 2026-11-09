@@ -200,11 +200,11 @@ def test_store_and_pwa_copy_match_current_creation_surface():
     listing = read("docs/STORE_LISTING_COPY.md")
     manifest = read("public/manifest.json")
     assert "released Image and Video tools" in listing
-    assert "Home, Chats, Projects, Library, Studios, and You" in listing
-    assert "all six destinations stay in the bottom bar" in listing
-    assert "guided research from Home" in listing
+    assert "Today, Tasks, Chats, Projects, Library, Studios, and You" in listing
+    assert "all seven destinations stay in the bottom bar" in listing
+    assert "guided research from Today" in listing
     assert "Open Projects and resume" in listing
-    assert "From Home, test only the file creation modes" in listing
+    assert "From Today, test only the file creation modes" in listing
     assert "Open Library and verify" in listing
     assert "then return to Projects for prepared documents and media" in listing
     assert "Open You to view session controls" in listing

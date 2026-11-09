@@ -1,50 +1,52 @@
 {
-  "schemaVersion": 1,
-  "locale": "en-US",
-  "app": {
-    "name": "Ask Crump",
-    "bundleId": "com.clevercrump.askcrump",
-    "primaryCategory": "Productivity",
-    "secondaryAppleCategory": "Utilities",
-    "supportUrl": "https://www.askcrump.com/legal#contact",
-    "marketingUrl": "https://www.askcrump.com/",
-    "privacyUrl": "https://www.askcrump.com/legal#privacy",
-    "privacyChoicesUrl": "https://www.askcrump.com/delete-account",
-    "accountDeletionUrl": "https://www.askcrump.com/delete-account"
-  },
-  "apple": {
-    "subtitle": "Create, research, and build",
-    "promotionalText": "Move from an idea to organized work across Home, Chats, Projects, Library, Studios, and You.",
-    "keywords": "AI,assistant,research,writer,documents,images,video,manuscript,productivity,files",
-    "description": "Ask Crump is a multimodal AI workspace built to help you move from an idea to something useful.\n\nThe desktop workspace keeps Home, Chats, Projects, Library, Studios, and You in one clear rail. Home brings the Ask Crump composer, useful starts, and recent work together. Chats opens private conversation history. Projects keep instructions, reference context, conversations, files, and creations together. Library is a calm shelf for saved long-form work. Studios brings the released Image and Video tools together. You contains settings, sessions, purchase restoration, privacy, and account controls. On mobile, all six destinations stay in the bottom bar.\n\nCreate and organize:\n\n- conversational answers and guided research from Home\n- private conversation history in Chats\n- continuing work, files, and reference context in Projects\n- images and multi-engine short-form video in Studios\n- editable documents, presentations, and exportable files\n- structured long-form manuscript projects and a private Library\n\nStay in control:\n\n- review and report an AI response inside the app\n- manage active device sessions\n- export conversations\n- restore eligible store purchases\n- permanently delete your account from the app\n\nAI can make mistakes. Review important results and use qualified professionals for medical, legal, financial, or other high-impact decisions.\n\nSome features require a paid plan, credits, provider availability, or an internet connection. Subscriptions renew unless canceled in your App Store account settings.",
-    "screenshotPlan": [
-      "Home — useful starts and a structured answer",
-      "Chats — private conversation history",
-      "Projects — continue work with context",
-      "Image Studio — create and edit images",
-      "Video Studio — generate, reference, and return to active jobs",
-      "Editable work — document and presentation downloads",
-      "Library — manuscripts and books",
-      "You — settings, sessions, privacy, and account controls"
-    ]
-  },
-  "google": {
-    "shortDescription": "Ask, research, create files and media, and keep ambitious projects moving.",
-    "fullDescription": "Ask Crump is a multimodal AI workspace for turning questions and ideas into useful work.\n\nThe desktop workspace keeps Home, Chats, Projects, Library, Studios, and You in one clear rail. Home brings the Ask Crump composer, useful starts, and recent work together. Chats opens private conversation history. Projects keep ongoing work, files, and reference context together. Library is a calm shelf for saved long-form work. Studios brings the released Image and Video tools together. You contains settings, sessions, purchase restoration, privacy, and account controls. On mobile, all six destinations stay in the bottom bar.\n\nWHAT YOU CAN DO\n\n• Ask questions and explore guided research from Home\n• Return to private conversation history in Chats\n• Organize continuing work, files, and reference context in Projects\n• Generate images and short-form video in Studios\n• Create editable documents, presentations, and exportable files\n• Develop long-form manuscript projects and keep them in Library\n• Reopen saved work across supported devices\n\nCONTROL AND SAFETY\n\n• Report an AI response without leaving the app\n• Manage active device sessions\n• Export conversations\n• Restore eligible store purchases\n• Permanently delete your account in the app\n\nAI can make mistakes. Review important results and use qualified professionals for medical, legal, financial, or other high-impact decisions.\n\nSome features require a paid plan, credits, provider availability, or an internet connection. Subscriptions renew unless canceled through Google Play.",
-    "screenshotPlan": [
-      "Home — useful starts and a structured answer",
-      "Chats — private conversation history",
-      "Projects — continue work with context",
-      "Image Studio — create and edit images",
-      "Video Studio — generate, reference, and return to active jobs",
-      "Editable work — document and presentation downloads",
-      "Library — manuscripts and books",
-      "You — settings, sessions, privacy, and account controls"
-    ]
-  },
-  "review": {
-    "requiresSignIn": true,
-    "reviewerAccessFile": "store/reviewer-access.json",
-    "notes": "Use a dedicated, non-expiring reviewer account with enough credits to test Ask, Research, Image, Document, Manuscript, Video, Files, Projects, Library, reporting, purchase restoration, session controls, export, and deletion. Never commit reviewer credentials."
-  }
+ "schemaVersion": 1,
+ "locale": "en-US",
+ "app": {
+  "name": "Ask Crump",
+  "bundleId": "com.clevercrump.askcrump",
+  "primaryCategory": "Productivity",
+  "secondaryAppleCategory": "Utilities",
+  "supportUrl": "https://www.askcrump.com/legal#contact",
+  "marketingUrl": "https://www.askcrump.com/",
+  "privacyUrl": "https://www.askcrump.com/legal#privacy",
+  "privacyChoicesUrl": "https://www.askcrump.com/delete-account",
+  "accountDeletionUrl": "https://www.askcrump.com/delete-account"
+ },
+ "apple": {
+  "subtitle": "Create, research, and build",
+  "promotionalText": "Move from an idea to organized work across Today, Tasks, Chats, Projects, Library, Studios, and You.",
+  "keywords": "AI,assistant,research,writer,documents,images,video,manuscript,productivity,files",
+  "description": "Ask Crump is a multimodal AI workspace built to help you move from an idea to something useful.\n\nThe desktop workspace keeps Today, Tasks, Chats, Projects, Library, Studios, and You in one clear rail. Today puts what needs your attention first — approvals waiting on you, work in progress, and finished results — above the Ask Crump composer. Tasks keeps a clear record of agent work and approvals. Chats opens private conversation history. Projects keep instructions, reference context, conversations, files, and creations together. Library is a calm shelf for saved long-form work. Studios brings the released Image and Video tools together. You contains settings, sessions, purchase restoration, privacy, and account controls. On mobile, all seven destinations stay in the bottom bar.\n\nCreate and organize:\n\n- conversational answers and guided research from Today\n- agent work and approvals tracked in Tasks\n- private conversation history in Chats\n- continuing work, files, and reference context in Projects\n- images and multi-engine short-form video in Studios\n- editable documents, presentations, and exportable files\n- structured long-form manuscript projects and a private Library\n\nStay in control:\n\n- review and report an AI response inside the app\n- manage active device sessions\n- export conversations\n- restore eligible store purchases\n- permanently delete your account from the app\n\nAI can make mistakes. Review important results and use qualified professionals for medical, legal, financial, or other high-impact decisions.\n\nSome features require a paid plan, credits, provider availability, or an internet connection. Subscriptions renew unless canceled in your App Store account settings.",
+  "screenshotPlan": [
+   "Today — approvals, live work, and a structured answer",
+   "Tasks — agent work and approval history",
+   "Chats — private conversation history",
+   "Projects — continue work with context",
+   "Image Studio — create and edit images",
+   "Video Studio — generate, reference, and return to active jobs",
+   "Editable work — document and presentation downloads",
+   "Library — manuscripts and books",
+   "You — settings, sessions, privacy, and account controls"
+  ]
+ },
+ "google": {
+  "shortDescription": "Ask, research, create files and media, and keep ambitious projects moving.",
+  "fullDescription": "Ask Crump is a multimodal AI workspace for turning questions and ideas into useful work.\n\nThe desktop workspace keeps Today, Tasks, Chats, Projects, Library, Studios, and You in one clear rail. Today puts what needs your attention first — approvals waiting on you, work in progress, and finished results — above the Ask Crump composer. Tasks keeps a clear record of agent work and approvals. Chats opens private conversation history. Projects keep ongoing work, files, and reference context together. Library is a calm shelf for saved long-form work. Studios brings the released Image and Video tools together. You contains settings, sessions, purchase restoration, privacy, and account controls. On mobile, all seven destinations stay in the bottom bar.\n\nWHAT YOU CAN DO\n\n• Ask questions and explore guided research from Today\n• Follow agent work and approvals in Tasks\n• Return to private conversation history in Chats\n• Organize continuing work, files, and reference context in Projects\n• Generate images and short-form video in Studios\n• Create editable documents, presentations, and exportable files\n• Develop long-form manuscript projects and keep them in Library\n• Reopen saved work across supported devices\n\nCONTROL AND SAFETY\n\n• Report an AI response without leaving the app\n• Manage active device sessions\n• Export conversations\n• Restore eligible store purchases\n• Permanently delete your account in the app\n\nAI can make mistakes. Review important results and use qualified professionals for medical, legal, financial, or other high-impact decisions.\n\nSome features require a paid plan, credits, provider availability, or an internet connection. Subscriptions renew unless canceled through Google Play.",
+  "screenshotPlan": [
+   "Today — approvals, live work, and a structured answer",
+   "Tasks — agent work and approval history",
+   "Chats — private conversation history",
+   "Projects — continue work with context",
+   "Image Studio — create and edit images",
+   "Video Studio — generate, reference, and return to active jobs",
+   "Editable work — document and presentation downloads",
+   "Library — manuscripts and books",
+   "You — settings, sessions, privacy, and account controls"
+  ]
+ },
+ "review": {
+  "requiresSignIn": true,
+  "reviewerAccessFile": "store/reviewer-access.json",
+  "notes": "Use a dedicated, non-expiring reviewer account with enough credits to test Ask, Research, Image, Document, Manuscript, Video, Files, Projects, Library, reporting, purchase restoration, session controls, export, and deletion. Never commit reviewer credentials."
+ }
 }

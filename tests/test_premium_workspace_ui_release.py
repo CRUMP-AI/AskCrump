@@ -102,7 +102,7 @@ def test_web_service_worker_and_native_loader_use_one_ui_revision() -> None:
 def test_tutorial_and_store_copy_match_the_visible_release() -> None:
     tutorial = read("public/onboarding.js")
     listing = json.loads(read("store/listing.en-US.json"))
-    desktop = "Home, Chats, Projects, Library, Studios, and You"
+    desktop = "Today, Tasks, Chats, Projects, Library, Studios, and You"
     assert "const DESKTOP_DESTINATIONS = Object.freeze(['Home', 'Chats', 'Projects', 'Library', 'Studios', 'You'])" in tutorial
     assert "const MOBILE_DESTINATIONS = Object.freeze(['Home', 'Chats', 'Projects', 'Library', 'Studios', 'You'])" in tutorial
     assert "Research with sources" in tutorial
