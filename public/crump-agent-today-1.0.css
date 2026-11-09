@@ -295,9 +295,61 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
   background: linear-gradient(180deg, #fffefa 0%, #faf6ea 100%);
 }
 
-.cat-today-slim .cat-today-head,
-.cat-today-slim .cat-brief-area {
+.cat-today--slim .cat-today-head,
+.cat-today--slim .cat-brief-area {
   display: none;
+}
+
+/* ------------------------------------------------------------------ */
+/* Workspace layout                                                    */
+/*                                                                     */
+/* The Today node is inserted in flow as the first child of            */
+/* .v1-workspace-body, but the shell positions that container's own    */
+/* children absolutely over its full box (the launchpad hero and the   */
+/* chat container are both inset: 0). An in-flow Today therefore       */
+/* reserved no space at all, and the hero painted straight over it —   */
+/* worst at tablet widths (around 1000–1100px), where the rail is      */
+/* gone, the hero is centred in the full workspace box, and the        */
+/* Today card is centred in the same box. While Today is visible,      */
+/* lay the workspace body out in rows instead: Today first, then the   */
+/* hero/chat layer in the remaining space below it, each surface in    */
+/* its own row with its own scroll. When Today is hidden the shell     */
+/* keeps its original layout untouched.                                */
+/* ------------------------------------------------------------------ */
+
+body.crump-v1-body .v1-workspace-body:has(> .cat-today:not([hidden])) {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, auto) minmax(0, 1fr);
+}
+
+body.crump-v1-body .v1-workspace-body:has(> .cat-today:not([hidden])) > .cat-today {
+  grid-column: 1;
+  grid-row: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+body.crump-v1-body .v1-workspace-body:has(> .cat-today:not([hidden])) > .v1-launchpad,
+body.crump-v1-body .v1-workspace-body:has(> .cat-today:not([hidden])) > .chat-container {
+  position: relative;
+  inset: auto;
+  grid-column: 1;
+  grid-row: 2;
+  min-height: 0;
+}
+
+body.crump-v1-body .v1-workspace-body:has(> .cat-today:not([hidden])) > .chat-container {
+  position: relative !important;
+  inset: auto !important;
+  height: auto !important;
+}
+
+/* In its shorter row the hero starts at its own beginning; centred in a
+   row it no longer fills, its first content would sit above the row's
+   scroll origin and out of reach. */
+body.crump-v1-body .v1-workspace-body:has(> .cat-today:not([hidden])) > .v1-launchpad {
+  align-content: start;
 }
 
 /* ------------------------------------------------------------------ */
