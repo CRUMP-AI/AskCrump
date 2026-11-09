@@ -189,10 +189,6 @@
     {
       "path": "/api/cron/videos",
       "schedule": "*/5 * * * *"
-    },
-    {
-      "path": "/api/internal/agent/automations/run-due",
-      "schedule": "0 * * * *"
     }
   ],
   "functions": {

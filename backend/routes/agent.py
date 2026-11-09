@@ -274,21 +274,15 @@ async def delete_automation(automation_id: str, request: Request):
         return _error(exc)
 
 
-@internal_router.api_route('/automations/run-due', methods=['GET', 'POST'])
-async def run_due_automations(request: Request):
-    # Same cron authentication as the other internal cron endpoints:
-    # Vercel Cron sends the configured secret as a bearer token, and
-    # the endpoint fails closed when no secret is configured. GET is
-    # accepted alongside POST because Vercel Cron issues GET requests.
-    expected = settings.cron_secret
-    authorization = request.headers.get('authorization', '')
-    if not expected or not hmac.compare_digest(
-        authorization, f'Bearer {expected}'
-    ):
-        return JSONResponse(
-            status_code=401,
-            content={'success': False, 'error': 'Unauthorized.'},
-        )
+async def process_due_automations() -> dict:
+    """Create + execute a morning-brief run for every due automation.
+
+    Shared by the internal run-due endpoint and the manuscripts cron
+    lane: the repo reuses its existing Vercel cron slots instead of
+    registering new ones, so due automations ride the minutely
+    manuscripts cron. Each automation is isolated - one failure leaves
+    that automation due for the next pass and never blocks the rest.
+    """
     service = _automations()
     now = datetime.now(timezone.utc)
     due = await service.due_automations(now)
@@ -323,12 +317,29 @@ async def run_due_automations(request: Request):
             # One bad automation must not block the rest of the pass;
             # it stays due and is retried on the next trigger.
             errors += 1
-    return _private(
-        {
-            'success': True,
-            'due': len(due),
-            'triggered': len(triggered),
-            'errors': errors,
-            'runs': triggered,
-        }
-    )
+    return {
+        'success': True,
+        'due': len(due),
+        'triggered': len(triggered),
+        'errors': errors,
+        'runs': triggered,
+    }
+
+
+@internal_router.api_route('/automations/run-due', methods=['GET', 'POST'])
+async def run_due_automations(request: Request):
+    # Same cron authentication as the other internal cron endpoints:
+    # the configured secret arrives as a bearer credential, and the
+    # endpoint fails closed when no secret is configured. GET is
+    # accepted alongside POST because Vercel Cron issues GET requests.
+    expected = settings.cron_secret
+    authorization = request.headers.get('authorization', '')
+    if not expected or not hmac.compare_digest(
+        authorization, f'Bearer {expected}'
+    ):
+        return JSONResponse(
+            status_code=401,
+            content={'success': False, 'error': 'Unauthorized.'},
+        )
+    return _private(await process_due_automations())
+

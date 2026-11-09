@@ -38,6 +38,7 @@ _CRON_LANES = (
     "password-reset-email",
     "code",
     "manuscripts",
+    "agent-automations",
 )
 
 
@@ -435,6 +436,14 @@ async def manuscript_cron(request: Request):
             elif lane == "code":
                 summary = await code_worker.process_next(oidc_token=oidc_token)
                 handled = bool(summary.get("handled"))
+            elif lane == "agent-automations":
+                # Due agent automations (the morning brief) ride this
+                # existing cron slot; the repo does not register new
+                # Vercel crons for new scheduled work.
+                from .agent import process_due_automations
+
+                summary = await process_due_automations()
+                handled = bool(summary.get("triggered"))
             else:
                 summary = await manuscripts.process_next_run()
                 handled = bool(summary.get("claimed"))
