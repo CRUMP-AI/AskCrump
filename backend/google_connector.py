@@ -5,16 +5,22 @@ the capability registry. It speaks to Google's REST endpoints directly
 with httpx, keeps the requested scopes to the minimal separable set in
 the registry, and reads access tokens only through the token vault.
 
-Scope note: the read surface requests ``gmail.readonly`` and
-``calendar.readonly`` only. ``calendar.events`` is requested as well
-when a caller asks for the write set, because ``calendar.create`` is
-registered with it; ``gmail.send`` and ``gmail.compose`` are never
-requested here -- sending stays a Slice 2 capability.
+Scope note: the connect flow requests the read set only --
+``gmail.readonly`` and ``calendar.readonly`` -- and the default
+authorization URL is unchanged. The write scopes are staged here as
+constants for the Slice 2 write path: ``gmail.compose`` (drafts),
+``gmail.send`` (sends), and ``calendar.events`` (``calendar.create``
+is registered with it). They are not requested by the connect flow
+in this change; a write-scope connect step lands once a production
+OAuth client is in place. Drafting and sending run behind the
+approval flow: the run service freezes the exact payload on an
+approval card before any adapter executes it.
 """
 from __future__ import annotations
 
 import base64
 from datetime import datetime, timedelta, timezone
+from email.message import EmailMessage
 import hashlib
 import hmac
 import json
@@ -51,6 +57,17 @@ class ConnectionRequiredError(GoogleConnectorError):
         super().__init__(message, 'CONNECTION_REQUIRED', 409)
 
 
+class InsufficientScopeError(GoogleConnectorError):
+    def __init__(
+        self,
+        message: str = (
+            'Google has not granted the permission this action needs. '
+            'Reconnect Google and approve the requested access.'
+        ),
+    ) -> None:
+        super().__init__(message, 'INSUFFICIENT_SCOPE', 403)
+
+
 def _scope_union(capability_ids: tuple[str, ...]) -> tuple[str, ...]:
     scopes: list[str] = []
     for capability_id in capability_ids:
@@ -64,7 +81,10 @@ def _scope_union(capability_ids: tuple[str, ...]) -> tuple[str, ...]:
 
 
 READ_SCOPES = _scope_union(('gmail.search', 'calendar.list'))
-WRITE_SCOPES = _scope_union(('gmail.search', 'calendar.list', 'calendar.create'))
+GMAIL_WRITE_SCOPES = _scope_union(('gmail.draft', 'gmail.send'))
+WRITE_SCOPES = _scope_union(
+    ('gmail.search', 'calendar.list', 'calendar.create', 'gmail.draft', 'gmail.send')
+)
 
 
 def _b64encode(raw: bytes) -> str:
@@ -73,6 +93,27 @@ def _b64encode(raw: bytes) -> str:
 
 def _b64decode(text: str) -> bytes:
     return base64.urlsafe_b64decode(text + '=' * (-len(text) % 4))
+
+
+def build_raw_message(*, to: str, subject: str, body: str) -> str:
+    """Build an RFC 5322 message and base64url-encode it for Gmail.
+
+    The Gmail API takes the whole message as one base64url string in
+    the ``raw`` field. Header values reject CR/LF outright so a
+    payload can never smuggle extra headers into the message.
+    """
+    for value in (to, subject):
+        if '\r' in str(value) or '\n' in str(value):
+            raise GoogleConnectorError(
+                'The email headers are invalid.',
+                'INVALID_MESSAGE',
+                400,
+            )
+    message = EmailMessage()
+    message['To'] = str(to)
+    message['Subject'] = str(subject)
+    message.set_content(str(body))
+    return _b64encode(message.as_bytes())
 
 
 def _header_map(message: dict[str, Any]) -> dict[str, str]:
@@ -248,6 +289,13 @@ class GoogleConnector:
             if owns_client:
                 await client.aclose()
         if response.status_code >= 400:
+            detail = ''
+            try:
+                detail = response.text or ''
+            except Exception:
+                detail = ''
+            if response.status_code == 403 and 'insufficientPermissions' in detail:
+                raise InsufficientScopeError()
             raise GoogleConnectorError(
                 'Google did not complete that request.',
                 'GOOGLE_API_ERROR',
@@ -523,3 +571,39 @@ class GoogleConnector:
             json_body=body,
         )
         return event_summary(created)
+
+    async def create_draft(
+        self, user_id: str, *, to: str, subject: str, body: str
+    ) -> dict[str, Any]:
+        access_token = await self.access_token_for(user_id)
+        raw = build_raw_message(to=to, subject=subject, body=body)
+        created = await self._request(
+            'POST',
+            f'{GMAIL_BASE_URL}/drafts',
+            headers=self._auth_headers(access_token),
+            json_body={'message': {'raw': raw}},
+        )
+        inner = created.get('message')
+        inner = inner if isinstance(inner, dict) else {}
+        return {
+            'id': str(created.get('id') or ''),
+            'messageId': str(inner.get('id') or ''),
+            'threadId': str(inner.get('threadId') or ''),
+        }
+
+    async def send_message(
+        self, user_id: str, *, to: str, subject: str, body: str
+    ) -> dict[str, Any]:
+        access_token = await self.access_token_for(user_id)
+        raw = build_raw_message(to=to, subject=subject, body=body)
+        sent = await self._request(
+            'POST',
+            f'{GMAIL_BASE_URL}/messages/send',
+            headers=self._auth_headers(access_token),
+            json_body={'raw': raw},
+        )
+        return {
+            'id': str(sent.get('id') or ''),
+            'threadId': str(sent.get('threadId') or ''),
+            'labelIds': [str(item) for item in sent.get('labelIds') or []],
+        }
