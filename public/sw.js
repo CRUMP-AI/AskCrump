@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r284-agent-execution-pause-1';
+const CACHE_NAME = 'ask-crump-new-body-v1-r285-agent-today-placeholder-1';
 
 const CORE = [
   '/app',
