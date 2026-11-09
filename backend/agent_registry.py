@@ -232,6 +232,32 @@ _CAPABILITIES: tuple[Capability, ...] = (
         result_card='plain',
         status='live',
     ),
+    Capability(
+        id='memory.list',
+        title='List what is remembered',
+        verb_phrase='List what you remember about',
+        input_schema=_schema({}),
+        risk_class='read',
+        approval='never',
+        entitlement='account',
+        connector='internal',
+        result_card='list',
+        status='live',
+    ),
+    Capability(
+        id='memory.forget',
+        title='Forget a memory',
+        verb_phrase='Forget',
+        input_schema=_schema(
+            {'memoryId': {'type': 'string', 'minLength': 1}}, ('memoryId',)
+        ),
+        risk_class='write_irreversible',
+        approval='card',
+        entitlement='account',
+        connector='internal',
+        result_card='plain',
+        status='live',
+    ),
     # --- Slice 1 planned capabilities (Google connector) ----------------
     Capability(
         id='gmail.search',
