@@ -430,7 +430,7 @@ _CAPABILITIES: tuple[Capability, ...] = (
         entitlement='account',
         connector='internal',
         result_card='plain',
-        status='planned',
+        status='live',
     ),
 )
 

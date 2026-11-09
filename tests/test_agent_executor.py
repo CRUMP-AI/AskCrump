@@ -339,10 +339,29 @@ async def test_executor_refuses_a_run_that_is_not_queued():
 
 
 @pytest.mark.asyncio
-async def test_approved_run_executes_its_frozen_payload():
+async def test_approved_run_executes_its_frozen_payload(monkeypatch):
     executor, service, db, connector = make_executor(connected=True)
-    # gmail.draft has no adapter yet, so the run must fail honestly —
-    # but it proves the approved payload path is what gets dispatched.
+    # The approved pending action freezes the exact payload; dispatch
+    # must hand the Gmail write adapter that payload, not a re-read.
+    dispatched = {}
+
+    async def fake_write_execute(capability_id, user_id, payload, *, connector=None):
+        dispatched['capability_id'] = capability_id
+        dispatched['payload'] = payload
+        dispatched['connector'] = connector
+        return {
+            'capabilityId': capability_id,
+            'status': 'draft_created',
+            'draftId': 'd1',
+            'messageId': 'm1',
+            'threadId': 't1',
+            'recipientDomain': 'example.com',
+            'subjectLength': 0,
+        }
+
+    monkeypatch.setattr(
+        'backend.agent_executor.agent_gmail_write.execute', fake_write_execute
+    )
     run = await service.create_run(
         user_id=USER,
         capability_id='gmail.draft',
@@ -355,10 +374,13 @@ async def test_approved_run_executes_its_frozen_payload():
     )
     assert decided['run']['status'] == 'queued'
     result = await executor.execute_run(user_id=USER, run_id=run['id'])
-    assert result['status'] == 'failed'
-    assert json.loads(result['resultSummary'])['error']['code'] == (
-        'EXECUTOR_NOT_AVAILABLE'
-    )
+    assert result['status'] == 'succeeded'
+    assert dispatched['capability_id'] == 'gmail.draft'
+    assert dispatched['payload'] == {'to': 'a@example.com', 'body': 'Hello'}
+    assert dispatched['connector'] is connector
+    summary = json.loads(result['resultSummary'])
+    assert summary['kind'] == 'gmail.draft'
+    assert summary['status'] == 'draft_created'
 
 
 def test_executor_routes_are_registered():
