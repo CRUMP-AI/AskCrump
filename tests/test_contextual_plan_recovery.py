@@ -65,7 +65,7 @@ def test_contextual_recovery_assets_are_registered_for_web_pwa_and_native():
     credit_truth_css_version = "5.9.76-credit-truth-1"
     attach_creation_version = "5.9.76-legacy-attachment-owner-fence-1"
     chat_owner_boundary_version = "5.9.76-chat-owner-boundary-1"
-    project_wrapper_version = "5.9.76-legacy-project-resume-truth-1"
+    project_wrapper_version = "5.9.76-legacy-project-resume-truth-2"
     runtime = read("public/runtime-body-v1.js")
     worker = read("public/sw.js")
     native = read("scripts/build-native.mjs")
@@ -87,4 +87,4 @@ def test_contextual_recovery_assets_are_registered_for_web_pwa_and_native():
     assert f"/crump-product-5.3.js?v={project_wrapper_version}" in loader
     assert f"/crump-product-5.3.js?v={project_wrapper_version}" not in runtime
     assert f"/crump-product-5.3.js?v={project_wrapper_version}" not in worker
-    assert "ask-crump-new-body-v1-r283-mobile-nav-apple-polish-1" in worker
+    assert "ask-crump-new-body-v1-r284-agent-execution-pause-1" in worker

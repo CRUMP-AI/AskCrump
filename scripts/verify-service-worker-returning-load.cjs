@@ -10,7 +10,7 @@ const cachedTargets = Object.freeze([
   ['/runtime-body-v1.js', '/runtime-body-v1.js?v=5.9.76-mobile-nav-apple-polish-1'],
   ['/crump-v1-body.css', '/crump-v1-body.css?v=5.9.76-owned-workspace-access-1'],
   ['/home-document-entry.js', '/home-document-entry.js?v=5.9.76-home-document-entry-1'],
-  ['/crump-product-loader.js', '/crump-product-loader.js?v=5.9.76-legacy-project-resume-truth-1&workspaceRelease=guest-free-contract-2'],
+  ['/crump-product-loader.js', '/crump-product-loader.js?v=5.9.76-legacy-project-resume-truth-2&workspaceRelease=guest-free-contract-2'],
   ['/crump-library-loader.js', '/crump-library-loader.js?v=5.9.76-account-owner-boundary-1'],
 ]);
 const fixturePath = '/__returning-load.html';
