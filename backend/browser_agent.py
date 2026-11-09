@@ -13,6 +13,16 @@ Safety model (fail closed, checked on every hop):
   redirect -- and the fetch is blocked when any answer is a private,
   loopback, link-local, reserved, multicast, or otherwise non-global
   address. Literal IP hosts are checked directly.
+- The validated answer is pinned for the fetch: the connection is
+  opened to the validated IP address itself, never to a second DNS
+  lookup of the hostname, so a rebinding answer between validation
+  and connect cannot steer the request to a non-public address. The
+  original hostname is preserved for the ``Host`` header and for TLS
+  SNI / certificate verification.
+- The default client is built with ``trust_env=False``: proxy and
+  other settings are never taken from the process environment, since
+  an environment proxy would resolve the hostname itself and defeat
+  the pin.
 - Redirects are followed manually, at most three, so the address check
   above runs for every destination.
 - Responses are capped at 2 MB, time out after 10 seconds, and must be
@@ -93,7 +103,11 @@ def _is_public_address(value: str) -> bool:
         address = ipaddress.ip_address(value.split('%', 1)[0])
     except ValueError:
         return False
-    return bool(address.is_global)
+    # ``is_global`` alone is not enough: the multicast ranges
+    # (224.0.0.0/4 and ff00::/8) report as global on Python 3.12 even
+    # though they are not public unicast destinations, and the safety
+    # model above promises they are blocked.
+    return bool(address.is_global and not address.is_multicast)
 
 
 async def _resolve(hostname: str, resolver: Resolver) -> list[str]:
@@ -111,12 +125,16 @@ async def _resolve(hostname: str, resolver: Resolver) -> list[str]:
     return addresses
 
 
-async def _ensure_public_url(url: str, resolver: Resolver) -> str:
-    """Validate one fetch hop and return the URL unchanged.
+async def _validate_public_url(
+    url: str, resolver: Resolver
+) -> tuple[str, str, list[str]]:
+    """Validate one fetch hop; return (url, hostname, addresses).
 
     Raises BROWSER_URL_BLOCKED for a non-http(s) scheme, a URL carrying
     credentials, a malformed host, or any resolved address that is not
-    a public (global) address.
+    a public (global) address. The returned addresses are the exact
+    answers validation checked; the default fetch path pins its
+    connection to one of them instead of resolving the name again.
     """
     try:
         parsed = urlparse(str(url or ''))
@@ -136,7 +154,135 @@ async def _ensure_public_url(url: str, resolver: Resolver) -> str:
         addresses = await _resolve(hostname, resolver)
     if any(not _is_public_address(address) for address in addresses):
         raise _blocked('That page resolves to a non-public address.')
-    return url
+    return url, hostname, addresses
+
+
+async def _ensure_public_url(url: str, resolver: Resolver) -> str:
+    """Validate one fetch hop and return the URL unchanged."""
+    validated, _hostname, _addresses = await _validate_public_url(url, resolver)
+    return validated
+
+
+def _ascii_hostname(hostname: str) -> str:
+    """Return the IDNA (ASCII) form used on the wire for SNI and Host."""
+    try:
+        ipaddress.ip_address(hostname)
+        return hostname
+    except ValueError:
+        pass
+    try:
+        return hostname.lower().encode('idna').decode('ascii')
+    except (UnicodeError, ValueError):
+        return hostname.lower()
+
+
+class _PinnedAsyncTransport(httpx.AsyncBaseTransport):
+    """Transport that connects to one pre-validated IP address.
+
+    The request URL is rewritten to the validated address before the
+    inner transport sees it, so the inner transport -- the real
+    ``httpx.AsyncHTTPTransport`` by default -- opens its TCP connection
+    to that address and performs no DNS lookup of its own. Two parts
+    of the original request are preserved:
+
+    - the ``Host`` header keeps the original hostname (with port when
+      present), taken from the request the client already built;
+    - the ``sni_hostname`` request extension carries the original
+      hostname, which httpcore uses as the TLS server name, so SNI
+      and certificate verification still check the hostname, not the
+      pinned address.
+
+    A request naming any other host is refused rather than fetched:
+    one transport instance serves exactly one validated hop.
+    """
+
+    def __init__(
+        self,
+        hostname: str,
+        address: str,
+        *,
+        inner: httpx.AsyncBaseTransport | None = None,
+    ) -> None:
+        self._hostname = _ascii_hostname(hostname)
+        self._address = str(address).split('%', 1)[0]
+        # Never take proxy or other settings from the environment.
+        self.trust_env = False
+        self._owns_inner = inner is None
+        self._inner: httpx.AsyncBaseTransport = (
+            inner
+            if inner is not None
+            else httpx.AsyncHTTPTransport(trust_env=False)
+        )
+
+    @property
+    def hostname(self) -> str:
+        return self._hostname
+
+    @property
+    def address(self) -> str:
+        return self._address
+
+    @property
+    def inner(self) -> httpx.AsyncBaseTransport:
+        return self._inner
+
+    async def handle_async_request(
+        self, request: httpx.Request
+    ) -> httpx.Response:
+        # Compare in the same normalised form the pin was stored in:
+        # httpx keeps internationalised hosts in Unicode in
+        # ``url.host`` while the pin holds the IDNA form, and a raw
+        # comparison would refuse every IDN request.
+        if _ascii_hostname(str(request.url.host or '')) != self._hostname:
+            raise httpx.ConnectError(
+                'Pinned transport received a request for an unexpected host.',
+                request=request,
+            )
+        pinned_url = request.url.copy_with(host=self._address)
+        headers = httpx.Headers(request.headers)
+        if 'host' not in headers:
+            netloc = request.url.netloc
+            headers['host'] = (
+                netloc.decode('ascii')
+                if isinstance(netloc, bytes)
+                else str(netloc)
+            )
+        extensions = dict(request.extensions)
+        extensions['sni_hostname'] = self._hostname
+        pinned_request = httpx.Request(
+            method=request.method,
+            url=pinned_url,
+            headers=headers,
+            stream=request.stream,
+            extensions=extensions,
+        )
+        return await self._inner.handle_async_request(pinned_request)
+
+    async def aclose(self) -> None:
+        if self._owns_inner:
+            await self._inner.aclose()
+
+
+# Public alias for tests and for callers building a pinned client.
+PinnedAsyncTransport = _PinnedAsyncTransport
+
+
+def _make_pinned_client(
+    hostname: str,
+    address: str,
+    *,
+    inner_transport: httpx.AsyncBaseTransport | None = None,
+) -> httpx.AsyncClient:
+    """Build the default client for one hop, pinned to ``address``."""
+    transport = _PinnedAsyncTransport(
+        hostname, address, inner=inner_transport
+    )
+    return httpx.AsyncClient(
+        timeout=TIMEOUT_SECONDS,
+        follow_redirects=False,
+        trust_env=False,
+        transport=transport,
+    )
 
 
 _SKIP_TAGS = frozenset(
@@ -222,16 +368,23 @@ class BrowserAgent:
     """Fetch one public page and return its readable text.
 
     ``http_client`` and ``resolver`` are injectable so tests can drive
-    every path with a fake transport and fake DNS answers.
+    every path with a fake transport and fake DNS answers. When a
+    client is injected it is used exactly as given (the historical
+    behaviour). Otherwise each hop is fetched through a fresh client
+    whose transport is pinned to the address validation approved;
+    ``transport`` may inject the pinned transport's inner transport
+    (for example a fake one in tests) without changing that pinning.
     """
 
     def __init__(
         self,
         http_client: httpx.AsyncClient | None = None,
         resolver: Resolver | None = None,
+        transport: httpx.AsyncBaseTransport | None = None,
     ) -> None:
         self._client = http_client
         self._resolver: Resolver = resolver or _default_resolver
+        self._transport = transport
 
     async def _fetch_once(
         self, client: Any, url: str
@@ -279,6 +432,17 @@ class BrowserAgent:
             )
         return response.status_code, response.headers, content
 
+    async def _fetch_hop(
+        self, client: Any, url: str
+    ) -> tuple[int, Any, bytes]:
+        """Fetch one hop, mapping transport errors to BROWSER_FETCH_FAILED."""
+        try:
+            return await self._fetch_once(client, url)
+        except BrowserAgentError:
+            raise
+        except httpx.HTTPError as exc:
+            raise _fetch_failed() from exc
+
     async def read_page(self, user_id: str, url: str) -> dict[str, Any]:
         """Fetch ``url`` and return its readable content.
 
@@ -288,33 +452,45 @@ class BrowserAgent:
         """
         del user_id  # Reads are per-URL; the caller owns run attribution.
         current = str(url or '').strip()
-        owns_client = self._client is None
-        client = self._client or httpx.AsyncClient(
-            timeout=TIMEOUT_SECONDS, follow_redirects=False
-        )
-        try:
-            redirects = 0
-            while True:
+        redirects = 0
+        while True:
+            if self._client is not None:
+                # Injected client: keep the established behaviour.
                 await _ensure_public_url(current, self._resolver)
+                status, headers, content = await self._fetch_hop(
+                    self._client, current
+                )
+            else:
+                # Default client: resolve once, validate every answer,
+                # then pin this hop to a validated address. Each
+                # redirect hop re-enters here, so it is resolved,
+                # validated, and pinned on its own.
+                _validated, hostname, addresses = (
+                    await _validate_public_url(current, self._resolver)
+                )
+                hop_client = _make_pinned_client(
+                    hostname,
+                    addresses[0],
+                    inner_transport=self._transport,
+                )
                 try:
-                    status, headers, content = await self._fetch_once(client, current)
-                except BrowserAgentError:
-                    raise
-                except httpx.HTTPError as exc:
-                    raise _fetch_failed() from exc
-                if status in REDIRECT_STATUSES:
-                    location = headers.get('location') if headers else None
-                    if not location:
-                        raise _fetch_failed('The page redirected without a destination.')
-                    redirects += 1
-                    if redirects > MAX_REDIRECTS:
-                        raise _fetch_failed('The page redirected too many times.')
-                    current = urljoin(current, str(location))
-                    continue
-                break
-        finally:
-            if owns_client:
-                await client.aclose()
+                    status, headers, content = await self._fetch_hop(
+                        hop_client, current
+                    )
+                finally:
+                    await hop_client.aclose()
+            if status in REDIRECT_STATUSES:
+                location = headers.get('location') if headers else None
+                if not location:
+                    raise _fetch_failed(
+                        'The page redirected without a destination.'
+                    )
+                redirects += 1
+                if redirects > MAX_REDIRECTS:
+                    raise _fetch_failed('The page redirected too many times.')
+                current = urljoin(current, str(location))
+                continue
+            break
         if status >= 400:
             raise _fetch_failed(f'The page returned status {status}.')
         content_type = ''
@@ -406,9 +582,12 @@ async def read_page(
     *,
     http_client: httpx.AsyncClient | None = None,
     resolver: Resolver | None = None,
+    transport: httpx.AsyncBaseTransport | None = None,
 ) -> dict[str, Any]:
     """Module-level read; see BrowserAgent.read_page."""
-    agent = BrowserAgent(http_client=http_client, resolver=resolver)
+    agent = BrowserAgent(
+        http_client=http_client, resolver=resolver, transport=transport
+    )
     return await agent.read_page(user_id, url)
 
 
@@ -419,7 +598,10 @@ async def execute(
     *,
     http_client: httpx.AsyncClient | None = None,
     resolver: Resolver | None = None,
+    transport: httpx.AsyncBaseTransport | None = None,
 ) -> dict[str, Any]:
     """Module-level adapter; see BrowserAgent.execute."""
-    agent = BrowserAgent(http_client=http_client, resolver=resolver)
+    agent = BrowserAgent(
+        http_client=http_client, resolver=resolver, transport=transport
+    )
     return await agent.execute(capability_id, user_id, payload)
