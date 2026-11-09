@@ -100,7 +100,7 @@ function resolveRelease(swSource, shellSource, runtimeSource, frozenSource) {
     libraryLoader: matchOne(frozenSource, /'([^']*\/crump-library-loader\.js\?[^']+)'/, 'frozen Library loader URL'),
   });
   assert.equal(previous.cache, 'ask-crump-new-body-v1-r272-project-resume-auth-boundary-1');
-    assert.equal(current.cache, 'ask-crump-new-body-v1-r283-mobile-nav-apple-polish-1');
+    assert.equal(current.cache, 'ask-crump-new-body-v1-r284-agent-execution-pause-1');
   assert.notEqual(current.cache, immediatePredecessor.cache);
   assert.notEqual(current.runtime, immediatePredecessor.runtime);
   assert.notEqual(current.billing52, immediatePredecessor.billing52);
@@ -606,7 +606,7 @@ async function assertRuntimeExecuted(page, expectedControllerSuffix) {
     assert.ok(cached.subscriptions.includes('X-Ask-Crump-Expected-Owner'));
     assert.ok(cached.activity.includes('currentUserId() !== ownerUserId'));
     assert.ok(cached.activity.includes('X-Ask-Crump-Expected-Owner'));
-    assert.ok(cached.productLoader.includes('/crump-product-5.3.js?v=5.9.76-legacy-project-resume-truth-1'));
+    assert.ok(cached.productLoader.includes('/crump-product-5.3.js?v=5.9.76-legacy-project-resume-truth-2'));
     assert.ok(cached.libraryLoader.includes('/crump-library-5.7.js?v=5.9.76-account-owner-boundary-1'));
     assert.ok(cached.codeLoader.includes('/crump-code-5.9.35.js?v=5.9.76-account-owner-boundary-1'));
     assert.equal(Object.values(cached).some(value => value.includes('stale-r272:')), false);

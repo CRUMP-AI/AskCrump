@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r283-mobile-nav-apple-polish-1';
+const CACHE_NAME = 'ask-crump-new-body-v1-r284-agent-execution-pause-1';
 
 const CORE = [
   '/app',
@@ -42,7 +42,7 @@ const CORE = [
   '/crump-vision-studios-1.0.css?v=5.9.76-premium-workspace-1',
   '/crump-vision-studios-1.0.js?v=5.9.76-premium-workspace-1',
   '/crump-code-loader.js?v=5.9.76-account-owner-boundary-1&workspaceRelease=guest-free-contract-2',
-  '/crump-product-loader.js?v=5.9.76-legacy-project-resume-truth-1&workspaceRelease=guest-free-contract-2',
+  '/crump-product-loader.js?v=5.9.76-legacy-project-resume-truth-2&workspaceRelease=guest-free-contract-2',
   '/crump-product-5.3.1.css',
   '/crump-product-5.3.1.js?v=5.9.76-conversation-action-labels-2',
   '/crump-polish-5.6.css',

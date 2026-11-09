@@ -1283,7 +1283,7 @@ const shellNoTaglineVersion = `${releaseVersion}-shell-no-tagline-1`;
 const atelierWorkspaceVersion = `${releaseVersion}-atelier-workspace-1`;
 const projectResumeVersion = `${releaseVersion}-project-resume-1`;
 const projectResumeOwnerBoundaryVersion = `${releaseVersion}-project-resume-owner-boundary-1`;
-const legacyProjectResumeTruthVersion = `${releaseVersion}-legacy-project-resume-truth-1`;
+const legacyProjectResumeTruthVersion = `${releaseVersion}-legacy-project-resume-truth-2`;
 const responseContinuityCleanupVersion = `${releaseVersion}-response-continuity-cleanup-1`;
 const manuscriptExportDeliveryVersion = `${releaseVersion}-manuscript-export-delivery-1`;
 const libraryCrudPrivacyVersion = `${releaseVersion}-library-crud-privacy-1`;
@@ -2097,7 +2097,7 @@ for (const [pathname, expectedVersion] of [
     }
   }
 }
-if (!serviceWorker.includes('ask-crump-new-body-v1-r283-mobile-nav-apple-polish-1') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r284-agent-execution-pause-1') ||
     !serviceWorker.includes(`'${shellBrandUrl}'`) ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||

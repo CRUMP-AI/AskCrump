@@ -151,23 +151,19 @@ async def get_run(run_id: str, request: Request):
 
 @router.post('/runs/{run_id}/execute')
 async def execute_run(run_id: str, request: Request):
-    auth = await _auth(request)
-    try:
-        payload = await request.json()
-    except Exception:
-        payload = {}
-    if not isinstance(payload, dict):
-        payload = {}
-    run_input = payload.get('input')
-    try:
-        run = await _executor().execute_run(
-            user_id=auth.user['id'],
-            run_id=run_id,
-            payload=run_input if isinstance(run_input, dict) else None,
+    await _auth(request)
+    # Emergency pause: run execution is closed until the payload-of-record
+    # + CAS execution fix lands. This endpoint accepted caller input that
+    # could substitute the approved payload, so it fails closed for every
+    # run — no body parsing, no executor call.
+    return _error(
+        AgentRunError(
+            'Agent execution is paused while a safety fix is completed. '
+            'No run was executed.',
+            503,
+            'AGENT_EXECUTION_PAUSED',
         )
-        return _private({'success': True, 'run': run})
-    except AgentRunError as exc:
-        return _error(exc)
+    )
 
 
 @router.post('/runs/{run_id}/cancel')
