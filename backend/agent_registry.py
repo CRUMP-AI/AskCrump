@@ -319,7 +319,7 @@ _CAPABILITIES: tuple[Capability, ...] = (
         entitlement='account',
         connector='internal',
         result_card='brief',
-        status='planned',
+        status='live',
     ),
     Capability(
         id='agent.morning_brief',
