@@ -158,6 +158,9 @@ class Settings:
     cron_secret: str | None
     fcm_project_id: str | None
     google_service_account_json: str | None
+    google_oauth_client_id: str | None
+    google_oauth_client_secret: str | None
+    google_oauth_redirect_uri: str | None
     apns_key_id: str | None
     apns_team_id: str | None
     apns_bundle_id: str | None
@@ -361,6 +364,9 @@ def get_settings() -> Settings:
         cron_secret=os.getenv('CRON_SECRET'),
         fcm_project_id=os.getenv('FCM_PROJECT_ID'),
         google_service_account_json=os.getenv('GOOGLE_SERVICE_ACCOUNT_JSON'),
+        google_oauth_client_id=os.getenv('GOOGLE_OAUTH_CLIENT_ID'),
+        google_oauth_client_secret=os.getenv('GOOGLE_OAUTH_CLIENT_SECRET'),
+        google_oauth_redirect_uri=os.getenv('GOOGLE_OAUTH_REDIRECT_URI'),
         apns_key_id=os.getenv('APNS_KEY_ID'),
         apns_team_id=os.getenv('APNS_TEAM_ID'),
         apns_bundle_id=os.getenv('APNS_BUNDLE_ID', 'com.clevercrump.askcrump'),

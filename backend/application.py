@@ -12,8 +12,9 @@ from fastapi.staticfiles import StaticFiles
 from .http import register_exception_handlers, request_guards
 from .logging_privacy import enforce_transport_log_privacy
 from .routes import (
-    account, agent, analytics, auth, billing, chat, code, credits, features, files, health,
-    intelligence, library, lifecycle, manuscripts, media, presence, projects, safety, sync, voice,
+    account, agent, analytics, auth, billing, chat, code, connected_apps, credits, features,
+    files, health, intelligence, library, lifecycle, manuscripts, media, presence, projects,
+    safety, sync, voice,
 )
 from .runtime import settings
 from .version import __version__
@@ -76,6 +77,7 @@ def create_app() -> FastAPI:
     application.include_router(credits.router)
     application.include_router(safety.router)
     application.include_router(agent.router)
+    application.include_router(connected_apps.router)
 
     if PUBLIC_DIR.exists():
         @application.get('/', include_in_schema=False)
