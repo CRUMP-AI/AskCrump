@@ -8,6 +8,12 @@ The executor endpoints below are the Slice 1 read surface: they run
 connection and return ``CONNECTION_REQUIRED`` when there is none.
 Creating events and sending mail stay behind the approval-gated
 executor in the next increment.
+
+Write access is a separate step-up on the connect endpoint:
+``level=write`` requests the write scope set instead of the read set.
+The default (no ``level``) is the read connect, unchanged. The level
+is bound into the signed OAuth state, and the stored connection
+records the scopes Google granted, which can be fewer than requested.
 """
 from __future__ import annotations
 
@@ -78,6 +84,13 @@ async def google_status(request: Request):
 @router.get('/api/connections/google/connect')
 async def google_connect(request: Request):
     auth = await _authenticate(request)
+    level = str(request.query_params.get('level') or 'read')
+    if level not in ('read', 'write'):
+        return _error(
+            'The connection level is invalid.',
+            'INVALID_CONNECT_LEVEL',
+            400,
+        )
     connector = get_connector()
     if not connector.oauth_configured:
         return _error(
@@ -86,7 +99,7 @@ async def google_connect(request: Request):
             503,
         )
     try:
-        url = connector.authorization_url(auth.user['id'])
+        url = connector.authorization_url(auth.user['id'], level=level)
     except GoogleVaultError as exc:
         return _error(exc.message, exc.code, exc.status_code)
     except GoogleConnectorError as exc:
@@ -109,7 +122,11 @@ async def google_callback(request: Request):
         return failure
     try:
         user_id = connector.state_user_id(state)
-        await connector.exchange_code(code, user_id=user_id, state=state)
+        payload = connector.validate_state(state, user_id)
+        level = str(payload.get('level') or 'read')
+        await connector.exchange_code(
+            code, user_id=user_id, state=state, expected_level=level
+        )
     except (GoogleConnectorError, GoogleVaultError):
         return failure
     return RedirectResponse(
