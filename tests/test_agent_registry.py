@@ -54,8 +54,11 @@ def test_slice_one_google_capabilities_name_minimal_scopes():
 
 
 def test_planned_capabilities_are_not_presented_as_live():
-    for capability_id in SLICE_ONE_IDS:
+    for capability_id in SLICE_ONE_IDS - {'agent.today_brief'}:
         assert require_capability(capability_id).status == 'planned'
+    # The Today brief is self-contained and backed by the executor, so
+    # it is the one Slice 1 capability that ships live.
+    assert require_capability('agent.today_brief').status == 'live'
 
 
 def test_unknown_capability_fails_closed():
