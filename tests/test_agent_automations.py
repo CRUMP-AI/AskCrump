@@ -370,6 +370,9 @@ async def test_list_and_delete_are_owner_scoped():
 @pytest.mark.asyncio
 async def test_executor_morning_brief_run_succeeds():
     db = FakeDB()
+    # The morning brief is account-entitled; production access
+    # enforcement stays on, so seed the owner's registered account.
+    db.tables['users'] = [{'id': USER, 'is_guest': False}]
     runs = AgentRunService(db)
     executor = AgentExecutor(
         runs,
@@ -404,6 +407,7 @@ def test_morning_brief_is_live_and_free():
 @pytest.fixture
 def run_due_context(monkeypatch):
     db = FakeDB()
+    db.tables['users'] = [{'id': USER, 'is_guest': False}]
     runs = AgentRunService(db)
     automations = AgentAutomationService(db)
     monkeypatch.setattr(agent_routes, 'db', db)
