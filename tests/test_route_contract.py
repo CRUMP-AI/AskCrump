@@ -43,6 +43,12 @@ EXPECTED_ROUTES = {
     ('POST', '/api/safety/reports'),
     ('GET', '/api/agent/capabilities'),
     ('GET', '/api/agent/capabilities/{capability_id}'),
+    ('POST', '/api/agent/runs'),
+    ('GET', '/api/agent/runs'),
+    ('GET', '/api/agent/runs/{run_id}'),
+    ('POST', '/api/agent/runs/{run_id}/cancel'),
+    ('GET', '/api/agent/approvals'),
+    ('POST', '/api/agent/approvals/{action_id}/decision'),
 }
 
 
