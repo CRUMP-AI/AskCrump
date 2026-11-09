@@ -9,7 +9,9 @@ view and the audit trail keep reading from one store.
 Adapters are deliberately narrow. ``gmail.search`` and ``calendar.list``
 run against the signed-in user's Google connection and fail honestly
 with ``CONNECTION_REQUIRED`` when there is none. ``agent.today_brief``
-composes the Today brief from real service calls only. ``browser.read``
+composes the Today brief from real service calls only, and
+``agent.morning_brief`` composes that same brief for a scheduled run.
+``browser.read``
 dispatches to the browser agent's guarded page fetch, and the Gmail
 write capabilities (``gmail.draft``, ``gmail.send``) dispatch to the
 Gmail write adapter, which re-checks the granted scopes before any
@@ -379,8 +381,8 @@ class AgentExecutor:
         }
         return await self._succeed(run, summary)
 
-    async def _run_today_brief(
-        self, run: dict[str, Any], payload: dict[str, Any]
+    async def _run_brief(
+        self, run: dict[str, Any], kind: str
     ) -> dict[str, Any]:
         brief = await build_today_brief(
             run['user_id'],
@@ -390,7 +392,7 @@ class AgentExecutor:
         calendar = brief.get('calendar')
         inbox = brief.get('inboxHighlights')
         summary = {
-            'kind': 'agent.today_brief',
+            'kind': kind,
             'generatedAt': brief.get('generatedAt'),
             'pendingApprovals': len(brief.get('pendingApprovals') or []),
             'recentRuns': len(brief.get('recentRuns') or []),
@@ -401,6 +403,16 @@ class AgentExecutor:
             'inboxHighlights': len(inbox) if isinstance(inbox, list) else inbox,
         }
         return await self._succeed(run, summary)
+
+    async def _run_today_brief(
+        self, run: dict[str, Any], payload: dict[str, Any]
+    ) -> dict[str, Any]:
+        return await self._run_brief(run, 'agent.today_brief')
+
+    async def _run_morning_brief(
+        self, run: dict[str, Any], payload: dict[str, Any]
+    ) -> dict[str, Any]:
+        return await self._run_brief(run, 'agent.morning_brief')
 
     async def _run_memory_list(
         self, run: dict[str, Any], payload: dict[str, Any]
@@ -513,6 +525,7 @@ class AgentExecutor:
         'gmail.search': _run_gmail_search,
         'calendar.list': _run_calendar_list,
         'agent.today_brief': _run_today_brief,
+        'agent.morning_brief': _run_morning_brief,
         'memory.list': _run_memory_list,
         'memory.forget': _run_memory_forget,
         'browser.read': _run_browser_read,
