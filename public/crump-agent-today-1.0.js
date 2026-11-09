@@ -113,7 +113,23 @@
   /* session cookies plus the expected-owner header.                   */
   /* ---------------------------------------------------------------- */
 
+  function currentUserIsGuest() {
+    try {
+      var access = window.CrumpAccess;
+      if (access && typeof access.isGuest === 'function') return !!access.isGuest();
+    } catch (_) {}
+    try {
+      if (window.currentUser && window.currentUser.isGuest) return true;
+    } catch (_) {}
+    return false;
+  }
+
   function captureOwnerId() {
+    // Guest sessions carry a user id, but agent data (capabilities,
+    // approvals, runs) belongs to signed-in accounts: the endpoints
+    // reject guest credentials, so fetching for a guest only produced
+    // failed requests. Guests keep the signed-out Today state.
+    if (currentUserIsGuest()) return '';
     try {
       var boundary = window.CrumpAuthBoundary;
       if (boundary && typeof boundary.authenticatedUserId === 'function') {

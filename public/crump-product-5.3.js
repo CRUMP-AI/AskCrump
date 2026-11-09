@@ -2224,7 +2224,18 @@
         if (!projectOperationIsCurrent(operation)) return;
         state.projects = Array.isArray(data.projects) ? data.projects : [];
         const stored = state.activeProject?.id || storedProjectCandidate();
-        state.activeProject = state.projects.find(item => item.id === stored) || null;
+        // Absence from one list response is not proof that the active
+        // Project is gone: the list can lag a Project that was just created
+        // or saved in this session. Keep the held Project (and its stored
+        // destination) so it stays openable; only a stored candidate that
+        // this session never verified is dropped when the list omits it.
+        state.activeProject = state.projects.find(item => item.id === stored)
+          || state.activeProject
+          || null;
+        if (state.activeProject
+          && !state.projects.some(item => String(item.id || '') === String(state.activeProject.id || ''))) {
+          state.projects = [state.activeProject, ...state.projects];
+        }
         if (state.activeProject) storeProject(state.activeProject.id);
         else if (stored) storeProject('');
         renderProjectList(data.limit);
