@@ -11,9 +11,14 @@ run against the signed-in user's Google connection and fail honestly
 with ``CONNECTION_REQUIRED`` when there is none. ``agent.today_brief``
 composes the Today brief from real service calls only, and
 ``agent.morning_brief`` composes that same brief for a scheduled run.
-Every other registered capability fails with ``EXECUTOR_NOT_AVAILABLE``
-rather than pretending to have run — an adapter lands here capability
-by capability.
+``browser.read``
+dispatches to the browser agent's guarded page fetch, and the Gmail
+write capabilities (``gmail.draft``, ``gmail.send``) dispatch to the
+Gmail write adapter, which re-checks the granted scopes before any
+provider call. ``memory.list`` and ``memory.forget`` run against the
+existing intelligence service's owner-scoped memory store. Every other registered capability fails with
+``EXECUTOR_NOT_AVAILABLE`` rather than pretending to have run — an
+adapter lands here capability by capability.
 No adapter charges credits: the capabilities wired here are registered
 with a ``none`` credit cost.
 """
@@ -23,7 +28,9 @@ from datetime import datetime, time, timedelta, timezone
 import json
 from typing import Any
 
+from . import agent_gmail_write, browser_agent
 from .agent_run_service import AgentRunConflictError, AgentRunService
+from .browser_agent import BrowserAgentError
 from .db import eq
 from .google_connector import ConnectionRequiredError, GoogleConnectorError
 from .security import iso_now
@@ -37,6 +44,11 @@ MAX_SUMMARY_FIELD_CHARS = 300
 
 EXECUTOR_NOT_AVAILABLE = 'EXECUTOR_NOT_AVAILABLE'
 CONNECTION_REQUIRED = 'CONNECTION_REQUIRED'
+MEMORY_NOT_FOUND = 'MEMORY_NOT_FOUND'
+# The ledger stores a fenced result summary, not full page bodies; the
+# browser adapter's complete text stays available to the run caller via
+# the adapter itself, and the summary keeps a bounded excerpt.
+MAX_BROWSER_TEXT_CHARS = 3000
 
 
 def _truncate(value: Any) -> Any:
@@ -88,6 +100,16 @@ def _default_google_connector() -> Any | None:
         from .runtime import db, settings
 
         return GoogleConnector(settings=settings, db=db, vault=GoogleVault())
+    except Exception:
+        return None
+
+
+def _default_intelligence_service() -> Any | None:
+    """Return the process-scoped intelligence service from runtime."""
+    try:
+        from .runtime import intelligence
+
+        return intelligence
     except Exception:
         return None
 
@@ -204,9 +226,11 @@ class AgentExecutor:
         self,
         run_service: AgentRunService,
         google_connector: Any | None = None,
+        intelligence_service: Any | None = None,
     ) -> None:
         self.run_service = run_service
         self.google_connector = google_connector
+        self.intelligence_service = intelligence_service
 
     # -- connector ------------------------------------------------------
 
@@ -215,6 +239,12 @@ class AgentExecutor:
             return self.google_connector
         self.google_connector = _default_google_connector()
         return self.google_connector
+
+    def _intelligence_service(self) -> Any | None:
+        if self.intelligence_service is not None:
+            return self.intelligence_service
+        self.intelligence_service = _default_intelligence_service()
+        return self.intelligence_service
 
     async def _access_token(self, user_id: str) -> str:
         connector = self._connector()
@@ -384,11 +414,123 @@ class AgentExecutor:
     ) -> dict[str, Any]:
         return await self._run_brief(run, 'agent.morning_brief')
 
+    async def _run_memory_list(
+        self, run: dict[str, Any], payload: dict[str, Any]
+    ) -> dict[str, Any]:
+        service = self._intelligence_service()
+        if service is None:
+            return await self._fail(
+                run,
+                EXECUTOR_NOT_AVAILABLE,
+                'No executor is available for this capability yet.',
+            )
+        try:
+            limit = int(payload.get('limit') or 100)
+        except (TypeError, ValueError):
+            limit = 100
+        memories = await service.list_memories(
+            run['user_id'], limit=max(1, min(limit, 200))
+        )
+        # Redaction discipline: only id, kind, and creation time cross
+        # into the run summary. Memory content and every other stored
+        # field stay in the intelligence service.
+        items = [
+            {
+                'id': item.get('id'),
+                'kind': item.get('kind'),
+                'created_at': item.get('created_at'),
+            }
+            for item in memories
+            if isinstance(item, dict)
+        ]
+        summary = {
+            'kind': 'memory.list',
+            'count': len(items),
+            'memories': _fence_summary_items(items),
+        }
+        return await self._succeed(run, summary)
+
+    async def _run_memory_forget(
+        self, run: dict[str, Any], payload: dict[str, Any]
+    ) -> dict[str, Any]:
+        memory_id = str(
+            payload.get('memoryId') or payload.get('memory_id') or ''
+        ).strip()
+        if not memory_id:
+            return await self._fail(
+                run,
+                'INVALID_RUN_INPUT',
+                'This run is missing the memory id, so it cannot be executed.',
+            )
+        service = self._intelligence_service()
+        if service is None:
+            return await self._fail(
+                run,
+                EXECUTOR_NOT_AVAILABLE,
+                'No executor is available for this capability yet.',
+            )
+        deleted = await service.delete_memory(run['user_id'], memory_id)
+        if not deleted:
+            return await self._fail(
+                run,
+                MEMORY_NOT_FOUND,
+                'No memory with that id was found for this account.',
+            )
+        summary = {
+            'kind': 'memory.forget',
+            'memoryId': memory_id,
+            'deleted': True,
+        }
+        return await self._succeed(run, summary)
+
+    async def _run_browser_read(
+        self, run: dict[str, Any], payload: dict[str, Any]
+    ) -> dict[str, Any]:
+        try:
+            result = await browser_agent.execute(
+                'browser.read', run['user_id'], payload
+            )
+        except BrowserAgentError as exc:
+            return await self._fail(run, exc.code, exc.message)
+        text = str(result.get('text') or '')
+        summary = {
+            'kind': 'browser.read',
+            'finalUrl': result.get('finalUrl'),
+            'title': result.get('title'),
+            'fetchedAt': result.get('fetchedAt'),
+            'bytes': result.get('bytes'),
+            'textLength': result.get('textLength'),
+            'text': text[:MAX_BROWSER_TEXT_CHARS],
+            'textTruncated': bool(result.get('truncated'))
+            or len(text) > MAX_BROWSER_TEXT_CHARS,
+        }
+        return await self._succeed(run, summary)
+
+    async def _run_gmail_write(
+        self, run: dict[str, Any], payload: dict[str, Any]
+    ) -> dict[str, Any]:
+        try:
+            result = await agent_gmail_write.execute(
+                run['capability_id'],
+                run['user_id'],
+                payload,
+                connector=self._connector(),
+            )
+        except GoogleConnectorError as exc:
+            return await self._fail(run, exc.code, exc.message)
+        summary = {'kind': run['capability_id'], **result}
+        return await self._succeed(run, summary)
+
     _ADAPTERS = {
         'gmail.search': _run_gmail_search,
         'calendar.list': _run_calendar_list,
         'agent.today_brief': _run_today_brief,
         'agent.morning_brief': _run_morning_brief,
+        'memory.list': _run_memory_list,
+        'memory.forget': _run_memory_forget,
+        'browser.read': _run_browser_read,
+        'gmail.draft': _run_gmail_write,
+        'gmail.send': _run_gmail_write,
     }
 
     # -- dispatch ---------------------------------------------------------
