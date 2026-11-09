@@ -6,9 +6,12 @@ owns doing the work. An executor claims a queued run, moves it through
 ledger through the run service's own step/status methods, so the Tasks
 view and the audit trail keep reading from one store.
 
-Adapters are deliberately narrow. ``gmail.search`` and ``calendar.list``
-run against the signed-in user's Google connection and fail honestly
-with ``CONNECTION_REQUIRED`` when there is none. ``agent.today_brief``
+Adapters are deliberately narrow. ``gmail.search``, ``gmail.read``, and
+``calendar.list`` run against the signed-in user's Google connection
+and fail honestly with ``CONNECTION_REQUIRED`` when there is none.
+``calendar.create`` dispatches to the connector's event creation with
+the run's approved payload, and its result summary carries only the
+created event's id, summary, and start/end. ``agent.today_brief``
 composes the Today brief from real service calls only, and
 ``agent.morning_brief`` composes that same brief for a scheduled run.
 ``browser.read``
@@ -359,6 +362,40 @@ class AgentExecutor:
         }
         return await self._succeed(run, summary)
 
+    async def _run_gmail_read(
+        self, run: dict[str, Any], payload: dict[str, Any]
+    ) -> dict[str, Any]:
+        message_id = str(
+            payload.get('messageId') or payload.get('message_id') or ''
+        ).strip()
+        if not message_id:
+            return await self._fail(
+                run,
+                'INVALID_RUN_INPUT',
+                'This run is missing the message id, so it cannot be executed.',
+            )
+        try:
+            access_token = await self._access_token(run['user_id'])
+            connector = self._connector()
+            message = await connector.get_message(access_token, message_id)
+        except ConnectionRequiredError as exc:
+            return await self._fail(run, CONNECTION_REQUIRED, exc.message)
+        except GoogleConnectorError as exc:
+            return await self._fail(run, exc.code, exc.message)
+        message = message if isinstance(message, dict) else {}
+        # The summary carries the same fields as a search result and
+        # nothing else: a message body never lands in the ledger, and
+        # every field is length-fenced like the search summary.
+        item = {
+            key: message.get(key)
+            for key in ('id', 'from', 'subject', 'snippet', 'date')
+        }
+        summary = {
+            'kind': 'gmail.read',
+            'message': _fence_summary_items([item])[0],
+        }
+        return await self._succeed(run, summary)
+
     async def _run_calendar_list(
         self, run: dict[str, Any], payload: dict[str, Any]
     ) -> dict[str, Any]:
@@ -378,6 +415,49 @@ class AgentExecutor:
             'kind': 'calendar.list',
             'count': len(events),
             'events': _fence_summary_items(events),
+        }
+        return await self._succeed(run, summary)
+
+    async def _run_calendar_create(
+        self, run: dict[str, Any], payload: dict[str, Any]
+    ) -> dict[str, Any]:
+        event_title = str(payload.get('summary') or '').strip()
+        start = str(payload.get('start') or '').strip()
+        end = str(payload.get('end') or '').strip()
+        if not event_title or not start or not end:
+            return await self._fail(
+                run,
+                'INVALID_RUN_INPUT',
+                'This run is missing the event summary, start, or end, '
+                'so it cannot be executed.',
+            )
+        # Approval-gated runs reach here with the payload frozen on the
+        # approved action; dispatch exactly those fields and no others.
+        event_fields: dict[str, Any] = {
+            'summary': event_title,
+            'start': start,
+            'end': end,
+        }
+        attendees = payload.get('attendees')
+        if isinstance(attendees, list):
+            event_fields['attendees'] = [
+                str(item) for item in attendees if str(item or '').strip()
+            ]
+        try:
+            access_token = await self._access_token(run['user_id'])
+            connector = self._connector()
+            created = await connector.create_event(access_token, **event_fields)
+        except ConnectionRequiredError as exc:
+            return await self._fail(run, CONNECTION_REQUIRED, exc.message)
+        except GoogleConnectorError as exc:
+            return await self._fail(run, exc.code, exc.message)
+        created = created if isinstance(created, dict) else {}
+        summary = {
+            'kind': 'calendar.create',
+            'eventId': str(created.get('id') or ''),
+            'summary': _truncate(str(created.get('summary') or event_title)),
+            'start': str(created.get('start') or start),
+            'end': str(created.get('end') or end),
         }
         return await self._succeed(run, summary)
 
@@ -523,7 +603,9 @@ class AgentExecutor:
 
     _ADAPTERS = {
         'gmail.search': _run_gmail_search,
+        'gmail.read': _run_gmail_read,
         'calendar.list': _run_calendar_list,
+        'calendar.create': _run_calendar_create,
         'agent.today_brief': _run_today_brief,
         'agent.morning_brief': _run_morning_brief,
         'memory.list': _run_memory_list,
