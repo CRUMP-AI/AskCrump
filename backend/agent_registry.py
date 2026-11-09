@@ -392,6 +392,20 @@ _CAPABILITIES: tuple[Capability, ...] = (
         status='planned',
         credit_cost_kind='quote',
     ),
+    Capability(
+        id='browser.read',
+        title='Read a web page',
+        verb_phrase='Read the page at',
+        input_schema=_schema(
+            {'url': {'type': 'string', 'minLength': 1}}, ('url',)
+        ),
+        risk_class='read',
+        approval='never',
+        entitlement='account',
+        connector='internal',
+        result_card='plain',
+        status='planned',
+    ),
 )
 
 _BY_ID: dict[str, Capability] = {item.id: item for item in _CAPABILITIES}
