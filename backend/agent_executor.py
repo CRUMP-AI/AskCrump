@@ -23,7 +23,12 @@ existing intelligence service's owner-scoped memory store. Every other registere
 ``EXECUTOR_NOT_AVAILABLE`` rather than pretending to have run — an
 adapter lands here capability by capability.
 No adapter charges credits: the capabilities wired here are registered
-with a ``none`` credit cost.
+with a ``none`` credit cost. Entitlement and cost are still enforced
+before dispatch — ``execute_run_record`` re-checks the registry
+entitlement and the fixed-cost balance rule through the run service
+after the pause gate and before the claim — but that gate is a
+quote/balance check only; it consumes nothing, so charge-on-success
+behavior is unchanged.
 """
 from __future__ import annotations
 
@@ -656,6 +661,14 @@ class AgentExecutor:
                 503,
                 'AGENT_EXECUTION_PAUSED',
             )
+        # Defense in depth, behind the pause: entitlement and the
+        # registry credit-cost rule are re-checked against current
+        # account state before the run is claimed, so a run created
+        # while the caller was entitled cannot execute after the
+        # entitlement lapses or the balance drops below the cost.
+        # A rejection leaves the run queued, like the pause above,
+        # and no provider has been contacted yet.
+        await self.run_service.enforce_run_access(run)
         run = await self.run_service.claim_run(run)
         await self._record_step(run, 'run.started', {})
         resolved = await self._resolve_payload(run)

@@ -70,7 +70,9 @@ def make_executor():
     # fail-closed defaults are opted out here explicitly and covered in
     # tests/test_agent_execution_pause.py. The browser test below still
     # proves the adapter-level gate, which sits behind the executor's.
-    service = AgentRunService(db, enforce_capability_status=False)
+    service = AgentRunService(
+        db, enforce_capability_status=False, enforce_access=False
+    )
     executor = AgentExecutor(
         service, google_connector=object(), execution_paused=False
     )

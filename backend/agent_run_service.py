@@ -20,8 +20,10 @@ import json
 from typing import Any
 
 from .agent_registry import Capability, get_capability
+from .auth_service import is_guest_user, paid_tools_entitled
 from .db import SupabaseDB, eq
 from .security import iso_now, new_uuid
+from .usage_service import credit_status
 
 RUN_STATUSES = frozenset(
     {
@@ -93,7 +95,11 @@ def _validate_payload(capability: Capability, payload: Any) -> dict[str, Any]:
 
 class AgentRunService:
     def __init__(
-        self, db: SupabaseDB, *, enforce_capability_status: bool = True
+        self,
+        db: SupabaseDB,
+        *,
+        enforce_capability_status: bool = True,
+        enforce_access: bool = True,
     ) -> None:
         self.db = db
         # Registry status is enforced at run creation: only live
@@ -101,6 +107,12 @@ class AgentRunService:
         # out; the flag exists so adapter unit tests can set up runs
         # for capabilities that are not live yet.
         self.enforce_capability_status = enforce_capability_status
+        # Registry entitlement and credit cost are enforced at run
+        # creation and again at execution time (see
+        # ``enforce_capability_access``). Production wiring never opts
+        # out; the flag exists so adapter unit tests can set up runs
+        # without seeding account and billing rows.
+        self.enforce_access = enforce_access
 
     # -- shape ------------------------------------------------------------
     @staticmethod
@@ -211,6 +223,97 @@ class AgentRunService:
             raise AgentRunNotFoundError()
         return row
 
+    # -- access enforcement -------------------------------------------------
+
+    async def _load_user(self, user_id: str) -> dict[str, Any] | None:
+        row = await self.db.select_one(
+            'users', columns='*', filters={'id': eq(str(user_id))}
+        )
+        return row if isinstance(row, dict) else None
+
+    async def enforce_capability_access(
+        self, capability: Capability, user_id: str
+    ) -> None:
+        """Fail closed unless the caller holds the registry entitlement
+        and satisfies the registry credit-cost rule for ``capability``.
+
+        Entitlement derives from the account's existing plan state —
+        the same server-authoritative helpers the paid-tool routes use
+        (``paid_tools_entitled`` / ``is_guest_user`` over the verified
+        tier in ``usage_service.tier_name``):
+
+        - ``free`` capabilities are open to every caller;
+        - ``account`` capabilities require a registered (non-guest)
+          account row;
+        - ``paid`` capabilities require a verified paid entitlement.
+
+        The credit-cost rule comes from the registry entry alone,
+        never from caller input. A ``fixed`` cost names the exact
+        credit figure, and the caller's balance (read through the
+        existing credits authority, ``usage_service.credit_status``)
+        must cover it before any provider work. A ``quote`` cost names
+        no figure in the registry — its exact price is produced by the
+        feature-quote path before an approval card is rendered — so
+        the registry rule for those capabilities is the paid
+        entitlement gate above. This check never charges: charging
+        stays charge-on-success through the existing credits
+        mechanics, exactly as before.
+        """
+        if not self.enforce_access:
+            return
+        if capability.entitlement in {'account', 'paid'}:
+            user = await self._load_user(user_id)
+            if capability.entitlement == 'account':
+                entitled = user is not None and not is_guest_user(user)
+            else:
+                entitled = paid_tools_entitled(user)
+            if not entitled:
+                raise AgentRunError(
+                    'That capability is not included with this account.',
+                    403,
+                    'CAPABILITY_NOT_ENTITLED',
+                )
+        elif capability.entitlement != 'free':
+            # Unknown entitlement labels fail closed; the registry
+            # validator rejects them at import, so this is unreachable
+            # for shipped entries.
+            raise AgentRunError(
+                'That capability is not included with this account.',
+                403,
+                'CAPABILITY_NOT_ENTITLED',
+            )
+        if capability.credit_cost_kind == 'fixed':
+            cost = int(capability.credit_cost or 0)
+            if cost > 0:
+                credits = await credit_status(self.db, str(user_id))
+                if credits['balance'] < cost:
+                    raise AgentRunError(
+                        f'This capability costs {cost} credits and the '
+                        'account balance is too low.',
+                        402,
+                        'INSUFFICIENT_CREDITS',
+                    )
+
+    async def enforce_run_access(self, run: dict[str, Any]) -> None:
+        """Re-check access for a stored run at execution time.
+
+        A run created while the caller was entitled must not execute
+        after the entitlement lapses or the balance drops below the
+        registry cost, so execution re-resolves the capability from
+        the registry and the account state fresh, exactly as creation
+        does.
+        """
+        if not self.enforce_access:
+            return
+        capability = get_capability(str(run.get('capability_id') or ''))
+        if capability is None:
+            raise AgentRunError(
+                'That capability is not available.', 404, 'CAPABILITY_NOT_FOUND'
+            )
+        await self.enforce_capability_access(
+            capability, str(run.get('user_id') or '')
+        )
+
     # -- runs ---------------------------------------------------------------
     async def create_run(
         self,
@@ -232,6 +335,7 @@ class AgentRunService:
                 409,
                 'CAPABILITY_NOT_LIVE',
             )
+        await self.enforce_capability_access(capability, user_id)
         payload = _validate_payload(capability, payload)
         needs_approval = capability.approval in {'card', 'card_with_cost'}
         now = iso_now()

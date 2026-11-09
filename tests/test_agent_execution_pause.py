@@ -113,7 +113,7 @@ async def test_executor_pause_blocks_every_capability_before_providers(
     monkeypatch,
 ):
     db = FakeDB()
-    service = AgentRunService(db, enforce_capability_status=False)
+    service = AgentRunService(db, enforce_capability_status=False, enforce_access=False)
     connector = FakeGoogleConnector(connected=True)
     executor = AgentExecutor(service, google_connector=connector)
     provider_calls = []
@@ -187,7 +187,11 @@ async def test_planned_capability_create_is_rejected():
 
 @pytest.mark.asyncio
 async def test_live_capability_create_still_works():
-    service = AgentRunService(FakeDB())
+    db = FakeDB()
+    # Production access enforcement stays on for this test, so the
+    # account-entitled Today brief needs a registered account row.
+    db.tables['users'] = [{'id': USER, 'is_guest': False}]
+    service = AgentRunService(db)
     run = await service.create_run(
         user_id=USER,
         capability_id='agent.today_brief',
@@ -244,7 +248,7 @@ async def _gmail_send_run(service):
 async def test_concurrent_decisions_execute_exactly_once(monkeypatch):
     provider_calls = counting_gmail_write(monkeypatch)
     db = YieldingFakeDB()
-    service = AgentRunService(db, enforce_capability_status=False)
+    service = AgentRunService(db, enforce_capability_status=False, enforce_access=False)
     executor = AgentExecutor(
         service,
         google_connector=FakeGoogleConnector(connected=True),
@@ -271,7 +275,7 @@ async def test_concurrent_decisions_execute_exactly_once(monkeypatch):
 def test_concurrent_decision_route_calls_execute_exactly_once(monkeypatch):
     provider_calls = counting_gmail_write(monkeypatch)
     db = YieldingFakeDB()
-    service = AgentRunService(db, enforce_capability_status=False)
+    service = AgentRunService(db, enforce_capability_status=False, enforce_access=False)
     executor = AgentExecutor(
         service,
         google_connector=FakeGoogleConnector(connected=True),
@@ -311,7 +315,7 @@ def test_concurrent_decision_route_calls_execute_exactly_once(monkeypatch):
 async def test_decision_route_while_paused_never_calls_provider(monkeypatch):
     provider_calls = counting_gmail_write(monkeypatch)
     db = FakeDB()
-    service = AgentRunService(db, enforce_capability_status=False)
+    service = AgentRunService(db, enforce_capability_status=False, enforce_access=False)
 
     async def fake_auth(request):
         return SimpleNamespace(user={'id': USER})
@@ -346,6 +350,9 @@ async def test_automation_due_work_while_paused_never_calls_provider(
     monkeypatch,
 ):
     db = AutomationFakeDB()
+    # The morning brief is account-entitled; production access
+    # enforcement stays on, so seed the owner's registered account.
+    db.tables['users'] = [{'id': USER, 'is_guest': False}]
     runs = AgentRunService(db)
     automations = AgentAutomationService(db)
     created = await automations.create_automation(

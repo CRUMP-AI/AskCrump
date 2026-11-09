@@ -123,7 +123,9 @@ def make_executor():
     # defaults are opted out explicitly, the same pattern the adapter
     # suites use. The pause itself is covered unchanged in
     # tests/test_agent_execution_pause.py.
-    service = AgentRunService(db, enforce_capability_status=False)
+    service = AgentRunService(
+        db, enforce_capability_status=False, enforce_access=False
+    )
     connector = FakeGoogleConnector()
     executor = AgentExecutor(
         service, google_connector=connector, execution_paused=False

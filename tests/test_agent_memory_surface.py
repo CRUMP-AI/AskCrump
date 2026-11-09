@@ -145,6 +145,9 @@ class FakeIntelligenceService:
 
 def make_executor():
     db = FakeDB()
+    # Memory capabilities are account-entitled and access enforcement
+    # stays on, so seed the owner's registered account row.
+    db.tables['users'] = [{'id': USER, 'is_guest': False}]
     service = AgentRunService(db)
     memory = FakeIntelligenceService()
     # Memory capabilities are live, so run creation stays enforced;

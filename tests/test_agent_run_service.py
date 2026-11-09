@@ -75,7 +75,12 @@ def make_service():
     # Lifecycle tests set up runs for capabilities that are not live
     # yet; the create-time status enforcement is opted out here
     # explicitly and covered in tests/test_agent_execution_pause.py.
-    return AgentRunService(db, enforce_capability_status=False), db
+    # Access enforcement is opted out for the same reason — these
+    # tests seed no account or billing rows — and is covered in
+    # tests/test_agent_entitlement_cost.py.
+    return AgentRunService(
+        db, enforce_capability_status=False, enforce_access=False
+    ), db
 
 
 @pytest.mark.asyncio
