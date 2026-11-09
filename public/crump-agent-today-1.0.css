@@ -9,14 +9,32 @@
 
 :root {
   --cat-ink: #070a0e;
+  --cat-panel: #0f1419;
   --cat-gold: #b69855;
   --cat-gold-bright: #d5b971;
   --cat-paper: #f1efe9;
+  --cat-paper-dim: rgba(241, 239, 233, 0.72);
   --cat-gray: #8a9196;
   --cat-card: #fffefa;
   --cat-line: rgba(7, 10, 14, 0.1);
+  --cat-line-light: rgba(241, 239, 233, 0.16);
   --cat-ink-soft: rgba(7, 10, 14, 0.72);
   --cat-radius: 18px;
+}
+
+/* The layer owns its box model. Its geometry used to depend on the
+   shell's global border-box reset landing first; without it the Today
+   column and its cards sized content-box and body text clipped at the
+   right edge. */
+.cat-today,
+.cat-today *,
+.cat-today *::before,
+.cat-today *::after,
+.cat-drawer,
+.cat-drawer *,
+.cat-browser,
+.cat-browser * {
+  box-sizing: border-box;
 }
 
 /* ------------------------------------------------------------------ */
@@ -59,13 +77,22 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
 /* Today surface                                                       */
 /* ------------------------------------------------------------------ */
 
+/* The Today surface carries its own ink ground. The layer originally
+   assumed the light paper workspace: its greeting and quiet states were
+   ink text with no ground of their own, so on the dark workspace ground
+   (the dark theme's near-ink paper) the greeting rendered ink-on-ink at
+   roughly 1:1 contrast and read as ghosted. On its own ink panel the
+   greeting is off-white on ink at full contrast in either theme, and no
+   neighbouring surface can dim or cover it. */
 .cat-today {
-  box-sizing: border-box;
   width: 100%;
   max-width: 880px;
-  margin: 0 auto;
-  padding: 28px 24px 8px;
-  color: var(--cat-ink);
+  margin: 16px auto 12px;
+  padding: 26px 24px 20px;
+  background: var(--cat-ink);
+  border: 1px solid rgba(213, 185, 113, 0.14);
+  border-radius: 22px;
+  color: var(--cat-paper);
   font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
@@ -89,14 +116,14 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
   font-weight: 500;
   line-height: 1.12;
   letter-spacing: -0.01em;
-  color: var(--cat-ink);
+  color: var(--cat-paper);
 }
 
 .cat-today-sub {
   margin: 10px 0 0;
   font-size: 15px;
   line-height: 1.55;
-  color: var(--cat-ink-soft);
+  color: var(--cat-gray);
   max-width: 56ch;
 }
 
@@ -130,6 +157,10 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+}
+
+.cat-card-head > * {
+  min-width: 0;
 }
 
 .cat-card-title {
@@ -225,6 +256,7 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
   flex-wrap: wrap;
   gap: 10px;
   margin-top: 16px;
+  max-width: 100%;
 }
 
 .cat-btn {
@@ -234,6 +266,7 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
   color: var(--cat-ink);
   border-radius: 999px;
   min-height: 44px;
+  max-width: 100%;
   padding: 10px 20px;
   font: inherit;
   font-size: 14px;
@@ -282,17 +315,65 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
 .cat-empty {
   margin: 0;
   padding: 18px 20px;
-  border: 1px dashed var(--cat-line);
+  border: 1px dashed var(--cat-line-light);
   border-radius: var(--cat-radius);
   font-size: 14.5px;
   line-height: 1.6;
-  color: var(--cat-ink-soft);
+  color: var(--cat-paper-dim);
   background: transparent;
+  overflow-wrap: anywhere;
 }
 
+.cat-empty .cat-btn {
+  border-color: rgba(241, 239, 233, 0.35);
+  color: var(--cat-paper);
+  margin-left: 8px;
+  vertical-align: middle;
+}
+
+/* The not-connected brief placeholder is a quiet note on the ink
+   surface, not a light slab: a compact raised panel, capped well below
+   the Today column width, with gold kept to the hairline and the one
+   action. Its text is off-white and dimmed paper on ink, sized to wrap
+   inside the panel at any width. */
 .cat-connect {
-  border-color: rgba(182, 152, 85, 0.5);
-  background: linear-gradient(180deg, #fffefa 0%, #faf6ea 100%);
+  max-width: 600px;
+  min-width: 0;
+  padding: 16px 18px;
+  background: var(--cat-panel);
+  border: 1px solid rgba(213, 185, 113, 0.42);
+  border-radius: 16px;
+  color: var(--cat-paper);
+}
+
+.cat-connect .cat-card-title {
+  font-size: 17px;
+  color: var(--cat-paper);
+}
+
+.cat-connect .cat-card-summary {
+  font-size: 13.5px;
+  color: var(--cat-paper-dim);
+  max-width: 52ch;
+}
+
+.cat-connect .cat-actions {
+  margin-top: 12px;
+}
+
+.cat-connect .cat-btn-primary {
+  background: var(--cat-gold-bright);
+  border-color: var(--cat-gold-bright);
+  color: var(--cat-ink);
+}
+
+.cat-connect .cat-btn-primary:hover {
+  background: var(--cat-gold);
+  border-color: var(--cat-gold);
+}
+
+.cat-connect .cat-card-note {
+  color: var(--cat-paper-dim);
 }
 
 .cat-today--slim .cat-today-head,
@@ -327,6 +408,7 @@ body.crump-v1-body .v1-workspace-body:has(> .cat-today:not([hidden])) > .cat-tod
   grid-column: 1;
   grid-row: 1;
   min-height: 0;
+  min-width: 0;
   overflow-y: auto;
 }
 
@@ -624,7 +706,9 @@ body.crump-v1-body .v1-workspace-body:has(> .cat-today:not([hidden])) > .v1-laun
 
 @media (max-width: 640px) {
   .cat-today {
-    padding: 22px 16px 4px;
+    width: calc(100% - 16px);
+    margin: 10px auto 8px;
+    padding: 22px 16px 16px;
   }
 
   .cat-card {

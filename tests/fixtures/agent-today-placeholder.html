@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agent Today placeholder fixture</title>
+  <script>
+    // Reproduces the signed-in Today home composition: the workspace body
+    // holds the Today layer (inserted first by the layer itself) and the
+    // launchpad hero below it. The agent endpoints are stubbed so the
+    // fixture can sit in either brief state: ?state=planned renders the
+    // not-connected placeholder card, ?state=live renders the connected
+    // brief area. ?theme=dark|light picks the appearance ground the layer
+    // lands on.
+    (function () {
+      var params = new URLSearchParams(location.search);
+      document.documentElement.setAttribute('data-theme', params.get('theme') || 'dark');
+      var state = params.get('state') || 'planned';
+      window.currentUser = { id: 'fixture-user', fullName: 'Gregory Crump', name: 'Gregory Crump' };
+      window.CrumpAuthBoundary = { authenticatedUserId: function () { return 'fixture-user'; } };
+      var status = state === 'planned' ? 'planned' : 'live';
+      var caps = [
+        { id: 'gmail.read', status: status, title: 'Read email' },
+        { id: 'calendar.list', status: status, title: 'List calendar' },
+        { id: 'agent.today_brief', status: status, title: 'Today brief' },
+      ];
+      window.fetch = function (path) {
+        var data = {};
+        if (String(path).indexOf('/api/agent/capabilities') === 0) data = { capabilities: caps };
+        else if (String(path).indexOf('/api/agent/approvals') === 0) data = { approvals: [] };
+        else if (String(path).indexOf('/api/agent/runs') === 0) data = { runs: [] };
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: function () { return Promise.resolve(data); },
+        });
+      };
+    })();
+  </script>
+  <link rel="stylesheet" href="/public/crump-v1-body.css?v=agent-today-placeholder-fixture-1">
+  <link rel="stylesheet" href="/public/crump-vision-shell-1.0.css?v=agent-today-placeholder-fixture-1">
+  <link rel="stylesheet" href="/public/crump-design-pass.css?v=agent-today-placeholder-fixture-1">
+  <link rel="stylesheet" href="/public/crump-agent-today-1.0.css?v=5.9.76-agent-today-3">
+  <style>
+    html, body { height: 100%; }
+    .v1-workspace { height: 100vh; }
+  </style>
+</head>
+<body class="crump-v1-body v1-home">
+  <div id="appContainer" class="app-container">
+    <div class="v1-shell">
+      <main class="main-content v1-workspace">
+        <header class="header v1-workspace-header"></header>
+        <section class="v1-workspace-body">
+          <section id="v1Launchpad" class="v1-launchpad" aria-label="Start something">
+            <div class="v1-launchpad-intro">
+              <div id="v1Greeting" class="v1-launchpad-greeting">Good afternoon, Gregory.</div>
+              <h1>What can I help you get done?</h1>
+              <p>Start with a question, continue meaningful work, or make something worth keeping.</p>
+            </div>
+            <p class="v1-launchpad-actions-label">Ways to begin</p>
+            <div class="v1-launchpad-grid"></div>
+          </section>
+          <div id="chatContainer" class="chat-container" aria-label="Conversation"></div>
+        </section>
+      </main>
+    </div>
+  </div>
+  <script src="/public/crump-agent-today-1.0.js?v=5.9.76-agent-today-3"></script>
+</body>
+</html>
