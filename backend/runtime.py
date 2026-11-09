@@ -1,6 +1,7 @@
 """Process-scoped service instances used by the API routes."""
 from __future__ import annotations
 
+from .agent_run_service import AgentRunService
 from .ai_service import AIService
 from .account_deletion_service import AccountDeletionService
 from .artifact_service import ArtifactService
@@ -24,6 +25,7 @@ from .push_service import PushService
 
 settings = get_settings()
 db = SupabaseDB(settings)
+agent_runs = AgentRunService(db)
 ai = AIService(settings, db)
 files = FileService(settings, db)
 account_deletions = AccountDeletionService(db, files)
