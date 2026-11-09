@@ -83,6 +83,7 @@ CONTENT_GROUPS: dict[str, tuple[str, ...]] = {
         "lifecycle_prompt_events",
     ),
     "experiments": ("project_limit_plan_state", "project_limit_plan_events"),
+    "agent": ("agent_runs", "agent_run_steps", "agent_pending_actions"),
 }
 
 ACCOUNT_COLUMNS = ",".join(
