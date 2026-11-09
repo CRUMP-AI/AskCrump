@@ -9,9 +9,13 @@ view and the audit trail keep reading from one store.
 Adapters are deliberately narrow. ``gmail.search`` and ``calendar.list``
 run against the signed-in user's Google connection and fail honestly
 with ``CONNECTION_REQUIRED`` when there is none. ``agent.today_brief``
-composes the Today brief from real service calls only. Every other
-registered capability fails with ``EXECUTOR_NOT_AVAILABLE`` rather than
-pretending to have run — an adapter lands here capability by capability.
+composes the Today brief from real service calls only. ``browser.read``
+dispatches to the browser agent's guarded page fetch, and the Gmail
+write capabilities (``gmail.draft``, ``gmail.send``) dispatch to the
+Gmail write adapter, which re-checks the granted scopes before any
+provider call. Every other registered capability fails with
+``EXECUTOR_NOT_AVAILABLE`` rather than pretending to have run — an
+adapter lands here capability by capability.
 No adapter charges credits: the capabilities wired here are registered
 with a ``none`` credit cost.
 """
@@ -21,7 +25,9 @@ from datetime import datetime, time, timedelta, timezone
 import json
 from typing import Any
 
+from . import agent_gmail_write, browser_agent
 from .agent_run_service import AgentRunConflictError, AgentRunService
+from .browser_agent import BrowserAgentError
 from .db import eq
 from .google_connector import ConnectionRequiredError, GoogleConnectorError
 from .security import iso_now
@@ -35,6 +41,10 @@ MAX_SUMMARY_FIELD_CHARS = 300
 
 EXECUTOR_NOT_AVAILABLE = 'EXECUTOR_NOT_AVAILABLE'
 CONNECTION_REQUIRED = 'CONNECTION_REQUIRED'
+# The ledger stores a fenced result summary, not full page bodies; the
+# browser adapter's complete text stays available to the run caller via
+# the adapter itself, and the summary keeps a bounded excerpt.
+MAX_BROWSER_TEXT_CHARS = 3000
 
 
 def _truncate(value: Any) -> Any:
@@ -372,10 +382,51 @@ class AgentExecutor:
         }
         return await self._succeed(run, summary)
 
+    async def _run_browser_read(
+        self, run: dict[str, Any], payload: dict[str, Any]
+    ) -> dict[str, Any]:
+        try:
+            result = await browser_agent.execute(
+                'browser.read', run['user_id'], payload
+            )
+        except BrowserAgentError as exc:
+            return await self._fail(run, exc.code, exc.message)
+        text = str(result.get('text') or '')
+        summary = {
+            'kind': 'browser.read',
+            'finalUrl': result.get('finalUrl'),
+            'title': result.get('title'),
+            'fetchedAt': result.get('fetchedAt'),
+            'bytes': result.get('bytes'),
+            'textLength': result.get('textLength'),
+            'text': text[:MAX_BROWSER_TEXT_CHARS],
+            'textTruncated': bool(result.get('truncated'))
+            or len(text) > MAX_BROWSER_TEXT_CHARS,
+        }
+        return await self._succeed(run, summary)
+
+    async def _run_gmail_write(
+        self, run: dict[str, Any], payload: dict[str, Any]
+    ) -> dict[str, Any]:
+        try:
+            result = await agent_gmail_write.execute(
+                run['capability_id'],
+                run['user_id'],
+                payload,
+                connector=self._connector(),
+            )
+        except GoogleConnectorError as exc:
+            return await self._fail(run, exc.code, exc.message)
+        summary = {'kind': run['capability_id'], **result}
+        return await self._succeed(run, summary)
+
     _ADAPTERS = {
         'gmail.search': _run_gmail_search,
         'calendar.list': _run_calendar_list,
         'agent.today_brief': _run_today_brief,
+        'browser.read': _run_browser_read,
+        'gmail.draft': _run_gmail_write,
+        'gmail.send': _run_gmail_write,
     }
 
     # -- dispatch ---------------------------------------------------------
