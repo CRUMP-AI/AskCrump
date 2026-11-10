@@ -9,6 +9,7 @@ dependencies = [
   "pydantic[email]==2.13.5",
   "httpx[http2]==0.28.1",
   "certifi==2026.10.23",
+  "cryptography==50.0.2",
   "bcrypt==5.0.0",
   "argon2-cffi==25.1.0",
   "argon2-cffi-bindings==26.1.0",

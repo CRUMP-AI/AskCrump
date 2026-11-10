@@ -45,10 +45,10 @@ class FakeVault:
     def configured(self):
         return True
 
-    def encrypt(self, plaintext):
+    def encrypt(self, plaintext, *, user_id, provider, connection_id):
         return f'enc:{plaintext[::-1]}' if plaintext else ''
 
-    def decrypt(self, ciphertext):
+    def decrypt(self, ciphertext, *, user_id, provider, connection_id):
         return ciphertext[4:][::-1] if ciphertext.startswith('enc:') else ''
 
 
@@ -109,7 +109,12 @@ def _connected_db(scopes):
                 'provider': 'google',
                 'account_email': ACCOUNT,
                 'scopes': list(scopes),
-                'access_token_ciphertext': FakeVault().encrypt('access-token-1'),
+                'access_token_ciphertext': FakeVault().encrypt(
+                    'access-token-1',
+                    user_id=USER_ID,
+                    provider='google',
+                    connection_id='conn-1',
+                ),
                 'refresh_token_ciphertext': '',
                 'token_expires_at': '2099-01-01T00:00:00+00:00',
                 'status': 'connected',

@@ -43,10 +43,10 @@ class FakeVault:
     def configured(self):
         return True
 
-    def encrypt(self, plaintext):
+    def encrypt(self, plaintext, *, user_id, provider, connection_id):
         return f'enc:{plaintext[::-1]}' if plaintext else ''
 
-    def decrypt(self, ciphertext):
+    def decrypt(self, ciphertext, *, user_id, provider, connection_id):
         return ciphertext[4:][::-1] if ciphertext.startswith('enc:') else ''
 
 

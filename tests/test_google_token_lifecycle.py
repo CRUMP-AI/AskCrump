@@ -59,10 +59,10 @@ class FakeVault:
     def configured(self):
         return True
 
-    def encrypt(self, plaintext):
+    def encrypt(self, plaintext, *, user_id, provider, connection_id):
         return f'enc:{plaintext[::-1]}' if plaintext else ''
 
-    def decrypt(self, ciphertext):
+    def decrypt(self, ciphertext, *, user_id, provider, connection_id):
         return ciphertext[4:][::-1] if ciphertext.startswith('enc:') else ''
 
 
@@ -112,9 +112,9 @@ def _connection_row(*, expires_at, refresh_token=REFRESH_OLD, access_token=ACCES
         'provider': 'google',
         'account_email': ACCOUNT,
         'scopes': list(READ_SCOPES),
-        'access_token_ciphertext': vault.encrypt(access_token),
+        'access_token_ciphertext': vault.encrypt(access_token, user_id=USER_ID, provider='google', connection_id='conn-1'),
         'refresh_token_ciphertext': (
-            vault.encrypt(refresh_token) if refresh_token else ''
+            vault.encrypt(refresh_token, user_id=USER_ID, provider='google', connection_id='conn-1') if refresh_token else ''
         ),
         'token_expires_at': _iso(expires_at) if expires_at else None,
         'status': 'connected',
@@ -229,7 +229,7 @@ def test_expired_token_refreshes_once_and_the_new_token_is_used_and_persisted():
 
     # The refreshed access token is persisted through the vault: the
     # stored ciphertext round-trips through the vault's own read path.
-    assert connector.vault.decrypt(db.rows[0]['access_token_ciphertext']) == ACCESS_NEW
+    assert connector.vault.decrypt(db.rows[0]['access_token_ciphertext'], user_id=USER_ID, provider='google', connection_id='conn-1') == ACCESS_NEW
     expires_at = datetime.fromisoformat(db.rows[0]['token_expires_at'])
     assert expires_at > datetime.now(timezone.utc) + timedelta(minutes=30)
 
@@ -257,7 +257,7 @@ def test_rotated_refresh_token_is_persisted_when_google_returns_one():
     connector = _connector(db, captured, token_response=rotated)
     token = asyncio.run(connector.access_token_for(USER_ID))
     assert token == ACCESS_NEW
-    assert connector.vault.decrypt(db.rows[0]['refresh_token_ciphertext']) == REFRESH_NEW
+    assert connector.vault.decrypt(db.rows[0]['refresh_token_ciphertext'], user_id=USER_ID, provider='google', connection_id='conn-1') == REFRESH_NEW
 
 
 def test_refresh_without_rotation_keeps_the_stored_refresh_token():
@@ -265,7 +265,7 @@ def test_refresh_without_rotation_keeps_the_stored_refresh_token():
     db = FakeDB(rows=[_expired_row()])
     connector = _connector(db, captured)  # default response omits refresh_token
     asyncio.run(connector.access_token_for(USER_ID))
-    assert connector.vault.decrypt(db.rows[0]['refresh_token_ciphertext']) == REFRESH_OLD
+    assert connector.vault.decrypt(db.rows[0]['refresh_token_ciphertext'], user_id=USER_ID, provider='google', connection_id='conn-1') == REFRESH_OLD
 
 
 def test_token_inside_the_refresh_skew_is_refreshed():
@@ -299,7 +299,7 @@ def test_invalid_grant_fails_with_connection_required_and_never_uses_the_expired
     assert _provider_calls(captured) == []
     # The expired token is still the stored one — it was not "used",
     # and nothing overwrote the row with a partial refresh.
-    assert connector.vault.decrypt(db.rows[0]['access_token_ciphertext']) == ACCESS_OLD
+    assert connector.vault.decrypt(db.rows[0]['access_token_ciphertext'], user_id=USER_ID, provider='google', connection_id='conn-1') == ACCESS_OLD
 
 
 def test_refresh_network_failure_fails_with_connection_required():
@@ -340,7 +340,7 @@ def test_concurrent_refresh_of_one_connection_is_single_flight():
     tokens = asyncio.run(two_callers())
     assert tokens == [ACCESS_NEW, ACCESS_NEW]
     assert len(_token_calls(captured)) == 1
-    assert connector.vault.decrypt(db.rows[0]['access_token_ciphertext']) == ACCESS_NEW
+    assert connector.vault.decrypt(db.rows[0]['access_token_ciphertext'], user_id=USER_ID, provider='google', connection_id='conn-1') == ACCESS_NEW
 
 
 # -- Disconnect / revocation -----------------------------------------------------
@@ -421,8 +421,18 @@ def test_disconnect_only_revokes_the_named_account():
     other = _valid_row()
     other['id'] = 'conn-2'
     other['account_email'] = 'other@example.com'
-    other['refresh_token_ciphertext'] = vault.encrypt('refresh-other')
-    other['access_token_ciphertext'] = vault.encrypt('access-other')
+    other['refresh_token_ciphertext'] = vault.encrypt(
+        'refresh-other',
+        user_id=USER_ID,
+        provider='google',
+        connection_id='conn-2',
+    )
+    other['access_token_ciphertext'] = vault.encrypt(
+        'access-other',
+        user_id=USER_ID,
+        provider='google',
+        connection_id='conn-2',
+    )
     other['created_at'] = '2026-11-09T10:00:00+00:00'
     db = FakeDB(rows=[_valid_row(), other])
     connector = _connector(db, captured)

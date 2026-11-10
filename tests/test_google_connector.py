@@ -1,4 +1,5 @@
 import asyncio
+import base64
 from dataclasses import replace
 import json
 from pathlib import Path
@@ -51,10 +52,10 @@ class FakeVault:
     def configured(self):
         return True
 
-    def encrypt(self, plaintext):
+    def encrypt(self, plaintext, *, user_id, provider, connection_id):
         return f'enc:{plaintext[::-1]}' if plaintext else ''
 
-    def decrypt(self, ciphertext):
+    def decrypt(self, ciphertext, *, user_id, provider, connection_id):
         return ciphertext[4:][::-1] if ciphertext.startswith('enc:') else ''
 
 
@@ -327,17 +328,25 @@ def test_disconnect_clears_tokens_and_marks_revoked():
 
 
 def test_vault_fails_closed_without_a_key_and_never_stores_plaintext():
+    context = {
+        'user_id': USER_ID,
+        'provider': 'google',
+        'connection_id': 'conn-1',
+    }
     vault = GoogleVault(encryption_key='')
     assert vault.configured is False
     with pytest.raises(GoogleVaultError) as caught:
-        vault.encrypt('token')
+        vault.encrypt('token', **context)
     assert caught.value.code == 'GOOGLE_VAULT_NOT_CONFIGURED'
 
-    configured = GoogleVault(encryption_key='test-vault-key-for-unit-tests')
-    sealed = configured.encrypt('token-value')
+    configured = GoogleVault(
+        encryption_key=base64.b64encode(b'k' * 32).decode('ascii')
+    )
+    sealed = configured.encrypt('token-value', **context)
     assert sealed != 'token-value'
     assert 'token-value' not in sealed
-    assert configured.decrypt(sealed) == 'token-value'
+    assert sealed.startswith('v2.')
+    assert configured.decrypt(sealed, **context) == 'token-value'
 
 
 def test_executor_endpoints_require_a_connection(monkeypatch):
