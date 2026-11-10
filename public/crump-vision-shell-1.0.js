@@ -1,19 +1,22 @@
 /*
  * Crump Vision — application shell (1.0)
  *
- * Owns the calm, product-first destination rail (desktop) and six-item
- * bottom nav (mobile). Home is the real Ask workspace; Chats owns the real
- * conversation drawer; Projects, Library, Studios, and You delegate only to
- * existing production surfaces. Screens register through
- * window.CrumpVision.registerView; a
- * destination with no registered vision view falls back to the existing
- * product behavior, so chat, sync, and billing keep working untouched.
+ * Owns the calm, product-first destination rail (desktop) and five-item
+ * bottom nav (mobile). The destinations are exactly five: Today, Chat,
+ * Tasks, Projects, and You. Today is the real Ask workspace; Chat owns the
+ * real conversation drawer; Tasks opens the agent task record; Projects
+ * and You delegate only to existing production surfaces. Screens register
+ * through window.CrumpVision.registerView; a destination with no
+ * registered vision view falls back to the existing product behavior, so
+ * chat, sync, and billing keep working untouched.
  *
  * This is the sole visual owner of navigation. The legacy navigation module
  * remains a behavior adapter for the proven product sheets, focus management,
  * analytics, and creation handoffs; it no longer paints a second rail. Old
  * destination ids continue to resolve to their closest current destination so
- * bookmarked and delegated actions keep working.
+ * bookmarked and delegated actions keep working: the Library and Studios ids
+ * resolve to Projects, while the Library and Studios views stay registered
+ * under their own keys for the surfaces that still reach them in code.
  */
 (() => {
   'use strict';
@@ -21,31 +24,41 @@
   if (window.__crumpVisionShellLoaded) return;
 
   var OLD_TO_NEW = {
-    ask: 'home', chats: 'chats', home: 'home',
-    projects: 'projects', files: 'files', library: 'library',
-    video: 'studios', studios: 'studios', code: 'autonomous', autonomous: 'autonomous',
-    create: 'home', you: 'you', profile: 'you', more: 'you',
+    ask: 'today', home: 'today', today: 'today',
+    autonomous: 'today', code: 'today', create: 'today',
+    chats: 'chat', chat: 'chat', tasks: 'tasks',
+    projects: 'projects', files: 'projects', library: 'projects',
+    video: 'projects', studios: 'projects',
+    you: 'you', profile: 'you', more: 'you',
   };
+  // New ids map back to the ids the legacy behavior adapter understands.
+  // The adapter's home workspace id is 'ask' (its destinations list and
+  // openAsk), so today -> 'ask'. Chat never reaches the legacy fallback
+  // (the shell owns the conversation drawer); 'chats' is recorded so the
+  // map stays a faithful inverse of the old chats destination.
   var NEW_TO_OLD = {
-    home: 'ask', projects: 'projects', library: 'library',
-    studios: 'video', you: 'you', files: 'projects', autonomous: 'code',
+    today: 'ask', chat: 'chats', tasks: 'ask',
+    projects: 'projects', you: 'you',
   };
-  var ORDER = ['home', 'chats', 'projects', 'library', 'studios', 'you'];
-  var MOBILE_ORDER = ['home', 'chats', 'projects', 'library', 'studios', 'you'];
+  var ORDER = ['today', 'chat', 'tasks', 'projects', 'you'];
+  var MOBILE_ORDER = ['today', 'chat', 'tasks', 'projects', 'you'];
   var MORE_DESTINATIONS = [];
   var ANALYTICS_SOURCE = {
-    home: 'ask', chats: 'chats', projects: 'projects', files: 'projects', library: 'library',
-    studios: 'video', autonomous: 'code', you: 'you',
+    today: 'ask', chat: 'chats', tasks: 'tasks', projects: 'projects', you: 'you',
   };
-  var ACTIVE_PARENT = {files: 'projects', autonomous: 'home'};
+  var ACTIVE_PARENT = {};
   var LABELS = {
-    home: 'Home', chats: 'Chats', projects: 'Projects', files: 'Files', library: 'Library',
-    studios: 'Studios', autonomous: 'Autonomous', you: 'You',
+    today: 'Today', chat: 'Chat', tasks: 'Tasks', projects: 'Projects', you: 'You',
+    home: 'Today', chats: 'Chat', files: 'Files', library: 'Library',
+    studios: 'Studios', autonomous: 'Autonomous',
     more: 'More',
   };
   var SVG_OPEN = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.65" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">';
   var ICONS = {
+    today: SVG_OPEN + '<path d="M4.2 10.35 12 4.1l7.8 6.25v8.25a1.3 1.3 0 0 1-1.3 1.3h-13a1.3 1.3 0 0 1-1.3-1.3v-8.25Z"/><path d="M9.2 19.75v-5.8h5.6v5.8"/></svg>',
     home: SVG_OPEN + '<path d="M4.2 10.35 12 4.1l7.8 6.25v8.25a1.3 1.3 0 0 1-1.3 1.3h-13a1.3 1.3 0 0 1-1.3-1.3v-8.25Z"/><path d="M9.2 19.75v-5.8h5.6v5.8"/></svg>',
+    chat: SVG_OPEN + '<path d="M6.1 5.15h11.8a2.35 2.35 0 0 1 2.35 2.35v6.2a2.35 2.35 0 0 1-2.35 2.35h-6.25l-4.9 3.1.82-3.1H6.1a2.35 2.35 0 0 1-2.35-2.35V7.5A2.35 2.35 0 0 1 6.1 5.15Z"/><path d="M8 9.25h8M8 12.25h5.35"/></svg>',
+    tasks: SVG_OPEN + '<path d="M9.6 6.1h9.9M9.6 12h9.9M9.6 17.9h9.9"/><path d="m3.7 6.3 1.3 1.3 2.6-2.6M3.7 12.2l1.3 1.3 2.6-2.6M3.7 18.1l1.3 1.3 2.6-2.6"/></svg>',
     chats: SVG_OPEN + '<path d="M6.1 5.15h11.8a2.35 2.35 0 0 1 2.35 2.35v6.2a2.35 2.35 0 0 1-2.35 2.35h-6.25l-4.9 3.1.82-3.1H6.1a2.35 2.35 0 0 1-2.35-2.35V7.5A2.35 2.35 0 0 1 6.1 5.15Z"/><path d="M8 9.25h8M8 12.25h5.35"/></svg>',
     ask: SVG_OPEN + '<path d="M6.15 5.4h11.7a2.35 2.35 0 0 1 2.35 2.35v6.4a2.35 2.35 0 0 1-2.35 2.35h-6.2l-4.85 3.1.8-3.1H6.15a2.35 2.35 0 0 1-2.35-2.35v-6.4A2.35 2.35 0 0 1 6.15 5.4Z"/><path d="m15.8 7.8.42 1.03 1.03.42-1.03.42-.42 1.03-.42-1.03-1.03-.42 1.03-.42.42-1.03Z"/></svg>',
     projects: SVG_OPEN + '<path d="M5.25 7.1h5.15l1.7 1.75h6.65a1.9 1.9 0 0 1 1.9 1.9v6.05a2.2 2.2 0 0 1-2.2 2.2H5.55a2.2 2.2 0 0 1-2.2-2.2V9a1.9 1.9 0 0 1 1.9-1.9Z"/><path d="M5.15 7.1V5.3h5.7l1.65 1.8"/></svg>',
@@ -64,7 +77,7 @@
   var ESCAPE_MAP = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 
   var views = new Map();
-  var currentId = 'home';
+  var currentId = 'today';
   var booted = false;
   var explicitNav = false;
   var settling = false;
@@ -149,24 +162,45 @@
 
   function registerView(id, def) {
     var sourceKey = String(id == null ? '' : id).toLowerCase();
-    // Home and You keep delegating to the authoritative Ask and account
+    // Today and You keep delegating to the authoritative Ask and account
     // surfaces. Studios can register because its view delegates only to the
     // released Image and Video tools.
-    if (sourceKey === 'ask' || sourceKey === 'home' || sourceKey === 'profile' || sourceKey === 'you') return false;
-    var key = normalizeId(sourceKey);
-    if (!key || !def || typeof def.render !== 'function') return false;
+    if (sourceKey === 'ask' || sourceKey === 'home' || sourceKey === 'today' || sourceKey === 'profile' || sourceKey === 'you') return false;
+    if (!def || typeof def.render !== 'function') return false;
+    // Library and Studios are no longer destinations, but their views stay
+    // registered under their own keys so the surfaces that reach them in
+    // code keep working; navigation resolves their ids to Projects.
+    var key = (sourceKey === 'library' || sourceKey === 'studios')
+      ? sourceKey
+      : normalizeId(sourceKey);
+    if (!key) return false;
     views.set(key, def);
     if (booted && key === currentId && !isMounted()) mountView(key, def);
     return true;
   }
 
+  // Leaving Tasks for another destination closes the Tasks panel through
+  // the Today layer's own Close control; the panel observer then returns
+  // the highlight to the workspace underneath.
+  function closeTasksPanel() {
+    var panel = document.getElementById('catTasksPanel');
+    if (!panel || panel.hidden) return;
+    var close = panel.querySelector('[aria-label="Close Tasks"]');
+    if (close) close.click();
+  }
+
   function navigate(rawId, options) {
     ensureBoot();
-    var id = normalizeId(rawId) || 'home';
-    if (id === 'chats') {
+    var id = normalizeId(rawId) || 'today';
+    if (id === 'chat') {
       toggleConversationDrawer(document.activeElement);
       return;
     }
+    if (id === 'tasks') {
+      openTasksDestination(options);
+      return;
+    }
+    closeTasksPanel();
     closeMoreMenu(false);
     closeConversationDrawer(false, false);
     explicitNav = true;
@@ -177,6 +211,36 @@
       return;
     }
     fallbackToLegacy(id, options);
+  }
+
+  // Tasks is a destination state owned by the agent Today layer: the task
+  // record opens over the workspace and Tasks stays active while it is
+  // open. If that layer failed to load, land on Today instead of leaving
+  // a dead button.
+  function openTasksDestination(options) {
+    var silent = Boolean(options && options.silent);
+    closeMoreMenu(false);
+    closeConversationDrawer(false, false);
+    explicitNav = true;
+    settling = false;
+    var agentToday = window.CrumpAgentToday;
+    if (!agentToday || typeof agentToday.openTasks !== 'function') {
+      fallbackToLegacy('today', options);
+      return;
+    }
+    unmountView();
+    currentId = 'tasks';
+    setActive('tasks');
+    try {
+      agentToday.openTasks();
+    } catch (_) {
+      fallbackToLegacy('today', options);
+      return;
+    }
+    if (!silent) {
+      track('tasks');
+      dispatchShow('tasks');
+    }
   }
 
   // The legacy conversation library renders as a second sidebar next to the
@@ -256,23 +320,6 @@
     var oldId = NEW_TO_OLD[id] || 'ask';
     var trackedByLegacyAdapter = false;
     try {
-      if (id === 'files') {
-        if (window.CrumpProduct53 && typeof window.CrumpProduct53.openFiles === 'function') {
-          window.CrumpProduct53.openFiles();
-        } else if (window.CrumpProductLoader && typeof window.CrumpProductLoader.openFiles === 'function') {
-          window.CrumpProductLoader.openFiles();
-        } else {
-          window.showToast?.('Files are still loading. Try again in a moment.', 'info');
-          currentId = 'home';
-          setActive('home');
-          return;
-        }
-        if (!silent) {
-          track(id);
-          dispatchShow(id);
-        }
-        return;
-      }
       var legacy = window.CrumpNavigation5930;
       if (legacy && typeof legacy.open === 'function') {
         legacy.open(oldId, silent ? { recordSelection: false, focus: false } : undefined);
@@ -417,19 +464,26 @@
 
   function destinationButton(id, cls) {
     var beta = id === 'autonomous' ? '<small>Beta</small>' : '';
-    // Autonomous is fail-closed until the authenticated feature probe says
-    // the provider is configured. The loader removes these attributes for
-    // both the rail and the mobile More sheet in one availability update.
+    // Autonomous is not a destination, but if a secondary surface ever
+    // paints its control it stays fail-closed until the authenticated
+    // feature probe says the provider is configured. The code loader
+    // removes these attributes for both the rail and the mobile More
+    // sheet in one availability update.
     var availability = id === 'autonomous'
       ? ' data-crump-code-destination hidden disabled aria-hidden="true"'
       : '';
-    var popup = id === 'chats'
+    var popup = id === 'chat'
       ? ' data-cv-drawer-toggle aria-controls="sidebar" aria-expanded="false"'
       : id === 'more'
         ? ' aria-haspopup="dialog" aria-controls="cvMoreMenu" aria-expanded="false"'
         : '';
+    // The agent Today layer marks its own Tasks controls with
+    // data-cat-tasks and skips injecting another button when one exists;
+    // the shell's Tasks destination carries the same hook so there is
+    // exactly one Tasks control and its open state styling is shared.
+    var tasksHook = id === 'tasks' ? ' data-cat-tasks="1"' : '';
     return (
-      '<button type="button" class="' + cls + '" data-cv-destination="' + id + '"' + availability + ' aria-label="' + esc(LABELS[id]) + '"' + popup + '>' +
+      '<button type="button" class="' + cls + '" data-cv-destination="' + id + '"' + availability + tasksHook + ' aria-label="' + esc(LABELS[id]) + '"' + popup + '>' +
       ICONS[id] +
       '<span>' + esc(LABELS[id]) + beta + '</span>' +
       '</button>'
@@ -442,7 +496,7 @@
     }).join('');
     return (
       '<div class="cv-rail-inner">' +
-      '<button type="button" class="cv-rail-brand" data-cv-destination="home" aria-label="Open Home">' +
+      '<button type="button" class="cv-rail-brand" data-cv-destination="today" aria-label="Open Today">' +
         '<span class="cv-rail-brand-mark" aria-hidden="true"><img src="/assets/brand/crump-mark-320.webp" alt="" width="320" height="357"></span>' +
         '<span class="cv-rail-brand-copy"><strong>Ask Crump</strong><small>AI workspace</small></span>' +
       '</button>' +
@@ -481,7 +535,7 @@
       button.setAttribute('aria-label', expanded ? 'Hide Conversations' : 'Show Conversations');
       button.setAttribute('title', expanded ? 'Hide Conversations' : 'Show Conversations');
     });
-    setActive(expanded ? 'chats' : currentId);
+    setActive(expanded ? 'chat' : currentId);
   }
 
   function focusConversationDrawer() {
@@ -503,7 +557,7 @@
   function restoreConversationDrawerDestination() {
     var returnId = conversationDrawerReturnId;
     conversationDrawerReturnId = null;
-    if (!returnId || returnId === 'home') return;
+    if (!returnId || returnId === 'today') return;
     navigate(returnId, { silent: true });
   }
 
@@ -543,11 +597,12 @@
 
   function toggleConversationDrawer(opener) {
     conversationDrawerOpener = opener || document.activeElement;
-    track('chats');
-    dispatchShow('chats');
-    if (currentId !== 'home' || isMounted()) {
-      var returnId = currentId !== 'home' ? currentId : null;
-      navigate('home', { silent: true });
+    closeTasksPanel();
+    track('chat');
+    dispatchShow('chat');
+    if (currentId !== 'today' || isMounted()) {
+      var returnId = currentId !== 'today' ? currentId : null;
+      navigate('today', { silent: true });
       conversationDrawerReturnId = returnId;
       window.requestAnimationFrame(ensureConversationDrawerOpen);
       return;
@@ -559,7 +614,7 @@
   function startNewConversation() {
     closeMoreMenu(false);
     closeConversationDrawer(false, false);
-    if (currentId !== 'home' || isMounted()) navigate('home');
+    if (currentId !== 'today' || isMounted()) navigate('today');
     window.requestAnimationFrame(function () {
       document.getElementById('newChatBtn')?.click();
       document.getElementById('userInput')?.focus({ preventScroll: true });
@@ -719,7 +774,7 @@
         button.setAttribute('data-cv-wired', '1');
         button.addEventListener('click', function () {
           var id = button.getAttribute('data-cv-destination');
-          if (id === 'chats') toggleConversationDrawer(button);
+          if (id === 'chat') toggleConversationDrawer(button);
           else if (id === 'more') openMoreMenu(button);
           else navigate(id);
         });
@@ -752,17 +807,9 @@
     var studioObserver = null;
     var insertionObserver = null;
 
-    function filesNavigationIsPending() {
-      return Boolean(document.querySelector('[data-cv-destination="files"][aria-busy="true"]'));
-    }
-
-    function filesSurfaceIsOpen() {
-      var productStudio = document.getElementById('crump53Studio');
-      var productSheet = document.getElementById('crump53Sheet');
-      return Boolean(
-        productStudio && !productStudio.hidden &&
-        productSheet && productSheet.dataset.projectView === 'files'
-      );
+    function tasksPanelIsOpen() {
+      var panel = document.getElementById('catTasksPanel');
+      return Boolean(panel && !panel.hidden);
     }
 
     function sync() {
@@ -771,17 +818,52 @@
         return;
       }
       if (isMounted()) return;
-      // A cold Files navigation inserts the product sheet lazily. Preserve the
-      // requested destination while those assets are busy, then use the sheet's
-      // own view marker as the authoritative state. This prevents the legacy
-      // Projects adapter from briefly or permanently taking the highlight back.
-      var filesOwnSurface = filesSurfaceIsOpen()
-        || (currentId === 'files' && filesNavigationIsPending());
-      var mapped = filesOwnSurface ? 'files' : OLD_TO_NEW[docEl.dataset.crumpNavigationDestination];
+      // While the Tasks panel is open, Tasks owns the highlight: the
+      // adapter reports 'ask' for the workspace underneath the panel, and
+      // that must not steal the active state back.
+      if (tasksPanelIsOpen()) {
+        if (currentId !== 'tasks') {
+          currentId = 'tasks';
+          setActive('tasks');
+        }
+        return;
+      }
+      // The adapter reports its own destination ids; the remap turns them
+      // into current destinations (Files, Library, and Video all land on
+      // Projects) so the highlight follows the surface the adapter opened.
+      var mapped = OLD_TO_NEW[docEl.dataset.crumpNavigationDestination];
       if (mapped && mapped !== currentId) {
         currentId = mapped;
         setActive(mapped);
       }
+    }
+
+    // The Tasks panel is inserted lazily by the agent Today layer. Track
+    // its open state so closing it returns the highlight to Today, the
+    // workspace underneath, mirroring the conversation drawer's restore.
+    var observedTasksPanel = null;
+    var tasksPanelObserver = null;
+    var tasksInsertionObserver = null;
+    function bindTasksPanelObserver() {
+      var panel = document.getElementById('catTasksPanel');
+      if (!panel || panel === observedTasksPanel) return;
+      tasksPanelObserver?.disconnect();
+      observedTasksPanel = panel;
+      tasksPanelObserver = new MutationObserver(function () {
+        if (tasksPanelIsOpen()) {
+          if (currentId !== 'tasks') {
+            currentId = 'tasks';
+            setActive('tasks');
+          }
+          return;
+        }
+        if (currentId === 'tasks' && !isMounted()) {
+          currentId = 'today';
+          setActive('today');
+        }
+      });
+      tasksPanelObserver.observe(panel, { attributes: true, attributeFilter: ['hidden'] });
+      tasksInsertionObserver?.disconnect();
     }
 
     function bindProductSurfaceObservers() {
@@ -818,6 +900,11 @@
       });
       insertionObserver.observe(document.body, {childList: true, subtree: true});
     }
+    bindTasksPanelObserver();
+    if (!observedTasksPanel) {
+      tasksInsertionObserver = new MutationObserver(bindTasksPanelObserver);
+      tasksInsertionObserver.observe(document.body, {childList: true, subtree: true});
+    }
     document.addEventListener('crump:product-view-changed', function (event) {
       var destination = normalizeId(event?.detail?.destination);
       if (!destination || isMounted()) return;
@@ -845,8 +932,8 @@
       if (window.matchMedia('(min-width: 1101px)').matches) closeMoreMenu(false);
       syncConversationDrawer();
     }, { passive: true });
-    currentId = 'home';
-    setActive('home');
+    currentId = 'today';
+    setActive('today');
     document.documentElement.dataset.cvShell = 'ready';
     document.dispatchEvent(new CustomEvent('crumpvision:ready'));
     settling = true;

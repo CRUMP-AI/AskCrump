@@ -1277,7 +1277,7 @@ const nativePushHandoffVersion = `${releaseVersion}-native-push-handoff-1`;
 const nativePushOwnerFenceVersion = `${releaseVersion}-native-push-owner-fence-1`;
 const cacheIntegrityVersion = `${releaseVersion}-friendly-workspace-1`;
 const premiumWorkspaceVersion = `${releaseVersion}-premium-workspace-1`;
-const mobileNavApplePolishVersion = `${releaseVersion}-mobile-nav-apple-polish-1`;
+const mobileNavApplePolishVersion = `${releaseVersion}-reorg-five-destinations-1`;
 const ownedWorkspaceAccessVersion = `${releaseVersion}-owned-workspace-access-2`;
 const shellNoTaglineVersion = `${releaseVersion}-shell-no-tagline-1`;
 const atelierWorkspaceVersion = `${releaseVersion}-atelier-workspace-1`;
@@ -1386,18 +1386,17 @@ for (const relative of requiredBodyFiles) {
 const appHtml = await readFile(new URL('public/app.html', repoRoot), 'utf8');
 const landingHtml = await readFile(new URL('public/ask-crump.html', repoRoot), 'utf8');
 const authController = await readFile(new URL('public/auth-controller.js', repoRoot), 'utf8');
-const desktopDestinationIds = Object.freeze(['home', 'chats', 'projects', 'library', 'studios', 'you']);
-const desktopDestinationLabels = Object.freeze(['Home', 'Chats', 'Projects', 'Library', 'Studios', 'You']);
-const mobileDestinationIds = Object.freeze(['home', 'chats', 'projects', 'library', 'studios', 'you']);
-const mobileDestinationLabels = Object.freeze(['Home', 'Chats', 'Projects', 'Library', 'Studios', 'You']);
+const desktopDestinationIds = Object.freeze(['today', 'chat', 'tasks', 'projects', 'you']);
+const desktopDestinationLabels = Object.freeze(['Today', 'Chat', 'Tasks', 'Projects', 'You']);
+const mobileDestinationIds = Object.freeze(['today', 'chat', 'tasks', 'projects', 'you']);
+const mobileDestinationLabels = Object.freeze(['Today', 'Chat', 'Tasks', 'Projects', 'You']);
 const moreDestinationIds = Object.freeze([]);
 const moreDestinationLabels = Object.freeze([]);
 const legacyOwnerMap = Object.freeze({
-  home: 'ask', projects: 'projects', library: 'library', studios: 'video', you: 'you', files: 'projects', autonomous: 'code',
+  today: 'ask', chat: 'chats', tasks: 'ask', projects: 'projects', you: 'you',
 });
 const analyticsDestinationMap = Object.freeze({
-  home: 'ask', chats: 'chats', projects: 'projects', files: 'projects', library: 'library',
-  studios: 'video', autonomous: 'code', you: 'you',
+  today: 'ask', chat: 'chats', tasks: 'tasks', projects: 'projects', you: 'you',
 });
 const onboardingSource = await readFile(new URL('public/onboarding.js', repoRoot), 'utf8');
 const navigationSource = await readFile(new URL('public/crump-navigation-5.9.30.js', repoRoot), 'utf8');
@@ -1461,7 +1460,7 @@ if (JSON.stringify(shellDesktopDestinations) !== JSON.stringify(desktopDestinati
     !releasedStoreCopy.every(source => source.includes(releasedDesktopListingCopy)) ||
     releasedStoreCopy.some(source => unreleasedStoreClaim.test(source)) ||
     !desktopDestinationLabels.every(label => onboardingSource.includes(`destination: '${label}'`)) ||
-    !visionShellSource.includes("sourceKey === 'ask' || sourceKey === 'home' || sourceKey === 'profile' || sourceKey === 'you'") ||
+    !visionShellSource.includes("sourceKey === 'ask' || sourceKey === 'home' || sourceKey === 'today' || sourceKey === 'profile' || sourceKey === 'you'") ||
     !visionShellSource.includes("button.id = 'cvMobileYou'") ||
     /\bbrowser\b/i.test(visionShellSource)) {
   console.error('Navigation, workspace guide, and store-release sources disagree on the friendly workspace contract.');
@@ -2098,7 +2097,7 @@ for (const [pathname, expectedVersion] of [
     }
   }
 }
-if (!serviceWorker.includes('ask-crump-new-body-v1-r288-full-surface-contrast-1') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r289-reorg-five-destinations-1') ||
     !serviceWorker.includes(`'${shellBrandUrl}'`) ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||

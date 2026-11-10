@@ -31,19 +31,17 @@ def test_shell_exposes_one_exact_desktop_and_mobile_information_architecture() -
     shell = read("public/crump-vision-shell-1.0.js")
 
     assert string_array(shell, "ORDER") == [
-        "home",
-        "chats",
+        "today",
+        "chat",
+        "tasks",
         "projects",
-        "library",
-        "studios",
         "you",
     ]
     assert string_array(shell, "MOBILE_ORDER") == [
-        "home",
-        "chats",
+        "today",
+        "chat",
+        "tasks",
         "projects",
-        "library",
-        "studios",
         "you",
     ]
     assert string_array(shell, "MORE_DESTINATIONS") == []
@@ -51,7 +49,7 @@ def test_shell_exposes_one_exact_desktop_and_mobile_information_architecture() -
     assert "'browser'" not in string_array(shell, "ORDER")
 
 
-def test_chats_drawer_is_keyboard_accessible_and_restores_focus() -> None:
+def test_chat_drawer_is_keyboard_accessible_and_restores_focus() -> None:
     shell = read("public/crump-vision-shell-1.0.js")
 
     assert "? ' data-cv-drawer-toggle aria-controls=\"sidebar\" aria-expanded=\"false\"'" in shell
@@ -62,7 +60,7 @@ def test_chats_drawer_is_keyboard_accessible_and_restores_focus() -> None:
     assert "target.focus({ preventScroll: true });" in shell
     assert "button.setAttribute('aria-expanded', expanded ? 'true' : 'false');" in shell
     toggle = shell[shell.index("function toggleConversationDrawer(opener)") : shell.index("function startNewConversation()")]
-    assert "track('chats');" in toggle
+    assert "track('chat');" in toggle
     assert "toggleConversationLibrary?.({ recordSelection: false })" in shell
 
 
@@ -70,26 +68,39 @@ def test_public_names_keep_legacy_owners_and_analytics_compatible() -> None:
     shell = read("public/crump-vision-shell-1.0.js")
 
     assert string_object(shell, "NEW_TO_OLD") == {
-        "home": "ask",
+        "today": "ask",
+        "chat": "chats",
+        "tasks": "ask",
         "projects": "projects",
-        "library": "library",
-        "studios": "video",
         "you": "you",
-        "files": "projects",
-        "autonomous": "code",
     }
     assert string_object(shell, "ANALYTICS_SOURCE") == {
-        "home": "ask",
-        "chats": "chats",
+        "today": "ask",
+        "chat": "chats",
+        "tasks": "tasks",
         "projects": "projects",
-        "files": "projects",
-        "library": "library",
-        "studios": "video",
-        "autonomous": "code",
         "you": "you",
     }
-    assert "window.CrumpProduct53.openFiles();" in shell
-    assert "window.CrumpProductLoader.openFiles();" in shell
+    # Legacy ids keep resolving to their closest current destination.
+    assert string_object(shell, "OLD_TO_NEW") == {
+        "ask": "today",
+        "home": "today",
+        "today": "today",
+        "autonomous": "today",
+        "code": "today",
+        "create": "today",
+        "chats": "chat",
+        "chat": "chat",
+        "tasks": "tasks",
+        "projects": "projects",
+        "files": "projects",
+        "library": "projects",
+        "video": "projects",
+        "studios": "projects",
+        "you": "you",
+        "profile": "you",
+        "more": "you",
+    }
     assert "legacy.open(oldId, silent ? { recordSelection: false, focus: false } : undefined);" in shell
     assert "browser: 'browser'" not in shell
     assert "[data-v1-settings-tab=\"profile\"]" in shell
@@ -104,26 +115,25 @@ def test_compact_shell_has_one_chats_control() -> None:
     ]
 
 
-def test_files_destination_only_stays_active_while_its_surface_is_visible() -> None:
+def test_files_surface_resolves_to_projects_and_syncs_from_the_adapter() -> None:
     shell = read("public/crump-vision-shell-1.0.js")
 
-    assert "productStudio && !productStudio.hidden" in shell
-    assert "productSheet && productSheet.dataset.projectView === 'files'" in shell
-    assert "var filesOwnSurface = filesSurfaceIsOpen()" in shell
-    assert "currentId === 'files' && filesNavigationIsPending()" in shell
-    assert "var mapped = filesOwnSurface ? 'files'" in shell
+    # Files is no longer a destination of its own: the adapter's Files,
+    # Library, and Video surfaces all highlight Projects through the remap.
+    assert "files: 'projects'" in shell
+    assert "var mapped = OLD_TO_NEW[docEl.dataset.crumpNavigationDestination];" in shell
     assert "document.addEventListener('crump:product-view-changed'" in shell
 
 
 def test_authoritative_home_and_account_views_cannot_be_replaced() -> None:
     shell = read("public/crump-vision-shell-1.0.js")
 
-    assert "sourceKey === 'ask' || sourceKey === 'home' || sourceKey === 'profile' || sourceKey === 'you'" in shell
+    assert "sourceKey === 'ask' || sourceKey === 'home' || sourceKey === 'today' || sourceKey === 'profile' || sourceKey === 'you'" in shell
     assert "return false;" in shell[
-        shell.index("sourceKey === 'ask'") : shell.index("var key = normalizeId(sourceKey)")
+        shell.index("sourceKey === 'ask'") : shell.index("var key = (sourceKey === 'library'")
     ]
-    assert "create: 'home'" in shell
-    assert "studios: 'video'" in shell
+    assert "create: 'today'" in shell
+    assert "studios: 'projects'" in shell
     assert "you: 'you'" in shell
     assert "browser: 'browser'" not in shell
 

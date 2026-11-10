@@ -46,7 +46,7 @@ def test_files_cold_start_owns_busy_feedback_and_visible_vision_controls():
     assert "afterLegacyProjectSync.projectsActive, true" in browser_proof
 
 
-def test_files_is_a_first_class_surface_with_lazy_active_state_recovery():
+def test_files_is_a_first_class_surface_inside_projects_with_lazy_active_state_recovery():
     product = read("public/crump-product-5.3.js")
     shell = read("public/crump-vision-shell-1.0.js")
     browser_proof = read("scripts/verify-studio-section-isolation.cjs")
@@ -58,8 +58,9 @@ def test_files_is_a_first_class_surface_with_lazy_active_state_recovery():
     assert "new CustomEvent('crump:product-view-changed'" in product
     assert "destination: normalized === 'files' ? 'files' : 'projects'" in product
 
-    assert "function filesNavigationIsPending()" in shell
-    assert "function filesSurfaceIsOpen()" in shell
+    # Files no longer has its own destination: the shell remaps the Files
+    # surface to Projects, and the product-view event follows the same map.
+    assert "files: 'projects'" in shell
     assert "function bindProductSurfaceObservers()" in shell
     assert "attributeFilter: ['data-project-view', 'data-crump53-section']" in shell
     assert "insertionObserver.observe(document.body, {childList: true, subtree: true})" in shell

@@ -50,7 +50,7 @@ const {chromium} = require('playwright');
   await page.keyboard.press('Escape');
   await page.waitForFunction(() => !document.getElementById('sidebar')?.classList.contains('active'));
   await page.evaluate(() => { window.fixtureEvents.analytics = []; });
-  await page.locator('#cvMobileNav [data-cv-destination="chats"]').click();
+  await page.locator('#cvMobileNav [data-cv-destination="chat"]').click();
   await page.waitForFunction(() => document.getElementById('sidebar')?.classList.contains('active'));
   const chatsAnalytics = await page.evaluate(() => window.fixtureEvents.analytics);
   assert.deepEqual(chatsAnalytics, [{
@@ -90,7 +90,7 @@ const {chromium} = require('playwright');
     window.fixtureEvents.analytics = [];
   });
   await page.evaluate(() => { window.fixtureEvents.analytics = []; });
-  await page.locator('#cvMobileNav [data-cv-destination="chats"]').click();
+  await page.locator('#cvMobileNav [data-cv-destination="chat"]').click();
   await page.waitForFunction(() => document.getElementById('sidebar')?.classList.contains('active'));
   const chatsFromProjects = await page.evaluate(() => ({
     analytics: window.fixtureEvents.analytics,

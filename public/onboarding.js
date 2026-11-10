@@ -3,34 +3,28 @@
 
   const STEPS = Object.freeze([
     {
-      destination: 'Home', action: 'home', actionLabel: 'Open Home', eyebrow: 'HOME',
+      destination: 'Today', action: 'today', actionLabel: 'Open Today', eyebrow: 'TODAY',
       title: 'Start with the outcome.',
-      content: 'Home brings your recent work, useful starts, and the Ask Crump composer into one calm place. You can ask, research, create, or return to work without choosing a technical tool first.',
+      content: 'Today brings your brief, recent work, useful starts, and the Ask Crump composer into one calm place. You can ask, research, create, or return to work without choosing a technical tool first.',
       icon: '⌂', features: ['Ask naturally', 'Research with sources', 'Continue recent work'],
     },
     {
-      destination: 'Chats', action: 'chats', actionLabel: 'Open Chats', eyebrow: 'CHATS',
+      destination: 'Chat', action: 'chat', actionLabel: 'Open Chat', eyebrow: 'CHAT',
       title: 'Every conversation, easy to find.',
-      content: 'Chats opens your private conversation history without taking you away from the work. Select a conversation, start a new one, or close the drawer and keep going.',
+      content: 'Chat opens your private conversation history without taking you away from the work. Select a conversation, start a new one, or close the drawer and keep going.',
       icon: '◫', features: ['Recent conversations', 'Open and return', 'Private to your account'],
+    },
+    {
+      destination: 'Tasks', action: 'tasks', actionLabel: 'Open Tasks', eyebrow: 'TASKS',
+      title: 'Work you can follow, in one record.',
+      content: 'Tasks is the record of work Crump is doing for you: what is waiting on you, what is running now, and what is finished, each with its result ready to open.',
+      icon: '✓', features: ['Waiting on you', 'Live work', 'Finished results'],
     },
     {
       destination: 'Projects', action: 'projects', actionLabel: 'Open Projects', eyebrow: 'PROJECTS',
       title: 'Give continuing work a home.',
-      content: 'Projects keep conversations, files, context, outputs, and longer-running work together so you can return without rebuilding the brief.',
+      content: 'Projects keep conversations, files, context, outputs, and longer-running work together so you can return without rebuilding the brief. Choose Apply changes to return to the conversation with the edited image.',
       icon: '▣', features: ['Named workspaces', 'Context and files together', 'Durable activity'],
-    },
-    {
-      destination: 'Library', action: 'library', actionLabel: 'Open Library', eyebrow: 'LIBRARY',
-      title: 'Keep manuscripts organized.',
-      content: 'Library is the calm shelf for your books and manuscripts. Open a title and return to the current manuscript without digging through old conversations.',
-      icon: '▱', features: ['Books and manuscripts', 'Private reading shelf', 'Open the current manuscript'],
-    },
-    {
-      destination: 'Studios', action: 'studios', actionLabel: 'Open Studios', eyebrow: 'STUDIOS',
-      title: 'Make visuals in one place.',
-      content: 'Studios opens the real Image and Video tools. Create or edit an image, generate motion, and return to saved jobs without crowding the main workspace. Choose Apply changes to return to the conversation with the edited image.',
-      icon: '✦', features: ['Image creation and editing', 'Video generation', 'Saved results'],
     },
     {
       destination: 'You', action: 'you', actionLabel: 'Open You', eyebrow: 'YOU',
@@ -40,8 +34,8 @@
     },
   ]);
 
-  const DESKTOP_DESTINATIONS = Object.freeze(['Home', 'Chats', 'Projects', 'Library', 'Studios', 'You']);
-  const MOBILE_DESTINATIONS = Object.freeze(['Home', 'Chats', 'Projects', 'Library', 'Studios', 'You']);
+  const DESKTOP_DESTINATIONS = Object.freeze(['Today', 'Chat', 'Tasks', 'Projects', 'You']);
+  const MOBILE_DESTINATIONS = Object.freeze(['Today', 'Chat', 'Tasks', 'Projects', 'You']);
   const MOBILE_MORE_DESTINATIONS = Object.freeze([]);
 
   class Tutorial {
@@ -296,7 +290,7 @@
 
     openDestination(destination) {
       const normalized = String(destination || '').trim().toLowerCase();
-      if (!['home', 'chats', 'projects', 'library', 'studios', 'you'].includes(normalized)) return;
+      if (!['today', 'chat', 'tasks', 'projects', 'you'].includes(normalized)) return;
       localStorage.setItem(this.storageKey(), 'true');
       this.stop();
       requestAnimationFrame(() => {
@@ -305,15 +299,15 @@
           return;
         }
         if (typeof window.CrumpNavigation5930?.open === 'function') {
-          if (normalized === 'chats') {
+          if (normalized === 'chat') {
             document.getElementById('menuBtn')?.click();
             return;
           }
-          const legacyDestination = {home: 'ask', studios: 'video', you: 'you'}[normalized] || normalized;
+          const legacyDestination = {today: 'ask', tasks: 'ask', you: 'you'}[normalized] || normalized;
           window.CrumpNavigation5930.open(legacyDestination);
           return;
         }
-        if (normalized === 'home') {
+        if (normalized === 'today') {
           document.getElementById('userInput')?.focus({ preventScroll: true });
           return;
         }
