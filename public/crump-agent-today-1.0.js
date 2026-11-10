@@ -1512,17 +1512,29 @@
     var win = h('div', 'cat-browser-window');
     win.setAttribute('role', 'dialog');
     win.setAttribute('aria-modal', 'true');
-    win.setAttribute('aria-label', 'Browser');
+    win.setAttribute('aria-labelledby', 'catBrowserTitle');
 
     var head = h('div', 'cat-browser-head');
-    var headText = h('div');
-    headText.appendChild(h('h2', 'cat-browser-title', 'Browser'));
+    var headText = h('div', 'cat-browser-head-text');
+    var title = h('h2', 'cat-browser-title', 'Live browser');
+    title.id = 'catBrowserTitle';
+    headText.appendChild(title);
     browserStep = h('p', 'cat-browser-step', 'No browser task is running.');
+    browserStep.setAttribute('aria-live', 'polite');
     headText.appendChild(browserStep);
     head.appendChild(headText);
-    var closeBtn = button('Close', 'cat-icon-btn', closeBrowserPanel);
-    closeBtn.setAttribute('aria-label', 'Close browser panel');
-    head.appendChild(closeBtn);
+    // Pause and dismissal are distinct controls: Pause stays an
+    // honest disabled control while sessions are not live, and Back
+    // is the always-available way out of the panel.
+    var headActions = h('div', 'cat-browser-head-actions');
+    var pauseBtn = button('Pause', 'cat-btn cat-browser-pause');
+    pauseBtn.disabled = true;
+    pauseBtn.setAttribute('aria-disabled', 'true');
+    headActions.appendChild(pauseBtn);
+    var closeBtn = button('Back', 'cat-icon-btn cat-browser-dismiss', closeBrowserPanel);
+    closeBtn.setAttribute('aria-label', 'Back — close the browser panel');
+    headActions.appendChild(closeBtn);
+    head.appendChild(headActions);
     win.appendChild(head);
 
     var viewport = h('div', 'cat-browser-viewport');
@@ -1532,15 +1544,30 @@
     win.appendChild(viewport);
 
     var controls = h('div', 'cat-browser-controls');
-    var pauseBtn = button('Pause', 'cat-btn');
-    pauseBtn.disabled = true;
-    pauseBtn.setAttribute('aria-disabled', 'true');
     var takeOverBtn = button('Take over', 'cat-btn');
     takeOverBtn.disabled = true;
     takeOverBtn.setAttribute('aria-disabled', 'true');
-    controls.appendChild(pauseBtn);
     controls.appendChild(takeOverBtn);
     win.appendChild(controls);
+
+    // A rightward swipe on the panel dismisses it, matching the
+    // slide-over direction; taps and vertical scrolling are untouched.
+    var swipeStart = null;
+    win.addEventListener('touchstart', function (event) {
+      var touch = event.touches && event.touches[0];
+      swipeStart = touch ? { x: touch.clientX, y: touch.clientY } : null;
+    }, { passive: true });
+    win.addEventListener('touchend', function (event) {
+      if (!swipeStart) return;
+      var touch = event.changedTouches && event.changedTouches[0];
+      var start = swipeStart;
+      swipeStart = null;
+      if (!touch) return;
+      var dx = touch.clientX - start.x;
+      var dy = touch.clientY - start.y;
+      if (dx > 64 && Math.abs(dy) < 48) closeBrowserPanel();
+    }, { passive: true });
+    win.addEventListener('touchcancel', function () { swipeStart = null; }, { passive: true });
 
     browserPanel.appendChild(win);
     browserPanel.addEventListener('click', function (event) {
@@ -1563,7 +1590,7 @@
       browserStep.textContent = 'No browser task is running.';
     }
     browserPanel.hidden = false;
-    var closeButton = browserPanel.querySelector('.cat-icon-btn');
+    var closeButton = browserPanel.querySelector('.cat-browser-dismiss');
     if (closeButton) closeButton.focus({ preventScroll: true });
   }
 

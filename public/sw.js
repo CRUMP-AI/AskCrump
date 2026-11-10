@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r294-reorg-card-fixes-1';
+const CACHE_NAME = 'ask-crump-new-body-v1-r295-reorg-browser-panel-1';
 
 const CORE = [
   '/app',

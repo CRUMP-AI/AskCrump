@@ -837,30 +837,45 @@ body.crump-v1-body .v1-workspace-body:has(> .cat-chat-work:not([hidden])) > .cat
   inset: 0;
   z-index: 720;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
+  align-items: stretch;
+  justify-content: flex-end;
+  padding: 0;
   background: rgba(7, 10, 14, 0.48);
-  /* The panel window is a light surface wherever the panel opens
-     from, so its text tone is pinned here instead of inherited. */
-  color: var(--cat-ink);
+  /* The panel is a dark slide-over wherever it opens from, so its
+     text tone is pinned here instead of inherited. */
+  color: var(--cat-paper);
 }
 
 .cat-browser[hidden] {
   display: none !important;
 }
 
+/* Slide-over overlay state of Chat: right-anchored, about 84% of the
+   viewport on phone widths, capped at a wide side panel on desktop,
+   with the conversation dimly visible behind the backdrop. */
 .cat-browser-window {
-  width: min(880px, 100%);
-  max-height: min(760px, calc(100vh - 40px));
-  background: var(--cat-paper);
-  color: var(--cat-ink);
-  border-radius: 20px;
+  width: min(560px, 84vw);
+  height: 100%;
+  max-height: 100vh;
+  background: #111417;
+  color: var(--cat-paper);
+  border-left: 1px solid rgba(213, 185, 113, 0.35);
+  border-radius: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
-  box-shadow: 0 28px 70px rgba(7, 10, 14, 0.32);
+  box-shadow: -24px 0 60px rgba(7, 10, 14, 0.45);
+  animation: cat-browser-in 0.22s ease;
+}
+
+@keyframes cat-browser-in {
+  from {
+    transform: translateX(32px);
+  }
+  to {
+    transform: translateX(0);
+  }
 }
 
 .cat-browser-head {
@@ -868,24 +883,61 @@ body.crump-v1-body .v1-workspace-body:has(> .cat-chat-work:not([hidden])) > .cat
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  padding: 16px 20px;
-  border-bottom: 1px solid var(--cat-line);
-  background: var(--cat-card);
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid rgba(213, 185, 113, 0.22);
+  background: #111417;
+  color: var(--cat-paper);
+}
+
+.cat-browser-head-text {
+  flex: 1;
+  min-width: 0;
 }
 
 .cat-browser-title {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 21px;
-  font-weight: 600;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cat-gold-bright);
 }
 
 .cat-browser-step {
-  margin: 4px 0 0;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--cat-ink-soft);
-  overflow-wrap: anywhere;
+  margin: 6px 0 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--cat-paper-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cat-browser-head-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: none;
+}
+
+.cat-browser .cat-btn,
+.cat-browser .cat-icon-btn {
+  border-color: rgba(241, 239, 233, 0.3);
+  background: transparent;
+  color: var(--cat-paper);
+}
+
+.cat-browser .cat-btn:hover,
+.cat-browser .cat-icon-btn:hover {
+  border-color: var(--cat-gold-bright);
+}
+
+.cat-browser .cat-browser-pause {
+  border-color: rgba(213, 185, 113, 0.55);
+  color: var(--cat-gold-bright);
+  min-height: 44px;
+  padding: 8px 16px;
 }
 
 .cat-browser-viewport {
@@ -897,6 +949,7 @@ body.crump-v1-body .v1-workspace-body:has(> .cat-chat-work:not([hidden])) > .cat
   justify-content: center;
   padding: 28px 24px;
   text-align: center;
+  background: #111417;
 }
 
 .cat-browser-viewport p {
@@ -904,7 +957,7 @@ body.crump-v1-body .v1-workspace-body:has(> .cat-chat-work:not([hidden])) > .cat
   max-width: 46ch;
   font-size: 15px;
   line-height: 1.65;
-  color: var(--cat-ink-soft);
+  color: var(--cat-paper-dim);
 }
 
 .cat-browser-controls {
@@ -912,8 +965,9 @@ body.crump-v1-body .v1-workspace-body:has(> .cat-chat-work:not([hidden])) > .cat
   flex-wrap: wrap;
   gap: 10px;
   padding: 14px 20px 18px;
-  border-top: 1px solid var(--cat-line);
-  background: var(--cat-card);
+  border-top: 1px solid rgba(213, 185, 113, 0.22);
+  background: #111417;
+  color: var(--cat-paper);
 }
 
 /* ------------------------------------------------------------------ */
@@ -1403,16 +1457,9 @@ body.crump-v1-body .v1-workspace-body:has(> .cat-chat-work:not([hidden])) > .cat
     grid-template-columns: 72px minmax(0, 1fr);
   }
 
-  .cat-browser {
-    padding: 0;
-  }
-
-  .cat-browser-window {
-    width: 100%;
-    max-height: 100vh;
-    height: 100%;
-    border-radius: 0;
-  }
+  /* The browser panel keeps its slide-over proportion at phone
+     widths too: min(560px, 84vw) already yields ~84% there, so no
+     full-screen override applies. */
 }
 
 @media (max-width: 480px) {
@@ -1466,6 +1513,10 @@ body.crump-v1-body .v1-workspace-body:has(> .cat-chat-work:not([hidden])) > .cat
 @media (prefers-reduced-motion: reduce) {
   .cat-drawer {
     transition: none;
+  }
+
+  .cat-browser-window {
+    animation: none;
   }
 }
 

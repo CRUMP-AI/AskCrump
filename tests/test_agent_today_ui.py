@@ -19,8 +19,8 @@ def read(relative: str) -> str:
 
 def test_app_html_loads_agent_today_layer_last_with_versioned_assets():
     app = read('public/app.html')
-    css = '/crump-agent-today-1.0.css?v=5.9.76-agent-today-11'
-    js = '/crump-agent-today-1.0.js?v=5.9.76-agent-today-11'
+    css = '/crump-agent-today-1.0.css?v=5.9.76-agent-today-12'
+    js = '/crump-agent-today-1.0.js?v=5.9.76-agent-today-12'
     assert css in app
     assert js in app
     assert (PUBLIC / 'crump-agent-today-1.0.css').exists()
@@ -409,3 +409,46 @@ def test_nav_relabels_home_and_adds_tasks_without_touching_the_shell():
     assert "'Today'" in js or '"Today"' in js or "'Today'" in js
     shell = read('public/crump-vision-shell-1.0.js')
     assert 'crump-agent-today' not in shell
+
+
+def test_browser_panel_is_a_right_anchored_slide_over_with_gold_hairline():
+    css = read('public/crump-agent-today-1.0.css')
+    window = css[css.index('.cat-browser-window {'):css.index('@keyframes cat-browser-in')]
+    # Slide-over geometry: ~84% of the viewport on phone widths,
+    # capped at a wide side panel on desktop, full height, anchored
+    # to the right edge over a dimming backdrop.
+    assert 'width: min(560px, 84vw)' in window
+    assert 'height: 100%' in window
+    assert 'background: #111417' in window
+    assert 'border-left: 1px solid rgba(213, 185, 113, 0.35)' in window
+    backdrop = css[css.index('.cat-browser {'):css.index('.cat-browser[hidden]')]
+    assert 'justify-content: flex-end' in backdrop
+    assert 'background: rgba(7, 10, 14, 0.48)' in backdrop
+    # The old centered-modal and full-screen phone shapes are gone.
+    assert 'width: min(880px, 100%)' not in css
+    # Entry motion exists and respects reduced motion.
+    assert '@keyframes cat-browser-in' in css
+    reduced = css[css.index('@media (prefers-reduced-motion: reduce)'):]
+    assert '.cat-browser-window' in reduced
+
+
+def test_browser_panel_step_is_one_line_and_controls_stay_distinct_and_honest():
+    js = read('public/crump-agent-today-1.0.js')
+    css = read('public/crump-agent-today-1.0.css')
+    # The header carries the title and the one-line current step.
+    assert "'Live browser'" in js
+    assert 'aria-labelledby' in js and 'catBrowserTitle' in js
+    step = css[css.index('.cat-browser-step {'):css.index('.cat-browser-head-actions')]
+    assert 'white-space: nowrap' in step
+    assert 'text-overflow: ellipsis' in step
+    # Pause and dismissal are separate elements: Pause stays an
+    # honest disabled control while sessions are not live, and Back
+    # is the enabled dismiss affordance, labelled as dismissal.
+    assert "button('Pause', 'cat-btn cat-browser-pause')" in js
+    assert "button('Back', 'cat-icon-btn cat-browser-dismiss', closeBrowserPanel)" in js
+    assert 'Back — close the browser panel' in js
+    panel = js[js.index('function ensureBrowserPanel()'):js.index('function openBrowserPanel(run)')]
+    assert panel.count('disabled = true') == 2  # Pause + Take over
+    # A rightward swipe dismisses; nothing fakes a live session.
+    assert "addEventListener('touchend'" in js
+    assert 'Per-user browser sessions are not live yet' in js
