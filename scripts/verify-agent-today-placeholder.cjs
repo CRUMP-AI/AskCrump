@@ -5,6 +5,7 @@ const { chromium } = require(playwrightModule);
 const fixtureOrigin = process.env.ASKCRUMP_FIXTURE_ORIGIN || 'http://127.0.0.1:8765';
 const executablePath = process.env.ASKCRUMP_BROWSER_EXECUTABLE || undefined;
 const fixtureUrl = `${fixtureOrigin}/tests/fixtures/agent-today-placeholder.html`;
+const chatFixtureUrl = `${fixtureOrigin}/tests/fixtures/agent-chat-cards.html`;
 
 const VIEWPORTS = [
   { name: '1039x738', width: 1039, height: 738, maxNoticeFraction: 0.10 },
@@ -263,6 +264,212 @@ function assertReorgStatics(m, label, state) {
   }
 }
 
+async function measureChat(page) {
+  return page.evaluate(() => {
+    const visible = element => {
+      if (!element) return false;
+      const style = getComputedStyle(element);
+      if (style.display === 'none' || style.visibility === 'hidden') return false;
+      const box = element.getBoundingClientRect();
+      return box.width > 0 && box.height > 0;
+    };
+    const section = document.querySelector('#catChatWork');
+    const cards = section ? [...section.querySelectorAll('.cat-card')].filter(visible) : [];
+    const primary = cards[0] || null;
+    const rows = section ? [...section.querySelectorAll('.cat-chat-row')] : [];
+    const exact = primary ? primary.querySelector('.cat-card-exact') : null;
+    const detail = primary ? primary.querySelector('.cat-approval-detail') : null;
+    const meta = primary ? primary.querySelector('.cat-card-meta') : null;
+    const actions = primary ? primary.querySelector('.cat-actions') : null;
+    const sectionBox = section ? section.getBoundingClientRect() : null;
+    const dock = document.querySelector('.v1-command-dock');
+    const dockBox = dock ? dock.getBoundingClientRect() : null;
+    const container = document.querySelector('#chatContainer');
+    const containerBox = container ? container.getBoundingClientRect() : null;
+    const inputBar = document.querySelector('.input-container');
+    return {
+      sectionPresent: Boolean(section),
+      sectionVisible: visible(section),
+      sectionText: section ? section.textContent : '',
+      cardCount: cards.length,
+      primaryText: primary ? primary.textContent : '',
+      exactText: exact ? exact.textContent : '',
+      exactScrollWidth: exact ? exact.scrollWidth : 0,
+      exactClientWidth: exact ? exact.clientWidth : 0,
+      detailPresent: Boolean(detail),
+      detailVisible: visible(detail),
+      creditText: meta ? meta.textContent : '',
+      creditBeforeActions: Boolean(meta && actions)
+        ? meta.getBoundingClientRect().top <= actions.getBoundingClientRect().top
+        : false,
+      approvePresent: Boolean(primary && [...primary.querySelectorAll('button')]
+        .some(btn => btn.textContent.trim() === 'Approve')),
+      stepText: primary ? (primary.querySelector('.cat-card-step') || {}).textContent || '' : '',
+      rowTexts: rows.map(row => row.textContent),
+      rowIsCard: rows.some(row => row.classList.contains('cat-card')),
+      todayVisible: visible(document.querySelector('#catToday')),
+      sectionBottom: sectionBox ? sectionBox.bottom : 0,
+      sectionRight: sectionBox ? sectionBox.right : 0,
+      sectionScrollWidth: section ? section.scrollWidth : 0,
+      sectionClientWidth: section ? section.clientWidth : 0,
+      dockTop: dockBox ? dockBox.top : 0,
+      containerBottom: containerBox ? containerBox.bottom : 0,
+      documentScrollWidth: document.documentElement.scrollWidth,
+      composerChildIds: inputBar
+        ? [...inputBar.children].map(child => child.id || child.tagName)
+        : [],
+      fetchCalls: Array.isArray(window.__fetchCalls) ? window.__fetchCalls.slice() : [],
+    };
+  });
+}
+
+async function runChatScenarios(browser) {
+  let scenarios = 0;
+  const CHAT_STATES = ['approval', 'live', 'both', 'none', 'result'];
+  for (const theme of THEMES) {
+    for (const state of CHAT_STATES) {
+      for (const viewport of VIEWPORTS) {
+        const label = `chat ${theme}/${state} @ ${viewport.name}`;
+        const page = await browser.newPage({ viewport });
+        await page.goto(`${chatFixtureUrl}?theme=${theme}&state=${state}`, { waitUntil: 'load' });
+        await page.waitForTimeout(250);
+        const m = await measureChat(page);
+        // The composer bar is plus, input, and send only — in order —
+        // at every size, and nothing the section renders overlaps it.
+        assert.deepEqual(m.composerChildIds, ['attachBtn', 'userInput', 'sendButton'],
+          `${label}: composer bar ${JSON.stringify(m.composerChildIds)}`);
+        assert.ok(m.documentScrollWidth <= viewport.width,
+          `${label}: document scrollWidth ${m.documentScrollWidth} > ${viewport.width}`);
+        assert.equal(m.todayVisible, false, `${label}: Today surface visible in a conversation`);
+        if (state === 'none') {
+          // No work in the open conversation: no section, no cards, no
+          // placeholder — even though another conversation has work.
+          assert.equal(m.sectionVisible, false, `${label}: section rendered with no work`);
+          assert.equal(m.cardCount, 0, `${label}: cards rendered with no work`);
+        } else {
+          assert.equal(m.sectionVisible, true, `${label}: chat work section missing`);
+          assert.ok(m.sectionBottom <= m.dockTop + 0.6,
+            `${label}: section overlaps the composer dock (${m.sectionBottom} > ${m.dockTop})`);
+          assert.ok(m.containerBottom <= m.sectionBottom + 0.6 || m.containerBottom <= m.dockTop + 0.6,
+            `${label}: message list escapes below the section`);
+          assert.ok(m.sectionRight <= viewport.width + 0.6,
+            `${label}: section escapes the viewport`);
+          assert.ok(m.sectionScrollWidth <= m.sectionClientWidth + 1,
+            `${label}: section clipped ${m.sectionScrollWidth} > ${m.sectionClientWidth}`);
+          // Scoping: the other conversation's work never appears here.
+          assert.doesNotMatch(m.sectionText, /other@example\.com|For the other conversation/,
+            `${label}: other conversation's work leaked into the section`);
+          // One-card emphasis: exactly one full card in the section.
+          assert.equal(m.cardCount, 1, `${label}: full cards in section ${m.cardCount}`);
+          assert.equal(m.rowIsCard, false, `${label}: a secondary row renders as a card`);
+        }
+        if (state === 'approval' || state === 'both') {
+          // The primary card is this conversation's pending approval,
+          // rendered by the shared builder: the exact action leads
+          // (the long recipient list unwrapped-clipped at 320px too),
+          // the frozen payload starts collapsed, and the credit line
+          // precedes the decision buttons.
+          assert.match(m.exactText, /alexandria\.longaddress/, `${label}: exact summary "${m.exactText}"`);
+          assert.match(m.exactText, /Quarterly planning notes/, `${label}: exact subject "${m.exactText}"`);
+          assert.ok(m.exactScrollWidth <= m.exactClientWidth + 1,
+            `${label}: exact summary clipped ${m.exactScrollWidth} > ${m.exactClientWidth}`);
+          assert.equal(m.detailPresent, true, `${label}: approval detail missing`);
+          assert.equal(m.detailVisible, false, `${label}: approval detail must start collapsed`);
+          assert.match(m.creditText, /2 credits/, `${label}: credit line "${m.creditText}"`);
+          assert.equal(m.creditBeforeActions, true, `${label}: credit line must precede the buttons`);
+          assert.equal(m.approvePresent, true, `${label}: Approve button missing`);
+        }
+        if (state === 'live') {
+          assert.match(m.stepText, /Current step/, `${label}: live run step line "${m.stepText}"`);
+          assert.equal(m.approvePresent, false, `${label}: approval rendered in the live-only state`);
+        }
+        if (state === 'both') {
+          // The live run and the finished result sit behind the one
+          // primary card as quiet rows, never as equal-weight cards.
+          assert.equal(m.rowTexts.length, 2, `${label}: secondary rows ${JSON.stringify(m.rowTexts)}`);
+          assert.match(m.rowTexts.join(' '), /Book a calendar event/, `${label}: live run row`);
+          assert.match(m.rowTexts.join(' '), /Found 3 threads/, `${label}: result row`);
+        }
+        if (state === 'result') {
+          assert.match(m.primaryText, /Found 3 threads about the launch checklist\./,
+            `${label}: result card text "${m.primaryText}"`);
+        }
+        scenarios += 1;
+        await page.close();
+      }
+    }
+  }
+
+  // Guests: no section, and zero agent-endpoint calls at all.
+  {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await page.goto(`${chatFixtureUrl}?theme=dark&state=guest`, { waitUntil: 'load' });
+    await page.waitForTimeout(250);
+    const m = await measureChat(page);
+    assert.equal(m.sectionVisible, false, 'chat guest: section rendered for a guest');
+    assert.equal(m.cardCount, 0, 'chat guest: cards rendered for a guest');
+    assert.equal(m.fetchCalls.filter(path => path.indexOf('/api/agent/') === 0).length, 0,
+      `chat guest: agent calls made ${JSON.stringify(m.fetchCalls)}`);
+    await page.close();
+    scenarios += 1;
+  }
+
+  // Today view: the same loaded work renders no chat section while
+  // the launchpad home state is up — Chat cards belong to Chat only.
+  {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await page.goto(`${chatFixtureUrl}?theme=dark&state=both&view=today`, { waitUntil: 'load' });
+    await page.waitForTimeout(250);
+    const m = await measureChat(page);
+    assert.equal(m.sectionVisible, false, 'chat today-view: section rendered on Today');
+    assert.equal(m.cardCount, 0, 'chat today-view: cards rendered on Today');
+    await page.close();
+    scenarios += 1;
+  }
+
+  // Conversation switch: opening the other conversation re-scopes
+  // the section to that conversation's own pending approval (its
+  // live run sits behind it as a quiet row), and the first
+  // conversation's approval leaves the surface.
+  {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await page.goto(`${chatFixtureUrl}?theme=dark&state=both`, { waitUntil: 'load' });
+    await page.waitForTimeout(250);
+    await page.evaluate(() => {
+      window.currentChatId = 'conv-b';
+      window.dispatchEvent(new CustomEvent('crump:conversation-opened', { detail: { chatId: 'conv-b', fresh: false } }));
+    });
+    await page.waitForTimeout(250);
+    const m = await measureChat(page);
+    assert.equal(m.sectionVisible, true, 'chat switch: section missing for conv-b');
+    assert.equal(m.cardCount, 1, 'chat switch: full cards for conv-b');
+    assert.match(m.exactText, /other@example\.com/, `chat switch: primary exact "${m.exactText}"`);
+    assert.match(m.rowTexts.join(' '), /Act in the browser/, 'chat switch: conv-b live run row');
+    assert.doesNotMatch(m.sectionText, /alexandria\.longaddress/,
+      'chat switch: conv-a approval still rendered');
+    await page.close();
+    scenarios += 1;
+  }
+
+  // The primary approval's detail toggle opens the frozen payload.
+  {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await page.goto(`${chatFixtureUrl}?theme=dark&state=approval`, { waitUntil: 'load' });
+    await page.waitForTimeout(250);
+    await page.click('#catChatWork .cat-detail-toggle');
+    await page.waitForTimeout(80);
+    const m = await measureChat(page);
+    assert.equal(m.detailVisible, true, 'chat detail: frozen payload did not expand');
+    await page.close();
+    scenarios += 1;
+  }
+
+  console.log(`Agent Chat cards: ${scenarios} scenarios passed ` +
+    `(${THEMES.length} themes x 5 states x ${VIEWPORTS.length} viewports, plus guest, ` +
+    `Today-view, conversation-switch, and detail interactions).`);
+  return scenarios;
+}
+
 async function run() {
   const browser = await chromium.launch({ headless: true, executablePath });
   let scenarios = 0;
@@ -403,6 +610,8 @@ async function run() {
         await page.close();
       }
     }
+
+    scenarios += await runChatScenarios(browser);
   } finally {
     await browser.close();
   }

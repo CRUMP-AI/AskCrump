@@ -265,11 +265,13 @@
       state.loaded = caps.ok || approvals.ok || runs.ok;
       state.failed = !state.loaded;
       renderToday();
+      renderChat();
       if (tasksPanel && tasksPanel.classList.contains('is-open')) renderTasks();
     }).catch(function () {
       state.loading = false;
       state.failed = true;
       renderToday();
+      renderChat();
     });
   }
 
@@ -781,6 +783,212 @@
   }
 
   /* ---------------------------------------------------------------- */
+  /* Chat surface: the open conversation's own agent work              */
+  /*                                                                   */
+  /* The open conversation is the one the product shell has open:      */
+  /* app.js keeps window.currentChatId current on every open, fresh,   */
+  /* and delete path, and announces each opening with the              */
+  /* crump:conversation-opened window event (detail.chatId). Runs      */
+  /* carry that same id as conversationId in the runs payload, and a   */
+  /* pending approval belongs to a conversation through its run. The   */
+  /* section below is a sibling the layer owns, placed after the       */
+  /* message list inside the workspace body — the shell keeps owning   */
+  /* the message DOM itself, and the section never writes into it.     */
+  /* ---------------------------------------------------------------- */
+
+  function openConversationId() {
+    try {
+      return String(window.currentChatId || '').trim();
+    } catch (_) {
+      return '';
+    }
+  }
+
+  /* The Chat view is the workspace with a conversation open in it:
+     the app is showing, no vision stage is mounted over the workspace,
+     the shell's current destination is the workspace itself (Today /
+     Chat), and the launchpad home state is not up — the v1 body turns
+     v1-home off exactly when the open conversation has messages. On
+     Today (v1-home) this section never renders; Today is PR2's
+     surface and keeps its own unscoped cards. */
+  function chatIsActive() {
+    var app = document.getElementById('appContainer');
+    if (!app || app.style.display === 'none') return false;
+    var stage = document.getElementById('cvStage');
+    if (stage && !stage.hidden) return false;
+    try {
+      if (window.CrumpVision && typeof window.CrumpVision.current === 'function') {
+        var current = window.CrumpVision.current();
+        if (current && current !== 'today' && current !== 'chat' && current !== 'home') return false;
+      }
+    } catch (_) {}
+    if (document.body.classList.contains('v1-home')) return false;
+    return !!openConversationId();
+  }
+
+  var chatNode = null;
+  var lastChatSignature = '';
+
+  function ensureChatWork() {
+    if (chatNode && chatNode.isConnected) return chatNode;
+    var body = document.querySelector('.v1-workspace-body');
+    if (!body) return null;
+    chatNode = h('section', 'cat-chat-work');
+    chatNode.id = 'catChatWork';
+    chatNode.setAttribute('aria-label', 'Work in this conversation');
+    chatNode.hidden = true;
+    var container = document.getElementById('chatContainer');
+    if (container && container.parentElement === body) {
+      body.insertBefore(chatNode, container.nextSibling);
+    } else {
+      body.appendChild(chatNode);
+    }
+    return chatNode;
+  }
+
+  function runTime(run) {
+    var value = Date.parse(run.updatedAt || run.createdAt || '');
+    return isNaN(value) ? 0 : value;
+  }
+
+  /* This conversation's work, in the order the surface emphasises:
+     pending approvals first (in the loaded list's own order), then
+     live and waiting runs newest first, then finished runs newest
+     first. Approvals join through their run's conversationId. */
+  function conversationWork(conversationId) {
+    var runsById = {};
+    state.runs.forEach(function (run) {
+      if (run && run.id) runsById[run.id] = run;
+    });
+    var approvals = state.approvals.filter(function (action) {
+      if (!action || !action.runId) return false;
+      var run = runsById[action.runId];
+      return !!run && String(run.conversationId || '') === conversationId;
+    });
+    var covered = {};
+    approvals.forEach(function (action) { covered[action.runId] = true; });
+    var mine = state.runs.filter(function (run) {
+      return run && String(run.conversationId || '') === conversationId;
+    });
+    var live = mine.filter(function (run) {
+      return (RUNNING[run.status] || WAITING[run.status]) && !covered[run.id];
+    }).sort(function (a, b) { return runTime(b) - runTime(a); });
+    var done = mine.filter(function (run) {
+      return TERMINAL[run.status];
+    }).sort(function (a, b) { return runTime(b) - runTime(a); });
+    return { approvals: approvals, live: live, done: done };
+  }
+
+  function resultCard(run) {
+    var card = h('article', 'cat-card cat-card-result');
+    var head = h('div', 'cat-card-head');
+    var titleWrap = h('div');
+    titleWrap.appendChild(h('h3', 'cat-card-title', capabilityTitle(run.capabilityId)));
+    head.appendChild(titleWrap);
+    head.appendChild(h('span', statusClass(run.status), statusLabel(run.status)));
+    card.appendChild(head);
+    card.appendChild(h('p', 'cat-card-summary', String(run.resultSummary)));
+    var when = fmtTime(run.updatedAt || run.createdAt);
+    if (when) card.appendChild(h('p', 'cat-card-meta', 'Updated ' + when));
+    return card;
+  }
+
+  /* Quiet secondary rows: everything after the one primary card is a
+     single line in a list, never another full card. A secondary
+     approval row opens the Tasks panel, where that approval renders
+     as a full card with its exact action and decision buttons. */
+  function chatSecondaryRow(item) {
+    if (item.kind === 'approval') {
+      var row = button('', 'cat-chat-row cat-chat-row-action');
+      row.setAttribute('aria-label',
+        'Open Tasks to review: ' + approvalExactSummary(item.action));
+      var approvalMain = h('span', 'cat-chat-row-main');
+      approvalMain.appendChild(h('span', 'cat-chat-row-title', approvalExactSummary(item.action)));
+      row.appendChild(approvalMain);
+      row.appendChild(h('span', 'cat-chat-row-status', 'Waiting on you'));
+      row.addEventListener('click', function () { openTasks(); });
+      return row;
+    }
+    var run = item.run;
+    var plain = h('div', 'cat-chat-row');
+    var main = h('span', 'cat-chat-row-main');
+    main.appendChild(h('span', 'cat-chat-row-title', capabilityTitle(run.capabilityId)));
+    var detailText = item.kind === 'result' && typeof run.resultSummary === 'string' && run.resultSummary
+      ? run.resultSummary
+      : (RUNNING[run.status] || WAITING[run.status] ? runStepText(run) : statusLabel(run.status));
+    main.appendChild(h('span', 'cat-chat-row-detail', detailText));
+    plain.appendChild(main);
+    plain.appendChild(h('span', 'cat-chat-row-status', statusLabel(run.status)));
+    return plain;
+  }
+
+  function renderChat() {
+    var node = ensureChatWork();
+    if (!node) return;
+    var conversationId = openConversationId();
+    var active = chatIsActive();
+    // Guests never render the section (and never fetch agent data:
+    // loadAgentData is gated on the same owner check).
+    var work = active && captureOwnerId() && state.loaded
+      ? conversationWork(conversationId)
+      : { approvals: [], live: [], done: [] };
+    var items = [];
+    work.approvals.forEach(function (action) { items.push({ kind: 'approval', action: action }); });
+    work.live.forEach(function (run) { items.push({ kind: 'run', run: run }); });
+    work.done.forEach(function (run) { items.push({ kind: 'result', run: run }); });
+
+    if (!active || !items.length) {
+      // No work in this conversation renders nothing at all — no
+      // empty placeholder and no instructional copy.
+      node.hidden = true;
+      if (node.childNodes.length) node.innerHTML = '';
+      lastChatSignature = '';
+      return;
+    }
+
+    var signature = [
+      conversationId,
+      items.map(function (item) {
+        return item.kind === 'approval'
+          ? 'a:' + item.action.id + ':' + item.action.status
+          : 'r:' + item.run.id + ':' + item.run.status + ':' + (item.run.updatedAt || '');
+      }).join(','),
+    ].join('|');
+    if (signature === lastChatSignature && node.childNodes.length) {
+      node.hidden = false;
+      return;
+    }
+    lastChatSignature = signature;
+
+    node.innerHTML = '';
+    node.appendChild(h('h3', 'cat-chat-title', 'In this conversation'));
+    var stack = h('div', 'cat-chat-stack');
+    // One card carries the emphasis: the pending approval if there is
+    // one, else the most recently updated live run, else the latest
+    // finished result (a compact result card when the run recorded a
+    // real result summary, the shared run card otherwise).
+    var primary = items[0];
+    var primaryCard;
+    if (primary.kind === 'approval') primaryCard = approvalCard(primary.action);
+    else if (primary.kind === 'result' &&
+        typeof primary.run.resultSummary === 'string' && primary.run.resultSummary) {
+      primaryCard = resultCard(primary.run);
+    } else {
+      primaryCard = runCard(primary.run);
+    }
+    primaryCard.classList.add('cat-chat-primary');
+    stack.appendChild(primaryCard);
+    var rest = items.slice(1);
+    if (rest.length) {
+      var more = h('div', 'cat-chat-more');
+      rest.forEach(function (item) { more.appendChild(chatSecondaryRow(item)); });
+      stack.appendChild(more);
+    }
+    node.appendChild(stack);
+    node.hidden = false;
+  }
+
+  /* ---------------------------------------------------------------- */
   /* Tasks drawer                                                      */
   /* ---------------------------------------------------------------- */
 
@@ -1168,6 +1376,7 @@
       suppressTour();
       syncComposerPlaceholder();
       if (ensureToday()) renderToday();
+      if (ensureChatWork()) renderChat();
     });
   }
 
@@ -1175,6 +1384,8 @@
     applyNav();
     ensureToday();
     renderToday();
+    ensureChatWork();
+    renderChat();
     syncComposerPlaceholder();
     suppressTour();
 
@@ -1182,7 +1393,7 @@
       var relevant = records.some(function (record) {
         var target = record.target;
         if (!target || target.nodeType !== 1) return true;
-        return !target.closest('#catToday, #catTasksPanel, #catBrowserPanel');
+        return !target.closest('#catToday, #catChatWork, #catTasksPanel, #catBrowserPanel');
       });
       if (relevant) queueSync();
     });
@@ -1197,6 +1408,14 @@
       if (event && event.detail && event.detail.id === 'home') loadAgentData();
       queueSync();
     });
+    // The shell announces every conversation opening on window with
+    // the opened id; the chat section re-scopes to it and refreshes
+    // its data so the cards it shows are that conversation's own.
+    window.addEventListener('crump:conversation-opened', function () {
+      renderChat();
+      if (captureOwnerId()) loadAgentData();
+      queueSync();
+    });
     document.addEventListener('keydown', function (event) {
       if (event.key !== 'Escape') return;
       if (browserPanel && !browserPanel.hidden) closeBrowserPanel();
@@ -1209,13 +1428,13 @@
     [1200, 3500, 8000].forEach(function (delay) {
       setTimeout(function () {
         if (!state.loaded && captureOwnerId()) loadAgentData();
-        else renderToday();
+        else { renderToday(); renderChat(); }
       }, delay);
     });
 
     setInterval(function () {
       if (document.hidden) return;
-      if (homeIsActive() && captureOwnerId()) loadAgentData();
+      if ((homeIsActive() || chatIsActive()) && captureOwnerId()) loadAgentData();
     }, REFRESH_MS);
   }
 
