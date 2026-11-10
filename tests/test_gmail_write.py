@@ -111,7 +111,7 @@ def _connected_db(scopes):
                 'scopes': list(scopes),
                 'access_token_ciphertext': FakeVault().encrypt('access-token-1'),
                 'refresh_token_ciphertext': '',
-                'token_expires_at': '2026-11-09T00:00:00+00:00',
+                'token_expires_at': '2099-01-01T00:00:00+00:00',
                 'status': 'connected',
             }
         ]

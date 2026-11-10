@@ -127,7 +127,7 @@ def _connection_row(
         'scopes': list(scopes),
         'access_token_ciphertext': FakeVault().encrypt(token),
         'refresh_token_ciphertext': '',
-        'token_expires_at': '2026-11-09T00:00:00+00:00',
+        'token_expires_at': '2099-01-01T00:00:00+00:00',
         'status': status,
         'created_at': created_at,
     }
