@@ -19,8 +19,8 @@ def read(relative: str) -> str:
 
 def test_app_html_loads_agent_today_layer_last_with_versioned_assets():
     app = read('public/app.html')
-    css = '/crump-agent-today-1.0.css?v=5.9.76-agent-today-8'
-    js = '/crump-agent-today-1.0.js?v=5.9.76-agent-today-8'
+    css = '/crump-agent-today-1.0.css?v=5.9.76-agent-today-9'
+    js = '/crump-agent-today-1.0.js?v=5.9.76-agent-today-9'
     assert css in app
     assert js in app
     assert (PUBLIC / 'crump-agent-today-1.0.css').exists()
@@ -272,6 +272,77 @@ def test_composer_bar_is_plus_input_and_send_only():
     assert container.index('id="attachBtn"') < container.index('id="userInput"') < container.index('id="sendButton"')
     assert container.count('<button') == 2
     assert container.count('<textarea') == 1
+
+
+def test_tasks_loads_automations_inside_the_same_auth_gated_feed():
+    js = read('public/crump-agent-today-1.0.js')
+    # Automations join the one auth-gated load: the fetch sits in the
+    # same Promise.all behind captureOwnerId, so guests gain no new
+    # calls and signed-out sessions fetch nothing at all.
+    assert "settled(api('/api/agent/automations'))" in js
+    assert 'state.automations' in js
+    load = js[js.index('function loadAgentData()'):js.index('function liveRuns()')]
+    assert "if (!captureOwnerId())" in load
+    assert load.index("if (!captureOwnerId())") < load.index("'/api/agent/automations'")
+
+
+def test_tasks_groups_render_in_the_locked_record_order():
+    js = read('public/crump-agent-today-1.0.js')
+    render = js[js.index('function renderTasks()'):]
+    assert render.index("'Waiting on you'") < render.index("'Running'")
+    assert render.index("'Running'") < render.index("'Scheduled'")
+    assert render.index("'Scheduled'") < render.index("'Done'")
+    assert 'Nothing is scheduled.' in js
+
+
+def test_scheduled_rows_derive_their_line_from_stored_fields_only():
+    js = read('public/crump-agent-today-1.0.js')
+    # The schedule line reads the record's own schedule kind/time and
+    # its stored next run. No frequency wording is invented: the only
+    # daily phrasing is keyed to the stored daily kind.
+    assert 'automationScheduleLine' in js
+    assert 'schedule.kind' in js
+    assert 'fmtScheduleTime(schedule.time)' in js
+    assert 'automation.nextRunAt' in js
+    assert "'Daily at '" in js
+    assert 'every weekday' not in js.lower()
+    assert 'automation.lastRunAt' in js
+
+
+def test_paused_automations_stay_in_the_scheduled_group():
+    js = read('public/crump-agent-today-1.0.js')
+    # Paused automations are part of the standing record: the group
+    # renders every loaded automation, enabled or not, with its real
+    # status, instead of filtering paused rows out or filing them
+    # under Done.
+    assert 'state.automations.forEach' in js
+    assert 'automationRow(automation)' in js
+    assert "'Scheduled' : 'Paused'" in js
+    assert 'automation.enabled' in js
+
+
+def test_tasks_waiting_group_keeps_every_approval_as_a_full_card():
+    js = read('public/crump-agent-today-1.0.js')
+    # The Today queue row routes here for the rest of the approvals:
+    # the Waiting group renders the full shared approval card for each
+    # pending action, never a demoted row.
+    render = js[js.index('function renderTasks()'):js.index('function renderTasks()') + 2600]
+    assert 'waitingGroup.appendChild(approvalCard(action))' in render
+    assert js.count('function approvalCard(') == 1
+
+
+def test_tasks_drawer_uses_the_dark_record_treatment():
+    css = read('public/crump-agent-today-1.0.css')
+    # The drawer is a dark surface in the design: ink ground, gold
+    # tracked group eyebrows, flat rows separated by gold hairlines,
+    # and the dark card token scoped to cards inside the drawer.
+    assert 'background: var(--cat-ink)' in css_block(css, '.cat-drawer {')
+    assert 'color: var(--cat-gold-bright)' in css_block(css, '.cat-group-title {')
+    assert '.cat-drawer .cat-card {' in css
+    row = css_block(css, '.cat-task-row {')
+    assert 'background: transparent' in row
+    assert 'rgba(213, 185, 113' in row
+    assert '.cat-row-marker' in css
 
 
 def test_nav_relabels_home_and_adds_tasks_without_touching_the_shell():

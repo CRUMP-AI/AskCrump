@@ -26,10 +26,6 @@ def test_today_light_ground_gray_uses_the_darkened_token():
         ".cat-card-meta",
         ".cat-status-done",
         ".cat-payload-row dt",
-        ".cat-group-title",
-        ".cat-group-empty",
-        ".cat-task-row-meta",
-        ".cat-step-list time",
     ):
         block = css.split(selector, 1)[1].split("}", 1)[0]
         assert "color: var(--cat-gray-on-light);" in block, selector
@@ -39,6 +35,20 @@ def test_today_light_ground_gray_uses_the_darkened_token():
     # text: they measured 1.14:1 on the card before this rule existed.
     head_block = css.split(".cat-card-head {", 1)[1].split("}", 1)[0]
     assert "color: var(--cat-gray-on-light);" in head_block
+
+
+def test_tasks_drawer_text_clears_aa_on_its_ink_ground():
+    css = read("public/crump-agent-today-1.0.css")
+    # The Tasks drawer moved from the paper ground to the ink ground in
+    # the reorganization: its group eyebrows are the gold token and its
+    # quiet text is the ink-ground gray (#8a9196, ~6.3:1 on ink) — the
+    # darkened light-ground token would measure under AA there.
+    assert "background: var(--cat-ink);" in css.split(".cat-drawer {", 1)[1].split("}", 1)[0]
+    title_block = css.split(".cat-group-title {", 1)[1].split("}", 1)[0]
+    assert "color: var(--cat-gold-bright);" in title_block
+    for selector in (".cat-group-empty", ".cat-task-row-meta", ".cat-step-list time"):
+        block = css.split(selector, 1)[1].split("}", 1)[0]
+        assert "color: var(--cat-gray);" in block, selector
 
 
 def test_auth_muted_text_clears_aa_on_the_dark_card():
@@ -203,8 +213,8 @@ def test_contrast_gate_is_registered_and_fixture_covers_the_surfaces():
 
 def test_release_versions_moved_in_step():
     worker = read("public/sw.js")
-    assert worker.startswith("const CACHE_NAME = 'ask-crump-new-body-v1-r291-reorg-chat-1';")
-    assert "/crump-agent-today-1.0.css?v=5.9.76-agent-today-8" in worker or True  # agent css ships via app shell
+    assert worker.startswith("const CACHE_NAME = 'ask-crump-new-body-v1-r292-reorg-tasks-1';")
+    assert "/crump-agent-today-1.0.css?v=5.9.76-agent-today-9" in worker or True  # agent css ships via app shell
     assert "/crump-design-pass.css?v=5.9.76-contrast-sweep-1" in worker
     assert "/crump-v1-body.css?v=5.9.76-owned-workspace-access-2" in worker
     assert "/lifecycle.css?v=5.9.76-lifecycle-activation-2" in worker
@@ -212,8 +222,8 @@ def test_release_versions_moved_in_step():
     assert "/use-case.css?v=5.9.76-contrast-1" in worker
 
     app = read("public/app.html")
-    assert "/crump-agent-today-1.0.css?v=5.9.76-agent-today-8" in app
-    assert "/crump-agent-today-1.0.js?v=5.9.76-agent-today-8" in app
+    assert "/crump-agent-today-1.0.css?v=5.9.76-agent-today-9" in app
+    assert "/crump-agent-today-1.0.js?v=5.9.76-agent-today-9" in app
     assert "/crump-v1-body.css?v=5.9.76-owned-workspace-access-2" in app
 
     runtime = read("public/runtime-body-v1.js")

@@ -19,13 +19,29 @@
       document.documentElement.setAttribute('data-theme', params.get('theme') || 'dark');
       var state = params.get('state') || 'planned';
       var connected = state === 'live';
-      window.currentUser = { id: 'fixture-user', fullName: 'Gregory Crump', name: 'Gregory Crump' };
-      window.CrumpAuthBoundary = { authenticatedUserId: function () { return 'fixture-user'; } };
+      // ?tasks=mixed|scheduled|empty picks the Tasks record the drawer
+      // renders (default: the Today composition, whose Tasks panel the
+      // queue interactions already exercise). ?guest=1 renders the
+      // guest session, which must make zero agent calls.
+      var tasksState = params.get('tasks') || '';
+      var guest = params.get('guest') === '1';
+      window.__fetchCalls = [];
+      if (guest) {
+        window.currentUser = { id: 'fixture-guest', isGuest: true, fullName: 'Guest' };
+        window.CrumpAccess = { isGuest: function () { return true; } };
+        window.CrumpAuthBoundary = { authenticatedUserId: function () { return ''; } };
+      } else {
+        window.currentUser = { id: 'fixture-user', fullName: 'Gregory Crump', name: 'Gregory Crump' };
+        window.CrumpAuthBoundary = { authenticatedUserId: function () { return 'fixture-user'; } };
+      }
       var caps = [
         { id: 'gmail.send', status: 'planned', title: 'Send an email', verbPhrase: 'Send an email to' },
         { id: 'calendar.create', status: 'planned', title: 'Book a calendar event', verbPhrase: 'Book' },
         { id: 'browser.act', status: 'planned', title: 'Act in the browser', verbPhrase: 'Open the browser and' },
         { id: 'agent.today_brief', status: 'live', title: 'Today brief' },
+        { id: 'agent.morning_brief', status: 'live', title: 'Send the morning brief', verbPhrase: 'Brief you every morning' },
+        { id: 'research.web_search', status: 'live', title: 'Weekly Savannah technology hiring and company metrics review with extended notes', verbPhrase: 'Research' },
+        { id: 'gmail.search', status: 'live', title: 'Search email', verbPhrase: 'Search email for' },
       ];
       var approvals = [
         {
@@ -69,6 +85,53 @@
           createdAt: '2026-11-10T14:20:00Z', updatedAt: '2026-11-10T14:25:00Z',
         },
       ];
+      var automations = [
+        {
+          id: 'auto-1', capabilityId: 'agent.morning_brief',
+          schedule: { kind: 'daily', time: '07:00', timezone: 'America/New_York' },
+          payload: { schedule: 'daily 07:00 America/New_York' },
+          enabled: true, lastRunAt: '2026-11-09T12:00:00Z', nextRunAt: '2026-11-11T12:00:00Z',
+          createdAt: '2026-11-08T12:00:00Z', updatedAt: '2026-11-09T12:00:00Z',
+        },
+        {
+          id: 'auto-2', capabilityId: 'research.web_search',
+          schedule: { kind: 'daily', time: '08:30', timezone: 'America/New_York' },
+          payload: {},
+          enabled: false, lastRunAt: null, nextRunAt: '2026-11-11T13:30:00Z',
+          createdAt: '2026-11-08T12:00:00Z', updatedAt: '2026-11-09T12:00:00Z',
+        },
+      ];
+      if (tasksState === 'mixed') {
+        runs = runs.concat([{
+          id: 'run-done-1', capabilityId: 'gmail.search', status: 'succeeded',
+          createdAt: '2026-11-10T11:00:00Z', updatedAt: '2026-11-10T11:05:00Z',
+          resultSummary: 'Found 3 threads about the launch checklist.',
+        }]);
+      } else if (tasksState === 'scheduled') {
+        approvals = [];
+        runs = [];
+      } else if (tasksState === 'empty') {
+        approvals = [];
+        runs = [];
+        automations = [];
+      }
+      var runDetails = {
+        'run-live-1': {
+          id: 'run-live-1', capabilityId: 'browser.act', status: 'running',
+          createdAt: '2026-11-10T14:20:00Z', updatedAt: '2026-11-10T14:25:00Z',
+          steps: [
+            { type: 'run.created', createdAt: '2026-11-10T14:20:00Z' },
+            { type: 'run.queued', createdAt: '2026-11-10T14:21:00Z' },
+          ],
+          pendingActions: [], resultSummary: null,
+        },
+        'run-done-1': {
+          id: 'run-done-1', capabilityId: 'gmail.search', status: 'succeeded',
+          createdAt: '2026-11-10T11:00:00Z', updatedAt: '2026-11-10T11:05:00Z',
+          steps: [{ type: 'run.created', createdAt: '2026-11-10T11:00:00Z' }],
+          pendingActions: [], resultSummary: 'Found 3 threads about the launch checklist.',
+        },
+      };
       var googleStatus = connected
         ? {
             configured: true, connected: true,
@@ -105,12 +168,18 @@
             },
           };
       window.fetch = function (path) {
+        window.__fetchCalls.push(String(path));
         var data = {};
         var target = String(path);
         if (target.indexOf('/api/connections/google/status') === 0) data = googleStatus;
         else if (target.indexOf('/api/agent/capabilities') === 0) data = { capabilities: caps };
         else if (target.indexOf('/api/agent/approvals') === 0) data = { approvals: approvals };
+        else if (target.indexOf('/api/agent/automations') === 0) data = { automations: automations };
         else if (target.indexOf('/api/agent/today') === 0) data = brief;
+        else if (target.indexOf('/api/agent/runs/') === 0) {
+          var detailId = decodeURIComponent(target.slice('/api/agent/runs/'.length));
+          data = { run: runDetails[detailId] || null };
+        }
         else if (target.indexOf('/api/agent/runs') === 0) data = { runs: runs };
         return Promise.resolve({
           ok: true,
@@ -123,7 +192,7 @@
   <link rel="stylesheet" href="/public/crump-v1-body.css?v=agent-today-placeholder-fixture-1">
   <link rel="stylesheet" href="/public/crump-vision-shell-1.0.css?v=agent-today-placeholder-fixture-1">
   <link rel="stylesheet" href="/public/crump-design-pass.css?v=agent-today-placeholder-fixture-1">
-  <link rel="stylesheet" href="/public/crump-agent-today-1.0.css?v=5.9.76-agent-today-8">
+  <link rel="stylesheet" href="/public/crump-agent-today-1.0.css?v=5.9.76-agent-today-9">
   <style>
     html, body { height: 100%; }
     .v1-workspace { height: 100vh; }
@@ -149,6 +218,6 @@
       </main>
     </div>
   </div>
-  <script src="/public/crump-agent-today-1.0.js?v=5.9.76-agent-today-8"></script>
+  <script src="/public/crump-agent-today-1.0.js?v=5.9.76-agent-today-9"></script>
 </body>
 </html>
