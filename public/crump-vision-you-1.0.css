@@ -96,7 +96,7 @@
   display: block;
   font-size: 11px;
   letter-spacing: 0.08em;
-  color: #5a6168;
+  color: #8a9196;
   margin-top: 8px;
   text-transform: uppercase;
 }
@@ -224,7 +224,7 @@
 }
 
 .cv-you .cv-textarea::placeholder {
-  color: #5a6168;
+  color: #8a9196;
 }
 
 .cv-you .cv-textarea:focus {
@@ -358,7 +358,7 @@
 .cv-privacy-footnote {
   font-size: 12px;
   line-height: 1.7;
-  color: #5a6168;
+  color: #8a9196;
   margin: 20px 0 0;
 }
 

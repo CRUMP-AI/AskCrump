@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Full-surface contrast fixture — auth</title>
+  <link rel="icon" href="data:,">
+  <script>
+    (() => {
+      const theme = new URL(window.location.href).searchParams.get('theme') === 'dark' ? 'dark' : 'light';
+      document.documentElement.dataset.theme = theme;
+      try { window.localStorage.setItem('askcrump.appearance', theme); } catch (error) {}
+    })();
+  </script>
+  <!-- The signed-out screen loads only the static head stack from app.html;
+       the runtime sheets (design pass included) arrive with the workspace,
+       so they are deliberately absent here. -->
+  <link rel="stylesheet" href="/public/styles.css?v=5.9.76">
+  <link rel="stylesheet" href="/public/install-prompt.css?v=5.9.76">
+  <link rel="stylesheet" href="/public/auth-styles.css?v=5.9.76-guest-free-contract-2">
+  <link rel="stylesheet" href="/public/crump-v1-body.css?v=5.9.76-owned-workspace-access-2">
+  <link rel="stylesheet" href="/public/appearance-controls.css?v=5.9.76-appearance-choice-3">
+  <link rel="stylesheet" href="/public/crump-vision-shell-1.0.css?v=5.9.76-shell-truth-1">
+  <link rel="stylesheet" href="/public/crump-vision-chats-1.0.css?v=5.9.76-chats-1">
+  <link rel="stylesheet" href="/public/crump-vision-projects-1.0.css?v=5.9.76-vision-projects-1">
+  <link rel="stylesheet" href="/public/crump-vision-library-1.0.css?v=5.9.76-vision-library-1">
+  <link rel="stylesheet" href="/public/crump-vision-studios-1.0.css?v=5.9.76-vision-studios-1">
+  <link rel="stylesheet" href="/public/crump-agent-today-1.0.css?v=5.9.76-agent-today-6">
+</head>
+<body class="crump-v1-body">
+  <!-- Auth (app.html structure) -->
+  <div class="auth-container v1-auth-shell">
+    <aside class="v1-auth-brand">
+      <div class="v1-auth-brand-top"><img src="/assets/brand/crump-shell-lockup-light.webp?v=5.9.76-shell-no-tagline-1" width="1200" height="300" alt="" class="v1-auth-brand-wordmark"></div>
+      <div class="v1-auth-manifesto">
+        <div class="v1-kicker">YOUR AI WORKSPACE</div>
+        <h2>Think it through.<br>Build it properly.</h2>
+        <p>Home, Chats, Projects, Library, Studios, and You — one calm workspace for conversations and work you can return to.</p>
+      </div>
+      <div class="v1-auth-capabilities"><span>Home</span><span>Chats</span><span>Projects</span><span>Library</span><span>Studios</span><span>You</span></div>
+    </aside>
+    <main class="v1-auth-stage">
+      <div class="auth-form v1-auth-card">
+        <div class="auth-header">
+          <div class="v1-auth-eyebrow">ASK CRUMP</div>
+          <h1>Welcome back.</h1>
+          <p>Pick up exactly where you left off.</p>
+        </div>
+        <div class="guest-wall-note" role="note"><strong>Switching accounts:</strong> Signing in switches to that account.</div>
+        <form class="auth-form-content">
+          <div class="form-group">
+            <label for="fixtureEmail">Email</label>
+            <input type="email" id="fixtureEmail" class="form-input" placeholder="you@email.com" autocomplete="email">
+          </div>
+          <div class="form-group">
+            <label for="fixturePassword">Password</label>
+            <div class="v1-password-control">
+              <input type="password" id="fixturePassword" class="form-input" placeholder="Enter your password" autocomplete="current-password">
+              <button class="v1-password-toggle" type="button">Show</button>
+            </div>
+          </div>
+          <div class="auth-error" role="alert">That password did not match.</div>
+          <button type="submit" class="btn btn-primary btn-large btn-block">Sign In</button>
+          <div class="v1-auth-links">
+            <p>New to Ask Crump? <a href="#today" class="auth-link">Create account</a></p>
+            <p><a href="#today" class="auth-link">Forgot password?</a></p>
+          </div>
+        </form>
+        <div class="auth-success" role="status">Check your inbox to continue.</div>
+      </div>
+      <div class="auth-form v1-auth-card">
+        <div class="auth-header">
+          <div class="v1-auth-eyebrow">ASK CRUMP</div>
+          <h1>Create your workspace.</h1>
+          <p>Ask questions, create useful work, and pick up where you left off. Free to start—no card required.</p>
+        </div>
+        <form class="auth-form-content">
+          <div class="form-group">
+            <label for="fixtureRegisterPassword">Password</label>
+            <div class="v1-password-control">
+              <input type="password" id="fixtureRegisterPassword" class="form-input" placeholder="Create a password" autocomplete="new-password">
+              <button class="v1-password-toggle" type="button">Show</button>
+            </div>
+            <div class="v1-password-requirements" aria-label="Password requirements">
+              <span class="is-met"><i aria-hidden="true">✓</i>10+ characters</span>
+              <span><i aria-hidden="true">○</i>One letter</span>
+              <span><i aria-hidden="true">○</i>One number</span>
+            </div>
+            <small class="form-hint">For your security, you will set the password again after proving you control the email inbox.</small>
+          </div>
+          <label class="v1-registration-consent" for="fixtureTerms">
+            <input id="fixtureTerms" type="checkbox">
+            <span>I am at least 17, agree to the <a href="#today">Terms</a> and <a href="#today">Privacy Policy</a>.</span>
+          </label>
+          <button type="submit" class="btn btn-primary btn-large btn-block">Create free account</button>
+          <p class="v1-signup-assurance">Free includes up to 5 text messages in any rolling 24-hour window.</p>
+          <p class="v1-registration-explore"><a href="#today">Explore Ask Crump first</a></p>
+          <p class="auth-footer-text">Already have an account? <a href="#today" class="auth-link">Sign in</a></p>
+        </form>
+      </div>
+      <section class="v1-registration-pending" aria-label="Verify your email">
+        <div class="v1-registration-confirmation">✓</div>
+        <div class="v1-auth-eyebrow">ACCOUNT CREATED</div>
+        <h2>Verify your email to continue.</h2>
+        <p><strong>you@email.com</strong> is linked to your new account. Follow the status below for the next step.</p>
+        <div class="v1-registration-actions">
+          <button class="btn btn-secondary btn-block" type="button">Already verified? Sign in</button>
+          <button class="btn btn-secondary btn-block" type="button">Resend verification email</button>
+        </div>
+        <p class="v1-registration-help">Use Resend verification email if the first request could not be queued or if no link arrives after a minute, then check spam or promotions.</p>
+      </section>
+      <span class="v1-optional">Optional</span>
+    </main>
+  </div>
+
+</body>
+</html>
