@@ -286,7 +286,15 @@ async def process_due_automations() -> dict:
     triggered: list[dict] = []
     errors = 0
     for row in due:
+        claimed = None
         try:
+            # Claim before creating anything: the claim is a
+            # compare-and-swap on the row's observed next_run_at, so
+            # a concurrent pass over the same due automation gets no
+            # claim and skips it instead of firing it a second time.
+            claimed = await service.claim_due_automation(row, ran_at=now)
+            if claimed is None:
+                continue
             run_payload = AgentAutomationService.run_payload_for(row)
             created = await agent_runs.create_run(
                 user_id=row['user_id'],
@@ -301,9 +309,9 @@ async def process_due_automations() -> dict:
                     user_id=row['user_id'],
                     run_id=str(created['id']),
                 )
-            # The run happened (its outcome lives in the ledger), so
-            # the schedule advances even when the run itself failed.
-            await service.record_run(row, ran_at=now)
+            # The claim already advanced the schedule: the run
+            # happened (its outcome lives in the ledger), even when
+            # the run itself failed.
             triggered.append(
                 {
                     'automationId': row['id'],
@@ -312,9 +320,16 @@ async def process_due_automations() -> dict:
                 }
             )
         except Exception:
-            # One bad automation must not block the rest of the pass;
-            # it stays due and is retried on the next trigger.
+            # One bad automation must not block the rest of the pass.
+            # Hand the claim back so it stays due and is retried on
+            # the next trigger; the release is best effort and never
+            # masks the original failure.
             errors += 1
+            if claimed is not None:
+                try:
+                    await service.release_claim(row, claimed)
+                except Exception:
+                    pass
     return {
         'success': True,
         'due': len(due),
