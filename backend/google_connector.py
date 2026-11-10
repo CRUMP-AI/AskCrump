@@ -41,13 +41,13 @@ stored refresh token is kept when it does not. A failed refresh
 (revoked grant, ``invalid_grant``, network error) raises
 ``CONNECTION_REQUIRED`` so the user reconnects — an expired token is
 never handed to a provider call. Refresh is single-flight per
-connection within a connector instance: concurrent callers wait on
-one exchange, then re-read the stored row and reuse the fresh token.
-Disconnect revokes the grant at Google first (the stored refresh
-token, which revokes the grant, falling back to the access token)
-and then clears the local row exactly as before; a failed revocation
-never blocks the local disconnect, and the outcome is reported on
-the returned status instead of being claimed as revoked.
+connection across connector instances: the connection row carries a
+short compare-and-swap lease, concurrent callers wait on one exchange,
+then re-read the stored row and reuse the fresh token. Disconnect fences
+the row before the remote revocation, so an in-flight stale refresh can
+neither restore tokens nor return one after the disconnect lands. A
+failed revocation never blocks the local disconnect, and the outcome is
+reported on the returned status instead of being claimed as revoked.
 """
 from __future__ import annotations
 
@@ -84,6 +84,14 @@ STATE_TTL_SECONDS = 600
 # A stored access token counts as expired once its remaining lifetime
 # drops to this skew, so a token never dies mid-request.
 TOKEN_REFRESH_SKEW_SECONDS = 60
+
+# ``agent_connections.updated_at`` doubles as a durable refresh lease
+# deadline while a token exchange is in flight. It is already a
+# non-null row version, so the lease adds cross-instance coordination
+# without changing the schema. Google's request timeout is 20 seconds;
+# the longer lease leaves room for the response and the fenced write.
+TOKEN_REFRESH_LEASE_SECONDS = 30
+TOKEN_REFRESH_POLL_SECONDS = 0.05
 
 CONNECT_LEVELS = frozenset({'read', 'write'})
 
@@ -630,6 +638,9 @@ class GoogleConnector:
             ),
             'token_expires_at': token_expires_at.isoformat(),
             'status': 'connected',
+            # Reconnect is a new lifecycle generation. Any refresh
+            # holding the prior value must lose its completion CAS.
+            'updated_at': datetime.now(timezone.utc).isoformat(),
         }
         if hasattr(self.db, 'upsert'):
             rows = await self.db.upsert(
@@ -751,14 +762,11 @@ class GoogleConnector:
         for row in rows:
             if account_email and str(row.get('account_email') or '') != account_email:
                 continue
-            # Revoke at Google before the local tokens are cleared —
-            # afterwards there is nothing left to revoke with. A
-            # failed revocation is recorded on the returned status
-            # but never blocks the disconnect the user asked for.
-            outcome = await self._revoke_stored_token(row)
-            revocations.append(
-                {'email': str(row.get('account_email') or ''), **outcome}
-            )
+            # Fence locally before any network await. The snapshot
+            # retains the pre-clear token for best-effort remote revoke,
+            # while the status/version change makes every stale refresh
+            # completion CAS match zero rows.
+            revoke_snapshot = dict(row)
             await self.db.update(
                 'agent_connections',
                 {
@@ -766,8 +774,13 @@ class GoogleConnector:
                     'access_token_ciphertext': '',
                     'refresh_token_ciphertext': '',
                     'token_expires_at': None,
+                    'updated_at': datetime.now(timezone.utc).isoformat(),
                 },
                 filters={'id': eq(row['id'])},
+            )
+            outcome = await self._revoke_stored_token(revoke_snapshot)
+            revocations.append(
+                {'email': str(row.get('account_email') or ''), **outcome}
             )
         status = await self.status(user_id)
         status['revocations'] = revocations
@@ -829,26 +842,26 @@ class GoogleConnector:
     async def _reload_connection(
         self, connection: dict[str, Any]
     ) -> dict[str, Any]:
-        """Re-read a connection row by id, falling back to the given row."""
+        """Re-read a connection row by id and fail closed if it vanished."""
         connection_id = str(connection.get('id') or '')
         if self.db is None or not connection_id:
             return connection
-        try:
-            if hasattr(self.db, 'select_one'):
-                row = await self.db.select_one(
-                    'agent_connections', filters={'id': eq(connection_id)}
-                )
-                if isinstance(row, dict) and row:
-                    return row
+        if hasattr(self.db, 'select_one'):
+            row = await self.db.select_one(
+                'agent_connections', filters={'id': eq(connection_id)}
+            )
+            if isinstance(row, dict) and row:
+                return row
+        else:
             rows = await self.list_connections(
                 str(connection.get('user_id') or '')
             )
             for row in rows:
                 if str(row.get('id') or '') == connection_id:
                     return row
-        except Exception:
-            return connection
-        return connection
+        raise ConnectionRequiredError(
+            'The Google account selected for this run is not connected.'
+        )
 
     async def _exchange_refresh_token(self, refresh_token: str) -> dict[str, Any]:
         """Exchange a refresh token at Google's token endpoint.
@@ -904,14 +917,14 @@ class GoogleConnector:
     ) -> tuple[dict[str, Any], str]:
         """Return the bound connection's token, refreshing it if expired.
 
-        A token with time left is returned with no token-endpoint
-        call. An expired token is refreshed under a per-connection
-        lock; after the lock is taken the stored row is re-read, so
-        concurrent callers share one exchange and later callers reuse
-        the token the first one persisted. Refreshed tokens are
-        persisted through the vault in the existing stored format —
-        the rotated refresh token when Google returns one, the stored
-        refresh token otherwise.
+        A token with time left is returned with no token-endpoint call.
+        An expired token is refreshed under both a local optimization
+        lock and a durable compare-and-swap lease on ``updated_at``.
+        The latter is the correctness boundary across request-scoped
+        connector instances: one caller exchanges, all others poll and
+        reuse its stored result. Refresh completion is fenced by both
+        the connected status and the exact lease generation. Refreshed
+        tokens retain the current context-bound vault format.
         """
         if not _token_needs_refresh(connection):
             return connection, self.vault.decrypt(
@@ -925,52 +938,145 @@ class GoogleConnector:
         )
         lock = self._refresh_locks.setdefault(lock_key, asyncio.Lock())
         async with lock:
-            current = await self._reload_connection(connection)
-            if str(current.get('status') or '') != 'connected':
-                raise ConnectionRequiredError(
-                    'The Google account selected for this run is not connected.'
+            while True:
+                current = await self._reload_connection(connection)
+                if str(current.get('status') or '') != 'connected':
+                    raise ConnectionRequiredError(
+                        'The Google account selected for this run is not connected.'
+                    )
+                if not _token_needs_refresh(current):
+                    return current, self.vault.decrypt(
+                        str(current.get('access_token_ciphertext') or ''),
+                        **self._vault_context(current),
+                    )
+
+                # A future generation is a live durable lease. Wait for
+                # its owner to publish the refreshed row, or reclaim it
+                # after the bounded lease expires (crash recovery).
+                now = datetime.now(timezone.utc)
+                lease_deadline = _parse_token_expiry(current.get('updated_at'))
+                if lease_deadline is not None and lease_deadline > now:
+                    await asyncio.sleep(
+                        min(
+                            TOKEN_REFRESH_POLL_SECONDS,
+                            max((lease_deadline - now).total_seconds(), 0.0),
+                        )
+                    )
+                    continue
+
+                if self.db is None or not current.get('id'):
+                    raise ConnectionRequiredError(
+                        'Your Google connection has expired. Reconnect Google.'
+                    )
+                observed_generation = current.get('updated_at')
+                if not observed_generation:
+                    raise ConnectionRequiredError(
+                        'Your Google connection has expired. Reconnect Google.'
+                    )
+                requested_lease = (
+                    now + timedelta(seconds=TOKEN_REFRESH_LEASE_SECONDS)
+                ).isoformat()
+                claimed_rows = await self.db.update(
+                    'agent_connections',
+                    {'updated_at': requested_lease},
+                    filters={
+                        'id': eq(current['id']),
+                        'status': eq('connected'),
+                        'updated_at': eq(observed_generation),
+                    },
                 )
-            if not _token_needs_refresh(current):
-                return current, self.vault.decrypt(
-                    str(current.get('access_token_ciphertext') or ''),
-                    **self._vault_context(current),
+                if not isinstance(claimed_rows, list) or not claimed_rows:
+                    await asyncio.sleep(TOKEN_REFRESH_POLL_SECONDS)
+                    continue
+                claimed = claimed_rows[0]
+                lease_generation = claimed.get('updated_at') or requested_lease
+
+                refresh_token = self.vault.decrypt(
+                    str(claimed.get('refresh_token_ciphertext') or ''),
+                    **self._vault_context(claimed),
                 )
-            refresh_token = self.vault.decrypt(
-                str(current.get('refresh_token_ciphertext') or ''),
-                **self._vault_context(current),
-            )
-            if not refresh_token:
-                raise ConnectionRequiredError(
-                    'Your Google connection has expired. Reconnect Google.'
+                if not refresh_token:
+                    await self.db.update(
+                        'agent_connections',
+                        {'updated_at': datetime.now(timezone.utc).isoformat()},
+                        filters={
+                            'id': eq(claimed['id']),
+                            'status': eq('connected'),
+                            'updated_at': eq(lease_generation),
+                        },
+                    )
+                    raise ConnectionRequiredError(
+                        'Your Google connection has expired. Reconnect Google.'
+                    )
+
+                try:
+                    payload = await self._exchange_refresh_token(refresh_token)
+                except Exception:
+                    # Release a still-owned lease promptly after an
+                    # ordinary failure. Cancellation/process death may
+                    # skip this; the deadline is the recovery path.
+                    try:
+                        await self.db.update(
+                            'agent_connections',
+                            {'updated_at': datetime.now(timezone.utc).isoformat()},
+                            filters={
+                                'id': eq(claimed['id']),
+                                'status': eq('connected'),
+                                'updated_at': eq(lease_generation),
+                            },
+                        )
+                    except Exception:
+                        logger.warning(
+                            'Could not release Google refresh lease for connection %s',
+                            claimed.get('id'),
+                        )
+                    raise
+
+                access_token = str(payload.get('access_token') or '')
+                try:
+                    expires_in = int(payload.get('expires_in') or 3600)
+                except (TypeError, ValueError):
+                    expires_in = 3600
+                expires_at = datetime.now(timezone.utc) + timedelta(
+                    seconds=expires_in
                 )
-            payload = await self._exchange_refresh_token(refresh_token)
-            access_token = str(payload.get('access_token') or '')
-            try:
-                expires_in = int(payload.get('expires_in') or 3600)
-            except (TypeError, ValueError):
-                expires_in = 3600
-            expires_at = datetime.now(timezone.utc) + timedelta(
-                seconds=expires_in
-            )
-            rotated_refresh = str(payload.get('refresh_token') or '')
-            update: dict[str, Any] = {
-                'access_token_ciphertext': self.vault.encrypt(
-                    access_token, **self._vault_context(current)
-                ),
-                'token_expires_at': expires_at.isoformat(),
-            }
-            if rotated_refresh:
-                update['refresh_token_ciphertext'] = self.vault.encrypt(
-                    rotated_refresh, **self._vault_context(current)
-                )
-            if self.db is not None and current.get('id'):
-                await self.db.update(
+                rotated_refresh = str(payload.get('refresh_token') or '')
+                update: dict[str, Any] = {
+                    'access_token_ciphertext': self.vault.encrypt(
+                        access_token, **self._vault_context(claimed)
+                    ),
+                    'token_expires_at': expires_at.isoformat(),
+                    'updated_at': datetime.now(timezone.utc).isoformat(),
+                }
+                if rotated_refresh:
+                    update['refresh_token_ciphertext'] = self.vault.encrypt(
+                        rotated_refresh, **self._vault_context(claimed)
+                    )
+                persisted_rows = await self.db.update(
                     'agent_connections',
                     update,
-                    filters={'id': eq(current['id'])},
+                    filters={
+                        'id': eq(claimed['id']),
+                        'status': eq('connected'),
+                        'updated_at': eq(lease_generation),
+                    },
                 )
-            refreshed = {**current, **update}
-            return refreshed, access_token
+                if not isinstance(persisted_rows, list) or not persisted_rows:
+                    # Disconnect/reconnect/lease takeover won the
+                    # lifecycle race. The provider token is discarded.
+                    raise ConnectionRequiredError(
+                        'The Google account selected for this run is not connected.'
+                    )
+                refreshed = persisted_rows[0]
+                stored_token = self.vault.decrypt(
+                    str(refreshed.get('access_token_ciphertext') or ''),
+                    **self._vault_context(refreshed),
+                )
+                if not stored_token:
+                    raise ConnectionRequiredError(
+                        'Your Google connection has expired. Reconnect Google.'
+                    )
+                return refreshed, stored_token
 
     async def bound_access_token(
         self,
