@@ -11,8 +11,9 @@
     // real shapes so the fixture can sit in either Google state:
     // ?state=planned renders the not-connected brief (slim notice, local
     // counts only), ?state=live renders the connected brief card from
-    // the brief payload. Both states carry three pending approvals (one
-    // with a long recipient list) and one live browser run.
+    // the brief payload. Both states carry four pending approvals (two
+    // with long recipient lists and long subjects) and one live
+    // browser run.
     // ?theme=dark|light picks the appearance ground the layer lands on.
     (function () {
       var params = new URLSearchParams(location.search);
@@ -77,6 +78,23 @@
             body: 'Sharing the planning notes from this morning.',
           },
           creditCost: null, status: 'pending', expiresAt: null, createdAt: '2026-11-10T14:10:00Z',
+        },
+        {
+          id: 'approval-4', runId: 'run-approval-4', capabilityId: 'gmail.send',
+          summary: 'Send an email — Send an email to',
+          payload: {
+            to: [
+              'alexandria.longaddress@some-company-example.com',
+              'bartholomew.longaddress@some-company-example.com',
+              'christopher.longaddress@some-company-example.com',
+              'dorothea.longaddress@some-company-example.com',
+              'evangeline.longaddress@some-company-example.com',
+              'frederick.longaddress@some-company-example.com',
+            ],
+            subject: 'Quarterly planning notes and next steps for the full launch team review',
+            body: 'Sharing the planning notes from this morning, with the launch checklist attached for the whole team.',
+          },
+          creditCost: null, status: 'pending', expiresAt: null, createdAt: '2026-11-10T14:15:00Z',
         },
       ];
       var runs = [
@@ -192,7 +210,7 @@
   <link rel="stylesheet" href="/public/crump-v1-body.css?v=agent-today-placeholder-fixture-1">
   <link rel="stylesheet" href="/public/crump-vision-shell-1.0.css?v=agent-today-placeholder-fixture-1">
   <link rel="stylesheet" href="/public/crump-design-pass.css?v=agent-today-placeholder-fixture-1">
-  <link rel="stylesheet" href="/public/crump-agent-today-1.0.css?v=5.9.76-agent-today-10">
+  <link rel="stylesheet" href="/public/crump-agent-today-1.0.css?v=5.9.76-agent-today-11">
   <style>
     html, body { height: 100%; }
     .v1-workspace { height: 100vh; }
@@ -218,6 +236,6 @@
       </main>
     </div>
   </div>
-  <script src="/public/crump-agent-today-1.0.js?v=5.9.76-agent-today-10"></script>
+  <script src="/public/crump-agent-today-1.0.js?v=5.9.76-agent-today-11"></script>
 </body>
 </html>
