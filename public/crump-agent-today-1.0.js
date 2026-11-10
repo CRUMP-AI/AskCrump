@@ -508,22 +508,18 @@
     var briefArea = h('section', 'cat-today-section cat-brief-area');
     briefArea.setAttribute('aria-label', 'Your brief');
     if (googleBriefIsPlanned()) {
-      var connect = h('article', 'cat-card cat-connect');
-      connect.appendChild(h('h3', 'cat-card-title', 'Your brief is almost ready'));
-      connect.appendChild(h('p', 'cat-card-summary',
-        'Connect Google to unlock your brief — your email and calendar, read-only to start, ' +
-        'summarized here each morning. No brief is shown until the connection is real.'));
-      var connectActions = h('div', 'cat-actions');
-      var connectNote = h('p', 'cat-card-note', '');
+      var connect = h('div', 'cat-connect-notice');
+      connect.appendChild(h('p', 'cat-connect-text',
+        'Connect Google for your brief — email and calendar, read-only.'));
+      var connectNote = h('p', 'cat-connect-note', '');
       connectNote.hidden = true;
-      var connectBtn = button('Connect Google', 'cat-btn cat-btn-primary', function () {
-        connectNote.textContent = 'Connecting Google is the next step — this card turns into your brief as soon as it lands.';
+      var connectBtn = button('Connect Google', 'cat-connect-btn', function () {
+        connectNote.textContent = 'Connecting Google is the next step — this notice turns into your brief as soon as it lands.';
         connectNote.hidden = false;
       });
-      connectActions.appendChild(connectBtn);
-      connect.appendChild(connectActions);
-      connect.appendChild(connectNote);
+      connect.appendChild(connectBtn);
       briefArea.appendChild(connect);
+      briefArea.appendChild(connectNote);
       node.appendChild(briefArea);
     } else if (!state.approvals.length && !live.length && !waiting.length) {
       briefArea.appendChild(h('p', 'cat-empty',

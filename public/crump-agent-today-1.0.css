@@ -331,48 +331,59 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
   vertical-align: middle;
 }
 
-/* The not-connected brief placeholder is a quiet note on the ink
-   surface, not a light slab: a compact raised panel, capped well below
-   the Today column width, with gold kept to the hairline and the one
-   action. Its text is off-white and dimmed paper on ink, sized to wrap
-   inside the panel at any width. */
-.cat-connect {
-  max-width: 600px;
+/* The not-connected brief state is a slim notice in the flow of the
+   brief area, not a card: no panel fill, no border box, no overlay —
+   one short line of quiet text on the ink ground and one small gold
+   action beside it. It takes a small fraction of the viewport height
+   and pushes the hero down like any other in-flow content. */
+.cat-connect-notice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   min-width: 0;
-  padding: 16px 18px;
-  background: var(--cat-panel);
-  border: 1px solid rgba(213, 185, 113, 0.42);
-  border-radius: 16px;
+  padding: 10px 2px;
   color: var(--cat-paper);
 }
 
-.cat-connect .cat-card-title {
-  font-size: 17px;
-  color: var(--cat-paper);
-}
-
-.cat-connect .cat-card-summary {
+.cat-connect-text {
+  margin: 0;
+  flex: 1 1 auto;
+  min-width: 0;
   font-size: 13.5px;
+  line-height: 1.5;
   color: var(--cat-paper-dim);
-  max-width: 52ch;
+  overflow-wrap: anywhere;
 }
 
-.cat-connect .cat-actions {
-  margin-top: 12px;
+.cat-connect-btn {
+  appearance: none;
+  flex: none;
+  border: 1px solid rgba(213, 185, 113, 0.55);
+  background: transparent;
+  color: var(--cat-gold-bright);
+  border-radius: 999px;
+  min-height: 40px;
+  max-width: 100%;
+  padding: 8px 16px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
 }
 
-.cat-connect .cat-btn-primary {
-  background: var(--cat-gold-bright);
+.cat-connect-btn:hover {
   border-color: var(--cat-gold-bright);
-  color: var(--cat-ink);
 }
 
-.cat-connect .cat-btn-primary:hover {
-  background: var(--cat-gold);
-  border-color: var(--cat-gold);
+.cat-connect-btn:focus-visible {
+  outline: 2px solid var(--cat-gold);
+  outline-offset: 2px;
 }
 
-.cat-connect .cat-card-note {
+.cat-connect-note {
+  margin: 8px 2px 0;
+  font-size: 12.5px;
+  line-height: 1.5;
   color: var(--cat-paper-dim);
 }
 
@@ -734,6 +745,15 @@ body.crump-v1-body .v1-workspace-body:has(> .cat-today:not([hidden])) > .v1-laun
 @media (max-width: 360px) {
   .cat-actions .cat-btn {
     flex: 1 1 auto;
+  }
+
+  /* On the narrowest screens the notice stacks: the text keeps the
+     full width instead of squeezing into the space beside the action,
+     so it stays at two lines and the notice stays slim. */
+  .cat-connect-notice {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
   }
 
   .cat-payload-row {
