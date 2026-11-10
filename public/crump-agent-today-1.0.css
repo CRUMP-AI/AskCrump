@@ -751,15 +751,6 @@ body.crump-v1-body .v1-workspace-body:has(> .cat-today:not([hidden])) > .v1-laun
   display: none !important;
 }
 
-.cat-approval-queue-extra {
-  display: grid;
-  gap: 12px;
-}
-
-.cat-approval-queue-extra[hidden] {
-  display: none !important;
-}
-
 .cat-queue-row {
   appearance: none;
   width: 100%;

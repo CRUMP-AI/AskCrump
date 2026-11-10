@@ -728,25 +728,18 @@
       var waitStack = h('div', 'cat-today-stack');
       // One approval is visible at a time, in a fixed position: the
       // first pending approval renders as the full card, and any others
-      // wait behind a single quiet queue row whose count is the real
-      // remaining count — the same pending list the brief counts.
+      // sit behind a single quiet count row — the real remaining count
+      // from the same pending list the brief counts — that opens the
+      // Tasks panel, where every pending approval renders in full.
       if (state.approvals.length) {
         waitStack.appendChild(approvalCard(state.approvals[0]));
         if (state.approvals.length > 1) {
-          var rest = state.approvals.slice(1);
-          var queueExtra = h('div', 'cat-approval-queue-extra');
-          queueExtra.hidden = true;
-          rest.forEach(function (action) { queueExtra.appendChild(approvalCard(action)); });
-          var queueRow = button(rest.length + ' more waiting', 'cat-queue-row');
-          queueRow.setAttribute('aria-expanded', 'false');
-          queueRow.addEventListener('click', function () {
-            var open = queueExtra.hidden;
-            queueExtra.hidden = !open;
-            queueRow.textContent = open ? 'Show less' : rest.length + ' more waiting';
-            queueRow.setAttribute('aria-expanded', open ? 'true' : 'false');
-          });
+          var moreCount = state.approvals.length - 1;
+          var queueRow = button('+' + moreCount + ' more waiting', 'cat-queue-row');
+          queueRow.setAttribute('aria-label',
+            moreCount + ' more approvals waiting — open Tasks');
+          queueRow.addEventListener('click', function () { openTasks(); });
           waitStack.appendChild(queueRow);
-          waitStack.appendChild(queueExtra);
         }
       }
       waiting.forEach(function (run) { waitStack.appendChild(runCard(run)); });

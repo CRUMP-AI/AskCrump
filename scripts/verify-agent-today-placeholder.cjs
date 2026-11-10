@@ -219,7 +219,7 @@ function assertReorgStatics(m, label, state) {
   // the header line cites the same pending total.
   assert.equal(m.waitCardCount, 1, `${label}: visible approval cards ${m.waitCardCount}`);
   assert.equal(m.queueRowVisible, true, `${label}: queue row missing`);
-  assert.equal(m.queueRowText, '2 more waiting', `${label}: queue row text "${m.queueRowText}"`);
+  assert.equal(m.queueRowText, '+2 more waiting', `${label}: queue row text "${m.queueRowText}"`);
   assert.match(m.subText, /3 things need your call/, `${label}: header count "${m.subText}"`);
   // The card leads with the exact action from the frozen payload, the
   // frozen payload itself starts collapsed behind the detail toggle,
@@ -354,8 +354,8 @@ async function run() {
     }
 
     // Interactions, once per theme x brief state at the phone viewport:
-    // the queue row expands the remaining approvals in place and
-    // collapses back, and the detail toggle opens the frozen payload.
+    // the count row opens the Tasks panel with every pending approval
+    // rendered in full, and the detail toggle opens the frozen payload.
     for (const theme of THEMES) {
       for (const state of STATES) {
         const label = `${theme}/${state} interactions @ 390x844`;
@@ -364,26 +364,39 @@ async function run() {
         await page.waitForSelector('.cat-queue-row', { timeout: 8000 });
         await page.waitForTimeout(150);
         await page.click('.cat-queue-row');
-        await page.waitForTimeout(80);
-        let m = await measureReorg(page);
-        assert.equal(m.waitCardCount, 3, `${label}: expanded approval cards ${m.waitCardCount}`);
+        await page.waitForSelector('#catTasksPanel.is-open', { timeout: 8000 });
+        await page.waitForTimeout(120);
+        const panel = await page.evaluate(() => {
+          const panelEl = document.querySelector('#catTasksPanel');
+          const cards = panelEl ? [...panelEl.querySelectorAll('.cat-card')] : [];
+          const exacts = cards.map(card => {
+            const exact = card.querySelector('.cat-card-exact');
+            return exact
+              ? { scroll: exact.scrollWidth, client: exact.clientWidth, text: exact.textContent }
+              : null;
+          });
+          return { hidden: panelEl ? panelEl.hidden : true, cardCount: cards.length, exacts };
+        });
+        assert.equal(panel.hidden, false, `${label}: Tasks panel did not open`);
+        assert.equal(panel.cardCount, 3, `${label}: Tasks panel approval cards ${panel.cardCount}`);
         // The long recipient list on the third card wraps without
         // overflowing its card at phone width.
-        const thirdExact = await page.evaluate(() => {
-          const cards = [...document.querySelectorAll('section[aria-label="Waiting on you"] .cat-card')];
-          const exact = cards[2] ? cards[2].querySelector('.cat-card-exact') : null;
-          return exact ? { scroll: exact.scrollWidth, client: exact.clientWidth, text: exact.textContent } : null;
-        });
-        assert.ok(thirdExact, `${label}: third approval card missing after expand`);
+        const thirdExact = panel.exacts[2];
+        assert.ok(thirdExact, `${label}: third approval card missing in Tasks panel`);
         assert.match(thirdExact.text, /alexandria\.longaddress/, `${label}: long summary "${thirdExact.text}"`);
         assert.ok(thirdExact.scroll <= thirdExact.client + 1,
           `${label}: long summary clipped ${thirdExact.scroll} > ${thirdExact.client}`);
-        await page.click('.cat-queue-row');
-        await page.waitForTimeout(80);
-        m = await measureReorg(page);
-        assert.equal(m.waitCardCount, 1, `${label}: collapsed approval cards ${m.waitCardCount}`);
-        assert.equal(m.queueRowText, '2 more waiting', `${label}: queue row after collapse`);
-        await page.click('.cat-detail-toggle');
+        await page.click('#catTasksPanel [aria-label="Close Tasks"]');
+        await page.waitForTimeout(120);
+        const panelClosed = await page.evaluate(() => {
+          const panelEl = document.querySelector('#catTasksPanel');
+          return panelEl ? panelEl.hidden : true;
+        });
+        assert.equal(panelClosed, true, `${label}: Tasks panel did not close`);
+        let m = await measureReorg(page);
+        assert.equal(m.waitCardCount, 1, `${label}: Today approval cards after Tasks ${m.waitCardCount}`);
+        assert.equal(m.queueRowText, '+2 more waiting', `${label}: queue row after Tasks`);
+        await page.click('.cat-today .cat-detail-toggle');
         await page.waitForTimeout(80);
         m = await measureReorg(page);
         assert.equal(m.detailVisible, true, `${label}: detail did not expand`);

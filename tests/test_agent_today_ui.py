@@ -148,11 +148,15 @@ def test_today_reads_connection_status_and_brief_from_their_endpoints():
 def test_waiting_section_shows_one_approval_with_a_counted_queue():
     js = read('public/crump-agent-today-1.0.js')
     # Only the first pending approval renders as the full card; the
-    # rest wait behind one queue row carrying the real remaining count.
+    # rest sit behind one count row carrying the real remaining count
+    # (approvals length minus one), and the row opens the Tasks panel,
+    # where every pending approval renders in full.
     assert 'approvalCard(state.approvals[0])' in js
+    assert 'state.approvals.length - 1' in js
     assert "' more waiting'" in js
-    assert 'cat-approval-queue-extra' in js
-    assert 'Show less' in js
+    assert 'cat-queue-row' in js
+    assert "queueRow.addEventListener('click', function () { openTasks(); })" in js
+    assert 'cat-approval-queue-extra' not in js
 
 
 def test_approval_card_leads_with_the_exact_action_and_collapsed_detail():
