@@ -1,0 +1,798 @@
+<!doctype html>
+<html lang="en" data-cv-shell="ready">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Full-surface contrast fixture</title>
+  <link rel="icon" href="data:,">
+  <script>
+    (() => {
+      const theme = new URL(window.location.href).searchParams.get('theme') === 'dark' ? 'dark' : 'light';
+      document.documentElement.dataset.theme = theme;
+      try { window.localStorage.setItem('askcrump.appearance', theme); } catch (error) {}
+    })();
+  </script>
+  <link rel="stylesheet" href="/public/styles.css?v=5.9.76">
+  <link rel="stylesheet" href="/public/install-prompt.css?v=5.9.76">
+  <link rel="stylesheet" href="/public/auth-styles.css?v=5.9.76-guest-free-contract-2">
+  <link rel="stylesheet" href="/public/crump-v1-body.css?v=5.9.76-owned-workspace-access-2">
+  <link rel="stylesheet" href="/public/appearance-controls.css?v=5.9.76-appearance-choice-3">
+  <link rel="stylesheet" href="/public/crump-vision-shell-1.0.css?v=5.9.76-shell-truth-1">
+  <link rel="stylesheet" href="/public/crump-vision-chats-1.0.css?v=5.9.76-chats-1">
+  <link rel="stylesheet" href="/public/crump-vision-projects-1.0.css?v=5.9.76-vision-projects-1">
+  <link rel="stylesheet" href="/public/crump-vision-library-1.0.css?v=5.9.76-vision-library-1">
+  <link rel="stylesheet" href="/public/crump-vision-studios-1.0.css?v=5.9.76-vision-studios-1">
+  <link rel="stylesheet" href="/public/crump-agent-today-1.0.css?v=5.9.76-agent-today-6">
+  <link rel="stylesheet" href="/public/billing.css?v=5.9.76">
+  <link rel="stylesheet" href="/public/onboarding.css?v=5.9.76-friendly-workspace-1">
+  <link rel="stylesheet" href="/public/conversation.css?v=5.9.76-muse-release-repair-1">
+  <link rel="stylesheet" href="/public/crump-4.3.css?v=5.9.76">
+  <link rel="stylesheet" href="/public/crump-4.4.css?v=5.9.76">
+  <link rel="stylesheet" href="/public/crump-5.0.css?v=5.9.76">
+  <link rel="stylesheet" href="/public/crump-billing-5.1.css?v=5.9.76-credit-balance-3">
+  <link rel="stylesheet" href="/public/crump-5.2.css?v=5.9.76-credit-confirmation-1">
+  <link rel="stylesheet" href="/public/crump-5.2.2.css?v=5.9.76">
+  <link rel="stylesheet" href="/public/credit-confirmation.css?v=5.9.76-credit-confirmation-1">
+  <link rel="stylesheet" href="/public/lifecycle.css?v=5.9.76-lifecycle-activation-2">
+  <link rel="stylesheet" href="/public/crump-navigation-5.2.5.css?v=5.9.76">
+  <link rel="stylesheet" href="/public/crump-product-5.3.1.css?v=5.9.76">
+  <link rel="stylesheet" href="/public/crump-polish-5.6.css?v=5.9.76-signin-help-1">
+  <link rel="stylesheet" href="/public/crump-v1-stability.css?v=5.9.76">
+  <link rel="stylesheet" href="/public/crump-navigation-5.9.30.css?v=5.9.76-navigation-truth-1">
+  <link rel="stylesheet" href="/public/crump-design-pass.css?v=5.9.76-contrast-sweep-1">
+  <link rel="stylesheet" href="/public/crump-activity-center-1.0.css?v=5.9.76-autonomous-continuity-1">
+  <link rel="stylesheet" href="/public/crump-ui-guardrails.css?v=5.9.76-mobile-nav-apple-polish-1">
+  <link rel="stylesheet" href="/public/crump-motion-system.css?v=5.9.76-mobile-nav-apple-polish-1">
+  <link rel="stylesheet" href="/public/crump-product-5.3.css?v=5.9.76-product-truth-1">
+  <link rel="stylesheet" href="/public/crump-library-5.7.css?v=5.9.76-library-truth-1">
+  <link rel="stylesheet" href="/public/crump-code-5.9.35.css?v=5.9.76-code-truth-1">
+  <link rel="stylesheet" href="/public/crump-precision-image-edit.css?v=5.9.76-precision-1">
+</head>
+<body class="crump-v1-body cv-conversations-open cv-more-open">
+  <!-- App shell rail (crump-vision-shell) -->
+  <nav class="v1-rail cv-rail" aria-label="Workspace">
+    <div class="cv-rail-inner">
+      <div class="cv-rail-brand">
+        <span class="cv-rail-brand-mark">C</span>
+        <span class="cv-rail-brand-copy"><strong>Ask Crump</strong><small>Workspace</small></span>
+      </div>
+      <nav class="cv-rail-nav" aria-label="Workspace destinations">
+        <button type="button" class="cv-destination is-active" data-cv-destination="today"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/></svg><span>Today</span><small>Brief</small></button>
+        <button type="button" class="cv-destination" data-cv-destination="chats"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16"/></svg><span>Chats</span><small>History</small></button>
+        <button type="button" class="cv-destination" data-cv-destination="projects"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16"/></svg><span>Projects</span><small>Work</small></button>
+      </nav>
+      <div class="cv-rail-utility">
+        <button class="v1-rail-button is-active" type="button"><span>Home</span></button>
+        <button class="v1-rail-button" type="button"><span>Files</span></button>
+      </div>
+      <div class="cv-rail-foot"><p class="cv-rail-microcopy">Built in Savannah</p></div>
+    </div>
+  </nav>
+
+  <!-- Conversation sidebar (app shell) -->
+  <aside id="sidebar" class="sidebar v1-library" aria-label="Chats">
+    <div class="sidebar-header v1-library-header">
+      <div class="sidebar-branding"><img src="/assets/brand/crump-shell-lockup-light.webp?v=5.9.76-shell-no-tagline-1" width="1200" height="300" alt="Ask Crump" class="v1-library-logo"></div>
+      <button type="button" class="btn-icon v1-library-close" aria-label="Close Chats">×</button>
+    </div>
+    <div class="sidebar-actions v1-library-actions">
+      <button id="newChatBtn" type="button" class="v1-new-conversation"><span>New conversation</span><kbd>⇧⌘N</kbd></button>
+      <button id="clearChatsBtn" class="v1-clear-conversations" type="button">Clear all</button>
+    </div>
+    <div class="sidebar-section v1-library-list">
+      <div class="v1-library-section-head">
+        <span class="section-title">Conversations</span>
+        <span class="v1-library-hint">Synced</span>
+      </div>
+      <div class="chats-list">
+        <div class="chat-item is-active"><div class="chat-item-content"><span class="chat-item-title">Launch plan review</span><span class="chat-item-date">Today</span></div></div>
+        <div class="chat-item"><div class="chat-item-content"><span class="chat-item-title">Resume polish</span><span class="chat-item-date">Yesterday</span></div></div>
+      </div>
+    </div>
+    <div class="sidebar-footer v1-library-footer">
+      <button class="sidebar-footer-btn" type="button"><span>Settings</span></button>
+      <button class="sidebar-footer-btn" type="button"><span>Plan &amp; credits</span><span class="billing51-sidebar-balance">$4.20</span></button>
+      <a href="#today" class="sidebar-footer-btn sidebar-footer-link"><span>Legal &amp; Privacy</span></a>
+      <div class="v1-library-status"><span class="v1-status-dot"></span><span>Account sync</span></div>
+    </div>
+  </aside>
+  <div id="sidebarOverlay" class="sidebar-overlay"></div>
+
+  <!-- Mobile navigation and More sheet -->
+  <nav class="cv-mnav" aria-label="Mobile">
+    <button class="cv-mnav-item is-active" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/></svg><span>Today</span></button>
+    <button class="cv-mnav-item" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16"/></svg><span>Chats</span></button>
+    <button class="cv-mnav-item" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16"/></svg><span>More</span></button>
+  </nav>
+  <div class="cv-more-backdrop"></div>
+  <section class="cv-more-sheet" aria-label="More">
+    <div class="cv-more-head">
+      <div><p>Workspace</p><h2>More</h2></div>
+      <button class="cv-more-close" type="button" aria-label="Close">×</button>
+    </div>
+    <div class="cv-more-list">
+      <button class="cv-more-item" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/></svg><span>Profile</span><small>Account</small></button>
+      <button class="cv-more-item" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="4" y="4" width="16" height="16"/></svg><span>Billing</span><small>Pro</small></button>
+    </div>
+  </section>
+
+  <main class="main-content v1-workspace">
+    <header class="header v1-workspace-header">
+      <div class="header-branding v1-header-branding"><span>Ask Crump</span></div>
+      <div class="v1-workspace-context"><span>WORKSPACE</span><strong>New conversation</strong></div>
+      <div class="connection-status" role="status">Connected</div>
+    </header>
+
+    <!-- Launchpad / home (app.html structure) -->
+    <section class="v1-launchpad" aria-label="Start something">
+      <div class="v1-launchpad-intro">
+        <div class="v1-launchpad-greeting">Good evening.</div>
+        <h1>What can I help you get done?</h1>
+        <p>Start with a question, continue meaningful work, or make something worth keeping.</p>
+      </div>
+      <div class="v1-starter-chips" role="group" aria-label="Conversation starters">
+        <button type="button" class="v1-starter-chip">Pick up where we left off</button>
+        <button type="button" class="v1-starter-chip">Think through a decision</button>
+      </div>
+      <div class="v1-profile-nudge" role="region" aria-label="Optional profile setup">
+        <div class="v1-profile-nudge-copy">
+          <span>OPTIONAL</span>
+          <strong>Make the workspace yours.</strong>
+          <small>Add your name for personalized greetings. You can change it anytime in Settings.</small>
+        </div>
+        <div class="v1-profile-nudge-actions">
+          <button type="button">Add your name</button>
+          <button type="button">Not now</button>
+        </div>
+      </div>
+      <div class="v1-recent-work">
+        <span class="v1-recent-work-label">CONTINUE</span>
+        <button type="button" class="v1-recent-work-button">
+          <span class="v1-recent-work-icon" aria-hidden="true">↻</span>
+          <span><strong>Continue recent work</strong><small>Open your most recent active conversation.</small></span>
+          <b aria-hidden="true">↗</b>
+        </button>
+      </div>
+      <p class="v1-launchpad-actions-label">Ways to begin</p>
+      <div class="v1-launchpad-grid">
+        <button type="button" class="v1-launch-card v1-launch-card-primary">
+          <span class="v1-launch-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16"/></svg></span>
+          <span><strong>Open a Project</strong><small>Continue with its context, conversations, and files intact.</small></span>
+          <b aria-hidden="true">↗</b>
+        </button>
+        <button type="button" class="v1-launch-card">
+          <span class="v1-launch-icon" aria-hidden="true"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16"/></svg></span>
+          <span><strong>Create a document</strong><small>Draft an editable Word, PDF, presentation, spreadsheet, or text file.</small></span>
+          <b aria-hidden="true">↗</b>
+        </button>
+      </div>
+      <article class="crump-lifecycle-card is-visible">
+        <span class="crump-lifecycle-mark">C</span>
+        <div class="crump-lifecycle-copy">
+          <span>Your first week</span>
+          <strong>Make Crump yours</strong>
+          <p>Connect your calendar to unlock the morning brief.</p>
+        </div>
+        <div class="crump-lifecycle-actions">
+          <button class="crump-lifecycle-primary" type="button">Connect calendar</button>
+          <button type="button">Later</button>
+        </div>
+      </article>
+    </section>
+
+    <!-- Today, connected brief state (crump-agent-today) -->
+    <section class="cat-today" aria-label="Today">
+      <header class="cat-today-head">
+        <p class="cat-today-eyebrow">Today</p>
+        <h2 class="cat-today-title">Your brief</h2>
+        <p class="cat-today-sub">Connected and current.</p>
+      </header>
+      <div class="cat-today-stack">
+        <div class="cat-today-section">
+          <h3 class="cat-today-section-title">Needs you</h3>
+          <article class="cat-card">
+            <div class="cat-card-head"><span>Approval</span><time>9:41 AM</time></div>
+            <h3 class="cat-card-title">Send the launch update?</h3>
+            <p class="cat-card-summary">The draft is ready to go to the team list.</p>
+            <dl class="cat-payload">
+              <div class="cat-payload-row"><dt>To</dt><dd>team@example.com</dd></div>
+              <div class="cat-payload-row"><dt>Subject</dt><dd>Launch update</dd></div>
+            </dl>
+            <p class="cat-card-meta">Prepared from your Gmail draft.</p>
+            <span class="cat-status cat-status-waiting">Waiting for you</span>
+            <div class="cat-actions">
+              <button class="cat-btn cat-btn-primary" type="button">Approve &amp; send</button>
+              <button class="cat-btn" type="button">Not now</button>
+            </div>
+          </article>
+        </div>
+        <div class="cat-today-section">
+          <h3 class="cat-today-section-title">Happening</h3>
+          <article class="cat-card">
+            <div class="cat-card-head"><span>Brief</span><time>8:00 AM</time></div>
+            <h3 class="cat-card-title">Morning brief</h3>
+            <p class="cat-card-summary">Two meetings, one deadline, no conflicts.</p>
+            <span class="cat-status cat-status-done">Done</span>
+          </article>
+          <article class="cat-card">
+            <div class="cat-card-head"><span>Run</span><time>Now</time></div>
+            <h3 class="cat-card-title">Inbox triage</h3>
+            <p class="cat-card-summary">Sorting 24 messages into projects.</p>
+            <span class="cat-status cat-status-live">Running</span>
+            <p class="cat-card-note">Working in the background.</p>
+          </article>
+          <article class="cat-card">
+            <div class="cat-card-head"><span>Artifact</span><time>Yesterday</time></div>
+            <h3 class="cat-card-title">Launch plan.docx</h3>
+            <p class="cat-card-summary">Finished document, ready to share.</p>
+            <span class="cat-status cat-status-failed">Needs attention</span>
+            <p class="cat-card-note cat-card-note-error">The export needs a retry.</p>
+          </article>
+          <div class="cat-connect">
+            <h3>Connect your email</h3>
+            <p>Briefs get sharper with your inbox connected.</p>
+            <button class="cat-btn cat-btn-primary" type="button">Connect Gmail</button>
+          </div>
+          <div class="cat-empty">
+            <h3>Nothing else needs you</h3>
+            <p>New briefs land here as your day moves.</p>
+          </div>
+        </div>
+      </div>
+      <div class="cat-overlay"></div>
+      <section class="cat-drawer" aria-label="Tasks">
+        <div class="cat-drawer-head">
+          <h2 class="cat-drawer-title">Tasks</h2>
+          <div class="cat-drawer-head-actions"><button class="cat-icon-btn" type="button" aria-label="Close tasks">×</button></div>
+        </div>
+        <div class="cat-drawer-body">
+          <div class="cat-group">
+            <h3 class="cat-group-title">Today</h3>
+            <div class="cat-task-row">
+              <button class="cat-task-row-head" type="button">
+                <span class="cat-task-row-main">
+                  <span class="cat-task-row-title">Send launch update</span>
+                  <span class="cat-task-row-meta">Gmail · waiting</span>
+                </span>
+              </button>
+            </div>
+            <p class="cat-group-empty">No completed tasks yet.</p>
+          </div>
+          <div class="cat-task-detail">
+            <h3>Send launch update</h3>
+            <dl class="cat-payload">
+              <div class="cat-payload-row"><dt>Status</dt><dd>Awaiting approval</dd></div>
+              <div class="cat-payload-row"><dt>Capability</dt><dd>gmail.send</dd></div>
+            </dl>
+            <ol class="cat-step-list">
+              <li><span>Draft prepared</span><time>9:40 AM</time></li>
+              <li><span>Approval requested</span><time>9:41 AM</time></li>
+            </ol>
+          </div>
+          <div class="cat-browser">
+            <div class="cat-browser-head">
+              <span class="cat-browser-title">Browser</span>
+              <span class="cat-browser-controls"><span>Live</span></span>
+            </div>
+            <div class="cat-browser-window">
+              <div class="cat-browser-viewport"><p>Crump is viewing the page you shared.</p></div>
+              <p class="cat-browser-step">Reading the page</p>
+            </div>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <!-- Conversation -->
+    <section class="chat-container" aria-label="Conversation">
+      <div class="message assistant">
+        <div class="crump-message-avatar">C</div>
+        <div>
+          <div class="crump-message-meta"><span class="crump-message-name">Crump</span><time>9:41 AM</time></div>
+          <p>Your launch plan is ready. I tightened the timeline and flagged the one open risk.</p>
+          <div class="crump52-file-attachment">
+            <span class="crump52-file-icon">DOC</span>
+            <span class="crump52-file-copy"><b>Launch plan.docx</b><small>Document · 24 KB</small></span>
+            <button type="button">Open</button>
+          </div>
+          <div class="outcome-continuity">
+            <span class="outcome-continuity-copy"><span>Next</span><b>Share it with the team when you are ready.</b></span>
+            <span class="outcome-continuity-prompt">Ask Crump to draft the announcement.</span>
+          </div>
+          <div class="message-actions">
+            <button class="message-action-btn" type="button">Copy</button>
+            <button class="message-action-btn" type="button">Retry</button>
+          </div>
+          <span class="message-status delivered">Delivered</span>
+          <span class="message-status seen">Seen</span>
+          <span class="message-status pending">Sending…</span>
+          <span class="message-status failed">Failed to send</span>
+          <span class="message-status">Saved</span>
+        </div>
+      </div>
+      <div class="message user"><div><p>Send it to the team list.</p></div></div>
+      <div class="crump52-attach-sheet">
+        <button class="crump52-attach-choice" type="button"><b>Upload a file</b><small>From this device</small></button>
+        <button class="crump52-attach-choice" type="button"><b>Take a photo</b><small>Use the camera</small></button>
+      </div>
+      <div class="cv-plan">
+        <p class="cv-plan-label">Plan</p>
+        <ol class="cv-plan-steps">
+          <li class="cv-plan-step cv-plan-done"><span class="cv-plan-dot"></span>Draft the update</li>
+          <li class="cv-plan-step cv-plan-active"><span class="cv-plan-dot"></span>Send to the team</li>
+        </ol>
+      </div>
+      <div class="cv-thinking"><span class="cv-thinking-label">Thinking</span><span class="typing-dots"><span></span><span></span><span></span></span></div>
+    </section>
+    <button type="button" class="scroll-to-end-btn" aria-label="Scroll to newest message">↓</button>
+    <section class="v1-command-dock" aria-label="Composer">
+      <div class="input-area">
+        <div class="input-container">
+          <button type="button" class="btn-icon" aria-label="Add to conversation">+</button>
+          <textarea class="message-input" placeholder="Ask Crump anything…" rows="1" aria-label="Message Crump"></textarea>
+          <button type="button" class="btn-icon btn-send" aria-label="Send message">↑</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Projects (crump-vision-projects) -->
+    <section class="cvp-root" aria-label="Projects">
+      <header class="cvp-header">
+        <p class="cv-eyebrow">Projects</p>
+        <h2 class="cvp-title">Launch Project</h2>
+        <p class="cvp-lede">Everything about this launch, in one place.</p>
+        <p class="cvp-quiet">Private to your workspace.</p>
+      </header>
+      <div class="cvp-switcher">
+        <div class="cvp-switcher-row">
+          <button class="cvp-switch is-active" type="button"><span class="cvp-switch-name">Launch Project</span><span class="cvp-switch-date">Today</span></button>
+          <button class="cvp-switch" type="button"><span class="cvp-switch-name">Research</span><span class="cvp-switch-date">Oct 30</span></button>
+        </div>
+      </div>
+      <div class="cvp-panel">
+        <div class="cvp-panel-head"><h3>Timeline</h3><span class="cvp-status">Current</span></div>
+        <ol class="cvp-timeline">
+          <li class="cvp-timeline-item">
+            <span class="cvp-timeline-marker"></span>
+            <div class="cvp-timeline-body">
+              <div class="cvp-timeline-head"><strong>Plan approved</strong><span class="cvp-timeline-kind">Decision</span></div>
+              <p>You approved the launch update.</p>
+              <span class="cvp-timeline-date">9:41 AM</span>
+            </div>
+          </li>
+        </ol>
+        <p class="cvp-timeline-empty">Nothing earlier.</p>
+        <div class="cvp-keepsake">
+          <p class="cvp-keepsake-title">Kept context</p>
+          <p class="cvp-keepsake-meta">Brand voice: warm, direct.</p>
+        </div>
+        <article class="cvp-chat">
+          <p class="cvp-chat-title">Launch plan review</p>
+          <span class="cvp-chat-date">Today</span>
+          <button class="cvp-chat-continue" type="button">Continue</button>
+        </article>
+        <div class="cvp-empty">
+          <h3>No files yet</h3>
+          <p class="cvp-empty-hint">Files you create in this project land here.</p>
+          <button class="cvp-empty-action" type="button">Add a file</button>
+        </div>
+        <div class="cvp-error"><p>The project could not load.</p><button class="cvp-button" type="button">Retry</button></div>
+        <button class="cvp-button" type="button">New chat in project</button>
+        <button class="cvp-link" type="button">Project settings</button>
+      </div>
+    </section>
+
+    <!-- Project studio sheet (crump-product-5.3) -->
+    <div class="crump53-overlay">
+      <section class="crump53-sheet" aria-label="Project studio">
+        <div class="crump53-sheet-head">
+          <div class="crump53-sheet-identity"><p class="crump53-kicker">Studio</p><h2>Create in this project</h2><p>Pick a format to begin.</p></div>
+          <button class="crump53-close" type="button" aria-label="Close">×</button>
+        </div>
+        <div class="crump53-sheet-body">
+          <div class="crump53-library-filters">
+            <button class="crump53-library-filter is-active" type="button">All</button>
+            <button class="crump53-library-filter" type="button">Media</button>
+          </div>
+          <article class="crump53-card">
+            <h3>Launch video</h3>
+            <p>A 30-second cut for the announcement.</p>
+            <span class="crump53-status">Draft</span>
+            <p class="crump53-video-recent-status">Ready when you are</p>
+            <div class="crump53-video-reference-head"><span>Reference</span><button type="button">Add</button></div>
+          </article>
+          <label class="crump53-label" for="crump53Title">Title</label>
+          <input class="crump53-input" id="crump53Title" type="text" placeholder="Name this piece">
+          <label class="crump53-label" for="crump53Notes">Notes</label>
+          <textarea class="crump53-textarea" id="crump53Notes" placeholder="Direction for Crump"></textarea>
+          <label class="crump53-label" for="crump53Kind">Format</label>
+          <select class="crump53-select" id="crump53Kind"><option>Video</option><option>Image</option></select>
+          <p class="crump53-note">Pro includes longer renders.</p>
+          <div class="crump53-actions">
+            <button class="crump53-button" type="button">Create</button>
+            <button class="crump53-button" type="button">Cancel</button>
+          </div>
+          <div class="crump53-empty-projects"><h3>No projects yet</h3><p>Start one to organize the work.</p></div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Library (crump-vision-library) -->
+    <section class="cvl-root" aria-label="Library">
+      <header class="cvl-header">
+        <p class="cv-eyebrow">Library</p>
+        <h2 class="cvl-title">Your library</h2>
+        <p class="cvl-lede">Books, files, and finished work.</p>
+      </header>
+      <div class="cvl-toolbar">
+        <label class="cvl-search"><span class="cvl-search-icon">⌕</span><input type="search" placeholder="Search your library"></label>
+        <span class="cvl-count">2 saved</span>
+      </div>
+      <div class="cvl-grid">
+        <article class="cvl-book">
+          <div class="cvl-book-top"><span class="cvl-type-chip">Book</span><span class="cvl-status">Saved</span></div>
+          <div class="cvl-cover"><span class="cvl-cover-spine"></span><span class="cvl-cover-initial">F</span></div>
+          <div class="cvl-book-body">
+            <h3 class="cvl-book-title">Field Notes</h3>
+            <p class="cvl-book-author">Greg</p>
+            <p class="cvl-book-meta">Updated today</p>
+          </div>
+        </article>
+      </div>
+      <div class="cvl-history">
+        <div class="cvl-history-row">
+          <div class="cvl-history-body"><strong>Opened Launch plan.docx</strong><p class="cvl-history-note">From Projects</p></div>
+          <time>2h ago</time>
+        </div>
+      </div>
+      <div class="cvl-empty"><h3>Your library is empty</h3><p>Finished work lands here.</p></div>
+      <p class="cvl-nomatch">Nothing matches that search.</p>
+      <div class="cvl-error"><p>The library could not load.</p><button class="cvl-button" type="button">Retry</button></div>
+      <div class="cvl-overlay">
+        <section class="cvl-sheet" aria-label="Reader">
+          <div class="cvl-sheet-head"><h3>Field Notes</h3><span class="cvl-version-pill">v2</span><button class="cvl-close" type="button" aria-label="Close reader">×</button></div>
+          <div class="cvl-reader"><div class="cvl-reader-main"><p>Chapter one begins with the decision itself.</p></div></div>
+          <button class="cvl-open" type="button">Open in workspace</button>
+        </section>
+      </div>
+    </section>
+
+    <!-- Bookshelf (crump-library-5.7) -->
+    <section class="crump57-bookshelf" aria-label="Bookshelf">
+      <article class="crump57-book">
+        <div class="crump57-cover"><span class="crump57-cover-placeholder">FN</span></div>
+        <div class="crump57-book-body">
+          <p class="crump57-book-kicker">Notebook</p>
+          <h3 class="crump57-book-title">Field Notes</h3>
+          <p class="crump57-book-author">by Greg</p>
+          <p class="crump57-book-meta">Updated today</p>
+          <p class="crump57-book-footnote">Private to your workspace.</p>
+          <div class="crump57-book-actions"><button type="button">Open</button><button type="button">Share</button></div>
+        </div>
+      </article>
+      <div class="crump57-empty"><h3>Your shelf is empty</h3><p>Save a book to see it here.</p></div>
+      <label class="crump57-field"><span>Book title</span><input type="text" placeholder="Give it a name"></label>
+      <label class="crump57-check-row"><input type="checkbox"><span>Keep this book private</span></label>
+      <div class="crump57-confirm-sheet">
+        <p class="crump57-confirm-note">Deleting removes this book everywhere.</p>
+        <p class="crump57-danger-note">This cannot be undone.</p>
+        <p class="crump57-download-note">Choose a format for your copy.</p>
+      </div>
+    </section>
+
+    <!-- Studios (crump-vision-studios) -->
+    <section class="cv-view" aria-label="Studios">
+      <div class="cv-wrap">
+        <p class="cv-eyebrow">Studios</p>
+        <h2 class="cv-headline">Make something finished</h2>
+        <p class="cv-sub">Images, video, documents, and code — each with its own bench.</p>
+        <div class="cv-pills">
+          <button class="cv-pill is-active" type="button">Image</button>
+          <button class="cv-pill" type="button">Video</button>
+          <button class="cv-pill" type="button">Document</button>
+        </div>
+        <article class="cv-card">
+          <div class="cv-card-head"><div><p class="cv-card-kicker">Studio</p><h3 class="cv-card-title">Image Studio</h3></div><span class="cv-status">Ready</span></div>
+          <p class="cv-card-copy">Describe it; get a finished image.</p>
+          <p class="cv-mode-desc">One image, square format.</p>
+          <div class="cv-actions">
+            <button class="cv-btn cv-btn-primary" type="button">Open studio</button>
+            <button class="cv-btn cv-btn-ghost" type="button">Examples</button>
+          </div>
+        </article>
+        <label class="cv-field-label" for="cvPrompt">Prompt</label>
+        <textarea class="cv-textarea" id="cvPrompt" placeholder="Describe the image"></textarea>
+        <div class="cv-gallery-head"><h3>Recent</h3></div>
+        <div class="cv-gallery-grid">
+          <figure class="cv-gallery-item"><span>Art</span><figcaption>Harbor at dusk</figcaption></figure>
+        </div>
+        <p class="cv-gallery-empty">No images yet.</p>
+        <p class="cv-loading">Preparing the studio…</p>
+      </div>
+    </section>
+
+    <!-- Image studio sheet (crump-5.0) -->
+    <div class="crump50-sheet">
+      <div class="crump50-sheet-head"><div><h2>Image Studio</h2><p>One finished image, ready to use.</p></div><button class="crump50-sheet-close" type="button" aria-label="Close">×</button></div>
+      <button class="crump50-reference-action" type="button"><span>Start from a photo</span></button>
+      <button class="crump50-precision-entry" type="button"><span>Precision edit</span></button>
+      <p class="crump50-image-guidance">Portraits render best with a plain background.</p>
+      <div class="crump50-segmented">
+        <button class="is-active" type="button">Square</button>
+        <button type="button">Wide</button>
+      </div>
+      <div class="crump50-format-grid">
+        <button type="button"><b>PNG</b><small>Lossless</small></button>
+        <button type="button"><b>JPG</b><small>Smaller file</small></button>
+      </div>
+      <div class="crump50-file-card">
+        <span class="crump50-file-icon">IMG</span>
+        <span><b>reference.png</b><small>Image · 1.2 MB</small></span>
+      </div>
+      <button class="crump50-primary-action" type="button">Create image</button>
+    </div>
+
+    <!-- Code studio (crump-code-5.9.35) -->
+    <div class="crump-code-overlay">
+      <section class="crump-code-shell" aria-label="Code studio">
+        <header class="crump-code-header">
+          <div><p class="crump-code-kicker">Code</p><h2>Ship a small tool</h2><p>Describe the tool and review every change.</p></div>
+          <button class="crump-code-icon-button" type="button" aria-label="Close">×</button>
+        </header>
+        <p class="crump-code-safety"><span><b>Safe by default.</b> Nothing runs without your review.</span></p>
+        <p class="crump-code-notice" data-tone="success">Workspace ready.</p>
+        <div class="crump-code-layout">
+          <aside class="crump-code-sidebar">
+            <div class="crump-code-sidebar-head"><label for="codeName">Name</label><button class="crump-code-text-button" type="button">New</button></div>
+            <input class="crump-code-control" id="codeName" type="text" placeholder="Name the tool">
+            <p class="crump-code-help">Tools stay in your workspace.</p>
+          </aside>
+          <div class="crump-code-panel">
+            <div class="crump-code-panel-head"><span>Preview</span></div>
+            <div class="crump-code-actions">
+              <button class="crump-code-primary" type="button">Build it</button>
+              <button class="crump-code-secondary" type="button">Cancel</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <!-- You / settings (app.html structure) -->
+  <div class="modal v1-modal" style="display:block">
+    <section class="modal-content settings-sheet v1-settings-sheet" aria-label="Settings">
+      <div class="modal-header">
+        <div><h2>Settings</h2><p class="modal-subtitle">Your account, your rules.</p></div>
+        <button class="settings-icon-btn" type="button" aria-label="Close settings">×</button>
+      </div>
+      <div class="settings-sheet-body">
+        <div class="settings-group v1-settings-panel is-active">
+          <h3 class="settings-group-title">Profile</h3>
+          <div class="settings-list">
+            <div class="settings-row">
+              <div class="settings-row-text"><span class="settings-label">Display name</span><span>Shown on your workspace.</span></div>
+              <span class="settings-chevron">›</span>
+            </div>
+            <div class="settings-row settings-row-action">
+              <div class="settings-row-text"><span class="settings-label">Plan</span><span>Pro, renews monthly.</span></div>
+              <span class="settings-chevron">›</span>
+            </div>
+            <div class="settings-row settings-row-toggle">
+              <div class="settings-row-text"><span class="settings-label">Morning brief</span><span>Delivered at 8 AM.</span></div>
+              <span class="ios-switch"><span class="ios-switch-ui"></span></span>
+            </div>
+          </div>
+          <label class="settings-field"><span class="settings-label">Email</span><input type="email" placeholder="you@example.com"></label>
+          <label class="settings-field"><span class="settings-label">Language</span>
+            <select class="settings-select"><option>English</option><option>Spanish</option></select>
+          </label>
+          <p class="settings-help">We never share your details.</p>
+          <button class="settings-primary-btn" type="button">Save changes</button>
+        </div>
+        <div class="settings-group v1-settings-panel">
+          <h3 class="settings-group-title">Appearance</h3>
+          <div class="settings-list appearance-list">
+            <label class="appearance-choice"><input type="radio" name="appearance"><span class="appearance-check"></span><span class="appearance-choice-copy"><strong>Light</strong><small>Warm paper</small></span><span class="appearance-preview appearance-preview-light"></span></label>
+            <label class="appearance-choice"><input type="radio" name="appearance"><span class="appearance-check"></span><span class="appearance-choice-copy"><strong>Dark</strong><small>Low glare</small></span><span class="appearance-preview appearance-preview-dark"></span></label>
+          </div>
+          <p class="appearance-device-note">Applies on this device.</p>
+        </div>
+        <div class="settings-group v1-settings-panel">
+          <h3 class="settings-group-title">Account</h3>
+          <div class="settings-list">
+            <div class="settings-row settings-danger v1-delete-row">
+              <div class="settings-row-text"><span class="settings-label">Delete account</span><span>Removes everything, permanently.</span></div>
+              <span class="settings-chevron">›</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- Billing (crump-billing-5.1) -->
+  <div class="billing51-backdrop">
+    <div class="billing51-modal">
+      <section class="billing51-sheet" aria-label="Billing">
+        <div class="billing51-header">
+          <div class="billing51-brand"><span class="billing51-mark">C</span><span><strong>Credits &amp; plans</strong><small>Pay only for finished work.</small></span></div>
+          <button class="billing51-close" type="button" aria-label="Close billing">×</button>
+        </div>
+        <div class="billing51-balance-card">
+          <span>Current balance</span><strong>$4.20</strong><small>Credits never expire on Pro.</small>
+          <div class="billing51-progress"><span></span></div>
+          <p class="billing51-allowance">Monthly allowance refreshes on the 1st.</p>
+        </div>
+        <div class="billing51-section">
+          <div class="billing51-section-head"><h3>Credit packs</h3><span>One-time</span></div>
+          <div class="billing51-packs">
+            <div class="billing51-pack">
+              <span class="billing51-pack-label">Starter pack</span>
+              <span class="billing51-pack-amount">100 credits</span>
+              <span class="billing51-pack-price">$5</span>
+              <button class="billing51-buy" type="button">Buy</button>
+            </div>
+          </div>
+        </div>
+        <div class="billing51-section">
+          <div class="billing51-section-head"><h3>Plans</h3><span>Monthly</span></div>
+          <div class="billing51-plans">
+            <div class="billing51-plan">
+              <div class="billing51-plan-top"><h4>Pro</h4><span class="billing51-plan-status">Current</span></div>
+              <p class="billing51-plan-summary">Everything, without the meter running.</p>
+              <ul class="billing51-plan-benefits"><li>Unlimited chats</li><li>Priority runs</li></ul>
+              <p class="billing51-plan-meter-note">Studios draw from your balance.</p>
+              <button class="billing51-plan-button" type="button">Manage plan</button>
+            </div>
+          </div>
+        </div>
+        <div class="billing51-history-section">
+          <div class="billing51-section-head"><h3>Recent activity</h3></div>
+          <div class="billing51-history-row"><span>Image Studio render</span><time>Today</time><b>−2</b></div>
+        </div>
+        <p class="billing51-recovery"><span>Payment issue?</span><button type="button">Fix billing</button></p>
+        <p class="billing51-rate-note">Rates are shown before anything runs.</p>
+        <p class="billing51-empty">No purchases yet.</p>
+        <div class="billing51-footer"><p>Questions? Email support.</p><div class="billing51-footer-actions"><button type="button">Done</button></div></div>
+      </section>
+    </div>
+  </div>
+
+  <!-- Credit confirmation (credit-confirmation.js structure) -->
+  <div class="crump-credit-confirmation">
+    <div class="crump-credit-confirmation__backdrop"></div>
+    <section class="crump-credit-confirmation__sheet" aria-label="Confirm credits">
+      <p class="crump-credit-confirmation__eyebrow">Before this runs</p>
+      <h2>This uses 2 credits</h2>
+      <p>You are only charged when the work finishes.</p>
+      <dl class="crump-credit-confirmation__facts">
+        <div><dt>Task</dt><dd>Image Studio render</dd></div>
+        <div><dt>Cost</dt><dd>2 credits</dd></div>
+      </dl>
+      <p class="crump-credit-confirmation__balance">Balance after: $2.20</p>
+      <p class="crump-credit-confirmation__stop">Failed runs are never charged.</p>
+      <div class="crump-credit-confirmation__actions">
+        <button class="crump-credit-confirmation__confirm" type="button">Run it</button>
+        <button class="crump-credit-confirmation__cancel" type="button">Not now</button>
+      </div>
+      <button class="crump-credit-confirmation__close" type="button" aria-label="Close">×</button>
+    </section>
+  </div>
+
+  <!-- Confirm dialog (conversation.css) -->
+  <dialog class="confirm-dialog" open aria-label="Delete this chat?">
+    <div class="confirm-dialog__card">
+      <h2>Delete this chat?</h2>
+      <p>The conversation and its files will be removed.</p>
+      <div class="confirm-dialog__actions">
+        <button class="btn confirm-dialog__danger" type="button">Delete</button>
+        <button class="btn" type="button">Keep it</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- Account modal (account-manager.js) -->
+  <div class="account-modal-backdrop">
+    <section class="account-modal-card" aria-label="Account">
+      <h2>Your account</h2>
+      <p class="account-modal-status">Signed in as Greg · Pro plan</p>
+      <p class="account-modal-warning">Your card expires soon.</p>
+      <p class="account-modal-error">The last change could not be saved.</p>
+      <button class="account-modal-close" type="button">Close</button>
+    </section>
+  </div>
+
+  <!-- Toast (styles.css) -->
+  <div class="toast-container"><div class="toast" role="status">Saved to your library.</div></div>
+
+  <!-- Activity center (crump-activity-center-1.0) -->
+  <section class="crump-activity-panel" aria-label="Activity">
+    <div class="crump-activity-head">
+      <h2>Activity</h2>
+      <button class="crump-activity-refresh" type="button">Refresh</button>
+      <button class="crump-activity-close" type="button" aria-label="Close activity">×</button>
+    </div>
+    <ul class="crump-activity-list">
+      <li class="crump-activity-item">
+        <span class="crump-activity-item-icon">✓</span>
+        <span class="crump-activity-item-copy"><strong>Morning brief delivered</strong><p>Your brief is on Today.</p><time>8:00 AM</time></span>
+        <span class="crump-activity-status">Done</span>
+      </li>
+    </ul>
+    <p class="crump-activity-empty">Nothing else yet.</p>
+    <div class="crump-activity-foot"><button class="crump-activity-action" type="button">View all</button></div>
+  </section>
+  <button class="crump-activity-trigger" type="button"><span class="crump-activity-trigger-label">Activity</span><span class="crump-activity-badge">2</span></button>
+
+  <!-- Tutorial (onboarding.css) -->
+  <div class="tutorial-overlay tutorial-visible">
+    <article class="tutorial-card tutorial-visible">
+      <div class="tutorial-topbar">
+        <span class="tutorial-brand"><span class="tutorial-brand-icon">C</span><span>Ask Crump</span></span>
+        <button class="tutorial-skip" type="button">Skip</button>
+      </div>
+      <div class="tutorial-body">
+        <p class="tutorial-eyebrow">Quick tour</p>
+        <h3 class="tutorial-title">Start with Today</h3>
+        <p class="tutorial-description">Your brief, approvals, and finished work live here.</p>
+        <div class="tutorial-feature-grid">
+          <div class="tutorial-feature"><span class="tutorial-feature-dot"></span><span>Approvals in one tap</span></div>
+        </div>
+        <div class="tutorial-destination-group"><span>Today</span><span>Chats</span></div>
+      </div>
+      <div class="tutorial-footer">
+        <span class="tutorial-progress-label">Step 1 of 3</span>
+        <span class="tutorial-dots"><span class="tutorial-dot is-active"></span><span class="tutorial-dot"></span></span>
+        <div class="tutorial-actions">
+          <button class="tutorial-btn tutorial-btn-primary" type="button">Next</button>
+          <button class="tutorial-btn tutorial-btn-secondary" type="button">Back</button>
+        </div>
+      </div>
+    </article>
+  </div>
+
+  <!-- Onboarding + terms modals (app.html structure) -->
+  <div class="modal v1-modal" style="display:block">
+    <section class="modal-content onboarding-modal v1-onboarding-card" aria-label="Welcome">
+      <div class="onboarding-logo">C</div>
+      <div class="modal-header"><h2>Welcome to Ask Crump</h2><p class="modal-subtitle">A calm workspace for finished work.</p></div>
+      <div class="modal-body"><p>Start with a question, or open a studio and make something.</p></div>
+      <button class="btn btn-primary btn-large btn-block" type="button">Begin</button>
+    </section>
+  </div>
+  <div class="modal v1-modal" style="display:block">
+    <section class="modal-content terms-modal-content v1-terms-card" aria-label="Terms">
+      <div class="modal-header"><h2>Before you continue</h2><p class="modal-subtitle">By continuing you agree to the Terms and Privacy Policy.</p></div>
+      <div class="modal-body"><p>Your work stays in your workspace.</p></div>
+      <button class="btn btn-primary btn-large btn-block" type="button">Agree &amp; continue</button>
+    </section>
+  </div>
+
+  <!-- Intelligence / memory panel (crump-4.4) -->
+  <section class="crump44-panel" aria-label="Memory">
+    <p class="crump44-eyebrow">Memory</p>
+    <h3>What Crump remembers</h3>
+    <p class="crump44-mode-copy">Memory is on for this workspace.</p>
+    <article class="crump44-memory-card">
+      <div class="crump44-memory-card-top"><span class="crump44-memory-kind">Preference</span><time>Nov 2</time></div>
+      <p>Prefers briefs at 8 AM.</p>
+    </article>
+    <p class="crump44-memory-empty">Nothing else saved yet.</p>
+    <button class="crump44-control-button" type="button">Manage memory</button>
+    <button class="crump44-clear-memory" type="button">Clear memory</button>
+    <button class="crump44-forget" type="button">Forget this</button>
+  </section>
+
+  <!-- Runtime gate (onboarding.css / crump-v1-body) -->
+  <div class="v1-runtime-gate">
+    <div class="v1-runtime-gate-card">
+      <span>Workspace</span>
+      <h2>One moment</h2>
+      <p>Your workspace is being prepared.</p>
+      <div class="v1-runtime-gate-progress"><i></i></div>
+      <button type="button">Continue</button>
+    </div>
+  </div>
+</body>
+</html>

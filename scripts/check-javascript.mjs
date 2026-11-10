@@ -1278,7 +1278,7 @@ const nativePushOwnerFenceVersion = `${releaseVersion}-native-push-owner-fence-1
 const cacheIntegrityVersion = `${releaseVersion}-friendly-workspace-1`;
 const premiumWorkspaceVersion = `${releaseVersion}-premium-workspace-1`;
 const mobileNavApplePolishVersion = `${releaseVersion}-mobile-nav-apple-polish-1`;
-const ownedWorkspaceAccessVersion = `${releaseVersion}-owned-workspace-access-1`;
+const ownedWorkspaceAccessVersion = `${releaseVersion}-owned-workspace-access-2`;
 const shellNoTaglineVersion = `${releaseVersion}-shell-no-tagline-1`;
 const atelierWorkspaceVersion = `${releaseVersion}-atelier-workspace-1`;
 const projectResumeVersion = `${releaseVersion}-project-resume-1`;
@@ -1294,6 +1294,7 @@ const precisionAiPersistenceVersion = `${releaseVersion}-precision-ai-persistenc
 const runtimeBodyVersion = mobileNavApplePolishVersion;
 const appearanceChoiceVersion = `${releaseVersion}-appearance-choice-3`;
 const uiReleaseAuditVersion = mobileNavApplePolishVersion;
+const designPassVersion = `${releaseVersion}-contrast-sweep-1`;
 const activityCenterVersion = autonomousContinuityVersion;
 const uiGuardrailsVersion = `${releaseVersion}-ui-guardrails-1`;
 const motionSystemVersion = `${releaseVersion}-motion-system-2`;
@@ -1657,7 +1658,7 @@ const finalStyleUrls = source => {
   return [...source.slice(start, end).matchAll(/\['([^']+)'/g)].map(match => match[1]);
 };
 const expectedFinalStyles = [
-  `/crump-design-pass.css?v=${uiReleaseAuditVersion}`,
+  `/crump-design-pass.css?v=${designPassVersion}`,
   `/crump-activity-center-1.0.css?v=${activityCenterVersion}`,
   `/crump-ui-guardrails.css?v=${uiGuardrailsVersion}`,
   `/crump-motion-system.css?v=${motionSystemVersion}`,
@@ -1676,7 +1677,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/onboarding.css?v=${mobileNavApplePolishVersion}`) ||
     !runtime.includes(`/onboarding.js?v=${mobileNavApplePolishVersion}`) ||
     !runtime.includes(`/conversation.css?v=${museReleaseRepairVersion}`) ||
-    !runtime.includes(`/crump-design-pass.css?v=${uiReleaseAuditVersion}`) ||
+    !runtime.includes(`/crump-design-pass.css?v=${designPassVersion}`) ||
     !runtime.includes(`/crump-activity-center-1.0.css?v=${activityCenterVersion}`) ||
     !runtime.includes(`/crump-activity-center-1.0.js?v=${privateOwnerBoundaryVersion}`) ||
     !runtime.includes(`/crump-ui-guardrails.css?v=${uiGuardrailsVersion}`) ||
@@ -1688,7 +1689,7 @@ if (!runtime.includes('/billing.css') ||
     !runtime.includes(`/scroll-manager.js?v=${museReleaseRepairVersion}`) ||
     !runtime.includes(`/ui-functions.js?v=${privateOwnerBoundaryVersion}`) ||
     !runtime.includes(`/presence-manager.js?v=${presenceManagerVersion}`) ||
-    !runtime.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-1`) ||
+    !runtime.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-2`) ||
     !runtime.includes(`/lifecycle-share.js?v=${settingsInviteVersion}`) ||
     !runtime.includes(`/lifecycle-manager.js?v=${lifecycleIdleSendVersion}`) ||
     !runtime.includes(`/chat-sync.js?v=${chatSyncVersion}`) ||
@@ -2097,7 +2098,7 @@ for (const [pathname, expectedVersion] of [
     }
   }
 }
-if (!serviceWorker.includes('ask-crump-new-body-v1-r287-agent-today-notice-1') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r288-full-surface-contrast-1') ||
     !serviceWorker.includes(`'${shellBrandUrl}'`) ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||
@@ -2108,7 +2109,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r287-agent-today-notice-1') |
     !serviceWorker.includes(`/runtime-body-v1.js?v=${runtimeBodyVersion}`) ||
     !serviceWorker.includes(`/home-document-entry.js?v=${homeDocumentEntryVersion}`) ||
     !serviceWorker.includes(`/conversation.css?v=${museReleaseRepairVersion}`) ||
-    !serviceWorker.includes(`/crump-design-pass.css?v=${uiReleaseAuditVersion}`) ||
+    !serviceWorker.includes(`/crump-design-pass.css?v=${designPassVersion}`) ||
     !serviceWorker.includes(`/crump-activity-center-1.0.css?v=${activityCenterVersion}`) ||
     !serviceWorker.includes(`/crump-activity-center-1.0.js?v=${privateOwnerBoundaryVersion}`) ||
     !serviceWorker.includes(`/crump-ui-guardrails.css?v=${uiGuardrailsVersion}`) ||
@@ -2133,7 +2134,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r287-agent-today-notice-1') |
     !serviceWorker.includes(`/crump-polish-5.6.js?v=${mobileNavApplePolishVersion}`) ||
     !serviceWorker.includes(`/crump-navigation-5.9.30.css?v=${navFocusVisibilityVersion}`) ||
     !serviceWorker.includes(`/crump-navigation-5.9.30.js?v=${premiumWorkspaceVersion}`) ||
-    !serviceWorker.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-1`) ||
+    !serviceWorker.includes(`/lifecycle.css?v=${releaseVersion}-lifecycle-activation-2`) ||
     !serviceWorker.includes(`/lifecycle-share.js?v=${settingsInviteVersion}`) ||
     !serviceWorker.includes(`/lifecycle-manager.js?v=${lifecycleIdleSendVersion}`) ||
     !serviceWorker.includes(`/auth-resilience.js?v=${authControllerVersion}`) ||

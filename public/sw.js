@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r287-agent-today-notice-1';
+const CACHE_NAME = 'ask-crump-new-body-v1-r288-full-surface-contrast-1';
 
 const CORE = [
   '/app',
@@ -8,8 +8,8 @@ const CORE = [
   '/manifest.json',
   '/appearance-theme.js?v=5.9.76-appearance-choice-3',
   '/appearance-controls.css?v=5.9.76-appearance-choice-3',
-  '/landing-5.6.css?v=5.9.76-signin-escape-1',
-  '/use-case.css?v=5.9.76',
+  '/landing-5.6.css?v=5.9.76-signin-escape-2',
+  '/use-case.css?v=5.9.76-contrast-1',
   '/landing.js?v=5.9.76-explicit-guest-entry-1',
   '/styles.css',
   '/billing.css',
@@ -17,10 +17,10 @@ const CORE = [
   '/onboarding.css?v=5.9.76-mobile-nav-apple-polish-1',
   '/conversation.css?v=5.9.76-muse-release-repair-1',
   '/auth-styles.css?v=5.9.76-guest-free-contract-2',
-  '/crump-v1-body.css?v=5.9.76-owned-workspace-access-1',
+  '/crump-v1-body.css?v=5.9.76-owned-workspace-access-2',
   '/credit-confirmation.css?v=5.9.76-credit-confirmation-1',
-  '/lifecycle.css?v=5.9.76-lifecycle-activation-1',
-  '/crump-design-pass.css?v=5.9.76-mobile-nav-apple-polish-1',
+  '/lifecycle.css?v=5.9.76-lifecycle-activation-2',
+  '/crump-design-pass.css?v=5.9.76-contrast-sweep-1',
   '/crump-activity-center-1.0.css?v=5.9.76-autonomous-continuity-1',
   '/crump-ui-guardrails.css?v=5.9.76-ui-guardrails-1',
   '/crump-motion-system.css?v=5.9.76-motion-system-2',

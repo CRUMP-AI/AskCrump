@@ -19,7 +19,7 @@ GUIDES = {
         "adjacent": "/guides/what-ai-project-should-remember",
         "modified": "2026-10-23",
         "reviewed": "October 23, 2026",
-        "guide_css": "5.9.76-guide-proof-to-start-1",
+        "guide_css": "5.9.76-guide-proof-to-start-2",
         "og_width": 1280,
         "og_height": 720,
     },
@@ -32,7 +32,7 @@ GUIDES = {
         "adjacent": "/guides/rough-idea-six-week-launch-plan",
         "modified": "2026-10-23",
         "reviewed": "October 23, 2026",
-        "guide_css": "5.9.76-guide-start-paths-1",
+        "guide_css": "5.9.76-guide-start-paths-2",
         "og_width": 1280,
         "og_height": 720,
     },
@@ -45,7 +45,7 @@ GUIDES = {
         "adjacent": "/ai-presentation-maker",
         "modified": "2026-10-23",
         "reviewed": "October 23, 2026",
-        "guide_css": "5.9.76-guide-start-paths-1",
+        "guide_css": "5.9.76-guide-start-paths-2",
         "og_width": 1265,
         "og_height": 712,
     },
@@ -383,7 +383,7 @@ def test_public_word_pdf_guide_has_exact_search_release_contract():
     assert '<meta property="article:published_time" content="2026-08-30">' in page
     assert '<meta property="article:modified_time" content="2026-10-23">' in page
     assert '<script defer src="/landing.js?v=5.9.76-explicit-guest-entry-1"></script>' in page
-    assert '<link rel="stylesheet" href="/guide.css?v=5.9.76-word-pdf-guide-1">' in page
+    assert '<link rel="stylesheet" href="/guide.css?v=5.9.76-word-pdf-guide-2">' in page
     assert page.count("<h1>") == 1
     assert page.count('class="button primary"') == 1
     assert (
@@ -479,7 +479,7 @@ def test_public_resume_bullet_guide_has_exact_search_release_contract():
     assert '<meta property="article:published_time" content="2026-09-10">' in page
     assert '<meta property="article:modified_time" content="2026-10-23">' in page
     assert '<script defer src="/landing.js?v=5.9.76-explicit-guest-entry-1"></script>' in page
-    assert '<link rel="stylesheet" href="/guide.css?v=5.9.76-resume-bullet-guide-1">' in page
+    assert '<link rel="stylesheet" href="/guide.css?v=5.9.76-resume-bullet-guide-2">' in page
     assert page.count("<h1>") == 1
     assert page.count('class="button primary"') == 1
     assert (

@@ -577,6 +577,9 @@ body.crump-v1-body .v1-profile-nudge-actions button {
   background: #f0ebdf;
   color: #5f4d2b;
 }
+body.crump-v1-body .v1-profile-nudge-actions button:last-child {
+  color: var(--atelier-panel-muted);
+}
 
 body.crump-v1-body .v1-recent-work { margin-top: 30px !important; gap: 8px; }
 body.crump-v1-body .v1-recent-work-label {
@@ -609,7 +612,7 @@ body.crump-v1-body .v1-recent-work-button b { color: var(--atelier-brass-deep); 
 body.crump-v1-body .v1-launchpad-actions-label {
   margin-top: 44px !important;
   margin-bottom: 2px !important;
-  color: #745f35 !important;
+  color: var(--atelier-panel-label) !important;
   font-size: 10.5px !important;
   letter-spacing: .16em !important;
 }
@@ -722,7 +725,7 @@ body.crump-v1-body .user-message .message-content {
   color: #fffdf9 !important;
   box-shadow: 0 12px 28px rgba(23,24,27,.12) !important;
 }
-body.crump-v1-body .crump-message-meta { margin-bottom: 9px !important; }
+body.crump-v1-body .crump-message-meta { margin-bottom: 9px !important; color: var(--atelier-panel-muted) !important; }
 body.crump-v1-body .crump-message-name {
   display: inline-flex;
   align-items: center;
@@ -1052,6 +1055,18 @@ body.crump-v1-body :is(.v1-recent-work-button,.v1-launch-card) > b { color: var(
 .cv-btn-primary:hover { border-color: #2c2e32 !important; background: #2c2e32 !important; }
 .cv-btn-ghost { border-color: #d9d1c4 !important; background: rgba(255,253,249,.55) !important; color: #3f4347 !important; }
 .cv-btn-ghost:hover { border-color: rgba(130,105,54,.38) !important; color: #5f4d2b !important; }
+body.crump-v1-body .cv-pill { color: var(--atelier-panel-muted) !important; border-color: var(--atelier-line) !important; }
+body.crump-v1-body .cv-pill[aria-pressed="true"] { color: var(--atelier-panel-label) !important; }
+body.crump-v1-body .cv-card-kicker { color: var(--atelier-panel-label) !important; }
+body.crump-v1-body .cv-status { color: var(--atelier-panel-muted) !important; }
+body.crump-v1-body .cv-mode-desc { color: var(--atelier-panel-muted) !important; }
+body.crump-v1-body .cv-field-label { color: var(--atelier-panel-label) !important; }
+body.crump-v1-body .cv-gallery-empty { color: var(--atelier-panel-muted) !important; }
+body.crump-v1-body .cv-loading { color: var(--atelier-panel-muted) !important; }
+body.crump-v1-body .cv-thinking-label { color: var(--atelier-panel-muted) !important; }
+/* The plan card stays a dark slab in both appearances, so its label keeps
+   the gold tone that reads on graphite. */
+body.crump-v1-body .cv-plan-label { color: #cbb36c !important; }
 
 /* Project and Library builders use their own class names but inherit the same
    physical materials. Keep selectors broad and visual; their JS remains
@@ -1716,6 +1731,7 @@ body.crump-v1-body :is(.chat-container,.v1-library-list,.settings-sheet-body,.bi
   body.crump-v1-body .cv-more-item { color: var(--atelier-ink); }
   body.crump-v1-body .cv-more-item:hover { background: #f2eee6; }
   body.crump-v1-body .cv-more-item svg { color: var(--atelier-brass-deep); }
+  body.crump-v1-body .cv-more-item small { color: var(--atelier-panel-label) !important; }
 
   body.crump-v1-body .crump53-overlay { inset: 0 !important; }
   body.crump-v1-body .crump53-sheet { padding-bottom: calc(var(--cv-mobile-nav) + env(safe-area-inset-bottom)); }
@@ -2893,6 +2909,57 @@ html[data-theme="light"] body.crump-v1-body :is(
 html[data-theme="light"] body.crump-v1-body .billing51-recovery > span {
   color: var(--atelier-panel-label) !important;
 }
+html[data-theme="light"] body.crump-v1-body .billing51-sidebar-balance {
+  color: var(--atelier-panel-label) !important;
+}
+html[data-theme="light"] body.crump-v1-body .crump52-file-icon {
+  color: var(--atelier-brass-deep) !important;
+}
+html[data-theme="light"] body.crump-v1-body .input-container .btn-icon {
+  color: var(--atelier-panel-muted) !important;
+}
+html[data-theme="light"] body.crump-v1-body .crump44-memory-kind {
+  color: var(--atelier-panel-label) !important;
+}
+html[data-theme="light"] body.crump-v1-body .crump44-control-button {
+  color: var(--atelier-panel-muted) !important;
+}
+html[data-theme="light"] body.crump-v1-body .crump57-book-title {
+  color: var(--atelier-panel-text) !important;
+}
+html[data-theme="light"] body.crump-v1-body .crump57-book-kicker {
+  color: var(--atelier-panel-label) !important;
+}
+html[data-theme="light"] body.crump-v1-body .crump57-book-meta,
+html[data-theme="light"] body.crump-v1-body .crump57-book-footnote,
+html[data-theme="light"] body.crump-v1-body .crump57-confirm-note,
+html[data-theme="light"] body.crump-v1-body .crump57-download-note {
+  color: var(--atelier-panel-muted) !important;
+}
+html[data-theme="light"] body.crump-v1-body .crump57-danger-note {
+  color: var(--atelier-panel-danger) !important;
+}
+html[data-theme="light"] body.crump-v1-body .crump57-cover-placeholder {
+  color: #f1efe9 !important;
+}
+html[data-theme="light"] body.crump-v1-body .crump57-empty h3 {
+  color: var(--atelier-panel-text) !important;
+}
+html[data-theme="light"] body.crump-v1-body .crump57-empty p {
+  color: var(--atelier-panel-muted) !important;
+}
+html[data-theme="light"] body.crump-v1-body .crump57-field > span {
+  color: var(--atelier-panel-muted) !important;
+}
+html[data-theme="light"] body.crump-v1-body .crump53-note {
+  color: var(--atelier-panel-muted) !important;
+}
+html[data-theme="light"] body.crump-v1-body .crump53-empty-projects h3 {
+  color: var(--atelier-panel-text) !important;
+}
+html[data-theme="light"] body.crump-v1-body .crump53-empty-projects p {
+  color: var(--atelier-panel-muted) !important;
+}
 html[data-theme="light"] body.crump-v1-body .billing51-plan-button {
   border-color: var(--atelier-ink) !important;
   background: var(--atelier-ink) !important;
@@ -2925,5 +2992,32 @@ html[data-theme="dark"] body.crump-v1-body .crump53-video-engine-guide span {
   color: var(--atelier-panel-muted) !important;
 }
 html[data-theme="dark"] body.crump-v1-body .settings-chevron {
+  color: var(--atelier-panel-muted) !important;
+}
+
+/* Dark appearance: delivery states, file metadata, and the attach-sheet
+   chevron keep the same semantic hierarchy as the light release audit;
+   their base-sheet values were tuned for the older muted palette and fell
+   below AA on the dark grounds. */
+html[data-theme="dark"] body.crump-v1-body .message-status { color: var(--atelier-panel-muted) !important; }
+html[data-theme="dark"] body.crump-v1-body .message-status.pending { color: var(--atelier-panel-label) !important; }
+html[data-theme="dark"] body.crump-v1-body .message-status.delivered { color: var(--atelier-panel-muted) !important; }
+html[data-theme="dark"] body.crump-v1-body .message-status.seen { color: var(--atelier-success) !important; }
+html[data-theme="dark"] body.crump-v1-body .message-status.failed { color: var(--atelier-danger) !important; }
+html[data-theme="dark"] body.crump-v1-body .crump52-file-copy small {
+  color: var(--atelier-panel-muted) !important;
+}
+html[data-theme="dark"] body.crump-v1-body .crump52-attach-choice b {
+  color: var(--atelier-panel-text-2) !important;
+}
+html[data-theme="dark"] body.crump-v1-body .crump52-attach-choice small {
+  color: var(--atelier-panel-muted) !important;
+}
+html[data-theme="dark"] body.crump-v1-body .v1-new-conversation kbd {
+  color: var(--atelier-panel-muted) !important;
+}
+html[data-theme="dark"] body.crump-v1-body .crump57-book-kicker,
+html[data-theme="dark"] body.crump-v1-body .crump57-book-meta,
+html[data-theme="dark"] body.crump-v1-body .crump57-book-footnote {
   color: var(--atelier-panel-muted) !important;
 }

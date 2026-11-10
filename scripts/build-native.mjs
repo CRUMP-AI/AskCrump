@@ -56,8 +56,8 @@ const loader = `
     ['/crump-5.2.css', 'crump52'],
     ['/crump-5.2.2.css?v=5.9.76-new-response-cue-1', 'crump522'],
     ['/credit-confirmation.css?v=5.9.76-credit-confirmation-1', 'creditconfirmation'],
-    ['/crump-v1-body.css?v=5.9.76-owned-workspace-access-1', 'crumpbodyv1'],
-    ['/lifecycle.css?v=5.9.76-lifecycle-activation-1', 'lifecycleactivation'],
+    ['/crump-v1-body.css?v=5.9.76-owned-workspace-access-2', 'crumpbodyv1'],
+    ['/lifecycle.css?v=5.9.76-lifecycle-activation-2', 'lifecycleactivation'],
   ]);
 
   const enhancementStyles = Object.freeze([
@@ -69,7 +69,7 @@ const loader = `
   ]);
 
   const finalStyles = Object.freeze([
-    ['/crump-design-pass.css?v=5.9.76-mobile-nav-apple-polish-1', 'crumpdesignpass'],
+    ['/crump-design-pass.css?v=5.9.76-contrast-sweep-1', 'crumpdesignpass'],
     ['/crump-activity-center-1.0.css?v=5.9.76-autonomous-continuity-1', 'crumpactivitycenter10'],
     ['/crump-ui-guardrails.css?v=5.9.76-ui-guardrails-1', 'crumpuiguardrails'],
     ['/crump-motion-system.css?v=5.9.76-motion-system-2', 'crumpmotionsystem'],

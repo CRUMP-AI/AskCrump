@@ -64,7 +64,7 @@ def test_marketing_ctas_are_first_party_analytics_events():
     assert '/_vercel/insights/script.js' in page
     assert '/_vercel/speed-insights/script.js' in page
     assert '<script defer src="/landing.js?v=5.9.76-explicit-guest-entry-1"></script>' in page
-    assert '<link rel="stylesheet" href="/landing-5.6.css?v=5.9.76-signin-escape-1">' in page
+    assert '<link rel="stylesheet" href="/landing-5.6.css?v=5.9.76-signin-escape-2">' in page
     assert "window.vaq" in script
     assert "MarketingCTA" in script
     assert "MarketingSignin" in script
@@ -245,8 +245,8 @@ def test_use_case_pages_are_unique_crawlable_and_attribution_ready():
         assert f'<meta property="og:url" content="https://www.askcrump.com/{slug}">' in page
         assert '<meta name="robots" content="index,follow,max-image-preview:large">' in page
         assert '<script defer src="/landing.js?v=5.9.76-explicit-guest-entry-1"></script>' in page
-        assert '<link rel="stylesheet" href="/landing-5.6.css?v=5.9.76-signin-escape-1">' in page
-        assert '<link rel="stylesheet" href="/use-case.css?v=5.9.76">' in page
+        assert '<link rel="stylesheet" href="/landing-5.6.css?v=5.9.76-signin-escape-2">' in page
+        assert '<link rel="stylesheet" href="/use-case.css?v=5.9.76-contrast-1">' in page
         assert '/_vercel/insights/script.js' in page
         assert '/_vercel/speed-insights/script.js' in page
         assert f'source={source}' in page
@@ -552,9 +552,9 @@ def test_release_version_and_cache_advance_together():
 
     assert '"version": "5.9.76"' in package
     assert "__version__ = '5.9.76'" in backend
-    assert "ask-crump-new-body-v1-r287-agent-today-notice-1" in worker
-    assert "/landing-5.6.css?v=5.9.76-signin-escape-1" in worker
-    assert "/use-case.css?v=5.9.76" in worker
+    assert "ask-crump-new-body-v1-r288-full-surface-contrast-1" in worker
+    assert "/landing-5.6.css?v=5.9.76-signin-escape-2" in worker
+    assert "/use-case.css?v=5.9.76-contrast-1" in worker
     assert "/landing.js?v=5.9.76-explicit-guest-entry-1" in worker
 
 
@@ -564,7 +564,7 @@ def test_changed_activation_assets_are_release_versioned():
     worker = read("public/sw.js")
 
     for asset in (
-        "/crump-v1-body.css?v=5.9.76-owned-workspace-access-1",
+        "/crump-v1-body.css?v=5.9.76-owned-workspace-access-2",
         "/device-auth.js?v=5.9.76-login-recovery-visible-1",
         "/auth-controller.js?v=5.9.76-login-recovery-visible-1",
     ):

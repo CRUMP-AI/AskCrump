@@ -227,7 +227,7 @@ body.crump-v1-body .v1-auth-capabilities span {
   padding: 7px 10px;
   border: 1px solid var(--ac-line);
   border-radius: 999px;
-  color: #7d8285;
+  color: #8a9196;
   font-size: 9px;
   font-weight: 650;
   letter-spacing: .04em;
@@ -303,7 +303,7 @@ body.crump-v1-body .v1-auth-card label {
 }
 
 body.crump-v1-body .v1-optional {
-  color: #62676b;
+  color: #9aa1a6;
   font-size: 9px;
   font-weight: 550;
 }
@@ -320,7 +320,7 @@ body.crump-v1-body .v1-auth-card .form-input {
   box-shadow: inset 0 1px rgba(255,255,255,.018) !important;
 }
 
-body.crump-v1-body .v1-auth-card .form-input::placeholder { color: #5f6569 !important; }
+body.crump-v1-body .v1-auth-card .form-input::placeholder { color: #9aa1a6 !important; }
 
 body.crump-v1-body .v1-auth-card .form-input:focus {
   border-color: rgba(217,191,132,.36) !important;
@@ -362,7 +362,7 @@ body.crump-v1-body .v1-password-toggle:focus-visible {
 body.crump-v1-body .v1-auth-card .form-hint {
   display: block;
   margin: 7px 1px 0;
-  color: #60656a;
+  color: #9aa1a6;
   font-size: 9px;
 }
 
@@ -497,7 +497,7 @@ body.crump-v1-body .v1-auth-links {
 body.crump-v1-body .v1-auth-links p,
 body.crump-v1-body .auth-footer-text {
   margin: 0 !important;
-  color: #777d80 !important;
+  color: #9ba2a8 !important;
   font-size: 11px !important;
   line-height: 1.5;
 }
@@ -579,7 +579,7 @@ body.crump-v1-body .v1-registration-actions .btn { margin: 0 !important; }
 
 body.crump-v1-body .v1-registration-help {
   margin: 16px 2px 0;
-  color: #666d71;
+  color: #9aa1a6;
   font-size: 10px;
   line-height: 1.55;
   text-align: center;
@@ -802,7 +802,7 @@ body.crump-v1-body .v1-rail-button {
   border: 1px solid transparent;
   border-radius: 15px;
   background: transparent;
-  color: #72787d;
+  color: #82898f;
   font: 650 9px/1 var(--ac-font);
   letter-spacing: .025em;
   cursor: pointer;

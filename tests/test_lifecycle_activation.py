@@ -221,8 +221,8 @@ def test_browser_component_uses_only_reviewed_static_copy_and_is_nonblocking():
     assert "prefers-reduced-motion: reduce" in styles
     assert "/lifecycle-share.js?v=5.9.76-settings-invite-1" in runtime
     assert "/lifecycle-manager.js?v=5.9.76-lifecycle-idle-send-1" in runtime
-    assert "/lifecycle.css?v=5.9.76-lifecycle-activation-1" in runtime
-    assert "ask-crump-new-body-v1-r287-agent-today-notice-1" in worker
+    assert "/lifecycle.css?v=5.9.76-lifecycle-activation-2" in runtime
+    assert "ask-crump-new-body-v1-r288-full-surface-contrast-1" in worker
     assert (ROOT / "tests" / "fixtures" / "lifecycle-project-continuity.html").exists()
     continuity_fixture = (ROOT / "tests" / "fixtures" / "lifecycle-project-continuity.html").read_text(encoding="utf-8")
     assert 'id="sendButton" type="button" disabled aria-disabled="true"' in continuity_fixture

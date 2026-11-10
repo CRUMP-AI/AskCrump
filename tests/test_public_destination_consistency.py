@@ -127,7 +127,7 @@ def test_homepage_video_button_opens_video_studio_after_account_entry():
 
 
 def test_truthful_destination_assets_and_sitemaps_share_one_release_boundary():
-    version = "5.9.76-signin-escape-1"
+    version = "5.9.76-signin-escape-2"
     for relative in (
         "public/ask-crump.html",
         "public/ai-project-workspace.html",
@@ -139,7 +139,7 @@ def test_truthful_destination_assets_and_sitemaps_share_one_release_boundary():
         assert f'/landing-5.6.css?v={version}' in read(relative)
 
     worker = read("public/sw.js")
-    assert "ask-crump-new-body-v1-r287-agent-today-notice-1" in worker
+    assert "ask-crump-new-body-v1-r288-full-surface-contrast-1" in worker
     assert f"/landing-5.6.css?v={version}" in worker
     assert "<lastmod>2026-08-30</lastmod>" in read("public/clever-crump-sitemap.xml")
 

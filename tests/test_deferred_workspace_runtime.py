@@ -19,7 +19,7 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
         '/styles.css',
         '/install-prompt.css?v=5.9.76',
         '/auth-styles.css?v=5.9.76-guest-free-contract-2',
-        '/crump-v1-body.css?v=5.9.76-owned-workspace-access-1',
+        '/crump-v1-body.css?v=5.9.76-owned-workspace-access-2',
         '/appearance-controls.css?v=5.9.76-appearance-choice-3',
         # The signed-out shell and authenticated workspace share the small
         # navigation/view frame; private data still waits for authentication.
@@ -28,7 +28,7 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
         '/crump-vision-projects-1.0.css?v=5.9.76-project-resume-1',
         '/crump-vision-library-1.0.css?v=5.9.76-atelier-workspace-1',
         '/crump-vision-studios-1.0.css?v=5.9.76-premium-workspace-1',
-        '/crump-agent-today-1.0.css?v=5.9.76-agent-today-5',
+        '/crump-agent-today-1.0.css?v=5.9.76-agent-today-6',
     ]
     assert scripts == [
         '/telemetry-config.js?v=5.9.76',
@@ -49,7 +49,7 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
         '/auth-controller.js?v=5.9.76-login-recovery-visible-1',
         '/_vercel/insights/script.js',
         '/_vercel/speed-insights/script.js',
-        '/crump-agent-today-1.0.js?v=5.9.76-agent-today-5',
+        '/crump-agent-today-1.0.js?v=5.9.76-agent-today-6',
     ]
 
 
@@ -71,7 +71,7 @@ def test_workspace_runtime_is_complete_idempotent_and_authentication_gated():
         '/chat-resilience.js?v=5.9.76-chat-owner-boundary-1',
         '/ui-functions.js?v=5.9.76-private-owner-boundary-1',
         '/presence-manager.js?v=5.9.76-native-push-owner-fence-1',
-        '/crump-design-pass.css?v=5.9.76-mobile-nav-apple-polish-1',
+        '/crump-design-pass.css?v=5.9.76-contrast-sweep-1',
         '/crump-activity-center-1.0.css?v=5.9.76-autonomous-continuity-1',
         '/crump-ui-guardrails.css?v=5.9.76-ui-guardrails-1',
         '/crump-motion-system.css?v=5.9.76-motion-system-2',

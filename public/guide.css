@@ -31,7 +31,7 @@
   gap: 9px;
   align-items: center;
   margin-bottom: 32px;
-  color: #747d83;
+  color: #8a939a;
   font-size: 11px;
   letter-spacing: .08em;
   text-transform: uppercase;
@@ -68,7 +68,7 @@
 }
 .guide-hero-foot {
   margin: 0 0 26px;
-  color: #7b8388;
+  color: #8a939a;
   font-size: 12px;
   line-height: 1.5;
 }
@@ -78,7 +78,7 @@
   gap: 9px 22px;
   margin: 0;
   padding: 0;
-  color: #737c82;
+  color: #8a939a;
   font-size: 11px;
   list-style: none;
 }
@@ -105,7 +105,7 @@
 .guide-hero-figure figcaption,
 .guide-figure figcaption {
   margin-top: 12px;
-  color: #6f787e;
+  color: #8a939a;
   font-size: 10px;
   line-height: 1.5;
 }
@@ -131,7 +131,7 @@
 }
 .guide-rail nav { display: grid; gap: 10px; }
 .guide-rail a {
-  color: #747d83;
+  color: #8a939a;
   font-size: 12px;
   line-height: 1.45;
   text-decoration: none;
@@ -290,7 +290,7 @@
   margin-top: 52px;
   padding-top: 28px;
   border-top: 1px solid var(--line);
-  color: #767f84;
+  color: #8a939a;
   font-size: 12px;
   line-height: 1.7;
 }
@@ -312,7 +312,7 @@
   padding-top: 28px;
   border-top: 1px solid var(--line);
 }
-.guide-next span { color: #747d83; font-size: 11px; text-transform: uppercase; letter-spacing: .12em; }
+.guide-next span { color: #8a939a; font-size: 11px; text-transform: uppercase; letter-spacing: .12em; }
 .guide-next a { font-family: var(--serif); font-size: 21px; }
 .guide-footer-links { display: flex; gap: 16px; flex-wrap: wrap; justify-content: flex-end; }
 

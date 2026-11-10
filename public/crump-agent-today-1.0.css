@@ -15,6 +15,7 @@
   --cat-paper: #f1efe9;
   --cat-paper-dim: rgba(241, 239, 233, 0.72);
   --cat-gray: #8a9196;
+  --cat-gray-on-light: #595f64;
   --cat-card: #fffefa;
   --cat-line: rgba(7, 10, 14, 0.1);
   --cat-line-light: rgba(241, 239, 233, 0.16);
@@ -157,6 +158,7 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
+  color: var(--cat-gray-on-light);
 }
 
 .cat-card-head > * {
@@ -184,7 +186,7 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
   margin: 8px 0 0;
   font-size: 12.5px;
   line-height: 1.5;
-  color: var(--cat-gray);
+  color: var(--cat-gray-on-light);
 }
 
 .cat-status {
@@ -215,7 +217,7 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
 }
 
 .cat-status-done {
-  color: var(--cat-gray);
+  color: var(--cat-gray-on-light);
 }
 
 .cat-status-failed {
@@ -240,7 +242,7 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
 
 .cat-payload-row dt {
   font-weight: 600;
-  color: var(--cat-gray);
+  color: var(--cat-gray-on-light);
   overflow-wrap: anywhere;
 }
 
@@ -540,13 +542,13 @@ body.crump-v1-body .v1-workspace-body:has(> .cat-today:not([hidden])) > .v1-laun
   font-weight: 700;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--cat-gray);
+  color: var(--cat-gray-on-light);
 }
 
 .cat-group-empty {
   margin: 0;
   font-size: 13.5px;
-  color: var(--cat-gray);
+  color: var(--cat-gray-on-light);
   line-height: 1.55;
 }
 
@@ -591,7 +593,7 @@ body.crump-v1-body .v1-workspace-body:has(> .cat-today:not([hidden])) > .v1-laun
   display: block;
   margin-top: 2px;
   font-size: 12px;
-  color: var(--cat-gray);
+  color: var(--cat-gray-on-light);
 }
 
 .cat-task-detail {
@@ -622,7 +624,7 @@ body.crump-v1-body .v1-workspace-body:has(> .cat-today:not([hidden])) > .v1-laun
 
 .cat-step-list time {
   flex: none;
-  color: var(--cat-gray);
+  color: var(--cat-gray-on-light);
   font-size: 12px;
 }
 
