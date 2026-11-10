@@ -27,13 +27,15 @@ connected accounts never mix inside one run (see
 existing intelligence service's owner-scoped memory store. Every other registered capability fails with
 ``EXECUTOR_NOT_AVAILABLE`` rather than pretending to have run — an
 adapter lands here capability by capability.
-No adapter charges credits: the capabilities wired here are registered
-with a ``none`` credit cost. Entitlement and cost are still enforced
-before dispatch — ``execute_run_record`` re-checks the registry
-entitlement and the fixed-cost balance rule through the run service
-after the pause gate and before the claim — but that gate is a
-quote/balance check only; it consumes nothing, so charge-on-success
-behavior is unchanged.
+Fixed-cost capabilities are charged at execution: after the pause
+gate, ``execute_run_record`` re-checks the capability's current
+registry status, entitlement, and balance through the run service,
+then atomically reserves the exact registry cost through the
+existing confirmed-spend credits RPC before the run is claimed and
+before any provider contact. The reservation is released through
+the existing refund mechanics whenever the run does not succeed, so
+charging stays charge-on-success. Quote-priced capabilities reserve
+nothing here; their price comes from the feature-quote path.
 """
 from __future__ import annotations
 
@@ -62,6 +64,15 @@ MAX_SUMMARY_FIELD_CHARS = 300
 EXECUTOR_NOT_AVAILABLE = 'EXECUTOR_NOT_AVAILABLE'
 CONNECTION_REQUIRED = 'CONNECTION_REQUIRED'
 MEMORY_NOT_FOUND = 'MEMORY_NOT_FOUND'
+APPROVED_PAYLOAD_UNAVAILABLE = 'APPROVED_PAYLOAD_UNAVAILABLE'
+
+
+class _ApprovedPayloadUnavailable(Exception):
+    """The approved action's frozen payload could not be loaded.
+
+    Execution must fail closed in this case: running with any other
+    payload would execute something the user did not approve.
+    """
 # The ledger stores a fenced result summary, not full page bodies; the
 # browser adapter's complete text stays available to the run caller via
 # the adapter itself, and the summary keeps a bounded excerpt.
@@ -364,22 +375,46 @@ class AgentExecutor:
         exact payload on the pending action, and the approved action is
         the payload of record; every other run executes the payload
         stored on the run row at creation.
+
+        Fail closed: when the run has an approved action, that
+        action's payload is the only payload execution may use. If
+        loading it fails, or it comes back missing or unusable,
+        ``_ApprovedPayloadUnavailable`` is raised and the run is
+        refused — the creation payload is never substituted for the
+        payload the user approved. The creation payload remains the
+        payload of record only for runs with no approved action.
         """
         try:
-            detail = await self.run_service.get_run(
-                user_id=run['user_id'], run_id=run['id']
+            has_approved, approved_payload = (
+                await self.run_service.approved_action_payload(run)
             )
         except Exception:
-            detail = {}
-        for action in detail.get('pendingActions') or []:
-            if action.get('status') == 'approved' and isinstance(
-                action.get('payload'), dict
-            ):
-                return action['payload']
+            raise _ApprovedPayloadUnavailable() from None
+        if has_approved:
+            if approved_payload is None:
+                raise _ApprovedPayloadUnavailable()
+            return approved_payload
         stored = run.get('input_payload')
         if isinstance(stored, dict):
             return stored
         return {}
+
+    async def _release_reservation(
+        self, run: dict[str, Any], ledger_id: str | None
+    ) -> None:
+        """Best-effort release of a reserved fixed cost on failure.
+
+        The refund goes through the existing refund mechanics; a
+        refund failure never masks the run's own failure result.
+        """
+        if not ledger_id:
+            return
+        try:
+            await self.run_service.refund_run_credits(
+                str(run['user_id']), ledger_id
+            )
+        except Exception:
+            pass
 
     # -- adapters ---------------------------------------------------------
 
@@ -701,35 +736,60 @@ class AgentExecutor:
                 503,
                 'AGENT_EXECUTION_PAUSED',
             )
-        # Defense in depth, behind the pause: entitlement and the
-        # registry credit-cost rule are re-checked against current
-        # account state before the run is claimed, so a run created
-        # while the caller was entitled cannot execute after the
-        # entitlement lapses or the balance drops below the cost.
-        # A rejection leaves the run queued, like the pause above,
-        # and no provider has been contacted yet.
+        # Defense in depth, behind the pause: the capability's
+        # current registry status, entitlement, and the registry
+        # credit-cost rule are re-checked against current account
+        # state before the run is claimed, so a run created while the
+        # caller was entitled cannot execute after the entitlement
+        # lapses, the balance drops below the cost, or the capability
+        # is flipped away from live. A rejection leaves the run
+        # queued, like the pause above, and no provider has been
+        # contacted yet.
         await self.run_service.enforce_run_access(run)
+        # Atomic fixed-cost reservation, still before the claim and
+        # before any provider contact: the confirmed-spend RPC checks
+        # and deducts under the per-account lock, so a concurrent
+        # execution against a balance that covers only one cost fails
+        # here with INSUFFICIENT_CREDITS instead of overspending. A
+        # rejection leaves the run queued. The reservation is
+        # released below on every non-success outcome.
+        ledger_id = await self.run_service.reserve_run_credits(run)
         run = await self.run_service.claim_run(run)
         await self._record_step(run, 'run.started', {})
-        resolved = await self._resolve_payload(run)
+        try:
+            resolved = await self._resolve_payload(run)
+        except _ApprovedPayloadUnavailable:
+            await self._release_reservation(run, ledger_id)
+            return await self._fail(
+                run,
+                APPROVED_PAYLOAD_UNAVAILABLE,
+                'The approved details for this run could not be '
+                'loaded, so it was not executed.',
+            )
         await self._record_step(
             run, 'step.started', {'capabilityId': run['capability_id']}
         )
         adapter = self._ADAPTERS.get(str(run.get('capability_id') or ''))
         if adapter is None:
+            await self._release_reservation(run, ledger_id)
             return await self._fail(
                 run,
                 EXECUTOR_NOT_AVAILABLE,
                 'No executor is available for this capability yet.',
             )
         try:
-            return await adapter(self, run, resolved)
+            result = await adapter(self, run, resolved)
         except Exception:
+            await self._release_reservation(run, ledger_id)
             return await self._fail(
                 run,
                 'EXECUTOR_ERROR',
                 'The executor could not complete this run.',
             )
+        if result.get('status') != 'succeeded':
+            # Charge-on-success: a failed run keeps no money.
+            await self._release_reservation(run, ledger_id)
+        return result
 
     async def execute_run(
         self,

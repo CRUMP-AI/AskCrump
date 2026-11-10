@@ -15,8 +15,11 @@ server-side, at run creation and again at execution time:
   against current account state and leaves the run queued;
 - the executor pause still sits ahead of every access check;
 - free/account capabilities with a ``none`` cost pass through
-  unchanged for entitled callers, and the gate never charges —
-  charging stays charge-on-success through the existing mechanics.
+  unchanged for entitled callers. The gate itself never charges;
+  at execution the fixed cost is reserved atomically through the
+  confirmed-spend credits RPC and released again unless the run
+  succeeds (charge-on-success), covered in
+  ``test_agent_execution_integrity.py`` and below.
 
 Fixed-cost coverage uses a test-only capability built from the real
 registry dataclass (a paid, fixed-cost variant of ``memory.list``,
@@ -24,6 +27,9 @@ whose executor adapter is the counting intelligence fake below). It
 is patched into the run service's registry lookup for these tests
 only; the production registry gains no entries.
 """
+import asyncio
+import uuid
+
 import pytest
 
 from backend import agent_registry
@@ -86,8 +92,10 @@ class FakeDB:
             'agent_pending_actions': [],
             'users': [],
             'credit_accounts': [],
+            'credit_ledger': [],
         }
         self._step_id = 0
+        self._credit_lock = asyncio.Lock()
 
     def _matches(self, row, filters):
         for key, raw in (filters or {}).items():
@@ -129,6 +137,133 @@ class FakeDB:
                 row.update(payload)
                 updated.append(dict(row))
         return updated
+
+    async def rpc(self, name, params, **kwargs):
+        """Honest in-memory stand-ins for the credits RPCs: the
+        confirmed spend checks and deducts under one lock (the SQL
+        function's advisory lock + row lock), idempotent per
+        action/component, and the refund reverses a spend once."""
+        if name == 'spend_credits_confirmed':
+            async with self._credit_lock:
+                user_id = params['p_user_id']
+                amount = params['p_amount']
+                external = (
+                    f"{params['p_action_key']}:{params['p_component']}"
+                )
+                for entry in self.tables['credit_ledger']:
+                    if (
+                        entry['user_id'] == user_id
+                        and entry.get('provider') == 'feature-spend'
+                        and entry.get('external_id') == external
+                    ):
+                        refunded = any(
+                            r.get('related_ledger_id') == entry['id']
+                            and r.get('reason') == 'refund'
+                            for r in self.tables['credit_ledger']
+                        )
+                        if refunded:
+                            return [{
+                                'ledger_id': None,
+                                'balance': self._balance(user_id),
+                                'allowed': False,
+                                'duplicate': False,
+                                'limit_exceeded': True,
+                            }]
+                        return [{
+                            'ledger_id': entry['id'],
+                            'balance': self._balance(user_id),
+                            'allowed': True,
+                            'duplicate': True,
+                            'limit_exceeded': False,
+                        }]
+                account = self._account(user_id)
+                if account is None or account['balance'] < amount:
+                    return [{
+                        'ledger_id': None,
+                        'balance': self._balance(user_id),
+                        'allowed': False,
+                        'duplicate': False,
+                        'limit_exceeded': False,
+                    }]
+                account['balance'] -= amount
+                account['lifetime_spent'] += amount
+                ledger_id = str(uuid.uuid4())
+                self.tables['credit_ledger'].append({
+                    'id': ledger_id,
+                    'user_id': user_id,
+                    'delta': -amount,
+                    'balance_after': account['balance'],
+                    'reason': params['p_reason'],
+                    'provider': 'feature-spend',
+                    'external_id': external,
+                    'related_ledger_id': None,
+                    'metadata': dict(params.get('p_metadata') or {}),
+                })
+                return [{
+                    'ledger_id': ledger_id,
+                    'balance': account['balance'],
+                    'allowed': True,
+                    'duplicate': False,
+                    'limit_exceeded': False,
+                }]
+        if name == 'refund_credit_spend':
+            async with self._credit_lock:
+                user_id = params['p_user_id']
+                ledger_id = params['p_ledger_id']
+                original = next(
+                    (e for e in self.tables['credit_ledger']
+                     if e['id'] == ledger_id and e['user_id'] == user_id),
+                    None,
+                )
+                if original is None:
+                    raise AssertionError('Credit spend was not found')
+                existing = next(
+                    (e for e in self.tables['credit_ledger']
+                     if e.get('related_ledger_id') == ledger_id
+                     and e.get('reason') == 'refund'),
+                    None,
+                )
+                if existing is not None:
+                    return [{
+                        'ledger_id': existing['id'],
+                        'balance': self._balance(user_id),
+                        'duplicate': True,
+                    }]
+                amount = abs(original['delta'])
+                account = self._account(user_id)
+                account['balance'] += amount
+                account['lifetime_spent'] = max(
+                    0, account['lifetime_spent'] - amount
+                )
+                refund_id = str(uuid.uuid4())
+                self.tables['credit_ledger'].append({
+                    'id': refund_id,
+                    'user_id': user_id,
+                    'delta': amount,
+                    'balance_after': account['balance'],
+                    'reason': 'refund',
+                    'provider': 'internal',
+                    'external_id': None,
+                    'related_ledger_id': ledger_id,
+                    'metadata': dict(params.get('p_metadata') or {}),
+                })
+                return [{
+                    'ledger_id': refund_id,
+                    'balance': account['balance'],
+                    'duplicate': False,
+                }]
+        raise AssertionError(f'unexpected rpc: {name}')
+
+    def _account(self, user_id):
+        return next(
+            (r for r in self.tables['credit_accounts']
+             if r['user_id'] == user_id),
+            None,
+        )
+
+    def _balance(self, user_id):
+        account = self._account(user_id)
+        return account['balance'] if account else 0
 
 
 class CountingIntelligenceService:
@@ -324,10 +459,18 @@ async def test_fixed_cost_executes_with_sufficient_balance_and_exact_cost(
     result = await executor.execute_run(user_id=USER, run_id=run['id'])
     assert result['status'] == 'succeeded'
     assert memory.list_calls == [(USER, 100)]
-    # The gate is a balance check only: it consumes nothing, so the
-    # balance is untouched (charging stays charge-on-success through
-    # the existing credits mechanics, which the executor never had).
-    assert db.tables['credit_accounts'][0]['balance'] == 100
+    # Updated pin (was: "a successful paid run leaves the balance
+    # untouched", from when the executor had no consume step): the
+    # fixed cost is now reserved atomically at execution through the
+    # confirmed-spend RPC, so a successful run leaves the balance
+    # reduced by exactly the registry cost, charged once.
+    assert db.tables['credit_accounts'][0]['balance'] == 100 - FIXED_COST
+    assert db.tables['credit_accounts'][0]['lifetime_spent'] == FIXED_COST
+    debits = [
+        e for e in db.tables['credit_ledger'] if e['delta'] < 0
+    ]
+    assert len(debits) == 1
+    assert debits[0]['delta'] == -FIXED_COST
 
 
 # -- pause ordering ------------------------------------------------------------------

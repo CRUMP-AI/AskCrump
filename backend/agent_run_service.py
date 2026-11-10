@@ -24,7 +24,7 @@ from .agent_registry import Capability, get_capability
 from .auth_service import is_guest_user, paid_tools_entitled
 from .db import SupabaseDB, eq
 from .security import iso_now, new_uuid
-from .usage_service import credit_status
+from .usage_service import credit_status, refund_usage
 
 RUN_STATUSES = frozenset(
     {
@@ -408,9 +408,11 @@ class AgentRunService:
         no figure in the registry — its exact price is produced by the
         feature-quote path before an approval card is rendered — so
         the registry rule for those capabilities is the paid
-        entitlement gate above. This check never charges: charging
-        stays charge-on-success through the existing credits
-        mechanics, exactly as before.
+        entitlement gate above. This check never charges: the fixed
+        cost is reserved atomically at execution time through the
+        confirmed-spend credits RPC (see ``reserve_run_credits``) and
+        released again if the run does not succeed, so charging stays
+        charge-on-success.
         """
         if not self.enforce_access:
             return
@@ -454,7 +456,13 @@ class AgentRunService:
         after the entitlement lapses or the balance drops below the
         registry cost, so execution re-resolves the capability from
         the registry and the account state fresh, exactly as creation
-        does.
+        does. The capability's current registry status is re-checked
+        the same way: a capability flipped away from ``live`` after
+        the run was created (or after its approval) refuses here,
+        before the run is claimed and before any provider contact,
+        with the same ``CAPABILITY_NOT_LIVE`` shape creation uses.
+        The rejection leaves the run queued, like the entitlement and
+        balance rejections below.
         """
         if not self.enforce_access:
             return
@@ -463,9 +471,114 @@ class AgentRunService:
             raise AgentRunError(
                 'That capability is not available.', 404, 'CAPABILITY_NOT_FOUND'
             )
+        if self.enforce_capability_status and capability.status != 'live':
+            raise AgentRunError(
+                'That capability is not live yet.',
+                409,
+                'CAPABILITY_NOT_LIVE',
+            )
         await self.enforce_capability_access(
             capability, str(run.get('user_id') or '')
         )
+
+    async def approved_action_payload(
+        self, run: dict[str, Any]
+    ) -> tuple[bool, dict[str, Any] | None]:
+        """Return ``(has_approved_action, exact_payload)`` for a run.
+
+        The first element says whether the run's execution depends on
+        an approved pending action at all; the second is that action's
+        frozen exact payload, or ``None`` when the stored payload is
+        missing or not an object. Read errors propagate to the caller:
+        payload resolution must fail closed, never guess.
+        """
+        rows = await self.db.select(
+            'agent_pending_actions',
+            filters={
+                'run_id': eq(str(run['id'])),
+                'user_id': eq(str(run['user_id'])),
+                'status': eq('approved'),
+            },
+            order='created_at.desc',
+            limit=50,
+        )
+        if not rows:
+            return False, None
+        payload = rows[0].get('exact_payload')
+        return True, payload if isinstance(payload, dict) else None
+
+    async def reserve_run_credits(self, run: dict[str, Any]) -> str | None:
+        """Atomically reserve a fixed-cost run's registry cost.
+
+        The reservation is the existing confirmed-spend credits RPC
+        (``spend_credits_confirmed`` — the same atomic boundary the
+        feature billing path uses): it takes the per-account advisory
+        lock, checks the balance, and deducts in one transaction, so
+        two concurrent executions against a balance that covers only
+        one cost cannot both pass. The spend is idempotent per run
+        (action key ``agent-run:<run id>``, component = capability
+        id, confirmed maximum = the exact registry cost), so a retry
+        of the same run never double-charges. Returns the ledger id
+        of the spend, or ``None`` when the capability carries no
+        fixed cost (``none`` and ``quote`` costs reserve nothing
+        here — quote prices come from the feature-quote path).
+        Raises ``INSUFFICIENT_CREDITS`` when the atomic spend refuses.
+        """
+        if not self.enforce_access:
+            return None
+        capability = get_capability(str(run.get('capability_id') or ''))
+        if capability is None or capability.credit_cost_kind != 'fixed':
+            return None
+        cost = int(capability.credit_cost or 0)
+        if cost <= 0:
+            return None
+        user_id = str(run.get('user_id') or '')
+        result = await self.db.rpc(
+            'spend_credits_confirmed',
+            {
+                'p_user_id': user_id,
+                'p_amount': cost,
+                'p_reason': 'agent_run',
+                'p_action_key': f'agent-run:{run["id"]}',
+                'p_component': capability.id,
+                'p_confirmed_max': cost,
+                'p_metadata': {
+                    'runId': str(run['id']),
+                    'capabilityId': capability.id,
+                },
+            },
+        )
+        row = (
+            result[0]
+            if isinstance(result, list) and result
+            else (result or {})
+        )
+        if row.get('limit_exceeded'):
+            raise AgentRunError(
+                'This run already used its approved credit maximum. '
+                'Start the run again for a fresh review.',
+                409,
+                'CREDIT_SPEND_LIMIT_EXCEEDED',
+            )
+        if not row.get('allowed'):
+            raise AgentRunError(
+                f'This capability costs {cost} credits and the '
+                'account balance is too low.',
+                402,
+                'INSUFFICIENT_CREDITS',
+            )
+        ledger_id = row.get('ledger_id')
+        return str(ledger_id) if ledger_id else None
+
+    async def refund_run_credits(
+        self, user_id: str, ledger_id: str | None
+    ) -> None:
+        """Release a reserved run cost through the existing refund
+        mechanics (``refund_credit_spend``, via ``refund_usage``), so
+        a run that does not succeed does not keep the money."""
+        if not ledger_id:
+            return
+        await refund_usage(self.db, str(user_id), f'credit:{ledger_id}')
 
     # -- runs ---------------------------------------------------------------
     async def create_run(
