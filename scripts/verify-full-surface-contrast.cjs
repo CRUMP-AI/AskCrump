@@ -225,6 +225,23 @@ async function main() {
     }
   }
 
+  // 2c) Tasks drawer open on the Today fixture (mixed record): the
+  // approval cards, record rows, and scheduled rows inside the drawer
+  // are scanned on the drawer's ink ground in either appearance.
+  for (const theme of ['dark', 'light']) {
+    for (const viewport of VIEWPORTS) {
+      const page = await browser.newPage({ viewport });
+      const result = await scanPage(page,
+        `${rootBase}/tests/fixtures/agent-today-placeholder.html?state=live&theme=${theme}&tasks=mixed`,
+        async (tasksPage) => {
+          await tasksPage.evaluate(() => window.CrumpAgentToday.openTasks());
+          await tasksPage.waitForTimeout(500);
+        });
+      record('tasks-open', theme, viewport, result);
+      await page.close();
+    }
+  }
+
   // 3) Appearance fixture: light render, then the runtime theme switch to dark.
   for (const viewport of VIEWPORTS) {
     const lightPage = await browser.newPage({ viewport });

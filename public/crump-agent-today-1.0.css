@@ -604,15 +604,15 @@ body.crump-v1-body .v1-workspace-body:has(> .cat-chat-work:not([hidden])) > .cat
   bottom: 0;
   width: min(430px, 100vw);
   max-width: 100vw;
-  background: var(--cat-paper);
-  color: var(--cat-ink);
+  background: var(--cat-ink);
+  color: var(--cat-paper);
   z-index: 710;
   display: flex;
   flex-direction: column;
   transform: translateX(102%);
   transition: transform 0.22s ease;
   font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
-  box-shadow: -18px 0 44px rgba(7, 10, 14, 0.18);
+  box-shadow: -18px 0 44px rgba(7, 10, 14, 0.42);
 }
 
 .cat-drawer.is-open {
@@ -629,7 +629,7 @@ body.crump-v1-body .v1-workspace-body:has(> .cat-chat-work:not([hidden])) > .cat
   justify-content: space-between;
   gap: 12px;
   padding: 18px 20px 14px;
-  border-bottom: 1px solid var(--cat-line);
+  border-bottom: 1px solid rgba(213, 185, 113, 0.22);
 }
 
 .cat-drawer-title {
@@ -660,6 +660,16 @@ body.crump-v1-body .v1-workspace-body:has(> .cat-chat-work:not([hidden])) > .cat
   cursor: pointer;
 }
 
+.cat-drawer .cat-icon-btn {
+  border-color: rgba(241, 239, 233, 0.28);
+  background: transparent;
+  color: var(--cat-paper);
+}
+
+.cat-drawer .cat-icon-btn:hover {
+  border-color: var(--cat-gold-bright);
+}
+
 .cat-drawer-body {
   flex: 1;
   overflow-y: auto;
@@ -668,30 +678,35 @@ body.crump-v1-body .v1-workspace-body:has(> .cat-chat-work:not([hidden])) > .cat
 }
 
 .cat-group {
-  margin-bottom: 26px;
+  margin-bottom: 34px;
 }
 
 .cat-group-title {
-  margin: 0 0 10px;
+  margin: 0 0 6px;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--cat-gray-on-light);
+  color: var(--cat-gold-bright);
 }
 
 .cat-group-empty {
   margin: 0;
+  padding: 12px 4px 4px;
   font-size: 13.5px;
-  color: var(--cat-gray-on-light);
+  color: var(--cat-gray);
   line-height: 1.55;
 }
 
+/* The Tasks record: one line per item on the ink ground, separated by
+   hairline rules in the gold family at low contrast, with the design's
+   generous whitespace kept — rows are records, not cards. */
 .cat-task-row {
-  background: var(--cat-card);
-  border: 1px solid var(--cat-line);
-  border-radius: 14px;
-  margin-bottom: 10px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgba(213, 185, 113, 0.16);
+  border-radius: 0;
+  margin-bottom: 0;
   overflow: hidden;
 }
 
@@ -703,13 +718,34 @@ body.crump-v1-body .v1-workspace-body:has(> .cat-chat-work:not([hidden])) > .cat
   color: inherit;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  min-height: 52px;
-  padding: 12px 14px;
+  justify-content: flex-start;
+  gap: 12px;
+  min-height: 60px;
+  padding: 16px 4px;
   font: inherit;
   text-align: left;
   cursor: pointer;
+}
+
+.cat-row-marker {
+  flex: none;
+  width: 8px;
+  height: 8px;
+  transform: rotate(45deg);
+  background: var(--cat-gray);
+}
+
+.cat-row-marker-live,
+.cat-row-marker-waiting {
+  background: var(--cat-gold-bright);
+}
+
+.cat-row-marker-done {
+  background: var(--cat-gray);
+}
+
+.cat-row-marker-failed {
+  background: #e59a8a;
 }
 
 .cat-task-row-main {
@@ -718,26 +754,47 @@ body.crump-v1-body .v1-workspace-body:has(> .cat-chat-work:not([hidden])) > .cat
 
 .cat-task-row-title {
   display: block;
-  font-size: 14.5px;
+  font-size: 15px;
   font-weight: 600;
-  line-height: 1.35;
+  line-height: 1.4;
+  color: var(--cat-paper);
   overflow-wrap: anywhere;
 }
 
 .cat-task-row-meta {
   display: block;
-  margin-top: 2px;
-  font-size: 12px;
-  color: var(--cat-gray-on-light);
+  margin-top: 3px;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--cat-gray);
+  overflow-wrap: anywhere;
 }
 
 .cat-task-detail {
-  border-top: 1px solid var(--cat-line);
-  padding: 12px 14px 14px;
+  border-top: 1px solid rgba(241, 239, 233, 0.12);
+  padding: 14px 4px 18px;
 }
 
 .cat-task-detail[hidden] {
   display: none !important;
+}
+
+.cat-task-detail-line {
+  margin: 0 0 8px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--cat-paper-dim);
+  overflow-wrap: anywhere;
+}
+
+.cat-task-detail-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cat-gray);
+  margin-bottom: 2px;
 }
 
 .cat-step-list {
@@ -754,12 +811,12 @@ body.crump-v1-body .v1-workspace-body:has(> .cat-chat-work:not([hidden])) > .cat
   gap: 10px;
   font-size: 13px;
   line-height: 1.5;
-  color: var(--cat-ink-soft);
+  color: var(--cat-paper-dim);
 }
 
 .cat-step-list time {
   flex: none;
-  color: var(--cat-gray-on-light);
+  color: var(--cat-gray);
   font-size: 12px;
 }
 
@@ -776,6 +833,9 @@ body.crump-v1-body .v1-workspace-body:has(> .cat-chat-work:not([hidden])) > .cat
   justify-content: center;
   padding: 20px;
   background: rgba(7, 10, 14, 0.48);
+  /* The panel window is a light surface wherever the panel opens
+     from, so its text tone is pinned here instead of inherited. */
+  color: var(--cat-ink);
 }
 
 .cat-browser[hidden] {
@@ -1217,6 +1277,95 @@ body.crump-v1-body .v1-workspace-body:has(> .cat-chat-work:not([hidden])) > .cat
   border-color: rgba(241, 239, 233, 0.14);
 }
 
+/* Dark card treatment, Tasks drawer: approval cards inside the drawer
+   sit on the drawer's ink ground, so they take the same dark card
+   token and paper text as Today's and Chat's cards. Row-level detail
+   controls (Cancel run, Open browser) and payload lists inside the
+   drawer follow the same pairing. */
+.cat-drawer .cat-card {
+  background: #111417;
+  border-color: rgba(241, 239, 233, 0.14);
+  color: var(--cat-paper);
+  margin-bottom: 12px;
+}
+
+.cat-drawer .cat-card .cat-card-head {
+  color: var(--cat-gray);
+}
+
+.cat-drawer .cat-card .cat-card-title {
+  color: var(--cat-paper);
+}
+
+.cat-drawer .cat-card .cat-card-summary {
+  color: var(--cat-paper-dim);
+}
+
+.cat-drawer .cat-card .cat-card-meta {
+  color: var(--cat-gray);
+}
+
+.cat-drawer .cat-card .cat-card-note {
+  color: var(--cat-paper-dim);
+}
+
+.cat-drawer .cat-card .cat-card-note-error {
+  color: #e59a8a;
+}
+
+.cat-drawer .cat-card .cat-status {
+  border-color: rgba(241, 239, 233, 0.22);
+  background: transparent;
+  color: var(--cat-paper-dim);
+}
+
+.cat-drawer .cat-card .cat-status-live,
+.cat-drawer .cat-card .cat-status-waiting {
+  border-color: rgba(213, 185, 113, 0.55);
+  background: rgba(213, 185, 113, 0.14);
+  color: var(--cat-gold-bright);
+}
+
+.cat-drawer .cat-card .cat-status-failed {
+  color: #e59a8a;
+}
+
+.cat-drawer .cat-btn {
+  border-color: rgba(241, 239, 233, 0.3);
+  color: var(--cat-paper);
+}
+
+.cat-drawer .cat-btn:hover {
+  border-color: var(--cat-gold-bright);
+}
+
+.cat-drawer .cat-btn-primary {
+  background: var(--cat-gold-bright);
+  border-color: var(--cat-gold-bright);
+  color: var(--cat-ink);
+}
+
+.cat-drawer .cat-btn-primary:hover {
+  background: var(--cat-gold);
+  border-color: var(--cat-gold);
+}
+
+.cat-drawer .cat-detail-toggle {
+  color: var(--cat-gold-bright);
+}
+
+.cat-drawer .cat-payload {
+  border-top-color: rgba(241, 239, 233, 0.14);
+}
+
+.cat-drawer .cat-payload-row dt {
+  color: var(--cat-gray);
+}
+
+.cat-drawer .cat-payload-row dd {
+  color: var(--cat-paper);
+}
+
 /* ------------------------------------------------------------------ */
 /* Small screens                                                       */
 /* ------------------------------------------------------------------ */
@@ -1255,6 +1404,19 @@ body.crump-v1-body .v1-workspace-body:has(> .cat-chat-work:not([hidden])) > .cat
     max-height: 100vh;
     height: 100%;
     border-radius: 0;
+  }
+}
+
+@media (max-width: 400px) {
+  /* The drawer head carries the title plus Browser / Refresh / Close;
+     on the narrowest screens the actions wrap under the title instead
+     of pushing the panel wider than the viewport. */
+  .cat-drawer-head {
+    flex-wrap: wrap;
+  }
+
+  .cat-drawer-head-actions {
+    flex-wrap: wrap;
   }
 }
 

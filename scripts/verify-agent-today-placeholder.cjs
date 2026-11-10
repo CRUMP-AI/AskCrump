@@ -323,6 +323,174 @@ async function measureChat(page) {
   });
 }
 
+async function measureTasks(page) {
+  return page.evaluate(() => {
+    const visible = element => {
+      if (!element) return false;
+      const style = getComputedStyle(element);
+      if (style.display === 'none' || style.visibility === 'hidden') return false;
+      const box = element.getBoundingClientRect();
+      return box.width > 0 && box.height > 0;
+    };
+    const panel = document.querySelector('#catTasksPanel');
+    const groups = panel ? [...panel.querySelectorAll('.cat-group')] : [];
+    const groupInfo = groups.map(group => {
+      const title = group.querySelector('.cat-group-title');
+      return {
+        title: title ? title.textContent.trim() : '',
+        titleColor: title ? getComputedStyle(title).color : '',
+        text: group.textContent,
+        cards: [...group.querySelectorAll('.cat-card')].filter(visible).length,
+        rows: [...group.querySelectorAll('.cat-task-row')].map(row => {
+          const titleEl = row.querySelector('.cat-task-row-title');
+          const metaEl = row.querySelector('.cat-task-row-meta');
+          const detail = row.querySelector('.cat-task-detail');
+          return {
+            title: titleEl ? titleEl.textContent : '',
+            titleScrollWidth: titleEl ? titleEl.scrollWidth : 0,
+            titleClientWidth: titleEl ? titleEl.clientWidth : 0,
+            meta: metaEl ? metaEl.textContent : '',
+            marker: Boolean(row.querySelector('.cat-row-marker')),
+            detailText: detail ? detail.textContent : '',
+            detailVisible: visible(detail),
+          };
+        }),
+        emptyText: (group.querySelector('.cat-group-empty') || {}).textContent || '',
+      };
+    });
+    return {
+      panelVisible: visible(panel),
+      panelBackground: panel ? getComputedStyle(panel).backgroundColor : '',
+      groupTitles: groupInfo.map(group => group.title),
+      groups: groupInfo,
+      panelText: panel ? panel.textContent : '',
+      panelScrollWidth: panel ? panel.scrollWidth : 0,
+      panelClientWidth: panel ? panel.clientWidth : 0,
+      fetchCalls: Array.isArray(window.__fetchCalls) ? window.__fetchCalls.slice() : [],
+    };
+  });
+}
+
+async function openTasksFixture(page, url) {
+  await page.goto(url, { waitUntil: 'load' });
+  await page.waitForTimeout(250);
+  await page.evaluate(() => window.CrumpAgentToday.openTasks());
+  await page.waitForSelector('#catTasksPanel.is-open', { timeout: 8000 });
+  await page.waitForTimeout(150);
+}
+
+async function runTasksScenarios(browser) {
+  let scenarios = 0;
+  // Mixed record at every viewport in both appearances: waiting holds
+  // every approval as a full card, then Running, Scheduled, Done in
+  // the locked order, each row a one-line record with a marker.
+  for (const theme of THEMES) {
+    for (const viewport of VIEWPORTS) {
+      const label = `tasks ${theme}/mixed @ ${viewport.name}`;
+      const page = await browser.newPage({ viewport });
+      await openTasksFixture(page, `${fixtureUrl}?theme=${theme}&state=live&tasks=mixed`);
+      const m = await measureTasks(page);
+      assert.equal(m.panelVisible, true, `${label}: Tasks panel not visible`);
+      assert.equal(m.panelBackground, 'rgb(7, 10, 14)', `${label}: drawer ground ${m.panelBackground}`);
+      assert.deepEqual(m.groupTitles, ['Waiting on you', 'Running', 'Scheduled', 'Done'],
+        `${label}: group order ${JSON.stringify(m.groupTitles)}`);
+      const [waiting, running, scheduled, done] = m.groups;
+      assert.equal(waiting.titleColor, 'rgb(213, 185, 113)', `${label}: group eyebrow color`);
+      // PR2 dependency: every pending approval renders in full here.
+      assert.equal(waiting.cards, 3, `${label}: waiting approval cards ${waiting.cards}`);
+      assert.equal(running.rows.length, 1, `${label}: running rows`);
+      assert.match(running.rows[0].title, /Act in the browser/, `${label}: running title`);
+      assert.match(running.rows[0].meta, /Running/, `${label}: running meta`);
+      assert.equal(running.rows[0].marker, true, `${label}: running marker missing`);
+      // Scheduled: the enabled automation and the paused one both
+      // render in this group; the line comes from the stored schedule
+      // (daily + local time) and the stored next run — nothing else.
+      assert.equal(scheduled.rows.length, 2, `${label}: scheduled rows ${scheduled.rows.length}`);
+      assert.match(scheduled.rows[0].title, /Send the morning brief/, `${label}: scheduled title`);
+      assert.match(scheduled.rows[0].meta, /Scheduled/, `${label}: enabled meta "${scheduled.rows[0].meta}"`);
+      assert.match(scheduled.rows[0].meta, /Daily at 7:00 AM/, `${label}: schedule line "${scheduled.rows[0].meta}"`);
+      assert.match(scheduled.rows[0].meta, /Next Nov 11/, `${label}: next run "${scheduled.rows[0].meta}"`);
+      assert.doesNotMatch(m.panelText, /every weekday/i, `${label}: invented frequency wording`);
+      assert.match(scheduled.rows[1].meta, /Paused/, `${label}: paused meta "${scheduled.rows[1].meta}"`);
+      assert.equal(scheduled.rows[1].marker, true, `${label}: paused marker missing`);
+      // The long automation title wraps without clipping at 320px too.
+      assert.ok(scheduled.rows[1].titleScrollWidth <= scheduled.rows[1].titleClientWidth + 1,
+        `${label}: long title clipped ${scheduled.rows[1].titleScrollWidth} > ${scheduled.rows[1].titleClientWidth}`);
+      assert.equal(done.rows.length, 1, `${label}: done rows`);
+      assert.match(done.rows[0].meta, /Done/, `${label}: done meta`);
+      assert.ok(m.panelScrollWidth <= m.panelClientWidth + 1,
+        `${label}: panel clipped ${m.panelScrollWidth} > ${m.panelClientWidth}`);
+      scenarios += 1;
+      await page.close();
+    }
+  }
+
+  // Row expansion: a run row opens its recorded steps; a scheduled
+  // row opens the schedule record it carries, including last run.
+  {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await openTasksFixture(page, `${fixtureUrl}?theme=dark&state=live&tasks=mixed`);
+    await page.click('#catTasksPanel .cat-group:nth-of-type(2) .cat-task-row-head');
+    await page.waitForTimeout(300);
+    let m = await measureTasks(page);
+    assert.equal(m.groups[1].rows[0].detailVisible, true, 'tasks expand: run detail did not open');
+    assert.match(m.groups[1].rows[0].detailText, /Run created/, 'tasks expand: steps missing');
+    assert.match(m.groups[1].rows[0].detailText, /Queued/, 'tasks expand: second step missing');
+    await page.click('#catTasksPanel .cat-group:nth-of-type(3) .cat-task-row-head');
+    await page.waitForTimeout(120);
+    m = await measureTasks(page);
+    assert.equal(m.groups[2].rows[0].detailVisible, true, 'tasks expand: scheduled detail did not open');
+    assert.match(m.groups[2].rows[0].detailText, /Last run/, 'tasks expand: last run missing');
+    assert.match(m.groups[2].rows[0].detailText, /America\/New_York/, 'tasks expand: timezone missing');
+    await page.close();
+    scenarios += 1;
+  }
+
+  // Scheduled-only: the standing record renders with the other groups
+  // quiet, and nothing else is invented to fill them.
+  {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await openTasksFixture(page, `${fixtureUrl}?theme=dark&state=live&tasks=scheduled`);
+    const m = await measureTasks(page);
+    assert.deepEqual(m.groupTitles, ['Waiting on you', 'Running', 'Scheduled', 'Done'],
+      `tasks scheduled-only: order ${JSON.stringify(m.groupTitles)}`);
+    assert.equal(m.groups[2].rows.length, 2, 'tasks scheduled-only: scheduled rows');
+    assert.match(m.groups[0].emptyText, /Nothing is waiting on you/, 'tasks scheduled-only: waiting empty');
+    assert.match(m.groups[1].emptyText, /Nothing is running/, 'tasks scheduled-only: running empty');
+    await page.close();
+    scenarios += 1;
+  }
+
+  // Empty record: every group quiet, Scheduled with its own line.
+  {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await openTasksFixture(page, `${fixtureUrl}?theme=dark&state=live&tasks=empty`);
+    const m = await measureTasks(page);
+    assert.match(m.groups[2].emptyText, /Nothing is scheduled\./, 'tasks empty: scheduled empty line');
+    assert.equal(m.groups[2].rows.length, 0, 'tasks empty: scheduled rows rendered');
+    await page.close();
+    scenarios += 1;
+  }
+
+  // Guests: the drawer shows the sign-in line and the session makes
+  // zero agent calls, automations included.
+  {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await openTasksFixture(page, `${fixtureUrl}?theme=dark&state=live&guest=1`);
+    const m = await measureTasks(page);
+    assert.match(m.panelText, /Sign in to see your tasks/, 'tasks guest: sign-in line missing');
+    assert.equal(m.fetchCalls.filter(path => path.indexOf('/api/agent/') === 0).length, 0,
+      `tasks guest: agent calls made ${JSON.stringify(m.fetchCalls)}`);
+    await page.close();
+    scenarios += 1;
+  }
+
+  console.log(`Agent Tasks record: ${scenarios} scenarios passed ` +
+    `(${THEMES.length} themes x mixed x ${VIEWPORTS.length} viewports, plus expansion, ` +
+    `scheduled-only, empty, and guest).`);
+  return scenarios;
+}
+
 async function runChatScenarios(browser) {
   let scenarios = 0;
   const CHAT_STATES = ['approval', 'live', 'both', 'none', 'result'];
@@ -611,6 +779,7 @@ async function run() {
       }
     }
 
+    scenarios += await runTasksScenarios(browser);
     scenarios += await runChatScenarios(browser);
   } finally {
     await browser.close();

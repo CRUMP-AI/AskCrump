@@ -38,6 +38,7 @@
     capabilityList: [],
     approvals: [],
     runs: [],
+    automations: [],
     loaded: false,
     failed: false,
     loading: false,
@@ -232,6 +233,7 @@
       settled(api('/api/agent/runs')),
       settled(api('/api/connections/google/status')),
       settled(api('/api/agent/today')),
+      settled(api('/api/agent/automations')),
     ]).then(function (results) {
       state.loading = false;
       var caps = results[0];
@@ -239,6 +241,7 @@
       var runs = results[2];
       var google = results[3];
       var brief = results[4];
+      var automations = results[5];
       if (caps.ok && Array.isArray(caps.data.capabilities)) {
         state.capabilityList = caps.data.capabilities;
         state.capabilities = {};
@@ -261,6 +264,10 @@
       }
       if (brief.ok && brief.data.brief && typeof brief.data.brief === 'object') {
         state.brief = brief.data.brief;
+      }
+      if (automations.ok) {
+        state.automations = Array.isArray(automations.data.automations)
+          ? automations.data.automations : [];
       }
       state.loaded = caps.ok || approvals.ok || runs.ok;
       state.failed = !state.loaded;
@@ -1057,11 +1064,22 @@
     tasksOpener = null;
   }
 
+  function rowMarker(status) {
+    var kind = 'done';
+    if (TERMINAL[status]) kind = status === 'failed' ? 'failed' : 'done';
+    else if (WAITING[status] || status === 'pending') kind = 'waiting';
+    else if (RUNNING[status]) kind = 'live';
+    var marker = h('span', 'cat-row-marker cat-row-marker-' + kind);
+    marker.setAttribute('aria-hidden', 'true');
+    return marker;
+  }
+
   function taskRow(run) {
     var row = h('div', 'cat-task-row');
     var headBtn = h('button', 'cat-task-row-head');
     headBtn.type = 'button';
     headBtn.setAttribute('aria-expanded', 'false');
+    headBtn.appendChild(rowMarker(run.status));
     var main = h('span', 'cat-task-row-main');
     main.appendChild(h('span', 'cat-task-row-title', capabilityTitle(run.capabilityId)));
     var metaBits = [statusLabel(run.status)];
@@ -1069,7 +1087,6 @@
     if (when) metaBits.push('started ' + when);
     main.appendChild(h('span', 'cat-task-row-meta', metaBits.join(' · ')));
     headBtn.appendChild(main);
-    headBtn.appendChild(h('span', statusClass(run.status), statusLabel(run.status)));
     row.appendChild(headBtn);
 
     var detail = h('div', 'cat-task-detail');
@@ -1155,6 +1172,85 @@
     return labels[type] || type.replace(/[._]/g, ' ');
   }
 
+  /* ---------------------------------------------------------------- */
+  /* Scheduled rows                                                    */
+  /*                                                                   */
+  /* An automation row is a record of a standing schedule. Its line    */
+  /* is derived only from the fields the record itself carries: the    */
+  /* stored schedule kind and local time, and the stored next run.     */
+  /* No frequency wording is invented for a record that does not       */
+  /* carry it. Paused automations stay in this group — they are part   */
+  /* of the standing record, not finished work — with their paused     */
+  /* status shown.                                                     */
+  /* ---------------------------------------------------------------- */
+
+  function fmtScheduleTime(value) {
+    var match = /^([01][0-9]|2[0-3]):([0-5][0-9])$/.exec(String(value || ''));
+    if (!match) return '';
+    var hour = parseInt(match[1], 10);
+    var suffix = hour < 12 ? 'AM' : 'PM';
+    var hour12 = hour % 12 || 12;
+    return hour12 + ':' + match[2] + ' ' + suffix;
+  }
+
+  function automationScheduleLine(automation) {
+    var bits = [];
+    var schedule = automation.schedule && typeof automation.schedule === 'object'
+      ? automation.schedule : {};
+    var timeText = fmtScheduleTime(schedule.time);
+    if (schedule.kind === 'daily' && timeText) bits.push('Daily at ' + timeText);
+    else if (timeText) bits.push(timeText);
+    else if (typeof schedule.kind === 'string' && schedule.kind) bits.push(schedule.kind);
+    var next = fmtTime(automation.nextRunAt);
+    if (automation.enabled !== false && next) bits.push('Next ' + next);
+    return bits.join(' · ');
+  }
+
+  function automationRow(automation) {
+    var enabled = automation.enabled !== false;
+    var row = h('div', 'cat-task-row cat-sched-row');
+    var headBtn = h('button', 'cat-task-row-head');
+    headBtn.type = 'button';
+    headBtn.setAttribute('aria-expanded', 'false');
+    var marker = h('span', 'cat-row-marker ' + (enabled ? 'cat-row-marker-live' : 'cat-row-marker-done'));
+    marker.setAttribute('aria-hidden', 'true');
+    headBtn.appendChild(marker);
+    var main = h('span', 'cat-task-row-main');
+    main.appendChild(h('span', 'cat-task-row-title', capabilityTitle(automation.capabilityId)));
+    var metaBits = [enabled ? 'Scheduled' : 'Paused'];
+    var line = automationScheduleLine(automation);
+    if (line) metaBits.push(line);
+    main.appendChild(h('span', 'cat-task-row-meta', metaBits.join(' · ')));
+    headBtn.appendChild(main);
+    row.appendChild(headBtn);
+
+    var detail = h('div', 'cat-task-detail');
+    detail.hidden = true;
+    var schedule = automation.schedule && typeof automation.schedule === 'object'
+      ? automation.schedule : {};
+    var lines = [];
+    if (line) lines.push(['Schedule', line]);
+    if (schedule.timezone) lines.push(['Timezone', String(schedule.timezone)]);
+    if (automation.lastRunAt && fmtTime(automation.lastRunAt)) {
+      lines.push(['Last run', fmtTime(automation.lastRunAt)]);
+    }
+    if (!lines.length) lines.push(['Schedule', enabled ? 'Scheduled' : 'Paused']);
+    lines.forEach(function (pair) {
+      var item = h('p', 'cat-task-detail-line');
+      item.appendChild(h('span', 'cat-task-detail-label', pair[0]));
+      item.appendChild(document.createTextNode(pair[1]));
+      detail.appendChild(item);
+    });
+    row.appendChild(detail);
+
+    headBtn.addEventListener('click', function () {
+      var open = detail.hidden;
+      detail.hidden = !open;
+      headBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    });
+    return row;
+  }
+
   function renderTasks() {
     if (!tasksBody) return;
     tasksBody.innerHTML = '';
@@ -1191,6 +1287,16 @@
     if (!running.length) runningGroup.appendChild(h('p', 'cat-group-empty', 'Nothing is running right now.'));
     running.forEach(function (run) { runningGroup.appendChild(taskRow(run)); });
     tasksBody.appendChild(runningGroup);
+
+    var scheduledGroup = h('section', 'cat-group');
+    scheduledGroup.appendChild(h('h3', 'cat-group-title', 'Scheduled'));
+    if (!state.automations.length) {
+      scheduledGroup.appendChild(h('p', 'cat-group-empty', 'Nothing is scheduled.'));
+    }
+    state.automations.forEach(function (automation) {
+      scheduledGroup.appendChild(automationRow(automation));
+    });
+    tasksBody.appendChild(scheduledGroup);
 
     var doneGroup = h('section', 'cat-group');
     doneGroup.appendChild(h('h3', 'cat-group-title', 'Done'));
