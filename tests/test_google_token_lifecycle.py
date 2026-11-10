@@ -5,10 +5,10 @@ bound-token path must refresh an expired bound token from the stored
 refresh token before any provider call, persist the refreshed tokens
 through the vault, and fail with ``CONNECTION_REQUIRED`` when the
 grant can no longer be refreshed — the expired token must never be
-used. Disconnect must revoke the grant at Google (the refresh token
-revokes the grant) before the local row is cleared, and a failed
-revocation must be surfaced on the returned status without blocking
-the local disconnect.
+used. Disconnect must fence and clear the local row before revoking the
+grant at Google from a captured token snapshot, so an in-flight refresh
+cannot resurrect it. A failed revocation must be surfaced on the
+returned status without blocking the local disconnect.
 
 All Google endpoints are mocked; no real network is touched.
 """
@@ -119,6 +119,7 @@ def _connection_row(*, expires_at, refresh_token=REFRESH_OLD, access_token=ACCES
         'token_expires_at': _iso(expires_at) if expires_at else None,
         'status': 'connected',
         'created_at': '2026-11-08T10:00:00+00:00',
+        'updated_at': '2026-11-08T10:00:00+00:00',
     }
 
 
@@ -341,6 +342,93 @@ def test_concurrent_refresh_of_one_connection_is_single_flight():
     assert tokens == [ACCESS_NEW, ACCESS_NEW]
     assert len(_token_calls(captured)) == 1
     assert connector.vault.decrypt(db.rows[0]['access_token_ciphertext'], user_id=USER_ID, provider='google', connection_id='conn-1') == ACCESS_NEW
+
+
+def test_disconnect_mid_refresh_fences_the_stale_write_and_token_return():
+    captured = []
+    db = FakeDB(rows=[_expired_row()])
+    refresh_connector = _connector(db, captured)
+    disconnect_connector = _connector(db, captured)
+    refresh_started = asyncio.Event()
+    release_refresh = asyncio.Event()
+
+    async def blocked_exchange(_refresh_token):
+        refresh_started.set()
+        await release_refresh.wait()
+        return {'access_token': ACCESS_NEW, 'expires_in': 3600}
+
+    refresh_connector._exchange_refresh_token = blocked_exchange
+
+    async def refresh_during_disconnect():
+        refresh_task = asyncio.create_task(
+            refresh_connector.access_token_for(USER_ID)
+        )
+        await refresh_started.wait()
+        status = await disconnect_connector.disconnect(USER_ID)
+        release_refresh.set()
+        with pytest.raises(ConnectionRequiredError) as caught:
+            await refresh_task
+        return status, caught.value
+
+    status, error = asyncio.run(refresh_during_disconnect())
+
+    assert error.code == 'CONNECTION_REQUIRED'
+    assert status['connected'] is False
+    assert db.rows[0]['status'] == 'revoked'
+    assert db.rows[0]['access_token_ciphertext'] == ''
+    assert db.rows[0]['refresh_token_ciphertext'] == ''
+    assert db.rows[0]['token_expires_at'] is None
+    assert len(_revoke_calls(captured)) == 1
+
+
+def test_separate_connector_instances_share_one_durable_refresh_lease():
+    db = FakeDB(rows=[_expired_row()])
+    calls = 0
+    refresh_started = asyncio.Event()
+    release_refresh = asyncio.Event()
+
+    async def blocked_exchange(_refresh_token):
+        nonlocal calls
+        calls += 1
+        call_number = calls
+        refresh_started.set()
+        await release_refresh.wait()
+        return {
+            'access_token': f'{ACCESS_NEW}-{call_number}',
+            'expires_in': 3600,
+        }
+
+    first = _connector(db, [])
+    second = _connector(db, [])
+    first._exchange_refresh_token = blocked_exchange
+    second._exchange_refresh_token = blocked_exchange
+
+    async def refresh_from_two_request_scoped_instances():
+        first_task = asyncio.create_task(first.access_token_for(USER_ID))
+        await refresh_started.wait()
+        second_task = asyncio.create_task(second.access_token_for(USER_ID))
+        for _ in range(10):
+            await asyncio.sleep(0)
+        calls_before_release = calls
+        release_refresh.set()
+        return calls_before_release, await asyncio.gather(first_task, second_task)
+
+    calls_before_release, tokens = asyncio.run(
+        refresh_from_two_request_scoped_instances()
+    )
+
+    assert calls_before_release == 1
+    assert calls == 1
+    assert tokens == [f'{ACCESS_NEW}-1', f'{ACCESS_NEW}-1']
+    assert (
+        first.vault.decrypt(
+            db.rows[0]['access_token_ciphertext'],
+            user_id=USER_ID,
+            provider='google',
+            connection_id='conn-1',
+        )
+        == f'{ACCESS_NEW}-1'
+    )
 
 
 # -- Disconnect / revocation -----------------------------------------------------
