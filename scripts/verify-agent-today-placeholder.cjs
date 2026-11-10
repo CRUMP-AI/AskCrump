@@ -7,9 +7,9 @@ const executablePath = process.env.ASKCRUMP_BROWSER_EXECUTABLE || undefined;
 const fixtureUrl = `${fixtureOrigin}/tests/fixtures/agent-today-placeholder.html`;
 
 const VIEWPORTS = [
-  { name: '1039x738', width: 1039, height: 738 },
-  { name: '390x844', width: 390, height: 844 },
-  { name: '320x844', width: 320, height: 844 },
+  { name: '1039x738', width: 1039, height: 738, maxNoticeFraction: 0.10 },
+  { name: '390x844', width: 390, height: 844, maxNoticeFraction: 0.13 },
+  { name: '320x844', width: 320, height: 844, maxNoticeFraction: 0.16 },
 ];
 const THEMES = ['dark', 'light'];
 const STATES = ['planned', 'live'];
@@ -82,20 +82,28 @@ async function measure(page) {
       return getComputedStyle(document.body).backgroundColor;
     };
     const title = document.querySelector('.cat-today-title');
-    const connect = document.querySelector('.cat-connect');
+    const sub = document.querySelector('.cat-today-sub');
+    const notice = document.querySelector('.cat-connect-notice');
     const briefArea = document.querySelector('.cat-brief-area');
-    const card = connect || briefArea;
-    const summary = connect ? connect.querySelector('.cat-card-summary') : null;
-    let childOverflow = null;
-    if (connect) {
-      const cardBox = connect.getBoundingClientRect();
-      connect.querySelectorAll('*').forEach(element => {
+    const noticeText = notice ? notice.querySelector('.cat-connect-text') : null;
+    // Any descendant of the brief area that spills outside the brief
+    // area's box horizontally counts as clipped or overflowing text.
+    let briefOverflow = null;
+    if (briefArea) {
+      const briefBox = briefArea.getBoundingClientRect();
+      briefArea.querySelectorAll('*').forEach(element => {
         const box = element.getBoundingClientRect();
-        if (box.width && (box.right > cardBox.right + 0.6 || box.left < cardBox.left - 0.6)) {
-          childOverflow = {
+        if (box.width && (box.right > briefBox.right + 0.6 || box.left < briefBox.left - 0.6)) {
+          briefOverflow = {
             className: element.className || element.tagName,
-            right: box.right, cardRight: cardBox.right,
-            left: box.left, cardLeft: cardBox.left,
+            right: box.right, briefRight: briefBox.right,
+            left: box.left, briefLeft: briefBox.left,
+          };
+        }
+        if (element.scrollWidth > element.clientWidth + 1) {
+          briefOverflow = briefOverflow || {
+            className: element.className || element.tagName,
+            scrollWidth: element.scrollWidth, clientWidth: element.clientWidth,
           };
         }
       });
@@ -107,19 +115,27 @@ async function measure(page) {
       titleColor: title ? getComputedStyle(title).color : '',
       titleBackground: title ? effectiveBackground(title) : '',
       titleOpacity: title ? Number(getComputedStyle(title).opacity) : 0,
-      cardRect: rect(card),
-      cardBackground: connect ? getComputedStyle(connect).backgroundColor : '',
+      subColor: sub ? getComputedStyle(sub).color : '',
+      subBackground: sub ? effectiveBackground(sub) : '',
+      legacyCardPresent: Boolean(document.querySelector('.cat-connect')),
+      cardInBriefArea: briefArea ? Boolean(briefArea.querySelector('.cat-card')) : false,
+      noticeRect: rect(notice),
+      noticePosition: notice ? getComputedStyle(notice).position : '',
+      noticeBackground: notice ? getComputedStyle(notice).backgroundColor : '',
+      briefRect: rect(briefArea),
       heroRect: rect(document.querySelector('#v1Launchpad')),
+      waysLabelRect: rect(document.querySelector('.v1-launchpad-actions-label')),
+      waysGridRect: rect(document.querySelector('.v1-launchpad-grid')),
       todayRect: rect(today),
       todayScrollWidth: today ? today.scrollWidth : 0,
       todayClientWidth: today ? today.clientWidth : 0,
       documentScrollWidth: document.documentElement.scrollWidth,
-      summaryScrollWidth: summary ? summary.scrollWidth : 0,
-      summaryClientWidth: summary ? summary.clientWidth : 0,
-      summaryScrollHeight: summary ? summary.scrollHeight : 0,
-      summaryClientHeight: summary ? summary.clientHeight : 0,
-      childOverflow,
-      connectButton: connect ? Boolean(connect.querySelector('.cat-btn-primary')) : false,
+      noticeTextScrollWidth: noticeText ? noticeText.scrollWidth : 0,
+      noticeTextClientWidth: noticeText ? noticeText.clientWidth : 0,
+      noticeTextScrollHeight: noticeText ? noticeText.scrollHeight : 0,
+      noticeTextClientHeight: noticeText ? noticeText.clientHeight : 0,
+      briefOverflow,
+      connectButton: notice ? Boolean(notice.querySelector('.cat-connect-btn')) : false,
     };
   });
 }
@@ -134,29 +150,36 @@ async function run() {
           const label = `${theme}/${state} @ ${viewport.name}`;
           const page = await browser.newPage({ viewport });
           await page.goto(`${fixtureUrl}?theme=${theme}&state=${state}`, { waitUntil: 'load' });
-          await page.waitForSelector(state === 'planned' ? '.cat-connect' : '.cat-brief-area', { timeout: 8000 });
+          await page.waitForSelector(state === 'planned' ? '.cat-connect-notice' : '.cat-brief-area', { timeout: 8000 });
           await page.waitForTimeout(150);
           const m = await measure(page);
 
           // The greeting is present, at full opacity, in off-white on the
-          // layer's own ink ground — never ink-on-ink ghosted.
+          // layer's own ink ground — never ink-on-ink ghosted. The fix is
+          // the text color against its ground, in both appearances.
           assert.match(m.titleText, /^Good (morning|afternoon|evening), Gregory\./, label);
           assert.equal(m.titleColor, 'rgb(241, 239, 233)', `${label}: greeting color`);
           assert.equal(m.titleBackground, 'rgb(7, 10, 14)', `${label}: greeting ground`);
           assert.equal(m.titleOpacity, 1, `${label}: greeting opacity`);
-          assert.ok(
-            contrastRatio(m.titleColor, m.titleBackground) >= 4.5,
-            `${label}: greeting contrast ${contrastRatio(m.titleColor, m.titleBackground)}`,
-          );
+          const greetingRatio = contrastRatio(m.titleColor, m.titleBackground);
+          assert.ok(greetingRatio >= 4.5, `${label}: greeting contrast ${greetingRatio}`);
+          const subRatio = contrastRatio(m.subColor, m.subBackground);
+          assert.ok(subRatio >= 4.5, `${label}: sub contrast ${subRatio}`);
 
-          // Neither the brief card nor the launchpad hero may cover the
-          // greeting, and the card stays clear of the hero, in both brief
-          // states.
-          assert.equal(intersectionArea(m.titleRect, m.cardRect), 0, `${label}: greeting x brief card`);
+          // Nothing overlays or covers the greeting or the ways-to-begin
+          // content: every pairing intersects by exactly zero pixels.
+          assert.equal(intersectionArea(m.titleRect, m.briefRect), 0, `${label}: greeting x brief area`);
           assert.equal(intersectionArea(m.titleRect, m.heroRect), 0, `${label}: greeting x hero`);
-          assert.equal(intersectionArea(m.cardRect, m.heroRect), 0, `${label}: brief card x hero`);
+          assert.equal(intersectionArea(m.briefRect, m.heroRect), 0, `${label}: brief area x hero`);
+          assert.equal(intersectionArea(m.titleRect, m.waysLabelRect), 0, `${label}: greeting x ways label`);
+          if (state === 'planned') {
+            assert.equal(intersectionArea(m.noticeRect, m.heroRect), 0, `${label}: notice x hero`);
+            assert.equal(intersectionArea(m.noticeRect, m.waysLabelRect), 0, `${label}: notice x ways label`);
+            assert.equal(intersectionArea(m.noticeRect, m.waysGridRect), 0, `${label}: notice x ways grid`);
+          }
 
-          // No horizontal overflow or clipped text at any width.
+          // No horizontal overflow or clipped text anywhere in the brief
+          // area, at any width.
           assert.ok(
             m.documentScrollWidth <= viewport.width,
             `${label}: document scrollWidth ${m.documentScrollWidth} > ${viewport.width}`,
@@ -165,27 +188,37 @@ async function run() {
             m.todayScrollWidth <= m.todayClientWidth + 1,
             `${label}: Today scrollWidth ${m.todayScrollWidth} > clientWidth ${m.todayClientWidth}`,
           );
-          assert.ok(m.cardRect.left >= -0.6 && m.cardRect.right <= viewport.width + 0.6,
-            `${label}: brief card escapes the viewport`);
-          assert.equal(m.childOverflow, null, `${label}: card child overflow ${JSON.stringify(m.childOverflow)}`);
-          if (state === 'planned') {
-            assert.ok(m.summaryScrollWidth <= m.summaryClientWidth + 1,
-              `${label}: summary clipped horizontally`);
-            assert.ok(m.summaryScrollHeight <= m.summaryClientHeight + 1,
-              `${label}: summary clipped vertically`);
+          assert.ok(m.briefRect.left >= -0.6 && m.briefRect.right <= viewport.width + 0.6,
+            `${label}: brief area escapes the viewport`);
+          assert.equal(m.briefOverflow, null, `${label}: brief overflow ${JSON.stringify(m.briefOverflow)}`);
 
-            // The placeholder is a compact dark note, not a white slab:
-            // dark panel, capped width, subordinate height, gold action.
-            const cardLuminance = luminance(parseColor(m.cardBackground));
-            assert.ok(cardLuminance < 0.05, `${label}: placeholder is not dark (luminance ${cardLuminance})`);
-            assert.ok(m.cardRect.width <= 640, `${label}: placeholder width ${m.cardRect.width}`);
-            if (viewport.width >= 1039) {
-              assert.ok(m.cardRect.width <= m.todayRect.width * 0.75,
-                `${label}: placeholder spans ${m.cardRect.width} of ${m.todayRect.width}`);
-            }
-            assert.ok(m.cardRect.height <= viewport.height * 0.45,
-              `${label}: placeholder height ${m.cardRect.height}`);
+          if (state === 'planned') {
+            // The connect prompt is a notice, not a card: no legacy card
+            // element, no card inside the brief area, no panel fill, and
+            // it sits in normal document flow — never positioned over
+            // content.
+            assert.equal(m.legacyCardPresent, false, `${label}: legacy connect card still rendered`);
+            assert.equal(m.cardInBriefArea, false, `${label}: a card still renders in the brief area`);
+            assert.equal(m.noticePosition, 'static', `${label}: notice position ${m.noticePosition}`);
+            assert.equal(m.noticeBackground, 'rgba(0, 0, 0, 0)', `${label}: notice fill ${m.noticeBackground}`);
+            assert.ok(m.noticeTextScrollWidth <= m.noticeTextClientWidth + 1,
+              `${label}: notice text clipped horizontally`);
+            assert.ok(m.noticeTextScrollHeight <= m.noticeTextClientHeight + 1,
+              `${label}: notice text clipped vertically`);
+
+            // The notice is slim: a small fraction of the viewport
+            // height at every size — single digits at desktop. A
+            // covering card coming back fails here on height alone.
+            const fraction = m.noticeRect.height / viewport.height;
+            assert.ok(
+              fraction <= viewport.maxNoticeFraction,
+              `${label}: notice height ${m.noticeRect.height}px is ${(fraction * 100).toFixed(1)}% of viewport`,
+            );
             assert.equal(m.connectButton, true, `${label}: Connect Google action missing`);
+            console.log(
+              `${label}: greeting ${greetingRatio.toFixed(2)}:1, sub ${subRatio.toFixed(2)}:1, ` +
+              `notice ${m.noticeRect.height.toFixed(1)}px = ${(fraction * 100).toFixed(1)}% of ${viewport.height}px viewport`,
+            );
           }
           scenarios += 1;
           await page.close();

@@ -1,7 +1,7 @@
 """Contract for the additive Agent Today layer on the app shell.
 
 The layer is two new static files loaded last in app.html. It renders the
-Today surface (approvals, live work, brief connection card), the Tasks
+Today surface (approvals, live work, brief connect notice), the Tasks
 drawer, and the browser panel shell from the agent endpoints, and it must
 stay honest while those endpoints are still landing: no staged data, and
 the browser panel states plainly that live sessions are not available yet.
@@ -19,8 +19,8 @@ def read(relative: str) -> str:
 
 def test_app_html_loads_agent_today_layer_last_with_versioned_assets():
     app = read('public/app.html')
-    css = '/crump-agent-today-1.0.css?v=5.9.76-agent-today-3'
-    js = '/crump-agent-today-1.0.js?v=5.9.76-agent-today-3'
+    css = '/crump-agent-today-1.0.css?v=5.9.76-agent-today-5'
+    js = '/crump-agent-today-1.0.js?v=5.9.76-agent-today-5'
     assert css in app
     assert js in app
     assert (PUBLIC / 'crump-agent-today-1.0.css').exists()
@@ -43,7 +43,7 @@ def test_today_layer_reads_the_agent_contracts_with_the_owner_header():
     assert "credentials: 'include'" in js
 
 
-def test_today_layer_renders_approvals_live_work_and_the_brief_card():
+def test_today_layer_renders_approvals_live_work_and_the_brief_notice():
     js = read('public/crump-agent-today-1.0.js')
     for needle in (
         'Waiting on you',
@@ -98,17 +98,26 @@ def test_today_surface_carries_its_own_ink_ground_and_off_white_greeting():
     assert 'color: var(--cat-ink)' not in css_block(css, '.cat-today-title {')
 
 
-def test_connect_placeholder_is_a_compact_dark_card_not_a_white_slab():
+def test_connect_prompt_is_a_slim_in_flow_notice_not_a_card():
     css = read('public/crump-agent-today-1.0.css')
-    block = css_block(css, '.cat-connect {')
-    assert 'background: var(--cat-panel)' in block
-    assert 'max-width: 600px' in block
-    assert '#fffefa' not in block
-    assert 'linear-gradient(180deg, #fffefa' not in css
-    assert 'color: var(--cat-paper)' in css_block(css, '.cat-connect .cat-card-title {')
-    assert 'background: var(--cat-gold-bright)' in css_block(
-        css, '.cat-connect .cat-btn-primary {'
-    )
+    js = read('public/crump-agent-today-1.0.js')
+    # The brief placeholder used to be a raised card in the brief area.
+    # Review feedback removed the card entirely: the prompt is now a
+    # plain in-flow notice — no panel fill, no border box, no positioned
+    # overlay — with one short line of text and one small action.
+    assert '.cat-connect {' not in css
+    assert 'cat-card cat-connect' not in js
+    assert 'Your brief is almost ready' not in js
+    assert 'cat-connect-notice' in js
+    notice = css_block(css, '.cat-connect-notice {')
+    assert 'display: flex' in notice
+    assert 'background' not in notice
+    assert 'border' not in notice
+    assert 'position' not in notice
+    assert 'color: var(--cat-paper-dim)' in css_block(css, '.cat-connect-text {')
+    button = css_block(css, '.cat-connect-btn {')
+    assert 'color: var(--cat-gold-bright)' in button
+    assert 'background: transparent' in button
 
 
 def test_today_layer_owns_its_box_model_and_shrinks_in_the_workspace_grid():
