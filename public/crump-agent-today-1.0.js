@@ -303,6 +303,11 @@
   /* Shared card builders                                              */
   /* ---------------------------------------------------------------- */
 
+  /* The frozen detail is the inspectable record of the exact action,
+     so it renders payload values exactly: array fields list every
+     item (one per line), and no field is silently truncated or
+     reduced to a count. What the user approves is what they can read
+     here, in full. */
   function payloadList(payload) {
     var entries = [];
     if (payload && typeof payload === 'object') {
@@ -310,19 +315,25 @@
         var value = payload[key];
         var text;
         if (value == null) text = '';
-        else if (typeof value === 'string') text = value.length > 220 ? value.slice(0, 220) + '…' : value;
+        else if (typeof value === 'string') text = value;
         else if (typeof value === 'number' || typeof value === 'boolean') text = String(value);
-        else if (Array.isArray(value)) text = value.length === 1 ? '1 item' : value.length + ' items';
-        else {
+        else if (Array.isArray(value)) {
+          text = value.map(function (item) {
+            var itemText = payloadText(item);
+            if (!itemText && item && typeof item === 'object') {
+              try { itemText = JSON.stringify(item); } catch (_) { itemText = ''; }
+            }
+            return itemText;
+          }).join('\n');
+        } else {
           try { text = JSON.stringify(value); } catch (_) { text = 'Details included'; }
-          if (text.length > 220) text = text.slice(0, 220) + '…';
         }
         entries.push([key, text]);
       });
     }
     if (!entries.length) return null;
     var list = h('dl', 'cat-payload');
-    entries.slice(0, 8).forEach(function (pair) {
+    entries.forEach(function (pair) {
       var row = h('div', 'cat-payload-row');
       row.appendChild(h('dt', null, pair[0]));
       row.appendChild(h('dd', null, pair[1]));
@@ -361,7 +372,7 @@
      the event title and time for a calendar create, the query for a
      search — never the capability label alone. The rendered summary
      stays as the secondary line when it adds anything. */
-  function approvalExactSummary(action) {
+  function approvalExact(action) {
     var payload = action.payload && typeof action.payload === 'object' ? action.payload : {};
     var id = String(action.capabilityId || '');
     if (id === 'gmail.send' || id === 'gmail.draft') {
@@ -369,32 +380,76 @@
       var verb = id === 'gmail.send' ? 'Send to ' : 'Draft to ';
       if (recipients) {
         var subject = payloadText(payload.subject);
-        return verb + recipients + (subject ? ' — “' + subject + '”' : '');
+        return { text: verb + recipients + (subject ? ' — “' + subject + '”' : ''), fromPayload: true };
       }
     }
     if (id === 'calendar.create') {
       var title = payloadText(payload.summary || payload.title);
       var when = fmtTime(payload.start);
-      if (title) return 'Book “' + title + '”' + (when ? ' · ' + when : '');
+      if (title) return { text: 'Book “' + title + '”' + (when ? ' · ' + when : ''), fromPayload: true };
     }
     if (id === 'gmail.search' || id === 'research.web_search') {
       var query = payloadText(payload.query);
-      if (query) return 'Search for “' + query + '”';
+      if (query) return { text: 'Search for “' + query + '”', fromPayload: true };
     }
     if (id === 'browser.read') {
       var url = payloadText(payload.url);
-      if (url) return 'Read ' + url;
+      if (url) return { text: 'Read ' + url, fromPayload: true };
     }
     if (id === 'browser.act') {
       var instruction = payloadText(payload.instruction);
-      if (instruction) return instruction;
+      if (instruction) return { text: instruction, fromPayload: true };
     }
     var keys = ['to', 'recipients', 'summary', 'title', 'query', 'url', 'instruction', 'subject'];
     for (var i = 0; i < keys.length; i += 1) {
       var value = payloadText(payload[keys[i]]);
-      if (value) return capabilityTitle(id) + ' — ' + value;
+      if (value) return { text: capabilityTitle(id) + ' — ' + value, fromPayload: true };
     }
-    return action.summary || capabilityTitle(id);
+    return { text: action.summary || capabilityTitle(id), fromPayload: false };
+  }
+
+  function approvalExactSummary(action) {
+    return approvalExact(action).text;
+  }
+
+  /* A secondary summary line renders only when it contributes a
+     complete, non-duplicative sentence next to the headline. Stored
+     summaries and capability verb phrases are often fragments of the
+     headline itself ("Send an email — Send an email to", "Open the
+     browser and"): a line that duplicates the headline, is a prefix
+     of it, or trails off mid-phrase (ending on a verb, conjunction,
+     or preposition still awaiting its object, with no sentence
+     punctuation) is never rendered, on any card. The conservative
+     rule is to suppress the line rather than complete it from data
+     that is not there. */
+  var DANGLING_FINAL_WORDS = {
+    to: 1, and: 1, or: 1, nor: 1, but: 1, the: 1, a: 1, an: 1, for: 1,
+    with: 1, of: 1, in: 1, on: 1, at: 1, by: 1, from: 1, into: 1,
+    is: 1, are: 1, be: 1, will: 1, your: 1, you: 1, it: 1, this: 1, that: 1,
+  };
+
+  function summaryAddsInformation(summary, headline) {
+    if (!summary) return false;
+    var text = String(summary).trim();
+    if (!text || !headline) return false;
+    var normalize = function (value) {
+      return String(value).toLowerCase().replace(/\s+/g, ' ').trim();
+    };
+    var line = normalize(text);
+    var head = normalize(headline);
+    if (line === head) return false;
+    // A prefix of the headline, a line the headline already contains,
+    // or a headline that is itself the start of the line duplicates
+    // the headline instead of adding to it.
+    if (head.indexOf(line) === 0 || line.indexOf(head) === 0) return false;
+    if (head.indexOf(line) !== -1) return false;
+    // Trailing off mid-phrase: the last word still awaits its object.
+    var tail = text.replace(/[\s"”'’)\]]+$/, '');
+    var lastWord = tail.split(/\s+/).pop().toLowerCase().replace(/[^a-z'-]/g, '');
+    if (DANGLING_FINAL_WORDS[lastWord]) return false;
+    // A complete sentence ends with sentence punctuation.
+    if (!/[.!?]["”'’)\]]*$/.test(text)) return false;
+    return true;
   }
 
   function approvalCard(action) {
@@ -402,9 +457,16 @@
     card.setAttribute('aria-label', capabilityTitle(action.capabilityId));
     var head = h('div', 'cat-card-head');
     var titleWrap = h('div');
-    var exact = approvalExactSummary(action);
+    var exact = approvalExact(action).text;
     titleWrap.appendChild(h('h3', 'cat-card-title cat-card-exact', exact));
-    if (action.summary && action.summary !== exact) {
+    // When the headline is derived from the frozen payload it is the
+    // exact action; the stored summary may appear under it only when
+    // it is a complete sentence that adds information (see
+    // summaryAddsInformation). Fragment summaries never render. On
+    // the fallback path the headline already is the stored summary
+    // (or the capability title), so the same check keeps the line
+    // from duplicating it.
+    if (summaryAddsInformation(action.summary, exact)) {
       titleWrap.appendChild(h('p', 'cat-card-summary', action.summary));
     }
     head.appendChild(titleWrap);
@@ -497,7 +559,13 @@
     var titleWrap = h('div');
     titleWrap.appendChild(h('h3', 'cat-card-title', capabilityTitle(run.capabilityId)));
     var cap = state.capabilities[run.capabilityId];
-    if (cap && cap.verbPhrase) titleWrap.appendChild(h('p', 'cat-card-summary', cap.verbPhrase));
+    // The capability verb phrase is a headline fragment by design
+    // ("Open the browser and", "Send an email to"); it renders as a
+    // summary line only if it is ever a complete sentence that adds
+    // information next to the title — otherwise it dangles.
+    if (cap && summaryAddsInformation(cap.verbPhrase, capabilityTitle(run.capabilityId))) {
+      titleWrap.appendChild(h('p', 'cat-card-summary', cap.verbPhrase));
+    }
     head.appendChild(titleWrap);
     head.appendChild(h('span', statusClass(run.status), statusLabel(run.status)));
     card.appendChild(head);

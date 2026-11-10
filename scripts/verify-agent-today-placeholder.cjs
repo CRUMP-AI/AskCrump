@@ -187,7 +187,25 @@ async function measureReorg(page) {
     const sectionTitle = document.querySelector('.cat-today-section-title');
     const connectBtn = document.querySelector('.cat-connect-btn');
     const sub = document.querySelector('.cat-today-sub');
+    const headline = firstCard ? firstCard.querySelector('.cat-card-exact') : null;
+    const badge = firstCard ? firstCard.querySelector('.cat-status') : null;
+    const summary = firstCard ? firstCard.querySelector('.cat-card-summary') : null;
+    const rectOf = el => {
+      if (!el) return null;
+      const b = el.getBoundingClientRect();
+      return { left: b.left, top: b.top, right: b.right, bottom: b.bottom, width: b.width, height: b.height };
+    };
+    const cardStyle = firstCard ? getComputedStyle(firstCard) : null;
     return {
+      headlineRect: rectOf(headline),
+      badgeRect: rectOf(badge),
+      cardContentWidth: firstCard
+        ? firstCard.clientWidth
+          - Number.parseFloat(cardStyle.paddingLeft) - Number.parseFloat(cardStyle.paddingRight)
+        : 0,
+      summaryPresent: Boolean(summary),
+      summaryText: summary ? summary.textContent : '',
+      detailText: detail ? detail.textContent : '',
       waitCardCount: waitCards.length,
       queueRowText: queueRow ? queueRow.textContent.trim() : '',
       queueRowVisible: visible(queueRow),
@@ -215,14 +233,49 @@ async function measureReorg(page) {
   });
 }
 
-function assertReorgStatics(m, label, state) {
+const DANGLING_FINAL_WORDS = new Set([
+  'to', 'and', 'or', 'nor', 'but', 'the', 'a', 'an', 'for', 'with', 'of',
+  'in', 'on', 'at', 'by', 'from', 'into', 'is', 'are', 'be', 'will',
+  'your', 'you', 'it', 'this', 'that',
+]);
+
+function assertNotDangling(text, label) {
+  const trimmed = String(text || '').trim();
+  if (!trimmed) return;
+  const tail = trimmed.replace(/[\s"”'’)\]]+$/, '');
+  const lastWord = tail.split(/\s+/).pop().toLowerCase().replace(/[^a-z'-]/g, '');
+  assert.ok(!DANGLING_FINAL_WORDS.has(lastWord),
+    `${label}: dangling summary line rendered: "${trimmed}"`);
+  assert.ok(/[.!?]["”'’)\]]*$/.test(trimmed),
+    `${label}: summary line is not a complete sentence: "${trimmed}"`);
+}
+
+function assertStackedHeader(m, label, viewportWidth) {
+  // At narrow widths the card header stacks: the badge leaves the
+  // headline's row band entirely and the headline takes the full
+  // card content width.
+  if (viewportWidth > 480) return;
+  assert.ok(m.headlineRect && m.badgeRect, `${label}: header geometry missing`);
+  assert.ok(m.badgeRect.top >= m.headlineRect.bottom - 0.6 || m.badgeRect.bottom <= m.headlineRect.top + 0.6,
+    `${label}: badge shares the headline row band (headline ${JSON.stringify(m.headlineRect)}, badge ${JSON.stringify(m.badgeRect)})`);
+  assert.ok(Math.abs(m.headlineRect.width - m.cardContentWidth) <= 1.5,
+    `${label}: headline width ${m.headlineRect.width} != card content width ${m.cardContentWidth}`);
+}
+
+function assertReorgStatics(m, label, state, viewportWidth) {
   // One full approval card is visible at a time; the rest wait behind
   // a single queue row whose count is the real remaining count, and
   // the header line cites the same pending total.
   assert.equal(m.waitCardCount, 1, `${label}: visible approval cards ${m.waitCardCount}`);
   assert.equal(m.queueRowVisible, true, `${label}: queue row missing`);
-  assert.equal(m.queueRowText, '+2 more waiting', `${label}: queue row text "${m.queueRowText}"`);
-  assert.match(m.subText, /3 things need your call/, `${label}: header count "${m.subText}"`);
+  assert.equal(m.queueRowText, '+3 more waiting', `${label}: queue row text "${m.queueRowText}"`);
+  assert.match(m.subText, /4 things need your call/, `${label}: header count "${m.subText}"`);
+  // The fixture's stored summaries are fragments of the headline
+  // ("Send an email — Send an email to"): the payload-derived
+  // headline stands alone, with no dangling secondary line.
+  assert.equal(m.summaryPresent, false,
+    `${label}: fragment summary rendered under the exact headline: "${m.summaryText}"`);
+  assertStackedHeader(m, label, viewportWidth);
   // The card leads with the exact action from the frozen payload, the
   // frozen payload itself starts collapsed behind the detail toggle,
   // and the exact credit line stays visible before the buttons.
@@ -246,7 +299,7 @@ function assertReorgStatics(m, label, state) {
     assert.equal(m.briefCardPresent, false, `${label}: brief card rendered while disconnected`);
     assert.equal(m.briefRowTexts.length, 0,
       `${label}: brief rows while disconnected ${JSON.stringify(m.briefRowTexts)}`);
-    assert.match(m.briefLocalText, /3 approvals waiting · 1 task running/,
+    assert.match(m.briefLocalText, /4 approvals waiting · 1 task running/,
       `${label}: local brief counts "${m.briefLocalText}"`);
     assert.ok(m.connectBtnHeight >= 44,
       `${label}: Connect Google hit target ${m.connectBtnHeight}px < 44px`);
@@ -254,7 +307,7 @@ function assertReorgStatics(m, label, state) {
     // Connected: the brief card renders from the brief payload, with
     // counts from the same loaded approvals/runs as the sections.
     assert.equal(m.briefCardPresent, true, `${label}: connected brief card missing`);
-    assert.match(m.briefCountsText, /3 approvals waiting · 1 task running/,
+    assert.match(m.briefCountsText, /4 approvals waiting · 1 task running/,
       `${label}: brief counts "${m.briefCountsText}"`);
     assert.equal(m.briefRowTexts.length, 2,
       `${label}: brief rows ${JSON.stringify(m.briefRowTexts)}`);
@@ -288,7 +341,45 @@ async function measureChat(page) {
     const container = document.querySelector('#chatContainer');
     const containerBox = container ? container.getBoundingClientRect() : null;
     const inputBar = document.querySelector('.input-container');
+    // Painted rectangles: an element can only paint inside the box of
+    // the scroll container that clips it (and inside the viewport), so
+    // overlap is judged on those clipped boxes — the message list's
+    // messages clipped to the list, the section's cards clipped to
+    // the section. A layout that lets one surface's box escape its
+    // row shows up here as a real intersection.
+    const rectOf = el => {
+      if (!el) return null;
+      const b = el.getBoundingClientRect();
+      return { left: b.left, top: b.top, right: b.right, bottom: b.bottom, width: b.width, height: b.height };
+    };
+    const viewportBox = { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight };
+    const clipTo = (box, bounds) => {
+      if (!box || !bounds) return box;
+      const left = Math.max(box.left, bounds.left);
+      const top = Math.max(box.top, bounds.top);
+      const right = Math.min(box.right, bounds.right);
+      const bottom = Math.min(box.bottom, bounds.bottom);
+      return { left, top, right, bottom, width: Math.max(0, right - left), height: Math.max(0, bottom - top) };
+    };
+    const messages = container ? [...container.querySelectorAll('.message')] : [];
+    const headline = primary ? primary.querySelector('.cat-card-title') : null;
+    const badge = primary ? primary.querySelector('.cat-status') : null;
+    const primaryStyle = primary ? getComputedStyle(primary) : null;
+    const summaries = section ? [...section.querySelectorAll('.cat-card-summary')].map(el => el.textContent) : [];
     return {
+      sectionPainted: clipTo(rectOf(section), viewportBox),
+      messagesPainted: messages.map(el => clipTo(clipTo(rectOf(el), rectOf(container)), viewportBox)),
+      cardsPainted: cards.map(el => clipTo(clipTo(rectOf(el), rectOf(section)), viewportBox)),
+      dockPainted: clipTo(rectOf(dock), viewportBox),
+      headlineRect: rectOf(headline),
+      badgeRect: rectOf(badge),
+      cardContentWidth: primary
+        ? primary.clientWidth
+          - Number.parseFloat(primaryStyle.paddingLeft) - Number.parseFloat(primaryStyle.paddingRight)
+        : 0,
+      summaryTexts: summaries,
+      primarySummaryPresent: Boolean(primary && primary.querySelector('.cat-card-summary')),
+      detailText: detail ? detail.textContent : '',
       sectionPresent: Boolean(section),
       sectionVisible: visible(section),
       sectionText: section ? section.textContent : '',
@@ -398,7 +489,14 @@ async function runTasksScenarios(browser) {
       const [waiting, running, scheduled, done] = m.groups;
       assert.equal(waiting.titleColor, 'rgb(213, 185, 113)', `${label}: group eyebrow color`);
       // PR2 dependency: every pending approval renders in full here.
-      assert.equal(waiting.cards, 3, `${label}: waiting approval cards ${waiting.cards}`);
+      assert.equal(waiting.cards, 4, `${label}: waiting approval cards ${waiting.cards}`);
+      // The shared card family fixes hold in the drawer too: no
+      // dangling fragment summary under a payload-derived headline,
+      // and no payload field reduced to a count in the frozen detail.
+      assert.doesNotMatch(m.panelText, /Send an email — Send an email to/,
+        `${label}: dangling summary text in the drawer`);
+      assert.doesNotMatch(m.panelText, /\b\d+ items?\b/,
+        `${label}: payload field reduced to a count in the drawer`);
       assert.equal(running.rows.length, 1, `${label}: running rows`);
       assert.match(running.rows[0].title, /Act in the browser/, `${label}: running title`);
       assert.match(running.rows[0].meta, /Running/, `${label}: running meta`);
@@ -699,6 +797,26 @@ async function runProjectsYouScenarios(browser) {
   return scenarios;
 }
 
+function assertChatNonintersection(m, label) {
+  // Painted-rectangle nonintersection: the work section and every
+  // card in it must share zero painted area with every conversation
+  // message and with the composer dock. This is the assertion the
+  // #173 layout failed: the tall card sized its own grid row, the
+  // message row collapsed to zero height, and the message list's box
+  // overflowed it and painted straight over the section.
+  assert.ok(m.sectionPainted, `${label}: section painted box missing`);
+  m.messagesPainted.forEach((msg, i) => {
+    assert.equal(intersectionArea(m.sectionPainted, msg), 0,
+      `${label}: work section paints over message ${i} (${intersectionArea(m.sectionPainted, msg)}px²)`);
+    m.cardsPainted.forEach((card, j) => {
+      assert.equal(intersectionArea(card, msg), 0,
+        `${label}: card ${j} paints over message ${i} (${intersectionArea(card, msg)}px²)`);
+    });
+  });
+  assert.equal(intersectionArea(m.sectionPainted, m.dockPainted), 0,
+    `${label}: work section paints over the composer dock`);
+}
+
 async function runChatScenarios(browser) {
   let scenarios = 0;
   const CHAT_STATES = ['approval', 'live', 'both', 'none', 'result'];
@@ -732,6 +850,11 @@ async function runChatScenarios(browser) {
             `${label}: section escapes the viewport`);
           assert.ok(m.sectionScrollWidth <= m.sectionClientWidth + 1,
             `${label}: section clipped ${m.sectionScrollWidth} > ${m.sectionClientWidth}`);
+          assertChatNonintersection(m, label);
+          // No card on this surface carries a dangling secondary
+          // summary line (a fragment of its own headline).
+          m.summaryTexts.forEach(text => assertNotDangling(text, label));
+          assertStackedHeader(m, label, viewport.width);
           // Scoping: the other conversation's work never appears here.
           assert.doesNotMatch(m.sectionText, /other@example\.com|For the other conversation/,
             `${label}: other conversation's work leaked into the section`);
@@ -754,6 +877,12 @@ async function runChatScenarios(browser) {
           assert.match(m.creditText, /2 credits/, `${label}: credit line "${m.creditText}"`);
           assert.equal(m.creditBeforeActions, true, `${label}: credit line must precede the buttons`);
           assert.equal(m.approvePresent, true, `${label}: Approve button missing`);
+          // The stored summary is a fragment of the payload-derived
+          // headline; it must not render as a secondary line.
+          assert.equal(m.primarySummaryPresent, false,
+            `${label}: fragment summary rendered under the exact headline`);
+          assert.doesNotMatch(m.sectionText, /Send an email — Send an email to/,
+            `${label}: dangling summary text in the section`);
         }
         if (state === 'live') {
           assert.match(m.stepText, /Current step/, `${label}: live run step line "${m.stepText}"`);
@@ -827,7 +956,9 @@ async function runChatScenarios(browser) {
     scenarios += 1;
   }
 
-  // The primary approval's detail toggle opens the frozen payload.
+  // The primary approval's detail toggle opens the frozen payload,
+  // and the expanded detail is exact: every recipient of the frozen
+  // payload is inspectable, never reduced to a count.
   {
     const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
     await page.goto(`${chatFixtureUrl}?theme=dark&state=approval`, { waitUntil: 'load' });
@@ -836,6 +967,11 @@ async function runChatScenarios(browser) {
     await page.waitForTimeout(80);
     const m = await measureChat(page);
     assert.equal(m.detailVisible, true, 'chat detail: frozen payload did not expand');
+    for (const address of ['alexandria.longaddress', 'bartholomew.longaddress', 'christopher.longaddress', 'dorothea.longaddress']) {
+      assert.match(m.detailText, new RegExp(address.replace(/\./g, '\\.')),
+        `chat detail: exact recipient ${address} missing from the frozen detail`);
+    }
+    assert.doesNotMatch(m.detailText, /\b\d+ items?\b/, 'chat detail: payload field reduced to a count');
     await page.close();
     scenarios += 1;
   }
@@ -846,10 +982,58 @@ async function runChatScenarios(browser) {
   return scenarios;
 }
 
+async function runChatDetailGeometry(browser) {
+  // Painted nonintersection with the frozen detail EXPANDED — the
+  // tallest the card ever gets — measured at the top and again with
+  // both surfaces scrolled to their bottoms, in the two states that
+  // carry an approval, at both phone widths, in both appearances.
+  let scenarios = 0;
+  for (const theme of THEMES) {
+    for (const state of ['approval', 'both']) {
+      for (const width of [390, 320]) {
+        const label = `chat detail-geometry ${theme}/${state} @ ${width}x844`;
+        const page = await browser.newPage({ viewport: { width, height: 844 } });
+        await page.goto(`${chatFixtureUrl}?theme=${theme}&state=${state}`, { waitUntil: 'load' });
+        await page.waitForTimeout(250);
+        await page.click('#catChatWork .cat-detail-toggle');
+        await page.waitForTimeout(80);
+        let m = await measureChat(page);
+        assert.equal(m.detailVisible, true, `${label}: detail did not expand`);
+        assertChatNonintersection(m, `${label} (top)`);
+        assertStackedHeader(m, label, width);
+        await page.evaluate(() => {
+          const container = document.querySelector('#chatContainer');
+          if (container) container.scrollTop = container.scrollHeight;
+          const section = document.querySelector('#catChatWork');
+          if (section) section.scrollTop = section.scrollHeight;
+        });
+        await page.waitForTimeout(120);
+        m = await measureChat(page);
+        assertChatNonintersection(m, `${label} (scrolled)`);
+        await page.close();
+        scenarios += 1;
+      }
+    }
+  }
+  console.log(`Agent Chat detail geometry: ${scenarios} scenarios passed ` +
+    `(detail expanded, top + scrolled, approval + both, 390 + 320, both themes).`);
+  return scenarios;
+}
+
 async function run() {
   const browser = await chromium.launch({ headless: true, executablePath });
   let scenarios = 0;
   try {
+    if (process.env.ASKCRUMP_CHAT_ONLY) {
+      // Standalone Chat run: the chat scenarios plus the
+      // detail-geometry pass, against whatever tree the fixture
+      // origin serves. Used to demonstrate the nonintersection
+      // assertions against a specific tree (e.g. the #173 head).
+      scenarios += await runChatScenarios(browser);
+      scenarios += await runChatDetailGeometry(browser);
+      console.log(`Agent Chat cards (standalone): ${scenarios} scenarios passed.`);
+      return;
+    }
     for (const theme of THEMES) {
       for (const state of STATES) {
         for (const viewport of VIEWPORTS) {
@@ -928,7 +1112,7 @@ async function run() {
             );
           }
           const reorg = await measureReorg(page);
-          assertReorgStatics(reorg, label, state);
+          assertReorgStatics(reorg, label, state, viewport.width);
 
           scenarios += 1;
           await page.close();
@@ -936,13 +1120,15 @@ async function run() {
       }
     }
 
-    // Interactions, once per theme x brief state at the phone viewport:
-    // the count row opens the Tasks panel with every pending approval
-    // rendered in full, and the detail toggle opens the frozen payload.
+    // Interactions, once per theme x brief state at both phone
+    // viewports: the count row opens the Tasks panel with every
+    // pending approval rendered in full, and the detail toggle opens
+    // the frozen payload.
     for (const theme of THEMES) {
       for (const state of STATES) {
-        const label = `${theme}/${state} interactions @ 390x844`;
-        const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+       for (const phoneWidth of [390, 320]) {
+        const label = `${theme}/${state} interactions @ ${phoneWidth}x844`;
+        const page = await browser.newPage({ viewport: { width: phoneWidth, height: 844 } });
         await page.goto(`${fixtureUrl}?theme=${theme}&state=${state}`, { waitUntil: 'load' });
         await page.waitForSelector('.cat-queue-row', { timeout: 8000 });
         await page.waitForTimeout(150);
@@ -961,7 +1147,7 @@ async function run() {
           return { hidden: panelEl ? panelEl.hidden : true, cardCount: cards.length, exacts };
         });
         assert.equal(panel.hidden, false, `${label}: Tasks panel did not open`);
-        assert.equal(panel.cardCount, 3, `${label}: Tasks panel approval cards ${panel.cardCount}`);
+        assert.equal(panel.cardCount, 4, `${label}: Tasks panel approval cards ${panel.cardCount}`);
         // The long recipient list on the third card wraps without
         // overflowing its card at phone width.
         const thirdExact = panel.exacts[2];
@@ -969,6 +1155,35 @@ async function run() {
         assert.match(thirdExact.text, /alexandria\.longaddress/, `${label}: long summary "${thirdExact.text}"`);
         assert.ok(thirdExact.scroll <= thirdExact.client + 1,
           `${label}: long summary clipped ${thirdExact.scroll} > ${thirdExact.client}`);
+        // The fourth card carries the longest list and subject; its
+        // headline wraps unclipped too.
+        const fourthExact = panel.exacts[3];
+        assert.ok(fourthExact, `${label}: fourth approval card missing in Tasks panel`);
+        assert.match(fourthExact.text, /evangeline\.longaddress/, `${label}: fourth summary "${fourthExact.text}"`);
+        assert.match(fourthExact.text, /full launch team review/, `${label}: fourth subject "${fourthExact.text}"`);
+        assert.ok(fourthExact.scroll <= fourthExact.client + 1,
+          `${label}: fourth summary clipped ${fourthExact.scroll} > ${fourthExact.client}`);
+        // Expanding the fourth card's detail shows the frozen payload
+        // exactly: all six recipients and the full subject, with no
+        // field reduced to a count.
+        await page.evaluate(() => {
+          const cards = [...document.querySelectorAll('#catTasksPanel .cat-card')];
+          const toggle = cards[3] && cards[3].querySelector('.cat-detail-toggle');
+          if (toggle) toggle.click();
+        });
+        await page.waitForTimeout(80);
+        const panelDetail = await page.evaluate(() => {
+          const cards = [...document.querySelectorAll('#catTasksPanel .cat-card')];
+          const detail = cards[3] ? cards[3].querySelector('.cat-approval-detail') : null;
+          return detail ? detail.textContent : '';
+        });
+        for (const address of ['alexandria', 'bartholomew', 'christopher', 'dorothea', 'evangeline', 'frederick']) {
+          assert.match(panelDetail, new RegExp(`${address}\\.longaddress`),
+            `${label}: recipient ${address} missing from the expanded frozen detail`);
+        }
+        assert.match(panelDetail, /Quarterly planning notes and next steps for the full launch team review/,
+          `${label}: full subject missing from the expanded frozen detail`);
+        assert.doesNotMatch(panelDetail, /\b\d+ items?\b/, `${label}: payload field reduced to a count`);
         await page.click('#catTasksPanel [aria-label="Close Tasks"]');
         await page.waitForTimeout(120);
         const panelClosed = await page.evaluate(() => {
@@ -978,17 +1193,27 @@ async function run() {
         assert.equal(panelClosed, true, `${label}: Tasks panel did not close`);
         let m = await measureReorg(page);
         assert.equal(m.waitCardCount, 1, `${label}: Today approval cards after Tasks ${m.waitCardCount}`);
-        assert.equal(m.queueRowText, '+2 more waiting', `${label}: queue row after Tasks`);
+        assert.equal(m.queueRowText, '+3 more waiting', `${label}: queue row after Tasks`);
         await page.click('.cat-today .cat-detail-toggle');
         await page.waitForTimeout(80);
         m = await measureReorg(page);
         assert.equal(m.detailVisible, true, `${label}: detail did not expand`);
+        // The expanded frozen detail is exact: the first approval's
+        // three recipients are individually inspectable.
+        for (const address of ['ada@example.com', 'ben@example.com', 'cy@example.com']) {
+          assert.ok(m.detailText.includes(address),
+            `${label}: recipient ${address} missing from Today's expanded detail`);
+        }
+        assert.doesNotMatch(m.detailText, /\b\d+ items?\b/, `${label}: detail reduced a field to a count`);
+        assertStackedHeader(m, label, phoneWidth);
         await page.close();
+       }
       }
     }
 
     scenarios += await runTasksScenarios(browser);
     scenarios += await runChatScenarios(browser);
+    scenarios += await runChatDetailGeometry(browser);
     scenarios += await runProjectsYouScenarios(browser);
   } finally {
     await browser.close();

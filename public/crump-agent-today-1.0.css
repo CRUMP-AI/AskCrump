@@ -463,12 +463,20 @@ body.crump-v1-body .v1-workspace-body:has(> .cat-today:not([hidden])) > .v1-laun
 /* composer dock — instead of the message list's absolute full box     */
 /* painting over it. When the section is hidden (no work, Today, a     */
 /* guest) the shell keeps its original layout untouched.               */
+/*                                                                     */
+/* The section row is capped at a share of the body height, never      */
+/* sized by the section's content: an auto row let a tall card claim   */
+/* the whole body, collapsing the message row to zero, and the         */
+/* message list's box then overflowed its collapsed row and painted    */
+/* over the section. With the cap, both rows always hold real height,  */
+/* each surface scrolls inside its own row, and no painted overlap     */
+/* between them is possible.                                           */
 /* ------------------------------------------------------------------ */
 
 body.crump-v1-body .v1-workspace-body:has(> .cat-chat-work:not([hidden])) {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  grid-template-rows: minmax(0, 1fr) minmax(0, auto);
+  grid-template-rows: minmax(0, 1fr) minmax(0, 60%);
 }
 
 body.crump-v1-body .v1-workspace-body:has(> .cat-chat-work:not([hidden])) > .chat-container {
@@ -1404,6 +1412,21 @@ body.crump-v1-body .v1-workspace-body:has(> .cat-chat-work:not([hidden])) > .cat
     max-height: 100vh;
     height: 100%;
     border-radius: 0;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Narrow cards stack the header: the status badge takes its own
+     line under the headline instead of squeezing into the space
+     beside it, and the headline keeps the full card content width. */
+  .cat-card-head {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+  }
+
+  .cat-card-head .cat-status {
+    align-self: flex-start;
   }
 }
 

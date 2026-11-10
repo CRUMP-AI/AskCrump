@@ -19,8 +19,8 @@ def read(relative: str) -> str:
 
 def test_app_html_loads_agent_today_layer_last_with_versioned_assets():
     app = read('public/app.html')
-    css = '/crump-agent-today-1.0.css?v=5.9.76-agent-today-10'
-    js = '/crump-agent-today-1.0.js?v=5.9.76-agent-today-10'
+    css = '/crump-agent-today-1.0.css?v=5.9.76-agent-today-11'
+    js = '/crump-agent-today-1.0.js?v=5.9.76-agent-today-11'
     assert css in app
     assert js in app
     assert (PUBLIC / 'crump-agent-today-1.0.css').exists()
@@ -343,6 +343,63 @@ def test_tasks_drawer_uses_the_dark_record_treatment():
     assert 'background: transparent' in row
     assert 'rgba(213, 185, 113' in row
     assert '.cat-row-marker' in css
+
+
+def test_chat_work_row_is_capped_so_the_message_row_cannot_collapse():
+    css = read('public/crump-agent-today-1.0.css')
+    # The section row used to be sized by the section's own content
+    # (minmax(0, auto)): a tall approval card claimed the whole
+    # workspace body, the message row collapsed to zero height, and
+    # the message list's box overflowed that row and painted over the
+    # section. The row is now capped at a share of the body height so
+    # both surfaces always hold real height and scroll in their rows.
+    grid_rule = css_block(
+        css,
+        'body.crump-v1-body .v1-workspace-body:has(> .cat-chat-work:not([hidden])) {',
+    )
+    assert 'grid-template-rows: minmax(0, 1fr) minmax(0, 60%)' in grid_rule
+    assert 'minmax(0, auto)' not in grid_rule
+
+
+def test_card_header_stacks_at_narrow_widths():
+    css = read('public/crump-agent-today-1.0.css')
+    # At phone widths the badge used to squeeze into the space beside
+    # the headline. Under the narrow breakpoint the header stacks, so
+    # the badge takes its own line and the headline keeps the full
+    # card content width; the desktop row arrangement is unchanged.
+    narrow = css[css.index('@media (max-width: 480px)'):]
+    narrow = narrow[:narrow.index('@media', 1)]
+    assert '.cat-card-head' in narrow
+    assert 'flex-direction: column' in narrow
+    assert '.cat-card-head .cat-status' in narrow
+    head = css_block(css, '.cat-card-head {')
+    assert 'display: flex' in head
+    assert 'flex-direction' not in head
+
+
+def test_secondary_summary_line_renders_only_complete_sentences():
+    js = read('public/crump-agent-today-1.0.js')
+    # Stored summaries and capability verb phrases are headline
+    # fragments ("Send an email — Send an email to", "Open the
+    # browser and"). Both card builders gate the secondary line on
+    # the shared completeness rule; a fragment never renders.
+    assert 'summaryAddsInformation' in js
+    assert 'DANGLING_FINAL_WORDS' in js
+    assert 'summaryAddsInformation(action.summary, exact)' in js
+    assert 'summaryAddsInformation(cap.verbPhrase, capabilityTitle(run.capabilityId))' in js
+
+
+def test_frozen_detail_renders_payload_values_exactly():
+    js = read('public/crump-agent-today-1.0.js')
+    # The detail behind the toggle is the inspectable frozen payload:
+    # array fields list every item and no field is reduced to a
+    # count or silently truncated.
+    payload_list = js[js.index('function payloadList(payload)'):]
+    payload_list = payload_list[:payload_list.index('function creditLine')]
+    assert "' items'" not in payload_list
+    assert "'1 item'" not in payload_list
+    assert '220' not in payload_list
+    assert "join('\\n')" in payload_list
 
 
 def test_nav_relabels_home_and_adds_tasks_without_touching_the_shell():
