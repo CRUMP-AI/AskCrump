@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r290-reorg-today-1';
+const CACHE_NAME = 'ask-crump-new-body-v1-r291-reorg-chat-1';
 
 const CORE = [
   '/app',

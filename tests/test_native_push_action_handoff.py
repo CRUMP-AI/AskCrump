@@ -90,7 +90,7 @@ def test_native_push_consumer_and_runtime_loader_are_cache_busted_together() -> 
 
     runtime_url = "/runtime-body-v1.js?v=5.9.76-reorg-five-destinations-1"
     presence_url = "/presence-manager.js?v=5.9.76-native-push-owner-fence-1"
-    cache_name = "ask-crump-new-body-v1-r290-reorg-today-1"
+    cache_name = "ask-crump-new-body-v1-r291-reorg-chat-1"
     assert runtime_url in shell
     assert runtime_url in worker
     assert presence_url in runtime

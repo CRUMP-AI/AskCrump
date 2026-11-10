@@ -210,6 +210,21 @@ async function main() {
     }
   }
 
+  // 2b) Chat fixture: the open conversation's agent cards (approval
+  // primary in one state, approval + live + result in the other), both
+  // themes — the new section's text must pass AA on its ink panel in
+  // either appearance, exactly like Today's cards.
+  for (const state of ['approval', 'both']) {
+    for (const theme of ['dark', 'light']) {
+      for (const viewport of VIEWPORTS) {
+        const page = await browser.newPage({ viewport });
+        const result = await scanPage(page, `${rootBase}/tests/fixtures/agent-chat-cards.html?state=${state}&theme=${theme}`);
+        record(`chat-${state}`, theme, viewport, result);
+        await page.close();
+      }
+    }
+  }
+
   // 3) Appearance fixture: light render, then the runtime theme switch to dark.
   for (const viewport of VIEWPORTS) {
     const lightPage = await browser.newPage({ viewport });

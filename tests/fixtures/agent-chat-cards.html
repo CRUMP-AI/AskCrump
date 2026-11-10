@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Agent Chat cards fixture</title>
+  <script>
+    // Reproduces a signed-in conversation in the workspace: the message
+    // list holds two messages for the open conversation, the composer
+    // dock carries only its attach ("+"), input, and send controls, and
+    // the agent endpoints are stubbed in their real shapes. Two
+    // conversations own work: conv-a (the open one) and conv-b.
+    // ?state=approval|live|both|none|result picks conv-a's work;
+    // ?state=guest renders the signed-out/guest session, which must
+    // make zero agent calls and render no section. ?view=today puts
+    // the launchpad home state up instead of the conversation.
+    // ?theme=dark|light picks the appearance ground.
+    (function () {
+      var params = new URLSearchParams(location.search);
+      document.documentElement.setAttribute('data-theme', params.get('theme') || 'dark');
+      var state = params.get('state') || 'both';
+      var view = params.get('view') || 'chat';
+      var guest = state === 'guest';
+      window.__fetchCalls = [];
+      if (guest) {
+        window.currentUser = { id: 'fixture-guest', isGuest: true, fullName: 'Guest' };
+        window.CrumpAccess = { isGuest: function () { return true; } };
+        window.CrumpAuthBoundary = { authenticatedUserId: function () { return ''; } };
+      } else {
+        window.currentUser = { id: 'fixture-user', fullName: 'Gregory Crump', name: 'Gregory Crump' };
+        window.CrumpAuthBoundary = { authenticatedUserId: function () { return 'fixture-user'; } };
+      }
+      window.currentChatId = 'conv-a';
+      // The production shell's current destination for the workspace
+      // underneath the conversation drawer is 'today' (post-#169 ids).
+      window.CrumpVision = { current: function () { return 'today'; } };
+      if (view === 'today') document.addEventListener('DOMContentLoaded', function () {
+        document.body.classList.add('v1-home');
+      });
+      var caps = [
+        { id: 'gmail.send', status: 'planned', title: 'Send an email', verbPhrase: 'Send an email to' },
+        { id: 'calendar.create', status: 'planned', title: 'Book a calendar event', verbPhrase: 'Book' },
+        { id: 'browser.act', status: 'planned', title: 'Act in the browser', verbPhrase: 'Open the browser and' },
+        { id: 'gmail.search', status: 'live', title: 'Search email', verbPhrase: 'Search email for' },
+      ];
+      var longTo = [
+        'alexandria.longaddress@some-company-example.com',
+        'bartholomew.longaddress@some-company-example.com',
+        'christopher.longaddress@some-company-example.com',
+        'dorothea.longaddress@some-company-example.com',
+      ];
+      var approvalA = {
+        id: 'approval-a', runId: 'run-a-approval', capabilityId: 'gmail.send',
+        summary: 'Send an email — Send an email to',
+        payload: { to: longTo, subject: 'Quarterly planning notes and next steps', body: 'Sharing the planning notes from this morning.' },
+        creditCost: 2, status: 'pending', expiresAt: null, createdAt: '2026-11-10T14:00:00Z',
+      };
+      var approvalB = {
+        id: 'approval-b', runId: 'run-b-approval', capabilityId: 'gmail.send',
+        summary: 'Send an email — Send an email to',
+        payload: { to: ['other@example.com'], subject: 'For the other conversation', body: 'Not yours to see here.' },
+        creditCost: null, status: 'pending', expiresAt: null, createdAt: '2026-11-10T14:02:00Z',
+      };
+      var runAApproval = {
+        id: 'run-a-approval', capabilityId: 'gmail.send', status: 'waiting_approval',
+        conversationId: 'conv-a', createdAt: '2026-11-10T14:00:00Z', updatedAt: '2026-11-10T14:01:00Z', resultSummary: null,
+      };
+      var runALive = {
+        id: 'run-a-live', capabilityId: 'calendar.create', status: 'running',
+        conversationId: 'conv-a', createdAt: '2026-11-10T14:20:00Z', updatedAt: '2026-11-10T14:25:00Z', resultSummary: null,
+      };
+      var runADone = {
+        id: 'run-a-done', capabilityId: 'gmail.search', status: 'succeeded',
+        conversationId: 'conv-a', createdAt: '2026-11-10T13:00:00Z', updatedAt: '2026-11-10T13:30:00Z',
+        resultSummary: 'Found 3 threads about the launch checklist.',
+      };
+      var runBApproval = {
+        id: 'run-b-approval', capabilityId: 'gmail.send', status: 'waiting_approval',
+        conversationId: 'conv-b', createdAt: '2026-11-10T14:02:00Z', updatedAt: '2026-11-10T14:03:00Z', resultSummary: null,
+      };
+      var runBLive = {
+        id: 'run-b-live', capabilityId: 'browser.act', status: 'running',
+        conversationId: 'conv-b', createdAt: '2026-11-10T14:10:00Z', updatedAt: '2026-11-10T14:15:00Z', resultSummary: null,
+      };
+      var approvals = [];
+      var runs = [runBApproval, runBLive];
+      if (state === 'approval' || state === 'both') {
+        approvals = [approvalA, approvalB];
+        runs = [runAApproval, runADone].concat(runs);
+        if (state === 'both') runs = [runAApproval, runALive, runADone].concat(runs.slice(2));
+      } else if (state === 'live') {
+        approvals = [approvalB];
+        runs = [runALive].concat(runs);
+      } else if (state === 'result') {
+        approvals = [approvalB];
+        runs = [runADone].concat(runs);
+      } else {
+        // none + guest: the open conversation owns no work at all; the
+        // other conversation's approval and live run still exist.
+        approvals = [approvalB];
+      }
+      var googleStatus = { configured: true, connected: false, accounts: [] };
+      var brief = {
+        brief: {
+          generatedAt: '2026-11-10T14:30:00Z',
+          calendar: 'unavailable: Google is not connected for this account.',
+          inboxHighlights: 'unavailable: Google is not connected for this account.',
+        },
+      };
+      window.fetch = function (path) {
+        window.__fetchCalls.push(String(path));
+        var data = {};
+        var target = String(path);
+        if (target.indexOf('/api/connections/google/status') === 0) data = googleStatus;
+        else if (target.indexOf('/api/agent/capabilities') === 0) data = { capabilities: caps };
+        else if (target.indexOf('/api/agent/approvals') === 0) data = { approvals: approvals };
+        else if (target.indexOf('/api/agent/today') === 0) data = brief;
+        else if (target.indexOf('/api/agent/runs') === 0) data = { runs: runs };
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: function () { return Promise.resolve(data); },
+        });
+      };
+    })();
+  </script>
+  <link rel="stylesheet" href="/public/crump-v1-body.css?v=agent-chat-fixture-1">
+  <link rel="stylesheet" href="/public/crump-vision-shell-1.0.css?v=agent-chat-fixture-1">
+  <link rel="stylesheet" href="/public/crump-design-pass.css?v=agent-chat-fixture-1">
+  <link rel="stylesheet" href="/public/crump-agent-today-1.0.css?v=5.9.76-agent-today-8">
+  <style>
+    html, body { height: 100%; }
+    .v1-workspace { height: 100vh; }
+    html[data-theme="dark"] body { background: #070a0e; color: #f1efe9; }
+    html[data-theme="light"] body { background: #f7f3ec; color: #14181d; }
+    .message { font-size: 15px; line-height: 1.55; }
+  </style>
+</head>
+<body class="crump-v1-body">
+  <div id="appContainer" class="app-container">
+    <div class="v1-shell">
+      <main class="main-content v1-workspace">
+        <header class="header v1-workspace-header"></header>
+        <section class="v1-workspace-body">
+          <section id="v1Launchpad" class="v1-launchpad is-hidden" aria-hidden="true" aria-label="Start something">
+            <div class="v1-launchpad-intro">
+              <div id="v1Greeting" class="v1-launchpad-greeting">Good afternoon, Gregory.</div>
+              <h1>What can I help you get done?</h1>
+            </div>
+          </section>
+          <div id="chatContainer" class="chat-container" aria-label="Conversation">
+            <div class="message user"><div><p>Please send the planning notes to the team list.</p></div></div>
+            <div class="message assistant"><div><p>I have the notes ready and will line up the send for your approval.</p></div></div>
+          </div>
+          <div id="conversationStatus" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>
+        </section>
+        <section class="v1-command-dock" aria-label="Ask Crump composer">
+          <div class="input-area">
+            <div class="input-container">
+              <button id="attachBtn" type="button" aria-label="Add to conversation" class="btn-icon" title="Add">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+              </button>
+              <textarea id="userInput" class="message-input" placeholder="Ask Crump anything…" rows="1" maxlength="20000" aria-label="Message Crump"></textarea>
+              <button id="sendButton" type="button" aria-label="Send message" class="btn-icon btn-send" title="Send">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 19V5M6.5 10.5 12 5l5.5 5.5"/></svg>
+              </button>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+  <script src="/public/crump-agent-today-1.0.js?v=5.9.76-agent-today-8"></script>
+</body>
+</html>

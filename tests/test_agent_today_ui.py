@@ -19,8 +19,8 @@ def read(relative: str) -> str:
 
 def test_app_html_loads_agent_today_layer_last_with_versioned_assets():
     app = read('public/app.html')
-    css = '/crump-agent-today-1.0.css?v=5.9.76-agent-today-7'
-    js = '/crump-agent-today-1.0.js?v=5.9.76-agent-today-7'
+    css = '/crump-agent-today-1.0.css?v=5.9.76-agent-today-8'
+    js = '/crump-agent-today-1.0.js?v=5.9.76-agent-today-8'
     assert css in app
     assert js in app
     assert (PUBLIC / 'crump-agent-today-1.0.css').exists()
@@ -204,6 +204,74 @@ def test_connect_button_hit_target_is_at_least_44px():
     css = read('public/crump-agent-today-1.0.css')
     button = css_block(css, '.cat-connect-btn {')
     assert 'min-height: 44px' in button
+
+
+def test_chat_section_scopes_work_to_the_open_conversation():
+    js = read('public/crump-agent-today-1.0.js')
+    # The open conversation is the shell's own record: app.js keeps
+    # window.currentChatId current and announces openings with the
+    # crump:conversation-opened window event. Runs carry the same id
+    # as conversationId; approvals join through their run.
+    assert 'window.currentChatId' in js
+    assert 'crump:conversation-opened' in js
+    assert 'run.conversationId' in js
+    assert 'action.runId' in js
+    assert 'catChatWork' in js
+    assert 'chatIsActive' in js
+    # The section is a sibling after the message list, never a write
+    # into the shell's message DOM.
+    assert "getElementById('chatContainer')" in js
+    assert 'container.nextSibling' in js
+
+
+def test_chat_cards_reuse_the_shared_builders_exactly_once():
+    js = read('public/crump-agent-today-1.0.js')
+    # The Chat surface renders with the same approval/run builders as
+    # Today and Tasks — the exact-action rule is inherited, not forked.
+    assert js.count('function approvalCard(') == 1
+    assert js.count('function runCard(') == 1
+    assert 'approvalCard(primary.action)' in js
+    assert 'runCard(primary.run)' in js
+    assert 'approvalExactSummary(item.action)' in js
+
+
+def test_chat_surface_has_one_primary_card_and_quiet_secondary_rows():
+    js = read('public/crump-agent-today-1.0.js')
+    css = read('public/crump-agent-today-1.0.css')
+    assert 'cat-chat-primary' in js
+    assert 'cat-chat-row' in js
+    assert 'chatSecondaryRow' in js
+    assert '.cat-chat-work .cat-card {' in css
+    assert 'background: #111417' in css
+    # A secondary approval row routes to the full card in Tasks.
+    assert "row.addEventListener('click', function () { openTasks(); });" in js
+
+
+def test_chat_section_renders_nothing_without_work_or_for_guests():
+    js = read('public/crump-agent-today-1.0.js')
+    # No work in the open conversation: the section hides and clears —
+    # no empty placeholder, no instructional copy in the chat render.
+    assert 'if (!active || !items.length)' in js
+    assert 'node.hidden = true' in js
+    # The guest gate is the same owner check that gates the fetches.
+    assert 'captureOwnerId() && state.loaded' in js
+
+
+def test_chat_section_never_renders_on_the_today_home_state():
+    js = read('public/crump-agent-today-1.0.js')
+    # v1-home is the launchpad/Today state; the chat gate rejects it.
+    assert "document.body.classList.contains('v1-home')" in js
+
+
+def test_composer_bar_is_plus_input_and_send_only():
+    app = read('public/app.html')
+    container = app[app.index('class="input-container"'):app.index('</section>', app.index('class="input-container"'))]
+    # The visible composer bar carries exactly the attach ("+") control,
+    # the text input, and send — in that order. Everything else the
+    # attach affordance opens lives behind it, in its own sheet.
+    assert container.index('id="attachBtn"') < container.index('id="userInput"') < container.index('id="sendButton"')
+    assert container.count('<button') == 2
+    assert container.count('<textarea') == 1
 
 
 def test_nav_relabels_home_and_adds_tasks_without_touching_the_shell():
