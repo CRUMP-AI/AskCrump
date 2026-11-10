@@ -281,10 +281,69 @@ class AgentAutomationService:
         ]
         return due
 
-    async def record_run(
+    async def claim_due_automation(
         self, row: dict[str, Any], *, ran_at: datetime
-    ) -> dict[str, Any]:
-        """Stamp a triggered automation and advance its schedule."""
+    ) -> dict[str, Any] | None:
+        """Claim a due automation for this pass and advance its schedule.
+
+        The claim is a compare-and-swap in the same discipline as the
+        run ledger's claim: the update only lands while the row still
+        carries the ``next_run_at`` this pass observed (and is still
+        enabled), so when two run-due passes race over the same due
+        automation exactly one of them stamps it forward. The loser
+        gets ``None`` — already claimed — and must not create a run
+        for it. Claiming stamps ``last_run_at`` / ``next_run_at``
+        exactly the way ``record_run`` does; a caller whose run then
+        fails hands the claim back with ``release_claim`` so the
+        automation stays due for the next pass.
+        """
+        claimed = await self.record_run(
+            row,
+            ran_at=ran_at,
+            expected_next_run_at=row.get('next_run_at'),
+        )
+        return claimed
+
+    async def release_claim(
+        self, row: dict[str, Any], claimed: dict[str, Any]
+    ) -> None:
+        """Hand a claim back after a failed run, best effort.
+
+        Restores the schedule values the row carried before the claim,
+        filtered on the claimed ``next_run_at`` so a row another pass
+        has since advanced is left alone. A failed release leaves the
+        schedule advanced — the run was attempted and its outcome is
+        in the ledger — which is the safe direction.
+        """
+        updates = {
+            'last_run_at': row.get('last_run_at'),
+            'next_run_at': row.get('next_run_at'),
+            'updated_at': iso_now(),
+        }
+        await self.db.update(
+            'agent_automations',
+            updates,
+            filters={
+                'id': eq(row['id']),
+                'user_id': eq(row['user_id']),
+                'next_run_at': eq(claimed.get('next_run_at')),
+            },
+        )
+
+    async def record_run(
+        self,
+        row: dict[str, Any],
+        *,
+        ran_at: datetime,
+        expected_next_run_at: Any = None,
+    ) -> dict[str, Any] | None:
+        """Stamp a triggered automation and advance its schedule.
+
+        With ``expected_next_run_at`` the stamp is a compare-and-swap
+        (see ``claim_due_automation``): zero updated rows means the
+        row no longer carries the observed schedule value, and the
+        call returns ``None`` instead of a stamped row.
+        """
         schedule = {
             'kind': row.get('schedule_kind') or 'daily',
             'time': row.get('local_time'),
@@ -296,11 +355,20 @@ class AgentAutomationService:
             'next_run_at': next_run.isoformat(),
             'updated_at': iso_now(),
         }
+        filters: dict[str, Any] = {
+            'id': eq(row['id']),
+            'user_id': eq(row['user_id']),
+        }
+        if expected_next_run_at is not None:
+            filters['enabled'] = eq(True)
+            filters['next_run_at'] = eq(expected_next_run_at)
         updated = await self.db.update(
             'agent_automations',
             updates,
-            filters={'id': eq(row['id']), 'user_id': eq(row['user_id'])},
+            filters=filters,
         )
         if isinstance(updated, list) and updated:
             return updated[0]
+        if expected_next_run_at is not None:
+            return None
         return {**row, **updates}

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 import json
+import re
 from typing import Any
 
 from .agent_registry import Capability, get_capability
@@ -77,6 +78,117 @@ def _summarize_input(payload: dict[str, Any]) -> dict[str, Any]:
     return summary
 
 
+_EMAIL_RE = re.compile(r'^[^@\s]+@[^@\s]+\.[^@\s]+$')
+
+# Run-envelope fields, not capability inputs: the Google account
+# binding selectors (see ``google_connector.binding_selectors``) ride
+# in the payload of any Google capability's run and are read by the
+# executor at execution time, so the closed capability schemas must
+# not reject them. They are still type-checked here as strings.
+_BINDING_SELECTOR_FIELDS = frozenset(
+    {'connectionId', 'connection_id', 'accountEmail', 'account_email'}
+)
+
+
+def _matches_declared_type(value: Any, declared: str) -> bool:
+    if declared == 'string':
+        return isinstance(value, str)
+    if declared == 'integer':
+        return isinstance(value, int) and not isinstance(value, bool)
+    if declared == 'number':
+        return isinstance(value, (int, float)) and not isinstance(value, bool)
+    if declared == 'boolean':
+        return isinstance(value, bool)
+    if declared == 'array':
+        return isinstance(value, list)
+    if declared == 'object':
+        return isinstance(value, dict)
+    # A declared type this validator does not know is a registry bug,
+    # not a caller error; the registry validator owns schema sanity.
+    return True
+
+
+def _is_date_time(value: str) -> bool:
+    # The registry's date-time fields carry full RFC 3339 timestamps
+    # (for example '2026-11-10T09:00:00-05:00'); a bare date or a
+    # free-text value is not one.
+    if 'T' not in value and 't' not in value:
+        return False
+    try:
+        datetime.fromisoformat(value)
+    except ValueError:
+        return False
+    return True
+
+
+def _validate_field(name: str, value: Any, spec: dict[str, Any]) -> None:
+    """Enforce one declared property schema against a supplied value."""
+    declared = spec.get('type')
+    if declared and not _matches_declared_type(value, str(declared)):
+        raise AgentRunError(
+            f'Invalid input: {name} must be of type {declared}.',
+            400,
+            'INVALID_RUN_INPUT',
+        )
+    enum = spec.get('enum')
+    if enum is not None and value not in enum:
+        raise AgentRunError(
+            f"Invalid input: {name} must be one of: "
+            f"{', '.join(str(item) for item in enum)}.",
+            400,
+            'INVALID_RUN_INPUT',
+        )
+    if isinstance(value, str):
+        fmt = spec.get('format')
+        if fmt == 'email' and not _EMAIL_RE.match(value):
+            raise AgentRunError(
+                f'Invalid input: {name} must be a valid email address.',
+                400,
+                'INVALID_RUN_INPUT',
+            )
+        if fmt == 'date-time' and not _is_date_time(value):
+            raise AgentRunError(
+                f'Invalid input: {name} must be a valid date-time.',
+                400,
+                'INVALID_RUN_INPUT',
+            )
+        min_length = spec.get('minLength')
+        if min_length is not None and len(value) < int(min_length):
+            raise AgentRunError(
+                f'Invalid input: {name} must be at least '
+                f'{min_length} characters long.',
+                400,
+                'INVALID_RUN_INPUT',
+            )
+        max_length = spec.get('maxLength')
+        if max_length is not None and len(value) > int(max_length):
+            raise AgentRunError(
+                f'Invalid input: {name} must be at most '
+                f'{max_length} characters long.',
+                400,
+                'INVALID_RUN_INPUT',
+            )
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        minimum = spec.get('minimum')
+        if minimum is not None and value < minimum:
+            raise AgentRunError(
+                f'Invalid input: {name} must be at least {minimum}.',
+                400,
+                'INVALID_RUN_INPUT',
+            )
+        maximum = spec.get('maximum')
+        if maximum is not None and value > maximum:
+            raise AgentRunError(
+                f'Invalid input: {name} must be at most {maximum}.',
+                400,
+                'INVALID_RUN_INPUT',
+            )
+    items = spec.get('items')
+    if isinstance(value, list) and isinstance(items, dict):
+        for index, item in enumerate(value):
+            _validate_field(f'{name}[{index}]', item, items)
+
+
 def _validate_payload(capability: Capability, payload: Any) -> dict[str, Any]:
     if not isinstance(payload, dict):
         raise AgentRunError('Run input must be an object.', 400, 'INVALID_RUN_INPUT')
@@ -90,6 +202,26 @@ def _validate_payload(capability: Capability, payload: Any) -> dict[str, Any]:
             400,
             'INVALID_RUN_INPUT',
         )
+    schema = capability.input_schema
+    properties = schema.get('properties') or {}
+    if schema.get('additionalProperties') is False:
+        undeclared = sorted(
+            name
+            for name in payload
+            if name not in properties and name not in _BINDING_SELECTOR_FIELDS
+        )
+        if undeclared:
+            raise AgentRunError(
+                f"Unexpected input: {', '.join(undeclared)}.",
+                400,
+                'INVALID_RUN_INPUT',
+            )
+    for name, value in payload.items():
+        spec = properties.get(name)
+        if isinstance(spec, dict):
+            _validate_field(name, value, spec)
+        elif name in _BINDING_SELECTOR_FIELDS and value is not None:
+            _validate_field(name, value, {'type': 'string'})
     return payload
 
 
