@@ -3,8 +3,8 @@ const {readFileSync} = require('node:fs');
 const {join} = require('node:path');
 const {chromium} = require('playwright');
 
-const expectedDestinations = ['home', 'chats', 'projects', 'library', 'studios', 'you'];
-const legacyDestination = {home: 'ask', projects: 'projects', library: 'library', studios: 'video'};
+const expectedDestinations = ['today', 'chat', 'tasks', 'projects', 'you'];
+const legacyDestination = {today: 'ask', projects: 'projects'};
 
 (async () => {
   const executablePath = process.env.ASKCRUMP_BROWSER_EXECUTABLE || undefined;
@@ -125,6 +125,13 @@ const legacyDestination = {home: 'ask', projects: 'projects', library: 'library'
           legacyDestination[name],
         );
       }
+      // Chat settles through the conversation drawer, which opens on the
+      // next frame; wait for its settled active state instead of racing it.
+      await page.waitForFunction(
+        expected => document.querySelector(`#cvMobileNav [data-cv-destination="${expected}"]`)
+          ?.getAttribute('aria-current') === 'page',
+        name,
+      );
       assert.equal(await destination(name).getAttribute('aria-current'), 'page');
     };
     const surfaceGeometry = async selector => page.locator(selector).evaluate(element => {
@@ -184,19 +191,29 @@ const legacyDestination = {home: 'ask', projects: 'projects', library: 'library'
     assert.equal(projects.bottom, projects.navTop, JSON.stringify(projects));
     await page.locator('#crump53Close').click();
 
-    await clickDestination('library');
-    await page.waitForFunction(() => document.getElementById('crump53Sheet')?.dataset.crump53Section === 'library');
-    assert.equal(await page.locator('#crump53WorkspaceTitle').textContent(), 'Library');
-    await page.locator('#crump53Close').click();
+    // Library and Studios are no longer destinations: their legacy ids
+    // resolve to Projects, whose sheet is the surface that opens.
+    for (const legacyId of ['library', 'studios']) {
+      await page.evaluate(id => window.CrumpVision.navigate(id), legacyId);
+      await page.waitForFunction(() => (
+        !document.getElementById('crump53Studio')?.hidden
+        && document.getElementById('crump53Sheet')?.dataset.crump53Section === 'projects'
+      ));
+      assert.equal(await page.locator('#crump53WorkspaceTitle').textContent(), 'Projects');
+      const remapped = await surfaceGeometry('#crump53Studio');
+      assert.equal(remapped.bottom, remapped.navTop, JSON.stringify(remapped));
+      await page.locator('#crump53Close').click();
+    }
 
-    await clickDestination('studios');
-    await page.waitForFunction(() => document.getElementById('crump53Sheet')?.dataset.crump53Section === 'video');
-    assert.equal(await page.locator('#crump53WorkspaceTitle').textContent(), 'Video Studio');
-    const studios = await surfaceGeometry('#crump53Studio');
-    assert.equal(studios.bottom, studios.navTop, JSON.stringify(studios));
-    await page.locator('#crump53Close').click();
+    await clickDestination('tasks');
+    await page.waitForFunction(() => window.fixtureEvents.tasks >= 1);
+    const tasks = await page.evaluate(() => ({
+      opens: window.fixtureEvents.tasks,
+      active: document.querySelector('#cvMobileNav [data-cv-destination="tasks"]')?.getAttribute('aria-current'),
+    }));
+    assert.deepEqual(tasks, {opens: 1, active: 'page'});
 
-    await clickDestination('chats');
+    await clickDestination('chat');
     await page.waitForFunction(() => document.getElementById('sidebar')?.classList.contains('active'));
     await page.waitForFunction(() => document.activeElement?.id === 'newChatBtn');
     assert.equal(await page.locator('#newChatBtn').evaluate(element => document.activeElement === element), true);
@@ -204,8 +221,8 @@ const legacyDestination = {home: 'ask', projects: 'projects', library: 'library'
     assert.equal(chats.bottom, chats.navTop, JSON.stringify(chats));
     await page.keyboard.press('Escape');
     await page.waitForFunction(() => !document.getElementById('sidebar')?.classList.contains('active'));
-    await page.waitForFunction(() => document.activeElement?.dataset.cvDestination === 'chats');
-    assert.equal(await destination('chats').evaluate(element => document.activeElement === element), true);
+    await page.waitForFunction(() => document.activeElement?.dataset.cvDestination === 'chat');
+    assert.equal(await destination('chat').evaluate(element => document.activeElement === element), true);
 
     await page.locator('#cvMobileYou').click();
     await page.waitForFunction(() => {
@@ -217,7 +234,7 @@ const legacyDestination = {home: 'ask', projects: 'projects', library: 'library'
     await page.waitForFunction(() => document.activeElement?.id === 'settingsTitle');
 
     await page.locator('#closeSettingsBtn').click();
-    await clickDestination('home');
+    await clickDestination('today');
     await page.waitForFunction(() => (
       document.getElementById('crump53Studio')?.hidden
       && document.getElementById('crump5930CreateHub')?.hidden
@@ -244,7 +261,7 @@ const legacyDestination = {home: 'ask', projects: 'projects', library: 'library'
     });
     assert.deepEqual(errors, []);
 
-    process.stdout.write(JSON.stringify({mobileProofs, baseline, projects, studios, chats, you, plan, errors}));
+    process.stdout.write(JSON.stringify({mobileProofs, baseline, projects, tasks, chats, you, plan, errors}));
   } finally {
     await browser.close();
   }

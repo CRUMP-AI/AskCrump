@@ -43,7 +43,7 @@ async function verify(browser, viewport) {
       ? document.getElementById('cvMobileNav')
       : document.querySelector('.cv-rail');
     const createButton = window.innerWidth <= 1100
-      ? document.querySelector('#cvMobileNav [data-cv-destination="home"]')
+      ? document.querySelector('#cvMobileNav [data-cv-destination="today"]')
       : document.querySelector('.cv-rail [data-cv-new-conversation]');
     return {
       ariaModal: hub.querySelector('[role="dialog"]')?.getAttribute('aria-modal'),
@@ -75,7 +75,9 @@ async function verify(browser, viewport) {
     assert(opened.navigation.width >= 240);
   }
 
-  await visibleDestination('studios').click();
+  // Studios is no longer a destination; the Create hub's Video card is the
+  // preserved entry to the Video tool.
+  await page.locator('[data-crump5930-create="video"]').click();
   await page.waitForFunction(() => (
     document.getElementById('crump5930CreateHub')?.hidden
     && !document.getElementById('crump53Studio')?.hidden
@@ -105,7 +107,7 @@ async function verify(browser, viewport) {
     createHidden: true,
     studioOpen: true,
     section: 'video',
-    active: 'studios',
+    active: 'projects',
     focus: 'crump53WorkspaceTitle',
   });
   if (viewport.width <= 1100) {
@@ -113,15 +115,15 @@ async function verify(browser, viewport) {
   }
 
   // Product workspaces stop above the persistent mobile navigation, so the
-  // visible Home destination remains a direct, reliable way home.
-  await visibleDestination('home').click();
+  // visible Today destination remains a direct, reliable way home.
+  await visibleDestination('today').click();
   await page.waitForFunction(() => document.getElementById('crump53Studio')?.hidden);
   const returned = await page.evaluate(() => ({
     studioHidden: document.getElementById('crump53Studio').hidden,
     workspaceInert: document.querySelector('.v1-workspace').hasAttribute('inert'),
     active: document.querySelector('[data-cv-destination].is-active')?.dataset.cvDestination,
   }));
-  assert.deepEqual(returned, {studioHidden: true, workspaceInert: false, active: 'home'});
+  assert.deepEqual(returned, {studioHidden: true, workspaceInert: false, active: 'today'});
 
   let desktopRail = null;
   if (viewport.width > 1100) {

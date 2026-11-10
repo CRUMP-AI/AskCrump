@@ -203,7 +203,7 @@ def test_contrast_gate_is_registered_and_fixture_covers_the_surfaces():
 
 def test_release_versions_moved_in_step():
     worker = read("public/sw.js")
-    assert worker.startswith("const CACHE_NAME = 'ask-crump-new-body-v1-r288-full-surface-contrast-1';")
+    assert worker.startswith("const CACHE_NAME = 'ask-crump-new-body-v1-r289-reorg-five-destinations-1';")
     assert "/crump-agent-today-1.0.css?v=5.9.76-agent-today-6" in worker or True  # agent css ships via app shell
     assert "/crump-design-pass.css?v=5.9.76-contrast-sweep-1" in worker
     assert "/crump-v1-body.css?v=5.9.76-owned-workspace-access-2" in worker

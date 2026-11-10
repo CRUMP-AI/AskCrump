@@ -20,7 +20,7 @@ window.CRUMP_CONFIG = Object.freeze({
 
   const workspaceStyles = Object.freeze([
     ['/billing.css', 'workspacebilling'],
-    ['/onboarding.css?v=5.9.76-mobile-nav-apple-polish-1', 'workspaceonboarding'],
+    ['/onboarding.css?v=5.9.76-reorg-five-destinations-1', 'workspaceonboarding'],
     ['/conversation.css?v=5.9.76-muse-release-repair-1', 'workspaceconversation'],
     ['/crump-4.3.css', 'crump43'],
     ['/crump-4.4.css?v=5.9.76-friendly-workspace-1', 'crump44'],
@@ -49,7 +49,7 @@ window.CRUMP_CONFIG = Object.freeze({
   ]);
 
   const workspaceScripts = Object.freeze([
-    ['/onboarding.js?v=5.9.76-mobile-nav-apple-polish-1', 'workspaceonboarding'],
+    ['/onboarding.js?v=5.9.76-reorg-five-destinations-1', 'workspaceonboarding'],
     ['/scroll-manager.js?v=5.9.76-muse-release-repair-1', 'workspacescroll'],
     ['/profile-manager.js?v=5.9.76-account-owner-boundary-1', 'workspaceprofile'],
     ['/billing-manager.js?v=5.9.76-private-owner-boundary-1', 'workspacebilling'],
@@ -82,7 +82,7 @@ window.CRUMP_CONFIG = Object.freeze({
     ['/crump-product-loader.js?v=5.9.76-legacy-project-resume-truth-2&workspaceRelease=guest-free-contract-2', 'crumpproductloader'],
     ['/crump-product-5.3.1.js?v=5.9.76-conversation-action-labels-2', 'crumpproduct531'],
     ['/crump-subscriptions-5.3.2.js?v=5.9.76-private-owner-boundary-1', 'crumpsubscriptions532'],
-    ['/crump-polish-5.6.js?v=5.9.76-mobile-nav-apple-polish-1', 'crumppolish56'],
+    ['/crump-polish-5.6.js?v=5.9.76-reorg-five-destinations-1', 'crumppolish56'],
     ['/crump-media-save.js?v=5.9.76-library-crud-privacy-1', 'crumpmediasave'],
     ['/crump-library-loader.js?v=5.9.76-account-owner-boundary-1', 'crumplibraryloader'],
     ['/crump-navigation-5.9.30.js?v=5.9.76-premium-workspace-1', 'crumpnav5930'],

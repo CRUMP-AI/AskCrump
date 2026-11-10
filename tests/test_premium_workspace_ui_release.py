@@ -20,17 +20,17 @@ def js_array(source: str, name: str) -> list[str]:
 
 def test_shell_exposes_one_truthful_desktop_and_mobile_information_architecture() -> None:
     shell = read("public/crump-vision-shell-1.0.js")
-    assert js_array(shell, "ORDER") == ["home", "chats", "projects", "library", "studios", "you"]
-    assert js_array(shell, "MOBILE_ORDER") == ["home", "chats", "projects", "library", "studios", "you"]
+    assert js_array(shell, "ORDER") == ["today", "chat", "tasks", "projects", "you"]
+    assert js_array(shell, "MOBILE_ORDER") == ["today", "chat", "tasks", "projects", "you"]
     assert js_array(shell, "MORE_DESTINATIONS") == []
     assert "button.id = 'cvMobileYou'" in shell
     assert '<span>New</span>' in shell
 
 
-def test_chats_restores_the_prior_mounted_destination_without_duplicate_measurement() -> None:
+def test_chat_restores_the_prior_mounted_destination_without_duplicate_measurement() -> None:
     shell = read("public/crump-vision-shell-1.0.js")
     assert "var conversationDrawerReturnId = null;" in shell
-    assert "var returnId = currentId !== 'home' ? currentId : null;" in shell
+    assert "var returnId = currentId !== 'today' ? currentId : null;" in shell
     assert "conversationDrawerReturnId = returnId;" in shell
     assert "navigate(returnId, { silent: true });" in shell
     assert "closeConversationDrawer(true, true);" in shell
@@ -68,7 +68,7 @@ def test_premium_palette_typography_and_mobile_dock_are_release_owned() -> None:
         assert token in css
     assert 'font-family: Georgia, "Times New Roman", serif' in css
     assert 'font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' in css
-    assert "grid-template-columns: repeat(6, minmax(44px, 1fr))" in css
+    assert "grid-template-columns: repeat(5, minmax(44px, 1fr))" in css
     assert ".cv-mnav-item.is-active::before" in css
     assert "backdrop-filter: blur(28px) saturate(180%)" in css
     assert ".cv-mobile-you" not in css
@@ -79,7 +79,7 @@ def test_web_service_worker_and_native_loader_use_one_ui_revision() -> None:
     runtime = read("public/runtime-body-v1.js")
     service_worker = read("public/sw.js")
     native = read("scripts/build-native.mjs")
-    revision = "5.9.76-mobile-nav-apple-polish-1"
+    revision = "5.9.76-reorg-five-destinations-1"
 
     for asset in (
         "runtime-body-v1.js",
@@ -96,15 +96,15 @@ def test_web_service_worker_and_native_loader_use_one_ui_revision() -> None:
             "crump-polish-5.6.js",
         ):
             assert f"/{asset}?v={revision}" in source
-    assert "ask-crump-new-body-v1-r288-full-surface-contrast-1" in service_worker
+    assert "ask-crump-new-body-v1-r289-reorg-five-destinations-1" in service_worker
 
 
 def test_tutorial_and_store_copy_match_the_visible_release() -> None:
     tutorial = read("public/onboarding.js")
     listing = json.loads(read("store/listing.en-US.json"))
     desktop = "Home, Chats, Projects, Library, Studios, and You"
-    assert "const DESKTOP_DESTINATIONS = Object.freeze(['Home', 'Chats', 'Projects', 'Library', 'Studios', 'You'])" in tutorial
-    assert "const MOBILE_DESTINATIONS = Object.freeze(['Home', 'Chats', 'Projects', 'Library', 'Studios', 'You'])" in tutorial
+    assert "const DESKTOP_DESTINATIONS = Object.freeze(['Today', 'Chat', 'Tasks', 'Projects', 'You'])" in tutorial
+    assert "const MOBILE_DESTINATIONS = Object.freeze(['Today', 'Chat', 'Tasks', 'Projects', 'You'])" in tutorial
     assert "Research with sources" in tutorial
     assert "Browse with sources" not in tutorial
     assert desktop in listing["apple"]["description"]

@@ -149,10 +149,10 @@ def test_registration_offer_matches_enforced_free_limits_and_canonical_product_m
         'from that verified browser; no card required.'
     )
 
-    assert 'Home, Chats, Projects, Library, Studios, and You' in brand
+    assert 'Today, Chat, Tasks, Projects, and You' in brand
     assert 'Autonomous' not in brand
     assert 'Beta' not in brand
-    for destination in ('Home', 'Chats', 'Projects', 'Library', 'Studios', 'You'):
+    for destination in ('Today', 'Chat', 'Tasks', 'Projects', 'You'):
         assert f'<span>{destination}</span>' in brand
     assert '<span>Ask</span>' not in brand
     assert '<span>Files</span>' not in brand

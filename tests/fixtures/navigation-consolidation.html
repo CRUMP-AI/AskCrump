@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="/public/crump-v1-body.css?v=5.9.76">
   <link rel="stylesheet" href="/public/crump-product-5.3.css?v=5.9.76-file-library-window-1">
   <link rel="stylesheet" href="/public/crump-navigation-5.9.30.css?v=5.9.76-mobile-drawer-destinations-1">
-  <link rel="stylesheet" href="/public/crump-vision-shell-1.0.css?v=5.9.76-mobile-nav-apple-polish-1">
+  <link rel="stylesheet" href="/public/crump-vision-shell-1.0.css?v=5.9.76-reorg-five-destinations-1">
   <link rel="stylesheet" href="/public/crump-design-pass.css?v=5.9.76-contrast-sweep-1">
   <link rel="stylesheet" href="/public/crump-activity-center-1.0.css?v=5.9.76-autonomous-continuity-1">
   <link rel="stylesheet" href="/public/crump-ui-guardrails.css?v=5.9.76-ui-guardrails-1">
@@ -105,7 +105,25 @@
   <section id="billingProof" role="dialog" aria-label="Plan and credits">Plan and credits opened</section>
 
   <script>
-    window.fixtureEvents = {billing: 0, analytics: [], newConversation: 0};
+    window.fixtureEvents = {billing: 0, analytics: [], newConversation: 0, tasks: 0};
+    window.CrumpAgentToday = {
+      openTasks() {
+        window.fixtureEvents.tasks += 1;
+        let panel = document.getElementById('catTasksPanel');
+        if (!panel) {
+          panel = document.createElement('aside');
+          panel.id = 'catTasksPanel';
+          const close = document.createElement('button');
+          close.type = 'button';
+          close.setAttribute('aria-label', 'Close Tasks');
+          close.addEventListener('click', () => { panel.hidden = true; });
+          panel.appendChild(close);
+          document.body.appendChild(panel);
+        }
+        panel.hidden = false;
+      },
+      openBrowser() {},
+    };
     window.fixtureErrors = [];
     document.documentElement.dataset.fixtureErrorCount = '0';
     const recordFixtureError = value => {
@@ -164,7 +182,7 @@
     document.getElementById('crump53Close').addEventListener('click', () => { document.getElementById('crump53Studio').hidden = true; });
   </script>
   <script src="/public/crump-v1-body.js?v=5.9.76"></script>
-  <script src="/public/crump-vision-shell-1.0.js?v=5.9.76-mobile-nav-apple-polish-1"></script>
+  <script src="/public/crump-vision-shell-1.0.js?v=5.9.76-reorg-five-destinations-1"></script>
   <script src="/public/crump-navigation-5.9.30.js?v=5.9.76-premium-workspace-1"></script>
   <script>
     const mobileProof = new URLSearchParams(location.search).get('mobile');

@@ -217,7 +217,7 @@ async function state(page) {
     assert.deepEqual(opened.toasts, [{message: 'Opening Files…', type: 'info'}]);
     assert.equal(opened.filesActive, false);
     assert.equal(opened.projectsActive, true);
-    assert.equal(opened.visionCurrent, 'files');
+    assert.equal(opened.visionCurrent, 'projects');
     await page.evaluate(() => {
       document.documentElement.dataset.crumpNavigationDestination = 'projects';
     });
@@ -225,7 +225,7 @@ async function state(page) {
     const afterLegacyProjectSync = await state(page);
     assert.equal(afterLegacyProjectSync.filesActive, false);
     assert.equal(afterLegacyProjectSync.projectsActive, true);
-    assert.equal(afterLegacyProjectSync.visionCurrent, 'files');
+    assert.equal(afterLegacyProjectSync.visionCurrent, 'projects');
     assert.equal(opened.full, true);
     assert.equal(opened.loadedStyleNodes, 1);
     assert.equal(opened.loadedScriptNodes, 1);

@@ -20,23 +20,24 @@ async function inspect(page, selector, expected) {
     .map(button => button.dataset.cvDestination));
   assert.deepEqual(visible, expected);
 
-  await page.locator(`${selector} [data-cv-destination="studios"]`).click();
+  // Studios is no longer a destination: its legacy id resolves to Projects.
+  await page.evaluate(() => window.CrumpVision.navigate('studios'));
   const direct = await page.evaluate(() => ({
     studioOpen: !document.getElementById('crump53Studio').hidden,
     section: document.getElementById('crump53Sheet').dataset.crump53Section,
     title: document.getElementById('crump53WorkspaceTitle').textContent,
-    active: document.querySelector('[data-cv-destination="studios"].is-active')?.dataset.cvDestination || '',
+    active: document.querySelector('[data-cv-destination="projects"].is-active')?.dataset.cvDestination || '',
   }));
-  assert.deepEqual(direct, {studioOpen: true, section: 'video', title: 'Video Studio', active: 'studios'});
+  assert.deepEqual(direct, {studioOpen: true, section: 'projects', title: 'Projects', active: 'projects'});
 
   await page.evaluate(() => document.getElementById('crump53Close').click());
   await page.evaluate(() => window.CrumpNavigation5930.open('create'));
   await page.locator('[data-crump5930-create="video"]').click();
   const createHandoff = await page.evaluate(() => ({
     section: document.getElementById('crump53Sheet').dataset.crump53Section,
-    active: document.querySelector('[data-cv-destination="studios"].is-active')?.dataset.cvDestination || '',
+    active: document.querySelector('[data-cv-destination="projects"].is-active')?.dataset.cvDestination || '',
   }));
-  assert.deepEqual(createHandoff, {section: 'video', active: 'studios'});
+  assert.deepEqual(createHandoff, {section: 'video', active: 'projects'});
   assert.deepEqual(errors, []);
   return {visible, direct, createHandoff, errors};
 }
@@ -51,15 +52,14 @@ async function inspectTutorial(page) {
     body: readFileSync(join(process.cwd(), 'public', 'assets', 'brand', 'crump-mark.png')),
   }));
   const expectedSteps = [
-    ['Home', 'Start with the outcome.'],
-    ['Chats', 'Every conversation, easy to find.'],
+    ['Today', 'Start with the outcome.'],
+    ['Chat', 'Every conversation, easy to find.'],
+    ['Tasks', 'Work you can follow, in one record.'],
     ['Projects', 'Give continuing work a home.'],
-    ['Library', 'Keep manuscripts organized.'],
-    ['Studios', 'Make visuals in one place.'],
     ['You', 'Your account has one clear home.'],
   ];
-  const desktopDestinations = ['Home', 'Chats', 'Projects', 'Library', 'Studios', 'You'];
-  const mobileDestinations = ['Home', 'Chats', 'Projects', 'Library', 'Studios', 'You'];
+  const desktopDestinations = ['Today', 'Chat', 'Tasks', 'Projects', 'You'];
+  const mobileDestinations = ['Today', 'Chat', 'Tasks', 'Projects', 'You'];
   const steps = [];
   for (const [index, [destination, title]] of expectedSteps.entries()) {
     await page.goto('http://127.0.0.1:8765/tests/fixtures/five-destination-tutorial.html', {waitUntil: 'load'});
@@ -86,7 +86,7 @@ async function inspectTutorial(page) {
       mobileCurrent: guide.mobileCurrent,
       action: guide.action,
     }, {
-      progress: `${index + 1} / 6`,
+      progress: `${index + 1} / 5`,
       title,
       desktopDestinations,
       mobileDestinations,
@@ -94,9 +94,9 @@ async function inspectTutorial(page) {
       mobileCurrent: destination,
       action: `Open ${destination} →`,
     });
-    if (destination === 'Studios') {
-      assert.match(guide.description, /real Image and Video tools/i);
-      assert.deepEqual(guide.features, ['Image creation and editing', 'Video generation', 'Saved results']);
+    if (destination === 'Tasks') {
+      assert.match(guide.description, /record of work Crump is doing for you/i);
+      assert.deepEqual(guide.features, ['Waiting on you', 'Live work', 'Finished results']);
     }
     await page.locator('.tutorial-open-destination').click();
     await page.waitForFunction(expected => document.getElementById('fixtureDestination')?.textContent === expected, destination.toLowerCase());
@@ -113,15 +113,12 @@ async function inspectTutorial(page) {
   const desktop = await inspect(
     await browser.newPage({viewport: {width: 1280, height: 800}}),
     '.cv-rail-nav',
-    // This fixture intentionally has no authenticated coding-provider probe.
-    // Autonomous therefore remains fail-closed here; its configured and
-    // entitled states are exercised by verify-code-lazy-load.cjs.
-    ['home', 'chats', 'projects', 'library', 'studios', 'you'],
+    ['today', 'chat', 'tasks', 'projects', 'you'],
   );
   const mobile = await inspect(
     await browser.newPage({viewport: {width: 390, height: 844}}),
     '#cvMobileNav',
-    ['home', 'chats', 'projects', 'library', 'studios', 'you'],
+    ['today', 'chat', 'tasks', 'projects', 'you'],
   );
   const tutorial = await inspectTutorial(await browser.newPage({viewport: {width: 390, height: 844}}));
   await browser.close();

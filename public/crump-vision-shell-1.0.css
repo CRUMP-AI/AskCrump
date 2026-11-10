@@ -1,7 +1,8 @@
 /* Crump Vision — application shell (1.0)
  *
- * Product-first rail, six-item mobile nav, and vision stage. Deep graphite,
- * Georgia display type, Inter body type, restrained gold, and an 8px rhythm.
+ * Product-first rail, five-item mobile nav, and vision stage. Deep graphite,
+ * Georgia display type, Inter body type, restrained gold, and a 12/24/48
+ * spacing rhythm on 24px edge margins.
  */
 
 :root {
@@ -14,6 +15,16 @@
   --cv-text: #f1efe9;
   --cv-muted: #8a9196;
   --cv-mobile-nav: 72px;
+  /* Reorganization design tokens: the locked palette for the five-
+     destination shell. The navigation surfaces carry this ink ground in
+     both appearances, so their text pairings stay on the same ground
+     regardless of the workspace theme. */
+  --reorg-bg: #070A0E;
+  --reorg-card: #111417;
+  --reorg-text: #F1EFE9;
+  --reorg-secondary: #8A9196;
+  --reorg-gold: #D5B971;
+  --reorg-gold-deep: #B69855;
 }
 
 /* ------------------------------------------------------------------ */
@@ -190,8 +201,9 @@
   html[data-cv-shell="ready"] body.crump-v1-body .v1-rail.cv-rail {
     align-items: stretch;
     justify-content: flex-start;
-    padding: 24px 16px 16px;
-    background: var(--cv-bg);
+    padding: 24px;
+    background: var(--reorg-bg);
+    color: var(--reorg-text);
     border-right: 1px solid var(--cv-hairline);
   }
 }
@@ -227,7 +239,7 @@
 .cv-rail-nav {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
 .cv-destination {
@@ -240,7 +252,7 @@
   border-radius: 12px;
   border: 1px solid transparent;
   background: transparent;
-  color: #b5bac0;
+  color: var(--reorg-secondary);
   font-family: Inter, -apple-system, "Segoe UI", sans-serif;
   font-size: 14px;
   font-weight: 630;
@@ -276,17 +288,17 @@
 }
 
 .cv-destination:hover {
-  color: var(--cv-text);
+  color: var(--reorg-text);
   background: rgba(255, 255, 255, 0.045);
 }
 
 .cv-destination.is-active {
-  color: var(--cv-text);
-  background: #1b2027;
+  color: var(--reorg-text);
+  background: var(--reorg-card);
   border-color: rgba(255, 255, 255, 0.09);
 }
 
-.cv-destination.is-active svg { color: var(--cv-gold); }
+.cv-destination.is-active svg { color: var(--reorg-gold); }
 
 .cv-rail-foot {
   margin-top: auto;
@@ -383,7 +395,7 @@
     display: none !important;
   }
 
-  /* Chats belongs to the exact six-item bottom navigation once the Vision
+  /* Chat belongs to the exact five-item bottom navigation once the Vision
      shell is ready; hide the superseded legacy header trigger. */
   html[data-cv-shell="ready"] body.crump-v1-body #menuBtn {
     display: none !important;
@@ -391,7 +403,7 @@
 
   html[data-cv-shell="ready"] body.crump-v1-body .cv-mobile-nav {
     display: grid;
-    grid-template-columns: repeat(6, minmax(44px, 1fr));
+    grid-template-columns: repeat(5, minmax(44px, 1fr));
     position: fixed;
     right: 0;
     bottom: 0;
@@ -405,7 +417,9 @@
     border: 0;
     border-top: 1px solid rgba(255, 255, 255, .11);
     border-radius: 24px 24px 0 0;
-    background: rgba(15, 20, 25, .82);
+    /* The dock carries its own ink ground in both appearances. */
+    background: var(--reorg-bg);
+    color: var(--reorg-text);
     box-shadow: 0 -16px 44px rgba(0, 0, 0, .22), 0 1px 0 rgba(255, 255, 255, .08) inset;
     -webkit-backdrop-filter: blur(28px) saturate(180%);
     backdrop-filter: blur(28px) saturate(180%);
@@ -429,7 +443,7 @@
   padding: 5px 1px 3px;
   background: none;
   border: 0;
-  color: #aeb3b8;
+  color: var(--reorg-secondary);
   font-family: Inter, -apple-system, "Segoe UI", sans-serif;
   font-size: clamp(9px, 2.55vw, 10.5px);
   font-weight: 640;
@@ -466,10 +480,10 @@
 }
 
 .cv-mnav-item.is-active {
-  color: var(--cv-text);
+  color: var(--reorg-text);
 }
 
-.cv-mnav-item.is-active svg { color: var(--cv-gold); }
+.cv-mnav-item.is-active svg { color: var(--reorg-gold); }
 .cv-mnav-item.is-active::before {
   border-color: rgba(213, 185, 113, .12);
   opacity: 1;
@@ -477,7 +491,7 @@
 }
 .cv-mnav-item small { display: none; }
 
-/* Reserved secondary-surface sheet. Primary navigation now fits all six
+/* Reserved secondary-surface sheet. Primary navigation now fits all five
    destinations directly in the safe-area-aware phone dock. */
 .cv-more-menu {
   position: fixed;
@@ -518,7 +532,7 @@
   border-bottom: 1px solid rgba(255, 255, 255, .07);
 }
 .cv-more-head p { margin: 0 0 2px; color: var(--cv-muted); font-size: 11px; }
-.cv-more-head h2 { margin: 0; color: var(--cv-text); font-size: 19px; letter-spacing: -.02em; }
+.cv-more-head h2 { margin: 0; color: var(--cv-text); font-family: Georgia, "Times New Roman", serif; font-size: 19px; letter-spacing: -.02em; }
 .cv-more-close {
   display: grid;
   width: 44px;

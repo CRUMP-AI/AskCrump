@@ -17,7 +17,7 @@ def test_56_polish_layer_is_last_on_web_and_native():
         assert source.index("/crump-4.3.js") < source.index("/crump-4.4.js")
         assert source.index("/crump-product-5.3.1.js") < source.index("/crump-polish-5.6.js")
         assert "/crump-polish-5.6.css" in source
-    assert "ask-crump-new-body-v1-r288-full-surface-contrast-1" in worker
+    assert "ask-crump-new-body-v1-r289-reorg-five-destinations-1" in worker
     assert "/crump-polish-5.6.css" in worker and "/crump-polish-5.6.js" in worker
     assert "crump-polish-5.6.js" in checker
 
@@ -27,21 +27,20 @@ def test_tutorial_is_current_and_no_longer_bootstraps_legacy_runtime():
     styles = read("public/onboarding.css")
     polish = read("public/crump-polish-5.6.js")
     assert "crump_tutorial_completed_v9" in tutorial
-    for destination in ("Home", "Chats", "Projects", "Library", "Studios", "You"):
+    for destination in ("Today", "Chat", "Tasks", "Projects", "You"):
         assert f"destination: '{destination}'" in tutorial
     assert "destination: 'Create'" not in tutorial
     assert "destination: 'Autonomous'" not in tutorial
-    assert "MOBILE_DESTINATIONS = Object.freeze(['Home', 'Chats', 'Projects', 'Library', 'Studios', 'You'])" in tutorial
+    assert "MOBILE_DESTINATIONS = Object.freeze(['Today', 'Chat', 'Tasks', 'Projects', 'You'])" in tutorial
     assert "MOBILE_MORE_DESTINATIONS = Object.freeze([])" in tutorial
-    assert "Studios opens the real Image and Video tools" in tutorial
-    assert "Library is the calm shelf for your books and manuscripts" in tutorial
+    assert "Tasks is the record of work Crump is doing for you" in tutorial
     assert "Give continuing work a home." in tutorial
     assert "tutorial-open-destination" in tutorial and ".tutorial-open-destination" in styles
     assert "window.CrumpVision.navigate(normalized)" in tutorial
     assert "tutorial-destination-map" in tutorial and ".tutorial-destination-map" in styles
     assert "aria-current', 'step'" in tutorial
     assert "Replay workspace guide" in polish
-    assert "Home, Chats, Projects, Library, Studios, and You" in polish
+    assert "Today, Chat, Tasks, Projects, and You" in polish
     assert "stay within one tap on desktop and mobile" in polish
     assert "loadRevampAssets" not in tutorial
     assert "crump-4.3.js" not in tutorial
@@ -83,7 +82,7 @@ def test_friendly_workspace_tutorial_fixture_uses_production_assets():
     verifier = read("scripts/verify-video-destination.cjs")
 
     assert "/public/onboarding.css?v=actionable-tour-fixture-1" in fixture
-    assert "/public/onboarding.js?fixture=friendly-six-destinations" in fixture
+    assert "/public/onboarding.js?fixture=friendly-five-destinations" in fixture
     assert "window.tutorial.start({force: true})" in fixture
     assert 'id="fixtureDestination"' in fixture
     assert "window.CrumpVision" in fixture
@@ -95,12 +94,12 @@ def test_friendly_workspace_tutorial_fixture_uses_production_assets():
 def test_navigation_tutorial_and_store_sources_share_one_exact_destination_contract():
     checker = read("scripts/check-javascript.mjs")
 
-    assert "const desktopDestinationIds = Object.freeze(['home', 'chats', 'projects', 'library', 'studios', 'you']);" in checker
-    assert "const desktopDestinationLabels = Object.freeze(['Home', 'Chats', 'Projects', 'Library', 'Studios', 'You']);" in checker
-    assert "const mobileDestinationIds = Object.freeze(['home', 'chats', 'projects', 'library', 'studios', 'you']);" in checker
+    assert "const desktopDestinationIds = Object.freeze(['today', 'chat', 'tasks', 'projects', 'you']);" in checker
+    assert "const desktopDestinationLabels = Object.freeze(['Today', 'Chat', 'Tasks', 'Projects', 'You']);" in checker
+    assert "const mobileDestinationIds = Object.freeze(['today', 'chat', 'tasks', 'projects', 'you']);" in checker
     assert "const moreDestinationIds = Object.freeze([]);" in checker
-    assert "studios: 'video', you: 'you'" in checker
-    assert "files: 'projects'" in checker
+    assert "today: 'ask', chat: 'chats', tasks: 'ask'" in checker
+    assert "tasks: 'tasks'" in checker
     assert "store/listing.en-US.json" in checker
     assert "store/screenshots/README.md" in checker
     assert "docs/STORE_LISTING_COPY.md" in checker

@@ -100,7 +100,7 @@ function resolveRelease(swSource, shellSource, runtimeSource, frozenSource) {
     libraryLoader: matchOne(frozenSource, /'([^']*\/crump-library-loader\.js\?[^']+)'/, 'frozen Library loader URL'),
   });
   assert.equal(previous.cache, 'ask-crump-new-body-v1-r272-project-resume-auth-boundary-1');
-    assert.equal(current.cache, 'ask-crump-new-body-v1-r288-full-surface-contrast-1');
+    assert.equal(current.cache, 'ask-crump-new-body-v1-r289-reorg-five-destinations-1');
   assert.notEqual(current.cache, immediatePredecessor.cache);
   assert.notEqual(current.runtime, immediatePredecessor.runtime);
   assert.notEqual(current.billing52, immediatePredecessor.billing52);

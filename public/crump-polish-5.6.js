@@ -30,7 +30,7 @@
     button.innerHTML = `
       <div class="settings-row-text">
         <div class="settings-label">Replay workspace guide</div>
-        <div class="settings-help">Home, Chats, Projects, Library, Studios, and You stay within one tap on desktop and mobile.</div>
+        <div class="settings-help">Today, Chat, Tasks, Projects, and You stay within one tap on desktop and mobile.</div>
       </div>
       <div class="settings-chevron" aria-hidden="true">›</div>`;
     button.addEventListener('click', () => {
