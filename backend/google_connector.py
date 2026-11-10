@@ -331,6 +331,20 @@ class GoogleConnector:
     def configured(self) -> bool:
         return self.oauth_configured and self.vault.configured
 
+    @staticmethod
+    def _vault_context(row: dict[str, Any]) -> dict[str, str]:
+        """Trusted vault context for one connection row.
+
+        Built only from the stored record itself — the row's owner,
+        the literal provider, and the row's id — never from
+        caller-supplied payload fields.
+        """
+        return {
+            'user_id': str(row.get('user_id') or ''),
+            'provider': 'google',
+            'connection_id': str(row.get('id') or ''),
+        }
+
     # -- Signed state --------------------------------------------------
 
     def _sign(self, payload_part: str) -> str:
@@ -571,14 +585,48 @@ class GoogleConnector:
                 'GOOGLE_NOT_CONFIGURED',
                 503,
             )
+        # The vault seals tokens against the connection's id, so the
+        # id is settled before anything is encrypted: an existing
+        # connection keeps its id, a new one gets the id its row is
+        # stored under.
+        existing: dict[str, Any] | None = None
+        if hasattr(self.db, 'select_one'):
+            try:
+                found = await self.db.select_one(
+                    'agent_connections',
+                    filters={
+                        'user_id': eq(user_id),
+                        'provider': eq('google'),
+                        'account_email': eq(account_email),
+                    },
+                )
+                if isinstance(found, dict) and found:
+                    existing = found
+            except Exception:
+                existing = None
+        connection_id = (
+            str(existing['id'])
+            if existing is not None and existing.get('id')
+            else str(uuid.uuid4())
+        )
+        context = {
+            'user_id': str(user_id),
+            'provider': 'google',
+            'connection_id': connection_id,
+        }
         payload: dict[str, Any] = {
+            'id': connection_id,
             'user_id': str(user_id),
             'provider': 'google',
             'account_email': account_email,
             'scopes': list(scopes),
-            'access_token_ciphertext': self.vault.encrypt(access_token),
+            'access_token_ciphertext': self.vault.encrypt(
+                access_token, **context
+            ),
             'refresh_token_ciphertext': (
-                self.vault.encrypt(refresh_token) if refresh_token else ''
+                self.vault.encrypt(refresh_token, **context)
+                if refresh_token
+                else ''
             ),
             'token_expires_at': token_expires_at.isoformat(),
             'status': 'connected',
@@ -589,14 +637,6 @@ class GoogleConnector:
             )
             row = rows[0] if isinstance(rows, list) and rows else payload
         else:
-            existing = await self.db.select_one(
-                'agent_connections',
-                filters={
-                    'user_id': eq(user_id),
-                    'provider': eq('google'),
-                    'account_email': eq(account_email),
-                },
-            )
             if existing:
                 rows = await self.db.update(
                     'agent_connections',
@@ -658,7 +698,7 @@ class GoogleConnector:
                 continue
             had_ciphertext = True
             try:
-                token = self.vault.decrypt(ciphertext)
+                token = self.vault.decrypt(ciphertext, **self._vault_context(row))
             except Exception:
                 token = ''
             if token:
@@ -875,7 +915,8 @@ class GoogleConnector:
         """
         if not _token_needs_refresh(connection):
             return connection, self.vault.decrypt(
-                str(connection.get('access_token_ciphertext') or '')
+                str(connection.get('access_token_ciphertext') or ''),
+                **self._vault_context(connection),
             )
         lock_key = str(
             connection.get('id')
@@ -891,10 +932,12 @@ class GoogleConnector:
                 )
             if not _token_needs_refresh(current):
                 return current, self.vault.decrypt(
-                    str(current.get('access_token_ciphertext') or '')
+                    str(current.get('access_token_ciphertext') or ''),
+                    **self._vault_context(current),
                 )
             refresh_token = self.vault.decrypt(
-                str(current.get('refresh_token_ciphertext') or '')
+                str(current.get('refresh_token_ciphertext') or ''),
+                **self._vault_context(current),
             )
             if not refresh_token:
                 raise ConnectionRequiredError(
@@ -911,12 +954,14 @@ class GoogleConnector:
             )
             rotated_refresh = str(payload.get('refresh_token') or '')
             update: dict[str, Any] = {
-                'access_token_ciphertext': self.vault.encrypt(access_token),
+                'access_token_ciphertext': self.vault.encrypt(
+                    access_token, **self._vault_context(current)
+                ),
                 'token_expires_at': expires_at.isoformat(),
             }
             if rotated_refresh:
                 update['refresh_token_ciphertext'] = self.vault.encrypt(
-                    rotated_refresh
+                    rotated_refresh, **self._vault_context(current)
                 )
             if self.db is not None and current.get('id'):
                 await self.db.update(
