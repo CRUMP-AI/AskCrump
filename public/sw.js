@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r292-reorg-tasks-1';
+const CACHE_NAME = 'ask-crump-new-body-v1-r293-reorg-projects-you-1';
 
 const CORE = [
   '/app',
@@ -35,10 +35,10 @@ const CORE = [
   '/crump-vision-shell-1.0.js?v=5.9.76-reorg-five-destinations-1',
   '/crump-vision-chats-1.0.css?v=5.9.76-atelier-workspace-1',
   '/crump-vision-chats-1.0.js?v=5.9.76-atelier-workspace-1',
-  '/crump-vision-library-1.0.css?v=5.9.76-atelier-workspace-1',
-  '/crump-vision-library-1.0.js?v=5.9.76-account-owner-boundary-1',
-  '/crump-vision-projects-1.0.css?v=5.9.76-project-resume-1',
-  '/crump-vision-projects-1.0.js?v=5.9.76-project-resume-owner-boundary-1',
+  '/crump-vision-library-1.0.css?v=5.9.76-reorg-projects-you-1',
+  '/crump-vision-library-1.0.js?v=5.9.76-reorg-projects-you-1',
+  '/crump-vision-projects-1.0.css?v=5.9.76-reorg-projects-you-1',
+  '/crump-vision-projects-1.0.js?v=5.9.76-reorg-projects-you-1',
   '/crump-vision-studios-1.0.css?v=5.9.76-premium-workspace-1',
   '/crump-vision-studios-1.0.js?v=5.9.76-premium-workspace-1',
   '/crump-code-loader.js?v=5.9.76-account-owner-boundary-1&workspaceRelease=guest-free-contract-2',

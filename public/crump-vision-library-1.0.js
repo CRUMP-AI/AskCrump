@@ -204,7 +204,7 @@
               '<p class="cvl-history-note">Crump keeps the current version of each manuscript. Earlier revisions are not stored.</p>' +
             '</div>' +
           '</details>' +
-          '<button type="button" class="cvl-open" data-cvl-open="' + id + '">Open</button>' +
+          '<button type="button" class="cvl-open" data-cvl-open="' + id + '" title="' + title + '" aria-label="Open “' + title + '”">Open</button>' +
         '</div>' +
       '</article>'
     );

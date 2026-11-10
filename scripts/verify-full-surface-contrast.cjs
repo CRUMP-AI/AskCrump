@@ -242,6 +242,21 @@ async function main() {
     }
   }
 
+  // 2d) Reorg Projects/Library/You fixture: the real vision views
+  // rendered from stubbed API shapes — project rows, the Library shelf
+  // inside Projects, the full-screen Library, and the You sections —
+  // on their ink ground in either appearance.
+  for (const theme of ['dark', 'light']) {
+    for (const viewport of VIEWPORTS) {
+      const page = await browser.newPage({ viewport });
+      const result = await scanPage(page,
+        `${rootBase}/tests/fixtures/reorg-projects-you.html?state=full&google=partial&theme=${theme}`,
+        null, 1500);
+      record('reorg-projects-you', theme, viewport, result);
+      await page.close();
+    }
+  }
+
   // 3) Appearance fixture: light render, then the runtime theme switch to dark.
   for (const viewport of VIEWPORTS) {
     const lightPage = await browser.newPage({ viewport });

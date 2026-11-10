@@ -213,8 +213,8 @@ def test_contrast_gate_is_registered_and_fixture_covers_the_surfaces():
 
 def test_release_versions_moved_in_step():
     worker = read("public/sw.js")
-    assert worker.startswith("const CACHE_NAME = 'ask-crump-new-body-v1-r292-reorg-tasks-1';")
-    assert "/crump-agent-today-1.0.css?v=5.9.76-agent-today-9" in worker or True  # agent css ships via app shell
+    assert worker.startswith("const CACHE_NAME = 'ask-crump-new-body-v1-r293-reorg-projects-you-1';")
+    assert "/crump-agent-today-1.0.css?v=5.9.76-agent-today-10" in worker or True  # agent css ships via app shell
     assert "/crump-design-pass.css?v=5.9.76-contrast-sweep-1" in worker
     assert "/crump-v1-body.css?v=5.9.76-owned-workspace-access-2" in worker
     assert "/lifecycle.css?v=5.9.76-lifecycle-activation-2" in worker
@@ -222,8 +222,8 @@ def test_release_versions_moved_in_step():
     assert "/use-case.css?v=5.9.76-contrast-1" in worker
 
     app = read("public/app.html")
-    assert "/crump-agent-today-1.0.css?v=5.9.76-agent-today-9" in app
-    assert "/crump-agent-today-1.0.js?v=5.9.76-agent-today-9" in app
+    assert "/crump-agent-today-1.0.css?v=5.9.76-agent-today-10" in app
+    assert "/crump-agent-today-1.0.js?v=5.9.76-agent-today-10" in app
     assert "/crump-v1-body.css?v=5.9.76-owned-workspace-access-2" in app
 
     runtime = read("public/runtime-body-v1.js")

@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Reorg Projects and You fixture</title>
+  <script>
+    // Reproduces the three reorganization surfaces in their real API
+    // shapes: the Projects destination (vision projects view + the
+    // Library shelf it now carries), the full-screen Library view, and
+    // the You view (vision you view + the Settings Connections mount the
+    // agent layer renders). ?state=full|empty picks the data set,
+    // ?google=partial|full|disconnected picks the single Google record,
+    // ?guest=1 renders the signed-out session (no workspace fetches).
+    (function () {
+      var params = new URLSearchParams(location.search);
+      document.documentElement.setAttribute('data-theme', params.get('theme') || 'dark');
+      var state = params.get('state') || 'full';
+      var googleState = params.get('google') || 'partial';
+      var guest = params.get('guest') === '1';
+      window.__fetchCalls = [];
+      window.__views = {};
+      window.CrumpVision = {
+        registerView: function (id, def) { window.__views[id] = def; return true; },
+        navigate: function () {},
+        current: function () { return 'projects'; },
+        esc: function (value) {
+          return String(value == null ? '' : value).replace(/[&<>"']/g, function (ch) {
+            return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+          });
+        },
+        eyebrow: function (text) {
+          var node = document.createElement('div');
+          node.className = 'cv-eyebrow';
+          node.textContent = text;
+          return node;
+        },
+      };
+      if (guest) {
+        window.currentUser = { id: 'fixture-guest', isGuest: true };
+        window.CrumpAccess = { isGuest: function () { return true; } };
+        window.CrumpAuthBoundary = {
+          authenticatedUserId: function () { return ''; },
+          revision: function () { return 0; },
+          register: function () {},
+        };
+      } else {
+        window.currentUser = { id: 'fixture-user', fullName: 'Gregory Crump', name: 'Gregory Crump' };
+        window.CrumpAuthBoundary = {
+          authenticatedUserId: function () { return 'fixture-user'; },
+          revision: function () { return 0; },
+          register: function () {},
+        };
+      }
+      try {
+        localStorage.setItem('cv-memory-v1', JSON.stringify({
+          'fixture-user': [{
+            id: 'm1', text: 'Preferred name is Greg',
+            createdAt: 1762000000000, updatedAt: 1762000000000,
+          }],
+          'fixture-guest': [],
+        }));
+      } catch (_) {}
+      var longProjectName = 'Ask Crump launch plan and the long road to a calm, complete, store-ready workspace';
+      var longTitle = 'Quarterly planning notes and next steps for the Ask Crump launch checklist and brand reference board review';
+      var projects = state === 'empty' ? [] : [
+        { id: 'p1', name: 'Ask Crump', description: 'Product · workspace and agent', created_at: '2026-10-01T12:00:00Z', updated_at: '2026-11-09T12:00:00Z' },
+        { id: 'p2', name: longProjectName, description: '', created_at: '2026-10-02T12:00:00Z', updated_at: '2026-11-08T12:00:00Z' },
+        { id: 'p3', name: 'Pancakes and Pick Sixes', description: 'Sports media · weekly production', created_at: '2026-10-03T12:00:00Z', updated_at: '2026-11-07T12:00:00Z' },
+      ];
+      var books = state === 'empty' ? [] : [
+        { id: 'b1', title: longTitle, authorName: 'Greg', origin: 'created', status: 'finished', wordCount: 1200, sectionCount: 3, createdAt: '2026-11-01T12:00:00Z', updatedAt: '2026-11-09T12:00:00Z' },
+        { id: 'b2', title: 'Launch checklist', authorName: 'Greg', origin: 'created', status: 'draft', wordCount: 300, sectionCount: 1, createdAt: '2026-11-02T12:00:00Z', updatedAt: '2026-11-08T12:00:00Z' },
+        { id: 'b3', title: 'Brand reference board', authorName: 'Greg', origin: 'imported', status: 'finished', wordCount: 0, sectionCount: 0, createdAt: '2026-11-03T12:00:00Z', updatedAt: '2026-11-07T12:00:00Z' },
+      ];
+      var scopesByState = {
+        partial: ['https://www.googleapis.com/auth/gmail.readonly'],
+        full: [
+          'https://www.googleapis.com/auth/gmail.readonly',
+          'https://www.googleapis.com/auth/gmail.send',
+          'https://www.googleapis.com/auth/calendar.events',
+        ],
+        disconnected: [],
+      };
+      var googleStatus = googleState === 'disconnected'
+        ? { configured: true, connected: false, accounts: [] }
+        : {
+            configured: true, connected: true,
+            accounts: [{
+              email: 'gregory@example.com', status: 'connected',
+              scopes: scopesByState[googleState] || scopesByState.partial,
+            }],
+          };
+      window.__longProjectName = longProjectName;
+      window.__longTitle = longTitle;
+      window.fetch = function (path) {
+        var target = String(path);
+        window.__fetchCalls.push(target);
+        var data = {};
+        if (target.indexOf('/api/connections/google/status') === 0) data = googleStatus;
+        else if (target.indexOf('/api/projects/') === 0 && target.indexOf('/chats') > 0) data = { conversations: [] };
+        else if (target.indexOf('/api/projects/') === 0) {
+          var pid = decodeURIComponent(target.slice('/api/projects/'.length));
+          var found = projects.filter(function (p) { return p.id === pid; })[0] || projects[0] || {};
+          data = { project: found, context: { canon: [], manuscripts: [] } };
+        }
+        else if (target.indexOf('/api/projects') === 0) data = { projects: projects };
+        else if (target.indexOf('/api/library/books') === 0) data = { books: books };
+        else if (target.indexOf('/api/agent/capabilities') === 0) data = { capabilities: [] };
+        else if (target.indexOf('/api/agent/approvals') === 0) data = { approvals: [] };
+        else if (target.indexOf('/api/agent/automations') === 0) data = { automations: [] };
+        else if (target.indexOf('/api/agent/today') === 0) data = { brief: {} };
+        else if (target.indexOf('/api/agent/runs') === 0) data = { runs: [] };
+        return Promise.resolve({
+          ok: true,
+          status: 200,
+          json: function () { return Promise.resolve(data); },
+        });
+      };
+    })();
+  </script>
+  <link rel="stylesheet" href="/public/crump-v1-body.css?v=reorg-projects-you-fixture-1">
+  <link rel="stylesheet" href="/public/crump-vision-shell-1.0.css?v=reorg-projects-you-fixture-1">
+  <link rel="stylesheet" href="/public/crump-vision-projects-1.0.css?v=5.9.76-reorg-projects-you-1">
+  <link rel="stylesheet" href="/public/crump-vision-library-1.0.css?v=5.9.76-reorg-projects-you-1">
+  <link rel="stylesheet" href="/public/crump-vision-you-1.0.css?v=reorg-projects-you-fixture-1">
+  <link rel="stylesheet" href="/public/crump-agent-today-1.0.css?v=5.9.76-agent-today-10">
+  <link rel="stylesheet" href="/public/crump-design-pass.css?v=reorg-projects-you-fixture-1">
+</head>
+<body class="crump-v1-body">
+  <div id="appContainer" class="app-container">
+    <div class="v1-shell">
+      <main class="main-content v1-workspace">
+        <header class="header v1-workspace-header"></header>
+        <section class="v1-workspace-body">
+          <div id="chatContainer" class="chat-container" aria-label="Conversation"></div>
+        </section>
+      </main>
+    </div>
+  </div>
+  <div id="projectsRoot"></div>
+  <div id="libraryRoot"></div>
+  <div id="youRoot"></div>
+  <section class="settings-sheet v1-settings-sheet" aria-label="Settings connections mount">
+    <div data-cat-you-connections></div>
+  </section>
+  <script src="/public/crump-vision-projects-1.0.js?v=5.9.76-reorg-projects-you-1"></script>
+  <script src="/public/crump-vision-library-1.0.js?v=5.9.76-reorg-projects-you-1"></script>
+  <script src="/public/crump-vision-you-1.0.js?v=reorg-projects-you-fixture-1"></script>
+  <script src="/public/crump-agent-today-1.0.js?v=5.9.76-agent-today-10"></script>
+  <script>
+    // The vision modules register on DOMContentLoaded, so the fixture
+    // renders on the same tick the real shell would.
+    document.addEventListener('DOMContentLoaded', function () {
+      if (window.__views.projects) window.__views.projects.render(document.getElementById('projectsRoot'));
+      if (window.__views.library) window.__views.library.render(document.getElementById('libraryRoot'));
+      if (window.__views.you) window.__views.you.render(document.getElementById('youRoot'));
+    });
+  </script>
+</body>
+</html>

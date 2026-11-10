@@ -1281,9 +1281,10 @@ const mobileNavApplePolishVersion = `${releaseVersion}-reorg-five-destinations-1
 const ownedWorkspaceAccessVersion = `${releaseVersion}-owned-workspace-access-2`;
 const shellNoTaglineVersion = `${releaseVersion}-shell-no-tagline-1`;
 const atelierWorkspaceVersion = `${releaseVersion}-atelier-workspace-1`;
-const projectResumeVersion = `${releaseVersion}-project-resume-1`;
-const projectResumeOwnerBoundaryVersion = `${releaseVersion}-project-resume-owner-boundary-1`;
+const projectResumeVersion = `${releaseVersion}-reorg-projects-you-1`;
+const projectResumeOwnerBoundaryVersion = `${releaseVersion}-reorg-projects-you-1`;
 const legacyProjectResumeTruthVersion = `${releaseVersion}-legacy-project-resume-truth-2`;
+const reorgProjectsYouVersion = `${releaseVersion}-reorg-projects-you-1`;
 const responseContinuityCleanupVersion = `${releaseVersion}-response-continuity-cleanup-1`;
 const manuscriptExportDeliveryVersion = `${releaseVersion}-manuscript-export-delivery-1`;
 const libraryCrudPrivacyVersion = `${releaseVersion}-library-crud-privacy-1`;
@@ -2080,7 +2081,7 @@ for (const pathname of ['/crump-vision-projects-1.0.css', '/crump-vision-project
   }
 }
 for (const [pathname, expectedVersion] of [
-  ['/crump-vision-library-1.0.js', libraryOwnerBoundaryVersion],
+  ['/crump-vision-library-1.0.js', reorgProjectsYouVersion],
   ['/auth-controller.js', authControllerVersion],
 ]) {
   const expectedUrl = `${pathname}?v=${expectedVersion}`;
@@ -2097,7 +2098,7 @@ for (const [pathname, expectedVersion] of [
     }
   }
 }
-if (!serviceWorker.includes('ask-crump-new-body-v1-r292-reorg-tasks-1') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r293-reorg-projects-you-1') ||
     !serviceWorker.includes(`'${shellBrandUrl}'`) ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||

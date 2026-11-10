@@ -16,7 +16,7 @@ DYNAMIC_BUTTON_PATTERN = re.compile(
     re.IGNORECASE,
 )
 EXPECTED_BUTTON_INVENTORY = {
-    "public/app.html": 53,
+    "public/app.html": 54,
     "public/credit-confirmation.js": 3,
     "public/crump-5.0.js": 4,
     "public/crump-5.2.js": 5,
@@ -29,10 +29,10 @@ EXPECTED_BUTTON_INVENTORY = {
     "public/crump-product-5.3.js": 61,
     "public/crump-vision-home-1.0.js": 1,
     "public/crump-vision-library-1.0.js": 6,
-    "public/crump-vision-projects-1.0.js": 6,
+    "public/crump-vision-projects-1.0.js": 7,
     "public/crump-vision-shell-1.0.js": 5,
     "public/crump-vision-studios-1.0.js": 4,
-    "public/crump-vision-you-1.0.js": 6,
+    "public/crump-vision-you-1.0.js": 8,
     "public/install-prompt.js": 2,
     "public/lifecycle-manager.js": 2,
     "public/subscription-ui.js": 3,
@@ -305,7 +305,7 @@ def test_rendered_button_inventory_requires_explicit_review() -> None:
             inventory[page.relative_to(ROOT).as_posix()] = len(parser.buttons)
 
     assert inventory == EXPECTED_BUTTON_INVENTORY
-    assert sum(inventory.values()) == 225
+    assert sum(inventory.values()) == 229
 
 
 def test_programmatically_created_button_inventory_requires_explicit_review() -> None:
@@ -317,7 +317,7 @@ def test_programmatically_created_button_inventory_requires_explicit_review() ->
 
     assert inventory == DYNAMIC_BUTTON_INVENTORY
     assert sum(inventory.values()) == 105
-    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 330
+    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 334
 
 
 def test_programmatically_created_buttons_declare_type_and_runtime_owner() -> None:

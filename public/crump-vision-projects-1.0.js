@@ -275,6 +275,18 @@
     detail.setAttribute('tabindex', '0');
     root.appendChild(detail);
 
+    // The Library shelf lives inside Projects: finished artifacts from
+    // the same real Library feed the detail panel filters by project,
+    // presented as bounded tiles under the project rows.
+    var library = document.createElement('section');
+    library.className = 'cvp-library';
+    library.setAttribute('aria-label', 'Library');
+    library.innerHTML =
+      eyebrowHTML('Library') +
+      '<h2 class="cvp-library-title">Finished artifacts</h2>' +
+      '<div class="cvp-library-mount" data-cvp-library><p class="cvp-quiet">Loading your library…</p></div>';
+    root.appendChild(library);
+
     switcher.innerHTML =
       '<div class="cvp-skeleton" aria-hidden="true"><i></i><i></i><i></i></div>' +
       '<p class="cvp-status" role="status">Loading your projects…</p>';
@@ -291,8 +303,14 @@
           '<h2>Sign in to see your projects.</h2>' +
           '<p>Work you save as a Project lives here with its context, conversations, and books intact.</p>' +
         '</div>';
+      var signedOutLibrary = root.querySelector('[data-cvp-library]');
+      if (signedOutLibrary) {
+        signedOutLibrary.innerHTML = '<p class="cvp-quiet">Sign in to see your finished artifacts.</p>';
+      }
       return;
     }
+
+    renderLibraryShelf(root, authBoundary);
 
     api('/api/projects', authBoundary).then(function (data) {
       if (!projectsViewIsCurrent(root, authBoundary)) return;
@@ -344,18 +362,36 @@
     });
   }
 
+  /* A project row's quiet line carries only what the project record
+     itself exposes: its description when it has one, otherwise its
+     updated date. No kind label and no counts are invented for records
+     that do not carry them. */
+  function projectMetaLine(project) {
+    var description = String((project && project.description) || '').replace(/\s+/g, ' ').trim();
+    if (description) return description;
+    var updated = fmtDate(project && project.updated_at);
+    return updated ? 'Updated ' + updated : '';
+  }
+
   function renderSwitcher(switcher, projects, selectedProjectId, root, authBoundary) {
     switcher.innerHTML =
+      eyebrowHTML('Active projects') +
       '<div class="cvp-switcher-row" role="tablist" aria-label="Your projects">' +
       projects.map(function (project, index) {
         var active = String(project.id) === String(selectedProjectId);
+        var name = String(project.name || 'Untitled project');
+        var meta = projectMetaLine(project);
         return (
-          '<button type="button" class="cvp-switch' + (active ? ' is-active' : '') + '" role="tab" ' +
+          '<button type="button" class="cvp-switch cvp-row' + (active ? ' is-active' : '') + '" role="tab" ' +
             'id="cvpProjectTab-' + index + '" aria-controls="cvpProjectDetail" tabindex="' + (active ? '0' : '-1') + '" ' +
             'aria-selected="' + (active ? 'true' : 'false') + '" ' +
+            'aria-label="' + esc(name) + '" title="' + esc(name) + '" ' +
             'data-cvp-project="' + esc(project.id) + '">' +
-            '<span class="cvp-switch-name">' + esc(project.name || 'Untitled project') + '</span>' +
-            '<span class="cvp-switch-date">' + esc(fmtDate(project.updated_at) || '') + '</span>' +
+            '<span class="cvp-row-main">' +
+              '<span class="cvp-switch-name">' + esc(name) + '</span>' +
+              (meta ? '<span class="cvp-switch-date cvp-row-meta">' + esc(meta) + '</span>' : '') +
+            '</span>' +
+            '<span class="cvp-row-chevron" aria-hidden="true">›</span>' +
           '</button>'
         );
       }).join('') +
@@ -646,6 +682,76 @@
     });
   }
 
+  /* ---- Library shelf inside Projects (real Library data) ----
+     Finished artifacts as neat tiles. Every tile title is bounded by
+     CSS (two lines, deliberate ellipsis); the full title stays
+     accessible through the title attribute and the Open control's
+     aria-label. The kind line uses only fields the book record
+     carries: origin/status, word count, and its updated date. */
+
+  function libraryTileKind(book) {
+    var bits = [];
+    bits.push(book.origin === 'imported' ? 'Imported' : 'Created with Crump');
+    if (book.status) bits.push(String(book.status));
+    return bits.join(' · ');
+  }
+
+  function renderLibraryShelf(root, authBoundary) {
+    var mount = root ? root.querySelector('[data-cvp-library]') : null;
+    if (!mount) return;
+    api('/api/library/books', authBoundary).then(function (data) {
+      if (!projectsViewIsCurrent(root, authBoundary)) return;
+      var books = (data && Array.isArray(data.books)) ? data.books.slice() : [];
+      books.sort(function (a, b) {
+        return new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime();
+      });
+      if (!books.length) {
+        mount.innerHTML = '<p class="cvp-quiet">Nothing finished yet. Books and manuscripts you complete will land here.</p>';
+        return;
+      }
+      mount.innerHTML =
+        '<div class="cvp-library-grid">' +
+        books.map(function (book) {
+          var title = String(book.title || 'Untitled manuscript');
+          var metaBits = [];
+          if (book.wordCount != null) metaBits.push(fmtCount(book.wordCount) + ' words');
+          var updated = fmtDate(book.updatedAt);
+          if (updated) metaBits.push('Updated ' + updated);
+          return (
+            '<article class="cvp-artifact">' +
+              '<div class="cvp-artifact-top">' +
+                '<span class="cvp-artifact-kind">' + esc(libraryTileKind(book)) + '</span>' +
+                '<span class="cvp-artifact-initial" aria-hidden="true">' + esc(bookInitialFor(title)) + '</span>' +
+              '</div>' +
+              '<h3 class="cvp-artifact-title" title="' + esc(title) + '">' + esc(title) + '</h3>' +
+              (metaBits.length ? '<p class="cvp-artifact-meta">' + esc(metaBits.join(' · ')) + '</p>' : '') +
+              '<button type="button" class="cvp-link cvp-artifact-open" data-cvp-open-library ' +
+                'title="' + esc(title) + '" aria-label="Open “' + esc(title) + '” in Library">Open in Library</button>' +
+            '</article>'
+          );
+        }).join('') +
+        '</div>';
+      mount.querySelectorAll('[data-cvp-open-library]').forEach(function (button) {
+        button.addEventListener('click', function () {
+          if (!projectsViewIsCurrent(root, authBoundary)) return;
+          var c = cv();
+          try {
+            if (c && typeof c.navigate === 'function') { c.navigate('library'); return; }
+          } catch (_) { /* fall through */ }
+          window.location.href = '/app';
+        });
+      });
+    }).catch(function () {
+      if (!projectsViewIsCurrent(root, authBoundary)) return;
+      mount.innerHTML = '<p class="cvp-quiet">Your library could not load just now.</p>';
+    });
+  }
+
+  function bookInitialFor(title) {
+    var t = String(title || '').trim();
+    return t ? t.charAt(0).toUpperCase() : 'A';
+  }
+
   /* ---- Books and manuscripts produced by this project (real Library data) ---- */
 
   function renderKeepsakes(mount, keepsakes, authBoundary) {
@@ -659,7 +765,7 @@
       keepsakes.map(function (book) {
         return (
           '<li class="cvp-keepsake">' +
-            '<span class="cvp-keepsake-title">' + esc(book.title || 'Untitled manuscript') + '</span>' +
+            '<span class="cvp-keepsake-title" title="' + esc(book.title || 'Untitled manuscript') + '">' + esc(book.title || 'Untitled manuscript') + '</span>' +
             '<span class="cvp-keepsake-meta">' +
               esc(String(book.status || 'draft')) + ' · ' +
               esc(fmtCount(book.wordCount)) + ' words · ' +

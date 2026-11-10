@@ -224,6 +224,7 @@
       state.loaded = false;
       state.failed = false;
       renderToday();
+      renderYouConnections();
       return Promise.resolve();
     }
     state.loading = true;
@@ -273,12 +274,14 @@
       state.failed = !state.loaded;
       renderToday();
       renderChat();
+      renderYouConnections();
       if (tasksPanel && tasksPanel.classList.contains('is-open')) renderTasks();
     }).catch(function () {
       state.loading = false;
       state.failed = true;
       renderToday();
       renderChat();
+      renderYouConnections();
     });
   }
 
@@ -996,6 +999,122 @@
   }
 
   /* ---------------------------------------------------------------- */
+  /* You surface: the Connections section of Settings                  */
+  /*                                                                   */
+  /* The shell delegates You to the Settings sheet. Its Connections    */
+  /* panel renders from the SAME single Google record this layer      */
+  /* already loads — state.google, from                              */
+  /* GET /api/connections/google/status — so the brief, the connect    */
+  /* notice, and You can never disagree about whether Google, Gmail,   */
+  /* or Calendar is connected. Capability lines are derived from the   */
+  /* connected account's granted scopes on that one record; there is   */
+  /* no per-service fetch and no second state. Guests render the       */
+  /* signed-out row and make no connections fetch (loadAgentData is    */
+  /* gated on the same owner check). Connect/disconnect reuse the      */
+  /* existing endpoints.                                               */
+  /* ---------------------------------------------------------------- */
+
+  function googleAccount() {
+    if (!googleConnected() || !state.google || !Array.isArray(state.google.accounts)) return null;
+    var found = null;
+    state.google.accounts.forEach(function (account) {
+      if (!found && account && account.status === 'connected') found = account;
+    });
+    return found;
+  }
+
+  function googleCapabilityLines(scopes) {
+    var granted = Array.isArray(scopes) ? scopes : [];
+    function has(fragment) {
+      return granted.some(function (scope) { return String(scope).indexOf(fragment) !== -1; });
+    }
+    var lines = [];
+    if (has('gmail.readonly')) lines.push(['Gmail', 'Read']);
+    if (has('gmail.compose')) lines.push(['Gmail', 'Draft']);
+    if (has('gmail.send')) lines.push(['Gmail', 'Send']);
+    if (has('calendar.events')) lines.push(['Calendar', 'Read/write']);
+    else if (has('calendar.readonly')) lines.push(['Calendar', 'Read']);
+    return lines;
+  }
+
+  function youConnectionRow(label, value) {
+    var row = h('div', 'settings-row cat-you-row');
+    var text = h('div', 'settings-row-text');
+    text.appendChild(h('div', 'settings-label', label));
+    row.appendChild(text);
+    row.appendChild(h('div', 'settings-label cat-you-value', value));
+    return row;
+  }
+
+  function renderYouConnections() {
+    var mount = document.querySelector('[data-cat-you-connections]');
+    if (!mount) return;
+    mount.innerHTML = '';
+    var list = h('div', 'settings-list');
+    var owner = captureOwnerId();
+    var account = owner ? googleAccount() : null;
+    if (!owner) {
+      list.appendChild(youConnectionRow('Google', 'Not connected'));
+      mount.appendChild(list);
+      mount.appendChild(h('p', 'settings-help cat-you-note', 'Sign in to connect Google.'));
+      return;
+    }
+    if (!state.loaded && !state.google) {
+      list.appendChild(youConnectionRow('Google', 'Checking…'));
+      mount.appendChild(list);
+      return;
+    }
+    if (!account) {
+      list.appendChild(youConnectionRow('Google', 'Not connected'));
+      mount.appendChild(list);
+      var connectNote = h('p', 'settings-help cat-you-note', '');
+      connectNote.hidden = true;
+      var connectBtn = button('Connect Google', 'cat-btn cat-you-action', function () {
+        connectBtn.disabled = true;
+        api('/api/connections/google/connect').then(function (data) {
+          if (data && data.authorizationUrl) {
+            window.location.assign(data.authorizationUrl);
+            return;
+          }
+          throw new Error('connect unavailable');
+        }).catch(function () {
+          connectBtn.disabled = false;
+          connectNote.textContent = 'Google connect is not available yet.';
+          connectNote.hidden = false;
+        });
+      });
+      mount.appendChild(connectBtn);
+      mount.appendChild(connectNote);
+      return;
+    }
+    var email = String(account.email || '').trim();
+    list.appendChild(youConnectionRow('Google', email || 'Connected'));
+    googleCapabilityLines(account.scopes).forEach(function (line) {
+      list.appendChild(youConnectionRow(line[0], line[1]));
+    });
+    mount.appendChild(list);
+    var disconnectNote = h('p', 'settings-help cat-you-note', '');
+    disconnectNote.hidden = true;
+    var disconnectBtn = button('Disconnect Google', 'cat-btn cat-you-action', function () {
+      disconnectBtn.disabled = true;
+      api('/api/connections/google/disconnect', {
+        method: 'POST',
+        body: email ? { accountEmail: email } : {},
+      }).then(function () {
+        state.google = null;
+        renderYouConnections();
+        loadAgentData();
+      }).catch(function () {
+        disconnectBtn.disabled = false;
+        disconnectNote.textContent = 'Disconnect did not finish. Try again.';
+        disconnectNote.hidden = false;
+      });
+    });
+    mount.appendChild(disconnectBtn);
+    mount.appendChild(disconnectNote);
+  }
+
+  /* ---------------------------------------------------------------- */
   /* Tasks drawer                                                      */
   /* ---------------------------------------------------------------- */
 
@@ -1528,6 +1647,17 @@
       else if (tasksPanel && tasksPanel.classList.contains('is-open')) closeTasks();
     });
 
+    // Opening the Settings Connections panel refreshes the one Google
+    // record and re-renders the You rows from it.
+    document.addEventListener('click', function (event) {
+      var tab = event.target && event.target.closest
+        ? event.target.closest('[data-v1-settings-tab="connections"]')
+        : null;
+      if (!tab) return;
+      renderYouConnections();
+      if (captureOwnerId()) loadAgentData();
+    });
+
     // Auth resolves after this layer loads, so retry the first fetch a
     // few times before settling into the signed-out empty state.
     loadAgentData();
@@ -1548,6 +1678,7 @@
     openTasks: openTasks,
     openBrowser: openBrowserPanel,
     refresh: loadAgentData,
+    renderYouConnections: renderYouConnections,
   };
 
   if (document.readyState === 'loading') {
