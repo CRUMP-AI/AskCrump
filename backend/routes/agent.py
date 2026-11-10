@@ -25,7 +25,7 @@ from ..agent_automation_service import (
 )
 from ..agent_executor import AgentExecutor, build_today_brief
 from ..agent_registry import get_capability, public_catalog
-from ..agent_run_service import AgentRunError
+from ..agent_run_service import AgentRunConflictError, AgentRunError
 from ..auth_service import authenticate_request
 from ..google_connector import GoogleConnector
 from ..google_vault import GoogleVault
@@ -271,6 +271,18 @@ async def delete_automation(automation_id: str, request: Request):
         return _error(exc)
 
 
+# Run-creation failures with these codes are properties of the
+# stored automation and the registry, not of the moment: the same
+# creation would fail identically on every later pass, so the row is
+# terminally invalid and is disabled instead of retried forever.
+# Everything else (a paused executor, an entitlement or balance
+# change, a provider or database outage) is transient and leaves the
+# automation due.
+TERMINAL_RUN_ERROR_CODES = frozenset(
+    {'CAPABILITY_NOT_FOUND', 'CAPABILITY_NOT_LIVE', 'INVALID_RUN_INPUT'}
+)
+
+
 async def process_due_automations() -> dict:
     """Create + execute a morning-brief run for every due automation.
 
@@ -279,39 +291,128 @@ async def process_due_automations() -> dict:
     registering new ones, so due automations ride the minutely
     manuscripts cron. Each automation is isolated - one failure leaves
     that automation due for the next pass and never blocks the rest.
+
+    One outstanding run per occurrence is the invariant. Each
+    occurrence's run is filed under a deterministic conversation id,
+    and the schedule advances only once the run exists:
+
+    - a terminally invalid row (see
+      ``AgentAutomationService.terminal_invalid_reason``) is disabled
+      on sight, so it leaves the due scan for good;
+    - a row whose occurrence already has a run — an earlier pass
+      created it and died before confirming, or execution is paused
+      and the run waits queued — is confirmed forward, never
+      duplicated;
+    - otherwise the pass leases the row (the lease never advances
+      the schedule), creates the run, and only then confirms the
+      schedule forward. A crash between lease and creation leaves
+      the occurrence due behind an expiring lease; a crash between
+      creation and confirmation is recovered by the rule above.
     """
     service = _automations()
     now = datetime.now(timezone.utc)
     due = await service.due_automations(now)
     triggered: list[dict] = []
     errors = 0
+    disabled = 0
     for row in due:
-        claimed = None
+        reason = AgentAutomationService.terminal_invalid_reason(row)
+        if reason is not None:
+            try:
+                if await service.disable_automation(row, reason=reason):
+                    disabled += 1
+                else:
+                    errors += 1
+            except Exception:
+                errors += 1
+            continue
+        conversation_id = AgentAutomationService.occurrence_conversation_id(row)
         try:
-            # Claim before creating anything: the claim is a
-            # compare-and-swap on the row's observed next_run_at, so
-            # a concurrent pass over the same due automation gets no
-            # claim and skips it instead of firing it a second time.
+            existing = await agent_runs.find_run_by_conversation_id(
+                user_id=row['user_id'],
+                conversation_id=conversation_id,
+            )
+        except Exception:
+            errors += 1
+            continue
+        if existing is not None:
+            # The occurrence already has its run; an earlier pass
+            # died after creating it (or execution is still pending
+            # on it). Confirm the schedule forward and, if the run
+            # still waits queued, give it its execution attempt —
+            # never a second run.
+            try:
+                await service.confirm_existing_run(row, ran_at=now)
+            except Exception:
+                pass
+            status = existing.get('status')
+            if status == 'queued':
+                try:
+                    executed = await _executor().execute_run(
+                        user_id=row['user_id'],
+                        run_id=str(existing['id']),
+                    )
+                    status = executed.get('status')
+                except AgentRunConflictError:
+                    # Another pass is executing this run right now.
+                    status = 'running'
+                except Exception:
+                    errors += 1
+                    continue
+            triggered.append(
+                {
+                    'automationId': row['id'],
+                    'runId': existing['id'],
+                    'status': status,
+                }
+            )
+            continue
+        claimed = None
+        created_id = None
+        try:
+            # Lease before creating anything: the lease is a
+            # compare-and-swap, so a concurrent pass over the same
+            # due automation gets no lease and skips it instead of
+            # firing it a second time. The lease does not advance
+            # the schedule — confirmation below does, once the run
+            # exists.
             claimed = await service.claim_due_automation(row, ran_at=now)
             if claimed is None:
                 continue
             run_payload = AgentAutomationService.run_payload_for(row)
-            created = await agent_runs.create_run(
-                user_id=row['user_id'],
-                capability_id=row['capability_id'],
-                payload=run_payload,
-            )
+            try:
+                created = await agent_runs.create_run(
+                    user_id=row['user_id'],
+                    capability_id=row['capability_id'],
+                    payload=run_payload,
+                    conversation_id=conversation_id,
+                )
+            except AgentRunError as exc:
+                if exc.code in TERMINAL_RUN_ERROR_CODES:
+                    # Creation itself proved the row terminal (for
+                    # example the stored payload fails the capability
+                    # schema): disable it instead of retrying forever.
+                    if await service.disable_automation(row, reason=exc.code):
+                        disabled += 1
+                    else:
+                        errors += 1
+                    continue
+                raise
+            created_id = str(created['id'])
+            # The run exists, so the occurrence is consumed: confirm
+            # the schedule forward under the lease before executing.
+            # Execution outcomes never roll this back — the run's
+            # outcome lives in the ledger, even when the run failed
+            # or execution is paused and it waits queued.
+            await service.confirm_run_created(row, claimed, ran_at=now)
             run = created
             if created.get('status') == 'queued':
                 # The run executes its stored creation payload (the
                 # automation's payload, stored by create_run above).
                 run = await _executor().execute_run(
                     user_id=row['user_id'],
-                    run_id=str(created['id']),
+                    run_id=created_id,
                 )
-            # The claim already advanced the schedule: the run
-            # happened (its outcome lives in the ledger), even when
-            # the run itself failed.
             triggered.append(
                 {
                     'automationId': row['id'],
@@ -319,13 +420,29 @@ async def process_due_automations() -> dict:
                     'status': run.get('status'),
                 }
             )
+        except AgentRunConflictError:
+            # The run was claimed for execution by a concurrent pass
+            # between creation and execution here; the occurrence
+            # has exactly one run and it is being handled.
+            if created_id is not None:
+                triggered.append(
+                    {
+                        'automationId': row['id'],
+                        'runId': created_id,
+                        'status': 'running',
+                    }
+                )
+            else:
+                errors += 1
         except Exception:
             # One bad automation must not block the rest of the pass.
-            # Hand the claim back so it stays due and is retried on
-            # the next trigger; the release is best effort and never
-            # masks the original failure.
+            # A failure before the run exists hands the lease back so
+            # the occurrence stays due and is retried on the next
+            # trigger; the release is best effort and never masks the
+            # original failure. (A BaseException — a crash — is not
+            # caught here at all: the lease is simply left to expire.)
             errors += 1
-            if claimed is not None:
+            if claimed is not None and created_id is None:
                 try:
                     await service.release_claim(row, claimed)
                 except Exception:
@@ -335,6 +452,7 @@ async def process_due_automations() -> dict:
         'due': len(due),
         'triggered': len(triggered),
         'errors': errors,
+        'disabled': disabled,
         'runs': triggered,
     }
 

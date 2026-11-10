@@ -355,6 +355,27 @@ class AgentRunService:
             raise AgentRunNotFoundError()
         return row
 
+    async def find_run_by_conversation_id(
+        self, *, user_id: str, conversation_id: str
+    ) -> dict[str, Any] | None:
+        """Return the raw run row filed under a conversation id, if any.
+
+        Automation triggers file each occurrence's run under a
+        deterministic conversation id (see
+        ``AgentAutomationService.occurrence_conversation_id``), so a
+        later trigger pass can find the run an earlier pass already
+        created for the same occurrence instead of minting a second.
+        """
+        if not conversation_id:
+            return None
+        return await self.db.select_one(
+            'agent_runs',
+            filters={
+                'user_id': eq(str(user_id)),
+                'conversation_id': eq(str(conversation_id)),
+            },
+        )
+
     # -- access enforcement -------------------------------------------------
 
     async def _load_user(self, user_id: str) -> dict[str, Any] | None:

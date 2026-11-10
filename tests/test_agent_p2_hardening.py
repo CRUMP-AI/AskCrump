@@ -8,10 +8,13 @@ Three of the bundle's four items are pinned here:
   ``additionalProperties: false``, and the declared enum / length /
   range constraints. Rejections use the existing
   ``INVALID_RUN_INPUT`` error with a field-level message.
-- The automation run-due claim is a compare-and-swap on the due
-  row's observed ``next_run_at``: two concurrent passes over the
-  same due automation create its run exactly once, and a failed run
-  hands the claim back so the automation stays due.
+- The automation run-due claim is a compare-and-swap lease on the
+  due row's observed ``next_run_at`` / ``updated_at``: two
+  concurrent passes over the same due automation create its run
+  exactly once, and a failed run creation hands the lease back so
+  the automation stays due. The lease never advances the schedule —
+  that split (and the poison/fairness/crash lifecycle around it) is
+  covered in full in ``tests/test_agent_automation_lifecycle.py``.
 - ``tzdata`` is declared with a Windows platform marker in both
   dependency files, so ``zoneinfo`` has a tz database on Windows
   dev/test machines. There is no Windows runner here; the pin is
@@ -239,23 +242,49 @@ async def test_claim_is_a_cas_and_release_restores_the_due_state():
     row = dict(db.tables['agent_automations'][0])
     assert row['next_run_at'] == '2020-01-01T07:30:00+00:00'
 
+    # The claim is a lease: it stamps only the lease expiry into
+    # updated_at and never advances the schedule.
     claimed = await service.claim_due_automation(row, ran_at=utc(2020, 1, 1, 8, 0))
     assert claimed is not None
-    assert claimed['last_run_at'] == '2020-01-01T08:00:00+00:00'
-    assert claimed['next_run_at'] == '2020-01-02T07:30:00+00:00'
+    assert claimed['next_run_at'] == '2020-01-01T07:30:00+00:00'
+    assert claimed['last_run_at'] is None
+    assert claimed['updated_at'] == '2020-01-01T08:02:00+00:00'
 
-    # A second claim against the same observed row loses the race.
+    # A second claim against the same observed row loses the race,
+    # and a fresh read during the lease cannot claim either.
     assert (
         await service.claim_due_automation(row, ran_at=utc(2020, 1, 1, 8, 0))
         is None
     )
+    fresh = dict(db.tables['agent_automations'][0])
+    assert (
+        await service.claim_due_automation(fresh, ran_at=utc(2020, 1, 1, 8, 1))
+        is None
+    )
 
-    # Releasing the claim makes the automation due again, untouched.
+    # Releasing the lease makes the automation claimable again, with
+    # the schedule exactly as it was before the claim.
     await service.release_claim(row, claimed)
     stored = db.tables['agent_automations'][0]
     assert stored['next_run_at'] == '2020-01-01T07:30:00+00:00'
     assert stored['last_run_at'] is None
+    assert stored['updated_at'] == row['updated_at']
     assert created['id'] == stored['id']
+
+    # Claiming again and confirming a created run advances the
+    # schedule exactly once; a stale confirmation cannot re-advance.
+    claimed = await service.claim_due_automation(row, ran_at=utc(2020, 1, 1, 8, 0))
+    assert claimed is not None
+    confirmed = await service.confirm_run_created(
+        row, claimed, ran_at=utc(2020, 1, 1, 8, 0)
+    )
+    assert confirmed is not None
+    assert confirmed['last_run_at'] == '2020-01-01T08:00:00+00:00'
+    assert confirmed['next_run_at'] == '2020-01-02T07:30:00+00:00'
+    assert (
+        await service.confirm_run_created(row, claimed, ran_at=utc(2020, 1, 1, 8, 0))
+        is None
+    )
 
 
 @pytest.mark.asyncio
