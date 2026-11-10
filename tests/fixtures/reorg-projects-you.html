@@ -12,12 +12,24 @@
     // agent layer renders). ?state=full|empty picks the data set,
     // ?google=partial|full|disconnected picks the single Google record,
     // ?guest=1 renders the signed-out session (no workspace fetches).
+    // ?stage=projects composes the page the way the real shell does
+    // while Projects is the mounted destination: the stage holds the
+    // Projects view alone, the workspace sits away underneath it, and
+    // the Settings sheet is closed — so the surface itself is what a
+    // capture (or a hit-test) sees, not the layers around it.
     (function () {
       var params = new URLSearchParams(location.search);
       document.documentElement.setAttribute('data-theme', params.get('theme') || 'dark');
       var state = params.get('state') || 'full';
       var googleState = params.get('google') || 'partial';
       var guest = params.get('guest') === '1';
+      var stageProjects = params.get('stage') === 'projects';
+      if (stageProjects) {
+        var stageStyle = document.createElement('style');
+        stageStyle.textContent =
+          '#appContainer, .settings-sheet, #libraryRoot, #youRoot { display: none !important; }';
+        document.head.appendChild(stageStyle);
+      }
       window.__fetchCalls = [];
       window.__views = {};
       window.CrumpVision = {
@@ -37,7 +49,15 @@
         },
       };
       if (guest) {
-        window.currentUser = { id: 'fixture-guest', isGuest: true };
+        // The signed-out session carries no user id, matching the
+        // boundary stub below: in the real shell app.js derives the
+        // boundary's owner id from currentUser.id, so the two can
+        // never disagree there. Pairing an id here with an empty
+        // boundary owner created a state production cannot reach —
+        // and the Library view, which gates entry on currentUser.id
+        // but settles only when the boundary snapshot stays current,
+        // spun on "Opening your library…" forever in that state.
+        window.currentUser = { id: '', isGuest: true };
         window.CrumpAccess = { isGuest: function () { return true; } };
         window.CrumpAuthBoundary = {
           authenticatedUserId: function () { return ''; },
@@ -58,7 +78,9 @@
             id: 'm1', text: 'Preferred name is Greg',
             createdAt: 1762000000000, updatedAt: 1762000000000,
           }],
-          'fixture-guest': [],
+          // The You view keys memory by currentUser.id, falling back
+          // to 'guest' — the signed-out session's key.
+          'guest': [],
         }));
       } catch (_) {}
       var longProjectName = 'Ask Crump launch plan and the long road to a calm, complete, store-ready workspace';
@@ -150,9 +172,12 @@
   <script src="/public/crump-agent-today-1.0.js?v=5.9.76-agent-today-12"></script>
   <script>
     // The vision modules register on DOMContentLoaded, so the fixture
-    // renders on the same tick the real shell would.
+    // renders on the same tick the real shell would. Staged mode
+    // mounts the Projects view alone, like the real shell's stage.
     document.addEventListener('DOMContentLoaded', function () {
+      var staged = new URLSearchParams(location.search).get('stage') === 'projects';
       if (window.__views.projects) window.__views.projects.render(document.getElementById('projectsRoot'));
+      if (staged) return;
       if (window.__views.library) window.__views.library.render(document.getElementById('libraryRoot'));
       if (window.__views.you) window.__views.you.render(document.getElementById('youRoot'));
     });
