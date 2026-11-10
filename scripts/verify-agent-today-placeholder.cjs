@@ -982,6 +982,196 @@ async function runChatScenarios(browser) {
   return scenarios;
 }
 
+async function measureBrowserPanel(page) {
+  return page.evaluate(() => {
+    const rect = element => {
+      if (!element) return null;
+      const box = element.getBoundingClientRect();
+      return {
+        left: box.left, top: box.top, right: box.right, bottom: box.bottom,
+        width: box.width, height: box.height,
+      };
+    };
+    const panel = document.querySelector('#catBrowserPanel');
+    const win = document.querySelector('.cat-browser-window');
+    const step = document.querySelector('.cat-browser-step');
+    const pause = document.querySelector('.cat-browser-pause');
+    const dismiss = document.querySelector('.cat-browser-dismiss');
+    const dock = document.querySelector('.v1-command-dock');
+    const title = document.querySelector('.cat-browser-title');
+    const labelledBy = win ? win.getAttribute('aria-labelledby') : null;
+    const winStyle = win ? getComputedStyle(win) : null;
+    const stepStyle = step ? getComputedStyle(step) : null;
+    return {
+      panelHidden: panel ? panel.hidden : true,
+      panelRect: rect(panel),
+      panelBackground: panel ? getComputedStyle(panel).backgroundColor : null,
+      winRect: rect(win),
+      role: win ? win.getAttribute('role') : null,
+      ariaModal: win ? win.getAttribute('aria-modal') : null,
+      labelledByText: labelledBy
+        ? (document.getElementById(labelledBy) || {}).textContent
+        : null,
+      borderLeftWidth: winStyle ? winStyle.borderLeftWidth : null,
+      borderLeftColor: winStyle ? winStyle.borderLeftColor : null,
+      winBackground: winStyle ? winStyle.backgroundColor : null,
+      stepText: step ? step.textContent : null,
+      stepWhiteSpace: stepStyle ? stepStyle.whiteSpace : null,
+      stepScrollHeight: step ? step.scrollHeight : 0,
+      stepClientHeight: step ? step.clientHeight : 0,
+      titleText: title ? title.textContent : null,
+      viewportText: (document.querySelector('.cat-browser-viewport') || {}).textContent || '',
+      pausePresent: Boolean(pause),
+      pauseDisabled: pause ? pause.disabled : null,
+      pauseText: pause ? pause.textContent.trim() : null,
+      dismissPresent: Boolean(dismiss),
+      dismissDisabled: dismiss ? dismiss.disabled : null,
+      dismissText: dismiss ? dismiss.textContent.trim() : null,
+      dismissAriaLabel: dismiss ? dismiss.getAttribute('aria-label') : null,
+      dismissRect: rect(dismiss),
+      dismissIsPause: Boolean(pause && dismiss && pause === dismiss),
+      takeOverDisabled: (() => {
+        const btn = [...document.querySelectorAll('.cat-browser-controls .cat-btn')]
+          .find(b => b.textContent.trim() === 'Take over');
+        return btn ? btn.disabled : null;
+      })(),
+      dockRect: rect(dock),
+      activeIsDismiss: Boolean(dismiss && document.activeElement === dismiss),
+      activeId: document.activeElement ? (document.activeElement.id || document.activeElement.className) : null,
+    };
+  });
+}
+
+async function runBrowserPanelScenarios(browser) {
+  let scenarios = 0;
+  for (const theme of THEMES) {
+    for (const viewport of VIEWPORTS) {
+      const label = `browser panel ${theme} @ ${viewport.name}`;
+      const page = await browser.newPage({ viewport });
+      await page.goto(`${chatFixtureUrl}?theme=${theme}&state=live`, { waitUntil: 'load' });
+      await page.waitForTimeout(250);
+      // Focus a chat element first so focus return has an opener.
+      await page.evaluate(() => {
+        const input = document.querySelector('#userInput');
+        if (input) input.focus();
+        window.CrumpAgentToday.openBrowser(null);
+      });
+      await page.waitForTimeout(320);
+      const m = await measureBrowserPanel(page);
+      assert.equal(m.panelHidden, false, `${label}: panel did not open`);
+      assert.equal(m.role, 'dialog', `${label}: dialog role`);
+      assert.equal(m.ariaModal, 'true', `${label}: aria-modal`);
+      assert.equal(m.labelledByText, 'Live browser', `${label}: aria-labelledby target`);
+      assert.equal(m.titleText, 'Live browser', `${label}: title`);
+      // Geometry: right-anchored slide-over. Phone widths sit at
+      // ~84% of the viewport; desktop caps at the 560px side panel.
+      assert.ok(Math.abs(m.winRect.right - viewport.width) <= 0.6,
+        `${label}: panel not right-anchored (${m.winRect.right} vs ${viewport.width})`);
+      const ratio = m.winRect.width / viewport.width;
+      if (viewport.width <= 480) {
+        assert.ok(Math.abs(ratio - 0.84) <= 0.03,
+          `${label}: width ratio ${ratio.toFixed(3)} is not ~84%`);
+      } else {
+        assert.ok(Math.abs(m.winRect.width - 560) <= 1,
+          `${label}: desktop width ${m.winRect.width} is not the 560px cap`);
+        assert.ok(m.winRect.left > 0, `${label}: desktop panel covers the whole viewport`);
+      }
+      assert.ok(Math.abs(m.winRect.top) <= 0.6 && Math.abs(m.winRect.bottom - viewport.height) <= 0.6,
+        `${label}: panel does not span the viewport height`);
+      // Gold hairline on the anchored edge.
+      assert.equal(m.borderLeftWidth, '1px', `${label}: border-left width`);
+      const borderColor = parseColor(m.borderLeftColor);
+      assert.ok(Math.abs(borderColor.r - 213) <= 2 && Math.abs(borderColor.g - 185) <= 2 &&
+        Math.abs(borderColor.b - 113) <= 2 && Math.abs(borderColor.a - 0.35) <= 0.02,
+        `${label}: border-left color ${m.borderLeftColor} is not the gold hairline`);
+      assert.equal(m.winBackground, 'rgb(17, 20, 23)', `${label}: panel ground ${m.winBackground}`);
+      // The backdrop covers the whole viewport, composer dock
+      // included, so dismissal is always reachable over the chat.
+      assert.ok(m.panelRect.left <= 0.6 && m.panelRect.top <= 0.6 &&
+        m.panelRect.right >= viewport.width - 0.6 && m.panelRect.bottom >= viewport.height - 0.6,
+        `${label}: backdrop does not cover the viewport`);
+      if (m.dockRect) {
+        assert.ok(m.panelRect.left <= m.dockRect.left && m.panelRect.right >= m.dockRect.right &&
+          m.panelRect.top <= m.dockRect.top && m.panelRect.bottom >= m.dockRect.bottom,
+          `${label}: backdrop does not cover the composer dock`);
+      }
+      // One-line step, taken from the layer's own step text.
+      assert.equal(m.stepWhiteSpace, 'nowrap', `${label}: step line wraps`);
+      assert.ok(m.stepScrollHeight <= m.stepClientHeight + 1,
+        `${label}: step line spills past one line (${m.stepScrollHeight} > ${m.stepClientHeight})`);
+      assert.match(m.stepText || '', /No browser task is running/, `${label}: step text`);
+      // Honest body copy: sessions are not live yet.
+      assert.match(m.viewportText, /not live yet/, `${label}: honesty copy missing`);
+      // Pause and dismissal are distinct controls: Pause is the
+      // honest disabled control; Back is enabled and dismisses.
+      assert.equal(m.pausePresent, true, `${label}: Pause control missing`);
+      assert.equal(m.pauseDisabled, true, `${label}: Pause must stay disabled while sessions are not live`);
+      assert.equal(m.dismissPresent, true, `${label}: dismiss control missing`);
+      assert.equal(m.dismissIsPause, false, `${label}: dismiss and Pause are the same element`);
+      assert.equal(m.dismissDisabled, false, `${label}: dismiss control must be enabled`);
+      assert.equal(m.dismissText, 'Back', `${label}: dismiss label`);
+      assert.match(m.dismissAriaLabel || '', /close the browser panel/i, `${label}: dismiss aria-label`);
+      assert.ok(m.dismissRect.height >= 44 && m.dismissRect.width >= 44,
+        `${label}: dismiss target ${m.dismissRect.width}x${m.dismissRect.height} under 44px`);
+      assert.equal(m.takeOverDisabled, true, `${label}: Take over must stay disabled`);
+      // Focus moved into the panel on open.
+      assert.equal(m.activeIsDismiss, true, `${label}: focus did not move to the dismiss control`);
+
+      // Dismissal path 1: Back returns focus to the opener.
+      await page.click('.cat-browser-dismiss');
+      await page.waitForTimeout(80);
+      let after = await page.evaluate(() => ({
+        hidden: document.querySelector('#catBrowserPanel').hidden,
+        activeId: document.activeElement ? document.activeElement.id : null,
+      }));
+      assert.equal(after.hidden, true, `${label}: Back did not close the panel`);
+      assert.equal(after.activeId, 'userInput', `${label}: focus did not return to the opener`);
+
+      // Dismissal path 2: backdrop tap (on the strip left of the panel).
+      await page.evaluate(() => window.CrumpAgentToday.openBrowser(null));
+      await page.waitForTimeout(80);
+      await page.mouse.click(8, Math.floor(viewport.height / 2));
+      await page.waitForTimeout(80);
+      after = await page.evaluate(() => ({ hidden: document.querySelector('#catBrowserPanel').hidden }));
+      assert.equal(after.hidden, true, `${label}: backdrop tap did not close the panel`);
+
+      // Dismissal path 3: Escape.
+      await page.evaluate(() => window.CrumpAgentToday.openBrowser(null));
+      await page.waitForTimeout(80);
+      await page.keyboard.press('Escape');
+      await page.waitForTimeout(80);
+      after = await page.evaluate(() => ({ hidden: document.querySelector('#catBrowserPanel').hidden }));
+      assert.equal(after.hidden, true, `${label}: Escape did not close the panel`);
+
+      // Dismissal path 4: rightward swipe on the panel.
+      await page.evaluate(() => window.CrumpAgentToday.openBrowser(null));
+      await page.waitForTimeout(80);
+      await page.evaluate(() => {
+        const win = document.querySelector('.cat-browser-window');
+        const makeTouch = (x, y) => new Touch({
+          identifier: 1, target: win, clientX: x, clientY: y,
+        });
+        win.dispatchEvent(new TouchEvent('touchstart', {
+          touches: [makeTouch(200, 400)], bubbles: true, cancelable: true,
+        }));
+        win.dispatchEvent(new TouchEvent('touchend', {
+          touches: [], changedTouches: [makeTouch(320, 408)], bubbles: true, cancelable: true,
+        }));
+      });
+      await page.waitForTimeout(80);
+      after = await page.evaluate(() => ({ hidden: document.querySelector('#catBrowserPanel').hidden }));
+      assert.equal(after.hidden, true, `${label}: swipe-right did not close the panel`);
+
+      scenarios += 1;
+      await page.close();
+    }
+  }
+  console.log(`Agent browser panel: ${scenarios} scenarios passed ` +
+    `(${THEMES.length} themes x ${VIEWPORTS.length} viewports, slide-over geometry, ` +
+    `gold hairline, distinct Pause/Back, backdrop + Escape + Back + swipe dismissal).`);
+  return scenarios;
+}
+
 async function runChatDetailGeometry(browser) {
   // Painted nonintersection with the frozen detail EXPANDED — the
   // tallest the card ever gets — measured at the top and again with
@@ -1031,6 +1221,7 @@ async function run() {
       // assertions against a specific tree (e.g. the #173 head).
       scenarios += await runChatScenarios(browser);
       scenarios += await runChatDetailGeometry(browser);
+      scenarios += await runBrowserPanelScenarios(browser);
       console.log(`Agent Chat cards (standalone): ${scenarios} scenarios passed.`);
       return;
     }
@@ -1214,6 +1405,7 @@ async function run() {
     scenarios += await runTasksScenarios(browser);
     scenarios += await runChatScenarios(browser);
     scenarios += await runChatDetailGeometry(browser);
+    scenarios += await runBrowserPanelScenarios(browser);
     scenarios += await runProjectsYouScenarios(browser);
   } finally {
     await browser.close();
