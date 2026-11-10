@@ -664,6 +664,32 @@ async function measureProjectsYou(page) {
   });
 }
 
+async function measureProjectsRowVisibility(page) {
+  // Paint-level visibility, not DOM presence: each project row's
+  // center must hit-test to the row itself or one of its children.
+  // The composed fixture stacks the shell workspace and the Settings
+  // sheet over the rows' band, so the staged composition is measured
+  // here — DOM assertions alone let the covered rows through, the
+  // same blind spot the Chat nonintersection guard closed.
+  return page.evaluate(() => {
+    const describe = el => (el
+      ? `${el.tagName.toLowerCase()} ${String(el.className || '').trim()}`.trim()
+      : 'nothing');
+    const rows = [...document.querySelectorAll('#projectsRoot .cvp-row')].map(row => {
+      const box = row.getBoundingClientRect();
+      const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
+      return {
+        name: (row.querySelector('.cvp-switch-name') || {}).textContent || '',
+        top: Math.round(box.top),
+        bottom: Math.round(box.bottom),
+        hitInRow: Boolean(hit) && (hit === row || row.contains(hit)),
+        hit: describe(hit),
+      };
+    });
+    return { rows };
+  });
+}
+
 async function openProjectsYou(page, query) {
   await page.goto(`${projectsYouFixtureUrl}?${query}`, { waitUntil: 'load' });
   await page.waitForFunction(() => {
@@ -737,6 +763,31 @@ async function runProjectsYouScenarios(browser) {
     }
   }
 
+  // Staged Projects surface: with the shell workspace away and the
+  // Settings sheet closed (the composition the real shell presents
+  // while Projects is mounted), every row's center hit-tests to the
+  // row itself — the rows are paint-inspectable, not just present.
+  for (const theme of THEMES) {
+    for (const viewport of VIEWPORTS) {
+      const label = `projects-you ${theme}/staged-projects @ ${viewport.name}`;
+      const page = await browser.newPage({ viewport });
+      await page.goto(`${projectsYouFixtureUrl}?theme=${theme}&state=full&google=partial&stage=projects`,
+        { waitUntil: 'load' });
+      await page.waitForFunction(
+        () => document.querySelectorAll('#projectsRoot .cvp-row').length === 3,
+        { timeout: 8000 });
+      await page.waitForTimeout(200);
+      const vis = await measureProjectsRowVisibility(page);
+      assert.equal(vis.rows.length, 3, `${label}: project rows ${vis.rows.length}`);
+      vis.rows.forEach((row, index) => {
+        assert.ok(row.hitInRow,
+          `${label}: row ${index} "${row.name}" (y ${row.top}-${row.bottom}) center hit-tests to ${row.hit}, not the row`);
+      });
+      scenarios += 1;
+      await page.close();
+    }
+  }
+
   // Full scopes at phone width: every granted capability line renders.
   {
     const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
@@ -773,6 +824,17 @@ async function runProjectsYouScenarios(browser) {
   {
     const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
     await openProjectsYou(page, 'theme=dark&state=full&guest=1');
+    // The full-screen Library view must settle for a guest: its
+    // loading line clears and a settled state paints within a bounded
+    // wait. This scenario previously asserted only the shelf and the
+    // fetch counts, so the Library root could spin on "Opening your
+    // library…" indefinitely without failing anything.
+    await page.waitForFunction(() => {
+      const rootEl = document.querySelector('#libraryRoot');
+      if (!rootEl) return false;
+      return !/Opening your library/.test(rootEl.textContent || '')
+        && Boolean(rootEl.querySelector('.cvl-panel, .cvl-empty, .cvl-book'));
+    }, { timeout: 8000 });
     const m = await measureProjectsYou(page);
     assert.deepEqual(m.youRows, [['Google', 'Not connected']],
       `projects-you guest: you rows ${JSON.stringify(m.youRows)}`);
@@ -780,11 +842,16 @@ async function runProjectsYouScenarios(browser) {
       `projects-you guest: connection fetches ${JSON.stringify(m.fetchCalls)}`);
     assert.equal(m.fetchCalls.filter(path => path.indexOf('/api/projects') === 0).length, 0,
       `projects-you guest: project fetches ${JSON.stringify(m.fetchCalls)}`);
-    // The Projects shelf itself stays signed-out and fetches nothing:
-    // the single library call in this run is the full-screen Library
-    // view's own pre-existing currentUser.id gate.
+    // The Projects shelf itself stays signed-out and fetches nothing,
+    // and the Library view takes its own signed-out branch without a
+    // call: the fixture's guest session carries no user id, matching
+    // its empty boundary owner (in the real shell the boundary owner
+    // is derived from currentUser.id, so the two never diverge). The
+    // bound stays as a guard against the old fetch-then-hang shape.
     assert.match(m.shelfText, /Sign in to see your finished artifacts/,
       `projects-you guest: shelf signed-out line "${m.shelfText}"`);
+    assert.match(m.libraryText, /Sign in to open your library/,
+      `projects-you guest: library settled state "${m.libraryText}"`);
     assert.ok(m.fetchCalls.filter(path => path.indexOf('/api/library/') === 0).length <= 1,
       `projects-you guest: library fetches ${JSON.stringify(m.fetchCalls)}`);
     await page.close();
@@ -792,8 +859,8 @@ async function runProjectsYouScenarios(browser) {
   }
 
   console.log(`Reorg Projects/Library/You: ${scenarios} scenarios passed ` +
-    `(${THEMES.length} themes x full/partial x ${VIEWPORTS.length} viewports, plus full scopes, ` +
-    `disconnected/empty, and guest).`);
+    `(${THEMES.length} themes x full/partial x ${VIEWPORTS.length} viewports, plus staged row ` +
+    `visibility, full scopes, disconnected/empty, and guest).`);
   return scenarios;
 }
 
