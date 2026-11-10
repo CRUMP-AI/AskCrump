@@ -11,12 +11,18 @@ Contract:
 - The payload is validated against the registry entry's required
   fields. The field lists live in ``agent_registry`` only; this
   module reads them from the capability instead of duplicating them.
-- A missing connection raises ``CONNECTION_REQUIRED``. When the
-  stored connection records its granted scopes and the capability's
-  scope is absent, ``execute`` raises ``INSUFFICIENT_SCOPE`` before
-  any provider call. When the record carries no scope information,
-  the provider call runs and a Gmail 403 ``insufficientPermissions``
-  response is mapped to the same code by the connector.
+- Execution binds to ONE of the user's Google connections (see
+  ``google_connector`` for the binding rule: a connection named in
+  the payload binds, otherwise the default connection). A missing
+  connection raises ``CONNECTION_REQUIRED``. The granted scopes of
+  the BOUND connection alone are checked — never a union across
+  connections — and when that record's grant lacks the capability's
+  scope, ``execute`` raises ``INSUFFICIENT_SCOPE`` before any
+  provider call. The provider call then runs with the bound
+  connection's own token, resolved in the same step. When the record
+  carries no scope information, the provider call runs and a Gmail
+  403 ``insufficientPermissions`` response is mapped to the same code
+  by the connector.
 - The result is a redacted summary: the recipient domain, the
   subject length, and the provider draft/message ids. The body and
   the full recipient address never appear in a result.
@@ -27,10 +33,9 @@ from typing import Any
 
 from . import agent_registry
 from .google_connector import (
-    ConnectionRequiredError,
     GoogleConnector,
     GoogleConnectorError,
-    InsufficientScopeError,
+    binding_selectors,
 )
 
 SUPPORTED_CAPABILITY_IDS = frozenset({'gmail.draft', 'gmail.send'})
@@ -76,34 +81,32 @@ def _recipient_domain(address: str) -> str:
     return text.rsplit('@', 1)[-1].strip().lower().rstrip('>')
 
 
-async def _require_write_scope(
+async def _bound_access_token(
     connector: GoogleConnector,
     user_id: str,
     capability: agent_registry.Capability,
-) -> None:
-    """Fail before the provider call when the stored grant is known
-    to lack the capability's scope. Records without scope information
-    fall through to the attempt-and-map path in the connector."""
-    try:
-        rows = await connector.list_connections(user_id)
-    except Exception:
-        return
-    connected = [row for row in rows if row.get('status') == 'connected']
-    if not connected:
-        raise ConnectionRequiredError()
-    granted: set[str] = set()
-    for row in connected:
-        for scope in row.get('scopes') or []:
-            granted.add(str(scope))
-    if not granted:
-        return
-    missing = [scope for scope in capability.required_scopes if scope not in granted]
-    if missing:
-        raise InsufficientScopeError(
-            'Google has not granted the permission this action needs '
-            f"({' '.join(missing)}). Reconnect Google and approve the "
-            'requested access.'
-        )
+    payload: dict[str, Any],
+) -> str | None:
+    """Resolve the run's bound connection and return its token.
+
+    The connector checks the capability's scopes against the bound
+    connection's grant alone and raises ``CONNECTION_REQUIRED`` /
+    ``INSUFFICIENT_SCOPE`` before any provider call. Returns None for
+    connectors without bound access (test doubles), where the caller
+    falls back to the plain user-scoped dispatch and the provider's
+    own 403 mapping remains the scope gate.
+    """
+    bound_access = getattr(connector, 'bound_access_token', None)
+    if bound_access is None:
+        return None
+    selectors = binding_selectors(payload)
+    _connection, token = await bound_access(
+        user_id,
+        connection_id=selectors['connection_id'],
+        account_email=selectors['account_email'],
+        required_scopes=capability.required_scopes,
+    )
+    return str(token)
 
 
 async def execute(
@@ -131,12 +134,17 @@ async def execute(
     body = str(data.get('body') or '')
 
     client = connector if connector is not None else _default_connector()
-    await _require_write_scope(client, user_id, capability)
+    access_token = await _bound_access_token(client, user_id, capability, data)
 
     if capability.id == 'gmail.draft':
-        created = await client.create_draft(
-            user_id, to=to, subject=subject, body=body
-        )
+        if access_token is not None:
+            created = await client.create_draft_with_token(
+                access_token, to=to, subject=subject, body=body
+            )
+        else:
+            created = await client.create_draft(
+                user_id, to=to, subject=subject, body=body
+            )
         return {
             'capabilityId': capability.id,
             'status': 'draft_created',
@@ -146,7 +154,12 @@ async def execute(
             'recipientDomain': _recipient_domain(to),
             'subjectLength': len(subject),
         }
-    sent = await client.send_message(user_id, to=to, subject=subject, body=body)
+    if access_token is not None:
+        sent = await client.send_message_with_token(
+            access_token, to=to, subject=subject, body=body
+        )
+    else:
+        sent = await client.send_message(user_id, to=to, subject=subject, body=body)
     return {
         'capabilityId': capability.id,
         'status': 'sent',
