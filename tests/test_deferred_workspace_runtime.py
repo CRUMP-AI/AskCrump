@@ -28,7 +28,7 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
         '/crump-vision-projects-1.0.css?v=5.9.76-project-resume-1',
         '/crump-vision-library-1.0.css?v=5.9.76-atelier-workspace-1',
         '/crump-vision-studios-1.0.css?v=5.9.76-premium-workspace-1',
-        '/crump-agent-today-1.0.css?v=5.9.76-agent-today-6',
+        '/crump-agent-today-1.0.css?v=5.9.76-agent-today-7',
     ]
     assert scripts == [
         '/telemetry-config.js?v=5.9.76',
@@ -49,7 +49,7 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
         '/auth-controller.js?v=5.9.76-login-recovery-visible-1',
         '/_vercel/insights/script.js',
         '/_vercel/speed-insights/script.js',
-        '/crump-agent-today-1.0.js?v=5.9.76-agent-today-6',
+        '/crump-agent-today-1.0.js?v=5.9.76-agent-today-7',
     ]
 
 

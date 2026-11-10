@@ -42,6 +42,8 @@
     failed: false,
     loading: false,
     runDetails: {},
+    google: null,
+    brief: null,
   };
 
   /* ---------------------------------------------------------------- */
@@ -183,14 +185,36 @@
   /* Data                                                              */
   /* ---------------------------------------------------------------- */
 
-  function googleBriefIsPlanned() {
-    var google = state.capabilityList.filter(function (cap) {
-      return cap && (String(cap.id || '').indexOf('gmail.') === 0 ||
-        String(cap.id || '').indexOf('calendar.') === 0 ||
-        cap.id === 'agent.today_brief');
+  /* The Google connection record is the single source of truth for
+     brief availability: the connect notice and the brief both read the
+     /api/connections/google/status response (connected + granted
+     scopes on that one record). No surface treats Gmail or Calendar as
+     connected independently of it, and until the record says connected
+     the brief renders no inbox or calendar lines at all. */
+  function googleConnected() {
+    return !!(state.google && state.google.connected === true);
+  }
+
+  function googleScopes() {
+    var scopes = [];
+    if (!state.google || !Array.isArray(state.google.accounts)) return scopes;
+    state.google.accounts.forEach(function (account) {
+      if (account && account.status === 'connected' && Array.isArray(account.scopes)) {
+        account.scopes.forEach(function (scope) {
+          if (scopes.indexOf(scope) === -1) scopes.push(scope);
+        });
+      }
     });
-    if (!google.length) return false;
-    return google.some(function (cap) { return cap.status === 'planned'; });
+    return scopes;
+  }
+
+  function googleScopeGranted(fragment) {
+    // No recorded scopes means the status payload did not scope the
+    // grant; the connection itself stays the authority and the brief
+    // payload decides what actually renders.
+    var scopes = googleScopes();
+    if (!scopes.length) return true;
+    return scopes.some(function (scope) { return String(scope).indexOf(fragment) !== -1; });
   }
 
   function loadAgentData() {
@@ -206,11 +230,15 @@
       settled(api('/api/agent/capabilities')),
       settled(api('/api/agent/approvals')),
       settled(api('/api/agent/runs')),
+      settled(api('/api/connections/google/status')),
+      settled(api('/api/agent/today')),
     ]).then(function (results) {
       state.loading = false;
       var caps = results[0];
       var approvals = results[1];
       var runs = results[2];
+      var google = results[3];
+      var brief = results[4];
       if (caps.ok && Array.isArray(caps.data.capabilities)) {
         state.capabilityList = caps.data.capabilities;
         state.capabilities = {};
@@ -223,6 +251,16 @@
       }
       if (runs.ok) {
         state.runs = Array.isArray(runs.data.runs) ? runs.data.runs : [];
+      }
+      if (google.ok) {
+        state.google = {
+          configured: google.data.configured !== false,
+          connected: google.data.connected === true,
+          accounts: Array.isArray(google.data.accounts) ? google.data.accounts : [],
+        };
+      }
+      if (brief.ok && brief.data.brief && typeof brief.data.brief === 'object') {
+        state.brief = brief.data.brief;
       }
       state.loaded = caps.ok || approvals.ok || runs.ok;
       state.failed = !state.loaded;
@@ -296,19 +334,87 @@
     return '';
   }
 
+  function payloadText(value) {
+    if (value == null) return '';
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+    if (Array.isArray(value)) {
+      return value.map(function (item) { return payloadText(item); }).filter(Boolean).join(', ');
+    }
+    return '';
+  }
+
+  /* The approval card leads with the exact action, derived from the
+     pending action's own frozen payload — the recipients for a send,
+     the event title and time for a calendar create, the query for a
+     search — never the capability label alone. The rendered summary
+     stays as the secondary line when it adds anything. */
+  function approvalExactSummary(action) {
+    var payload = action.payload && typeof action.payload === 'object' ? action.payload : {};
+    var id = String(action.capabilityId || '');
+    if (id === 'gmail.send' || id === 'gmail.draft') {
+      var recipients = payloadText(payload.to || payload.recipients || payload.recipient);
+      var verb = id === 'gmail.send' ? 'Send to ' : 'Draft to ';
+      if (recipients) {
+        var subject = payloadText(payload.subject);
+        return verb + recipients + (subject ? ' — “' + subject + '”' : '');
+      }
+    }
+    if (id === 'calendar.create') {
+      var title = payloadText(payload.summary || payload.title);
+      var when = fmtTime(payload.start);
+      if (title) return 'Book “' + title + '”' + (when ? ' · ' + when : '');
+    }
+    if (id === 'gmail.search' || id === 'research.web_search') {
+      var query = payloadText(payload.query);
+      if (query) return 'Search for “' + query + '”';
+    }
+    if (id === 'browser.read') {
+      var url = payloadText(payload.url);
+      if (url) return 'Read ' + url;
+    }
+    if (id === 'browser.act') {
+      var instruction = payloadText(payload.instruction);
+      if (instruction) return instruction;
+    }
+    var keys = ['to', 'recipients', 'summary', 'title', 'query', 'url', 'instruction', 'subject'];
+    for (var i = 0; i < keys.length; i += 1) {
+      var value = payloadText(payload[keys[i]]);
+      if (value) return capabilityTitle(id) + ' — ' + value;
+    }
+    return action.summary || capabilityTitle(id);
+  }
+
   function approvalCard(action) {
     var card = h('article', 'cat-card');
     card.setAttribute('aria-label', capabilityTitle(action.capabilityId));
     var head = h('div', 'cat-card-head');
     var titleWrap = h('div');
-    titleWrap.appendChild(h('h3', 'cat-card-title', capabilityTitle(action.capabilityId)));
-    if (action.summary) titleWrap.appendChild(h('p', 'cat-card-summary', action.summary));
+    var exact = approvalExactSummary(action);
+    titleWrap.appendChild(h('h3', 'cat-card-title cat-card-exact', exact));
+    if (action.summary && action.summary !== exact) {
+      titleWrap.appendChild(h('p', 'cat-card-summary', action.summary));
+    }
     head.appendChild(titleWrap);
     head.appendChild(h('span', statusClass('pending'), 'Waiting on you'));
     card.appendChild(head);
 
     var payload = payloadList(action.payload);
-    if (payload) card.appendChild(payload);
+    if (payload) {
+      var detail = h('div', 'cat-approval-detail');
+      detail.hidden = true;
+      detail.appendChild(payload);
+      var detailToggle = button('Open detail', 'cat-detail-toggle');
+      detailToggle.setAttribute('aria-expanded', 'false');
+      detailToggle.addEventListener('click', function () {
+        var open = detail.hidden;
+        detail.hidden = !open;
+        detailToggle.textContent = open ? 'Close detail' : 'Open detail';
+        detailToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      });
+      card.appendChild(detailToggle);
+      card.appendChild(detail);
+    }
 
     var meta = [];
     var cost = creditLine(action.capabilityId, action.creditCost);
@@ -352,8 +458,28 @@
     return card;
   }
 
+  /* The current step in plain language: the run detail's latest step
+     when steps have been loaded for this run, otherwise the honest
+     status line. A step is never invented for a run that has not
+     reported one. */
+  function runStepText(run) {
+    var detail = state.runDetails[run.id];
+    var steps = detail && Array.isArray(detail.steps) ? detail.steps : [];
+    if (steps.length) return stepLabel(steps[steps.length - 1]);
+    return statusLabel(run.status);
+  }
+
+  function runPreviewSource(run) {
+    var detail = state.runDetails[run.id] || {};
+    var candidates = [run.previewUrl, run.thumbnailUrl, run.preview, detail.previewUrl, detail.thumbnailUrl];
+    for (var i = 0; i < candidates.length; i += 1) {
+      if (typeof candidates[i] === 'string' && candidates[i]) return candidates[i];
+    }
+    return '';
+  }
+
   function runCard(run) {
-    var isBrowser = run.capabilityId === 'browser.act';
+    var isBrowser = run.capabilityId === 'browser.act' || run.capabilityId === 'browser.read';
     var card = h('article', 'cat-card' + (isBrowser ? ' cat-card-browser' : ''));
     var head = h('div', 'cat-card-head');
     var titleWrap = h('div');
@@ -363,6 +489,33 @@
     head.appendChild(titleWrap);
     head.appendChild(h('span', statusClass(run.status), statusLabel(run.status)));
     card.appendChild(head);
+    var stepText = runStepText(run);
+    var step = h('p', 'cat-card-step');
+    step.appendChild(h('span', 'cat-card-step-label', 'Current step'));
+    step.appendChild(document.createTextNode(stepText));
+    card.appendChild(step);
+    if (isBrowser) {
+      // A small preview tile: the run's own preview image when the run
+      // data carries one, otherwise a neutral browser-chrome tile with
+      // the step text — never a fabricated screenshot of a page.
+      var tile = h('div', 'cat-browser-tile');
+      var preview = runPreviewSource(run);
+      if (preview) {
+        var img = h('img', 'cat-browser-tile-img');
+        img.src = preview;
+        img.alt = '';
+        tile.appendChild(img);
+      } else {
+        var chrome = h('div', 'cat-browser-tile-chrome');
+        chrome.setAttribute('aria-hidden', 'true');
+        chrome.appendChild(h('span', 'cat-browser-dot'));
+        chrome.appendChild(h('span', 'cat-browser-dot'));
+        chrome.appendChild(h('span', 'cat-browser-dot'));
+        tile.appendChild(chrome);
+        tile.appendChild(h('p', 'cat-browser-tile-text', stepText));
+      }
+      card.appendChild(tile);
+    }
     var when = fmtTime(run.updatedAt || run.createdAt);
     if (when) card.appendChild(h('p', 'cat-card-meta', 'Updated ' + when));
     if (isBrowser) {
@@ -371,6 +524,90 @@
       card.appendChild(actions);
     }
     return card;
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* Brief                                                             */
+  /*                                                                   */
+  /* Counts always come from the same loaded approvals/runs the       */
+  /* sections render. Calendar and inbox rows render only when the    */
+  /* connection record says connected, and only from the brief        */
+  /* payload actually returned — a source the brief could not read    */
+  /* says so on its own row instead of inventing a line.              */
+  /* ---------------------------------------------------------------- */
+
+  function briefCountsText() {
+    var bits = [];
+    var approvals = state.approvals.length;
+    var live = liveRuns().length;
+    bits.push(approvals === 1 ? '1 approval waiting' : approvals + ' approvals waiting');
+    bits.push(live === 1 ? '1 task running' : live + ' tasks running');
+    return bits.join(' · ');
+  }
+
+  function briefRow(label, value) {
+    var row = h('div', 'cat-brief-row');
+    row.appendChild(h('span', 'cat-brief-row-label', label));
+    row.appendChild(h('span', 'cat-brief-row-value', value));
+    return row;
+  }
+
+  function briefSourceRow(label, source, summarize) {
+    if (typeof source === 'string') {
+      var reason = source.indexOf('unavailable:') === 0
+        ? source.slice('unavailable:'.length).trim()
+        : source;
+      return briefRow(label, reason || 'Unavailable right now.');
+    }
+    if (Array.isArray(source)) return briefRow(label, summarize(source));
+    return briefRow(label, 'Unavailable right now.');
+  }
+
+  function briefCard() {
+    var card = h('div', 'cat-card cat-brief-card');
+    var weekday = new Date().toLocaleDateString(undefined, { weekday: 'long' });
+    card.appendChild(h('h3', 'cat-brief-title', weekday + ' brief'));
+    card.appendChild(h('p', 'cat-brief-counts', briefCountsText()));
+    var brief = state.brief || {};
+    if (googleScopeGranted('calendar')) {
+      card.appendChild(briefSourceRow('Calendar', brief.calendar, function (events) {
+        if (!events.length) return 'Nothing on the calendar today.';
+        var first = events[0] || {};
+        var when = fmtClock(first.start) || fmtTime(first.start);
+        var line = first.summary || 'Calendar event';
+        if (when) line += ' · ' + when;
+        if (events.length > 1) line += ' · +' + (events.length - 1) + ' more';
+        return line;
+      }));
+    }
+    if (googleScopeGranted('gmail')) {
+      card.appendChild(briefSourceRow('Inbox', brief.inboxHighlights, function (messages) {
+        if (!messages.length) return 'Inbox is clear.';
+        var first = messages[0] || {};
+        var subject = first.subject || first.snippet || 'New message';
+        return messages.length === 1
+          ? subject
+          : messages.length + ' threads · latest: ' + subject;
+      }));
+    }
+    return card;
+  }
+
+  function connectNotice() {
+    var wrap = h('div', 'cat-brief-connect');
+    var connect = h('div', 'cat-connect-notice');
+    connect.appendChild(h('p', 'cat-connect-text',
+      'Connect Google for your brief — email and calendar, read-only.'));
+    var connectNote = h('p', 'cat-connect-note', '');
+    connectNote.hidden = true;
+    var connectBtn = button('Connect Google', 'cat-connect-btn', function () {
+      connectNote.textContent = 'Connecting Google is the next step — this notice turns into your brief as soon as it lands.';
+      connectNote.hidden = false;
+    });
+    connect.appendChild(connectBtn);
+    wrap.appendChild(connect);
+    wrap.appendChild(connectNote);
+    return wrap;
   }
 
   /* ---------------------------------------------------------------- */
@@ -433,7 +670,8 @@
       greetingHeadline(),
       state.approvals.map(function (a) { return a.id + ':' + a.status; }).join(','),
       state.runs.map(function (r) { return r.id + ':' + r.status; }).join(','),
-      googleBriefIsPlanned() ? 'planned' : 'brief-open',
+      googleConnected() ? 'google-in' : 'google-out',
+      state.brief && state.brief.generatedAt ? String(state.brief.generatedAt) : 'no-brief',
     ].join('|');
     if (signature === lastTodaySignature && node.childNodes.length) return;
     lastTodaySignature = signature;
@@ -488,7 +726,22 @@
       waitSection.setAttribute('aria-label', 'Waiting on you');
       waitSection.appendChild(h('h3', 'cat-today-section-title', 'Waiting on you'));
       var waitStack = h('div', 'cat-today-stack');
-      state.approvals.forEach(function (action) { waitStack.appendChild(approvalCard(action)); });
+      // One approval is visible at a time, in a fixed position: the
+      // first pending approval renders as the full card, and any others
+      // sit behind a single quiet count row — the real remaining count
+      // from the same pending list the brief counts — that opens the
+      // Tasks panel, where every pending approval renders in full.
+      if (state.approvals.length) {
+        waitStack.appendChild(approvalCard(state.approvals[0]));
+        if (state.approvals.length > 1) {
+          var moreCount = state.approvals.length - 1;
+          var queueRow = button('+' + moreCount + ' more waiting', 'cat-queue-row');
+          queueRow.setAttribute('aria-label',
+            moreCount + ' more approvals waiting — open Tasks');
+          queueRow.addEventListener('click', function () { openTasks(); });
+          waitStack.appendChild(queueRow);
+        }
+      }
       waiting.forEach(function (run) { waitStack.appendChild(runCard(run)); });
       waitSection.appendChild(waitStack);
       node.appendChild(waitSection);
@@ -507,25 +760,24 @@
 
     var briefArea = h('section', 'cat-today-section cat-brief-area');
     briefArea.setAttribute('aria-label', 'Your brief');
-    if (googleBriefIsPlanned()) {
-      var connect = h('div', 'cat-connect-notice');
-      connect.appendChild(h('p', 'cat-connect-text',
-        'Connect Google for your brief — email and calendar, read-only.'));
-      var connectNote = h('p', 'cat-connect-note', '');
-      connectNote.hidden = true;
-      var connectBtn = button('Connect Google', 'cat-connect-btn', function () {
-        connectNote.textContent = 'Connecting Google is the next step — this notice turns into your brief as soon as it lands.';
-        connectNote.hidden = false;
-      });
-      connect.appendChild(connectBtn);
-      briefArea.appendChild(connect);
-      briefArea.appendChild(connectNote);
-      node.appendChild(briefArea);
-    } else if (!state.approvals.length && !live.length && !waiting.length) {
-      briefArea.appendChild(h('p', 'cat-empty',
-        'Nothing needs you right now. Ask for an outcome below and it will show up here while it runs.'));
-      node.appendChild(briefArea);
+    briefArea.appendChild(h('h3', 'cat-today-section-title', 'Brief'));
+    if (!googleConnected()) {
+      // Disconnected: the slim notice plus genuinely local content
+      // only — the counts come from the loaded runs/approvals, and no
+      // inbox or calendar line renders in this state.
+      briefArea.appendChild(connectNotice());
+      if (state.approvals.length || live.length) {
+        briefArea.appendChild(h('p', 'cat-brief-local', briefCountsText()));
+      } else {
+        briefArea.appendChild(h('p', 'cat-brief-local', 'Nothing needs you right now.'));
+      }
+    } else if (state.brief) {
+      briefArea.appendChild(briefCard());
+    } else {
+      briefArea.appendChild(h('p', 'cat-brief-local',
+        briefCountsText() + ' · Your brief could not load just now.'));
     }
+    node.appendChild(briefArea);
   }
 
   /* ---------------------------------------------------------------- */

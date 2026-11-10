@@ -19,8 +19,8 @@ def read(relative: str) -> str:
 
 def test_app_html_loads_agent_today_layer_last_with_versioned_assets():
     app = read('public/app.html')
-    css = '/crump-agent-today-1.0.css?v=5.9.76-agent-today-6'
-    js = '/crump-agent-today-1.0.js?v=5.9.76-agent-today-6'
+    css = '/crump-agent-today-1.0.css?v=5.9.76-agent-today-7'
+    js = '/crump-agent-today-1.0.js?v=5.9.76-agent-today-7'
     assert css in app
     assert js in app
     assert (PUBLIC / 'crump-agent-today-1.0.css').exists()
@@ -132,6 +132,78 @@ def test_today_layer_owns_its_box_model_and_shrinks_in_the_workspace_grid():
         'body.crump-v1-body .v1-workspace-body:has(> .cat-today:not([hidden])) > .cat-today {',
     )
     assert 'min-width: 0' in grid_rule
+
+
+def test_today_reads_connection_status_and_brief_from_their_endpoints():
+    js = read('public/crump-agent-today-1.0.js')
+    # One source of truth for connection state: the status response
+    # drives both the connect notice and brief availability, and the
+    # brief renders from the brief endpoint's payload.
+    assert "'/api/connections/google/status'" in js
+    assert "'/api/agent/today'" in js
+    assert 'googleConnected()' in js
+    assert 'googleBriefIsPlanned' not in js
+
+
+def test_waiting_section_shows_one_approval_with_a_counted_queue():
+    js = read('public/crump-agent-today-1.0.js')
+    # Only the first pending approval renders as the full card; the
+    # rest sit behind one count row carrying the real remaining count
+    # (approvals length minus one), and the row opens the Tasks panel,
+    # where every pending approval renders in full.
+    assert 'approvalCard(state.approvals[0])' in js
+    assert 'state.approvals.length - 1' in js
+    assert "' more waiting'" in js
+    assert 'cat-queue-row' in js
+    assert "queueRow.addEventListener('click', function () { openTasks(); })" in js
+    assert 'cat-approval-queue-extra' not in js
+
+
+def test_approval_card_leads_with_the_exact_action_and_collapsed_detail():
+    js = read('public/crump-agent-today-1.0.js')
+    # The card leads with the exact action derived from the frozen
+    # payload (recipients, event, query), the payload itself sits
+    # collapsed behind the detail toggle, and the credit line renders
+    # ahead of the decision buttons.
+    assert 'approvalExactSummary' in js
+    assert 'payload.to' in js
+    assert "'Open detail'" in js
+    assert 'cat-approval-detail' in js
+    assert js.index('cat-approval-detail') < js.index("button('Approve'")
+    assert 'creditLine(action.capabilityId, action.creditCost)' in js
+
+
+def test_live_work_shows_the_current_step_and_a_neutral_browser_tile():
+    js = read('public/crump-agent-today-1.0.js')
+    css = read('public/crump-agent-today-1.0.css')
+    assert 'runStepText' in js
+    assert 'Current step' in js
+    assert 'cat-browser-tile' in js
+    assert 'cat-browser-tile' in css
+    # The tile falls back to chrome + step text, never a fake page.
+    assert 'cat-browser-tile-text' in js
+
+
+def test_brief_counts_and_rows_come_from_the_loaded_data():
+    js = read('public/crump-agent-today-1.0.js')
+    assert 'briefCountsText' in js
+    assert 'inboxHighlights' in js
+    assert 'cat-brief-card' in js
+    assert 'cat-brief-row' in js
+
+
+def test_today_cards_use_the_dark_card_token_with_gold_section_eyebrows():
+    css = read('public/crump-agent-today-1.0.css')
+    assert '.cat-today .cat-card {' in css
+    assert 'background: #111417' in css
+    section_title = css_block(css, '.cat-today-section-title {')
+    assert 'color: var(--cat-gold-bright)' in section_title
+
+
+def test_connect_button_hit_target_is_at_least_44px():
+    css = read('public/crump-agent-today-1.0.css')
+    button = css_block(css, '.cat-connect-btn {')
+    assert 'min-height: 44px' in button
 
 
 def test_nav_relabels_home_and_adds_tasks_without_touching_the_shell():

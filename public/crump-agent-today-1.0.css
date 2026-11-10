@@ -129,7 +129,7 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
 }
 
 .cat-today-section {
-  margin-top: 26px;
+  margin-top: 24px;
 }
 
 .cat-today-section-title {
@@ -138,7 +138,7 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
   font-weight: 700;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--cat-gray);
+  color: var(--cat-gold-bright);
 }
 
 .cat-today-stack {
@@ -360,13 +360,15 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
 .cat-connect-btn {
   appearance: none;
   flex: none;
+  display: inline-flex;
+  align-items: center;
   border: 1px solid rgba(213, 185, 113, 0.55);
   background: transparent;
   color: var(--cat-gold-bright);
   border-radius: 999px;
-  min-height: 40px;
+  min-height: 44px;
   max-width: 100%;
-  padding: 8px 16px;
+  padding: 10px 18px;
   font: inherit;
   font-size: 13px;
   font-weight: 600;
@@ -714,6 +716,277 @@ body.crump-v1-body .v1-workspace-body:has(> .cat-today:not([hidden])) > .v1-laun
 }
 
 /* ------------------------------------------------------------------ */
+/* Reorganized Today: dark cards, approval detail, queue, brief        */
+/*                                                                     */
+/* On the Today surface the cards sit on the layer's own ink ground,   */
+/* so they take the dark card token (#111417) with hairline borders    */
+/* and paper text. The Tasks drawer keeps the light card treatment:    */
+/* every dark rule below is scoped to the Today surface.               */
+/* ------------------------------------------------------------------ */
+
+.cat-card-exact {
+  overflow-wrap: anywhere;
+}
+
+.cat-detail-toggle {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  color: #7c6427;
+  padding: 6px 2px;
+  margin-top: 10px;
+  min-height: 32px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cat-detail-toggle:focus-visible {
+  outline: 2px solid var(--cat-gold);
+  outline-offset: 2px;
+}
+
+.cat-approval-detail[hidden] {
+  display: none !important;
+}
+
+.cat-queue-row {
+  appearance: none;
+  width: 100%;
+  border: 1px solid var(--cat-line-light);
+  background: transparent;
+  color: var(--cat-paper-dim);
+  border-radius: 999px;
+  min-height: 44px;
+  padding: 10px 18px;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+}
+
+.cat-queue-row:hover {
+  border-color: rgba(213, 185, 113, 0.55);
+  color: var(--cat-paper);
+}
+
+.cat-queue-row:focus-visible {
+  outline: 2px solid var(--cat-gold);
+  outline-offset: 2px;
+}
+
+.cat-card-step {
+  margin: 12px 0 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--cat-ink-soft);
+  overflow-wrap: anywhere;
+}
+
+.cat-card-step-label {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--cat-gray-on-light);
+  margin-bottom: 2px;
+}
+
+.cat-browser-tile {
+  margin-top: 12px;
+  border: 1px solid var(--cat-line);
+  border-radius: 12px;
+  background: var(--cat-panel);
+  padding: 12px 14px;
+  overflow: hidden;
+}
+
+.cat-browser-tile-chrome {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.cat-browser-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(241, 239, 233, 0.35);
+}
+
+.cat-browser-tile-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--cat-paper-dim);
+  overflow-wrap: anywhere;
+}
+
+.cat-browser-tile-img {
+  display: block;
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+.cat-brief-local {
+  margin: 0;
+  padding: 2px 2px 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--cat-paper-dim);
+}
+
+.cat-brief-card {
+  display: grid;
+  gap: 10px;
+}
+
+.cat-brief-title {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 21px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.cat-brief-counts {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+
+.cat-brief-row {
+  display: grid;
+  grid-template-columns: 88px minmax(0, 1fr);
+  gap: 12px;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.cat-brief-row-label {
+  font-weight: 600;
+}
+
+.cat-brief-row-value {
+  overflow-wrap: anywhere;
+}
+
+/* Dark card treatment, Today surface only. */
+.cat-today .cat-card {
+  background: #111417;
+  border-color: rgba(241, 239, 233, 0.14);
+  color: var(--cat-paper);
+}
+
+.cat-today .cat-card .cat-card-head {
+  color: var(--cat-gray);
+}
+
+.cat-today .cat-card .cat-card-title {
+  color: var(--cat-paper);
+}
+
+.cat-today .cat-card .cat-card-summary {
+  color: var(--cat-paper-dim);
+}
+
+.cat-today .cat-card .cat-card-meta {
+  color: var(--cat-gray);
+}
+
+.cat-today .cat-card .cat-card-note {
+  color: var(--cat-paper-dim);
+}
+
+.cat-today .cat-card .cat-card-note-error {
+  color: #e59a8a;
+}
+
+.cat-today .cat-card .cat-payload {
+  border-top-color: rgba(241, 239, 233, 0.14);
+}
+
+.cat-today .cat-card .cat-payload-row dt {
+  color: var(--cat-gray);
+}
+
+.cat-today .cat-card .cat-payload-row dd {
+  color: var(--cat-paper);
+}
+
+.cat-today .cat-card .cat-status {
+  border-color: rgba(241, 239, 233, 0.22);
+  background: transparent;
+  color: var(--cat-paper-dim);
+}
+
+.cat-today .cat-card .cat-status-live,
+.cat-today .cat-card .cat-status-waiting {
+  border-color: rgba(213, 185, 113, 0.55);
+  background: rgba(213, 185, 113, 0.14);
+  color: var(--cat-gold-bright);
+}
+
+.cat-today .cat-card .cat-status-failed {
+  color: #e59a8a;
+}
+
+.cat-today .cat-card .cat-btn {
+  border-color: rgba(241, 239, 233, 0.3);
+  color: var(--cat-paper);
+}
+
+.cat-today .cat-card .cat-btn:hover {
+  border-color: var(--cat-gold-bright);
+}
+
+.cat-today .cat-card .cat-btn-primary {
+  background: var(--cat-gold-bright);
+  border-color: var(--cat-gold-bright);
+  color: var(--cat-ink);
+}
+
+.cat-today .cat-card .cat-btn-primary:hover {
+  background: var(--cat-gold);
+  border-color: var(--cat-gold);
+}
+
+.cat-today .cat-card .cat-detail-toggle {
+  color: var(--cat-gold-bright);
+}
+
+.cat-today .cat-card .cat-card-step {
+  color: var(--cat-paper-dim);
+}
+
+.cat-today .cat-card .cat-card-step-label {
+  color: var(--cat-gray);
+}
+
+.cat-today .cat-card .cat-browser-tile {
+  border-color: rgba(241, 239, 233, 0.14);
+}
+
+.cat-today .cat-card .cat-brief-title {
+  color: var(--cat-paper);
+}
+
+.cat-today .cat-card .cat-brief-counts {
+  color: var(--cat-gray);
+}
+
+.cat-today .cat-card .cat-brief-row-label {
+  color: var(--cat-gray);
+}
+
+.cat-today .cat-card .cat-brief-row-value {
+  color: var(--cat-paper);
+}
+
+/* ------------------------------------------------------------------ */
 /* Small screens                                                       */
 /* ------------------------------------------------------------------ */
 
@@ -730,6 +1003,10 @@ body.crump-v1-body .v1-workspace-body:has(> .cat-today:not([hidden])) > .v1-laun
 
   .cat-payload-row {
     grid-template-columns: 88px minmax(0, 1fr);
+  }
+
+  .cat-brief-row {
+    grid-template-columns: 72px minmax(0, 1fr);
   }
 
   .cat-browser {

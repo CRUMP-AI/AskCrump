@@ -7,28 +7,111 @@
   <script>
     // Reproduces the signed-in Today home composition: the workspace body
     // holds the Today layer (inserted first by the layer itself) and the
-    // launchpad hero below it. The agent endpoints are stubbed so the
-    // fixture can sit in either brief state: ?state=planned renders the
-    // not-connected brief notice, ?state=live renders the connected
-    // brief area. ?theme=dark|light picks the appearance ground the layer
-    // lands on.
+    // launchpad hero below it. The agent endpoints are stubbed in their
+    // real shapes so the fixture can sit in either Google state:
+    // ?state=planned renders the not-connected brief (slim notice, local
+    // counts only), ?state=live renders the connected brief card from
+    // the brief payload. Both states carry three pending approvals (one
+    // with a long recipient list) and one live browser run.
+    // ?theme=dark|light picks the appearance ground the layer lands on.
     (function () {
       var params = new URLSearchParams(location.search);
       document.documentElement.setAttribute('data-theme', params.get('theme') || 'dark');
       var state = params.get('state') || 'planned';
+      var connected = state === 'live';
       window.currentUser = { id: 'fixture-user', fullName: 'Gregory Crump', name: 'Gregory Crump' };
       window.CrumpAuthBoundary = { authenticatedUserId: function () { return 'fixture-user'; } };
-      var status = state === 'planned' ? 'planned' : 'live';
       var caps = [
-        { id: 'gmail.read', status: status, title: 'Read email' },
-        { id: 'calendar.list', status: status, title: 'List calendar' },
-        { id: 'agent.today_brief', status: status, title: 'Today brief' },
+        { id: 'gmail.send', status: 'planned', title: 'Send an email', verbPhrase: 'Send an email to' },
+        { id: 'calendar.create', status: 'planned', title: 'Book a calendar event', verbPhrase: 'Book' },
+        { id: 'browser.act', status: 'planned', title: 'Act in the browser', verbPhrase: 'Open the browser and' },
+        { id: 'agent.today_brief', status: 'live', title: 'Today brief' },
       ];
+      var approvals = [
+        {
+          id: 'approval-1', runId: 'run-approval-1', capabilityId: 'gmail.send',
+          summary: 'Send an email — Send an email to',
+          payload: {
+            to: ['ada@example.com', 'ben@example.com', 'cy@example.com'],
+            subject: 'Following up',
+            body: 'Thanks for your time today — sending the notes we discussed.',
+          },
+          creditCost: 2, status: 'pending', expiresAt: null, createdAt: '2026-11-10T14:00:00Z',
+        },
+        {
+          id: 'approval-2', runId: 'run-approval-2', capabilityId: 'calendar.create',
+          summary: 'Book a calendar event — Book',
+          payload: {
+            summary: 'Team sync', start: '2026-11-10T20:00:00Z', end: '2026-11-10T20:30:00Z',
+            attendees: ['ada@example.com'],
+          },
+          creditCost: null, status: 'pending', expiresAt: null, createdAt: '2026-11-10T14:05:00Z',
+        },
+        {
+          id: 'approval-3', runId: 'run-approval-3', capabilityId: 'gmail.send',
+          summary: 'Send an email — Send an email to',
+          payload: {
+            to: [
+              'alexandria.longaddress@some-company-example.com',
+              'bartholomew.longaddress@some-company-example.com',
+              'christopher.longaddress@some-company-example.com',
+              'dorothea.longaddress@some-company-example.com',
+            ],
+            subject: 'Quarterly planning notes and next steps',
+            body: 'Sharing the planning notes from this morning.',
+          },
+          creditCost: null, status: 'pending', expiresAt: null, createdAt: '2026-11-10T14:10:00Z',
+        },
+      ];
+      var runs = [
+        {
+          id: 'run-live-1', capabilityId: 'browser.act', status: 'running',
+          createdAt: '2026-11-10T14:20:00Z', updatedAt: '2026-11-10T14:25:00Z',
+        },
+      ];
+      var googleStatus = connected
+        ? {
+            configured: true, connected: true,
+            accounts: [{
+              email: 'gregory@example.com', status: 'connected',
+              scopes: [
+                'https://www.googleapis.com/auth/gmail.readonly',
+                'https://www.googleapis.com/auth/calendar.readonly',
+              ],
+            }],
+          }
+        : { configured: true, connected: false, accounts: [] };
+      var brief = connected
+        ? {
+            brief: {
+              generatedAt: '2026-11-10T14:30:00Z',
+              calendar: [{
+                id: 'event-1', summary: 'Design review',
+                start: '2026-11-10T20:30:00Z', end: '2026-11-10T21:00:00Z',
+                location: '', attendees: [],
+              }],
+              inboxHighlights: [{
+                id: 'message-1', from: 'Ada <ada@example.com>',
+                subject: 'Launch checklist', snippet: 'The checklist is ready.',
+                date: 'Mon, 10 Nov 2026 09:12:00 -0500',
+              }],
+            },
+          }
+        : {
+            brief: {
+              generatedAt: '2026-11-10T14:30:00Z',
+              calendar: 'unavailable: Google is not connected for this account.',
+              inboxHighlights: 'unavailable: Google is not connected for this account.',
+            },
+          };
       window.fetch = function (path) {
         var data = {};
-        if (String(path).indexOf('/api/agent/capabilities') === 0) data = { capabilities: caps };
-        else if (String(path).indexOf('/api/agent/approvals') === 0) data = { approvals: [] };
-        else if (String(path).indexOf('/api/agent/runs') === 0) data = { runs: [] };
+        var target = String(path);
+        if (target.indexOf('/api/connections/google/status') === 0) data = googleStatus;
+        else if (target.indexOf('/api/agent/capabilities') === 0) data = { capabilities: caps };
+        else if (target.indexOf('/api/agent/approvals') === 0) data = { approvals: approvals };
+        else if (target.indexOf('/api/agent/today') === 0) data = brief;
+        else if (target.indexOf('/api/agent/runs') === 0) data = { runs: runs };
         return Promise.resolve({
           ok: true,
           status: 200,
@@ -40,7 +123,7 @@
   <link rel="stylesheet" href="/public/crump-v1-body.css?v=agent-today-placeholder-fixture-1">
   <link rel="stylesheet" href="/public/crump-vision-shell-1.0.css?v=agent-today-placeholder-fixture-1">
   <link rel="stylesheet" href="/public/crump-design-pass.css?v=agent-today-placeholder-fixture-1">
-  <link rel="stylesheet" href="/public/crump-agent-today-1.0.css?v=5.9.76-agent-today-6">
+  <link rel="stylesheet" href="/public/crump-agent-today-1.0.css?v=5.9.76-agent-today-7">
   <style>
     html, body { height: 100%; }
     .v1-workspace { height: 100vh; }
@@ -66,6 +149,6 @@
       </main>
     </div>
   </div>
-  <script src="/public/crump-agent-today-1.0.js?v=5.9.76-agent-today-6"></script>
+  <script src="/public/crump-agent-today-1.0.js?v=5.9.76-agent-today-7"></script>
 </body>
 </html>
