@@ -109,9 +109,28 @@ async function measure(page) {
       });
     }
     const today = document.querySelector('.cat-today');
+    // Today is a scroll region in its own grid row: content below its
+    // fold is clipped by the panel, not painted over the hero. Overlap
+    // is therefore judged on painted regions — each rect clipped to
+    // the viewport, and Today descendants clipped to the panel box.
+    const viewportBox = { left: 0, top: 0, right: window.innerWidth, bottom: window.innerHeight };
+    const clip = (box, bounds) => {
+      if (!box || !bounds) return box;
+      const left = Math.max(box.left, bounds.left);
+      const top = Math.max(box.top, bounds.top);
+      const right = Math.min(box.right, bounds.right);
+      const bottom = Math.min(box.bottom, bounds.bottom);
+      return {
+        left, top, right, bottom,
+        width: Math.max(0, right - left), height: Math.max(0, bottom - top),
+      };
+    };
+    const todayBox = rect(today);
+    const inToday = box => clip(clip(box, todayBox), viewportBox);
+    const inViewport = box => clip(box, viewportBox);
     return {
       titleText: title ? title.textContent : '',
-      titleRect: rect(title),
+      titleRect: inToday(rect(title)),
       titleColor: title ? getComputedStyle(title).color : '',
       titleBackground: title ? effectiveBackground(title) : '',
       titleOpacity: title ? Number(getComputedStyle(title).opacity) : 0,
@@ -119,13 +138,14 @@ async function measure(page) {
       subBackground: sub ? effectiveBackground(sub) : '',
       legacyCardPresent: Boolean(document.querySelector('.cat-connect')),
       cardInBriefArea: briefArea ? Boolean(briefArea.querySelector('.cat-card')) : false,
-      noticeRect: rect(notice),
+      noticeRect: inToday(rect(notice)),
+      noticeRawHeight: notice ? rect(notice).height : 0,
       noticePosition: notice ? getComputedStyle(notice).position : '',
       noticeBackground: notice ? getComputedStyle(notice).backgroundColor : '',
-      briefRect: rect(briefArea),
-      heroRect: rect(document.querySelector('#v1Launchpad')),
-      waysLabelRect: rect(document.querySelector('.v1-launchpad-actions-label')),
-      waysGridRect: rect(document.querySelector('.v1-launchpad-grid')),
+      briefRect: inToday(rect(briefArea)),
+      heroRect: inViewport(rect(document.querySelector('#v1Launchpad'))),
+      waysLabelRect: inViewport(rect(document.querySelector('.v1-launchpad-actions-label'))),
+      waysGridRect: inViewport(rect(document.querySelector('.v1-launchpad-grid'))),
       todayRect: rect(today),
       todayScrollWidth: today ? today.scrollWidth : 0,
       todayClientWidth: today ? today.clientWidth : 0,
@@ -138,6 +158,109 @@ async function measure(page) {
       connectButton: notice ? Boolean(notice.querySelector('.cat-connect-btn')) : false,
     };
   });
+}
+
+async function measureReorg(page) {
+  return page.evaluate(() => {
+    const visible = element => {
+      if (!element) return false;
+      const style = getComputedStyle(element);
+      if (style.display === 'none' || style.visibility === 'hidden') return false;
+      const box = element.getBoundingClientRect();
+      return box.width > 0 && box.height > 0;
+    };
+    const waitSection = document.querySelector('section[aria-label="Waiting on you"]');
+    const waitCards = waitSection
+      ? [...waitSection.querySelectorAll('.cat-card')].filter(visible)
+      : [];
+    const queueRow = document.querySelector('.cat-queue-row');
+    const firstCard = waitCards[0] || null;
+    const meta = firstCard ? firstCard.querySelector('.cat-card-meta') : null;
+    const actions = firstCard ? firstCard.querySelector('.cat-actions') : null;
+    const detail = firstCard ? firstCard.querySelector('.cat-approval-detail') : null;
+    const exact = firstCard ? firstCard.querySelector('.cat-card-exact') : null;
+    const briefArea = document.querySelector('.cat-brief-area');
+    const briefCard = document.querySelector('.cat-brief-card');
+    const briefRows = briefArea ? [...briefArea.querySelectorAll('.cat-brief-row')] : [];
+    const sectionTitle = document.querySelector('.cat-today-section-title');
+    const connectBtn = document.querySelector('.cat-connect-btn');
+    const sub = document.querySelector('.cat-today-sub');
+    return {
+      waitCardCount: waitCards.length,
+      queueRowText: queueRow ? queueRow.textContent.trim() : '',
+      queueRowVisible: visible(queueRow),
+      exactText: exact ? exact.textContent : '',
+      exactScrollWidth: exact ? exact.scrollWidth : 0,
+      exactClientWidth: exact ? exact.clientWidth : 0,
+      detailPresent: Boolean(detail),
+      detailVisible: visible(detail),
+      creditText: meta ? meta.textContent : '',
+      creditBeforeActions: Boolean(meta && actions)
+        ? meta.getBoundingClientRect().top <= actions.getBoundingClientRect().top
+        : false,
+      approvePresent: Boolean(firstCard && [...firstCard.querySelectorAll('button')]
+        .some(btn => btn.textContent.trim() === 'Approve')),
+      briefCardPresent: Boolean(briefCard),
+      briefCountsText: briefCard ? (briefCard.querySelector('.cat-brief-counts') || {}).textContent || '' : '',
+      briefLocalText: briefArea ? (briefArea.querySelector('.cat-brief-local') || {}).textContent || '' : '',
+      briefRowTexts: briefRows.map(row => row.textContent),
+      sectionTitleColor: sectionTitle ? getComputedStyle(sectionTitle).color : '',
+      connectBtnHeight: connectBtn ? connectBtn.getBoundingClientRect().height : 0,
+      subText: sub ? sub.textContent : '',
+      browserTilePresent: Boolean(document.querySelector('.cat-browser-tile')),
+      stepText: (document.querySelector('.cat-card-step') || {}).textContent || '',
+    };
+  });
+}
+
+function assertReorgStatics(m, label, state) {
+  // One full approval card is visible at a time; the rest wait behind
+  // a single queue row whose count is the real remaining count, and
+  // the header line cites the same pending total.
+  assert.equal(m.waitCardCount, 1, `${label}: visible approval cards ${m.waitCardCount}`);
+  assert.equal(m.queueRowVisible, true, `${label}: queue row missing`);
+  assert.equal(m.queueRowText, '2 more waiting', `${label}: queue row text "${m.queueRowText}"`);
+  assert.match(m.subText, /3 things need your call/, `${label}: header count "${m.subText}"`);
+  // The card leads with the exact action from the frozen payload, the
+  // frozen payload itself starts collapsed behind the detail toggle,
+  // and the exact credit line stays visible before the buttons.
+  assert.match(m.exactText, /ada@example\.com/, `${label}: exact summary "${m.exactText}"`);
+  assert.match(m.exactText, /Following up/, `${label}: exact summary subject "${m.exactText}"`);
+  assert.ok(m.exactScrollWidth <= m.exactClientWidth + 1,
+    `${label}: exact summary clipped ${m.exactScrollWidth} > ${m.exactClientWidth}`);
+  assert.equal(m.detailPresent, true, `${label}: approval detail missing`);
+  assert.equal(m.detailVisible, false, `${label}: approval detail must start collapsed`);
+  assert.match(m.creditText, /2 credits/, `${label}: credit line "${m.creditText}"`);
+  assert.equal(m.creditBeforeActions, true, `${label}: credit line must precede the buttons`);
+  assert.equal(m.approvePresent, true, `${label}: Approve button missing`);
+  // Section eyebrows are the gold token, tracked and uppercase.
+  assert.equal(m.sectionTitleColor, 'rgb(213, 185, 113)', `${label}: section eyebrow color`);
+  // Live work shows a current step and the neutral browser tile.
+  assert.equal(m.browserTilePresent, true, `${label}: browser preview tile missing`);
+  assert.match(m.stepText, /Current step/, `${label}: step line "${m.stepText}"`);
+  if (state === 'planned') {
+    // Disconnected: no brief card, no calendar/inbox rows — the brief
+    // area carries the notice plus the local counts only.
+    assert.equal(m.briefCardPresent, false, `${label}: brief card rendered while disconnected`);
+    assert.equal(m.briefRowTexts.length, 0,
+      `${label}: brief rows while disconnected ${JSON.stringify(m.briefRowTexts)}`);
+    assert.match(m.briefLocalText, /3 approvals waiting · 1 task running/,
+      `${label}: local brief counts "${m.briefLocalText}"`);
+    assert.ok(m.connectBtnHeight >= 44,
+      `${label}: Connect Google hit target ${m.connectBtnHeight}px < 44px`);
+  } else {
+    // Connected: the brief card renders from the brief payload, with
+    // counts from the same loaded approvals/runs as the sections.
+    assert.equal(m.briefCardPresent, true, `${label}: connected brief card missing`);
+    assert.match(m.briefCountsText, /3 approvals waiting · 1 task running/,
+      `${label}: brief counts "${m.briefCountsText}"`);
+    assert.equal(m.briefRowTexts.length, 2,
+      `${label}: brief rows ${JSON.stringify(m.briefRowTexts)}`);
+    assert.match(m.briefRowTexts[0], /Calendar/, `${label}: calendar row`);
+    assert.match(m.briefRowTexts[0], /Design review/, `${label}: calendar row value`);
+    assert.match(m.briefRowTexts[1], /Inbox/, `${label}: inbox row`);
+    assert.match(m.briefRowTexts[1], /Launch checklist/, `${label}: inbox row value`);
+  }
 }
 
 async function run() {
@@ -209,27 +332,70 @@ async function run() {
             // The notice is slim: a small fraction of the viewport
             // height at every size — single digits at desktop. A
             // covering card coming back fails here on height alone.
-            const fraction = m.noticeRect.height / viewport.height;
+            // The raw (unclipped) height is what the cap governs.
+            const fraction = m.noticeRawHeight / viewport.height;
             assert.ok(
               fraction <= viewport.maxNoticeFraction,
-              `${label}: notice height ${m.noticeRect.height}px is ${(fraction * 100).toFixed(1)}% of viewport`,
+              `${label}: notice height ${m.noticeRawHeight}px is ${(fraction * 100).toFixed(1)}% of viewport`,
             );
             assert.equal(m.connectButton, true, `${label}: Connect Google action missing`);
             console.log(
               `${label}: greeting ${greetingRatio.toFixed(2)}:1, sub ${subRatio.toFixed(2)}:1, ` +
-              `notice ${m.noticeRect.height.toFixed(1)}px = ${(fraction * 100).toFixed(1)}% of ${viewport.height}px viewport`,
+              `notice ${m.noticeRawHeight.toFixed(1)}px = ${(fraction * 100).toFixed(1)}% of ${viewport.height}px viewport`,
             );
           }
+          const reorg = await measureReorg(page);
+          assertReorgStatics(reorg, label, state);
+
           scenarios += 1;
           await page.close();
         }
+      }
+    }
+
+    // Interactions, once per theme x brief state at the phone viewport:
+    // the queue row expands the remaining approvals in place and
+    // collapses back, and the detail toggle opens the frozen payload.
+    for (const theme of THEMES) {
+      for (const state of STATES) {
+        const label = `${theme}/${state} interactions @ 390x844`;
+        const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+        await page.goto(`${fixtureUrl}?theme=${theme}&state=${state}`, { waitUntil: 'load' });
+        await page.waitForSelector('.cat-queue-row', { timeout: 8000 });
+        await page.waitForTimeout(150);
+        await page.click('.cat-queue-row');
+        await page.waitForTimeout(80);
+        let m = await measureReorg(page);
+        assert.equal(m.waitCardCount, 3, `${label}: expanded approval cards ${m.waitCardCount}`);
+        // The long recipient list on the third card wraps without
+        // overflowing its card at phone width.
+        const thirdExact = await page.evaluate(() => {
+          const cards = [...document.querySelectorAll('section[aria-label="Waiting on you"] .cat-card')];
+          const exact = cards[2] ? cards[2].querySelector('.cat-card-exact') : null;
+          return exact ? { scroll: exact.scrollWidth, client: exact.clientWidth, text: exact.textContent } : null;
+        });
+        assert.ok(thirdExact, `${label}: third approval card missing after expand`);
+        assert.match(thirdExact.text, /alexandria\.longaddress/, `${label}: long summary "${thirdExact.text}"`);
+        assert.ok(thirdExact.scroll <= thirdExact.client + 1,
+          `${label}: long summary clipped ${thirdExact.scroll} > ${thirdExact.client}`);
+        await page.click('.cat-queue-row');
+        await page.waitForTimeout(80);
+        m = await measureReorg(page);
+        assert.equal(m.waitCardCount, 1, `${label}: collapsed approval cards ${m.waitCardCount}`);
+        assert.equal(m.queueRowText, '2 more waiting', `${label}: queue row after collapse`);
+        await page.click('.cat-detail-toggle');
+        await page.waitForTimeout(80);
+        m = await measureReorg(page);
+        assert.equal(m.detailVisible, true, `${label}: detail did not expand`);
+        await page.close();
       }
     }
   } finally {
     await browser.close();
   }
   console.log(`Agent Today placeholder geometry: ${scenarios} scenarios passed ` +
-    `(${THEMES.length} themes x ${STATES.length} brief states x ${VIEWPORTS.length} viewports).`);
+    `(${THEMES.length} themes x ${STATES.length} brief states x ${VIEWPORTS.length} viewports) ` +
+    `plus queue/detail interactions per theme x state.`);
 }
 
 run().catch(error => {
