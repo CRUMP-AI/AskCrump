@@ -5,6 +5,18 @@ the capability registry. It speaks to Google's REST endpoints directly
 with httpx, keeps the requested scopes to the minimal separable set in
 the registry, and reads access tokens only through the token vault.
 
+Account binding: a user can connect more than one Google account, and
+every execution binds to ONE specific connection before it runs. If
+the run names a connection (``connectionId`` / ``accountEmail`` in its
+payload), that connection binds; otherwise the user's default
+connection binds. The schema carries no stored default marker, so the
+default is a deterministic order over the connection rows: earliest
+connected first, tie-broken by connection id. Scopes are evaluated
+against the bound connection alone — never unioned across the user's
+connections — and the access token handed to a provider call always
+comes from that same bound row, so a grant held by one account can
+never authorize a call made with another account's token.
+
 Scope note: the connect flow requests the read set by default --
 ``gmail.readonly`` and ``calendar.readonly`` -- and the default
 authorization URL is unchanged. Write access is a separate, explicit
@@ -82,6 +94,68 @@ def _normalize_level(level: str | None) -> str:
             400,
         )
     return normalized
+
+
+def _connection_order_key(row: dict[str, Any]) -> tuple[str, str, str]:
+    """Total, deterministic order over a user's connection rows.
+
+    Earliest connected first; ties break by connection id, then by
+    account email, so the same set of rows always orders the same way
+    regardless of the order the store returned them in. This ordering
+    is the default-binding rule until the schema grows a stored
+    default-connection marker.
+    """
+    return (
+        str(row.get('created_at') or ''),
+        str(row.get('id') or ''),
+        str(row.get('account_email') or ''),
+    )
+
+
+def binding_selectors(payload: Any) -> dict[str, str | None]:
+    """Extract the connection a run payload names, if it names one.
+
+    ``connectionId`` wins over ``accountEmail``; the snake_case
+    spellings are accepted the way other payload fields are. No
+    selector means the run binds the user's default connection.
+    """
+    selectors: dict[str, str | None] = {
+        'connection_id': None,
+        'account_email': None,
+    }
+    if not isinstance(payload, dict):
+        return selectors
+    connection_id = payload.get('connectionId') or payload.get('connection_id')
+    if connection_id:
+        selectors['connection_id'] = str(connection_id).strip() or None
+    account_email = payload.get('accountEmail') or payload.get('account_email')
+    if account_email:
+        selectors['account_email'] = str(account_email).strip() or None
+    return selectors
+
+
+def check_granted_scopes(
+    connection: dict[str, Any], required_scopes: tuple[str, ...]
+) -> None:
+    """Fail when the bound connection's own grant lacks a scope.
+
+    Only the bound connection's recorded scopes are consulted — never
+    a union across the user's connections. A record with no scope
+    information leaves the grant unknown: the check passes and the
+    provider call runs, where a Google 403 ``insufficientPermissions``
+    response maps to the same ``INSUFFICIENT_SCOPE`` code (the
+    attempt-and-map path the connector has always had).
+    """
+    granted = {str(scope) for scope in connection.get('scopes') or []}
+    if not granted:
+        return
+    missing = [scope for scope in required_scopes if scope not in granted]
+    if missing:
+        raise InsufficientScopeError(
+            'Google has not granted the permission this action needs '
+            f"({' '.join(missing)}). Reconnect Google and approve the "
+            'requested access.'
+        )
 
 
 def _scope_union(capability_ids: tuple[str, ...]) -> tuple[str, ...]:
@@ -528,20 +602,88 @@ class GoogleConnector:
             )
         return await self.status(user_id)
 
-    async def access_token_for(
-        self, user_id: str, account_email: str | None = None
-    ) -> str:
+    # -- Connection binding --------------------------------------------
+    #
+    # Execution binds to ONE connection (see the module docstring for
+    # the rule). A stored default marker would replace the ordering
+    # rule below, not the contract: resolve once, check that row's
+    # scopes, and use that row's token.
+
+    async def bound_connection(
+        self,
+        user_id: str,
+        *,
+        connection_id: str | None = None,
+        account_email: str | None = None,
+    ) -> dict[str, Any]:
+        """Resolve the single connection an execution binds to.
+
+        Only connected rows holding a token are eligible. An explicit
+        selector that matches no eligible row fails with
+        ``CONNECTION_REQUIRED`` — a run never silently falls back to a
+        different account than the one it named.
+        """
         rows = await self.list_connections(user_id)
-        for row in rows:
-            if row.get('status') != 'connected':
-                continue
-            if account_email and str(row.get('account_email') or '') != account_email:
-                continue
-            ciphertext = str(row.get('access_token_ciphertext') or '')
-            if not ciphertext:
-                continue
-            return self.vault.decrypt(ciphertext)
-        raise ConnectionRequiredError()
+        eligible = [
+            row
+            for row in rows
+            if row.get('status') == 'connected'
+            and str(row.get('access_token_ciphertext') or '')
+        ]
+        if connection_id:
+            for row in eligible:
+                if str(row.get('id') or '') == str(connection_id):
+                    return row
+            raise ConnectionRequiredError(
+                'The Google account selected for this run is not connected.'
+            )
+        if account_email:
+            wanted = str(account_email).strip().lower()
+            for row in eligible:
+                if str(row.get('account_email') or '').strip().lower() == wanted:
+                    return row
+            raise ConnectionRequiredError(
+                'The Google account selected for this run is not connected.'
+            )
+        if not eligible:
+            raise ConnectionRequiredError()
+        return min(eligible, key=_connection_order_key)
+
+    async def bound_access_token(
+        self,
+        user_id: str,
+        *,
+        connection_id: str | None = None,
+        account_email: str | None = None,
+        required_scopes: tuple[str, ...] = (),
+    ) -> tuple[dict[str, Any], str]:
+        """Resolve the bound connection, check ITS scopes, return its token.
+
+        The scope check and the token come from the same resolved row,
+        with no re-selection in between, so a grant held by a different
+        connection can never authorize a call made with this
+        connection's token.
+        """
+        connection = await self.bound_connection(
+            user_id, connection_id=connection_id, account_email=account_email
+        )
+        check_granted_scopes(connection, required_scopes)
+        token = self.vault.decrypt(
+            str(connection.get('access_token_ciphertext') or '')
+        )
+        return connection, token
+
+    async def access_token_for(
+        self,
+        user_id: str,
+        account_email: str | None = None,
+        *,
+        connection_id: str | None = None,
+    ) -> str:
+        _connection, token = await self.bound_access_token(
+            user_id, connection_id=connection_id, account_email=account_email
+        )
+        return token
 
     # -- Provider calls --------------------------------------------------
 
@@ -634,9 +776,25 @@ class GoogleConnector:
         return event_summary(created)
 
     async def create_draft(
-        self, user_id: str, *, to: str, subject: str, body: str
+        self,
+        user_id: str,
+        *,
+        to: str,
+        subject: str,
+        body: str,
+        account_email: str | None = None,
+        connection_id: str | None = None,
     ) -> dict[str, Any]:
-        access_token = await self.access_token_for(user_id)
+        access_token = await self.access_token_for(
+            user_id, account_email, connection_id=connection_id
+        )
+        return await self.create_draft_with_token(
+            access_token, to=to, subject=subject, body=body
+        )
+
+    async def create_draft_with_token(
+        self, access_token: str, *, to: str, subject: str, body: str
+    ) -> dict[str, Any]:
         raw = build_raw_message(to=to, subject=subject, body=body)
         created = await self._request(
             'POST',
@@ -653,9 +811,25 @@ class GoogleConnector:
         }
 
     async def send_message(
-        self, user_id: str, *, to: str, subject: str, body: str
+        self,
+        user_id: str,
+        *,
+        to: str,
+        subject: str,
+        body: str,
+        account_email: str | None = None,
+        connection_id: str | None = None,
     ) -> dict[str, Any]:
-        access_token = await self.access_token_for(user_id)
+        access_token = await self.access_token_for(
+            user_id, account_email, connection_id=connection_id
+        )
+        return await self.send_message_with_token(
+            access_token, to=to, subject=subject, body=body
+        )
+
+    async def send_message_with_token(
+        self, access_token: str, *, to: str, subject: str, body: str
+    ) -> dict[str, Any]:
         raw = build_raw_message(to=to, subject=subject, body=body)
         sent = await self._request(
             'POST',

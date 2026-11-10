@@ -18,7 +18,12 @@ composes the Today brief from real service calls only, and
 dispatches to the browser agent's guarded page fetch, and the Gmail
 write capabilities (``gmail.draft``, ``gmail.send``) dispatch to the
 Gmail write adapter, which re-checks the granted scopes before any
-provider call. ``memory.list`` and ``memory.forget`` run against the
+provider call. Every Google adapter in this module binds the run to
+one specific connection before it runs — a connection named in the
+run payload, otherwise the user's default connection — and checks
+the capability's scopes against that connection alone, so two
+connected accounts never mix inside one run (see
+``google_connector`` for the binding rule). ``memory.list`` and ``memory.forget`` run against the
 existing intelligence service's owner-scoped memory store. Every other registered capability fails with
 ``EXECUTOR_NOT_AVAILABLE`` rather than pretending to have run — an
 adapter lands here capability by capability.
@@ -36,11 +41,15 @@ from datetime import datetime, time, timedelta, timezone
 import json
 from typing import Any
 
-from . import agent_gmail_write, browser_agent
+from . import agent_gmail_write, agent_registry, browser_agent
 from .agent_run_service import AgentRunError, AgentRunService
 from .browser_agent import BrowserAgentError
 from .db import eq
-from .google_connector import ConnectionRequiredError, GoogleConnectorError
+from .google_connector import (
+    ConnectionRequiredError,
+    GoogleConnectorError,
+    binding_selectors,
+)
 from .security import iso_now
 
 # Result summaries land in a length-capped text column and step payloads
@@ -264,11 +273,34 @@ class AgentExecutor:
         self.intelligence_service = _default_intelligence_service()
         return self.intelligence_service
 
-    async def _access_token(self, user_id: str) -> str:
+    async def _access_token(
+        self, user_id: str, payload: dict[str, Any], capability_id: str
+    ) -> str:
+        """Return the access token of the connection this run binds to.
+
+        Binding and the per-connection scope check live in the
+        connector: the payload may name a connection, otherwise the
+        user's default connection binds, and the capability's scopes
+        are evaluated against that connection alone. Connectors
+        without bound access (test doubles) keep the plain token
+        lookup.
+        """
         connector = self._connector()
         if connector is None:
             raise ConnectionRequiredError()
-        return await connector.access_token_for(user_id)
+        bound_access = getattr(connector, 'bound_access_token', None)
+        if bound_access is None:
+            return await connector.access_token_for(user_id)
+        capability = agent_registry.get_capability(capability_id)
+        required = capability.required_scopes if capability is not None else ()
+        selectors = binding_selectors(payload)
+        _connection, token = await bound_access(
+            user_id,
+            connection_id=selectors['connection_id'],
+            account_email=selectors['account_email'],
+            required_scopes=required,
+        )
+        return str(token)
 
     # -- ledger helpers ---------------------------------------------------
 
@@ -366,7 +398,9 @@ class AgentExecutor:
         except (TypeError, ValueError):
             max_results = 10
         try:
-            access_token = await self._access_token(run['user_id'])
+            access_token = await self._access_token(
+                run['user_id'], payload, run['capability_id']
+            )
             connector = self._connector()
             messages = await connector.search_messages(
                 access_token, query, max(1, min(max_results, 50))
@@ -395,7 +429,9 @@ class AgentExecutor:
                 'This run is missing the message id, so it cannot be executed.',
             )
         try:
-            access_token = await self._access_token(run['user_id'])
+            access_token = await self._access_token(
+                run['user_id'], payload, run['capability_id']
+            )
             connector = self._connector()
             message = await connector.get_message(access_token, message_id)
         except ConnectionRequiredError as exc:
@@ -420,7 +456,9 @@ class AgentExecutor:
         self, run: dict[str, Any], payload: dict[str, Any]
     ) -> dict[str, Any]:
         try:
-            access_token = await self._access_token(run['user_id'])
+            access_token = await self._access_token(
+                run['user_id'], payload, run['capability_id']
+            )
             connector = self._connector()
             events = await connector.list_events(
                 access_token,
@@ -464,7 +502,9 @@ class AgentExecutor:
                 str(item) for item in attendees if str(item or '').strip()
             ]
         try:
-            access_token = await self._access_token(run['user_id'])
+            access_token = await self._access_token(
+                run['user_id'], payload, run['capability_id']
+            )
             connector = self._connector()
             created = await connector.create_event(access_token, **event_fields)
         except ConnectionRequiredError as exc:
