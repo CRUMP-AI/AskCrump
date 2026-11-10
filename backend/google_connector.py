@@ -30,15 +30,35 @@ connection records the scopes Google actually granted in the token
 response, never the scopes that were requested. Drafting and sending
 run behind the approval flow: the run service freezes the exact
 payload on an approval card before any adapter executes it.
+
+Token lifecycle: access tokens are short-lived, so the bound-token
+path refreshes them. When the bound connection's stored token is
+expired (or inside the refresh skew), the stored refresh token is
+exchanged at Google's token endpoint and the new access token is
+persisted back through the vault in the same stored format; a
+rotated refresh token is persisted when Google returns one, and the
+stored refresh token is kept when it does not. A failed refresh
+(revoked grant, ``invalid_grant``, network error) raises
+``CONNECTION_REQUIRED`` so the user reconnects — an expired token is
+never handed to a provider call. Refresh is single-flight per
+connection within a connector instance: concurrent callers wait on
+one exchange, then re-read the stored row and reuse the fresh token.
+Disconnect revokes the grant at Google first (the stored refresh
+token, which revokes the grant, falling back to the access token)
+and then clears the local row exactly as before; a failed revocation
+never blocks the local disconnect, and the outcome is reported on
+the returned status instead of being claimed as revoked.
 """
 from __future__ import annotations
 
+import asyncio
 import base64
 from datetime import datetime, timedelta, timezone
 from email.message import EmailMessage
 import hashlib
 import hmac
 import json
+import logging
 import time
 from typing import Any
 from urllib.parse import urlencode
@@ -51,12 +71,19 @@ from .config import Settings
 from .db import eq
 from .google_vault import GoogleVault
 
+logger = logging.getLogger('askcrump.google_connector')
+
 GOOGLE_AUTHORIZATION_URL = 'https://accounts.google.com/o/oauth2/v2/auth'
 GOOGLE_TOKEN_URL = 'https://oauth2.googleapis.com/token'
+GOOGLE_REVOKE_URL = 'https://oauth2.googleapis.com/revoke'
 GMAIL_BASE_URL = 'https://gmail.googleapis.com/gmail/v1/users/me'
 CALENDAR_BASE_URL = 'https://www.googleapis.com/calendar/v3/calendars/primary'
 
 STATE_TTL_SECONDS = 600
+
+# A stored access token counts as expired once its remaining lifetime
+# drops to this skew, so a token never dies mid-request.
+TOKEN_REFRESH_SKEW_SECONDS = 60
 
 CONNECT_LEVELS = frozenset({'read', 'write'})
 
@@ -156,6 +183,37 @@ def check_granted_scopes(
             f"({' '.join(missing)}). Reconnect Google and approve the "
             'requested access.'
         )
+
+
+def _parse_token_expiry(value: Any) -> datetime | None:
+    """Parse a stored ``token_expires_at`` into an aware datetime.
+
+    Rows written before expiry was recorded, or with an unparseable
+    value, return None and are treated as carrying no known expiry:
+    the stored token is used as-is, as it was before refresh existed.
+    """
+    if isinstance(value, datetime):
+        parsed = value
+    elif value:
+        try:
+            parsed = datetime.fromisoformat(str(value).replace('Z', '+00:00'))
+        except ValueError:
+            return None
+    else:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
+def _token_needs_refresh(connection: dict[str, Any]) -> bool:
+    expiry = _parse_token_expiry(connection.get('token_expires_at'))
+    if expiry is None:
+        return False
+    deadline = datetime.now(timezone.utc) + timedelta(
+        seconds=TOKEN_REFRESH_SKEW_SECONDS
+    )
+    return expiry <= deadline
 
 
 def _scope_union(capability_ids: tuple[str, ...]) -> tuple[str, ...]:
@@ -259,6 +317,7 @@ class GoogleConnector:
         self.db = db
         self.vault = vault if vault is not None else GoogleVault()
         self._client = http_client
+        self._refresh_locks: dict[str, asyncio.Lock] = {}
 
     @property
     def oauth_configured(self) -> bool:
@@ -581,15 +640,85 @@ class GoogleConnector:
             'accounts': accounts,
         }
 
+    async def _revoke_stored_token(
+        self, row: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Ask Google to revoke one connection's grant.
+
+        The refresh token is preferred because revoking it revokes
+        the whole grant; the access token is the fallback. This never
+        raises: the outcome is reported to the caller so a failed
+        revocation is surfaced honestly instead of being claimed.
+        """
+        token = ''
+        had_ciphertext = False
+        for field in ('refresh_token_ciphertext', 'access_token_ciphertext'):
+            ciphertext = str(row.get(field) or '')
+            if not ciphertext:
+                continue
+            had_ciphertext = True
+            try:
+                token = self.vault.decrypt(ciphertext)
+            except Exception:
+                token = ''
+            if token:
+                break
+        if not token:
+            return {
+                'attempted': False,
+                'revoked': False,
+                'error': 'stored_token_unavailable' if had_ciphertext else None,
+            }
+        owns_client = self._client is None
+        client = self._client or httpx.AsyncClient(timeout=20.0)
+        try:
+            response = await client.request(
+                'POST', GOOGLE_REVOKE_URL, data={'token': token}
+            )
+        except httpx.HTTPError:
+            logger.warning(
+                'Google token revocation request failed for connection %s',
+                row.get('id'),
+            )
+            return {
+                'attempted': True,
+                'revoked': False,
+                'error': 'revoke_request_failed',
+            }
+        finally:
+            if owns_client:
+                await client.aclose()
+        if response.status_code == 200:
+            return {'attempted': True, 'revoked': True, 'error': None}
+        logger.warning(
+            'Google token revocation returned %s for connection %s',
+            response.status_code,
+            row.get('id'),
+        )
+        return {
+            'attempted': True,
+            'revoked': False,
+            'error': f'revoke_http_{response.status_code}',
+        }
+
     async def disconnect(
         self, user_id: str, account_email: str | None = None
     ) -> dict[str, Any]:
         if self.db is None:
             return {'connected': False, 'accounts': []}
         rows = await self.list_connections(user_id)
+        revocations: list[dict[str, Any]] = []
         for row in rows:
             if account_email and str(row.get('account_email') or '') != account_email:
                 continue
+            # Revoke at Google before the local tokens are cleared —
+            # afterwards there is nothing left to revoke with. A
+            # failed revocation is recorded on the returned status
+            # but never blocks the disconnect the user asked for.
+            outcome = await self._revoke_stored_token(row)
+            revocations.append(
+                {'email': str(row.get('account_email') or ''), **outcome}
+            )
             await self.db.update(
                 'agent_connections',
                 {
@@ -600,7 +729,9 @@ class GoogleConnector:
                 },
                 filters={'id': eq(row['id'])},
             )
-        return await self.status(user_id)
+        status = await self.status(user_id)
+        status['revocations'] = revocations
+        return status
 
     # -- Connection binding --------------------------------------------
     #
@@ -649,6 +780,153 @@ class GoogleConnector:
             raise ConnectionRequiredError()
         return min(eligible, key=_connection_order_key)
 
+    # -- Token refresh ---------------------------------------------------
+    #
+    # Refresh lives here, inside the bound-token path, so every caller
+    # (executor adapters, read routes, the Today brief) inherits it and
+    # it only ever operates on the bound connection.
+
+    async def _reload_connection(
+        self, connection: dict[str, Any]
+    ) -> dict[str, Any]:
+        """Re-read a connection row by id, falling back to the given row."""
+        connection_id = str(connection.get('id') or '')
+        if self.db is None or not connection_id:
+            return connection
+        try:
+            if hasattr(self.db, 'select_one'):
+                row = await self.db.select_one(
+                    'agent_connections', filters={'id': eq(connection_id)}
+                )
+                if isinstance(row, dict) and row:
+                    return row
+            rows = await self.list_connections(
+                str(connection.get('user_id') or '')
+            )
+            for row in rows:
+                if str(row.get('id') or '') == connection_id:
+                    return row
+        except Exception:
+            return connection
+        return connection
+
+    async def _exchange_refresh_token(self, refresh_token: str) -> dict[str, Any]:
+        """Exchange a refresh token at Google's token endpoint.
+
+        Every failure — a revoked grant (``invalid_grant``), any other
+        error response, or a network error — becomes
+        ``CONNECTION_REQUIRED``: the grant is gone or unreachable, the
+        user must reconnect, and the expired access token is never
+        used as a fallback.
+        """
+        if not self.oauth_configured:
+            raise ConnectionRequiredError(
+                'Your Google connection has expired. Reconnect Google.'
+            )
+        owns_client = self._client is None
+        client = self._client or httpx.AsyncClient(timeout=20.0)
+        try:
+            response = await client.request(
+                'POST',
+                GOOGLE_TOKEN_URL,
+                data={
+                    'client_id': self.settings.google_oauth_client_id,
+                    'client_secret': self.settings.google_oauth_client_secret,
+                    'refresh_token': refresh_token,
+                    'grant_type': 'refresh_token',
+                },
+            )
+        except httpx.HTTPError as exc:
+            raise ConnectionRequiredError(
+                'Your Google connection has expired. Reconnect Google.'
+            ) from exc
+        finally:
+            if owns_client:
+                await client.aclose()
+        if response.status_code >= 400:
+            raise ConnectionRequiredError(
+                'Your Google connection has expired. Reconnect Google.'
+            )
+        try:
+            payload = response.json()
+        except Exception as exc:
+            raise ConnectionRequiredError(
+                'Your Google connection has expired. Reconnect Google.'
+            ) from exc
+        if not isinstance(payload, dict) or not payload.get('access_token'):
+            raise ConnectionRequiredError(
+                'Your Google connection has expired. Reconnect Google.'
+            )
+        return payload
+
+    async def _fresh_access_token(
+        self, connection: dict[str, Any]
+    ) -> tuple[dict[str, Any], str]:
+        """Return the bound connection's token, refreshing it if expired.
+
+        A token with time left is returned with no token-endpoint
+        call. An expired token is refreshed under a per-connection
+        lock; after the lock is taken the stored row is re-read, so
+        concurrent callers share one exchange and later callers reuse
+        the token the first one persisted. Refreshed tokens are
+        persisted through the vault in the existing stored format —
+        the rotated refresh token when Google returns one, the stored
+        refresh token otherwise.
+        """
+        if not _token_needs_refresh(connection):
+            return connection, self.vault.decrypt(
+                str(connection.get('access_token_ciphertext') or '')
+            )
+        lock_key = str(
+            connection.get('id')
+            or connection.get('account_email')
+            or 'google'
+        )
+        lock = self._refresh_locks.setdefault(lock_key, asyncio.Lock())
+        async with lock:
+            current = await self._reload_connection(connection)
+            if str(current.get('status') or '') != 'connected':
+                raise ConnectionRequiredError(
+                    'The Google account selected for this run is not connected.'
+                )
+            if not _token_needs_refresh(current):
+                return current, self.vault.decrypt(
+                    str(current.get('access_token_ciphertext') or '')
+                )
+            refresh_token = self.vault.decrypt(
+                str(current.get('refresh_token_ciphertext') or '')
+            )
+            if not refresh_token:
+                raise ConnectionRequiredError(
+                    'Your Google connection has expired. Reconnect Google.'
+                )
+            payload = await self._exchange_refresh_token(refresh_token)
+            access_token = str(payload.get('access_token') or '')
+            try:
+                expires_in = int(payload.get('expires_in') or 3600)
+            except (TypeError, ValueError):
+                expires_in = 3600
+            expires_at = datetime.now(timezone.utc) + timedelta(
+                seconds=expires_in
+            )
+            rotated_refresh = str(payload.get('refresh_token') or '')
+            update: dict[str, Any] = {
+                'access_token_ciphertext': self.vault.encrypt(access_token),
+                'token_expires_at': expires_at.isoformat(),
+            }
+            if rotated_refresh:
+                update['refresh_token_ciphertext'] = self.vault.encrypt(
+                    rotated_refresh
+                )
+            if self.db is not None and current.get('id'):
+                await self.db.update(
+                    'agent_connections',
+                    update,
+                    filters={'id': eq(current['id'])},
+                )
+            refreshed = {**current, **update}
+            return refreshed, access_token
+
     async def bound_access_token(
         self,
         user_id: str,
@@ -662,16 +940,15 @@ class GoogleConnector:
         The scope check and the token come from the same resolved row,
         with no re-selection in between, so a grant held by a different
         connection can never authorize a call made with this
-        connection's token.
+        connection's token. An expired bound token is refreshed first
+        (see ``_fresh_access_token``); the returned token is always
+        the bound connection's own.
         """
         connection = await self.bound_connection(
             user_id, connection_id=connection_id, account_email=account_email
         )
         check_granted_scopes(connection, required_scopes)
-        token = self.vault.decrypt(
-            str(connection.get('access_token_ciphertext') or '')
-        )
-        return connection, token
+        return await self._fresh_access_token(connection)
 
     async def access_token_for(
         self,
