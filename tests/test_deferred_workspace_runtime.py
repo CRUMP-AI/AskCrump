@@ -25,10 +25,10 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
         # navigation/view frame; private data still waits for authentication.
         '/crump-vision-shell-1.0.css?v=5.9.76-reorg-five-destinations-1',
         '/crump-vision-chats-1.0.css?v=5.9.76-atelier-workspace-1',
-        '/crump-vision-projects-1.0.css?v=5.9.76-project-resume-1',
-        '/crump-vision-library-1.0.css?v=5.9.76-atelier-workspace-1',
+        '/crump-vision-projects-1.0.css?v=5.9.76-reorg-projects-you-1',
+        '/crump-vision-library-1.0.css?v=5.9.76-reorg-projects-you-1',
         '/crump-vision-studios-1.0.css?v=5.9.76-premium-workspace-1',
-        '/crump-agent-today-1.0.css?v=5.9.76-agent-today-9',
+        '/crump-agent-today-1.0.css?v=5.9.76-agent-today-10',
     ]
     assert scripts == [
         '/telemetry-config.js?v=5.9.76',
@@ -37,8 +37,8 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
         '/home-document-entry.js?v=5.9.76-home-document-entry-1',
         '/crump-vision-shell-1.0.js?v=5.9.76-reorg-five-destinations-1',
         '/crump-vision-chats-1.0.js?v=5.9.76-atelier-workspace-1',
-        '/crump-vision-projects-1.0.js?v=5.9.76-project-resume-owner-boundary-1',
-        '/crump-vision-library-1.0.js?v=5.9.76-account-owner-boundary-1',
+        '/crump-vision-projects-1.0.js?v=5.9.76-reorg-projects-you-1',
+        '/crump-vision-library-1.0.js?v=5.9.76-reorg-projects-you-1',
         '/crump-vision-studios-1.0.js?v=5.9.76-premium-workspace-1',
         '/native-runtime.js',
         '/mobile-bridge.js?v=5.9.76-private-owner-boundary-1',
@@ -49,7 +49,7 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
         '/auth-controller.js?v=5.9.76-login-recovery-visible-1',
         '/_vercel/insights/script.js',
         '/_vercel/speed-insights/script.js',
-        '/crump-agent-today-1.0.js?v=5.9.76-agent-today-9',
+        '/crump-agent-today-1.0.js?v=5.9.76-agent-today-10',
     ]
 
 

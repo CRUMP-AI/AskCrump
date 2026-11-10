@@ -493,3 +493,119 @@
   .cvl-skeleton i { animation: none; }
   .cvl-history summary::before { transition: none; }
 }
+
+/* ---- Reorganization: Library on the locked tokens ----
+   The full-screen Library carries the ink ground in both appearances,
+   like Today and the Tasks record. Artifact titles stay bounded to two
+   lines with a deliberate ellipsis at every width (the full title is on
+   the title attribute and the Open control's aria-label). */
+body.crump-v1-body .cvl-root.cvl-root,
+body.crump-v1-body .cvl-root.cvl-root.cvl-root {
+  --cvl-bg: #070a0e;
+  --cvl-panel: #111417;
+  --cvl-panel-raised: #15181c;
+  --cvl-hairline: rgba(213, 185, 113, 0.16);
+  --cvl-gold: #d5b971;
+  --cvl-gold-deep: #b69855;
+  --cvl-text: #f1efe9;
+  --cvl-muted: #8a9196;
+  background: #070a0e !important;
+  color: #f1efe9 !important;
+  padding: 48px 24px 80px;
+}
+body.crump-v1-body .cvl-root .cvl-title,
+body.crump-v1-body .cvl-root.cvl-root .cvl-title {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 400;
+  color: #f1efe9 !important;
+  letter-spacing: -0.01em;
+}
+body.crump-v1-body .cvl-root .cv-eyebrow { color: #d5b971 !important; }
+body.crump-v1-body .cvl-root .cvl-lede,
+body.crump-v1-body .cvl-root .cvl-count,
+body.crump-v1-body .cvl-root .cvl-book-author,
+body.crump-v1-body .cvl-root .cvl-book-meta,
+body.crump-v1-body .cvl-root .cvl-type-chip { color: #8a9196 !important; }
+body.crump-v1-body .cvl-root .cvl-book,
+body.crump-v1-body .cvl-root.cvl-root .cvl-book {
+  background: #111417 !important;
+  border-color: rgba(213, 185, 113, 0.16) !important;
+  border-radius: 12px;
+  box-shadow: none;
+}
+body.crump-v1-body .cvl-root .cvl-book-title,
+body.crump-v1-body .cvl-root.cvl-root .cvl-book-title {
+  color: #f1efe9 !important;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+body.crump-v1-body .cvl-root .cvl-search,
+body.crump-v1-body .cvl-root.cvl-root .cvl-search {
+  background: #111417 !important;
+  border-color: rgba(213, 185, 113, 0.16) !important;
+}
+body.crump-v1-body .cvl-root .cvl-search input { color: #f1efe9 !important; }
+body.crump-v1-body .cvl-root .cvl-version-pill {
+  color: #d5b971 !important;
+  border-color: rgba(213, 185, 113, 0.44) !important;
+  background: transparent !important;
+}
+body.crump-v1-body .cvl-root .cvl-history summary,
+body.crump-v1-body .cvl-root .cvl-open,
+body.crump-v1-body .cvl-root .cvl-button { color: #d5b971 !important; }
+body.crump-v1-body .cvl-root .cvl-open,
+body.crump-v1-body .cvl-root .cvl-button {
+  border-color: rgba(213, 185, 113, 0.44) !important;
+  background: transparent !important;
+}
+body.crump-v1-body .cvl-root .cvl-history-row span { color: #f1efe9 !important; }
+body.crump-v1-body .cvl-root .cvl-history-row time,
+body.crump-v1-body .cvl-root .cvl-history-note { color: #8a9196 !important; }
+body.crump-v1-body .cvl-root .cvl-panel {
+  background: #111417 !important;
+  border-color: rgba(213, 185, 113, 0.16) !important;
+  border-radius: 12px;
+  color: #f1efe9;
+}
+body.crump-v1-body .cvl-root .cvl-skeleton i { background: rgba(213, 185, 113, 0.07) !important; }
+
+/* Contrast lock: see the Projects sheet — the search glyph keeps the
+   quiet pairing on the ink ground. */
+body.crump-v1-body .cvl-root.cvl-root .cvl-search-icon {
+  color: #8a9196 !important;
+}
+body.crump-v1-body .cvl-root.cvl-root .cvl-sheet {
+  background: #111417 !important;
+  color: #f1efe9 !important;
+}
+body.crump-v1-body .cvl-root.cvl-root .cvl-sheet-head {
+  border-color: rgba(213, 185, 113, 0.16) !important;
+}
+body.crump-v1-body .cvl-root.cvl-root .cvl-sheet-head h3 {
+  color: #f1efe9 !important;
+}
+body.crump-v1-body .cvl-root.cvl-root .cvl-version-pill {
+  background: rgba(213, 185, 113, 0.16) !important;
+}
+body.crump-v1-body .cvl-root.cvl-root .cvl-reader-nav {
+  background: transparent !important;
+  border-color: rgba(213, 185, 113, 0.16) !important;
+}
+body.crump-v1-body .cvl-root.cvl-root .cvl-reader-nav-list button {
+  color: #f1efe9 !important;
+}
+body.crump-v1-body .cvl-root.cvl-root .cvl-reader-main h4 {
+  color: #f1efe9 !important;
+}
+body.crump-v1-body .cvl-root.cvl-root .cvl-reader-main p {
+  color: #f1efe9 !important;
+}
+body.crump-v1-body .cvl-root.cvl-root .cvl-close {
+  color: #8a9196 !important;
+}
+body.crump-v1-body .cvl-root.cvl-root .cvl-reader-main {
+  background: transparent !important;
+}
+body.crump-v1-body .cvl-root.cvl-root .cvl-close {
+  background: rgba(241, 239, 233, 0.06) !important;
+}

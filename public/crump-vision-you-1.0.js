@@ -323,6 +323,147 @@
     });
   }
 
+  /* ---------- Connections: ONE model, from the single Google record ----------
+     Connection state comes from the single record at
+     GET /api/connections/google/status (connected flag + account email +
+     granted scopes on that one record). Capability lines are DERIVED
+     from that record's granted scopes only — there is no per-service
+     state and no second fetch with its own truth, so this surface
+     cannot show Google disconnected while Gmail shows connected.
+     Guests see the signed-out state and no fetch is made. Connect and
+     disconnect reuse the existing endpoints; no second flow. */
+
+  function youOwnerId() {
+    try {
+      if (window.CrumpAccess && typeof window.CrumpAccess.isGuest === 'function'
+          && window.CrumpAccess.isGuest()) return '';
+    } catch (_) {}
+    try {
+      if (window.currentUser && window.currentUser.isGuest) return '';
+    } catch (_) {}
+    try {
+      var boundary = window.CrumpAuthBoundary;
+      if (boundary && typeof boundary.authenticatedUserId === 'function') {
+        var fromBoundary = String(boundary.authenticatedUserId() || '').trim();
+        if (fromBoundary) return fromBoundary;
+      }
+    } catch (_) {}
+    try {
+      if (window.currentUser && window.currentUser.id) return String(window.currentUser.id).trim();
+    } catch (_) {}
+    return '';
+  }
+
+  function scopeGranted(scopes, fragment) {
+    return scopes.some(function (scope) { return String(scope).indexOf(fragment) !== -1; });
+  }
+
+  /* Capability lines derived from the granted scope set of the one
+     connected record. A capability renders only when its scope is in
+     that set. */
+  function googleCapabilityLines(scopes) {
+    var granted = Array.isArray(scopes) ? scopes : [];
+    var lines = [];
+    if (scopeGranted(granted, 'gmail.readonly')) lines.push(['Gmail', 'Read']);
+    if (scopeGranted(granted, 'gmail.compose')) lines.push(['Gmail', 'Draft']);
+    if (scopeGranted(granted, 'gmail.send')) lines.push(['Gmail', 'Send']);
+    if (scopeGranted(granted, 'calendar.events')) lines.push(['Calendar', 'Read/write']);
+    else if (scopeGranted(granted, 'calendar.readonly')) lines.push(['Calendar', 'Read']);
+    return lines;
+  }
+
+  function connectionRow(label, value) {
+    return '<div class="cv-you-row"><span>' + esc(label) + '</span><b>' + esc(value) + '</b></div>';
+  }
+
+  function wireConnectionsSection(section) {
+    var root = section.querySelector('[data-connections-root]');
+    if (!root) return;
+    var ownerId = youOwnerId();
+    if (!ownerId) {
+      root.innerHTML =
+        connectionRow('Google', 'Not connected') +
+        '<p class="cv-privacy-footnote">Sign in to connect Google. Nothing is fetched while you are signed out.</p>';
+      return;
+    }
+    root.innerHTML = '<p class="cv-privacy-footnote" role="status">Checking your Google connection…</p>';
+    var headers = { Accept: 'application/json', 'X-Ask-Crump-Expected-Owner': ownerId };
+    fetch('/api/connections/google/status', { credentials: 'include', headers: headers })
+      .then(function (response) { return response.json().catch(function () { return {}; }); })
+      .then(function (data) {
+        if (!section.isConnected) return;
+        var accounts = data && Array.isArray(data.accounts) ? data.accounts : [];
+        var account = null;
+        accounts.forEach(function (item) {
+          if (!account && item && item.status === 'connected') account = item;
+        });
+        if (!data || data.connected !== true || !account) {
+          root.innerHTML =
+            connectionRow('Google', 'Not connected') +
+            '<div class="cv-editor-actions">' +
+              '<button type="button" class="cv-btn cv-btn-ghost" data-connections-connect>Connect Google</button>' +
+            '</div>' +
+            '<p class="cv-inline-error" data-connections-error></p>';
+          wireConnectButton(section, root);
+          return;
+        }
+        var email = String(account.email || '').trim();
+        var lines = googleCapabilityLines(account.scopes);
+        root.innerHTML =
+          connectionRow('Google', email || 'Connected') +
+          lines.map(function (line) { return connectionRow(line[0], line[1]); }).join('') +
+          '<div class="cv-editor-actions">' +
+            '<button type="button" class="cv-btn cv-btn-ghost" data-connections-disconnect>Disconnect Google</button>' +
+          '</div>' +
+          '<p class="cv-inline-error" data-connections-error></p>';
+        var disconnect = root.querySelector('[data-connections-disconnect]');
+        if (disconnect) disconnect.addEventListener('click', function () {
+          disconnect.disabled = true;
+          fetch('/api/connections/google/disconnect', {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'Content-Type': 'application/json', 'X-Ask-Crump-Expected-Owner': ownerId },
+            body: JSON.stringify(email ? { accountEmail: email } : {}),
+          }).then(function () {
+            wireConnectionsSection(section);
+          }).catch(function () {
+            disconnect.disabled = false;
+            var error = root.querySelector('[data-connections-error]');
+            if (error) error.textContent = 'Disconnect did not finish. Try again.';
+          });
+        });
+      })
+      .catch(function () {
+        if (!section.isConnected) return;
+        root.innerHTML = '<p class="cv-privacy-footnote">Your Google connection could not load just now.</p>';
+      });
+  }
+
+  function wireConnectButton(section, root) {
+    var connect = root.querySelector('[data-connections-connect]');
+    if (!connect) return;
+    connect.addEventListener('click', function () {
+      connect.disabled = true;
+      var ownerId = youOwnerId();
+      fetch('/api/connections/google/connect', {
+        credentials: 'include',
+        headers: { Accept: 'application/json', 'X-Ask-Crump-Expected-Owner': ownerId },
+      }).then(function (response) { return response.json().catch(function () { return {}; }); })
+        .then(function (data) {
+          if (data && data.authorizationUrl) {
+            window.location.assign(data.authorizationUrl);
+            return;
+          }
+          throw new Error('connect unavailable');
+        })
+        .catch(function () {
+          connect.disabled = false;
+          var error = root.querySelector('[data-connections-error]');
+          if (error) error.textContent = 'Google connect is not available yet.';
+        });
+    });
+  }
+
   /* ---------- View render ---------- */
 
   function render(root) {
@@ -360,17 +501,16 @@
           '</div>' +
         '</section>' +
 
-        '<section class="cv-you-section" aria-labelledby="cvPrivacyTitle">' +
-          '<p class="cv-eyebrow">Privacy</p>' +
-          '<h2 class="cv-headline" id="cvPrivacyTitle" style="font-size:28px;margin-bottom:12px">Private by design.</h2>' +
+        '<section class="cv-you-section" aria-labelledby="cvConnectionsTitle">' +
+          '<p class="cv-eyebrow">Connections</p>' +
+          '<h2 class="cv-headline" id="cvConnectionsTitle" style="font-size:28px;margin-bottom:12px">Connected accounts.</h2>' +
           '<div class="cv-you-card">' +
-            '<div data-privacy-list></div>' +
-            '<p class="cv-privacy-footnote">These switches set the privacy preferences on this device. They are stored locally and do not change anything kept on Ask Crump&apos;s servers.</p>' +
+            '<div data-connections-root></div>' +
           '</div>' +
         '</section>' +
 
         '<section class="cv-you-section" aria-labelledby="cvCreditsTitle">' +
-          '<p class="cv-eyebrow">Crump Credits</p>' +
+          '<p class="cv-eyebrow">Plan &amp; credits</p>' +
           '<h2 class="cv-headline" id="cvCreditsTitle" style="font-size:28px;margin-bottom:12px">The wallet.</h2>' +
           '<div class="cv-you-card">' +
             '<div class="cv-wallet">' +
@@ -381,13 +521,24 @@
             '<ul class="cv-pack-list" data-pack-list></ul>' +
           '</div>' +
         '</section>' +
+
+        '<section class="cv-you-section" aria-labelledby="cvPrivacyTitle">' +
+          '<p class="cv-eyebrow">Settings</p>' +
+          '<h2 class="cv-headline" id="cvPrivacyTitle" style="font-size:28px;margin-bottom:12px">Private by design.</h2>' +
+          '<div class="cv-you-card">' +
+            '<div data-privacy-list></div>' +
+            '<p class="cv-privacy-footnote">These switches set the privacy preferences on this device. They are stored locally and do not change anything kept on Ask Crump&apos;s servers.</p>' +
+          '</div>' +
+        '</section>' +
       '</div>';
 
     var memorySection = root.querySelector('[aria-labelledby="cvMemoryTitle"]');
+    var connectionsSection = root.querySelector('[aria-labelledby="cvConnectionsTitle"]');
     var privacySection = root.querySelector('[aria-labelledby="cvPrivacyTitle"]');
     var creditsSection = root.querySelector('[aria-labelledby="cvCreditsTitle"]');
 
     if (memorySection) wireMemorySection(memorySection);
+    if (connectionsSection) wireConnectionsSection(connectionsSection);
     if (privacySection) wirePrivacySection(privacySection);
     if (creditsSection) {
       renderCreditsSection(creditsSection);

@@ -1445,3 +1445,24 @@ body.crump-v1-body .v1-workspace-body:has(> .cat-chat-work:not([hidden])) > .cat
     transition: none;
   }
 }
+
+/* ---- You surface: Settings Connections rows ----
+   The rows reuse the Settings sheet's own text classes (which follow
+   the appearance), so only layout lives here: label left, value right,
+   the action under the list. */
+.cat-you-row {
+  justify-content: space-between;
+  gap: 16px;
+}
+.cat-you-value {
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+.cat-you-note {
+  margin-top: 12px;
+}
+.cat-you-action {
+  margin-top: 16px;
+  color: inherit;
+  border-color: rgba(140, 140, 140, 0.45);
+}

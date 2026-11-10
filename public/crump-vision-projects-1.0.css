@@ -363,3 +363,217 @@
   .cvp-switch:hover { transform: none; }
   .cvp-skeleton i { animation: none; }
 }
+
+/* ---- Reorganization: Projects rows + Library shelf (locked design) ----
+   The Projects destination carries the ink ground in both appearances,
+   like Today and the Tasks record: off-white text and gold eyebrows on
+   #070A0E, cards #111417, hairline gold-family separators, 24px margins,
+   and the 12/24/48 spacing rhythm. Doubled-class selectors keep these
+   grounds ahead of the atelier design pass, which themes this surface
+   for the older light shell. */
+body.crump-v1-body .cvp-root.cvp-root,
+body.crump-v1-body .cvp-root.cvp-root.cvp-root {
+  --cvp-bg: #070a0e;
+  --cvp-panel: #111417;
+  --cvp-panel-raised: #15181c;
+  --cvp-hairline: rgba(213, 185, 113, 0.16);
+  --cvp-gold: #d5b971;
+  --cvp-gold-deep: #b69855;
+  --cvp-text: #f1efe9;
+  --cvp-muted: #8a9196;
+  background: #070a0e !important;
+  color: #f1efe9 !important;
+  padding: 48px 24px 80px;
+}
+body.crump-v1-body .cvp-root.cvp-root .cvp-title {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+}
+body.crump-v1-body .cvp-root.cvp-root .cv-eyebrow,
+body.crump-v1-body .cvp-root .cv-eyebrow { color: #d5b971 !important; }
+
+/* Project rows: name + one quiet real-fields line + chevron, separated
+   by hairlines instead of the old pill switcher cards. */
+body.crump-v1-body .cvp-root.cvp-root .cvp-switcher-row {
+  flex-direction: column;
+  gap: 0;
+  overflow-x: visible;
+  padding-bottom: 0;
+}
+body.crump-v1-body .cvp-root .cvp-switch.cvp-row,
+body.crump-v1-body .cvp-root.cvp-root .cvp-switch.cvp-row {
+  flex-direction: row;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  min-width: 0;
+  background: transparent !important;
+  border: none;
+  border-bottom: 1px solid rgba(213, 185, 113, 0.16);
+  border-radius: 0;
+  box-shadow: none;
+  color: #f1efe9 !important;
+  padding: 20px 0;
+  transform: none;
+}
+.cvp-root .cvp-switch.cvp-row:first-child { border-top: 1px solid rgba(213, 185, 113, 0.16); }
+.cvp-root .cvp-switch.cvp-row:hover { background: rgba(213, 185, 113, 0.05) !important; }
+.cvp-root .cvp-switch.cvp-row.is-active { background: rgba(213, 185, 113, 0.07) !important; }
+.cvp-root .cvp-row-main { display: flex; flex-direction: column; gap: 5px; min-width: 0; flex: 1; }
+body.crump-v1-body .cvp-root .cvp-switch.cvp-row .cvp-switch-name,
+body.crump-v1-body .cvp-root.cvp-root .cvp-switch.cvp-row .cvp-switch-name {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 1.2;
+  color: #f1efe9 !important;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+body.crump-v1-body .cvp-root .cvp-row-meta,
+body.crump-v1-body .cvp-root.cvp-root .cvp-row-meta {
+  font-size: 13.5px;
+  color: #8a9196 !important;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+body.crump-v1-body .cvp-root.cvp-root .cvp-row-chevron {
+  color: #d5b971;
+  font-size: 26px;
+  line-height: 1;
+  flex: 0 0 auto;
+}
+
+/* Detail panels take the locked card token on the ink ground. */
+body.crump-v1-body .cvp-root .cvp-panel,
+body.crump-v1-body .cvp-root.cvp-root .cvp-panel {
+  background: #111417 !important;
+  border-color: rgba(213, 185, 113, 0.16) !important;
+  border-radius: 12px;
+  box-shadow: none;
+  color: #f1efe9;
+}
+body.crump-v1-body .cvp-root .cvp-project-head h2,
+body.crump-v1-body .cvp-root .cvp-timeline-body h4,
+body.crump-v1-body .cvp-root .cvp-chat-title,
+body.crump-v1-body .cvp-root .cvp-keepsake-title,
+body.crump-v1-body .cvp-root .cvp-empty h2,
+body.crump-v1-body .cvp-root .cvp-error h2 { color: #f1efe9 !important; }
+body.crump-v1-body .cvp-root .cvp-project-desc,
+body.crump-v1-body .cvp-root .cvp-project-meta,
+body.crump-v1-body .cvp-root .cvp-timeline-date,
+body.crump-v1-body .cvp-root .cvp-timeline-body p,
+body.crump-v1-body .cvp-root .cvp-chat-date,
+body.crump-v1-body .cvp-root .cvp-keepsake-meta,
+body.crump-v1-body .cvp-root .cvp-quiet { color: #8a9196 !important; }
+body.crump-v1-body .cvp-root .cvp-timeline-kind,
+body.crump-v1-body .cvp-root .cvp-link { color: #d5b971 !important; }
+body.crump-v1-body .cvp-root .cvp-button {
+  color: #d5b971 !important;
+  border-color: rgba(213, 185, 113, 0.44) !important;
+  background: transparent !important;
+}
+body.crump-v1-body .cvp-root .cvp-timeline::before { background: rgba(213, 185, 113, 0.16) !important; }
+body.crump-v1-body .cvp-root .cvp-chat,
+body.crump-v1-body .cvp-root .cvp-keepsake { border-color: rgba(213, 185, 113, 0.16) !important; }
+body.crump-v1-body .cvp-root .cvp-timeline-marker { border-color: #b69855 !important; background: #070a0e !important; }
+body.crump-v1-body .cvp-root .cvp-skeleton i { background: rgba(213, 185, 113, 0.07) !important; }
+body.crump-v1-body .cvp-root.cvp-root .cvp-keepsake-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+
+/* Library shelf inside Projects: finished artifacts as neat tiles. */
+.cvp-library { margin-top: 48px; }
+body.crump-v1-body .cvp-library-title.cvp-library-title {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 400;
+  font-size: clamp(24px, 3vw, 32px);
+  margin: 0 0 24px;
+  color: #f1efe9;
+}
+body.crump-v1-body .cvp-library-grid.cvp-library-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 24px;
+}
+body.crump-v1-body .cvp-artifact.cvp-artifact {
+  background: #111417;
+  border: 1px solid rgba(213, 185, 113, 0.16);
+  border-radius: 12px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+body.crump-v1-body .cvp-artifact-top.cvp-artifact-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+body.crump-v1-body .cvp-artifact-kind.cvp-artifact-kind {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #8a9196;
+}
+body.crump-v1-body .cvp-artifact-initial.cvp-artifact-initial {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 28px;
+  line-height: 1;
+  color: #d5b971;
+}
+body.crump-v1-body .cvp-artifact-title.cvp-artifact-title {
+  font-size: 16px;
+  font-weight: 650;
+  line-height: 1.3;
+  margin: 0;
+  color: #f1efe9;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+}
+.cvp-artifact-meta { font-size: 12.5px; color: #8a9196; margin: 0; }
+.cvp-artifact-open { margin-top: auto; align-self: flex-start; min-height: 44px; padding: 10px 0 0; }
+
+@media (max-width: 640px) {
+  .cvp-library-grid { grid-template-columns: 1fr; }
+  .cvp-root .cvp-switch-name { font-size: 21px; }
+}
+
+/* Contrast lock: the design pass recolors these elements for the
+   light shell; on the ink ground they keep the reorg pairings. */
+body.crump-v1-body .cvp-root.cvp-root .cvp-title {
+  color: #f1efe9 !important;
+}
+body.crump-v1-body .cvp-root.cvp-root .cvp-lede {
+  color: #8a9196 !important;
+}
+body.crump-v1-body .cvp-root.cvp-root .cvp-switch-date {
+  color: #8a9196 !important;
+}
+body.crump-v1-body .cvp-root.cvp-root .cvp-muted {
+  color: #8a9196 !important;
+}
+body.crump-v1-body .cvp-root.cvp-root .cvp-switch {
+  background: transparent !important;
+  border-color: rgba(213, 185, 113, 0.16) !important;
+}
+body.crump-v1-body .cvp-root.cvp-root .cvp-switch.is-active {
+  background: rgba(213, 185, 113, 0.08) !important;
+}
+body.crump-v1-body .cvp-root.cvp-root .cvp-switch-name {
+  color: #f1efe9 !important;
+}

@@ -459,3 +459,74 @@
     align-items: flex-start;
   }
 }
+
+/* ---- Reorganization: You as quiet list rows (locked design) ----
+   Sections follow the mock order — Memory, Connections, Plan &
+   credits, Settings — with gold tracked eyebrows, hairline separators,
+   generous whitespace, and the locked ink/card tokens (24px margins,
+   12/24/48 rhythm). Memory entries keep their edit/delete controls;
+   only their presentation becomes rows. */
+body.crump-v1-body .cv-you.cv-you {
+  padding: 48px 24px 96px;
+}
+body.crump-v1-body .cv-you-section.cv-you-section {
+  margin-bottom: 48px;
+}
+body.crump-v1-body .cv-you-card.cv-you-card {
+  background: #111417;
+  border-color: rgba(213, 185, 113, 0.16);
+  border-radius: 12px;
+}
+body.crump-v1-body .cv-memory-list.cv-memory-list {
+  gap: 0;
+  margin-bottom: 12px;
+}
+body.crump-v1-body .cv-memory-item.cv-memory-item {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(213, 185, 113, 0.16);
+  border-radius: 0;
+  padding: 16px 0;
+}
+.cv-memory-item:first-child { padding-top: 4px; }
+body.crump-v1-body .cv-device-row.cv-device-row {
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid rgba(213, 185, 113, 0.16);
+  border-radius: 0;
+  padding: 12px 0;
+}
+body.crump-v1-body .cv-you-row.cv-you-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(213, 185, 113, 0.16);
+  font-size: 14px;
+  color: #f1efe9;
+}
+.cv-you-row:last-of-type { border-bottom: none; }
+body.crump-v1-body .cv-you-row.cv-you-row b {
+  color: #d5b971;
+  font-weight: 600;
+  text-align: right;
+  overflow-wrap: anywhere;
+}
+
+/* Contrast lock: headlines, subs, eyebrows, and ghost actions keep
+   the reorg pairings on the ink ground in both appearances. */
+body.crump-v1-body .cv-you.cv-you .cv-headline {
+  color: #f1efe9 !important;
+}
+body.crump-v1-body .cv-you.cv-you .cv-sub {
+  color: #8a9196 !important;
+}
+body.crump-v1-body .cv-you.cv-you .cv-eyebrow {
+  color: #d5b971 !important;
+}
+body.crump-v1-body .cv-you.cv-you .cv-btn-ghost {
+  color: #f1efe9 !important;
+  background: rgba(241, 239, 233, 0.06) !important;
+  border-color: rgba(213, 185, 113, 0.35) !important;
+}

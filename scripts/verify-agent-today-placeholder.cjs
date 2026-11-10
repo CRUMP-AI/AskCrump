@@ -6,6 +6,7 @@ const fixtureOrigin = process.env.ASKCRUMP_FIXTURE_ORIGIN || 'http://127.0.0.1:8
 const executablePath = process.env.ASKCRUMP_BROWSER_EXECUTABLE || undefined;
 const fixtureUrl = `${fixtureOrigin}/tests/fixtures/agent-today-placeholder.html`;
 const chatFixtureUrl = `${fixtureOrigin}/tests/fixtures/agent-chat-cards.html`;
+const projectsYouFixtureUrl = `${fixtureOrigin}/tests/fixtures/reorg-projects-you.html`;
 
 const VIEWPORTS = [
   { name: '1039x738', width: 1039, height: 738, maxNoticeFraction: 0.10 },
@@ -491,6 +492,213 @@ async function runTasksScenarios(browser) {
   return scenarios;
 }
 
+async function measureProjectsYou(page) {
+  return page.evaluate(() => {
+    const text = el => (el ? el.textContent.replace(/\s+/g, ' ').trim() : '');
+    const lines = el => {
+      if (!el) return { height: 0, lineHeight: 0 };
+      const style = getComputedStyle(el);
+      return { height: el.clientHeight, lineHeight: Number.parseFloat(style.lineHeight) || 0 };
+    };
+    const rows = [...document.querySelectorAll('#projectsRoot .cvp-row')].map(row => {
+      const name = row.querySelector('.cvp-switch-name');
+      const box = lines(name);
+      return {
+        name: text(name),
+        meta: text(row.querySelector('.cvp-row-meta')),
+        titleAttr: name ? name.getAttribute('title') : null,
+        buttonTitle: row.getAttribute('title'),
+        ariaLabel: row.getAttribute('aria-label'),
+        chevron: Boolean(row.querySelector('.cvp-row-chevron')),
+        nameHeight: box.height,
+        nameLineHeight: box.lineHeight,
+      };
+    });
+    const tiles = [...document.querySelectorAll('#projectsRoot .cvp-artifact')].map(tile => {
+      const title = tile.querySelector('.cvp-artifact-title');
+      const box = lines(title);
+      const open = tile.querySelector('[data-cvp-open-library]');
+      return {
+        title: text(title),
+        titleAttr: title ? title.getAttribute('title') : null,
+        titleHeight: box.height,
+        titleLineHeight: box.lineHeight,
+        openLabel: open ? open.getAttribute('aria-label') : null,
+        kind: text(tile.querySelector('.cvp-artifact-kind')),
+        meta: text(tile.querySelector('.cvp-artifact-meta')),
+      };
+    });
+    const books = [...document.querySelectorAll('#libraryRoot .cvl-book')].map(book => {
+      const title = book.querySelector('.cvl-book-title');
+      const box = lines(title);
+      const open = book.querySelector('[data-cvl-open]');
+      return {
+        titleAttr: title ? title.getAttribute('title') : null,
+        titleHeight: box.height,
+        titleLineHeight: box.lineHeight,
+        openLabel: open ? open.getAttribute('aria-label') : null,
+      };
+    });
+    const youRows = [...document.querySelectorAll('#youRoot [data-connections-root] .cv-you-row')]
+      .map(row => [...row.children].map(text));
+    const settingsRows = [...document.querySelectorAll('[data-cat-you-connections] .cat-you-row')]
+      .map(row => [...row.querySelectorAll('.settings-label')].map(text));
+    return {
+      rows,
+      tiles,
+      books,
+      youRows,
+      settingsRows,
+      youText: text(document.querySelector('#youRoot')),
+      projectsText: text(document.querySelector('#projectsRoot')),
+      libraryText: text(document.querySelector('#libraryRoot')),
+      shelfText: text(document.querySelector('#projectsRoot [data-cvp-library]')),
+      memoryItems: document.querySelectorAll('#youRoot .cv-memory-item').length,
+      memoryControls: Boolean(document.querySelector('#youRoot [data-memory-edit]'))
+        && Boolean(document.querySelector('#youRoot [data-memory-delete]')),
+      youConnect: Boolean(document.querySelector('#youRoot [data-connections-connect]')),
+      fetchCalls: window.__fetchCalls || [],
+      longProjectName: window.__longProjectName || '',
+      longTitle: window.__longTitle || '',
+      documentScrollWidth: document.documentElement.scrollWidth,
+      innerWidth: window.innerWidth,
+    };
+  });
+}
+
+async function openProjectsYou(page, query) {
+  await page.goto(`${projectsYouFixtureUrl}?${query}`, { waitUntil: 'load' });
+  await page.waitForFunction(() => {
+    const you = document.querySelector('#youRoot [data-connections-root]');
+    const settings = document.querySelector('[data-cat-you-connections]');
+    return you && you.textContent.trim().length > 0
+      && settings && settings.querySelector('.cat-you-row');
+  }, { timeout: 8000 });
+  await page.waitForTimeout(200);
+}
+
+async function runProjectsYouScenarios(browser) {
+  let scenarios = 0;
+  // Full data, partial Google scopes, every viewport in both
+  // appearances: project rows carry real fields only, artifact titles
+  // are bounded everywhere, and both You surfaces derive the same
+  // capability lines from the one Google record.
+  for (const theme of THEMES) {
+    for (const viewport of VIEWPORTS) {
+      const label = `projects-you ${theme}/full-partial @ ${viewport.name}`;
+      const page = await browser.newPage({ viewport });
+      await openProjectsYou(page, `theme=${theme}&state=full&google=partial`);
+      const m = await measureProjectsYou(page);
+      assert.equal(m.rows.length, 3, `${label}: project rows ${m.rows.length}`);
+      assert.equal(m.rows[0].name, 'Ask Crump', `${label}: first row name`);
+      assert.match(m.rows[0].meta, /Product/, `${label}: first row meta "${m.rows[0].meta}"`);
+      assert.match(m.rows[2].meta, /Sports media/, `${label}: third row meta`);
+      assert.ok(m.rows.every(row => row.chevron), `${label}: chevron missing`);
+      assert.doesNotMatch(m.projectsText, /\d+ notes|\d+ artifacts|\d+ character locks/i,
+        `${label}: invented counts in Projects`);
+      // The long project name is bounded to two lines; the full name
+      // stays on the title attribute and the row's aria-label.
+      const longRow = m.rows[1];
+      assert.equal(longRow.name, m.longProjectName, `${label}: long row name`);
+      assert.ok(longRow.nameHeight <= longRow.nameLineHeight * 2 + 6,
+        `${label}: long name height ${longRow.nameHeight} > 2 lines (${longRow.nameLineHeight})`);
+      assert.equal(longRow.buttonTitle, m.longProjectName, `${label}: row title attribute`);
+      assert.equal(longRow.ariaLabel, m.longProjectName, `${label}: row aria-label`);
+      // Library shelf inside Projects: bounded tiles, full title
+      // accessible on the tile and its Open control.
+      assert.equal(m.tiles.length, 3, `${label}: library tiles ${m.tiles.length}`);
+      const longTile = m.tiles[0];
+      assert.equal(longTile.titleAttr, m.longTitle, `${label}: tile title attribute`);
+      assert.ok(longTile.titleHeight <= longTile.titleLineHeight * 2 + 6,
+        `${label}: tile title height ${longTile.titleHeight} > 2 lines (${longTile.titleLineHeight}) at ${viewport.name}`);
+      assert.ok(longTile.openLabel && longTile.openLabel.includes(m.longTitle),
+        `${label}: tile open aria-label "${longTile.openLabel}"`);
+      assert.match(longTile.kind, /Created with Crump/, `${label}: tile kind "${longTile.kind}"`);
+      // Full-screen Library: the same bounding on its book cards.
+      assert.equal(m.books.length, 3, `${label}: library books ${m.books.length}`);
+      assert.equal(m.books[0].titleAttr, m.longTitle, `${label}: book title attribute`);
+      assert.ok(m.books[0].titleHeight <= m.books[0].titleLineHeight * 2 + 6,
+        `${label}: book title height ${m.books[0].titleHeight} > 2 lines`);
+      assert.ok(m.books[0].openLabel && m.books[0].openLabel.includes(m.longTitle),
+        `${label}: book open aria-label "${m.books[0].openLabel}"`);
+      // You, single model: partial scopes (gmail.readonly only) render
+      // the account and exactly one derived capability — no Calendar,
+      // no Send — identically on the You view and the Settings mount.
+      for (const [surface, rows] of [['you', m.youRows], ['settings', m.settingsRows]]) {
+        assert.deepEqual(rows[0], ['Google', 'gregory@example.com'],
+          `${label}: ${surface} google row ${JSON.stringify(rows[0])}`);
+        assert.deepEqual(rows.slice(1), [['Gmail', 'Read']],
+          `${label}: ${surface} capability lines ${JSON.stringify(rows)}`);
+      }
+      assert.equal(m.memoryItems, 1, `${label}: memory items`);
+      assert.equal(m.memoryControls, true, `${label}: memory edit/delete controls`);
+      assert.ok(m.documentScrollWidth <= viewport.width,
+        `${label}: document scrollWidth ${m.documentScrollWidth} > ${viewport.width}`);
+      scenarios += 1;
+      await page.close();
+    }
+  }
+
+  // Full scopes at phone width: every granted capability line renders.
+  {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await openProjectsYou(page, 'theme=dark&state=full&google=full');
+    const m = await measureProjectsYou(page);
+    assert.deepEqual(m.youRows.slice(1), [['Gmail', 'Read'], ['Gmail', 'Send'], ['Calendar', 'Read/write']],
+      `projects-you full scopes: you lines ${JSON.stringify(m.youRows)}`);
+    assert.deepEqual(m.settingsRows.slice(1), [['Gmail', 'Read'], ['Gmail', 'Send'], ['Calendar', 'Read/write']],
+      `projects-you full scopes: settings lines ${JSON.stringify(m.settingsRows)}`);
+    await page.close();
+    scenarios += 1;
+  }
+
+  // Disconnected + empty: no capability lines anywhere, the Library
+  // states are the honest empty states, and Connect is offered.
+  {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await openProjectsYou(page, 'theme=dark&state=empty&google=disconnected');
+    const m = await measureProjectsYou(page);
+    assert.deepEqual(m.youRows, [['Google', 'Not connected']],
+      `projects-you disconnected: you rows ${JSON.stringify(m.youRows)}`);
+    assert.deepEqual(m.settingsRows, [['Google', 'Not connected']],
+      `projects-you disconnected: settings rows ${JSON.stringify(m.settingsRows)}`);
+    assert.equal(m.youConnect, true, 'projects-you disconnected: connect action missing');
+    assert.match(m.projectsText, /Give your work a place to continue/, 'projects-you empty: projects empty state');
+    assert.match(m.shelfText, /Nothing finished yet/, 'projects-you empty: shelf empty line');
+    assert.match(m.libraryText, /Your shelf is ready/, 'projects-you empty: library empty state');
+    await page.close();
+    scenarios += 1;
+  }
+
+  // Guest: signed-out rows on both You surfaces and zero fetches for
+  // projects, library, or the Google record.
+  {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await openProjectsYou(page, 'theme=dark&state=full&guest=1');
+    const m = await measureProjectsYou(page);
+    assert.deepEqual(m.youRows, [['Google', 'Not connected']],
+      `projects-you guest: you rows ${JSON.stringify(m.youRows)}`);
+    assert.equal(m.fetchCalls.filter(path => path.indexOf('/api/connections/') === 0).length, 0,
+      `projects-you guest: connection fetches ${JSON.stringify(m.fetchCalls)}`);
+    assert.equal(m.fetchCalls.filter(path => path.indexOf('/api/projects') === 0).length, 0,
+      `projects-you guest: project fetches ${JSON.stringify(m.fetchCalls)}`);
+    // The Projects shelf itself stays signed-out and fetches nothing:
+    // the single library call in this run is the full-screen Library
+    // view's own pre-existing currentUser.id gate.
+    assert.match(m.shelfText, /Sign in to see your finished artifacts/,
+      `projects-you guest: shelf signed-out line "${m.shelfText}"`);
+    assert.ok(m.fetchCalls.filter(path => path.indexOf('/api/library/') === 0).length <= 1,
+      `projects-you guest: library fetches ${JSON.stringify(m.fetchCalls)}`);
+    await page.close();
+    scenarios += 1;
+  }
+
+  console.log(`Reorg Projects/Library/You: ${scenarios} scenarios passed ` +
+    `(${THEMES.length} themes x full/partial x ${VIEWPORTS.length} viewports, plus full scopes, ` +
+    `disconnected/empty, and guest).`);
+  return scenarios;
+}
+
 async function runChatScenarios(browser) {
   let scenarios = 0;
   const CHAT_STATES = ['approval', 'live', 'both', 'none', 'result'];
@@ -781,6 +989,7 @@ async function run() {
 
     scenarios += await runTasksScenarios(browser);
     scenarios += await runChatScenarios(browser);
+    scenarios += await runProjectsYouScenarios(browser);
   } finally {
     await browser.close();
   }
