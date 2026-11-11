@@ -376,13 +376,13 @@ class AgentExecutor:
         the payload of record; every other run executes the payload
         stored on the run row at creation.
 
-        Fail closed: when the run has an approved action, that
-        action's payload is the only payload execution may use. If
-        loading it fails, or it comes back missing or unusable,
+        Fail closed: when the run is approval-gated, that action's
+        payload is the only payload execution may use. If loading it
+        fails, or it comes back missing or unusable,
         ``_ApprovedPayloadUnavailable`` is raised and the run is
         refused — the creation payload is never substituted for the
         payload the user approved. The creation payload remains the
-        payload of record only for runs with no approved action.
+        payload of record only for runs that were never gated.
         """
         try:
             has_approved, approved_payload = (

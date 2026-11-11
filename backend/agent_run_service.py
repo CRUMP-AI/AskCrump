@@ -484,28 +484,53 @@ class AgentRunService:
     async def approved_action_payload(
         self, run: dict[str, Any]
     ) -> tuple[bool, dict[str, Any] | None]:
-        """Return ``(has_approved_action, exact_payload)`` for a run.
+        """Return ``(is_approval_gated, exact_payload)`` for a run.
 
         The first element says whether the run's execution depends on
-        an approved pending action at all; the second is that action's
-        frozen exact payload, or ``None`` when the stored payload is
-        missing or not an object. Read errors propagate to the caller:
-        payload resolution must fail closed, never guess.
+        an approval at all; the second is the approved action's frozen
+        exact payload, or ``None`` when no usable payload of record
+        exists. Read errors propagate to the caller: payload
+        resolution must fail closed, never guess.
+
+        A run is approval-gated when its durable record shows it went
+        through approval: a pending-action row exists for it in any
+        state, or its step ledger carries the ``approval.requested``
+        step creation writes only for gated runs. For a gated run the
+        approved row is the only payload of record — when that row is
+        missing at execution time (deleted, or its status rewritten
+        after the approval landed), the result is ``(True, None)``
+        and execution refuses. The creation payload is never
+        substituted for the payload the user approved; it remains
+        the payload of record only for runs that were never gated,
+        which return ``(False, None)``.
         """
         rows = await self.db.select(
             'agent_pending_actions',
             filters={
                 'run_id': eq(str(run['id'])),
                 'user_id': eq(str(run['user_id'])),
-                'status': eq('approved'),
             },
             order='created_at.desc',
             limit=50,
         )
-        if not rows:
-            return False, None
-        payload = rows[0].get('exact_payload')
-        return True, payload if isinstance(payload, dict) else None
+        approved = [row for row in rows if row.get('status') == 'approved']
+        if approved:
+            payload = approved[0].get('exact_payload')
+            return True, payload if isinstance(payload, dict) else None
+        if rows:
+            return True, None
+        steps = await self.db.select(
+            'agent_run_steps',
+            filters={
+                'run_id': eq(str(run['id'])),
+                'user_id': eq(str(run['user_id'])),
+                'step_type': eq('approval.requested'),
+            },
+            limit=1,
+        )
+        if steps:
+            return True, None
+        return False, None
 
     async def reserve_run_credits(self, run: dict[str, Any]) -> str | None:
         """Atomically reserve a fixed-cost run's registry cost.
