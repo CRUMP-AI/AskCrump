@@ -19,8 +19,8 @@ def read(relative: str) -> str:
 
 def test_app_html_loads_agent_today_layer_last_with_versioned_assets():
     app = read('public/app.html')
-    css = '/crump-agent-today-1.0.css?v=5.9.76-agent-today-12'
-    js = '/crump-agent-today-1.0.js?v=5.9.76-agent-today-12'
+    css = '/crump-agent-today-1.0.css?v=5.9.76-agent-today-13'
+    js = '/crump-agent-today-1.0.js?v=5.9.76-agent-today-13'
     assert css in app
     assert js in app
     assert (PUBLIC / 'crump-agent-today-1.0.css').exists()
@@ -452,3 +452,23 @@ def test_browser_panel_step_is_one_line_and_controls_stay_distinct_and_honest():
     # A rightward swipe dismisses; nothing fakes a live session.
     assert "addEventListener('touchend'" in js
     assert 'Per-user browser sessions are not live yet' in js
+
+
+def test_browser_panel_contains_keyboard_focus_while_open():
+    js = read('public/crump-agent-today-1.0.js')
+    # The panel is modal: the document keydown listener routes Tab
+    # to the containment helper whenever the panel is open, so focus
+    # cycles inside the panel instead of walking out into the
+    # dimmed chat behind it.
+    assert "event.key === 'Tab' && browserPanel && !browserPanel.hidden" in js
+    assert 'keepBrowserPanelFocus(event)' in js
+    # The focusable set skips disabled controls — Pause and Take
+    # over while sessions are not live — so with Back as the only
+    # enabled control, both directions land back on Back.
+    helper = js[js.index('function browserPanelFocusables()'):js.index('function keepBrowserPanelFocus')]
+    assert 'node.disabled' in helper
+    trap = js[js.index('function keepBrowserPanelFocus(event)'):js.index('Navigation: Home becomes Today')]
+    assert 'browserPanel.contains(active)' in trap
+    assert 'event.shiftKey' in trap
+    assert 'focusables[0]' in trap
+    assert 'focusables[focusables.length - 1]' in trap
