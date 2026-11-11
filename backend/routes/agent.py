@@ -447,12 +447,21 @@ async def process_due_automations() -> dict:
                     await service.release_claim(row, claimed)
                 except Exception:
                     pass
+    # Credit recovery rides the same lane: settle reservations a
+    # crashed or failed execution left stranded on terminal runs.
+    # The sweep is bounded and best effort — it never fails the pass.
+    credits_reconciled = 0
+    try:
+        credits_reconciled = await agent_runs.reconcile_terminal_run_credits()
+    except Exception:
+        credits_reconciled = 0
     return {
         'success': True,
         'due': len(due),
         'triggered': len(triggered),
         'errors': errors,
         'disabled': disabled,
+        'creditsReconciled': credits_reconciled,
         'runs': triggered,
     }
 

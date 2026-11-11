@@ -605,6 +605,110 @@ class AgentRunService:
             return
         await refund_usage(self.db, str(user_id), f'credit:{ledger_id}')
 
+    async def release_run_claim(self, run: dict[str, Any]) -> None:
+        """Hand an execution claim back (running -> queued) when the
+        credit reservation refuses after the claim was taken, so the
+        run returns to exactly the state the pre-claim reservation
+        design left it in: queued, with no money moved."""
+        await self._set_status(run, 'queued', expected_status='running')
+
+    # -- credit reservation lifecycle ------------------------------------
+    #
+    # The credits ledger is the source of truth for money; the run's
+    # step ledger records each reservation's lifecycle against it, so
+    # a reservation whose release never landed is discoverable from
+    # the run record itself instead of stranding silently.
+
+    async def record_credit_reservation(
+        self, run: dict[str, Any], ledger_id: str
+    ) -> None:
+        await self._record_step(
+            run=run,
+            step_type='run.credits_reserved',
+            payload={'ledgerId': str(ledger_id)},
+        )
+
+    async def record_credit_release(
+        self, run: dict[str, Any], ledger_id: str
+    ) -> None:
+        await self._record_step(
+            run=run,
+            step_type='run.credits_released',
+            payload={'ledgerId': str(ledger_id)},
+        )
+
+    async def reconcile_run_credits(self, run: dict[str, Any]) -> bool:
+        """Refund a terminal non-success run's stranded reservation.
+
+        A ``run.credits_reserved`` step with no matching
+        ``run.credits_released`` step on a run that ended failed or
+        cancelled is a debit whose release never landed — the
+        executor crashed after reserving, or the refund itself
+        failed. The refund goes through the same idempotent
+        refund RPC as the inline release, so reconciling twice, or
+        racing the executor's own late release, refunds at most
+        once; a successful refund is recorded with the release step
+        so later passes see the run as settled. A succeeded run is
+        never touched: its reservation is the charge. Returns True
+        when this call issued a refund.
+        """
+        if str(run.get('status') or '') not in {'failed', 'cancelled'}:
+            return False
+        steps = await self.db.select(
+            'agent_run_steps',
+            filters={
+                'run_id': eq(str(run['id'])),
+                'user_id': eq(str(run['user_id'])),
+            },
+            order='id.asc',
+            limit=500,
+        )
+        reserved: list[str] = []
+        released: set[str] = set()
+        for step in steps:
+            payload = step.get('payload') or {}
+            ledger_id = payload.get('ledgerId')
+            if not ledger_id:
+                continue
+            if step.get('step_type') == 'run.credits_reserved':
+                reserved.append(str(ledger_id))
+            elif step.get('step_type') == 'run.credits_released':
+                released.add(str(ledger_id))
+        refunded = False
+        for ledger_id in reserved:
+            if ledger_id in released:
+                continue
+            await self.refund_run_credits(str(run['user_id']), ledger_id)
+            await self.record_credit_release(run, ledger_id)
+            refunded = True
+        return refunded
+
+    async def reconcile_terminal_run_credits(
+        self, *, limit: int = 50
+    ) -> int:
+        """Bounded recovery sweep over recently terminal runs.
+
+        Settles stranded reservations on failed and cancelled runs
+        without anyone opening them (the run-due lane calls this
+        once per pass). One run's failure never blocks the rest.
+        Returns how many runs this call refunded.
+        """
+        settled = 0
+        for status in ('failed', 'cancelled'):
+            rows = await self.db.select(
+                'agent_runs',
+                filters={'status': eq(status)},
+                order='updated_at.desc',
+                limit=max(1, int(limit or 50)),
+            )
+            for row in rows:
+                try:
+                    if await self.reconcile_run_credits(row):
+                        settled += 1
+                except Exception:
+                    continue
+        return settled
+
     # -- runs ---------------------------------------------------------------
     async def create_run(
         self,
@@ -752,6 +856,15 @@ class AgentRunService:
         else:
             run = await self._set_status(run, 'cancelled')
         await self._record_step(run=run, step_type='run.cancelled')
+        # Recovery: cancelling a run that was claimed and reserved
+        # before it got stuck settles its stranded reservation here.
+        # Best effort — a reconcile failure never masks the
+        # cancellation; the residue stays on the run's step ledger
+        # for the terminal sweep.
+        try:
+            await self.reconcile_run_credits(run)
+        except Exception:
+            pass
         return self.public_run(run)
 
     # -- approvals ------------------------------------------------------------
