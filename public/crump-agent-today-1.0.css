@@ -20,7 +20,10 @@
   --cat-line: rgba(7, 10, 14, 0.1);
   --cat-line-light: rgba(241, 239, 233, 0.16);
   --cat-ink-soft: rgba(7, 10, 14, 0.72);
-  --cat-radius: 18px;
+  --cat-radius: 24px;
+  --cat-section-gap: 44px;
+  --cat-card-padding: 28px;
+  --cat-stack-gap: 28px;
 }
 
 /* The layer owns its box model. Its geometry used to depend on the
@@ -82,21 +85,21 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
 /* Today surface                                                       */
 /* ------------------------------------------------------------------ */
 
-/* The Today surface carries its own ink ground. The layer originally
-   assumed the light paper workspace: its greeting and quiet states were
-   ink text with no ground of their own, so on the dark workspace ground
-   (the dark theme's near-ink paper) the greeting rendered ink-on-ink at
-   roughly 1:1 contrast and read as ghosted. On its own ink panel the
-   greeting is off-white on ink at full contrast in either theme, and no
-   neighbouring surface can dim or cover it. */
+/* The Today surface owns the ground: it paints the ink edge-to-edge
+   with no sheet treatment — no width cap, no inset margin, no border,
+   no radius — so the destination itself is the ground the design
+   specifies, not a bordered panel floating over the shell's black.
+   The layer originally assumed the light paper workspace: its greeting
+   and quiet states were ink text with no ground of their own, so on
+   the dark workspace ground the greeting rendered ink-on-ink at
+   roughly 1:1 contrast and read as ghosted. On its own ink ground the
+   greeting is off-white on ink at full contrast in either theme, and
+   no neighbouring surface can dim or cover it. */
 .cat-today {
   width: 100%;
-  max-width: 880px;
-  margin: 16px auto 12px;
-  padding: 26px 24px 20px;
+  margin: 0;
+  padding: 36px 32px 32px;
   background: var(--cat-ink);
-  border: 1px solid rgba(213, 185, 113, 0.14);
-  border-radius: 22px;
   color: var(--cat-paper);
   font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
@@ -106,7 +109,10 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
 }
 
 .cat-today-eyebrow {
-  margin: 0 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 0 0 14px;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.22em;
@@ -114,12 +120,32 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
   color: var(--cat-gold);
 }
 
+/* The gold C monogram chip paired with the eyebrow text: a small
+   rounded square with a gold outline and a serif C, drawn in CSS so
+   no brand asset file is involved. */
+.cat-eyebrow-chip {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(213, 185, 113, 0.6);
+  border-radius: 9px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--cat-gold-bright);
+}
+
 .cat-today-title {
   margin: 0;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: clamp(30px, 5.2vw, 44px);
+  font-size: clamp(50px, 13.5vw, 76px);
   font-weight: 500;
-  line-height: 1.12;
+  line-height: 1.04;
   letter-spacing: -0.01em;
   color: var(--cat-paper);
 }
@@ -133,7 +159,7 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
 }
 
 .cat-today-section {
-  margin-top: 24px;
+  margin-top: var(--cat-section-gap);
 }
 
 .cat-today-section-title {
@@ -147,14 +173,14 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
 
 .cat-today-stack {
   display: grid;
-  gap: 12px;
+  gap: var(--cat-stack-gap);
 }
 
 .cat-card {
   background: var(--cat-card);
   border: 1px solid var(--cat-line);
   border-radius: var(--cat-radius);
-  padding: 18px 20px;
+  padding: var(--cat-card-padding);
 }
 
 .cat-card-head {
@@ -171,9 +197,9 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
 
 .cat-card-title {
   margin: 0;
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 19px;
-  font-weight: 600;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 21px;
+  font-weight: 700;
   line-height: 1.3;
   color: var(--cat-ink);
 }
@@ -320,7 +346,7 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
 
 .cat-empty {
   margin: 0;
-  padding: 18px 20px;
+  padding: var(--cat-card-padding);
   border: 1px dashed var(--cat-line-light);
   border-radius: var(--cat-radius);
   font-size: 14.5px;
@@ -456,8 +482,8 @@ body.crump-v1-body .v1-workspace-body:has(> .cat-today:not([hidden])) > .v1-laun
 /* ------------------------------------------------------------------ */
 /* Chat surface: the open conversation's own work                      */
 /*                                                                     */
-/* The section is a sibling after the message list, on its own ink     */
-/* panel like Today. While it is visible the workspace body lays out   */
+/* The section is a sibling after the message list, on the same ink    */
+/* ground as Today. While it is visible the workspace body lays out    */
 /* in rows — the message list keeps its own scroll in the first row    */
 /* and the work section sits in a second row directly above the        */
 /* composer dock — instead of the message list's absolute full box     */
@@ -496,14 +522,22 @@ body.crump-v1-body .v1-workspace-body:has(> .cat-chat-work:not([hidden])) > .cat
   overflow-y: auto;
 }
 
+/* While a reorg surface is up, the workspace body itself takes the
+   same ink, so no second, different black from the shell shows
+   around or behind the surface: the ground reads as one ink. The
+   design pass pins this container transparent with !important, so
+   the surface ground carries the same weight and wins on
+   specificity from the later-loaded layer. */
+body.crump-v1-body .v1-workspace-body:has(> .cat-today:not([hidden])),
+body.crump-v1-body .v1-workspace-body:has(> .cat-chat-work:not([hidden])) {
+  background: var(--cat-ink) !important;
+}
+
 .cat-chat-work {
   width: 100%;
-  max-width: 880px;
-  margin: 12px auto;
-  padding: 18px 24px;
+  margin: 0;
+  padding: 28px 32px;
   background: var(--cat-ink);
-  border: 1px solid rgba(213, 185, 113, 0.14);
-  border-radius: 22px;
   color: var(--cat-paper);
   font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
@@ -523,7 +557,7 @@ body.crump-v1-body .v1-workspace-body:has(> .cat-chat-work:not([hidden])) > .cat
 
 .cat-chat-stack {
   display: grid;
-  gap: 12px;
+  gap: var(--cat-stack-gap);
 }
 
 .cat-chat-more {
@@ -1348,7 +1382,7 @@ body.crump-v1-body .v1-workspace-body:has(> .cat-chat-work:not([hidden])) > .cat
   background: #111417;
   border-color: rgba(241, 239, 233, 0.14);
   color: var(--cat-paper);
-  margin-bottom: 12px;
+  margin-bottom: var(--cat-stack-gap);
 }
 
 .cat-drawer .cat-card .cat-card-head {
@@ -1434,19 +1468,15 @@ body.crump-v1-body .v1-workspace-body:has(> .cat-chat-work:not([hidden])) > .cat
 
 @media (max-width: 640px) {
   .cat-today {
-    width: calc(100% - 16px);
-    margin: 10px auto 8px;
-    padding: 22px 16px 16px;
+    width: 100%;
+    margin: 0;
+    padding: 28px 20px 24px;
   }
 
   .cat-chat-work {
-    width: calc(100% - 16px);
-    margin: 10px auto 8px;
-    padding: 16px;
-  }
-
-  .cat-card {
-    padding: 16px;
+    width: 100%;
+    margin: 0;
+    padding: 24px 20px;
   }
 
   .cat-payload-row {
