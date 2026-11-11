@@ -137,8 +137,8 @@ def test_reorg_pins_stepped_exactly_once():
         "/crump-vision-projects-1.0.js?v=5.9.76-reorg-projects-you-1",
         "/crump-vision-library-1.0.css?v=5.9.76-reorg-projects-you-1",
         "/crump-vision-library-1.0.js?v=5.9.76-reorg-projects-you-1",
-        "/crump-agent-today-1.0.css?v=5.9.76-agent-today-14",
-        "/crump-agent-today-1.0.js?v=5.9.76-agent-today-14",
+        "/crump-agent-today-1.0.css?v=5.9.76-agent-today-15",
+        "/crump-agent-today-1.0.js?v=5.9.76-agent-today-15",
     ):
         assert url in app, url
     for url in (
@@ -148,7 +148,7 @@ def test_reorg_pins_stepped_exactly_once():
         "/crump-vision-library-1.0.js?v=5.9.76-reorg-projects-you-1",
     ):
         assert url in worker, url
-    assert worker.startswith("const CACHE_NAME = 'ask-crump-new-body-v1-r297-ground-type-1';")
+    assert worker.startswith("const CACHE_NAME = 'ask-crump-new-body-v1-r298-headline-voice-1';")
     for retired in (
         "5.9.76-project-resume-1",
         "5.9.76-project-resume-owner-boundary-1",

@@ -19,8 +19,8 @@ def read(relative: str) -> str:
 
 def test_app_html_loads_agent_today_layer_last_with_versioned_assets():
     app = read('public/app.html')
-    css = '/crump-agent-today-1.0.css?v=5.9.76-agent-today-14'
-    js = '/crump-agent-today-1.0.js?v=5.9.76-agent-today-14'
+    css = '/crump-agent-today-1.0.css?v=5.9.76-agent-today-15'
+    js = '/crump-agent-today-1.0.js?v=5.9.76-agent-today-15'
     assert css in app
     assert js in app
     assert (PUBLIC / 'crump-agent-today-1.0.css').exists()
@@ -159,18 +159,35 @@ def test_waiting_section_shows_one_approval_with_a_counted_queue():
     assert 'cat-approval-queue-extra' not in js
 
 
-def test_approval_card_leads_with_the_exact_action_and_collapsed_detail():
+def test_approval_card_leads_with_the_derived_headline_and_collapsed_detail():
     js = read('public/crump-agent-today-1.0.js')
-    # The card leads with the exact action derived from the frozen
-    # payload (recipients, event, query), the payload itself sits
-    # collapsed behind the detail toggle, and the credit line renders
-    # ahead of the decision buttons.
-    assert 'approvalExactSummary' in js
+    css = read('public/crump-agent-today-1.0.css')
+    # The card leads with the plain-language headline derived from
+    # the frozen payload (recipients summarized, subject normalized
+    # to a short phrase), the payload itself sits collapsed behind
+    # the detail toggle rendering its values exactly, and the credit
+    # line renders ahead of the decision buttons.
+    assert 'approvalHeadline' in js
+    assert 'subjectPhrase' in js
+    assert 'recipientsPhrase' in js
     assert 'payload.to' in js
     assert "'Open detail'" in js
     assert 'cat-approval-detail' in js
     assert js.index('cat-approval-detail') < js.index("button('Approve'")
     assert 'creditLine(action.capabilityId, action.creditCost)' in js
+    # The headline sets a step smaller than the card-title token so
+    # the one-line ask fits the card measure at phone widths.
+    assert '.cat-card-exact' in css
+    assert 'font-size: 18px' in css_block(css, '.cat-card-exact {')
+
+
+def test_approval_headline_never_dumps_the_payload():
+    js = read('public/crump-agent-today-1.0.js')
+    # The old headline concatenated the raw recipient list and the
+    # verbatim subject; the derivation must not.
+    assert 'Send to ' not in js
+    assert 'Draft to ' not in js
+    assert "capabilityTitle(id) + ' — '" not in js
 
 
 def test_live_work_shows_the_current_step_and_a_neutral_browser_tile():
@@ -227,12 +244,12 @@ def test_chat_section_scopes_work_to_the_open_conversation():
 def test_chat_cards_reuse_the_shared_builders_exactly_once():
     js = read('public/crump-agent-today-1.0.js')
     # The Chat surface renders with the same approval/run builders as
-    # Today and Tasks — the exact-action rule is inherited, not forked.
+    # Today and Tasks — the headline rule is inherited, not forked.
     assert js.count('function approvalCard(') == 1
     assert js.count('function runCard(') == 1
     assert 'approvalCard(primary.action)' in js
     assert 'runCard(primary.run)' in js
-    assert 'approvalExactSummary(item.action)' in js
+    assert 'approvalHeadline(item.action)' in js
 
 
 def test_chat_surface_has_one_primary_card_and_quiet_secondary_rows():
@@ -385,7 +402,7 @@ def test_secondary_summary_line_renders_only_complete_sentences():
     # the shared completeness rule; a fragment never renders.
     assert 'summaryAddsInformation' in js
     assert 'DANGLING_FINAL_WORDS' in js
-    assert 'summaryAddsInformation(action.summary, exact)' in js
+    assert 'summaryAddsInformation(action.summary, headline)' in js
     assert 'summaryAddsInformation(cap.verbPhrase, capabilityTitle(run.capabilityId))' in js
 
 

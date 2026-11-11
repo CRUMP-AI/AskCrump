@@ -25,6 +25,13 @@
       // queue interactions already exercise). ?guest=1 renders the
       // guest session, which must make zero agent calls.
       var tasksState = params.get('tasks') || '';
+      // ?headlines=1 swaps the pending list for the headline
+      // derivation matrix: one recipient with a carried display
+      // name, three recipients, six recipients, a long subject, a
+      // missing subject, missing recipients, and a calendar create.
+      // The verifier asserts each card's exact headline in the
+      // Tasks panel, where every pending approval renders in full.
+      var headlinesMode = params.get('headlines') === '1';
       var guest = params.get('guest') === '1';
       window.__fetchCalls = [];
       if (guest) {
@@ -133,6 +140,81 @@
         runs = [];
         automations = [];
       }
+      if (headlinesMode) {
+        runs = [];
+        approvals = [
+          {
+            id: 'matrix-1', runId: 'run-matrix-1', capabilityId: 'gmail.send',
+            summary: 'Send an email — Send an email to',
+            payload: {
+              to: ['Ada Lovelace <ada@example.com>'],
+              subject: 'Following up',
+              body: 'Thanks for your time today.',
+            },
+            creditCost: null, status: 'pending', expiresAt: null, createdAt: '2026-11-10T14:00:00Z',
+          },
+          {
+            id: 'matrix-2', runId: 'run-matrix-2', capabilityId: 'gmail.send',
+            summary: 'Send an email — Send an email to',
+            payload: {
+              to: ['ada@example.com', 'ben@example.com', 'cy@example.com'],
+              subject: 'Following up',
+              body: 'Thanks for your time today.',
+            },
+            creditCost: null, status: 'pending', expiresAt: null, createdAt: '2026-11-10T14:01:00Z',
+          },
+          {
+            id: 'matrix-3', runId: 'run-matrix-3', capabilityId: 'gmail.send',
+            summary: 'Send an email — Send an email to',
+            payload: {
+              to: [
+                'ada@example.com', 'ben@example.com', 'cy@example.com',
+                'dee@example.com', 'eli@example.com', 'fay@example.com',
+              ],
+              subject: 'Following up',
+              body: 'Thanks for your time today.',
+            },
+            creditCost: null, status: 'pending', expiresAt: null, createdAt: '2026-11-10T14:02:00Z',
+          },
+          {
+            id: 'matrix-4', runId: 'run-matrix-4', capabilityId: 'gmail.send',
+            summary: 'Send an email — Send an email to',
+            payload: {
+              to: ['ben@example.com', 'cy@example.com'],
+              subject: 'Quarterly planning notes and next steps for the full launch team review',
+              body: 'Sharing the planning notes from this morning.',
+            },
+            creditCost: null, status: 'pending', expiresAt: null, createdAt: '2026-11-10T14:03:00Z',
+          },
+          {
+            id: 'matrix-5', runId: 'run-matrix-5', capabilityId: 'gmail.send',
+            summary: 'Send an email — Send an email to',
+            payload: {
+              to: ['ada@example.com'],
+              body: 'Sharing the notes from this morning.',
+            },
+            creditCost: null, status: 'pending', expiresAt: null, createdAt: '2026-11-10T14:04:00Z',
+          },
+          {
+            id: 'matrix-6', runId: 'run-matrix-6', capabilityId: 'gmail.send',
+            summary: 'Send an email — Send an email to',
+            payload: {
+              subject: 'Following up',
+              body: 'Thanks for your time today.',
+            },
+            creditCost: null, status: 'pending', expiresAt: null, createdAt: '2026-11-10T14:05:00Z',
+          },
+          {
+            id: 'matrix-7', runId: 'run-matrix-7', capabilityId: 'calendar.create',
+            summary: 'Book a calendar event — Book',
+            payload: {
+              summary: 'Team sync', start: '2026-11-10T20:00:00Z', end: '2026-11-10T20:30:00Z',
+              attendees: ['ada@example.com'],
+            },
+            creditCost: null, status: 'pending', expiresAt: null, createdAt: '2026-11-10T14:06:00Z',
+          },
+        ];
+      }
       var runDetails = {
         'run-live-1': {
           id: 'run-live-1', capabilityId: 'browser.act', status: 'running',
@@ -210,7 +292,7 @@
   <link rel="stylesheet" href="/public/crump-v1-body.css?v=agent-today-placeholder-fixture-1">
   <link rel="stylesheet" href="/public/crump-vision-shell-1.0.css?v=agent-today-placeholder-fixture-1">
   <link rel="stylesheet" href="/public/crump-design-pass.css?v=agent-today-placeholder-fixture-1">
-  <link rel="stylesheet" href="/public/crump-agent-today-1.0.css?v=5.9.76-agent-today-14">
+  <link rel="stylesheet" href="/public/crump-agent-today-1.0.css?v=5.9.76-agent-today-15">
   <style>
     html, body { height: 100%; }
     .v1-workspace { height: 100vh; }
@@ -236,6 +318,6 @@
       </main>
     </div>
   </div>
-  <script src="/public/crump-agent-today-1.0.js?v=5.9.76-agent-today-14"></script>
+  <script src="/public/crump-agent-today-1.0.js?v=5.9.76-agent-today-15"></script>
 </body>
 </html>

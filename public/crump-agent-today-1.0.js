@@ -367,49 +367,170 @@
     return '';
   }
 
-  /* The approval card leads with the exact action, derived from the
-     pending action's own frozen payload — the recipients for a send,
-     the event title and time for a calendar create, the query for a
-     search — never the capability label alone. The rendered summary
-     stays as the secondary line when it adds anything. */
-  function approvalExact(action) {
-    var payload = action.payload && typeof action.payload === 'object' ? action.payload : {};
-    var id = String(action.capabilityId || '');
-    if (id === 'gmail.send' || id === 'gmail.draft') {
-      var recipients = payloadText(payload.to || payload.recipients || payload.recipient);
-      var verb = id === 'gmail.send' ? 'Send to ' : 'Draft to ';
-      if (recipients) {
-        var subject = payloadText(payload.subject);
-        return { text: verb + recipients + (subject ? ' — “' + subject + '”' : ''), fromPayload: true };
-      }
-    }
-    if (id === 'calendar.create') {
-      var title = payloadText(payload.summary || payload.title);
-      var when = fmtTime(payload.start);
-      if (title) return { text: 'Book “' + title + '”' + (when ? ' · ' + when : ''), fromPayload: true };
-    }
-    if (id === 'gmail.search' || id === 'research.web_search') {
-      var query = payloadText(payload.query);
-      if (query) return { text: 'Search for “' + query + '”', fromPayload: true };
-    }
-    if (id === 'browser.read') {
-      var url = payloadText(payload.url);
-      if (url) return { text: 'Read ' + url, fromPayload: true };
-    }
-    if (id === 'browser.act') {
-      var instruction = payloadText(payload.instruction);
-      if (instruction) return { text: instruction, fromPayload: true };
-    }
-    var keys = ['to', 'recipients', 'summary', 'title', 'query', 'url', 'instruction', 'subject'];
-    for (var i = 0; i < keys.length; i += 1) {
-      var value = payloadText(payload[keys[i]]);
-      if (value) return { text: capabilityTitle(id) + ' — ' + value, fromPayload: true };
-    }
-    return { text: action.summary || capabilityTitle(id), fromPayload: false };
+  /* The approval card leads with a plain-language headline derived
+     deterministically from the pending action's frozen payload —
+     never the payload itself. The exact action (every recipient,
+     the full subject, the event time) stays one tap away in the
+     frozen detail below, which renders payload values exactly; the
+     headline is the designed ask, the detail is the record. One
+     derivation serves Today, Chat, and Tasks, which all render
+     approvals through approvalCard.
+     Recipients: one renders as its display name when the payload
+     carries one (a "Name <address>" entry, a name field on the
+     entry, or a names list alongside the addresses) and otherwise
+     as the humanized local part of the address ("ada@…" -> "Ada");
+     two render as first names joined ("Ada and Ben"); three or
+     more render as a count ("three people") — names are never
+     listed beyond two, and a raw address never appears in a
+     headline. Subject: normalized into a short noun phrase —
+     "Re:"/"Fwd:" prefixes and trailing punctuation stripped,
+     "Following up" reads as "follow-up" — and used only when the
+     result stays short (at most four words and 32 characters, no
+     leading preposition, no address or link in it); otherwise the
+     headline falls back to the capability verb phrase. Composition:
+     "Send {phrase} to {recipients}?" — with no usable subject,
+     "Send email to {recipients}?"; with no recipients, the
+     capability-level ask ("Send this email?"). Other families
+     follow the same pattern from their own fields (calendar: the
+     event title and start; search: the query; browser: the page
+     host or a short instruction), each with a capability-level
+     question as its fallback. Every path returns a complete
+     headline — never empty, never a payload fragment. */
+  var COUNT_WORDS = [
+    'zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven',
+    'eight', 'nine', 'ten', 'eleven', 'twelve',
+  ];
+
+  function countWord(count) {
+    return count >= 0 && count < COUNT_WORDS.length ? COUNT_WORDS[count] : String(count);
   }
 
-  function approvalExactSummary(action) {
-    return approvalExact(action).text;
+  function recipientEntries(payload) {
+    var raw = payload.to != null ? payload.to
+      : (payload.recipients != null ? payload.recipients : payload.recipient);
+    var names = Array.isArray(payload.toNames) ? payload.toNames
+      : (Array.isArray(payload.recipientNames) ? payload.recipientNames
+        : (Array.isArray(payload.names) ? payload.names : []));
+    var list = raw == null ? [] : (Array.isArray(raw) ? raw : [raw]);
+    return list.map(function (item, index) {
+      var name = '';
+      var email = '';
+      if (typeof item === 'string') {
+        var angle = /^\s*(.*?)\s*<([^>]+)>\s*$/.exec(item);
+        if (angle) { name = angle[1].trim(); email = angle[2].trim(); }
+        else if (item.indexOf('@') !== -1) email = item.trim();
+        else name = item.trim();
+      } else if (item && typeof item === 'object') {
+        name = String(item.name || item.displayName || '').trim();
+        email = String(item.email || item.address || '').trim();
+      }
+      if (!name && names[index]) name = String(names[index]).trim();
+      return { name: name, email: email };
+    }).filter(function (entry) { return entry.name || entry.email; });
+  }
+
+  function humanizedLocalPart(email) {
+    var local = String(email || '').split('@')[0].split('+')[0];
+    var token = local.split(/[._-]+/).filter(Boolean)[0] || '';
+    if (!token) return '';
+    return token.charAt(0).toUpperCase() + token.slice(1);
+  }
+
+  function recipientDisplay(entry) {
+    return entry.name || humanizedLocalPart(entry.email);
+  }
+
+  function recipientsPhrase(entries) {
+    if (!entries.length) return '';
+    if (entries.length === 1) return recipientDisplay(entries[0]) || 'them';
+    if (entries.length === 2) {
+      var first = (recipientDisplay(entries[0]).split(/\s+/)[0] || '');
+      var second = (recipientDisplay(entries[1]).split(/\s+/)[0] || '');
+      if (first && second) return first + ' and ' + second;
+      return 'two people';
+    }
+    return countWord(entries.length) + ' people';
+  }
+
+  var SUBJECT_LEAD_INS = {
+    for: 1, to: 1, of: 1, on: 1, in: 1, at: 1, about: 1, with: 1, from: 1, by: 1, and: 1, or: 1,
+  };
+
+  function subjectPhrase(subject) {
+    var text = String(subject || '').replace(/\s+/g, ' ').trim()
+      .replace(/^["“”'']+|["“”'']+$/g, '');
+    while (/^(re|fwd|fw)\s*:\s*/i.test(text)) text = text.replace(/^(re|fwd|fw)\s*:\s*/i, '');
+    text = text.replace(/[.!?:;,\s]+$/, '').trim();
+    if (!text || text.indexOf('@') !== -1 || /https?:\/\//i.test(text)) return '';
+    var lower = text.toLowerCase();
+    var phrase;
+    var followUp = /^follow(?:ing)?[- ]up\b/.exec(lower);
+    if (followUp) {
+      var rest = lower.slice(followUp[0].length).trim();
+      phrase = 'follow-up' + (rest ? ' ' + rest : '');
+    } else {
+      phrase = lower;
+    }
+    var words = phrase.split(/\s+/).filter(Boolean);
+    if (!words.length || words.length > 4 || phrase.length > 32) return '';
+    if (SUBJECT_LEAD_INS[words[0].replace(/[^a-z-]/g, '')]) return '';
+    return phrase;
+  }
+
+  function emailHeadline(action, payload) {
+    var isDraft = String(action.capabilityId || '') === 'gmail.draft';
+    var phrase = subjectPhrase(payloadText(payload.subject));
+    var recipients = recipientsPhrase(recipientEntries(payload));
+    if (!recipients) return isDraft ? 'Draft this email?' : 'Send this email?';
+    if (isDraft) {
+      return phrase ? 'Draft ' + phrase + ' for ' + recipients + '?'
+        : 'Draft email for ' + recipients + '?';
+    }
+    return phrase ? 'Send ' + phrase + ' to ' + recipients + '?'
+      : 'Send email to ' + recipients + '?';
+  }
+
+  function calendarHeadline(payload) {
+    var title = String(payloadText(payload.summary || payload.title) || '')
+      .replace(/\s+/g, ' ').trim().replace(/[.!?]+$/, '');
+    if (!title || title.length > 48 || title.indexOf('@') !== -1) return 'Book this event?';
+    var when = fmtTime(payload.start);
+    return 'Book “' + title + '”' + (when ? ' for ' + when : '') + '?';
+  }
+
+  function searchHeadline(action, payload) {
+    var query = String(payloadText(payload.query) || '').replace(/\s+/g, ' ').trim();
+    if (query && query.length <= 48 && query.indexOf('@') === -1) {
+      return 'Search for “' + query + '”?';
+    }
+    return String(action.capabilityId || '') === 'gmail.search' ? 'Search your email?' : 'Run this search?';
+  }
+
+  function browserReadHeadline(payload) {
+    var host = '';
+    try { host = new URL(payloadText(payload.url)).hostname.replace(/^www\./, ''); } catch (_) { host = ''; }
+    return host ? 'Read ' + host + '?' : 'Open this page?';
+  }
+
+  function browserActHeadline(payload) {
+    var text = String(payloadText(payload.instruction) || '').replace(/\s+/g, ' ').trim();
+    if (text && text.length <= 60 && text.indexOf('@') === -1) {
+      return text.replace(/[.!]+$/, '') + '?';
+    }
+    return 'Run this browser task?';
+  }
+
+  function approvalHeadline(action) {
+    var payload = action.payload && typeof action.payload === 'object' ? action.payload : {};
+    var id = String(action.capabilityId || '');
+    if (id === 'gmail.send' || id === 'gmail.draft') return emailHeadline(action, payload);
+    if (id === 'calendar.create') return calendarHeadline(payload);
+    if (id === 'gmail.search' || id === 'research.web_search') return searchHeadline(action, payload);
+    if (id === 'browser.read') return browserReadHeadline(payload);
+    if (id === 'browser.act') return browserActHeadline(payload);
+    var title = capabilityTitle(id);
+    if (title && title !== id) return title.replace(/[.!?]+$/, '') + '?';
+    return 'Approve this action?';
   }
 
   /* A secondary summary line renders only when it contributes a
@@ -457,16 +578,16 @@
     card.setAttribute('aria-label', capabilityTitle(action.capabilityId));
     var head = h('div', 'cat-card-head');
     var titleWrap = h('div');
-    var exact = approvalExact(action).text;
-    titleWrap.appendChild(h('h3', 'cat-card-title cat-card-exact', exact));
-    // When the headline is derived from the frozen payload it is the
-    // exact action; the stored summary may appear under it only when
-    // it is a complete sentence that adds information (see
-    // summaryAddsInformation). Fragment summaries never render. On
-    // the fallback path the headline already is the stored summary
-    // (or the capability title), so the same check keeps the line
-    // from duplicating it.
-    if (summaryAddsInformation(action.summary, exact)) {
+    var headline = approvalHeadline(action);
+    titleWrap.appendChild(h('h3', 'cat-card-title cat-card-exact', headline));
+    // The headline is the plain-language ask derived from the frozen
+    // payload; the exact payload itself sits in the detail below.
+    // The stored summary may appear under the headline only when it
+    // is a complete sentence that adds information (see
+    // summaryAddsInformation). Fragment summaries never render, and
+    // a summary that merely restates the headline is suppressed by
+    // the same check.
+    if (summaryAddsInformation(action.summary, headline)) {
       titleWrap.appendChild(h('p', 'cat-card-summary', action.summary));
     }
     head.appendChild(titleWrap);
@@ -999,9 +1120,9 @@
     if (item.kind === 'approval') {
       var row = button('', 'cat-chat-row cat-chat-row-action');
       row.setAttribute('aria-label',
-        'Open Tasks to review: ' + approvalExactSummary(item.action));
+        'Open Tasks to review: ' + approvalHeadline(item.action));
       var approvalMain = h('span', 'cat-chat-row-main');
-      approvalMain.appendChild(h('span', 'cat-chat-row-title', approvalExactSummary(item.action)));
+      approvalMain.appendChild(h('span', 'cat-chat-row-title', approvalHeadline(item.action)));
       row.appendChild(approvalMain);
       row.appendChild(h('span', 'cat-chat-row-status', 'Waiting on you'));
       row.addEventListener('click', function () { openTasks(); });
