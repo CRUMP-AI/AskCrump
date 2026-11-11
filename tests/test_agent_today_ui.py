@@ -490,12 +490,16 @@ def test_surfaces_own_the_ground_without_a_sheet():
     assert 'calc(100% - 16px)' not in css
     assert 'max-width: 880px' not in css
     # The hosting workspace body takes the same ink while a surface
-    # is up, so no second, different black shows around it.
+    # is up in the dark appearance, so no second, different black
+    # shows around it. The rule is dark-scoped: in the light
+    # appearance the shell's hero and message text are dark on light
+    # by design, and forcing the container to ink breaks their
+    # contrast pairing.
     ground = css_block(
         css,
-        'body.crump-v1-body .v1-workspace-body:has(> .cat-today:not([hidden])),',
+        'html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-today:not([hidden])),',
     )
-    assert 'background: var(--cat-ink)' in ground
+    assert 'background: var(--cat-ink) !important' in ground
 
 
 def test_spacing_tokens_match_the_design_scale():

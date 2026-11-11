@@ -522,14 +522,17 @@ body.crump-v1-body .v1-workspace-body:has(> .cat-chat-work:not([hidden])) > .cat
   overflow-y: auto;
 }
 
-/* While a reorg surface is up, the workspace body itself takes the
-   same ink, so no second, different black from the shell shows
-   around or behind the surface: the ground reads as one ink. The
-   design pass pins this container transparent with !important, so
-   the surface ground carries the same weight and wins on
-   specificity from the later-loaded layer. */
-body.crump-v1-body .v1-workspace-body:has(> .cat-today:not([hidden])),
-body.crump-v1-body .v1-workspace-body:has(> .cat-chat-work:not([hidden])) {
+/* While a reorg surface is up in the dark appearance, the workspace
+   body itself takes the same ink, so no second, different black from
+   the shell shows around or behind the surface: the ground reads as
+   one ink. The design pass pins this container transparent with
+   !important, so the surface ground carries the same weight and wins
+   on specificity from the later-loaded layer. The light appearance
+   keeps its own ground: the shell's hero and message text there are
+   dark on light by design, and the surfaces sit on it as edge-to-edge
+   ink, the arrangement the contrast gate already certifies. */
+html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-today:not([hidden])),
+html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-work:not([hidden])) {
   background: var(--cat-ink) !important;
 }
 

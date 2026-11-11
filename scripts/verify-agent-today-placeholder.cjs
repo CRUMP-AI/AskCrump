@@ -1377,8 +1377,17 @@ async function run() {
           assert.equal(m.todayBorderRadius, '0px', `${label}: surface radius ${m.todayBorderRadius}`);
           assert.ok(m.todayRect.left <= 0.6 && m.todayRect.right >= viewport.width - 0.6,
             `${label}: surface does not span edge-to-edge (${m.todayRect.left}..${m.todayRect.right} of ${viewport.width})`);
-          assert.equal(m.workspaceBackground, 'rgb(7, 10, 14)',
-            `${label}: workspace ground behind the surface ${m.workspaceBackground}`);
+          // In the dark appearance the workspace body behind the
+          // surface is the same ink; in the light appearance it is
+          // never forced to ink (the shell's hero text there is dark
+          // on light by design).
+          if (theme === 'dark') {
+            assert.equal(m.workspaceBackground, 'rgb(7, 10, 14)',
+              `${label}: workspace ground behind the surface ${m.workspaceBackground}`);
+          } else {
+            assert.notEqual(m.workspaceBackground, 'rgb(7, 10, 14)',
+              `${label}: workspace ground forced to ink in the light appearance`);
+          }
           assert.equal(m.chipPresent, true, `${label}: eyebrow monogram chip missing`);
           // Hero type scale: the vw-driven clamp, set on two lines.
           const expectedGreeting = Math.min(Math.max(50, viewport.width * 0.135), 76);
