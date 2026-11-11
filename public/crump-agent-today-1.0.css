@@ -207,8 +207,9 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
 /* The approval headline is a one-line ask, not a card title: it sets
    a step smaller than the 21px title token so the derived sentence
    ("Send follow-up to three people?") fits the card measure on one
-   line at phone widths instead of wrapping like the payload dump
-   it replaced. Run and result card titles keep the 21px token. */
+   line at phone widths in the shell's Inter, instead of wrapping
+   like the payload dump it replaced. Run and result card titles
+   keep the 21px token. */
 .cat-card-exact {
   font-size: 18px;
 }
