@@ -308,6 +308,11 @@ async def process_due_automations() -> dict:
       schedule forward. A crash between lease and creation leaves
       the occurrence due behind an expiring lease; a crash between
       creation and confirmation is recovered by the rule above.
+      The confirmation is fenced on the lease: a pass whose lease
+      expired mid-creation, and whose confirmation therefore
+      reports the fence lost to a takeover pass, retires its own
+      run instead of executing it — the occurrence keeps exactly
+      one live run.
     """
     service = _automations()
     now = datetime.now(timezone.utc)
@@ -379,6 +384,54 @@ async def process_due_automations() -> dict:
             claimed = await service.claim_due_automation(row, ran_at=now)
             if claimed is None:
                 continue
+            # Re-check under the lease: a competitor whose lease
+            # expired may have created the occurrence's run after
+            # the pre-claim check above read, and this pass's claim
+            # is the takeover, not the first arrival. If the run
+            # exists now, the occurrence is already handled —
+            # confirm the schedule forward under this pass's claim
+            # fence and treat the run exactly like the pre-claim
+            # existing-run case instead of minting a second one.
+            try:
+                existing = await agent_runs.find_run_by_conversation_id(
+                    user_id=row['user_id'],
+                    conversation_id=conversation_id,
+                )
+            except Exception:
+                errors += 1
+                try:
+                    await service.release_claim(row, claimed)
+                except Exception:
+                    pass
+                continue
+            if existing is not None:
+                try:
+                    await service.confirm_run_created(
+                        row, claimed, ran_at=now
+                    )
+                except Exception:
+                    pass
+                status = existing.get('status')
+                if status == 'queued':
+                    try:
+                        executed = await _executor().execute_run(
+                            user_id=row['user_id'],
+                            run_id=str(existing['id']),
+                        )
+                        status = executed.get('status')
+                    except AgentRunConflictError:
+                        status = 'running'
+                    except Exception:
+                        errors += 1
+                        continue
+                triggered.append(
+                    {
+                        'automationId': row['id'],
+                        'runId': existing['id'],
+                        'status': status,
+                    }
+                )
+                continue
             run_payload = AgentAutomationService.run_payload_for(row)
             try:
                 created = await agent_runs.create_run(
@@ -404,7 +457,24 @@ async def process_due_automations() -> dict:
             # Execution outcomes never roll this back — the run's
             # outcome lives in the ledger, even when the run failed
             # or execution is paused and it waits queued.
-            await service.confirm_run_created(row, claimed, ran_at=now)
+            confirmed = await service.confirm_run_created(
+                row, claimed, ran_at=now
+            )
+            if confirmed is None:
+                # The fence is lost: this pass's lease expired while
+                # it was creating, and a takeover pass already
+                # advanced the schedule and owns the occurrence. The
+                # run created here is a duplicate — retire it
+                # through the compare-and-swap cancellation and
+                # never execute it, so the occurrence keeps exactly
+                # one live run: the winning pass's.
+                try:
+                    await agent_runs.cancel_run(
+                        user_id=row['user_id'], run_id=created_id
+                    )
+                except Exception:
+                    pass
+                continue
             run = created
             if created.get('status') == 'queued':
                 # The run executes its stored creation payload (the
