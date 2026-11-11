@@ -83,6 +83,12 @@ class FakeDB:
             elif isinstance(raw, str) and raw.startswith('lt.'):
                 if value is None or str(value) >= raw[3:]:
                     return False
+            elif isinstance(raw, str) and raw.startswith('gte.'):
+                if value is None or str(value) < raw[4:]:
+                    return False
+            elif isinstance(raw, str) and raw.startswith('gt.'):
+                if value is None or str(value) <= raw[3:]:
+                    return False
             elif row.get(key) != raw:
                 return False
         return True
