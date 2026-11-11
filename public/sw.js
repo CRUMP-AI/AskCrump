@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r296-browser-panel-focus-1';
+const CACHE_NAME = 'ask-crump-new-body-v1-r297-ground-type-1';
 
 const CORE = [
   '/app',

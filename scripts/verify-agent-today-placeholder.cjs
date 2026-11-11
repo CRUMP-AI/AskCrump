@@ -130,7 +130,26 @@ async function measure(page) {
     const todayBox = rect(today);
     const inToday = box => clip(clip(box, todayBox), viewportBox);
     const inViewport = box => clip(box, viewportBox);
+    const titleStyle = title ? getComputedStyle(title) : null;
+    const todayStyle = today ? getComputedStyle(today) : null;
+    const workspaceBody = document.querySelector('.v1-workspace-body');
+    const sections = [...document.querySelectorAll('.cat-today-section')];
+    const firstCard = document.querySelector('.cat-today .cat-card');
+    const firstCardStyle = firstCard ? getComputedStyle(firstCard) : null;
     return {
+      titleFontPx: titleStyle ? Number.parseFloat(titleStyle.fontSize) : 0,
+      titleLines: title && titleStyle
+        ? Math.round(title.getBoundingClientRect().height / Number.parseFloat(titleStyle.lineHeight))
+        : 0,
+      todayBorderTopWidth: todayStyle ? todayStyle.borderTopWidth : '',
+      todayBorderRadius: todayStyle ? todayStyle.borderTopLeftRadius : '',
+      workspaceBackground: workspaceBody ? getComputedStyle(workspaceBody).backgroundColor : '',
+      sectionGapPx: sections.length > 1
+        ? sections[1].getBoundingClientRect().top - sections[0].getBoundingClientRect().bottom
+        : null,
+      cardPaddingTop: firstCardStyle ? Number.parseFloat(firstCardStyle.paddingTop) : 0,
+      cardRadiusPx: firstCardStyle ? Number.parseFloat(firstCardStyle.borderTopLeftRadius) : 0,
+      chipPresent: Boolean(document.querySelector('.cat-eyebrow-chip')),
       titleText: title ? title.textContent : '',
       titleRect: inToday(rect(title)),
       titleColor: title ? getComputedStyle(title).color : '',
@@ -381,6 +400,8 @@ async function measureChat(page) {
       primarySummaryPresent: Boolean(primary && primary.querySelector('.cat-card-summary')),
       detailText: detail ? detail.textContent : '',
       sectionPresent: Boolean(section),
+      sectionBorderTopWidth: section ? getComputedStyle(section).borderTopWidth : '',
+      sectionBorderRadius: section ? getComputedStyle(section).borderTopLeftRadius : '',
       sectionVisible: visible(section),
       sectionText: section ? section.textContent : '',
       cardCount: cards.length,
@@ -909,6 +930,12 @@ async function runChatScenarios(browser) {
           assert.equal(m.cardCount, 0, `${label}: cards rendered with no work`);
         } else {
           assert.equal(m.sectionVisible, true, `${label}: chat work section missing`);
+          // The section owns its ground too: no sheet border or
+          // radius, and it spans the workspace edge-to-edge.
+          assert.equal(m.sectionBorderTopWidth, '0px', `${label}: chat section border ${m.sectionBorderTopWidth}`);
+          assert.equal(m.sectionBorderRadius, '0px', `${label}: chat section radius ${m.sectionBorderRadius}`);
+          assert.ok(m.sectionPainted.left <= 0.6 && m.sectionPainted.right >= viewport.width - 0.6,
+            `${label}: chat section does not span edge-to-edge`);
           assert.ok(m.sectionBottom <= m.dockTop + 0.6,
             `${label}: section overlaps the composer dock (${m.sectionBottom} > ${m.dockTop})`);
           assert.ok(m.containerBottom <= m.sectionBottom + 0.6 || m.containerBottom <= m.dockTop + 0.6,
@@ -1341,6 +1368,45 @@ async function run() {
           assert.ok(greetingRatio >= 4.5, `${label}: greeting contrast ${greetingRatio}`);
           const subRatio = contrastRatio(m.subColor, m.subBackground);
           assert.ok(subRatio >= 4.5, `${label}: sub contrast ${subRatio}`);
+
+          // The surface owns the ground: it spans the viewport edge
+          // to edge with no sheet border or radius, the workspace
+          // body behind it is the same ink, and the eyebrow carries
+          // the monogram chip.
+          assert.equal(m.todayBorderTopWidth, '0px', `${label}: surface border ${m.todayBorderTopWidth}`);
+          assert.equal(m.todayBorderRadius, '0px', `${label}: surface radius ${m.todayBorderRadius}`);
+          assert.ok(m.todayRect.left <= 0.6 && m.todayRect.right >= viewport.width - 0.6,
+            `${label}: surface does not span edge-to-edge (${m.todayRect.left}..${m.todayRect.right} of ${viewport.width})`);
+          // In the dark appearance the workspace body behind the
+          // surface is the same ink; in the light appearance it is
+          // never forced to ink (the shell's hero text there is dark
+          // on light by design).
+          if (theme === 'dark') {
+            assert.equal(m.workspaceBackground, 'rgb(7, 10, 14)',
+              `${label}: workspace ground behind the surface ${m.workspaceBackground}`);
+          } else {
+            assert.notEqual(m.workspaceBackground, 'rgb(7, 10, 14)',
+              `${label}: workspace ground forced to ink in the light appearance`);
+          }
+          assert.equal(m.chipPresent, true, `${label}: eyebrow monogram chip missing`);
+          // Hero type scale: the vw-driven clamp, set on two lines.
+          const expectedGreeting = Math.min(Math.max(50, viewport.width * 0.135), 76);
+          assert.ok(Math.abs(m.titleFontPx - expectedGreeting) <= 1,
+            `${label}: greeting ${m.titleFontPx}px, expected ~${expectedGreeting}px`);
+          if (viewport.width >= 390) {
+            assert.equal(m.titleLines, 2, `${label}: greeting lines ${m.titleLines}`);
+          } else {
+            assert.ok(m.titleLines >= 2 && m.titleLines <= 3,
+              `${label}: greeting lines ${m.titleLines} at 320px`);
+          }
+          // Spacing tokens: 44px section gap, 28px card padding,
+          // 24px card radius.
+          assert.ok(m.sectionGapPx !== null && Math.abs(m.sectionGapPx - 44) <= 1.5,
+            `${label}: section gap ${m.sectionGapPx}px`);
+          assert.ok(Math.abs(m.cardPaddingTop - 28) <= 0.5,
+            `${label}: card padding ${m.cardPaddingTop}px`);
+          assert.ok(Math.abs(m.cardRadiusPx - 24) <= 0.5,
+            `${label}: card radius ${m.cardRadiusPx}px`);
 
           // Nothing overlays or covers the greeting or the ways-to-begin
           // content: every pairing intersects by exactly zero pixels.

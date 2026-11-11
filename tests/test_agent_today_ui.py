@@ -19,8 +19,8 @@ def read(relative: str) -> str:
 
 def test_app_html_loads_agent_today_layer_last_with_versioned_assets():
     app = read('public/app.html')
-    css = '/crump-agent-today-1.0.css?v=5.9.76-agent-today-13'
-    js = '/crump-agent-today-1.0.js?v=5.9.76-agent-today-13'
+    css = '/crump-agent-today-1.0.css?v=5.9.76-agent-today-14'
+    js = '/crump-agent-today-1.0.js?v=5.9.76-agent-today-14'
     assert css in app
     assert js in app
     assert (PUBLIC / 'crump-agent-today-1.0.css').exists()
@@ -472,3 +472,86 @@ def test_browser_panel_contains_keyboard_focus_while_open():
     assert 'event.shiftKey' in trap
     assert 'focusables[0]' in trap
     assert 'focusables[focusables.length - 1]' in trap
+
+
+def test_surfaces_own_the_ground_without_a_sheet():
+    css = read('public/crump-agent-today-1.0.css')
+    # Today and the Chat work section paint the ink edge-to-edge: no
+    # width cap, no inset margin, no border, no radius on the surface
+    # containers. Cards keep their own borders and radius; only the
+    # surface-level sheet is gone.
+    for selector in ('\n.cat-today {', '\n.cat-chat-work {'):
+        block = css_block(css, selector)
+        assert 'background: var(--cat-ink)' in block
+        assert 'margin: 0' in block
+        assert 'max-width' not in block
+        assert 'border' not in block
+    # No inset survives in the small-screen overrides either.
+    assert 'calc(100% - 16px)' not in css
+    assert 'max-width: 880px' not in css
+    # The hosting workspace body takes the same ink while a surface
+    # is up in the dark appearance, so no second, different black
+    # shows around it. The rule is dark-scoped: in the light
+    # appearance the shell's hero and message text are dark on light
+    # by design, and forcing the container to ink breaks their
+    # contrast pairing.
+    ground = css_block(
+        css,
+        'html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-today:not([hidden])),',
+    )
+    assert 'background: var(--cat-ink) !important' in ground
+
+
+def test_spacing_tokens_match_the_design_scale():
+    css = read('public/crump-agent-today-1.0.css')
+    root = css_block(css, ':root {')
+    assert '--cat-radius: 24px' in root
+    assert '--cat-section-gap: 44px' in root
+    assert '--cat-card-padding: 28px' in root
+    assert '--cat-stack-gap: 28px' in root
+    assert 'margin-top: var(--cat-section-gap)' in css_block(css, '.cat-today-section {')
+    card = css_block(css, '.cat-card {')
+    assert 'padding: var(--cat-card-padding)' in card
+    assert 'border-radius: var(--cat-radius)' in card
+    assert 'gap: var(--cat-stack-gap)' in css_block(css, '.cat-today-stack {')
+    assert 'gap: var(--cat-stack-gap)' in css_block(css, '.cat-chat-stack {')
+
+
+def test_greeting_is_hero_scale_serif_and_card_titles_are_inter():
+    css = read('public/crump-agent-today-1.0.css')
+    # The greeting is the hero: Georgia at a vw-driven hero scale.
+    title = css_block(css, '.cat-today-title {')
+    assert 'Georgia' in title
+    assert 'clamp(50px, 13.5vw, 76px)' in title
+    # Card titles are Inter bold; serif is reserved for the greeting,
+    # page titles, the brief title, and project names.
+    card_title = css_block(css, '.cat-card-title {')
+    assert 'Inter' in card_title
+    assert 'Georgia' not in card_title
+    assert 'font-size: 21px' in card_title
+    assert 'font-weight: 700' in card_title
+    assert 'Georgia' in css_block(css, '.cat-brief-title {')
+    assert 'Georgia' in css_block(css, '.cat-drawer-title {')
+
+
+def test_eyebrow_pairs_the_monogram_chip_with_the_text():
+    css = read('public/crump-agent-today-1.0.css')
+    js = read('public/crump-agent-today-1.0.js')
+    # The eyebrow is the gold C chip beside the tracked text, drawn
+    # in CSS — no brand asset file is touched.
+    chip = css_block(css, '.cat-eyebrow-chip {')
+    assert 'border: 1px solid rgba(213, 185, 113' in chip
+    assert 'border-radius: 9px' in chip
+    assert 'Georgia' in chip
+    assert 'cat-eyebrow-chip' in js
+    eyebrow = css_block(css, '.cat-today-eyebrow {')
+    assert 'display: flex' in eyebrow
+
+
+def test_greeting_sets_on_two_lines():
+    js = read('public/crump-agent-today-1.0.js')
+    # The daypart and the name render on separate lines (the design's
+    # two-line greeting) while the headline string itself is unchanged.
+    assert "headline.indexOf(', ')" in js
+    assert "document.createElement('br')" in js
+    assert 'greetingHeadline()' in js

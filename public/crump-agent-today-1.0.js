@@ -760,8 +760,28 @@
 
     var head = h('div', 'cat-today-head');
     var weekday = new Date().toLocaleDateString(undefined, { weekday: 'long' });
-    head.appendChild(h('p', 'cat-today-eyebrow', weekday + ' · Built in Savannah'));
-    head.appendChild(h('h2', 'cat-today-title', greetingHeadline()));
+    var eyebrow = h('p', 'cat-today-eyebrow');
+    var chip = h('span', 'cat-eyebrow-chip', 'C');
+    chip.setAttribute('aria-hidden', 'true');
+    eyebrow.appendChild(chip);
+    eyebrow.appendChild(document.createTextNode(weekday + ' · Built in Savannah'));
+    head.appendChild(eyebrow);
+    // The greeting sets on two lines like the design — the daypart on
+    // the first line, the name on the second — instead of wrapping
+    // wherever the line happens to break. The plain headline string
+    // stays the text content, so the signature and any text reader
+    // see the same sentence.
+    var title = h('h2', 'cat-today-title');
+    var headline = greetingHeadline();
+    var commaAt = headline.indexOf(', ');
+    if (commaAt !== -1 && headline.charAt(headline.length - 1) === '.') {
+      title.appendChild(document.createTextNode(headline.slice(0, commaAt + 1) + ' '));
+      title.appendChild(document.createElement('br'));
+      title.appendChild(document.createTextNode(headline.slice(commaAt + 2)));
+    } else {
+      title.textContent = headline;
+    }
+    head.appendChild(title);
     var subBits = [];
     if (state.approvals.length) {
       subBits.push(state.approvals.length === 1 ? 'One thing needs your call' : state.approvals.length + ' things need your call');
