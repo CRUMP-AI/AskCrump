@@ -721,12 +721,36 @@ class AgentRunService:
             limit=50,
         )
         for action in pending:
-            await self.db.update(
+            # Compare-and-swap, the same discipline decide_approval
+            # claims its decision with: the cancellation lands only
+            # while the action is still pending. A decision that
+            # landed concurrently makes this match zero rows, and
+            # the cancel loses with a conflict instead of rewriting
+            # the recorded decision after the fact.
+            updated = await self.db.update(
                 'agent_pending_actions',
                 {'status': 'cancelled', 'updated_at': iso_now()},
-                filters={'id': eq(action['id']), 'user_id': eq(user_id)},
+                filters={
+                    'id': eq(action['id']),
+                    'user_id': eq(user_id),
+                    'status': eq('pending'),
+                },
             )
-        run = await self._set_status(run, 'cancelled')
+            if not updated:
+                raise AgentRunConflictError(
+                    'This run has already been decided.'
+                )
+        # The run transition is a compare-and-swap on the observed
+        # status too: a decision (or an execution claim) that moved
+        # the run first wins, and this cancel reports the conflict
+        # rather than overwriting the outcome.
+        current_status = str(run.get('status') or '')
+        if current_status:
+            run = await self._set_status(
+                run, 'cancelled', expected_status=current_status
+            )
+        else:
+            run = await self._set_status(run, 'cancelled')
         await self._record_step(run=run, step_type='run.cancelled')
         return self.public_run(run)
 
@@ -821,7 +845,17 @@ class AgentRunService:
             )
             await self._record_step(run=run, step_type='run.queued')
         else:
-            run = await self._set_status(run, 'cancelled')
+            # Same compare-and-swap discipline as the approve path:
+            # the denial moves the run only from the status observed
+            # when the action was loaded, so a cancel that landed
+            # first is never overwritten by a late denial.
+            current_status = str(run.get('status') or '')
+            if current_status:
+                run = await self._set_status(
+                    run, 'cancelled', expected_status=current_status
+                )
+            else:
+                run = await self._set_status(run, 'cancelled')
             await self._record_step(
                 run=run,
                 step_type='approval.decided',
