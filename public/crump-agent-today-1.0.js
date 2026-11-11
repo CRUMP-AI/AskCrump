@@ -275,6 +275,7 @@
       renderToday();
       renderChat();
       renderYouConnections();
+      loadLiveRunDetails();
       if (tasksPanel && tasksPanel.classList.contains('is-open')) renderTasks();
     }).catch(function () {
       state.loading = false;
@@ -660,15 +661,133 @@
     return card;
   }
 
-  /* The current step in plain language: the run detail's latest step
-     when steps have been loaded for this run, otherwise the honest
-     status line. A step is never invented for a run that has not
-     reported one. */
-  function runStepText(run) {
+  function firstText() {
+    for (var i = 0; i < arguments.length; i += 1) {
+      var value = arguments[i];
+      if (typeof value === 'string' && value.trim()) return value.trim();
+    }
+    return '';
+  }
+
+  function tidyTitle(text) {
+    var cleaned = String(text).replace(/\s+/g, ' ').trim().replace(/[.!?]+$/, '');
+    if (cleaned.length > 84) {
+      var cut = cleaned.slice(0, 84);
+      var lastSpace = cut.lastIndexOf(' ');
+      cleaned = (lastSpace > 40 ? cut.slice(0, lastSpace) : cut) + '…';
+    }
+    return cleaned.charAt(0).toUpperCase() + cleaned.slice(1);
+  }
+
+  /* A run card's title is the work itself, in the user's own terms:
+     the goal or title the run carries comes first, then the human
+     ask stored in its input (a browser instruction, a search topic,
+     a page to read), and only then the capability's plain-language
+     label. A raw capability id never renders as a title, and the
+     one capability whose registry title is capability jargon
+     ("Act in the browser") carries a plain label here instead. */
+  var PLAIN_RUN_LABELS = {
+    'browser.act': 'Working in the browser',
+  };
+
+  function runTitle(run) {
+    if (!run) return 'Task';
+    var direct = firstText(run.title, run.goal, run.name);
+    if (direct) return tidyTitle(direct);
+    var detail = state.runDetails[run.id] || {};
+    var detailDirect = firstText(detail.title, detail.goal, detail.name);
+    if (detailDirect) return tidyTitle(detailDirect);
+    var input = {};
+    [run.input, run.payload, detail.input, detail.payload].forEach(function (candidate) {
+      if (candidate && typeof candidate === 'object') {
+        Object.keys(candidate).forEach(function (key) {
+          if (input[key] == null) input[key] = candidate[key];
+        });
+      }
+    });
+    var id = String(run.capabilityId || '');
+    var derived = '';
+    if (id === 'browser.act') derived = firstText(run.instruction, input.instruction);
+    else if (id === 'research.web_search') {
+      var topic = firstText(run.query, input.query);
+      if (topic) derived = 'Researching ' + topic;
+    } else if (id === 'gmail.search') {
+      var sought = firstText(run.query, input.query);
+      if (sought) derived = 'Searching email for ' + sought;
+    } else if (id === 'browser.read') {
+      var host = '';
+      try { host = new URL(firstText(run.url, input.url)).hostname.replace(/^www\./, ''); } catch (_) { host = ''; }
+      if (host) derived = 'Reading ' + host;
+    } else if (id === 'calendar.create') {
+      derived = firstText(input.summary, input.title);
+    }
+    if (derived) return tidyTitle(derived);
+    if (PLAIN_RUN_LABELS[id]) return PLAIN_RUN_LABELS[id];
+    var label = capabilityTitle(id);
+    if (label && label !== id) return label;
+    return RUNNING[run.status] ? 'Task in progress' : 'Task';
+  }
+
+  /* Lifecycle steps mark the run's bookkeeping, not its work; they
+     never read as a current step. */
+  var LIFECYCLE_STEP_TYPES = {
+    'run.created': 1, 'run.queued': 1, 'run.started': 1,
+    'run.completed': 1, 'run.failed': 1, 'run.cancelled': 1,
+    'step.started': 1, 'step.completed': 1,
+  };
+
+  /* The current step in plain language, from what the run actually
+     recorded: a step's own recorded text (its label or message)
+     first, then the label of its latest work step. A run that has
+     reported no step returns empty — the card then shows no step
+     line at all rather than repeating the run's status, which the
+     card's pill already states. A step is never invented. */
+  function runCurrentStep(run) {
+    if (!run) return '';
+    var direct = firstText(run.currentStep, run.step);
+    if (direct) return direct;
     var detail = state.runDetails[run.id];
     var steps = detail && Array.isArray(detail.steps) ? detail.steps : [];
-    if (steps.length) return stepLabel(steps[steps.length - 1]);
-    return statusLabel(run.status);
+    for (var i = steps.length - 1; i >= 0; i -= 1) {
+      var step = steps[i] || {};
+      var payload = step.payload && typeof step.payload === 'object' ? step.payload : {};
+      var text = firstText(payload.label, payload.message, payload.detail, payload.title);
+      if (text) return text;
+      var type = String(step.type || '');
+      if (type && !LIFECYCLE_STEP_TYPES[type] && type.indexOf('approval.') !== 0) {
+        return stepLabel(step);
+      }
+    }
+    return '';
+  }
+
+  /* Run details carry the steps (and any recorded goal) the list
+     payload does not, so live runs fetch theirs once per update:
+     the cards above can then show the run's real current step
+     instead of restating its status. Cached by the run's own
+     updatedAt, so a steady run is fetched once. */
+  var runDetailsLoading = {};
+
+  function loadLiveRunDetails() {
+    if (!captureOwnerId()) return;
+    state.runs.forEach(function (run) {
+      if (!run || !RUNNING[run.status]) return;
+      var cached = state.runDetails[run.id];
+      if (cached && cached.updatedAt === run.updatedAt) return;
+      if (runDetailsLoading[run.id]) return;
+      runDetailsLoading[run.id] = true;
+      api(`/api/agent/runs/${encodeURIComponent(run.id)}`).then(function (data) {
+        delete runDetailsLoading[run.id];
+        var full = data && data.run ? data.run : null;
+        if (full) {
+          state.runDetails[run.id] = full;
+          renderToday();
+          renderChat();
+        }
+      }).catch(function () {
+        delete runDetailsLoading[run.id];
+      });
+    });
   }
 
   function runPreviewSource(run) {
@@ -685,27 +804,34 @@
     var card = h('article', 'cat-card' + (isBrowser ? ' cat-card-browser' : ''));
     var head = h('div', 'cat-card-head');
     var titleWrap = h('div');
-    titleWrap.appendChild(h('h3', 'cat-card-title', capabilityTitle(run.capabilityId)));
+    var title = runTitle(run);
+    titleWrap.appendChild(h('h3', 'cat-card-title', title));
     var cap = state.capabilities[run.capabilityId];
     // The capability verb phrase is a headline fragment by design
     // ("Open the browser and", "Send an email to"); it renders as a
     // summary line only if it is ever a complete sentence that adds
     // information next to the title — otherwise it dangles.
-    if (cap && summaryAddsInformation(cap.verbPhrase, capabilityTitle(run.capabilityId))) {
+    if (cap && summaryAddsInformation(cap.verbPhrase, title)) {
       titleWrap.appendChild(h('p', 'cat-card-summary', cap.verbPhrase));
     }
     head.appendChild(titleWrap);
+    // The pill is the card's one statement of the run's status. The
+    // step line and the preview tile below never restate it.
     head.appendChild(h('span', statusClass(run.status), statusLabel(run.status)));
     card.appendChild(head);
-    var stepText = runStepText(run);
-    var step = h('p', 'cat-card-step');
-    step.appendChild(h('span', 'cat-card-step-label', 'Current step'));
-    step.appendChild(document.createTextNode(stepText));
-    card.appendChild(step);
+    var stepText = runCurrentStep(run);
+    if (stepText) {
+      var step = h('p', 'cat-card-step');
+      step.appendChild(h('span', 'cat-card-step-label', 'Current step'));
+      step.appendChild(document.createTextNode(stepText));
+      card.appendChild(step);
+    }
     if (isBrowser) {
       // A small preview tile: the run's own preview image when the run
-      // data carries one, otherwise a neutral browser-chrome tile with
-      // the step text — never a fabricated screenshot of a page.
+      // data carries one, otherwise a composed browser frame in the
+      // design's style — window chrome, a URL bar, and content bars.
+      // The frame carries no text: it is a state, not a caption, and
+      // never a fabricated screenshot of a page.
       var tile = h('div', 'cat-browser-tile');
       var preview = runPreviewSource(run);
       if (preview) {
@@ -714,13 +840,18 @@
         img.alt = '';
         tile.appendChild(img);
       } else {
+        tile.setAttribute('aria-hidden', 'true');
         var chrome = h('div', 'cat-browser-tile-chrome');
-        chrome.setAttribute('aria-hidden', 'true');
         chrome.appendChild(h('span', 'cat-browser-dot'));
         chrome.appendChild(h('span', 'cat-browser-dot'));
         chrome.appendChild(h('span', 'cat-browser-dot'));
+        chrome.appendChild(h('span', 'cat-browser-tile-url'));
         tile.appendChild(chrome);
-        tile.appendChild(h('p', 'cat-browser-tile-text', stepText));
+        var tileBody = h('div', 'cat-browser-tile-body');
+        ['cat-browser-bar cat-browser-bar-lead', 'cat-browser-bar cat-browser-bar-wide',
+          'cat-browser-bar cat-browser-bar-mid', 'cat-browser-bar cat-browser-bar-short',
+        ].forEach(function (barClass) { tileBody.appendChild(h('span', barClass)); });
+        tile.appendChild(tileBody);
       }
       card.appendChild(tile);
     }
@@ -804,8 +935,7 @@
   function connectNotice() {
     var wrap = h('div', 'cat-brief-connect');
     var connect = h('div', 'cat-connect-notice');
-    connect.appendChild(h('p', 'cat-connect-text',
-      'Connect Google for your brief — email and calendar, read-only.'));
+    connect.appendChild(h('p', 'cat-connect-text', 'Google is not connected.'));
     var connectNote = h('p', 'cat-connect-note', '');
     connectNote.hidden = true;
     var connectBtn = button('Connect Google', 'cat-connect-btn', function () {
@@ -877,7 +1007,9 @@
       state.failed ? 'failed' : 'ok',
       greetingHeadline(),
       state.approvals.map(function (a) { return a.id + ':' + a.status; }).join(','),
-      state.runs.map(function (r) { return r.id + ':' + r.status; }).join(','),
+      state.runs.map(function (r) {
+        return r.id + ':' + r.status + ':' + runTitle(r) + ':' + runCurrentStep(r);
+      }).join(','),
       googleConnected() ? 'google-in' : 'google-out',
       state.brief && state.brief.generatedAt ? String(state.brief.generatedAt) : 'no-brief',
     ].join('|');
@@ -948,6 +1080,15 @@
       return;
     }
 
+    // The disconnected state announces itself at the top of Today,
+    // in the design's position — the slim one-line notice directly
+    // under the greeting, ahead of everything waiting — so the
+    // first viewport of a disconnected Today always carries it.
+    // The brief area below then holds only the local counts.
+    if (!googleConnected()) {
+      node.appendChild(connectNotice());
+    }
+
     var waiting = waitingRunsWithoutApproval();
     if (state.approvals.length || waiting.length) {
       var waitSection = h('section', 'cat-today-section');
@@ -990,10 +1131,10 @@
     briefArea.setAttribute('aria-label', 'Your brief');
     briefArea.appendChild(h('h3', 'cat-today-section-title', 'Brief'));
     if (!googleConnected()) {
-      // Disconnected: the slim notice plus genuinely local content
-      // only — the counts come from the loaded runs/approvals, and no
-      // inbox or calendar line renders in this state.
-      briefArea.appendChild(connectNotice());
+      // Disconnected: genuinely local content only — the counts come
+      // from the loaded runs/approvals, and no inbox or calendar
+      // line renders in this state. (The slim connect notice itself
+      // sits at the top of Today, under the greeting.)
       if (state.approvals.length || live.length) {
         briefArea.appendChild(h('p', 'cat-brief-local', briefCountsText()));
       } else {
@@ -1109,7 +1250,7 @@
     var card = h('article', 'cat-card cat-card-result');
     var head = h('div', 'cat-card-head');
     var titleWrap = h('div');
-    titleWrap.appendChild(h('h3', 'cat-card-title', capabilityTitle(run.capabilityId)));
+    titleWrap.appendChild(h('h3', 'cat-card-title', runTitle(run)));
     head.appendChild(titleWrap);
     head.appendChild(h('span', statusClass(run.status), statusLabel(run.status)));
     card.appendChild(head);
@@ -1141,7 +1282,7 @@
     main.appendChild(h('span', 'cat-chat-row-title', capabilityTitle(run.capabilityId)));
     var detailText = item.kind === 'result' && typeof run.resultSummary === 'string' && run.resultSummary
       ? run.resultSummary
-      : (RUNNING[run.status] || WAITING[run.status] ? runStepText(run) : statusLabel(run.status));
+      : (RUNNING[run.status] || WAITING[run.status] ? runCurrentStep(run) : statusLabel(run.status));
     main.appendChild(h('span', 'cat-chat-row-detail', detailText));
     plain.appendChild(main);
     plain.appendChild(h('span', 'cat-chat-row-status', statusLabel(run.status)));
@@ -1177,7 +1318,8 @@
       items.map(function (item) {
         return item.kind === 'approval'
           ? 'a:' + item.action.id + ':' + item.action.status
-          : 'r:' + item.run.id + ':' + item.run.status + ':' + (item.run.updatedAt || '');
+          : 'r:' + item.run.id + ':' + item.run.status + ':' + (item.run.updatedAt || '') +
+            ':' + runTitle(item.run) + ':' + runCurrentStep(item.run);
       }).join(','),
     ].join('|');
     if (signature === lastChatSignature && node.childNodes.length) {
@@ -1663,39 +1805,64 @@
     win.setAttribute('aria-modal', 'true');
     win.setAttribute('aria-labelledby', 'catBrowserTitle');
 
+    // The header stacks: the title row carries the panel title and
+    // its controls, and the current-step line takes the full width
+    // under it, so the step text wraps in full and never clips
+    // mid-word beside the buttons at narrow widths.
     var head = h('div', 'cat-browser-head');
-    var headText = h('div', 'cat-browser-head-text');
+    var headRow = h('div', 'cat-browser-head-row');
     var title = h('h2', 'cat-browser-title', 'Live browser');
     title.id = 'catBrowserTitle';
-    headText.appendChild(title);
-    browserStep = h('p', 'cat-browser-step', 'No browser task is running.');
-    browserStep.setAttribute('aria-live', 'polite');
-    headText.appendChild(browserStep);
-    head.appendChild(headText);
+    headRow.appendChild(title);
     // Pause and dismissal are distinct controls: Pause stays an
     // honest disabled control while sessions are not live, and Back
     // is the always-available way out of the panel.
     var headActions = h('div', 'cat-browser-head-actions');
-    var pauseBtn = button('Pause', 'cat-btn cat-browser-pause');
+    var pauseBtn = button('Pause', 'cat-btn cat-browser-pause cat-btn-unavailable');
     pauseBtn.disabled = true;
     pauseBtn.setAttribute('aria-disabled', 'true');
+    pauseBtn.title = 'Available when a browser session is live';
     headActions.appendChild(pauseBtn);
     var closeBtn = button('Back', 'cat-icon-btn cat-browser-dismiss', closeBrowserPanel);
     closeBtn.setAttribute('aria-label', 'Back — close the browser panel');
     headActions.appendChild(closeBtn);
-    head.appendChild(headActions);
+    headRow.appendChild(headActions);
+    head.appendChild(headRow);
+    browserStep = h('p', 'cat-browser-step', 'No browser task is running.');
+    browserStep.setAttribute('aria-live', 'polite');
+    head.appendChild(browserStep);
     win.appendChild(head);
 
+    // The panel reads as a browser even with no session: a composed
+    // frame — window chrome, a URL bar, content bars — stands where
+    // the page will be, with the honest not-live line under it. The
+    // frame is a skeleton, never a fabricated page.
     var viewport = h('div', 'cat-browser-viewport');
-    viewport.appendChild(h('p', null,
+    var frame = h('div', 'cat-browser-frame');
+    frame.setAttribute('aria-hidden', 'true');
+    var frameChrome = h('div', 'cat-browser-frame-chrome');
+    frameChrome.appendChild(h('span', 'cat-browser-dot'));
+    frameChrome.appendChild(h('span', 'cat-browser-dot'));
+    frameChrome.appendChild(h('span', 'cat-browser-dot'));
+    frameChrome.appendChild(h('span', 'cat-browser-frame-url'));
+    frame.appendChild(frameChrome);
+    var frameBody = h('div', 'cat-browser-frame-body');
+    ['cat-browser-bar cat-browser-bar-lead', 'cat-browser-bar cat-browser-bar-wide',
+      'cat-browser-bar cat-browser-bar-mid', 'cat-browser-bar cat-browser-bar-wide',
+      'cat-browser-bar cat-browser-bar-short',
+    ].forEach(function (barClass) { frameBody.appendChild(h('span', barClass)); });
+    frame.appendChild(frameBody);
+    viewport.appendChild(frame);
+    viewport.appendChild(h('p', 'cat-browser-empty-note',
       'Per-user browser sessions are not live yet, so there is nothing to show here. ' +
       'When a browser task runs, you will watch it here and be able to pause it or take over.'));
     win.appendChild(viewport);
 
     var controls = h('div', 'cat-browser-controls');
-    var takeOverBtn = button('Take over', 'cat-btn');
+    var takeOverBtn = button('Take over', 'cat-btn cat-btn-unavailable');
     takeOverBtn.disabled = true;
     takeOverBtn.setAttribute('aria-disabled', 'true');
+    takeOverBtn.title = 'Available when a browser session is live';
     controls.appendChild(takeOverBtn);
     win.appendChild(controls);
 
@@ -1730,11 +1897,8 @@
     ensureBrowserPanel();
     browserOpener = document.activeElement;
     if (run) {
-      var detail = state.runDetails[run.id];
-      var steps = detail && Array.isArray(detail.steps) ? detail.steps : [];
-      var lastStep = steps.length ? steps[steps.length - 1] : null;
-      browserStep.textContent = capabilityTitle(run.capabilityId) + ' · ' + statusLabel(run.status) +
-        (lastStep ? ' · ' + stepLabel(lastStep) : '');
+      var currentStep = runCurrentStep(run);
+      browserStep.textContent = runTitle(run) + (currentStep ? ' · ' + currentStep : '');
     } else {
       browserStep.textContent = 'No browser task is running.';
     }

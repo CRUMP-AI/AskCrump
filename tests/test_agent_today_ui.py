@@ -19,8 +19,8 @@ def read(relative: str) -> str:
 
 def test_app_html_loads_agent_today_layer_last_with_versioned_assets():
     app = read('public/app.html')
-    css = '/crump-agent-today-1.0.css?v=5.9.76-agent-today-16'
-    js = '/crump-agent-today-1.0.js?v=5.9.76-agent-today-16'
+    css = '/crump-agent-today-1.0.css?v=5.9.76-agent-today-17'
+    js = '/crump-agent-today-1.0.js?v=5.9.76-agent-today-17'
     assert css in app
     assert js in app
     assert (PUBLIC / 'crump-agent-today-1.0.css').exists()
@@ -193,12 +193,92 @@ def test_approval_headline_never_dumps_the_payload():
 def test_live_work_shows_the_current_step_and_a_neutral_browser_tile():
     js = read('public/crump-agent-today-1.0.js')
     css = read('public/crump-agent-today-1.0.css')
-    assert 'runStepText' in js
+    assert 'runCurrentStep' in js
     assert 'Current step' in js
     assert 'cat-browser-tile' in js
     assert 'cat-browser-tile' in css
-    # The tile falls back to chrome + step text, never a fake page.
-    assert 'cat-browser-tile-text' in js
+    # The tile falls back to a composed browser frame — chrome, a URL
+    # bar, and content bars — never a fake page, and it carries no
+    # text: the card states the run's status once, in its pill.
+    assert 'cat-browser-tile-url' in js
+    assert 'cat-browser-bar' in js
+    assert 'cat-browser-bar' in css
+    assert 'cat-browser-tile-text' not in js
+
+
+def test_run_titles_derive_from_the_runs_own_data():
+    js = read('public/crump-agent-today-1.0.js')
+    # The card title is the work in the user's own terms: the run's
+    # recorded goal or title first, then the human ask in its input,
+    # then the capability's plain-language label. A raw capability id
+    # never renders, and the one jargon registry title carries a
+    # plain label in this layer instead.
+    assert 'function runTitle(run)' in js
+    assert 'run.goal' in js
+    assert 'input.instruction' in js
+    assert "'Researching ' + topic" in js
+    assert 'PLAIN_RUN_LABELS' in js
+    assert "'browser.act': 'Working in the browser'" in js
+    card = js[js.index('function runCard(run)'):]
+    card = card[:card.index('function briefCountsText')]
+    assert 'capabilityTitle(run.capabilityId)' not in card
+
+
+def test_step_line_renders_only_when_the_run_reports_a_step():
+    js = read('public/crump-agent-today-1.0.js')
+    # The old fallback restated the run's status as its "current
+    # step", so one card said Running three times. The step line now
+    # renders only from a step the run actually recorded.
+    assert 'function runStepText' not in js
+    card = js[js.index('function runCard(run)'):]
+    card = card[:card.index('function briefCountsText')]
+    assert 'if (stepText) {' in card
+    assert 'runCurrentStep(run)' in card
+    # Lifecycle bookkeeping (created, queued, started) never reads
+    # as the current step; a step's own recorded text does.
+    assert 'LIFECYCLE_STEP_TYPES' in js
+    assert 'payload.label' in js
+
+
+def test_live_run_details_are_fetched_once_per_update():
+    js = read('public/crump-agent-today-1.0.js')
+    # Steps and goals ride the run detail, not the list payload, so
+    # live runs fetch theirs — cached on the run's own updatedAt so
+    # a steady run is fetched once, behind the same owner gate.
+    assert 'function loadLiveRunDetails()' in js
+    assert 'api(`/api/agent/runs/${encodeURIComponent(run.id)}`)' in js
+    assert 'cached.updatedAt === run.updatedAt' in js
+    assert 'loadLiveRunDetails();' in js
+
+
+def test_connect_notice_sits_under_the_greeting_with_the_design_line():
+    js = read('public/crump-agent-today-1.0.js')
+    # The disconnected notice is the design's one line, and it sits
+    # at the top of Today — ahead of the waiting section — so the
+    # first viewport of a disconnected Today always carries it. The
+    # brief area below holds only the local counts.
+    assert "'Google is not connected.'" in js
+    render = js[js.index('function renderToday()'):]
+    assert render.index('node.appendChild(connectNotice())') < render.index("'Waiting on you'")
+    assert 'briefArea.appendChild(connectNotice())' not in js
+
+
+def test_composer_finish_is_gold_send_chip_attach_and_one_line_placeholder():
+    css = read('public/crump-agent-today-1.0.css')
+    # The composer contract (attach, input, send) is untouched; its
+    # finish follows the design in the layer that loads last.
+    send = css_block(css, ':is(#sendButton, .crump50-send):not(:disabled) {')
+    assert 'background: var(--cat-gold-bright) !important' in send
+    assert 'color: var(--cat-ink) !important' in send
+    attach = css_block(css, ':is(#attachBtn, .crump50-plus) {')
+    assert 'background: transparent !important' in attach
+    assert 'border: 1px solid rgba(213, 185, 113, 0.65) !important' in attach
+    # The placeholder sets on one line with an ellipsis while it is
+    # showing, so the pill never clips a wrapped second line; typed
+    # text is unaffected (the rule is scoped to :placeholder-shown).
+    placeholder = css_block(css, '.message-input:placeholder-shown {')
+    assert 'white-space: nowrap !important' in placeholder
+    assert 'text-overflow: ellipsis !important' in placeholder
 
 
 def test_brief_counts_and_rows_come_from_the_loaded_data():
@@ -403,7 +483,7 @@ def test_secondary_summary_line_renders_only_complete_sentences():
     assert 'summaryAddsInformation' in js
     assert 'DANGLING_FINAL_WORDS' in js
     assert 'summaryAddsInformation(action.summary, headline)' in js
-    assert 'summaryAddsInformation(cap.verbPhrase, capabilityTitle(run.capabilityId))' in js
+    assert 'summaryAddsInformation(cap.verbPhrase, title)' in js
 
 
 def test_frozen_detail_renders_payload_values_exactly():
@@ -449,19 +529,35 @@ def test_browser_panel_is_a_right_anchored_slide_over_with_gold_hairline():
     assert '.cat-browser-window' in reduced
 
 
-def test_browser_panel_step_is_one_line_and_controls_stay_distinct_and_honest():
+def test_browser_panel_step_wraps_in_full_and_controls_stay_distinct_and_honest():
     js = read('public/crump-agent-today-1.0.js')
     css = read('public/crump-agent-today-1.0.css')
-    # The header carries the title and the one-line current step.
+    # The header stacks: a title row carries the title and controls,
+    # and the current-step line takes the full width under it and
+    # wraps in full — it never truncates mid-word.
     assert "'Live browser'" in js
     assert 'aria-labelledby' in js and 'catBrowserTitle' in js
+    assert 'cat-browser-head-row' in js
     step = css[css.index('.cat-browser-step {'):css.index('.cat-browser-head-actions')]
-    assert 'white-space: nowrap' in step
-    assert 'text-overflow: ellipsis' in step
+    assert 'white-space: normal' in step
+    assert 'nowrap' not in step
+    assert 'text-overflow' not in step
+    # The empty panel reads as a browser: a composed frame with
+    # window chrome, a URL bar, and content bars.
+    assert 'cat-browser-frame' in js
+    assert 'cat-browser-frame-url' in js
+    assert 'cat-browser-frame' in css
+    # Disabled session controls read as intentionally unavailable:
+    # dimmed, with the dashed gold hairline.
+    assert 'cat-btn-unavailable' in js
+    unavailable = css_block(css, '.cat-btn-unavailable[disabled] {')
+    assert 'border-style: dashed' in unavailable
+    assert 'cursor: not-allowed' in unavailable
+    assert 'opacity: 0.55' in unavailable
     # Pause and dismissal are separate elements: Pause stays an
     # honest disabled control while sessions are not live, and Back
     # is the enabled dismiss affordance, labelled as dismissal.
-    assert "button('Pause', 'cat-btn cat-browser-pause')" in js
+    assert "button('Pause', 'cat-btn cat-browser-pause cat-btn-unavailable')" in js
     assert "button('Back', 'cat-icon-btn cat-browser-dismiss', closeBrowserPanel)" in js
     assert 'Back — close the browser panel' in js
     panel = js[js.index('function ensureBrowserPanel()'):js.index('function openBrowserPanel(run)')]
@@ -539,7 +635,7 @@ def test_greeting_is_hero_scale_serif_and_card_titles_are_inter():
     # The greeting is the hero: Georgia at a vw-driven hero scale.
     title = css_block(css, '.cat-today-title {')
     assert 'Georgia' in title
-    assert 'clamp(50px, 13.5vw, 76px)' in title
+    assert 'clamp(50px, 13.6vw, 76px)' in title
     # Card titles are Inter bold; serif is reserved for the greeting,
     # page titles, the brief title, and project names.
     card_title = css_block(css, '.cat-card-title {')

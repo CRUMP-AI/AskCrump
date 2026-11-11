@@ -106,7 +106,11 @@
       ];
       var runs = [
         {
+          // The live run carries its goal — the work in the user's
+          // own terms — the way a run created from a request does;
+          // its detail below records the step it is on.
           id: 'run-live-1', capabilityId: 'browser.act', status: 'running',
+          goal: 'Researching 4 Savannah tech roles',
           createdAt: '2026-11-10T14:20:00Z', updatedAt: '2026-11-10T14:25:00Z',
         },
       ];
@@ -218,10 +222,16 @@
       var runDetails = {
         'run-live-1': {
           id: 'run-live-1', capabilityId: 'browser.act', status: 'running',
+          goal: 'Researching 4 Savannah tech roles',
           createdAt: '2026-11-10T14:20:00Z', updatedAt: '2026-11-10T14:25:00Z',
           steps: [
             { type: 'run.created', createdAt: '2026-11-10T14:20:00Z' },
             { type: 'run.queued', createdAt: '2026-11-10T14:21:00Z' },
+            {
+              type: 'step.progress',
+              payload: { label: 'Reviewing employer career pages' },
+              createdAt: '2026-11-10T14:24:00Z',
+            },
           ],
           pendingActions: [], resultSummary: null,
         },
@@ -292,7 +302,7 @@
   <link rel="stylesheet" href="/public/crump-v1-body.css?v=agent-today-placeholder-fixture-1">
   <link rel="stylesheet" href="/public/crump-vision-shell-1.0.css?v=agent-today-placeholder-fixture-1">
   <link rel="stylesheet" href="/public/crump-design-pass.css?v=agent-today-placeholder-fixture-1">
-  <link rel="stylesheet" href="/public/crump-agent-today-1.0.css?v=5.9.76-agent-today-16">
+  <link rel="stylesheet" href="/public/crump-agent-today-1.0.css?v=5.9.76-agent-today-17">
   <style>
     html, body { height: 100%; }
     .v1-workspace { height: 100vh; }
@@ -318,6 +328,6 @@
       </main>
     </div>
   </div>
-  <script src="/public/crump-agent-today-1.0.js?v=5.9.76-agent-today-16"></script>
+  <script src="/public/crump-agent-today-1.0.js?v=5.9.76-agent-today-17"></script>
 </body>
 </html>

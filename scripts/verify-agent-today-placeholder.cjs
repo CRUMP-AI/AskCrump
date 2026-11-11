@@ -175,6 +175,14 @@ async function measure(page) {
       noticeTextClientWidth: noticeText ? noticeText.clientWidth : 0,
       noticeTextScrollHeight: noticeText ? noticeText.scrollHeight : 0,
       noticeTextClientHeight: noticeText ? noticeText.clientHeight : 0,
+      noticePresent: Boolean(notice),
+      noticeTextContent: noticeText ? noticeText.textContent.trim() : '',
+      // The notice counts as in the first viewport only when its
+      // whole box paints inside the viewport's own height.
+      noticeInFirstViewport: Boolean(notice) && (() => {
+        const box = notice.getBoundingClientRect();
+        return box.height > 0 && box.top >= -0.6 && box.bottom <= window.innerHeight + 0.6;
+      })(),
       briefOverflow,
       connectButton: notice ? Boolean(notice.querySelector('.cat-connect-btn')) : false,
     };
@@ -255,6 +263,34 @@ async function measureReorg(page) {
       subText: sub ? sub.textContent : '',
       browserTilePresent: Boolean(document.querySelector('.cat-browser-tile')),
       stepText: (document.querySelector('.cat-card-step') || {}).textContent || '',
+      liveTitle: (() => {
+        const section = document.querySelector('section[aria-label="Live work"]');
+        const titleEl = section ? section.querySelector('.cat-card-title') : null;
+        return titleEl ? titleEl.textContent : '';
+      })(),
+      liveCardText: (() => {
+        const section = document.querySelector('section[aria-label="Live work"]');
+        const card = section ? section.querySelector('.cat-card') : null;
+        return card ? card.textContent : '';
+      })(),
+      liveStepText: (() => {
+        const section = document.querySelector('section[aria-label="Live work"]');
+        const step = section ? section.querySelector('.cat-card-step') : null;
+        return step ? step.textContent : '';
+      })(),
+      liveTileBars: (() => {
+        const section = document.querySelector('section[aria-label="Live work"]');
+        return section ? section.querySelectorAll('.cat-browser-tile .cat-browser-bar').length : 0;
+      })(),
+      liveTileText: (() => {
+        const section = document.querySelector('section[aria-label="Live work"]');
+        const tile = section ? section.querySelector('.cat-browser-tile') : null;
+        return tile ? tile.textContent.trim() : '';
+      })(),
+      liveTileUrlPresent: (() => {
+        const section = document.querySelector('section[aria-label="Live work"]');
+        return Boolean(section && section.querySelector('.cat-browser-tile-url'));
+      })(),
     };
   });
 }
@@ -337,6 +373,23 @@ function assertReorgStatics(m, label, state, viewportWidth) {
   // Live work shows a current step and the neutral browser tile.
   assert.equal(m.browserTilePresent, true, `${label}: browser preview tile missing`);
   assert.match(m.stepText, /Current step/, `${label}: step line "${m.stepText}"`);
+  // The live-work card speaks in the run's own terms: its title is
+  // the run's recorded goal — never the capability's jargon title —
+  // its step line carries the step the run actually recorded, its
+  // status is stated exactly once (the pill), and its preview tile
+  // is a composed browser frame (chrome, URL bar, content bars)
+  // carrying no text at all.
+  assert.equal(m.liveTitle, 'Researching 4 Savannah tech roles',
+    `${label}: live-work title "${m.liveTitle}"`);
+  assert.doesNotMatch(m.liveTitle, /Act in the browser/,
+    `${label}: capability jargon as the card title "${m.liveTitle}"`);
+  assert.match(m.liveStepText, /Reviewing employer career pages/,
+    `${label}: live-work step "${m.liveStepText}"`);
+  assert.equal((m.liveCardText.match(/Running/g) || []).length, 1,
+    `${label}: status stated ${(m.liveCardText.match(/Running/g) || []).length} times on the live card`);
+  assert.ok(m.liveTileBars >= 3, `${label}: tile content bars ${m.liveTileBars}`);
+  assert.equal(m.liveTileUrlPresent, true, `${label}: tile URL bar missing`);
+  assert.equal(m.liveTileText, '', `${label}: tile carries text "${m.liveTileText}"`);
   if (state === 'planned') {
     // Disconnected: no brief card, no calendar/inbox rows — the brief
     // area carries the notice plus the local counts only.
@@ -463,6 +516,26 @@ async function measureChat(page) {
       composerChildIds: inputBar
         ? [...inputBar.children].map(child => child.id || child.tagName)
         : [],
+      composer: (() => {
+        const input = document.querySelector('#userInput');
+        const send = document.querySelector('#sendButton');
+        const attach = document.querySelector('#attachBtn');
+        const inputStyle = input ? getComputedStyle(input) : null;
+        const sendStyle = send ? getComputedStyle(send) : null;
+        const attachStyle = attach ? getComputedStyle(attach) : null;
+        return {
+          placeholder: input ? input.getAttribute('placeholder') : '',
+          whiteSpace: inputStyle ? inputStyle.whiteSpace : '',
+          scrollHeight: input ? input.scrollHeight : 0,
+          clientHeight: input ? input.clientHeight : 0,
+          sendBackground: sendStyle ? sendStyle.backgroundColor : '',
+          attachBackground: attachStyle ? attachStyle.backgroundColor : '',
+          attachBorderColor: attachStyle ? attachStyle.borderColor : '',
+          attachBorderStyle: attachStyle ? attachStyle.borderStyle : '',
+          attachColor: attachStyle ? attachStyle.color : '',
+        };
+      })(),
+      primaryTitle: primary ? (primary.querySelector('.cat-card-title') || {}).textContent || '' : '',
       fetchCalls: Array.isArray(window.__fetchCalls) ? window.__fetchCalls.slice() : [],
     };
   });
@@ -1016,6 +1089,27 @@ async function runChatScenarios(browser) {
         // at every size, and nothing the section renders overlaps it.
         assert.deepEqual(m.composerChildIds, ['attachBtn', 'userInput', 'sendButton'],
           `${label}: composer bar ${JSON.stringify(m.composerChildIds)}`);
+        // The composer's finish follows the design at every size and
+        // in both themes: the send button is the house gold, the
+        // attach control is a gold-outline chip on a transparent
+        // ground, and the placeholder sets on one line — its box
+        // never grows a clipped second line.
+        assert.equal(m.composer.placeholder, 'What should Crump get done for you?',
+          `${label}: composer placeholder "${m.composer.placeholder}"`);
+        assert.equal(m.composer.whiteSpace, 'nowrap',
+          `${label}: placeholder white-space ${m.composer.whiteSpace}`);
+        assert.ok(m.composer.scrollHeight <= m.composer.clientHeight + 1,
+          `${label}: placeholder wraps/clips (${m.composer.scrollHeight} > ${m.composer.clientHeight})`);
+        assert.equal(m.composer.sendBackground, 'rgb(213, 185, 113)',
+          `${label}: send button background ${m.composer.sendBackground}`);
+        assert.equal(m.composer.attachBackground, 'rgba(0, 0, 0, 0)',
+          `${label}: attach chip background ${m.composer.attachBackground}`);
+        assert.equal(m.composer.attachBorderStyle, 'solid',
+          `${label}: attach chip border style ${m.composer.attachBorderStyle}`);
+        const attachBorder = parseColor(m.composer.attachBorderColor);
+        assert.ok(Math.abs(attachBorder.r - 213) <= 2 && Math.abs(attachBorder.g - 185) <= 2 &&
+          Math.abs(attachBorder.b - 113) <= 2,
+          `${label}: attach chip border ${m.composer.attachBorderColor} is not the house gold`);
         assert.ok(m.documentScrollWidth <= viewport.width,
           `${label}: document scrollWidth ${m.documentScrollWidth} > ${viewport.width}`);
         assert.equal(m.todayVisible, false, `${label}: Today surface visible in a conversation`);
@@ -1087,7 +1181,15 @@ async function runChatScenarios(browser) {
             `${label}: dangling summary text in the section`);
         }
         if (state === 'live') {
+          // The live card leads with the run's own goal, shows the
+          // step the run recorded, and states its status once.
+          assert.equal(m.primaryTitle, 'Book the design review',
+            `${label}: live card title "${m.primaryTitle}"`);
           assert.match(m.stepText, /Current step/, `${label}: live run step line "${m.stepText}"`);
+          assert.match(m.stepText, /Checking calendar availability/,
+            `${label}: live run recorded step "${m.stepText}"`);
+          assert.equal((m.primaryText.match(/Running/g) || []).length, 1,
+            `${label}: status stated ${(m.primaryText.match(/Running/g) || []).length} times on the live card`);
           assert.equal(m.approvePresent, false, `${label}: approval rendered in the live-only state`);
         }
         if (state === 'both') {
@@ -1222,6 +1324,23 @@ async function measureBrowserPanel(page) {
       stepWhiteSpace: stepStyle ? stepStyle.whiteSpace : null,
       stepScrollHeight: step ? step.scrollHeight : 0,
       stepClientHeight: step ? step.clientHeight : 0,
+      stepScrollWidth: step ? step.scrollWidth : 0,
+      stepClientWidth: step ? step.clientWidth : 0,
+      framePresent: Boolean(document.querySelector('.cat-browser-frame')),
+      frameUrlPresent: Boolean(document.querySelector('.cat-browser-frame-url')),
+      frameBarCount: document.querySelectorAll('.cat-browser-frame .cat-browser-bar').length,
+      pauseBorderStyle: pause ? getComputedStyle(pause).borderStyle : null,
+      pauseOpacity: pause ? Number(getComputedStyle(pause).opacity) : null,
+      takeOverBorderStyle: (() => {
+        const btn = [...document.querySelectorAll('.cat-browser-controls .cat-btn')]
+          .find(b => b.textContent.trim() === 'Take over');
+        return btn ? getComputedStyle(btn).borderStyle : null;
+      })(),
+      takeOverOpacity: (() => {
+        const btn = [...document.querySelectorAll('.cat-browser-controls .cat-btn')]
+          .find(b => b.textContent.trim() === 'Take over');
+        return btn ? Number(getComputedStyle(btn).opacity) : null;
+      })(),
       titleText: title ? title.textContent : null,
       viewportText: (document.querySelector('.cat-browser-viewport') || {}).textContent || '',
       pausePresent: Boolean(pause),
@@ -1298,13 +1417,29 @@ async function runBrowserPanelScenarios(browser) {
           m.panelRect.top <= m.dockRect.top && m.panelRect.bottom >= m.dockRect.bottom,
           `${label}: backdrop does not cover the composer dock`);
       }
-      // One-line step, taken from the layer's own step text.
-      assert.equal(m.stepWhiteSpace, 'nowrap', `${label}: step line wraps`);
+      // The step line takes the header's full width and wraps in
+      // full — it is never truncated, so no word clips at any width.
+      assert.equal(m.stepWhiteSpace, 'normal', `${label}: step line white-space ${m.stepWhiteSpace}`);
+      assert.ok(m.stepScrollWidth <= m.stepClientWidth + 1,
+        `${label}: step line clipped horizontally (${m.stepScrollWidth} > ${m.stepClientWidth})`);
       assert.ok(m.stepScrollHeight <= m.stepClientHeight + 1,
-        `${label}: step line spills past one line (${m.stepScrollHeight} > ${m.stepClientHeight})`);
+        `${label}: step line clipped vertically (${m.stepScrollHeight} > ${m.stepClientHeight})`);
       assert.match(m.stepText || '', /No browser task is running/, `${label}: step text`);
-      // Honest body copy: sessions are not live yet.
+      // The empty panel still reads as a browser: a composed frame
+      // with window chrome, a URL bar, and content bars stands where
+      // the page will be, over the honest not-live line.
+      assert.equal(m.framePresent, true, `${label}: browser frame missing from the empty state`);
+      assert.equal(m.frameUrlPresent, true, `${label}: URL bar missing from the frame`);
+      assert.ok(m.frameBarCount >= 4, `${label}: frame content bars ${m.frameBarCount}`);
       assert.match(m.viewportText, /not live yet/, `${label}: honesty copy missing`);
+      // Pause and Take over stay disabled, styled as intentionally
+      // unavailable: dimmed, with the dashed gold hairline.
+      assert.equal(m.pauseBorderStyle, 'dashed', `${label}: Pause border style ${m.pauseBorderStyle}`);
+      assert.ok(m.pauseOpacity !== null && m.pauseOpacity <= 0.6,
+        `${label}: Pause opacity ${m.pauseOpacity}`);
+      assert.equal(m.takeOverBorderStyle, 'dashed', `${label}: Take over border style ${m.takeOverBorderStyle}`);
+      assert.ok(m.takeOverOpacity !== null && m.takeOverOpacity <= 0.6,
+        `${label}: Take over opacity ${m.takeOverOpacity}`);
       // Pause and dismissal are distinct controls: Pause is the
       // honest disabled control; Back is enabled and dismisses.
       assert.equal(m.pausePresent, true, `${label}: Pause control missing`);
@@ -1508,6 +1643,7 @@ async function runHeadlineMatrixScenarios(browser) {
 async function run() {
   const browser = await chromium.launch({ headless: true, executablePath });
   let scenarios = 0;
+  const stateShots = {};
   try {
     if (process.env.ASKCRUMP_CHAT_ONLY) {
       // Standalone Chat run: the chat scenarios plus the
@@ -1563,7 +1699,7 @@ async function run() {
           }
           assert.equal(m.chipPresent, true, `${label}: eyebrow monogram chip missing`);
           // Hero type scale: the vw-driven clamp, set on two lines.
-          const expectedGreeting = Math.min(Math.max(50, viewport.width * 0.135), 76);
+          const expectedGreeting = Math.min(Math.max(50, viewport.width * 0.136), 76);
           assert.ok(Math.abs(m.titleFontPx - expectedGreeting) <= 1,
             `${label}: greeting ${m.titleFontPx}px, expected ~${expectedGreeting}px`);
           if (viewport.width >= 390) {
@@ -1631,10 +1767,26 @@ async function run() {
               `${label}: notice height ${m.noticeRawHeight}px is ${(fraction * 100).toFixed(1)}% of viewport`,
             );
             assert.equal(m.connectButton, true, `${label}: Connect Google action missing`);
+            // The notice is the design's one line, and it paints in
+            // the first viewport: a disconnected Today announces
+            // itself at the top, not below the fold.
+            assert.equal(m.noticeTextContent, 'Google is not connected.',
+              `${label}: notice text "${m.noticeTextContent}"`);
+            assert.equal(m.noticeInFirstViewport, true,
+              `${label}: connect notice outside the first viewport`);
             console.log(
               `${label}: greeting ${greetingRatio.toFixed(2)}:1, sub ${subRatio.toFixed(2)}:1, ` +
               `notice ${m.noticeRawHeight.toFixed(1)}px = ${(fraction * 100).toFixed(1)}% of ${viewport.height}px viewport`,
             );
+          } else {
+            // Connected: no connect notice anywhere on the surface.
+            assert.equal(m.noticePresent, false, `${label}: connect notice rendered while connected`);
+          }
+          if (theme === 'dark' && viewport.name === '390x844') {
+            // First-viewport renders of the two states, kept for the
+            // byte-difference assertion below: the fixture set must
+            // genuinely demonstrate the disconnected state.
+            stateShots[state] = await page.screenshot();
           }
           const reorg = await measureReorg(page);
           assertReorgStatics(reorg, label, state, viewport.width);
@@ -1737,6 +1889,18 @@ async function run() {
        }
       }
     }
+
+    // The two Today states must render differently in the first
+    // viewport. The staged set once shipped byte-identical "live"
+    // and "planned" tops — the disconnected state was never actually
+    // demonstrated — so the renders themselves are compared here.
+    assert.ok(stateShots.planned && stateShots.live,
+      'today states: first-viewport renders were not captured for both states');
+    assert.ok(!stateShots.planned.equals(stateShots.live),
+      'today states: planned and live first-viewport renders are byte-identical — ' +
+      'the disconnected state is not demonstrated');
+    console.log('Agent Today states: planned and live first-viewport renders differ, ' +
+      'and the planned render carries the connect notice in its first viewport.');
 
     scenarios += await runTasksScenarios(browser);
     scenarios += await runHeadlineMatrixScenarios(browser);

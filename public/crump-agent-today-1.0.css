@@ -143,7 +143,15 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
 .cat-today-title {
   margin: 0;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: clamp(50px, 13.5vw, 76px);
+  /* The mockup's greeting sets at ~62px, but its first line is the
+     constraint: "Good afternoon," measures 398px wide at 62px in
+     Georgia (406px in the widest measurement on record) against a
+     350px content box at 390px wide, so 62px wraps the daypart and
+     breaks the two-line greeting. The fit cap at 390 is ~53.4px;
+     13.6vw lands at 53px there — the largest step that keeps two
+     lines at 390 under both measurements — with the 76px ceiling
+     unchanged on desktop and the 50px floor unchanged at 320. */
+  font-size: clamp(50px, 13.6vw, 76px);
   font-weight: 500;
   line-height: 1.04;
   letter-spacing: -0.01em;
@@ -373,11 +381,12 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
   vertical-align: middle;
 }
 
-/* The not-connected brief state is a slim notice in the flow of the
-   brief area, not a card: no panel fill, no border box, no overlay —
-   one short line of quiet text on the ink ground and one small gold
-   action beside it. It takes a small fraction of the viewport height
-   and pushes the hero down like any other in-flow content. */
+/* The not-connected state is a slim notice in the flow at the top
+   of Today, under the greeting — not a card: no panel fill, no
+   border box, no overlay — one short line of quiet text on the ink
+   ground and one small gold action beside it. It takes a small
+   fraction of the viewport height and pushes the hero down like
+   any other in-flow content. */
 .cat-connect-notice {
   display: flex;
   align-items: center;
@@ -941,18 +950,20 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
 
 .cat-browser-head {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
+  flex-direction: column;
+  gap: 8px;
   padding: 18px 20px 14px;
   border-bottom: 1px solid rgba(213, 185, 113, 0.22);
   background: #111417;
   color: var(--cat-paper);
 }
 
-.cat-browser-head-text {
-  flex: 1;
-  min-width: 0;
+.cat-browser-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
 }
 
 .cat-browser-title {
@@ -966,13 +977,14 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
 }
 
 .cat-browser-step {
-  margin: 6px 0 0;
+  margin: 0;
   font-size: 14px;
   line-height: 1.45;
   color: var(--cat-paper-dim);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* The step line owns the header's full width and wraps in full:
+     it never truncates, so no state of the panel clips a word. */
+  white-space: normal;
+  overflow-wrap: break-word;
 }
 
 .cat-browser-head-actions {
@@ -1001,13 +1013,32 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
   padding: 8px 16px;
 }
 
+/* Controls that wait on a live session read as intentionally
+   unavailable, in the panel's own language: the gold hairline goes
+   dashed, the label dims, and the cursor says not-allowed — a
+   designed state, not a broken grey pill. */
+.cat-browser .cat-btn-unavailable[disabled] {
+  opacity: 0.55;
+  border-style: dashed;
+  border-color: rgba(213, 185, 113, 0.45);
+  color: var(--cat-paper-dim);
+  background: transparent;
+  cursor: not-allowed;
+}
+
+.cat-browser .cat-btn-unavailable[disabled]:hover {
+  border-color: rgba(213, 185, 113, 0.45);
+}
+
 .cat-browser-viewport {
   flex: 1;
   min-height: 260px;
   overflow-y: auto;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 20px;
   padding: 28px 24px;
   text-align: center;
   background: #111417;
@@ -1019,6 +1050,66 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
   font-size: 15px;
   line-height: 1.65;
   color: var(--cat-paper-dim);
+}
+
+/* The empty panel's composed browser frame: window chrome, a URL
+   bar, and content bars where the live page will render. */
+.cat-browser-frame {
+  width: 100%;
+  max-width: 520px;
+  border: 1px solid rgba(241, 239, 233, 0.16);
+  border-radius: 14px;
+  background: #171b1f;
+  overflow: hidden;
+  text-align: left;
+}
+
+.cat-browser-frame-chrome {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(241, 239, 233, 0.1);
+  background: rgba(241, 239, 233, 0.04);
+}
+
+.cat-browser-frame-url {
+  flex: 1;
+  height: 22px;
+  margin-left: 6px;
+  border-radius: 999px;
+  background: rgba(241, 239, 233, 0.09);
+}
+
+.cat-browser-frame-body {
+  display: grid;
+  gap: 10px;
+  padding: 18px 16px 22px;
+}
+
+.cat-browser-bar {
+  display: block;
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(241, 239, 233, 0.13);
+}
+
+.cat-browser-bar-lead {
+  height: 14px;
+  width: 58%;
+  background: rgba(241, 239, 233, 0.22);
+}
+
+.cat-browser-bar-wide {
+  width: 92%;
+}
+
+.cat-browser-bar-mid {
+  width: 68%;
+}
+
+.cat-browser-bar-short {
+  width: 44%;
 }
 
 .cat-browser-controls {
@@ -1116,14 +1207,17 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
   border: 1px solid var(--cat-line);
   border-radius: 12px;
   background: var(--cat-panel);
-  padding: 12px 14px;
+  padding: 0;
   overflow: hidden;
 }
 
 .cat-browser-tile-chrome {
   display: flex;
+  align-items: center;
   gap: 6px;
-  margin-bottom: 8px;
+  padding: 9px 12px;
+  border-bottom: 1px solid rgba(241, 239, 233, 0.1);
+  background: rgba(241, 239, 233, 0.04);
 }
 
 .cat-browser-dot {
@@ -1131,19 +1225,36 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
   height: 8px;
   border-radius: 999px;
   background: rgba(241, 239, 233, 0.35);
+  flex: none;
 }
 
-.cat-browser-tile-text {
-  margin: 0;
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--cat-paper-dim);
-  overflow-wrap: anywhere;
+.cat-browser-tile-url {
+  flex: 1;
+  height: 16px;
+  margin-left: 4px;
+  border-radius: 999px;
+  background: rgba(241, 239, 233, 0.09);
+}
+
+.cat-browser-tile-body {
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px 14px;
+}
+
+.cat-browser-tile-body .cat-browser-bar {
+  height: 8px;
+}
+
+.cat-browser-tile-body .cat-browser-bar-lead {
+  height: 11px;
 }
 
 .cat-browser-tile-img {
   display: block;
-  max-width: 100%;
+  width: calc(100% - 20px);
+  max-width: calc(100% - 20px);
+  margin: 10px;
   border-radius: 8px;
 }
 
@@ -1562,6 +1673,38 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
   .cat-browser-window {
     animation: none;
   }
+}
+
+/* ---- Composer: gold send, gold-outline attach chip, one-line ----
+   placeholder. The composer contract is unchanged — attach, input,
+   send, in that order — only its finish follows the design: the
+   send button is the house gold with an ink arrow, the attach
+   control is a gold-outline chip instead of a dark disc, and the
+   placeholder sets on a single line with an ellipsis, so the pill
+   never clips a wrapped second line at any width or theme. The
+   nowrap applies only while the placeholder is showing; typed
+   text wraps and grows exactly as before. */
+html[data-theme] body.crump-v1-body .input-container :is(#sendButton, .crump50-send):not(:disabled) {
+  background: var(--cat-gold-bright) !important;
+  color: var(--cat-ink) !important;
+}
+
+html[data-theme] body.crump-v1-body .input-container :is(#attachBtn, .crump50-plus) {
+  background: transparent !important;
+  border: 1px solid rgba(213, 185, 113, 0.65) !important;
+  border-radius: 12px !important;
+  color: var(--cat-gold-bright) !important;
+}
+
+html[data-theme] body.crump-v1-body .input-container :is(#attachBtn, .crump50-plus):hover {
+  background: rgba(213, 185, 113, 0.14) !important;
+  color: var(--cat-gold-bright) !important;
+}
+
+html[data-theme] body.crump-v1-body .message-input:placeholder-shown {
+  white-space: nowrap !important;
+  text-overflow: ellipsis !important;
+  overflow-y: hidden !important;
 }
 
 /* ---- You surface: Settings Connections rows ----
