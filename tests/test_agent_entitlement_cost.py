@@ -99,11 +99,24 @@ class FakeDB:
 
     def _matches(self, row, filters):
         for key, raw in (filters or {}).items():
+            value = row.get(key)
             if isinstance(raw, str) and raw.startswith('eq.'):
-                if str(row.get(key)) != raw[3:]:
+                if str(value) != raw[3:]:
                     return False
             elif isinstance(raw, str) and raw == 'is.null':
-                if row.get(key) is not None:
+                if value is not None:
+                    return False
+            elif isinstance(raw, str) and raw.startswith('lte.'):
+                if value is None or str(value) > raw[4:]:
+                    return False
+            elif isinstance(raw, str) and raw.startswith('lt.'):
+                if value is None or str(value) >= raw[3:]:
+                    return False
+            elif isinstance(raw, str) and raw.startswith('gte.'):
+                if value is None or str(value) < raw[4:]:
+                    return False
+            elif isinstance(raw, str) and raw.startswith('gt.'):
+                if value is None or str(value) <= raw[3:]:
                     return False
             elif row.get(key) != raw:
                 return False

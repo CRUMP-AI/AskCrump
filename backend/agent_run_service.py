@@ -22,7 +22,7 @@ from typing import Any
 
 from .agent_registry import Capability, get_capability
 from .auth_service import is_guest_user, paid_tools_entitled
-from .db import SupabaseDB, eq
+from .db import SupabaseDB, eq, gt
 from .security import iso_now, new_uuid
 from .usage_service import credit_status, refund_usage
 
@@ -35,6 +35,49 @@ RUN_STATUSES = frozenset(
 TERMINAL_STATUSES = frozenset({'succeeded', 'failed', 'cancelled'})
 APPROVAL_TTL = timedelta(hours=24)
 MAX_PAYLOAD_BYTES = 16000
+# A run whose execution claim (the queued -> running transition) is
+# older than this is residue, not work in progress: the claiming
+# process died with the run in ``running`` and no executor will ever
+# finish it. Reconciliation fails such a run and settles its
+# reservation; a younger claim is never touched, because its
+# executor may still be working.
+STALE_RUNNING_AFTER = timedelta(minutes=15)
+# The reconciliation sweep pages its candidate streams in
+# (updated_at, id) keyset pages of this size, up to this many pages
+# per stream per pass — a bound on work per pass, not on coverage:
+# pages are walked oldest-first and reconciled runs stay settled,
+# so any residue past the bound is reached on the next pass.
+RECONCILE_PAGE_SIZE = 100
+RECONCILE_MAX_PAGES = 200
+
+
+def _parse_run_timestamp(value: Any) -> datetime | None:
+    if isinstance(value, datetime):
+        parsed = value
+    elif isinstance(value, str) and value:
+        try:
+            parsed = datetime.fromisoformat(value.replace('Z', '+00:00'))
+        except ValueError:
+            return None
+    else:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed
+
+
+def _running_claim_is_stale(run: dict[str, Any]) -> bool:
+    """Whether a ``running`` run's claim has outlived any executor.
+
+    Judged on the run row's ``updated_at`` — the claim transition
+    stamps it, and a live executor's own transitions keep it moving.
+    An unparseable stamp is never judged stale: recovery does not
+    touch what it cannot date.
+    """
+    updated = _parse_run_timestamp(run.get('updated_at'))
+    if updated is None:
+        return False
+    return updated <= datetime.now(timezone.utc) - STALE_RUNNING_AFTER
 
 
 class AgentRunError(RuntimeError):
@@ -637,22 +680,125 @@ class AgentRunService:
             payload={'ledgerId': str(ledger_id)},
         )
 
-    async def reconcile_run_credits(self, run: dict[str, Any]) -> bool:
-        """Refund a terminal non-success run's stranded reservation.
+    async def _ledger_reservation(
+        self, run: dict[str, Any]
+    ) -> tuple[str | None, bool]:
+        """The run's confirmed spend in the credits ledger itself.
 
-        A ``run.credits_reserved`` step with no matching
-        ``run.credits_released`` step on a run that ended failed or
-        cancelled is a debit whose release never landed — the
-        executor crashed after reserving, or the refund itself
-        failed. The refund goes through the same idempotent
-        refund RPC as the inline release, so reconciling twice, or
-        racing the executor's own late release, refunds at most
-        once; a successful refund is recorded with the release step
-        so later passes see the run as settled. A succeeded run is
-        never touched: its reservation is the charge. Returns True
-        when this call issued a refund.
+        The executor commits the debit before it records the
+        reservation step, so the step ledger cannot be the only
+        discovery path: a crash in that gap leaves a real debit no
+        step names. The spend is filed under the deterministic
+        external key ``agent-run:<run id>:<capability id>`` (the
+        confirmed-spend RPC's idempotency key), so the debit is
+        findable from the run row alone. Returns the spend's ledger
+        id and whether a refund row already reverses it.
         """
-        if str(run.get('status') or '') not in {'failed', 'cancelled'}:
+        external_id = f'agent-run:{run["id"]}:{run["capability_id"]}'
+        rows = await self.db.select(
+            'credit_ledger',
+            filters={
+                'user_id': eq(str(run['user_id'])),
+                'provider': eq('feature-spend'),
+                'external_id': eq(external_id),
+            },
+            limit=1,
+        )
+        if not rows:
+            return None, False
+        ledger_id = str(rows[0]['id'])
+        return ledger_id, await self._ledger_refund_exists(run, ledger_id)
+
+    async def _ledger_refund_exists(
+        self, run: dict[str, Any], ledger_id: str
+    ) -> bool:
+        """Whether the credits ledger already reverses a spend.
+
+        The refund RPC enforces refund-at-most-once in the ledger
+        (a unique index on the reversing row), so this row is the
+        durable proof a release landed — even when the release's
+        step record did not.
+        """
+        rows = await self.db.select(
+            'credit_ledger',
+            filters={
+                'user_id': eq(str(run['user_id'])),
+                'related_ledger_id': eq(str(ledger_id)),
+                'reason': eq('refund'),
+            },
+            limit=1,
+        )
+        return bool(rows)
+
+    async def _fail_stale_running_run(
+        self, run: dict[str, Any]
+    ) -> dict[str, Any] | None:
+        """Fail a ``running`` run whose claim is stale.
+
+        The transition is a compare-and-swap on the exact row the
+        caller observed — status still ``running`` under the same
+        ``updated_at`` stamp — so a live executor that moves the
+        run first wins, and this recovery backs off instead of
+        failing work in progress. Returns the failed row, or None
+        when the compare-and-swap lost.
+        """
+        updated = await self.db.update(
+            'agent_runs',
+            {'status': 'failed', 'updated_at': iso_now()},
+            filters={
+                'id': eq(str(run['id'])),
+                'user_id': eq(str(run['user_id'])),
+                'status': eq('running'),
+                'updated_at': eq(str(run.get('updated_at'))),
+            },
+        )
+        if not (isinstance(updated, list) and updated):
+            return None
+        failed = updated[0]
+        await self._record_step(
+            run=failed,
+            step_type='run.failed',
+            payload={'code': 'STALE_RUNNING_RECOVERED'},
+        )
+        return failed
+
+    async def reconcile_run_credits(self, run: dict[str, Any]) -> bool:
+        """Refund a non-success run's stranded reservation.
+
+        A reserved debit with no matching release on a run that
+        ended failed or cancelled is money whose release never
+        landed — the executor crashed after reserving, or the
+        refund itself failed. Discovery reads both ledgers: the
+        run's step ledger (``run.credits_reserved`` without
+        ``run.credits_released``) and the credits ledger itself,
+        keyed by the spend's deterministic action key, which finds
+        the debit even when the reservation step was never written
+        — the executor commits the debit first and records the step
+        second, and a crash between them must not strand the money.
+        A ``running`` run is recovered too once its claim is stale
+        (see ``STALE_RUNNING_AFTER``): it is failed under a
+        compare-and-swap first, so a live executor is never
+        disturbed. A fresh ``running`` run and a succeeded run are
+        never touched: the one's executor may still be working,
+        and the other's reservation is its charge.
+
+        The refund goes through the same idempotent refund RPC as
+        the inline release, so reconciling twice, or racing the
+        executor's own late release, refunds at most once; a
+        successful refund is recorded with the release step so
+        later passes see the run as settled. Returns True when
+        this call issued a refund.
+        """
+        status = str(run.get('status') or '')
+        if status == 'running':
+            if not _running_claim_is_stale(run):
+                return False
+            failed = await self._fail_stale_running_run(run)
+            if failed is None:
+                return False
+            run = failed
+            status = 'failed'
+        if status not in {'failed', 'cancelled'}:
             return False
         steps = await self.db.select(
             'agent_run_steps',
@@ -674,39 +820,117 @@ class AgentRunService:
                 reserved.append(str(ledger_id))
             elif step.get('step_type') == 'run.credits_released':
                 released.add(str(ledger_id))
+        ledger_id, _refunded = await self._ledger_reservation(run)
+        if ledger_id and ledger_id not in reserved:
+            reserved.append(ledger_id)
         refunded = False
-        for ledger_id in reserved:
-            if ledger_id in released:
+        for candidate in reserved:
+            if candidate in released:
                 continue
-            await self.refund_run_credits(str(run['user_id']), ledger_id)
-            await self.record_credit_release(run, ledger_id)
+            if await self._ledger_refund_exists(run, candidate):
+                # The refund landed but its release step did not:
+                # heal the run's record so later passes see the run
+                # as settled. No money moves — it already came back.
+                await self.record_credit_release(run, candidate)
+                released.add(candidate)
+                continue
+            await self.refund_run_credits(str(run['user_id']), candidate)
+            await self.record_credit_release(run, candidate)
             refunded = True
         return refunded
 
-    async def reconcile_terminal_run_credits(
-        self, *, limit: int = 50
-    ) -> int:
-        """Bounded recovery sweep over recently terminal runs.
+    async def _run_page(
+        self,
+        *,
+        status: str,
+        cursor: tuple[str, str] | None,
+        page_size: int = RECONCILE_PAGE_SIZE,
+    ) -> tuple[list[dict[str, Any]], tuple[str, str] | None]:
+        """One (updated_at, id) keyset page of runs in ``status``.
 
-        Settles stranded reservations on failed and cancelled runs
-        without anyone opening them (the run-due lane calls this
-        once per pass). One run's failure never blocks the rest.
-        Returns how many runs this call refunded.
+        The cursor is composite, so a page that ends inside a block
+        of rows sharing one ``updated_at`` continues within the tie
+        (same stamp, greater id) instead of skipping the rest of
+        it. Returns the page — sorted by (updated_at, id) — and the
+        next cursor, or None when the page was short and the stream
+        is exhausted.
         """
-        settled = 0
-        for status in ('failed', 'cancelled'):
+        if cursor is None:
             rows = await self.db.select(
                 'agent_runs',
                 filters={'status': eq(status)},
-                order='updated_at.desc',
-                limit=max(1, int(limit or 50)),
+                order='updated_at.asc,id.asc',
+                limit=page_size,
             )
+        else:
+            cursor_ts, cursor_id = cursor
+            tie = await self.db.select(
+                'agent_runs',
+                filters={
+                    'status': eq(status),
+                    'updated_at': eq(cursor_ts),
+                    'id': gt(cursor_id),
+                },
+                order='updated_at.asc,id.asc',
+                limit=page_size,
+            )
+            rest = await self.db.select(
+                'agent_runs',
+                filters={'status': eq(status), 'updated_at': gt(cursor_ts)},
+                order='updated_at.asc,id.asc',
+                limit=page_size - len(tie),
+            )
+            rows = tie + rest
+        rows = sorted(
+            rows,
+            key=lambda row: (
+                str(row.get('updated_at') or ''),
+                str(row.get('id') or ''),
+            ),
+        )
+        if len(rows) < page_size:
+            return rows, None
+        last = rows[-1]
+        return rows, (str(last.get('updated_at')), str(last.get('id')))
+
+    async def _reconcile_run_stream(self, status: str) -> int:
+        """Reconcile one candidate stream to exhaustion, oldest first."""
+        settled = 0
+        cursor: tuple[str, str] | None = None
+        for _page in range(RECONCILE_MAX_PAGES):
+            rows, cursor = await self._run_page(status=status, cursor=cursor)
+            if not rows:
+                break
             for row in rows:
+                if status == 'running' and not _running_claim_is_stale(row):
+                    # Oldest first: every later claim is younger, so
+                    # nothing past this row can be stale either.
+                    return settled
                 try:
                     if await self.reconcile_run_credits(row):
                         settled += 1
                 except Exception:
                     continue
+            if cursor is None:
+                break
+        return settled
+
+    async def reconcile_terminal_run_credits(self) -> int:
+        """Recovery sweep over every stranded reservation.
+
+        Settles reserved-but-unreleased debits on failed and
+        cancelled runs — and on stale ``running`` runs, whose
+        claims outlived their executors — without anyone opening
+        them (the run-due lane calls this once per pass). Each
+        stream is paged oldest-first to exhaustion, so residue is
+        settled no matter how many newer runs sit on top of it;
+        the refund RPC's idempotency keeps every settlement
+        exact-once across passes. One run's failure never blocks
+        the rest. Returns how many runs this call refunded.
+        """
+        settled = 0
+        for status in ('failed', 'cancelled', 'running'):
+            settled += await self._reconcile_run_stream(status)
         return settled
 
     # -- runs ---------------------------------------------------------------
