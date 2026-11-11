@@ -137,8 +137,8 @@ def test_reorg_pins_stepped_exactly_once():
         "/crump-vision-projects-1.0.js?v=5.9.76-reorg-projects-you-1",
         "/crump-vision-library-1.0.css?v=5.9.76-reorg-projects-you-1",
         "/crump-vision-library-1.0.js?v=5.9.76-reorg-projects-you-1",
-        "/crump-agent-today-1.0.css?v=5.9.76-agent-today-15",
-        "/crump-agent-today-1.0.js?v=5.9.76-agent-today-15",
+        "/crump-agent-today-1.0.css?v=5.9.76-agent-today-16",
+        "/crump-agent-today-1.0.js?v=5.9.76-agent-today-16",
     ):
         assert url in app, url
     for url in (
@@ -148,10 +148,50 @@ def test_reorg_pins_stepped_exactly_once():
         "/crump-vision-library-1.0.js?v=5.9.76-reorg-projects-you-1",
     ):
         assert url in worker, url
-    assert worker.startswith("const CACHE_NAME = 'ask-crump-new-body-v1-r298-headline-voice-1';")
+    assert worker.startswith("const CACHE_NAME = 'ask-crump-new-body-v1-r299-tasks-you-genre-1';")
     for retired in (
         "5.9.76-project-resume-1",
         "5.9.76-project-resume-owner-boundary-1",
         "5.9.76-agent-today-9",
     ):
         assert retired not in app, retired
+
+
+def test_you_screen_is_row_groups_not_an_editorial_page():
+    js = read("public/crump-vision-you-1.0.js")
+    # The display headlines and marketing lines are gone, along with
+    # the card boxes they sat on.
+    for gone in (
+        "Your Crump",
+        "Everything Crump remembers. Yours to see, edit, or erase.",
+        "Connected accounts.",
+        "Private by design.",
+        "The wallet.",
+        "cv-headline",
+        "cv-you-card",
+        "cv-sub",
+    ):
+        assert gone not in js, gone
+    # The screen is the design's four row groups, in order, under
+    # tracked gold eyebrows, below a serif page title.
+    assert 'class="cv-you-title">You<' in js
+    for title in ("Memory", "Connected accounts", "Plan &amp; credits", "Settings"):
+        assert 'cv-you-group-title' in js and f'>{title}<' in js, title
+    assert (
+        js.index(">Memory<")
+        < js.index(">Connected accounts<")
+        < js.index(">Plan &amp; credits<")
+        < js.index(">Settings<")
+    )
+    # Memory keeps a row-shaped route into its editor.
+    assert 'data-memory-add' in js and 'Edit memory' in js
+    css = read("public/crump-vision-you-1.0.css")
+    title_block = css.split(".cv-you-title {", 1)[1].split("}", 1)[0]
+    assert "Georgia" in title_block and "font-size: 34px" in title_block
+    group_block = css.split(".cv-you-group-title {", 1)[1].split("}", 1)[0]
+    assert "letter-spacing: 0.22em" in group_block and "uppercase" in group_block
+    row_block = css.split(".cv-you-row {", 1)[1].split("}", 1)[0]
+    assert "border-bottom: 1px solid rgba(213, 185, 113, 0.16)" in row_block
+    # No display scale survives anywhere in the sheet.
+    assert ".cv-headline" not in css and "clamp(" not in css
+    assert "font-size: 44px" not in css

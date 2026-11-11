@@ -486,6 +486,7 @@ async function measureTasks(page) {
         titleColor: title ? getComputedStyle(title).color : '',
         text: group.textContent,
         cards: [...group.querySelectorAll('.cat-card')].filter(visible).length,
+        statusPills: [...group.querySelectorAll('.cat-card .cat-status')].map(s => s.textContent.trim()),
         rows: [...group.querySelectorAll('.cat-task-row')].map(row => {
           const titleEl = row.querySelector('.cat-task-row-title');
           const metaEl = row.querySelector('.cat-task-row-meta');
@@ -503,6 +504,7 @@ async function measureTasks(page) {
         emptyText: (group.querySelector('.cat-group-empty') || {}).textContent || '',
       };
     });
+    const drawerTitle = panel ? panel.querySelector('.cat-drawer-title') : null;
     return {
       panelVisible: visible(panel),
       panelBackground: panel ? getComputedStyle(panel).backgroundColor : '',
@@ -511,6 +513,12 @@ async function measureTasks(page) {
       panelText: panel ? panel.textContent : '',
       panelScrollWidth: panel ? panel.scrollWidth : 0,
       panelClientWidth: panel ? panel.clientWidth : 0,
+      headControls: panel
+        ? [...panel.querySelectorAll('.cat-drawer-head button')].map(b => ({
+          text: b.textContent.trim(), aria: b.getAttribute('aria-label') || '',
+        }))
+        : [],
+      titleFontSize: drawerTitle ? getComputedStyle(drawerTitle).fontSize : '',
       fetchCalls: Array.isArray(window.__fetchCalls) ? window.__fetchCalls.slice() : [],
     };
   });
@@ -537,12 +545,22 @@ async function runTasksScenarios(browser) {
       const m = await measureTasks(page);
       assert.equal(m.panelVisible, true, `${label}: Tasks panel not visible`);
       assert.equal(m.panelBackground, 'rgb(7, 10, 14)', `${label}: drawer ground ${m.panelBackground}`);
+      // Ledger genre: the header carries no utility pills — the only
+      // control is the quiet close affordance — and the title sets at
+      // the page-title scale in serif.
+      assert.deepEqual(m.headControls, [{ text: '×', aria: 'Close Tasks' }],
+        `${label}: drawer head controls ${JSON.stringify(m.headControls)}`);
+      assert.equal(m.titleFontSize, '34px', `${label}: Tasks title size ${m.titleFontSize}`);
       assert.deepEqual(m.groupTitles, ['Waiting on you', 'Running', 'Scheduled', 'Done'],
         `${label}: group order ${JSON.stringify(m.groupTitles)}`);
       const [waiting, running, scheduled, done] = m.groups;
       assert.equal(waiting.titleColor, 'rgb(213, 185, 113)', `${label}: group eyebrow color`);
       // PR2 dependency: every pending approval renders in full here.
       assert.equal(waiting.cards, 4, `${label}: waiting approval cards ${waiting.cards}`);
+      // The group eyebrow already names the state: no card inside the
+      // record repeats it as a "Waiting on you" pill.
+      assert.deepEqual(waiting.statusPills, [],
+        `${label}: waiting pills repeated inside cards ${JSON.stringify(waiting.statusPills)}`);
       // The shared card family fixes hold in the drawer too: no
       // dangling fragment summary under a payload-derived headline,
       // and no payload field reduced to a count in the frozen detail.
@@ -637,9 +655,29 @@ async function runTasksScenarios(browser) {
     scenarios += 1;
   }
 
+  // Today keeps its pill: there the approval card stands alone with
+  // no group eyebrow above it, so the card still names its own state.
+  // Only the Tasks record, where the eyebrow already says it, drops
+  // the repetition.
+  {
+    const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+    await page.goto(`${fixtureUrl}?theme=dark&state=live`, { waitUntil: 'load' });
+    await page.waitForSelector('.cat-today .cat-card', { timeout: 8000 });
+    await page.waitForTimeout(150);
+    const pill = await page.evaluate(() => {
+      const card = document.querySelector('.cat-today .cat-card');
+      const status = card ? card.querySelector('.cat-status') : null;
+      return status ? status.textContent.trim() : '';
+    });
+    assert.equal(pill, 'Waiting on you',
+      `today pill: standalone approval card pill "${pill}"`);
+    await page.close();
+    scenarios += 1;
+  }
+
   console.log(`Agent Tasks record: ${scenarios} scenarios passed ` +
     `(${THEMES.length} themes x mixed x ${VIEWPORTS.length} viewports, plus expansion, ` +
-    `scheduled-only, empty, and guest).`);
+    `scheduled-only, empty, guest, and the Today standalone pill).`);
   return scenarios;
 }
 
@@ -694,12 +732,23 @@ async function measureProjectsYou(page) {
       .map(row => [...row.children].map(text));
     const settingsRows = [...document.querySelectorAll('[data-cat-you-connections] .cat-you-row')]
       .map(row => [...row.querySelectorAll('.settings-label')].map(text));
+    const youRoot = document.querySelector('#youRoot');
+    const youTitle = youRoot ? youRoot.querySelector('.cv-you-title') : null;
     return {
       rows,
       tiles,
       books,
       youRows,
       settingsRows,
+      youGenre: {
+        headlines: youRoot ? youRoot.querySelectorAll('.cv-headline').length : -1,
+        cards: youRoot ? youRoot.querySelectorAll('.cv-you-card').length : -1,
+        groupTitles: youRoot
+          ? [...youRoot.querySelectorAll('.cv-you-group-title')].map(text)
+          : [],
+        titleFontSize: youTitle ? getComputedStyle(youTitle).fontSize : '',
+        rootHeight: youRoot ? Math.round(youRoot.getBoundingClientRect().height) : 0,
+      },
       youText: text(document.querySelector('#youRoot')),
       projectsText: text(document.querySelector('#projectsRoot')),
       libraryText: text(document.querySelector('#libraryRoot')),
@@ -809,6 +858,21 @@ async function runProjectsYouScenarios(browser) {
       }
       assert.equal(m.memoryItems, 1, `${label}: memory items`);
       assert.equal(m.memoryControls, true, `${label}: memory edit/delete controls`);
+      // Row genre: the You screen is one quiet list — no display
+      // headlines, no card boxes, the four groups in the design's
+      // order under tracked eyebrows, the title at page scale.
+      assert.equal(m.youGenre.headlines, 0, `${label}: display headlines on You`);
+      assert.equal(m.youGenre.cards, 0, `${label}: card boxes on You`);
+      assert.deepEqual(m.youGenre.groupTitles,
+        ['Memory', 'Connected accounts', 'Plan & credits', 'Settings'],
+        `${label}: You group order ${JSON.stringify(m.youGenre.groupTitles)}`);
+      assert.equal(m.youGenre.titleFontSize, '34px', `${label}: You title size ${m.youGenre.titleFontSize}`);
+      if (viewport.name === '390x844') {
+        // The pre-rebuild screen measured 2594px in this state; the
+        // row build must stay a settings list, not an editorial page.
+        assert.ok(m.youGenre.rootHeight <= 1500,
+          `${label}: You height ${m.youGenre.rootHeight}px reads as a scroll page, not a list`);
+      }
       assert.ok(m.documentScrollWidth <= viewport.width,
         `${label}: document scrollWidth ${m.documentScrollWidth} > ${viewport.width}`);
       scenarios += 1;

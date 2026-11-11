@@ -111,11 +111,11 @@
     var deviceRows = section.querySelector('[data-device-rows]');
     if (deviceRows) {
       if (!prefs) {
-        deviceRows.innerHTML = '<div class="cv-device-row"><span>Memory settings</span><b>Not set on this device</b></div>';
+        deviceRows.innerHTML = '<div class="cv-you-row"><span>Memory on this device</span><b>Not set</b></div>';
       } else {
         deviceRows.innerHTML =
-          '<div class="cv-device-row"><span>Crump remembers this conversation&apos;s context</span><b>' + (prefs.memoryEnabled ? 'On' : 'Off') + '</b></div>' +
-          '<div class="cv-device-row"><span>Crump learns preferences automatically</span><b>' + (prefs.autoLearn ? 'On' : 'Off') + '</b></div>';
+          '<div class="cv-you-row"><span>Remembers conversation context</span><b>' + (prefs.memoryEnabled ? 'On' : 'Off') + '</b></div>' +
+          '<div class="cv-you-row"><span>Learns preferences automatically</span><b>' + (prefs.autoLearn ? 'On' : 'Off') + '</b></div>';
       }
     }
   }
@@ -208,17 +208,17 @@
     {
       key: 'privateStorage',
       title: 'Private storage',
-      copy: 'Keeps your generations and projects in your own workspace. This switch sets the preference on this device.'
+      copy: 'Generations and projects stay in your own workspace. Set on this device.'
     },
     {
       key: 'improveCrump',
       title: 'Improve Crump with my data',
-      copy: 'Off. When on, this would let anonymized usage help improve the product. Nothing is sent while it is off.'
+      copy: 'Off. When on, anonymized usage would help improve Crump. Nothing is sent while off.'
     },
     {
       key: 'syncDevices',
       title: 'Sync across devices',
-      copy: 'Keeps your workspace available when you sign in on another device. This switch sets the preference on this device.'
+      copy: 'Your workspace stays available on your other devices. Set on this device.'
     }
   ];
 
@@ -295,17 +295,17 @@
     var plan = planInfo();
     var balance = readCreditBalance();
     var balanceEl = section.querySelector('[data-credit-balance]');
-    if (balanceEl) balanceEl.textContent = balance === null ? '—' : String(balance);
+    if (balanceEl) balanceEl.textContent = balance === null ? '—' : String(balance) + ' remaining';
 
     var planEl = section.querySelector('[data-plan-row]');
     if (planEl) {
-      planEl.innerHTML = '<b>' + esc(plan.name) + ' plan</b><span>' + esc(plan.price) + '</span>';
+      planEl.innerHTML = '<span>Plan</span><b>' + esc(plan.name) + ' · ' + esc(plan.price) + '</b>';
     }
 
     var packList = section.querySelector('[data-pack-list]');
     if (packList) {
       packList.innerHTML = creditPacks().map(function (pack) {
-        return '<li class="cv-pack-row"><b>' + esc(String(pack.credits)) + ' credits</b><span>' + esc(pack.price) + '</span></li>';
+        return '<li class="cv-you-row"><span>' + esc(String(pack.credits)) + ' credits</span><b>' + esc(pack.price) + '</b></li>';
       }).join('');
     }
   }
@@ -318,7 +318,7 @@
       if (!isNaN(num)) {
         creditBalance = Math.max(0, Math.floor(num));
         var balanceEl = section.querySelector('[data-credit-balance]');
-        if (balanceEl) balanceEl.textContent = String(creditBalance);
+        if (balanceEl) balanceEl.textContent = String(creditBalance) + ' remaining';
       }
     });
   }
@@ -470,65 +470,44 @@
     root.classList.add('cv-you');
     root.innerHTML =
       '<div class="cv-you-wrap">' +
-        '<p class="cv-eyebrow">You</p>' +
-        '<h1 class="cv-headline">Your Crump</h1>' +
-        '<p class="cv-sub">Everything Crump remembers about you, the privacy choices that shape it, and the wallet that pays for the work.</p>' +
+        '<h1 class="cv-you-title">You</h1>' +
 
         '<section class="cv-you-section" aria-labelledby="cvMemoryTitle">' +
-          '<p class="cv-eyebrow">Memory console</p>' +
-          '<h2 class="cv-headline" id="cvMemoryTitle" style="font-size:28px;margin-bottom:12px">Everything Crump remembers. Yours to see, edit, or erase.</h2>' +
-          '<div class="cv-you-card">' +
-            '<ul class="cv-memory-list" data-memory-list></ul>' +
-            '<div class="cv-memory-empty" data-memory-empty>' +
-              '<strong>Nothing saved yet</strong>' +
-              '<p>Crump has not written down anything about you. When it learns something worth keeping, it will appear here — and you can edit or erase any of it.</p>' +
+          '<h2 class="cv-you-group-title" id="cvMemoryTitle">Memory</h2>' +
+          '<ul class="cv-memory-list" data-memory-list></ul>' +
+          '<p class="cv-you-empty" data-memory-empty>Nothing saved yet. What Crump learns will appear here.</p>' +
+          '<div data-device-rows></div>' +
+          '<button type="button" class="cv-you-row cv-you-action-row" data-memory-add>' +
+            '<span>Edit memory</span><span class="cv-you-chevron" aria-hidden="true">›</span>' +
+          '</button>' +
+          '<div class="cv-memory-editor" data-memory-editor style="display:none">' +
+            '<p class="cv-section-divider-label" data-memory-editor-heading>Add a memory</p>' +
+            '<label class="cv-field-label" for="cvMemoryInput" style="position:absolute;left:-9999px">Memory text</label>' +
+            '<textarea class="cv-textarea" id="cvMemoryInput" data-memory-input placeholder="e.g. Greg prefers concise answers with the decision first…"></textarea>' +
+            '<p class="cv-inline-error" data-memory-error></p>' +
+            '<div class="cv-editor-actions">' +
+              '<button type="button" class="cv-btn cv-btn-primary" data-memory-save>Save memory</button>' +
+              '<button type="button" class="cv-btn cv-btn-ghost" data-memory-cancel>Cancel</button>' +
             '</div>' +
-            '<div class="cv-editor-actions" style="margin-top:0;margin-bottom:4px">' +
-              '<button type="button" class="cv-btn cv-btn-ghost" data-memory-add>Add memory</button>' +
-            '</div>' +
-            '<div class="cv-memory-editor" data-memory-editor style="display:none">' +
-              '<p class="cv-section-divider-label" data-memory-editor-heading>Add a memory</p>' +
-              '<label class="cv-field-label" for="cvMemoryInput" style="position:absolute;left:-9999px">Memory text</label>' +
-              '<textarea class="cv-textarea" id="cvMemoryInput" data-memory-input placeholder="e.g. Greg prefers concise answers with the decision first…"></textarea>' +
-              '<p class="cv-inline-error" data-memory-error></p>' +
-              '<div class="cv-editor-actions">' +
-                '<button type="button" class="cv-btn cv-btn-primary" data-memory-save>Save memory</button>' +
-                '<button type="button" class="cv-btn cv-btn-ghost" data-memory-cancel>Cancel</button>' +
-              '</div>' +
-            '</div>' +
-            '<p class="cv-device-note">On this device</p>' +
-            '<div class="cv-device-rows" data-device-rows></div>' +
           '</div>' +
         '</section>' +
 
         '<section class="cv-you-section" aria-labelledby="cvConnectionsTitle">' +
-          '<p class="cv-eyebrow">Connections</p>' +
-          '<h2 class="cv-headline" id="cvConnectionsTitle" style="font-size:28px;margin-bottom:12px">Connected accounts.</h2>' +
-          '<div class="cv-you-card">' +
-            '<div data-connections-root></div>' +
-          '</div>' +
+          '<h2 class="cv-you-group-title" id="cvConnectionsTitle">Connected accounts</h2>' +
+          '<div data-connections-root></div>' +
         '</section>' +
 
         '<section class="cv-you-section" aria-labelledby="cvCreditsTitle">' +
-          '<p class="cv-eyebrow">Plan &amp; credits</p>' +
-          '<h2 class="cv-headline" id="cvCreditsTitle" style="font-size:28px;margin-bottom:12px">The wallet.</h2>' +
-          '<div class="cv-you-card">' +
-            '<div class="cv-wallet">' +
-              '<div><p class="cv-balance-label">Balance</p><p class="cv-balance" data-credit-balance>—</p></div>' +
-            '</div>' +
-            '<div class="cv-plan-row" data-plan-row></div>' +
-            '<p class="cv-section-divider-label">Credit packs</p>' +
-            '<ul class="cv-pack-list" data-pack-list></ul>' +
-          '</div>' +
+          '<h2 class="cv-you-group-title" id="cvCreditsTitle">Plan &amp; credits</h2>' +
+          '<div class="cv-you-row" data-plan-row></div>' +
+          '<div class="cv-you-row"><span>Agent credits</span><b data-credit-balance>—</b></div>' +
+          '<ul class="cv-pack-list" data-pack-list></ul>' +
         '</section>' +
 
         '<section class="cv-you-section" aria-labelledby="cvPrivacyTitle">' +
-          '<p class="cv-eyebrow">Settings</p>' +
-          '<h2 class="cv-headline" id="cvPrivacyTitle" style="font-size:28px;margin-bottom:12px">Private by design.</h2>' +
-          '<div class="cv-you-card">' +
-            '<div data-privacy-list></div>' +
-            '<p class="cv-privacy-footnote">These switches set the privacy preferences on this device. They are stored locally and do not change anything kept on Ask Crump&apos;s servers.</p>' +
-          '</div>' +
+          '<h2 class="cv-you-group-title" id="cvPrivacyTitle">Settings</h2>' +
+          '<div data-privacy-list></div>' +
+          '<p class="cv-privacy-footnote">These switches set the privacy preferences on this device. They are stored locally and do not change anything kept on Ask Crump&apos;s servers.</p>' +
         '</section>' +
       '</div>';
 

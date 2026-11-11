@@ -1,79 +1,127 @@
-/* Crump Vision — You view (Memory Console, Privacy, Credits). Ink-black and gold. No glows. */
+/* Crump Vision — You view (Memory, Connected accounts, Plan & credits,
+   Settings). One quiet screen of hairline row groups on ink. Text scale
+   only: the serif is reserved for the page title, group eyebrows are
+   tracked gold, and every group is rows — no cards, no display type. */
 
 .cv-you {
   background: #070a0e;
   color: #f1efe9;
   font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   min-height: 100%;
-  padding: 48px 32px 96px;
+  padding: 36px 24px 64px;
   box-sizing: border-box;
 }
 
 .cv-you-wrap {
-  max-width: 1150px;
+  max-width: 880px;
   margin: 0 auto;
 }
 
-.cv-you .cv-eyebrow {
+.cv-you-title {
+  font-family: Georgia, "Times New Roman", serif;
+  font-weight: 600;
+  font-size: 34px;
+  line-height: 1.15;
+  margin: 0 0 8px;
+  color: #f1efe9;
+}
+
+.cv-you-section {
+  margin-top: 34px;
+}
+
+.cv-you-group-title {
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.22em;
   color: #d5b971;
-  margin: 0 0 16px;
-  font-weight: 600;
+  margin: 0 0 4px;
+  font-weight: 700;
 }
 
-.cv-you .cv-headline {
-  font-family: Georgia, "Times New Roman", serif;
-  font-weight: 400;
-  font-size: clamp(34px, 5vw, 52px);
-  line-height: 1.08;
-  letter-spacing: -0.01em;
-  margin: 0 0 14px;
+/* Hairline rows: label left, quiet value right, one gold-family rule
+   between rows. The first row of a group carries the rule above it. */
+.cv-you-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 16px;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(213, 185, 113, 0.16);
+  font-size: 15px;
+  line-height: 1.45;
   color: #f1efe9;
 }
 
-.cv-you .cv-sub {
-  font-size: 16px;
-  line-height: 1.65;
+/* Whatever a group leads with — a row, the memory list, or a group
+   container — carries the rule above the group. */
+.cv-you-section > :nth-child(2) {
+  border-top: 1px solid rgba(213, 185, 113, 0.16);
+}
+
+.cv-you-row b {
   color: #8a9196;
-  margin: 0 0 44px;
-  max-width: 60ch;
+  font-weight: 500;
+  text-align: right;
+  overflow-wrap: anywhere;
 }
 
-.cv-you-section {
-  margin-bottom: 56px;
+.cv-you-row span {
+  overflow-wrap: anywhere;
 }
 
-.cv-you-section:last-child {
-  margin-bottom: 0;
+/* The Edit memory row is a real button wearing the row's clothes. */
+.cv-you-action-row {
+  appearance: none;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid rgba(213, 185, 113, 0.16);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  color: #f1efe9;
 }
 
-.cv-you-card {
-  background: #0b0f14;
-  border: 1px solid rgba(213, 185, 113, 0.16);
-  border-radius: 8px;
-  padding: 32px;
+.cv-you-action-row:hover {
+  color: #d5b971;
 }
 
-/* Memory list */
+.cv-you-action-row:focus-visible {
+  outline: 2px solid #d5b971;
+  outline-offset: 2px;
+}
+
+.cv-you-chevron {
+  flex: none;
+  color: #8a9196;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.cv-you-empty {
+  margin: 0;
+  padding: 14px 0;
+  border-top: 1px solid rgba(213, 185, 113, 0.16);
+  border-bottom: 1px solid rgba(213, 185, 113, 0.16);
+  font-size: 14px;
+  line-height: 1.55;
+  color: #8a9196;
+}
+
+/* Memory entries: rows with their edit/delete controls kept. */
 .cv-memory-list {
   list-style: none;
-  margin: 0 0 24px;
+  margin: 0;
   padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
 }
 
 .cv-memory-item {
-  background: #070a0e;
-  border: 1px solid rgba(213, 185, 113, 0.16);
-  border-radius: 8px;
-  padding: 16px 18px;
   display: flex;
   gap: 16px;
   align-items: flex-start;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(213, 185, 113, 0.16);
   opacity: 1;
   transition: opacity 0.25s ease, transform 0.25s ease;
 }
@@ -85,8 +133,8 @@
 
 .cv-memory-text {
   flex: 1;
-  font-size: 14px;
-  line-height: 1.65;
+  font-size: 15px;
+  line-height: 1.55;
   color: #f1efe9;
   margin: 0;
   overflow-wrap: anywhere;
@@ -97,7 +145,7 @@
   font-size: 11px;
   letter-spacing: 0.08em;
   color: #8a9196;
-  margin-top: 8px;
+  margin-top: 4px;
   text-transform: uppercase;
 }
 
@@ -140,72 +188,9 @@
   outline-offset: 2px;
 }
 
-.cv-memory-empty {
-  border: 1px dashed rgba(213, 185, 113, 0.28);
-  border-radius: 8px;
-  padding: 36px 24px;
-  text-align: center;
-  margin-bottom: 24px;
-}
-
-.cv-memory-empty strong {
-  display: block;
-  font-family: Georgia, "Times New Roman", serif;
-  font-weight: 400;
-  font-size: 18px;
-  color: #f1efe9;
-  margin-bottom: 8px;
-}
-
-.cv-memory-empty p {
-  font-size: 14px;
-  line-height: 1.7;
-  color: #8a9196;
-  margin: 0;
-  max-width: 52ch;
-  margin-left: auto;
-  margin-right: auto;
-}
-
-/* Device rows */
-.cv-device-note {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.22em;
-  color: #b69855;
-  margin: 28px 0 12px;
-  font-weight: 600;
-}
-
-.cv-device-rows {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-
-.cv-device-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-  padding: 12px 16px;
-  background: #070a0e;
-  border: 1px solid rgba(213, 185, 113, 0.1);
-  border-radius: 8px;
-  font-size: 13px;
-  color: #8a9196;
-}
-
-.cv-device-row b {
-  color: #f1efe9;
-  font-weight: 600;
-}
-
 /* Memory editor */
 .cv-memory-editor {
-  border-top: 1px solid rgba(213, 185, 113, 0.16);
-  padding-top: 24px;
+  padding-top: 16px;
 }
 
 .cv-you .cv-textarea {
@@ -284,18 +269,15 @@
   min-height: 18px;
 }
 
-/* Privacy toggles */
+/* Privacy toggles: a row per switch — title and quiet copy on the
+   left, the switch itself on the right. */
 .cv-toggle-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 20px;
-  padding: 20px 0;
-  border-bottom: 1px solid rgba(213, 185, 113, 0.1);
-}
-
-.cv-toggle-row:last-of-type {
-  border-bottom: none;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(213, 185, 113, 0.16);
 }
 
 .cv-toggle-text strong {
@@ -303,12 +285,12 @@
   font-size: 15px;
   font-weight: 600;
   color: #f1efe9;
-  margin-bottom: 6px;
+  margin-bottom: 3px;
 }
 
 .cv-toggle-text p {
   font-size: 13px;
-  line-height: 1.6;
+  line-height: 1.55;
   color: #8a9196;
   margin: 0;
   max-width: 52ch;
@@ -359,79 +341,17 @@
   font-size: 12px;
   line-height: 1.7;
   color: #8a9196;
-  margin: 20px 0 0;
+  margin: 14px 0 0;
 }
 
-/* Credits */
-.cv-wallet {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 8px;
-}
-
-.cv-balance {
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 44px;
-  font-weight: 400;
-  color: #d5b971;
-  line-height: 1;
-}
-
-.cv-balance-label {
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.22em;
-  color: #8a9196;
-}
-
-.cv-plan-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 18px 0;
-  border-top: 1px solid rgba(213, 185, 113, 0.1);
-  margin-top: 20px;
-  font-size: 14px;
-}
-
-.cv-plan-row b {
-  color: #f1efe9;
-  font-weight: 600;
-}
-
-.cv-plan-row span {
-  color: #8a9196;
-}
-
+/* Credit packs ride the same row pattern as the rest of the group. */
 .cv-pack-list {
-  margin: 8px 0 0;
+  margin: 0;
   padding: 0;
   list-style: none;
 }
 
-.cv-pack-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 14px 0;
-  border-bottom: 1px solid rgba(213, 185, 113, 0.1);
-  font-size: 14px;
-}
-
-.cv-pack-row:last-child {
-  border-bottom: none;
-}
-
-.cv-pack-row b {
-  color: #f1efe9;
-  font-weight: 600;
-}
-
-.cv-pack-row span {
+.cv-pack-list .cv-you-row b {
   color: #d5b971;
   font-weight: 600;
 }
@@ -441,88 +361,37 @@
   text-transform: uppercase;
   letter-spacing: 0.22em;
   color: #b69855;
-  margin: 28px 0 6px;
+  margin: 4px 0 10px;
   font-weight: 600;
 }
 
 @media (max-width: 640px) {
   .cv-you {
-    padding: 32px 18px 80px;
-  }
-
-  .cv-you-card {
-    padding: 24px 20px;
-  }
-
-  .cv-toggle-row {
-    flex-direction: column;
-    align-items: flex-start;
+    padding: 28px 20px 56px;
   }
 }
 
-/* ---- Reorganization: You as quiet list rows (locked design) ----
-   Sections follow the mock order — Memory, Connections, Plan &
-   credits, Settings — with gold tracked eyebrows, hairline separators,
-   generous whitespace, and the locked ink/card tokens (24px margins,
-   12/24/48 rhythm). Memory entries keep their edit/delete controls;
-   only their presentation becomes rows. */
-body.crump-v1-body .cv-you.cv-you {
-  padding: 48px 24px 96px;
-}
-body.crump-v1-body .cv-you-section.cv-you-section {
-  margin-bottom: 48px;
-}
-body.crump-v1-body .cv-you-card.cv-you-card {
-  background: #111417;
-  border-color: rgba(213, 185, 113, 0.16);
-  border-radius: 12px;
-}
-body.crump-v1-body .cv-memory-list.cv-memory-list {
-  gap: 0;
-  margin-bottom: 12px;
-}
-body.crump-v1-body .cv-memory-item.cv-memory-item {
-  background: transparent;
-  border: none;
-  border-bottom: 1px solid rgba(213, 185, 113, 0.16);
-  border-radius: 0;
-  padding: 16px 0;
-}
-.cv-memory-item:first-child { padding-top: 4px; }
-body.crump-v1-body .cv-device-row.cv-device-row {
-  background: transparent;
-  border: none;
-  border-bottom: 1px solid rgba(213, 185, 113, 0.16);
-  border-radius: 0;
-  padding: 12px 0;
-}
-body.crump-v1-body .cv-you-row.cv-you-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 16px;
-  padding: 14px 0;
-  border-bottom: 1px solid rgba(213, 185, 113, 0.16);
-  font-size: 14px;
-  color: #f1efe9;
-}
-.cv-you-row:last-of-type { border-bottom: none; }
-body.crump-v1-body .cv-you-row.cv-you-row b {
-  color: #d5b971;
-  font-weight: 600;
-  text-align: right;
-  overflow-wrap: anywhere;
-}
-
-/* Contrast lock: headlines, subs, eyebrows, and ghost actions keep
-   the reorg pairings on the ink ground in both appearances. */
-body.crump-v1-body .cv-you.cv-you .cv-headline {
+/* Contrast lock: the view paints its own ink ground in both
+   appearances, and its text pairings are pinned on that ground —
+   title and labels off-white, values and quiet lines in the gray
+   that clears AA on ink, eyebrows and pack prices in bright gold. */
+body.crump-v1-body .cv-you.cv-you .cv-you-title,
+body.crump-v1-body .cv-you.cv-you .cv-you-row,
+body.crump-v1-body .cv-you.cv-you .cv-toggle-text strong,
+body.crump-v1-body .cv-you.cv-you .cv-memory-text {
   color: #f1efe9 !important;
 }
-body.crump-v1-body .cv-you.cv-you .cv-sub {
+body.crump-v1-body .cv-you.cv-you .cv-you-group-title {
+  color: #d5b971 !important;
+}
+body.crump-v1-body .cv-you.cv-you .cv-you-row b,
+body.crump-v1-body .cv-you.cv-you .cv-you-empty,
+body.crump-v1-body .cv-you.cv-you .cv-toggle-text p,
+body.crump-v1-body .cv-you.cv-you .cv-privacy-footnote,
+body.crump-v1-body .cv-you.cv-you .cv-memory-date {
   color: #8a9196 !important;
 }
-body.crump-v1-body .cv-you.cv-you .cv-eyebrow {
+body.crump-v1-body .cv-you.cv-you .cv-pack-list .cv-you-row b {
   color: #d5b971 !important;
 }
 body.crump-v1-body .cv-you.cv-you .cv-btn-ghost {

@@ -573,7 +573,7 @@
     return true;
   }
 
-  function approvalCard(action) {
+  function approvalCard(action, options) {
     var card = h('article', 'cat-card');
     card.setAttribute('aria-label', capabilityTitle(action.capabilityId));
     var head = h('div', 'cat-card-head');
@@ -591,7 +591,14 @@
       titleWrap.appendChild(h('p', 'cat-card-summary', action.summary));
     }
     head.appendChild(titleWrap);
-    head.appendChild(h('span', statusClass('pending'), 'Waiting on you'));
+    // Inside the Tasks record the card sits under the "Waiting on you"
+    // group eyebrow, which already names its state — repeating the
+    // label as a pill on every card is chrome, not information. The
+    // Today and Chat surfaces keep the pill: there the card stands
+    // alone, with no group eyebrow above it.
+    if (!options || !options.inTasksRecord) {
+      head.appendChild(h('span', statusClass('pending'), 'Waiting on you'));
+    }
     card.appendChild(head);
 
     var payload = payloadList(action.payload);
@@ -1348,14 +1355,15 @@
 
     var head = h('div', 'cat-drawer-head');
     head.appendChild(h('h2', 'cat-drawer-title', 'Tasks'));
-    var headActions = h('div', 'cat-drawer-head-actions');
-    headActions.appendChild(button('Browser', 'cat-icon-btn', function () { openBrowserPanel(null); }));
-    headActions.appendChild(button('Refresh', 'cat-icon-btn', function () { loadAgentData(); }));
-    var closeBtn = button('Close', 'cat-icon-btn', closeTasks);
+    // The header carries no utility pills. The record refreshes itself:
+    // opening the panel loads the feed and every load re-renders it.
+    // Browser work opens from the browser rows and cards themselves.
+    // What remains is the one affordance a surface always keeps — a
+    // quiet close control (the overlay click and Escape close it too).
+    var closeBtn = button('×', 'cat-drawer-close', closeTasks);
     closeBtn.setAttribute('aria-label', 'Close Tasks');
     tasksCloseBtn = closeBtn;
-    headActions.appendChild(closeBtn);
-    head.appendChild(headActions);
+    head.appendChild(closeBtn);
     tasksPanel.appendChild(head);
 
     tasksBody = h('div', 'cat-drawer-body');
@@ -1465,7 +1473,7 @@
       var pending = Array.isArray(full.pendingActions)
         ? full.pendingActions.filter(function (a) { return a && a.status === 'pending'; })
         : [];
-      pending.forEach(function (action) { detail.appendChild(approvalCard(action)); });
+      pending.forEach(function (action) { detail.appendChild(approvalCard(action, { inTasksRecord: true })); });
       if (full.resultSummary) {
         var resultText = typeof full.resultSummary === 'string'
           ? full.resultSummary
@@ -1591,7 +1599,7 @@
       return;
     }
     if (state.failed) {
-      tasksBody.appendChild(h('p', 'cat-empty', 'Tasks could not load just now. Try Refresh in a moment.'));
+      tasksBody.appendChild(h('p', 'cat-empty', 'Tasks could not load just now. Try again in a moment.'));
       return;
     }
 
@@ -1599,7 +1607,7 @@
     waitingGroup.appendChild(h('h3', 'cat-group-title', 'Waiting on you'));
     var waitingCount = 0;
     state.approvals.forEach(function (action) {
-      waitingGroup.appendChild(approvalCard(action));
+      waitingGroup.appendChild(approvalCard(action, { inTasksRecord: true }));
       waitingCount += 1;
     });
     waitingRunsWithoutApproval().forEach(function (run) {
