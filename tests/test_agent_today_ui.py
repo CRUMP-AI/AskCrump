@@ -19,8 +19,8 @@ def read(relative: str) -> str:
 
 def test_app_html_loads_agent_today_layer_last_with_versioned_assets():
     app = read('public/app.html')
-    css = '/crump-agent-today-1.0.css?v=5.9.76-agent-today-15'
-    js = '/crump-agent-today-1.0.js?v=5.9.76-agent-today-15'
+    css = '/crump-agent-today-1.0.css?v=5.9.76-agent-today-16'
+    js = '/crump-agent-today-1.0.js?v=5.9.76-agent-today-16'
     assert css in app
     assert js in app
     assert (PUBLIC / 'crump-agent-today-1.0.css').exists()
@@ -344,7 +344,7 @@ def test_tasks_waiting_group_keeps_every_approval_as_a_full_card():
     # the Waiting group renders the full shared approval card for each
     # pending action, never a demoted row.
     render = js[js.index('function renderTasks()'):js.index('function renderTasks()') + 2600]
-    assert 'waitingGroup.appendChild(approvalCard(action))' in render
+    assert 'waitingGroup.appendChild(approvalCard(action, { inTasksRecord: true }))' in render
     assert js.count('function approvalCard(') == 1
 
 
@@ -572,3 +572,47 @@ def test_greeting_sets_on_two_lines():
     assert "headline.indexOf(', ')" in js
     assert "document.createElement('br')" in js
     assert 'greetingHeadline()' in js
+
+
+def test_tasks_header_carries_no_utility_pills_only_a_quiet_close():
+    js = read('public/crump-agent-today-1.0.js')
+    panel = js[js.index('function ensureTasksPanel()'):js.index('function openTasks()')]
+    # The Browser / Refresh / Close pill row is gone. Refresh is the
+    # feed itself (opening the panel loads it; every load re-renders),
+    # and browser work opens from the browser rows and cards.
+    assert "button('Browser'" not in panel
+    assert "button('Refresh'" not in panel
+    assert 'cat-drawer-head-actions' not in panel
+    assert 'cat-icon-btn' not in panel
+    # The one remaining header control is the quiet close glyph, still
+    # labelled for assistive tech and still wired to closeTasks — the
+    # shell's destination switch clicks this same control.
+    assert "button('×', 'cat-drawer-close', closeTasks)" in panel
+    assert "closeBtn.setAttribute('aria-label', 'Close Tasks')" in panel
+    css = read('public/crump-agent-today-1.0.css')
+    close = css_block(css, '.cat-drawer-close {')
+    assert 'width: 44px' in close and 'height: 44px' in close
+    assert 'border: 0' in close
+    assert 'cat-drawer-head-actions' not in css
+
+
+def test_tasks_title_sets_at_the_page_title_scale():
+    css = read('public/crump-agent-today-1.0.css')
+    title = css_block(css, '.cat-drawer-title {')
+    assert 'Georgia' in title
+    assert 'font-size: 34px' in title
+
+
+def test_tasks_waiting_cards_drop_the_repeated_status_pill():
+    js = read('public/crump-agent-today-1.0.js')
+    # The shared card suppresses its "Waiting on you" pill only when
+    # the caller marks the Tasks record, where the group eyebrow
+    # already names the state. Today and Chat render the card
+    # standalone and keep the pill.
+    assert 'function approvalCard(action, options)' in js
+    assert 'if (!options || !options.inTasksRecord)' in js
+    assert "head.appendChild(h('span', statusClass('pending'), 'Waiting on you'))" in js
+    render = js[js.index('function renderTasks()'):]
+    assert 'approvalCard(action, { inTasksRecord: true })' in render
+    detail = js[js.index('function fillTaskDetail(run, detail)'):]
+    assert 'approvalCard(action, { inTasksRecord: true })' in detail

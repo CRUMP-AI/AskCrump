@@ -690,14 +690,38 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
 .cat-drawer-title {
   margin: 0;
   font-family: Georgia, "Times New Roman", serif;
-  font-size: 24px;
+  font-size: 34px;
   font-weight: 600;
 }
 
-.cat-drawer-head-actions {
-  display: flex;
-  gap: 8px;
-  align-items: center;
+/* The drawer's one header control: a quiet close glyph, no pill
+   chrome. It keeps the standard 44px target and the gold focus ring. */
+.cat-drawer-close {
+  appearance: none;
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--cat-paper-dim);
+  font: inherit;
+  font-size: 24px;
+  font-weight: 400;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.cat-drawer-close:hover {
+  color: var(--cat-paper);
+}
+
+.cat-drawer-close:focus-visible {
+  outline: 2px solid var(--cat-gold);
+  outline-offset: 2px;
 }
 
 .cat-icon-btn {
@@ -713,16 +737,6 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
   font-size: 13.5px;
   font-weight: 600;
   cursor: pointer;
-}
-
-.cat-drawer .cat-icon-btn {
-  border-color: rgba(241, 239, 233, 0.28);
-  background: transparent;
-  color: var(--cat-paper);
-}
-
-.cat-drawer .cat-icon-btn:hover {
-  border-color: var(--cat-gold-bright);
 }
 
 .cat-drawer-body {
@@ -1517,19 +1531,6 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
 
   .cat-card-head .cat-status {
     align-self: flex-start;
-  }
-}
-
-@media (max-width: 400px) {
-  /* The drawer head carries the title plus Browser / Refresh / Close;
-     on the narrowest screens the actions wrap under the title instead
-     of pushing the panel wider than the viewport. */
-  .cat-drawer-head {
-    flex-wrap: wrap;
-  }
-
-  .cat-drawer-head-actions {
-    flex-wrap: wrap;
   }
 }
 
