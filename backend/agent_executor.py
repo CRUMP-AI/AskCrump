@@ -402,10 +402,14 @@ class AgentExecutor:
     async def _release_reservation(
         self, run: dict[str, Any], ledger_id: str | None
     ) -> None:
-        """Best-effort release of a reserved fixed cost on failure.
+        """Release a reserved fixed cost on a non-success outcome.
 
         The refund goes through the existing refund mechanics; a
-        refund failure never masks the run's own failure result.
+        refund failure never masks the run's own failure result —
+        but it no longer strands silently either: the release step
+        is recorded only after the refund lands, so a reservation
+        whose release failed stays visible on the run's step ledger
+        as reserved-without-released for reconciliation.
         """
         if not ledger_id:
             return
@@ -413,6 +417,10 @@ class AgentExecutor:
             await self.run_service.refund_run_credits(
                 str(run['user_id']), ledger_id
             )
+        except Exception:
+            return
+        try:
+            await self.run_service.record_credit_release(run, ledger_id)
         except Exception:
             pass
 
@@ -746,16 +754,33 @@ class AgentExecutor:
         # queued, like the pause above, and no provider has been
         # contacted yet.
         await self.run_service.enforce_run_access(run)
-        # Atomic fixed-cost reservation, still before the claim and
-        # before any provider contact: the confirmed-spend RPC checks
-        # and deducts under the per-account lock, so a concurrent
-        # execution against a balance that covers only one cost fails
-        # here with INSUFFICIENT_CREDITS instead of overspending. A
-        # rejection leaves the run queued. The reservation is
-        # released below on every non-success outcome.
-        ledger_id = await self.run_service.reserve_run_credits(run)
+        # Claim before any money moves: the compare-and-swap claim
+        # is what makes this caller the run's one executor, and a
+        # run that was cancelled (or already claimed) after it was
+        # loaded refuses here, before a debit exists to strand.
         run = await self.run_service.claim_run(run)
         await self._record_step(run, 'run.started', {})
+        # Atomic fixed-cost reservation, after the claim and before
+        # any provider contact: the confirmed-spend RPC checks and
+        # deducts under the per-account lock, so a concurrent
+        # execution against a balance that covers only one cost fails
+        # here with INSUFFICIENT_CREDITS instead of overspending. A
+        # refusal moved no money, so the claim is handed back and
+        # the run stays queued, exactly as the pre-claim design left
+        # it. A successful reservation is recorded on the run's step
+        # ledger immediately, so if this process dies before the
+        # release, the debit is discoverable and reconcilable (see
+        # AgentRunService.reconcile_run_credits) instead of stranded.
+        try:
+            ledger_id = await self.run_service.reserve_run_credits(run)
+        except Exception:
+            try:
+                await self.run_service.release_run_claim(run)
+            except Exception:
+                pass
+            raise
+        if ledger_id:
+            await self.run_service.record_credit_reservation(run, ledger_id)
         try:
             resolved = await self._resolve_payload(run)
         except _ApprovedPayloadUnavailable:
