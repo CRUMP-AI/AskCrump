@@ -1184,6 +1184,33 @@ async function runBrowserPanelScenarios(browser) {
       // Focus moved into the panel on open.
       assert.equal(m.activeIsDismiss, true, `${label}: focus did not move to the dismiss control`);
 
+      // Focus containment: the panel is modal, so Tab and Shift+Tab
+      // cycle among its enabled controls instead of walking out into
+      // the dimmed chat behind it. Pause and Take over are disabled
+      // in this state, leaving Back as the only enabled control —
+      // both directions must stay on Back with the panel still open.
+      for (const keys of ['Tab', 'Tab', 'Shift+Tab', 'Shift+Tab']) {
+        await page.keyboard.press(keys);
+        await page.waitForTimeout(40);
+        const focusState = await page.evaluate(() => {
+          const panel = document.querySelector('#catBrowserPanel');
+          const dismiss = document.querySelector('.cat-browser-dismiss');
+          const active = document.activeElement;
+          return {
+            panelHidden: panel ? panel.hidden : true,
+            activeInsidePanel: Boolean(panel && active && panel.contains(active)),
+            activeIsDismiss: Boolean(dismiss && active === dismiss),
+            activeId: active ? (active.id || active.className || active.tagName) : null,
+          };
+        });
+        assert.equal(focusState.panelHidden, false,
+          `${label}: ${keys} closed the panel`);
+        assert.equal(focusState.activeInsidePanel, true,
+          `${label}: ${keys} moved focus out of the modal panel (landed on ${focusState.activeId})`);
+        assert.equal(focusState.activeIsDismiss, true,
+          `${label}: ${keys} moved focus off Back, the panel's only enabled control (landed on ${focusState.activeId})`);
+      }
+
       // Dismissal path 1: Back returns focus to the opener.
       await page.click('.cat-browser-dismiss');
       await page.waitForTimeout(80);
@@ -1235,7 +1262,8 @@ async function runBrowserPanelScenarios(browser) {
   }
   console.log(`Agent browser panel: ${scenarios} scenarios passed ` +
     `(${THEMES.length} themes x ${VIEWPORTS.length} viewports, slide-over geometry, ` +
-    `gold hairline, distinct Pause/Back, backdrop + Escape + Back + swipe dismissal).`);
+    `gold hairline, distinct Pause/Back, Tab/Shift+Tab focus containment, ` +
+    `backdrop + Escape + Back + swipe dismissal).`);
   return scenarios;
 }
 

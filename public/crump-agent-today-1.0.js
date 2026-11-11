@@ -1601,6 +1601,50 @@
     browserOpener = null;
   }
 
+  // The panel is modal, so while it is open Tab and Shift+Tab cycle
+  // among its enabled controls instead of walking out into the
+  // dimmed chat behind it. Disabled controls are skipped — Pause
+  // and Take over while sessions are not live — so with Back as the
+  // only enabled control both directions stay on Back. The trap
+  // only intercepts Tab at the edges (or when focus sits outside
+  // the panel); it never touches the open/close paths, so every
+  // dismissal route keeps its exact behavior.
+  function browserPanelFocusables() {
+    var focusables = [];
+    if (!browserPanel) return focusables;
+    var nodes = browserPanel.querySelectorAll(
+      'a[href], button, input, select, textarea, [tabindex]');
+    nodes.forEach(function (node) {
+      if (node.disabled) return;
+      var tabindex = node.getAttribute('tabindex');
+      if (tabindex !== null && Number(tabindex) < 0) return;
+      if (!node.getClientRects().length) return;
+      focusables.push(node);
+    });
+    return focusables;
+  }
+
+  function keepBrowserPanelFocus(event) {
+    var focusables = browserPanelFocusables();
+    if (!focusables.length) {
+      event.preventDefault();
+      return;
+    }
+    var first = focusables[0];
+    var last = focusables[focusables.length - 1];
+    var active = document.activeElement;
+    var inside = Boolean(active) && browserPanel.contains(active);
+    if (event.shiftKey) {
+      if (!inside || active === first) {
+        event.preventDefault();
+        last.focus({ preventScroll: true });
+      }
+    } else if (!inside || active === last) {
+      event.preventDefault();
+      first.focus({ preventScroll: true });
+    }
+  }
+
   /* ---------------------------------------------------------------- */
   /* Navigation: Home becomes Today, and Tasks joins the rail and     */
   /* the mobile bar. Existing destinations are left exactly as they    */
@@ -1737,9 +1781,12 @@
       queueSync();
     });
     document.addEventListener('keydown', function (event) {
-      if (event.key !== 'Escape') return;
-      if (browserPanel && !browserPanel.hidden) closeBrowserPanel();
-      else if (tasksPanel && tasksPanel.classList.contains('is-open')) closeTasks();
+      if (event.key === 'Escape') {
+        if (browserPanel && !browserPanel.hidden) closeBrowserPanel();
+        else if (tasksPanel && tasksPanel.classList.contains('is-open')) closeTasks();
+      } else if (event.key === 'Tab' && browserPanel && !browserPanel.hidden) {
+        keepBrowserPanelFocus(event);
+      }
     });
 
     // Opening the Settings Connections panel refreshes the one Google
