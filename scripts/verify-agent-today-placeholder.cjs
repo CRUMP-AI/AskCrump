@@ -523,11 +523,33 @@ async function measureChat(page) {
         const inputStyle = input ? getComputedStyle(input) : null;
         const sendStyle = send ? getComputedStyle(send) : null;
         const attachStyle = attach ? getComputedStyle(attach) : null;
+        // The placeholder's own rendered width, measured on a mirror
+        // span carrying the field's font and letter-spacing, against
+        // the width the field actually offers its text (the content
+        // box). A prompt wider than that box renders cut off, however
+        // clean its single line looks.
+        let placeholderWidth = 0;
+        let contentWidth = 0;
+        if (input && inputStyle) {
+          contentWidth = input.clientWidth
+            - parseFloat(inputStyle.paddingLeft || 0)
+            - parseFloat(inputStyle.paddingRight || 0);
+          const mirror = document.createElement('span');
+          mirror.style.cssText = 'position:absolute;visibility:hidden;white-space:nowrap;pointer-events:none;';
+          mirror.style.font = inputStyle.font;
+          mirror.style.letterSpacing = inputStyle.letterSpacing;
+          mirror.textContent = input.getAttribute('placeholder') || '';
+          document.body.appendChild(mirror);
+          placeholderWidth = mirror.getBoundingClientRect().width;
+          mirror.remove();
+        }
         return {
           placeholder: input ? input.getAttribute('placeholder') : '',
           whiteSpace: inputStyle ? inputStyle.whiteSpace : '',
           scrollHeight: input ? input.scrollHeight : 0,
           clientHeight: input ? input.clientHeight : 0,
+          placeholderWidth,
+          contentWidth,
           sendBackground: sendStyle ? sendStyle.backgroundColor : '',
           attachBackground: attachStyle ? attachStyle.backgroundColor : '',
           attachBorderColor: attachStyle ? attachStyle.borderColor : '',
@@ -1094,12 +1116,18 @@ async function runChatScenarios(browser) {
         // attach control is a gold-outline chip on a transparent
         // ground, and the placeholder sets on one line — its box
         // never grows a clipped second line.
-        assert.equal(m.composer.placeholder, 'What should Crump get done for you?',
+        assert.equal(m.composer.placeholder, 'Hand Crump a task',
           `${label}: composer placeholder "${m.composer.placeholder}"`);
         assert.equal(m.composer.whiteSpace, 'nowrap',
           `${label}: placeholder white-space ${m.composer.whiteSpace}`);
         assert.ok(m.composer.scrollHeight <= m.composer.clientHeight + 1,
           `${label}: placeholder wraps/clips (${m.composer.scrollHeight} > ${m.composer.clientHeight})`);
+        // And the one line must be the whole prompt: the placeholder
+        // text fits the field's content box at rest, so what the user
+        // reads is a complete sentence — never the front half of one
+        // trailing into an ellipsis at the send button.
+        assert.ok(m.composer.placeholderWidth <= m.composer.contentWidth + 0.5,
+          `${label}: placeholder truncates (${m.composer.placeholderWidth.toFixed(1)}px of text in ${m.composer.contentWidth.toFixed(1)}px of field)`);
         assert.equal(m.composer.sendBackground, 'rgb(213, 185, 113)',
           `${label}: send button background ${m.composer.sendBackground}`);
         assert.equal(m.composer.attachBackground, 'rgba(0, 0, 0, 0)',

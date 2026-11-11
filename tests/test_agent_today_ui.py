@@ -19,8 +19,8 @@ def read(relative: str) -> str:
 
 def test_app_html_loads_agent_today_layer_last_with_versioned_assets():
     app = read('public/app.html')
-    css = '/crump-agent-today-1.0.css?v=5.9.76-agent-today-17'
-    js = '/crump-agent-today-1.0.js?v=5.9.76-agent-today-17'
+    css = '/crump-agent-today-1.0.css?v=5.9.76-agent-today-18'
+    js = '/crump-agent-today-1.0.js?v=5.9.76-agent-today-18'
     assert css in app
     assert js in app
     assert (PUBLIC / 'crump-agent-today-1.0.css').exists()
