@@ -176,7 +176,7 @@ def test_you_screen_is_row_groups_not_an_editorial_page():
     # tracked gold eyebrows, below a serif page title.
     assert 'class="cv-you-title">You<' in js
     for title in ("Memory", "Connected accounts", "Plan &amp; credits", "Settings"):
-        assert f'cv-you-group-title' in js and f'>{title}<' in js, title
+        assert 'cv-you-group-title' in js and f'>{title}<' in js, title
     assert (
         js.index(">Memory<")
         < js.index(">Connected accounts<")
