@@ -28,7 +28,7 @@ from typing import Any
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from .agent_registry import get_capability
-from .db import SupabaseDB, eq, gt, gte, lte
+from .db import SupabaseDB, eq, gt, in_, lte
 from .security import iso_now, new_uuid
 
 logger = logging.getLogger('askcrump.agent_automations')
@@ -41,14 +41,19 @@ SCHEDULABLE_CAPABILITIES = frozenset({'agent.morning_brief'})
 SCHEDULE_KINDS = frozenset({'daily'})
 MAX_PAYLOAD_BYTES = 16000
 MAX_DUE_PER_PASS = 100
-# The due scan pages through due rows in bounded keyset pages of
-# this size, accumulating per-tenant-capped candidates as it goes
-# (see ``due_automations``); poison rows are disabled as they are
-# processed, so an oversized backlog still drains pass by pass.
-MAX_DUE_SCAN_PER_PASS = 1000
-# Upper bound on scan pages per pass, so one pass reads at most
-# MAX_DUE_SCAN_PAGES * MAX_DUE_SCAN_PER_PASS due rows.
-MAX_DUE_SCAN_PAGES = 10
+# The due scan discovers candidates tenant block by tenant block
+# (see ``due_automations``), paging within a block in keyset pages
+# of this size on the composite (next_run_at, id) cursor. A block
+# page is several times the per-tenant cap, so a tenant normally
+# costs the scan a single page; the rest of its block is skipped
+# unread once the cap is reached.
+DUE_DISCOVERY_PAGE = 200
+# Upper bound on select calls one due scan may make per pass —
+# block heads plus block pages. The bound caps work per pass, not
+# coverage: blocks are visited in tenant order and every tenant's
+# oldest rows are reached within a few calls each, so the bound
+# is only approached when hundreds of tenants are due at once.
+MAX_DUE_DISCOVERY_QUERIES = 400
 # A claim lease is stamped into ``updated_at`` as a short-lived future
 # instant. While that instant is still ahead the row is leased to the
 # claiming pass; once it passes with no run created, the lease is
@@ -394,27 +399,32 @@ class AgentAutomationService:
     ) -> list[dict[str, Any]]:
         """Enabled automations whose next run is at or before ``now``.
 
-        The scan pages through the due rows oldest-first in bounded
-        keyset pages and accumulates as it goes, capping each
-        tenant at the pass limit during accumulation; the round-
-        robin window (see ``_fair_window``) then selects from the
-        accumulated rows. Fairness therefore bounds what one tenant
-        can occupy *within* the scan: a single global window would
-        let a tenant with more due rows than the window holds fill
-        it entirely, and every other tenant's rows would starve
-        outside it pass after pass. Rows carrying a live claim
-        lease are not due for this pass: another pass is creating
-        (or crashed creating) their run, and the lease decides when
+        The scan discovers candidates tenant block by tenant block
+        instead of reading one global oldest-first window: a single
+        window lets a tenant with more due rows than the window
+        holds fill it entirely, and every other tenant starves
+        outside it no matter how the results are later balanced.
+        Blocks are visited in tenant order; within a block, rows
+        are paged oldest-first on the stable composite
+        ``(next_run_at, id)`` cursor, so a block of rows sharing
+        one exact timestamp is walked completely, row by row,
+        however wide the tie is. Each tenant contributes at most
+        ``pass_limit`` candidates, and once a tenant reaches the
+        cap the rest of its block is skipped unread — a backlog
+        costs the scan at most a page past the cap, so the cap
+        sits below the read horizon by construction and every
+        tenant's oldest due rows are reached in the same pass.
+        The round-robin window (see ``_fair_window``) then selects
+        from the candidates. Rows carrying a live claim lease are
+        not due for this pass: another pass is creating (or
+        crashed creating) their run, and the lease decides when
         they surface again.
 
-        The paging is keyset on ``next_run_at`` with row-id
-        deduplication, so rows sharing one exact timestamp are read
-        across pages; if a page returns only already-seen rows
-        (more rows share the cursor timestamp than one page holds),
-        the scan advances strictly past the cursor — the remaining
-        tied rows stay due and drain on later passes as the front
-        of the tie is consumed. The scan is bounded at
-        ``MAX_DUE_SCAN_PAGES`` pages per pass.
+        Discovery reads narrow rows (id, tenant, schedule stamp,
+        lease stamp); the candidates' full rows are fetched
+        afterwards and re-validated, since a row can move between
+        the two reads. The claim compare-and-swap downstream is
+        the fence that keeps that race safe.
         """
         if now.tzinfo is None:
             now = now.replace(tzinfo=timezone.utc)
@@ -422,56 +432,173 @@ class AgentAutomationService:
             1, min(int(limit or MAX_DUE_PER_PASS), MAX_DUE_PER_PASS)
         )
         now_iso = now.isoformat()
-        accumulated: list[dict[str, Any]] = []
-        per_tenant: dict[str, int] = {}
-        seen_ids: set[str] = set()
-        cursor: str | None = None
-        strict = False
-        for _page in range(MAX_DUE_SCAN_PAGES):
-            filters: dict[str, Any] = {'enabled': eq(True)}
-            if cursor is None:
-                filters['next_run_at'] = lte(now_iso)
-            elif strict:
-                filters['next_run_at'] = gt(cursor)
-            else:
-                filters['next_run_at'] = gte(cursor)
+        candidate_ids = await self._discover_due_candidates(
+            now, now_iso, pass_limit
+        )
+        if not candidate_ids:
+            return []
+        rows = await self._fetch_candidate_rows(candidate_ids, now, now_iso)
+        return _fair_window(rows, pass_limit)
+
+    async def _discover_due_candidates(
+        self, now: datetime, now_iso: str, pass_limit: int
+    ) -> list[str]:
+        """Candidate row ids for one pass, oldest first per tenant.
+
+        Walks tenant blocks in tenant order under a per-pass query
+        budget (see ``MAX_DUE_DISCOVERY_QUERIES``). A tenant whose
+        rows are all leased or not yet due contributes nothing and
+        costs one block scan; a flooded tenant costs one page past
+        its cap.
+        """
+        candidates: list[str] = []
+        queries = 0
+        cursor_user: str | None = None
+        while queries < MAX_DUE_DISCOVERY_QUERIES:
+            filters: dict[str, Any] = {
+                'enabled': eq(True),
+                'next_run_at': lte(now_iso),
+            }
+            if cursor_user is not None:
+                filters['user_id'] = gt(cursor_user)
+            head = await self.db.select(
+                'agent_automations',
+                columns='id,user_id,next_run_at,updated_at',
+                filters=filters,
+                order='user_id.asc,next_run_at.asc,id.asc',
+                limit=1,
+            )
+            queries += 1
+            if not head:
+                break
+            tenant = str(head[0].get('user_id') or '')
+            cursor_user = tenant
+            taken = 0
+            cursor: tuple[str, str] | None = None
+            while taken < pass_limit and queries < MAX_DUE_DISCOVERY_QUERIES:
+                page, cursor, used = await self._due_block_page(
+                    tenant, now_iso, cursor
+                )
+                queries += used
+                if not page:
+                    break
+                block_done = cursor is None
+                for row in page:
+                    if str(row.get('next_run_at') or '') > now_iso:
+                        # Oldest first within the block: nothing
+                        # later in it is due either.
+                        block_done = True
+                        break
+                    if _lease_active(row, now=now):
+                        continue
+                    candidates.append(str(row.get('id')))
+                    taken += 1
+                    if taken >= pass_limit:
+                        break
+                if block_done:
+                    break
+        return candidates
+
+    async def _due_block_page(
+        self,
+        tenant: str,
+        now_iso: str,
+        cursor: tuple[str, str] | None,
+    ) -> tuple[list[dict[str, Any]], tuple[str, str] | None, int]:
+        """One keyset page within one tenant's block of due rows.
+
+        The cursor is the composite ``(next_run_at, id)`` of the
+        last row read, so a page ending inside a block of rows
+        sharing one timestamp continues within the tie (same
+        stamp, greater id) instead of skipping the rest of it.
+        Returns the page — sorted by ``(next_run_at, id)`` — the
+        next cursor (None when the block is exhausted), and how
+        many select calls the page took.
+        """
+        base: dict[str, Any] = {'enabled': eq(True), 'user_id': eq(tenant)}
+        columns = 'id,user_id,next_run_at,updated_at'
+        order = 'next_run_at.asc,id.asc'
+        if cursor is None:
             rows = await self.db.select(
                 'agent_automations',
-                filters=filters,
-                order='next_run_at.asc',
-                limit=MAX_DUE_SCAN_PER_PASS,
+                columns=columns,
+                filters={**base, 'next_run_at': lte(now_iso)},
+                order=order,
+                limit=DUE_DISCOVERY_PAGE,
             )
-            if not rows:
-                break
-            fresh = [
-                row for row in rows if str(row.get('id')) not in seen_ids
-            ]
-            for row in fresh:
-                seen_ids.add(str(row.get('id')))
-            if not fresh:
-                strict = True
+            used = 1
+        else:
+            cursor_ts, cursor_id = cursor
+            tie = await self.db.select(
+                'agent_automations',
+                columns=columns,
+                filters={
+                    **base,
+                    'next_run_at': eq(cursor_ts),
+                    'id': gt(cursor_id),
+                },
+                order=order,
+                limit=DUE_DISCOVERY_PAGE,
+            )
+            used = 1
+            rows = list(tie)
+            remaining = DUE_DISCOVERY_PAGE - len(tie)
+            if remaining > 0:
+                rest = await self.db.select(
+                    'agent_automations',
+                    columns=columns,
+                    filters={**base, 'next_run_at': gt(cursor_ts)},
+                    order=order,
+                    limit=remaining,
+                )
+                used += 1
+                rows += rest
+        rows = sorted(
+            rows,
+            key=lambda row: (
+                str(row.get('next_run_at') or ''),
+                str(row.get('id') or ''),
+            ),
+        )
+        if len(rows) < DUE_DISCOVERY_PAGE:
+            return rows, None, used
+        last = rows[-1]
+        return rows, (str(last.get('next_run_at')), str(last.get('id'))), used
+
+    async def _fetch_candidate_rows(
+        self, candidate_ids: list[str], now: datetime, now_iso: str
+    ) -> list[dict[str, Any]]:
+        """Full rows for discovered candidates, in discovery order.
+
+        Re-validated against the present: a row disabled, advanced,
+        or leased since discovery is dropped here, and the claim
+        compare-and-swap remains the fence for anything that moves
+        after this read.
+        """
+        by_id: dict[str, dict[str, Any]] = {}
+        for start in range(0, len(candidate_ids), 250):
+            chunk = candidate_ids[start:start + 250]
+            rows = await self.db.select(
+                'agent_automations',
+                filters={'id': in_(chunk)},
+                limit=len(chunk),
+            )
+            for row in rows:
+                by_id[str(row.get('id'))] = row
+        selected: list[dict[str, Any]] = []
+        for candidate_id in candidate_ids:
+            row = by_id.get(candidate_id)
+            if row is None:
                 continue
-            for row in fresh:
-                # Guard against rows whose stored timestamp does
-                # not compare due (for example a null next_run_at on
-                # a legacy row) — later pages are not filtered by
-                # the database, so the check lives here.
-                if (
-                    not row.get('next_run_at')
-                    or str(row['next_run_at']) > now_iso
-                    or _lease_active(row, now=now)
-                ):
-                    continue
-                tenant = str(row.get('user_id') or '')
-                if per_tenant.get(tenant, 0) >= pass_limit:
-                    continue
-                per_tenant[tenant] = per_tenant.get(tenant, 0) + 1
-                accumulated.append(row)
-            cursor = str(rows[-1].get('next_run_at'))
-            strict = False
-            if len(rows) < MAX_DUE_SCAN_PER_PASS:
-                break
-        return _fair_window(accumulated, pass_limit)
+            if (
+                not row.get('enabled')
+                or not row.get('next_run_at')
+                or str(row['next_run_at']) > now_iso
+                or _lease_active(row, now=now)
+            ):
+                continue
+            selected.append(row)
+        return selected
 
     async def claim_due_automation(
         self, row: dict[str, Any], *, ran_at: datetime
