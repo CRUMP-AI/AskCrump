@@ -389,6 +389,24 @@ class AgentRunService:
             raise AgentRunConflictError('This run is not queued for execution.')
         return await self._set_status(run, 'running', expected_status='queued')
 
+    async def release_held_run(self, run: dict[str, Any]) -> dict[str, Any]:
+        """Release a held run to the execution queue.
+
+        A held run waits in ``waiting_user`` — a state the
+        execution claim refuses — until the authority that created
+        it held (for an automation occurrence, the pass whose
+        confirmation advanced the schedule) releases it. The
+        transition is the same compare-and-swap discipline as the
+        execution claim: it lands only while the run is still
+        held, so exactly one releaser wins, and a run cancelled
+        while held is never resurrected into the queue.
+        """
+        released = await self._set_status(
+            run, 'queued', expected_status='waiting_user'
+        )
+        await self._record_step(run=released, step_type='run.queued')
+        return released
+
     async def _get_owned_run(self, *, user_id: str, run_id: str) -> dict[str, Any]:
         row = await self.db.select_one(
             'agent_runs',
@@ -933,6 +951,79 @@ class AgentRunService:
             settled += await self._reconcile_run_stream(status)
         return settled
 
+    async def _automation_occurrence_settled(
+        self, run: dict[str, Any]
+    ) -> bool:
+        """Whether a held run's automation occurrence is settled.
+
+        The occurrence is the instant filed in the run's
+        conversation id at creation. It is settled once the
+        automation's schedule has moved off that instant (another
+        pass confirmed it), the automation was disabled, or the
+        automation is gone — in every case a winner, or nobody,
+        owns the occurrence and this held run will never be
+        released. While the row still carries the occurrence's
+        instant, the occurrence is pending and the held run is
+        left for its creator or an adopting pass.
+        """
+        conversation_id = str(run.get('conversation_id') or '')
+        if not conversation_id.startswith('automation:'):
+            return False
+        automation_id, _, occurrence = conversation_id[
+            len('automation:'):
+        ].partition(':')
+        if not automation_id or not occurrence:
+            return False
+        automation = await self.db.select_one(
+            'agent_automations', filters={'id': eq(automation_id)}
+        )
+        if automation is None:
+            return True
+        if not automation.get('enabled'):
+            return True
+        return str(automation.get('next_run_at')) != occurrence
+
+    async def retire_unconfirmed_automation_runs(
+        self, *, limit: int = 100
+    ) -> int:
+        """Retire held automation runs whose occurrence is settled.
+
+        A settled held run is the loser of an occurrence takeover
+        (or its orphan): it will never be released, and it must
+        not linger as a live-looking waiting run. Retirement is
+        the compare-and-swap cancellation, retried here on every
+        run-due pass until it lands — cleanup with retry, never a
+        safety mechanism: a held run cannot be claimed for
+        execution whether or not its cancellation has landed.
+        Returns how many runs this call retired.
+        """
+        retired = 0
+        examined = 0
+        bound = max(1, int(limit or 100))
+        cursor: tuple[str, str] | None = None
+        for _page in range(RECONCILE_MAX_PAGES):
+            rows, cursor = await self._run_page(
+                status='waiting_user', cursor=cursor
+            )
+            if not rows:
+                break
+            for row in rows:
+                if examined >= bound:
+                    return retired
+                examined += 1
+                if not await self._automation_occurrence_settled(row):
+                    continue
+                try:
+                    await self.cancel_run(
+                        user_id=str(row['user_id']), run_id=str(row['id'])
+                    )
+                    retired += 1
+                except Exception:
+                    continue
+            if cursor is None:
+                break
+        return retired
+
     # -- runs ---------------------------------------------------------------
     async def create_run(
         self,
@@ -942,6 +1033,7 @@ class AgentRunService:
         payload: Any,
         conversation_id: str | None = None,
         project_id: str | None = None,
+        held: bool = False,
     ) -> dict[str, Any]:
         capability = get_capability(capability_id)
         if capability is None:
@@ -957,6 +1049,14 @@ class AgentRunService:
         await self.enforce_capability_access(capability, user_id)
         payload = _validate_payload(capability, payload)
         needs_approval = capability.approval in {'card', 'card_with_cost'}
+        if held and needs_approval:
+            # A held run waits for its creator's confirmation, not
+            # for a person: the two waiting states must never mix.
+            raise AgentRunError(
+                'A held run cannot wait on an approval card.',
+                409,
+                'HELD_RUN_REQUIRES_UNGATED',
+            )
         now = iso_now()
         run = {
             'id': new_uuid(),
@@ -964,7 +1064,11 @@ class AgentRunService:
             'project_id': project_id or None,
             'conversation_id': (str(conversation_id)[:160] if conversation_id else None),
             'capability_id': capability.id,
-            'status': 'waiting_approval' if needs_approval else 'queued',
+            'status': (
+                'waiting_approval'
+                if needs_approval
+                else ('waiting_user' if held else 'queued')
+            ),
             'input_payload': payload,
             'input_summary': _summarize_input(payload),
             'result_summary': None,
@@ -993,6 +1097,15 @@ class AgentRunService:
             }
             await self.db.insert('agent_pending_actions', action)
             await self._record_step(run=run, step_type='approval.requested')
+        elif held:
+            # Held: the run waits in ``waiting_user``, a state the
+            # execution claim refuses, until its creator confirms
+            # it may proceed (see ``release_held_run``). It is not
+            # queued, so nothing can execute it in the meantime —
+            # for an automation occurrence, that is what makes a
+            # duplicate created by a lease-losing pass harmless by
+            # construction rather than by cleanup.
+            await self._record_step(run=run, step_type='run.held')
         else:
             await self._record_step(run=run, step_type='run.queued')
         result = self.public_run(run)
