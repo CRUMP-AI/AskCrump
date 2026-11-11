@@ -215,7 +215,14 @@ async function measureReorg(page) {
       return { left: b.left, top: b.top, right: b.right, bottom: b.bottom, width: b.width, height: b.height };
     };
     const cardStyle = firstCard ? getComputedStyle(firstCard) : null;
+    const lineCount = el => {
+      if (!el) return 0;
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      return range.getClientRects().length;
+    };
     return {
+      exactLines: lineCount(exact),
       headlineRect: rectOf(headline),
       badgeRect: rectOf(badge),
       cardContentWidth: firstCard
@@ -295,13 +302,31 @@ function assertReorgStatics(m, label, state, viewportWidth) {
   assert.equal(m.summaryPresent, false,
     `${label}: fragment summary rendered under the exact headline: "${m.summaryText}"`);
   assertStackedHeader(m, label, viewportWidth);
-  // The card leads with the exact action from the frozen payload, the
-  // frozen payload itself starts collapsed behind the detail toggle,
-  // and the exact credit line stays visible before the buttons.
-  assert.match(m.exactText, /ada@example\.com/, `${label}: exact summary "${m.exactText}"`);
-  assert.match(m.exactText, /Following up/, `${label}: exact summary subject "${m.exactText}"`);
+  // The card leads with the derived plain-language headline — the
+  // mockup's sentence for this exact fixture payload (three
+  // recipients, subject "Following up") — never a raw address or a
+  // payload dump. The frozen payload itself starts collapsed behind
+  // the detail toggle, and the exact credit line stays visible
+  // before the buttons.
+  assert.equal(m.exactText, 'Send follow-up to three people?',
+    `${label}: headline "${m.exactText}"`);
+  assert.doesNotMatch(m.exactText, /@/, `${label}: headline carries a raw address "${m.exactText}"`);
+  // Line count is a sanity bound, not a pixel gate: with the shell's
+  // Inter loaded the headline is one line at 390 (measured in the
+  // staged renders), but a wider substitute font in a bare fixture
+  // environment wraps it to two. Two lines is the cap at phone
+  // widths and above, three at 320 — the dump this replaced ran
+  // three lines here and five in Chat, so the bound still catches
+  // a regression to payload text.
+  if (viewportWidth >= 390) {
+    assert.ok(m.exactLines >= 1 && m.exactLines <= 2,
+      `${label}: headline lines ${m.exactLines} at ${viewportWidth}px`);
+  } else {
+    assert.ok(m.exactLines >= 1 && m.exactLines <= 3,
+      `${label}: headline lines ${m.exactLines} at ${viewportWidth}px`);
+  }
   assert.ok(m.exactScrollWidth <= m.exactClientWidth + 1,
-    `${label}: exact summary clipped ${m.exactScrollWidth} > ${m.exactClientWidth}`);
+    `${label}: headline clipped ${m.exactScrollWidth} > ${m.exactClientWidth}`);
   assert.equal(m.detailPresent, true, `${label}: approval detail missing`);
   assert.equal(m.detailVisible, false, `${label}: approval detail must start collapsed`);
   assert.match(m.creditText, /2 credits/, `${label}: credit line "${m.creditText}"`);
@@ -385,7 +410,14 @@ async function measureChat(page) {
     const badge = primary ? primary.querySelector('.cat-status') : null;
     const primaryStyle = primary ? getComputedStyle(primary) : null;
     const summaries = section ? [...section.querySelectorAll('.cat-card-summary')].map(el => el.textContent) : [];
+    const lineCount = el => {
+      if (!el) return 0;
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      return range.getClientRects().length;
+    };
     return {
+      headlineLines: lineCount(exact),
       sectionPainted: clipTo(rectOf(section), viewportBox),
       messagesPainted: messages.map(el => clipTo(clipTo(rectOf(el), rectOf(container)), viewportBox)),
       cardsPainted: cards.map(el => clipTo(clipTo(rectOf(el), rectOf(section)), viewportBox)),
@@ -958,14 +990,26 @@ async function runChatScenarios(browser) {
         }
         if (state === 'approval' || state === 'both') {
           // The primary card is this conversation's pending approval,
-          // rendered by the shared builder: the exact action leads
-          // (the long recipient list unwrapped-clipped at 320px too),
-          // the frozen payload starts collapsed, and the credit line
-          // precedes the decision buttons.
-          assert.match(m.exactText, /alexandria\.longaddress/, `${label}: exact summary "${m.exactText}"`);
-          assert.match(m.exactText, /Quarterly planning notes/, `${label}: exact subject "${m.exactText}"`);
+          // rendered by the shared builder: the derived headline
+          // leads (four recipients and a long subject fall back to
+          // the capability phrase — no address, no subject dump, at
+          // 320px too), the frozen payload starts collapsed, and the
+          // credit line precedes the decision buttons.
+          assert.equal(m.exactText, 'Send email to four people?',
+            `${label}: headline "${m.exactText}"`);
+          assert.doesNotMatch(m.exactText, /@/, `${label}: headline carries a raw address "${m.exactText}"`);
+          // Same sanity bound as Today: one line with the shell's
+          // Inter, at most two under a wider substitute font — the
+          // five-line address dump this replaced fails it outright.
+          if (viewport.width >= 390) {
+            assert.ok(m.headlineLines >= 1 && m.headlineLines <= 2,
+              `${label}: headline lines ${m.headlineLines}`);
+          } else {
+            assert.ok(m.headlineLines >= 1 && m.headlineLines <= 3,
+              `${label}: headline lines ${m.headlineLines} at 320px`);
+          }
           assert.ok(m.exactScrollWidth <= m.exactClientWidth + 1,
-            `${label}: exact summary clipped ${m.exactScrollWidth} > ${m.exactClientWidth}`);
+            `${label}: headline clipped ${m.exactScrollWidth} > ${m.exactClientWidth}`);
           assert.equal(m.detailPresent, true, `${label}: approval detail missing`);
           assert.equal(m.detailVisible, false, `${label}: approval detail must start collapsed`);
           assert.match(m.creditText, /2 credits/, `${label}: credit line "${m.creditText}"`);
@@ -1042,7 +1086,8 @@ async function runChatScenarios(browser) {
     const m = await measureChat(page);
     assert.equal(m.sectionVisible, true, 'chat switch: section missing for conv-b');
     assert.equal(m.cardCount, 1, 'chat switch: full cards for conv-b');
-    assert.match(m.exactText, /other@example\.com/, `chat switch: primary exact "${m.exactText}"`);
+    assert.equal(m.exactText, 'Send email to Other?',
+      `chat switch: primary headline "${m.exactText}"`);
     assert.match(m.rowTexts.join(' '), /Act in the browser/, 'chat switch: conv-b live run row');
     assert.doesNotMatch(m.sectionText, /alexandria\.longaddress/,
       'chat switch: conv-a approval still rendered');
@@ -1332,6 +1377,70 @@ async function runChatDetailGeometry(browser) {
   return scenarios;
 }
 
+async function runHeadlineMatrixScenarios(browser) {
+  // The derivation matrix, asserted exactly: the Today fixture's
+  // ?headlines=1 mode swaps the pending list for seven approvals
+  // covering one recipient with a carried display name, three
+  // recipients, six recipients, a long subject, a missing subject,
+  // missing recipients, and a calendar create. The Tasks panel
+  // renders every pending approval in full through the same shared
+  // builder, so the matrix is read there at phone width.
+  const label = 'headline matrix @ 390x844';
+  const page = await browser.newPage({ viewport: { width: 390, height: 844 } });
+  await openTasksFixture(page, `${fixtureUrl}?theme=dark&state=live&headlines=1`);
+  const m = await page.evaluate(() => {
+    const panel = document.querySelector('#catTasksPanel');
+    const cards = panel ? [...panel.querySelectorAll('.cat-card')] : [];
+    const lineCount = el => {
+      if (!el) return 0;
+      const range = document.createRange();
+      range.selectNodeContents(el);
+      return range.getClientRects().length;
+    };
+    return {
+      headlines: cards.map(card => {
+        const exact = card.querySelector('.cat-card-exact');
+        return exact ? exact.textContent : '';
+      }),
+      lines: cards.map(card => lineCount(card.querySelector('.cat-card-exact'))),
+      // The calendar headline carries the start in the layer's own
+      // local format; compute the expected rendering in the page so
+      // the exact-match assertion holds in any timezone.
+      when: new Date('2026-11-10T20:00:00Z').toLocaleString(undefined, {
+        month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit',
+      }),
+    };
+  });
+  const expected = [
+    'Send follow-up to Ada Lovelace?',
+    'Send follow-up to three people?',
+    'Send follow-up to six people?',
+    'Send email to Ben and Cy?',
+    'Send email to Ada?',
+    'Send this email?',
+    `Book “Team sync” for ${m.when}?`,
+  ];
+  assert.deepEqual(m.headlines, expected,
+    `${label}: headlines ${JSON.stringify(m.headlines)}`);
+  m.headlines.forEach((text, index) => {
+    assert.doesNotMatch(text, /@/, `${label}: headline ${index} carries a raw address "${text}"`);
+    assert.ok(!/undefined/.test(text) && text.length > 0,
+      `${label}: headline ${index} is empty or broken "${text}"`);
+  });
+  // Headlines run one line at 390 with the shell's Inter loaded
+  // (measured in the staged renders); under a wider substitute font
+  // they may wrap to two — never the 3-5 line dump they replaced.
+  m.lines.slice(0, 6).forEach((lines, index) => {
+    assert.ok(lines >= 1 && lines <= 2, `${label}: email headline ${index} lines ${lines}`);
+  });
+  assert.ok(m.lines[6] >= 1 && m.lines[6] <= 2,
+    `${label}: calendar headline lines ${m.lines[6]}`);
+  await page.close();
+  console.log('Approval headline matrix: 1 scenario passed ' +
+    '(7 derivation cases asserted exactly at 390x844 in the Tasks panel).');
+  return 1;
+}
+
 async function run() {
   const browser = await chromium.launch({ headless: true, executablePath });
   let scenarios = 0;
@@ -1500,21 +1609,23 @@ async function run() {
         });
         assert.equal(panel.hidden, false, `${label}: Tasks panel did not open`);
         assert.equal(panel.cardCount, 4, `${label}: Tasks panel approval cards ${panel.cardCount}`);
-        // The long recipient list on the third card wraps without
-        // overflowing its card at phone width.
+        // The third card's four recipients and long subject derive
+        // the capability-phrase headline — no address, no subject
+        // dump — unclipped at phone width.
         const thirdExact = panel.exacts[2];
         assert.ok(thirdExact, `${label}: third approval card missing in Tasks panel`);
-        assert.match(thirdExact.text, /alexandria\.longaddress/, `${label}: long summary "${thirdExact.text}"`);
+        assert.equal(thirdExact.text, 'Send email to four people?',
+          `${label}: third headline "${thirdExact.text}"`);
         assert.ok(thirdExact.scroll <= thirdExact.client + 1,
-          `${label}: long summary clipped ${thirdExact.scroll} > ${thirdExact.client}`);
-        // The fourth card carries the longest list and subject; its
-        // headline wraps unclipped too.
+          `${label}: third headline clipped ${thirdExact.scroll} > ${thirdExact.client}`);
+        // The fourth card carries the longest list (six recipients)
+        // and subject; its headline is the count form, unclipped too.
         const fourthExact = panel.exacts[3];
         assert.ok(fourthExact, `${label}: fourth approval card missing in Tasks panel`);
-        assert.match(fourthExact.text, /evangeline\.longaddress/, `${label}: fourth summary "${fourthExact.text}"`);
-        assert.match(fourthExact.text, /full launch team review/, `${label}: fourth subject "${fourthExact.text}"`);
+        assert.equal(fourthExact.text, 'Send email to six people?',
+          `${label}: fourth headline "${fourthExact.text}"`);
         assert.ok(fourthExact.scroll <= fourthExact.client + 1,
-          `${label}: fourth summary clipped ${fourthExact.scroll} > ${fourthExact.client}`);
+          `${label}: fourth headline clipped ${fourthExact.scroll} > ${fourthExact.client}`);
         // Expanding the fourth card's detail shows the frozen payload
         // exactly: all six recipients and the full subject, with no
         // field reduced to a count.
@@ -1564,6 +1675,7 @@ async function run() {
     }
 
     scenarios += await runTasksScenarios(browser);
+    scenarios += await runHeadlineMatrixScenarios(browser);
     scenarios += await runChatScenarios(browser);
     scenarios += await runChatDetailGeometry(browser);
     scenarios += await runBrowserPanelScenarios(browser);
