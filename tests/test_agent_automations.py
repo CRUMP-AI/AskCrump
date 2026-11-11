@@ -89,6 +89,15 @@ class FakeDB:
             elif isinstance(raw, str) and raw.startswith('gt.'):
                 if value is None or str(value) <= raw[3:]:
                     return False
+            elif isinstance(raw, str) and raw.startswith('in.('):
+                try:
+                    options = json.loads('[' + raw[4:-1] + ']')
+                except ValueError:
+                    options = []
+                if value not in options and str(value) not in {
+                    str(option) for option in options
+                }:
+                    return False
             elif row.get(key) != raw:
                 return False
         return True
