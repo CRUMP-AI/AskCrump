@@ -67,7 +67,24 @@
       };
       var runALive = {
         id: 'run-a-live', capabilityId: 'calendar.create', status: 'running',
+        goal: 'Book the design review',
         conversationId: 'conv-a', createdAt: '2026-11-10T14:20:00Z', updatedAt: '2026-11-10T14:25:00Z', resultSummary: null,
+      };
+      var runDetails = {
+        'run-a-live': {
+          id: 'run-a-live', capabilityId: 'calendar.create', status: 'running',
+          goal: 'Book the design review',
+          conversationId: 'conv-a', createdAt: '2026-11-10T14:20:00Z', updatedAt: '2026-11-10T14:25:00Z',
+          steps: [
+            { type: 'run.created', createdAt: '2026-11-10T14:20:00Z' },
+            {
+              type: 'step.progress',
+              payload: { label: 'Checking calendar availability' },
+              createdAt: '2026-11-10T14:24:00Z',
+            },
+          ],
+          pendingActions: [], resultSummary: null,
+        },
       };
       var runADone = {
         id: 'run-a-done', capabilityId: 'gmail.search', status: 'succeeded',
@@ -115,6 +132,10 @@
         else if (target.indexOf('/api/agent/capabilities') === 0) data = { capabilities: caps };
         else if (target.indexOf('/api/agent/approvals') === 0) data = { approvals: approvals };
         else if (target.indexOf('/api/agent/today') === 0) data = brief;
+        else if (target.indexOf('/api/agent/runs/') === 0) {
+          var detailId = decodeURIComponent(target.slice('/api/agent/runs/'.length));
+          data = { run: runDetails[detailId] || null };
+        }
         else if (target.indexOf('/api/agent/runs') === 0) data = { runs: runs };
         return Promise.resolve({
           ok: true,
@@ -127,7 +148,7 @@
   <link rel="stylesheet" href="/public/crump-v1-body.css?v=agent-chat-fixture-1">
   <link rel="stylesheet" href="/public/crump-vision-shell-1.0.css?v=agent-chat-fixture-1">
   <link rel="stylesheet" href="/public/crump-design-pass.css?v=agent-chat-fixture-1">
-  <link rel="stylesheet" href="/public/crump-agent-today-1.0.css?v=5.9.76-agent-today-16">
+  <link rel="stylesheet" href="/public/crump-agent-today-1.0.css?v=5.9.76-agent-today-17">
   <style>
     html, body { height: 100%; }
     .v1-workspace { height: 100vh; }
@@ -170,6 +191,6 @@
       </main>
     </div>
   </div>
-  <script src="/public/crump-agent-today-1.0.js?v=5.9.76-agent-today-16"></script>
+  <script src="/public/crump-agent-today-1.0.js?v=5.9.76-agent-today-17"></script>
 </body>
 </html>
