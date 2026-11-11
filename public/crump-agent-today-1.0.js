@@ -2033,7 +2033,7 @@
     var isDefault = current === '' || current === 'Ask Crump anything…' || current === 'Message Crump';
     if (!isDefault) return;
     if (document.querySelector('.crump50-sheet')) return;
-    input.setAttribute('placeholder', 'What should Crump get done for you?');
+    input.setAttribute('placeholder', 'Hand Crump a task');
   }
 
   /* ---------------------------------------------------------------- */
