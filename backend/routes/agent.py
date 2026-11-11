@@ -313,6 +313,13 @@ async def process_due_automations() -> dict:
       reports the fence lost to a takeover pass, retires its own
       run instead of executing it — the occurrence keeps exactly
       one live run.
+
+    Runs are created held, in a waiting state the execution claim
+    refuses, and the pass whose confirmation advances the schedule
+    releases its run to the queue immediately before executing it.
+    A duplicate minted by a lease-losing pass therefore cannot
+    execute at all — its retirement is cleanup, retried by a sweep
+    on this lane until it lands, not a safety mechanism.
     """
     service = _automations()
     now = datetime.now(timezone.utc)
@@ -346,11 +353,41 @@ async def process_due_automations() -> dict:
             # on it). Confirm the schedule forward and, if the run
             # still waits queued, give it its execution attempt —
             # never a second run.
-            try:
-                await service.confirm_existing_run(row, ran_at=now)
-            except Exception:
-                pass
             status = existing.get('status')
+            if status == 'waiting_user':
+                # The run is still held: its creating pass died
+                # before confirming it. Adopt it — confirm the
+                # occurrence under this pass, then release the run
+                # to the queue. When the confirmation reports the
+                # schedule already advanced under a winning pass,
+                # the held run is that takeover's loser: retire it
+                # instead, and never release it.
+                confirmed = None
+                try:
+                    confirmed = await service.confirm_existing_run(
+                        row, ran_at=now
+                    )
+                except Exception:
+                    confirmed = None
+                if confirmed is None:
+                    try:
+                        await agent_runs.cancel_run(
+                            user_id=row['user_id'],
+                            run_id=str(existing['id']),
+                        )
+                    except Exception:
+                        pass
+                    continue
+                try:
+                    existing = await agent_runs.release_held_run(existing)
+                except AgentRunConflictError:
+                    continue
+                status = 'queued'
+            else:
+                try:
+                    await service.confirm_existing_run(row, ran_at=now)
+                except Exception:
+                    pass
             if status == 'queued':
                 try:
                     executed = await _executor().execute_run(
@@ -405,13 +442,45 @@ async def process_due_automations() -> dict:
                     pass
                 continue
             if existing is not None:
-                try:
-                    await service.confirm_run_created(
-                        row, claimed, ran_at=now
-                    )
-                except Exception:
-                    pass
                 status = existing.get('status')
+                if status == 'waiting_user':
+                    # A held run an earlier claimant left for this
+                    # occurrence (it died after creating, before
+                    # confirming). This pass's claim owns the
+                    # occurrence now: confirm under the claim and
+                    # release the run — or retire it when the fence
+                    # reports a winner already advanced the
+                    # schedule. It is never executed while held.
+                    confirmed = None
+                    try:
+                        confirmed = await service.confirm_run_created(
+                            row, claimed, ran_at=now
+                        )
+                    except Exception:
+                        confirmed = None
+                    if confirmed is None:
+                        try:
+                            await agent_runs.cancel_run(
+                                user_id=row['user_id'],
+                                run_id=str(existing['id']),
+                            )
+                        except Exception:
+                            pass
+                        continue
+                    try:
+                        existing = await agent_runs.release_held_run(
+                            existing
+                        )
+                    except AgentRunConflictError:
+                        continue
+                    status = 'queued'
+                else:
+                    try:
+                        await service.confirm_run_created(
+                            row, claimed, ran_at=now
+                        )
+                    except Exception:
+                        pass
                 if status == 'queued':
                     try:
                         executed = await _executor().execute_run(
@@ -439,6 +508,7 @@ async def process_due_automations() -> dict:
                     capability_id=row['capability_id'],
                     payload=run_payload,
                     conversation_id=conversation_id,
+                    held=True,
                 )
             except AgentRunError as exc:
                 if exc.code in TERMINAL_RUN_ERROR_CODES:
@@ -464,10 +534,13 @@ async def process_due_automations() -> dict:
                 # The fence is lost: this pass's lease expired while
                 # it was creating, and a takeover pass already
                 # advanced the schedule and owns the occurrence. The
-                # run created here is a duplicate — retire it
-                # through the compare-and-swap cancellation and
-                # never execute it, so the occurrence keeps exactly
-                # one live run: the winning pass's.
+                # run created here is a duplicate — but it was
+                # created held, so it cannot execute whether or not
+                # retirement lands. Retire it through the
+                # compare-and-swap cancellation as cleanup; the
+                # lane's sweep retries the retirement until it
+                # lands, and the occurrence keeps exactly one live
+                # run either way: the winning pass's.
                 try:
                     await agent_runs.cancel_run(
                         user_id=row['user_id'], run_id=created_id
@@ -475,14 +548,25 @@ async def process_due_automations() -> dict:
                 except Exception:
                     pass
                 continue
-            run = created
-            if created.get('status') == 'queued':
-                # The run executes its stored creation payload (the
-                # automation's payload, stored by create_run above).
-                run = await _executor().execute_run(
-                    user_id=row['user_id'],
-                    run_id=created_id,
+            # The confirmation advanced the schedule under this
+            # pass's claim, so this pass owns the run: release it
+            # from held to queued and execute it. (The run executes
+            # its stored creation payload, stored by create_run
+            # above.) A release conflict means the run moved while
+            # held — cancelled by its owner, for example — and the
+            # occurrence is consumed either way; there is nothing
+            # to execute.
+            try:
+                held_row = await agent_runs._get_owned_run(
+                    user_id=row['user_id'], run_id=created_id
                 )
+                await agent_runs.release_held_run(held_row)
+            except AgentRunConflictError:
+                continue
+            run = await _executor().execute_run(
+                user_id=row['user_id'],
+                run_id=created_id,
+            )
             triggered.append(
                 {
                     'automationId': row['id'],
@@ -525,6 +609,15 @@ async def process_due_automations() -> dict:
         credits_reconciled = await agent_runs.reconcile_terminal_run_credits()
     except Exception:
         credits_reconciled = 0
+    # Held-run retirement rides the same lane: a takeover loser's
+    # inline cancellation can fail, so the sweep retries it pass
+    # after pass until it lands. Best effort — a held run cannot
+    # execute either way, so a failure here never fails the pass.
+    held_retired = 0
+    try:
+        held_retired = await agent_runs.retire_unconfirmed_automation_runs()
+    except Exception:
+        held_retired = 0
     return {
         'success': True,
         'due': len(due),
@@ -532,6 +625,7 @@ async def process_due_automations() -> dict:
         'errors': errors,
         'disabled': disabled,
         'creditsReconciled': credits_reconciled,
+        'retiredHeldRuns': held_retired,
         'runs': triggered,
     }
 
