@@ -596,7 +596,7 @@ def test_send_button_is_really_disabled_until_the_composer_has_content() -> None
 
 
 def test_send_button_actionability_release_is_cache_addressable_everywhere() -> None:
-    asset = "/crump-4.3.js?v=5.9.76-atelier-workspace-1"
+    asset = "/crump-4.3.js?v=5.9.76-atelier-workspace-2"
 
     for relative in ("public/runtime-body-v1.js", "public/sw.js", "scripts/build-native.mjs"):
         assert asset in (ROOT / relative).read_text(encoding="utf-8")

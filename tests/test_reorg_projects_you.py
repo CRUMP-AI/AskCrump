@@ -133,22 +133,22 @@ def test_reorg_pins_stepped_exactly_once():
     app = read("public/app.html")
     worker = read("public/sw.js")
     for url in (
-        "/crump-vision-projects-1.0.css?v=5.9.76-reorg-projects-you-1",
-        "/crump-vision-projects-1.0.js?v=5.9.76-reorg-projects-you-1",
-        "/crump-vision-library-1.0.css?v=5.9.76-reorg-projects-you-1",
-        "/crump-vision-library-1.0.js?v=5.9.76-reorg-projects-you-1",
-        "/crump-agent-today-1.0.css?v=5.9.76-agent-today-18",
-        "/crump-agent-today-1.0.js?v=5.9.76-agent-today-18",
+        "/crump-vision-projects-1.0.css?v=5.9.76-reorg-projects-you-2",
+        "/crump-vision-projects-1.0.js?v=5.9.76-reorg-projects-you-2",
+        "/crump-vision-library-1.0.css?v=5.9.76-reorg-projects-you-2",
+        "/crump-vision-library-1.0.js?v=5.9.76-reorg-projects-you-2",
+        "/crump-agent-today-1.0.css?v=5.9.76-agent-today-19",
+        "/crump-agent-today-1.0.js?v=5.9.76-agent-today-19",
     ):
         assert url in app, url
     for url in (
-        "/crump-vision-projects-1.0.css?v=5.9.76-reorg-projects-you-1",
-        "/crump-vision-projects-1.0.js?v=5.9.76-reorg-projects-you-1",
-        "/crump-vision-library-1.0.css?v=5.9.76-reorg-projects-you-1",
-        "/crump-vision-library-1.0.js?v=5.9.76-reorg-projects-you-1",
+        "/crump-vision-projects-1.0.css?v=5.9.76-reorg-projects-you-2",
+        "/crump-vision-projects-1.0.js?v=5.9.76-reorg-projects-you-2",
+        "/crump-vision-library-1.0.css?v=5.9.76-reorg-projects-you-2",
+        "/crump-vision-library-1.0.js?v=5.9.76-reorg-projects-you-2",
     ):
         assert url in worker, url
-    assert worker.startswith("const CACHE_NAME = 'ask-crump-new-body-v1-r301-composer-prompt-1';")
+    assert worker.startswith("const CACHE_NAME = 'ask-crump-new-body-v1-r302-apple-ui-v2-1';")
     for retired in (
         "5.9.76-project-resume-1",
         "5.9.76-project-resume-owner-boundary-1",
@@ -191,7 +191,7 @@ def test_you_screen_is_row_groups_not_an_editorial_page():
     group_block = css.split(".cv-you-group-title {", 1)[1].split("}", 1)[0]
     assert "letter-spacing: 0.22em" in group_block and "uppercase" in group_block
     row_block = css.split(".cv-you-row {", 1)[1].split("}", 1)[0]
-    assert "border-bottom: 1px solid rgba(213, 185, 113, 0.16)" in row_block
+    assert "border-bottom: 1px solid var(--ac-hairline);" in row_block
     # No display scale survives anywhere in the sheet.
     assert ".cv-headline" not in css and "clamp(" not in css
     assert "font-size: 44px" not in css

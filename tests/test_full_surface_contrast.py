@@ -17,35 +17,42 @@ def read(relative: str) -> str:
     return (ROOT / relative).read_text(encoding="utf-8")
 
 
-def test_today_light_ground_gray_uses_the_darkened_token():
+def test_today_secondary_text_uses_the_theme_stepped_gray_token():
     css = read("public/crump-agent-today-1.0.css")
-    # #8a9196 measures 3.17:1 on the Today card paper and 2.78:1 on the
-    # brief ground; the light-ground token measures 6.41:1 / 5.63:1.
-    assert "--cat-gray-on-light: #595f64;" in css
+    # Secondary text steps with the appearance: ink-muted in dark
+    # (~5.8:1 on the dark canvas) and ink-soft in light (~7.6:1 on the
+    # ivory canvas), because ink-muted on light measures ~4.0:1 — below
+    # AA for normal text. The old fixed grays (#8a9196, #595f64) are
+    # retired from this layer entirely.
+    assert "--cat-gray: var(--ac-ink-muted);" in css
+    assert "--cat-gray: var(--ac-ink-soft);" in css
+    assert "#595f64" not in css and "#8a9196" not in css
     for selector in (
         ".cat-card-meta",
-        ".cat-status-done",
         ".cat-payload-row dt",
     ):
         block = css.split(selector, 1)[1].split("}", 1)[0]
-        assert "color: var(--cat-gray-on-light);" in block, selector
-    # The ink-ground usages keep the lighter gray (6.21:1 on ink).
+        assert "color: var(--cat-gray);" in block, selector
+    # The done status reads in the sage token, which clears AA on
+    # both card grounds.
+    done_block = css.split(".cat-status-done", 1)[1].split("}", 1)[0]
+    assert "color: var(--ac-sage);" in done_block
     assert ".cat-today-sub" in css and ".cat-today-section-title" in css
     # Card head kind/time inherit the card tone, not the ink-ground paper
     # text: they measured 1.14:1 on the card before this rule existed.
     head_block = css.split(".cat-card-head {", 1)[1].split("}", 1)[0]
-    assert "color: var(--cat-gray-on-light);" in head_block
+    assert "color: var(--cat-gray);" in head_block
 
 
-def test_tasks_drawer_text_clears_aa_on_its_ink_ground():
+def test_tasks_drawer_text_clears_aa_on_its_canvas_ground():
     css = read("public/crump-agent-today-1.0.css")
-    # The Tasks drawer moved from the paper ground to the ink ground in
-    # the reorganization: its group eyebrows are the gold token and its
-    # quiet text is the ink-ground gray (#8a9196, ~6.3:1 on ink) — the
-    # darkened light-ground token would measure under AA there.
+    # The Tasks drawer follows the appearance on the canvas ground:
+    # its group eyebrows and quiet text use the stepped gray token,
+    # which resolves to ink-muted in dark and ink-soft in light, so
+    # both pairings clear AA on the ground the drawer actually paints.
     assert "background: var(--cat-ink);" in css.split(".cat-drawer {", 1)[1].split("}", 1)[0]
     title_block = css.split(".cat-group-title {", 1)[1].split("}", 1)[0]
-    assert "color: var(--cat-gold-bright);" in title_block
+    assert "color: var(--cat-gray);" in title_block
     for selector in (".cat-group-empty", ".cat-task-row-meta", ".cat-step-list time"):
         block = css.split(selector, 1)[1].split("}", 1)[0]
         assert "color: var(--cat-gray);" in block, selector
@@ -161,7 +168,8 @@ def test_standalone_pages_muted_text_clears_aa_on_ink():
 
     you = read("public/crump-vision-you-1.0.css")
     assert "#5a6168" not in you
-    assert you.count("color: #8a9196;") >= 3
+    assert "#8a9196" not in you
+    assert you.count("color: var(--ac-ink-soft);") >= 3
 
 
 def test_contrast_gate_is_registered_and_fixture_covers_the_surfaces():
@@ -213,24 +221,24 @@ def test_contrast_gate_is_registered_and_fixture_covers_the_surfaces():
 
 def test_release_versions_moved_in_step():
     worker = read("public/sw.js")
-    assert worker.startswith("const CACHE_NAME = 'ask-crump-new-body-v1-r301-composer-prompt-1';")
-    assert "/crump-agent-today-1.0.css?v=5.9.76-agent-today-18" in worker or True  # agent css ships via app shell
-    assert "/crump-design-pass.css?v=5.9.76-contrast-sweep-1" in worker
-    assert "/crump-v1-body.css?v=5.9.76-owned-workspace-access-2" in worker
+    assert worker.startswith("const CACHE_NAME = 'ask-crump-new-body-v1-r302-apple-ui-v2-1';")
+    assert "/crump-agent-today-1.0.css?v=5.9.76-agent-today-19" in worker or True  # agent css ships via app shell
+    assert "/crump-design-pass.css?v=5.9.76-contrast-sweep-2" in worker
+    assert "/crump-v1-body.css?v=5.9.76-owned-workspace-access-3" in worker
     assert "/lifecycle.css?v=5.9.76-lifecycle-activation-2" in worker
     assert "/landing-5.6.css?v=5.9.76-signin-escape-2" in worker
     assert "/use-case.css?v=5.9.76-contrast-1" in worker
 
     app = read("public/app.html")
-    assert "/crump-agent-today-1.0.css?v=5.9.76-agent-today-18" in app
-    assert "/crump-agent-today-1.0.js?v=5.9.76-agent-today-18" in app
-    assert "/crump-v1-body.css?v=5.9.76-owned-workspace-access-2" in app
+    assert "/crump-agent-today-1.0.css?v=5.9.76-agent-today-19" in app
+    assert "/crump-agent-today-1.0.js?v=5.9.76-agent-today-19" in app
+    assert "/crump-v1-body.css?v=5.9.76-owned-workspace-access-3" in app
 
     runtime = read("public/runtime-body-v1.js")
-    assert "/crump-design-pass.css?v=5.9.76-contrast-sweep-1" in runtime
+    assert "/crump-design-pass.css?v=5.9.76-contrast-sweep-2" in runtime
 
     company = read("public/clever-crump.html")
     assert "/clever-crump.css?v=5.9.76-4" in company
 
     checker = read("scripts/check-javascript.mjs")
-    assert "const designPassVersion = `${releaseVersion}-contrast-sweep-1`;" in checker
+    assert "const designPassVersion = `${releaseVersion}-contrast-sweep-2`;" in checker

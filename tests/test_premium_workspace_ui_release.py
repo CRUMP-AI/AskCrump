@@ -24,7 +24,8 @@ def test_shell_exposes_one_truthful_desktop_and_mobile_information_architecture(
     assert js_array(shell, "MOBILE_ORDER") == ["today", "chat", "tasks", "projects", "you"]
     assert js_array(shell, "MORE_DESTINATIONS") == []
     assert "button.id = 'cvMobileYou'" in shell
-    assert '<span>New</span>' in shell
+    assert '<span>New conversation</span>' in shell
+    assert '<kbd>⇧⌘N</kbd>' in shell
 
 
 def test_chat_restores_the_prior_mounted_destination_without_duplicate_measurement() -> None:
@@ -64,13 +65,19 @@ def test_ui_release_does_not_expose_or_claim_browser_workspace() -> None:
 
 def test_premium_palette_typography_and_mobile_dock_are_release_owned() -> None:
     css = read("public/crump-vision-shell-1.0.css")
-    for token in ("#070a0e", "#d5b971", "#b69855", "#f1efe9", "#8a9196"):
+    for token in ("#0b0c0e", "#d2a04f", "#efc878", "#f4f0e8", "#8f8d88"):
         assert token in css
-    assert 'font-family: Georgia, "Times New Roman", serif' in css
-    assert 'font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif' in css
+    for retired in ("#070a0e", "#d5b971", "#b69855", "#f1efe9", "#8a9196"):
+        assert retired not in css, retired
+    assert '--ac-serif: ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;' in css
+    assert '--ac-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;' in css
     assert "grid-template-columns: repeat(5, minmax(44px, 1fr))" in css
-    assert ".cv-mnav-item.is-active::before" in css
-    assert "backdrop-filter: blur(28px) saturate(180%)" in css
+    # The active dock item reads through its surface background, not
+    # a ::before pill.
+    assert ".cv-mnav-item.is-active {" in css
+    assert "background: var(--ac-surface-2);" in css.split(".cv-mnav-item.is-active {", 1)[1].split("}", 1)[0]
+    assert ".cv-mnav-item.is-active::before" not in css
+    assert "backdrop-filter: blur(28px) saturate(135%)" in css
     assert ".cv-mobile-you" not in css
 
 
@@ -79,7 +86,7 @@ def test_web_service_worker_and_native_loader_use_one_ui_revision() -> None:
     runtime = read("public/runtime-body-v1.js")
     service_worker = read("public/sw.js")
     native = read("scripts/build-native.mjs")
-    revision = "5.9.76-reorg-five-destinations-1"
+    revision = "5.9.76-reorg-five-destinations-2"
 
     for asset in (
         "runtime-body-v1.js",
@@ -96,7 +103,7 @@ def test_web_service_worker_and_native_loader_use_one_ui_revision() -> None:
             "crump-polish-5.6.js",
         ):
             assert f"/{asset}?v={revision}" in source
-    assert "ask-crump-new-body-v1-r301-composer-prompt-1" in service_worker
+    assert "ask-crump-new-body-v1-r302-apple-ui-v2-1" in service_worker
 
 
 def test_tutorial_and_store_copy_match_the_visible_release() -> None:

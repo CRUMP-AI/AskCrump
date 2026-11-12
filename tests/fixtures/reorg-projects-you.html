@@ -24,12 +24,21 @@
       var googleState = params.get('google') || 'partial';
       var guest = params.get('guest') === '1';
       var stageProjects = params.get('stage') === 'projects';
+      var readerPopulated = params.get('reader') === 'populated';
       if (stageProjects) {
         var stageStyle = document.createElement('style');
         stageStyle.textContent =
           '#appContainer, .settings-sheet, #libraryRoot, #youRoot { display: none !important; }';
         document.head.appendChild(stageStyle);
       }
+      // Populated-reader staging (?reader=populated): fixture sections in
+      // the real manuscript shape, so the reader overlay renders its
+      // populated typography instead of the empty state. Inert otherwise.
+      var manuscriptSections = [
+        { title: 'Opening notes', content: 'These notes collect the fixture\u2019s quarterly planning material in one place. Nothing here is a commitment; the list exists so the shape of a long document can be read end to end.\n\nThe first pass stays short on purpose. Each section below holds a few paragraphs, enough to show how the reader carries headings, body text, and the section list side by side.' },
+        { title: 'Launch sequence', content: 'The sequence runs in three passes: draft, review, and release. Each pass has a single owner and a single place where its result lands.\n\nWhen a pass finishes, its notes move into the record below. Nothing is deleted; the record grows, and the reader always opens on the first section.' },
+        { title: 'Open questions', content: 'Three questions stay open until the next review: who owns the release note, which surface carries the announcement, and when the retrospective runs.\n\nThe answers will be written here when they exist. Until then the section stays as a short list of prompts, not a set of invented decisions.' },
+      ];
       window.__fetchCalls = [];
       window.__views = {};
       window.CrumpVision = {
@@ -128,6 +137,7 @@
         }
         else if (target.indexOf('/api/projects') === 0) data = { projects: projects };
         else if (target.indexOf('/api/library/books') === 0) data = { books: books };
+        else if (target.indexOf('/api/manuscripts/') === 0 && readerPopulated) data = { sections: manuscriptSections };
         else if (target.indexOf('/api/agent/capabilities') === 0) data = { capabilities: [] };
         else if (target.indexOf('/api/agent/approvals') === 0) data = { approvals: [] };
         else if (target.indexOf('/api/agent/automations') === 0) data = { automations: [] };
@@ -143,10 +153,10 @@
   </script>
   <link rel="stylesheet" href="/public/crump-v1-body.css?v=reorg-projects-you-fixture-1">
   <link rel="stylesheet" href="/public/crump-vision-shell-1.0.css?v=reorg-projects-you-fixture-1">
-  <link rel="stylesheet" href="/public/crump-vision-projects-1.0.css?v=5.9.76-reorg-projects-you-1">
-  <link rel="stylesheet" href="/public/crump-vision-library-1.0.css?v=5.9.76-reorg-projects-you-1">
+  <link rel="stylesheet" href="/public/crump-vision-projects-1.0.css?v=5.9.76-reorg-projects-you-2">
+  <link rel="stylesheet" href="/public/crump-vision-library-1.0.css?v=5.9.76-reorg-projects-you-2">
   <link rel="stylesheet" href="/public/crump-vision-you-1.0.css?v=reorg-projects-you-fixture-1">
-  <link rel="stylesheet" href="/public/crump-agent-today-1.0.css?v=5.9.76-agent-today-18">
+  <link rel="stylesheet" href="/public/crump-agent-today-1.0.css?v=5.9.76-agent-today-19">
   <link rel="stylesheet" href="/public/crump-design-pass.css?v=reorg-projects-you-fixture-1">
 </head>
 <body class="crump-v1-body">
@@ -166,10 +176,10 @@
   <section class="settings-sheet v1-settings-sheet" aria-label="Settings connections mount">
     <div data-cat-you-connections></div>
   </section>
-  <script src="/public/crump-vision-projects-1.0.js?v=5.9.76-reorg-projects-you-1"></script>
-  <script src="/public/crump-vision-library-1.0.js?v=5.9.76-reorg-projects-you-1"></script>
+  <script src="/public/crump-vision-projects-1.0.js?v=5.9.76-reorg-projects-you-2"></script>
+  <script src="/public/crump-vision-library-1.0.js?v=5.9.76-reorg-projects-you-2"></script>
   <script src="/public/crump-vision-you-1.0.js?v=reorg-projects-you-fixture-1"></script>
-  <script src="/public/crump-agent-today-1.0.js?v=5.9.76-agent-today-18"></script>
+  <script src="/public/crump-agent-today-1.0.js?v=5.9.76-agent-today-19"></script>
   <script>
     // The vision modules register on DOMContentLoaded, so the fixture
     // renders on the same tick the real shell would. Staged mode
