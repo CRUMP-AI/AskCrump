@@ -28,7 +28,19 @@ The browser return path finalizes a paid Checkout Session immediately. For durab
 
 `POST https://www.askcrump.com/api/billing/credits/stripe-webhook`
 
-Subscribe that endpoint to `checkout.session.completed` and store that endpoint's signing secret as `STRIPE_CREDITS_WEBHOOK_SECRET`.
+Subscribe that endpoint to all three Checkout payment lifecycle events:
+
+- `checkout.session.completed`
+- `checkout.session.async_payment_succeeded`
+- `checkout.session.async_payment_failed`
+
+Store that endpoint's signing secret as `STRIPE_CREDITS_WEBHOOK_SECRET`.
+
+The subscription destination at `POST https://www.askcrump.com/api/stripe/webhook` must receive the
+same three Checkout events in addition to the existing subscription lifecycle events. The completed
+event can arrive while a delayed payment is still unpaid; only a settled Checkout session may grant
+entitlement or credits. The async success event performs the idempotent fulfillment, and the async
+failure event records no entitlement or credit mutation.
 
 Stripe must call the canonical `www` URL directly. Do not register the apex-domain form: it
 redirects to `www`, and Stripe treats redirect responses as failed webhook deliveries.
