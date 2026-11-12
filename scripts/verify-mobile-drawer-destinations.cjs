@@ -40,7 +40,14 @@ const {chromium} = require('playwright');
   });
   assert.equal(geometry.drawer.bottom, geometry.navigation.top);
   assert.equal(geometry.overlay.bottom, geometry.navigation.top);
-  assert.equal(geometry.navigation.bottom, 844);
+  // Apple UI v2: the mobile nav is a floating dock — 63px tall, floating
+  // 5px above the viewport bottom (5 + 63 = the 68px clearance the drawer
+  // and sheets measure from). The old flush-to-edge pin (bottom == 844)
+  // encoded the previous bottom bar's styling, not a behavior: the drawer
+  // abutment above, destination reachability, and the touch-target bound
+  // below are all preserved. Pin the floating geometry exactly instead.
+  assert.equal(geometry.navigation.top, 844 - 68);
+  assert.equal(geometry.navigation.bottom, 844 - 5);
   assert(geometry.navigation.height >= 58);
   assert.equal(await page.locator('#menuBtn').isHidden(), true, 'legacy mobile Chats control must be replaced by the five-tab shell');
 

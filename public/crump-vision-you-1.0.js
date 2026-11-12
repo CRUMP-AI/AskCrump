@@ -93,6 +93,18 @@
     var list = section.querySelector('[data-memory-list]');
     var emptyState = section.querySelector('[data-memory-empty]');
     var memories = loadMemories();
+    var countEl = section.querySelector('[data-memory-count]');
+    if (countEl) {
+      if (!memories.length) {
+        countEl.textContent = '';
+        countEl.style.display = 'none';
+      } else {
+        countEl.style.display = '';
+        countEl.textContent = memories.length === 1
+          ? '1 detail saved on this device.'
+          : memories.length + ' details saved on this device.';
+      }
+    }
     if (!memories.length) {
       list.innerHTML = '';
       list.style.display = 'none';
@@ -464,16 +476,65 @@
     });
   }
 
+  /* ---------- Identity: the signed-in account's real name/email ----------
+     Names come from the authenticated user record first, then the
+     owner-bound device profile — the same sources planInfo() already
+     reads. There is no joined date on either record, so none is shown.
+     Guests get the honest signed-out state, never an invented name. */
+
+  function identityInfo() {
+    var name = '';
+    var email = '';
+    var signedIn = Boolean(window.currentUser && window.currentUser.id);
+    try {
+      var user = window.currentUser || {};
+      name = String(user.fullName || '').trim();
+      email = String(user.email || '').trim();
+    } catch (_) {}
+    try {
+      if (window.profileManager && typeof window.profileManager.getProfile === 'function') {
+        var profile = window.profileManager.getProfile() || {};
+        if (!name) name = String(profile.name || '').trim();
+        if (!email) email = String(profile.email || '').trim();
+      }
+    } catch (_) {}
+    var initials = '';
+    if (name) {
+      initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map(function (word) {
+        return word.charAt(0).toUpperCase();
+      }).join('');
+    } else if (email) {
+      initials = email.charAt(0).toUpperCase();
+    }
+    return {
+      initials: initials,
+      name: name || email || 'Guest',
+      subline: (name && email) ? email : (signedIn ? 'Signed in' : 'Signed out')
+    };
+  }
+
   /* ---------- View render ---------- */
 
   function render(root) {
     root.classList.add('cv-you');
+    var identity = identityInfo();
     root.innerHTML =
       '<div class="cv-you-wrap">' +
-        '<h1 class="cv-you-title">You</h1>' +
+        '<header class="cv-you-hero">' +
+          '<p class="cv-you-eyebrow">Your workspace</p>' +
+          '<h1 class="cv-you-title">You</h1>' +
+          '<div class="cv-you-identity">' +
+            '<span class="cv-you-avatar" aria-hidden="true">' + esc(identity.initials) + '</span>' +
+            '<div class="cv-you-identity-text">' +
+              '<p class="cv-you-identity-name">' + esc(identity.name) + '</p>' +
+              '<p class="cv-you-identity-sub">' + esc(identity.subline) + '</p>' +
+            '</div>' +
+          '</div>' +
+        '</header>' +
 
-        '<section class="cv-you-section" aria-labelledby="cvMemoryTitle">' +
+        '<section class="cv-you-section cv-you-memory-panel" aria-labelledby="cvMemoryTitle">' +
           '<h2 class="cv-you-group-title" id="cvMemoryTitle">Memory</h2>' +
+          '<p class="cv-you-memory-count" data-memory-count></p>' +
           '<ul class="cv-memory-list" data-memory-list></ul>' +
           '<p class="cv-you-empty" data-memory-empty>Nothing saved yet. What Crump learns will appear here.</p>' +
           '<div data-device-rows></div>' +

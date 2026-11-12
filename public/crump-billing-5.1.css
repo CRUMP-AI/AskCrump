@@ -1,4 +1,65 @@
-/* Ask Crump 5.1 — premium billing and durable credit wallet. */
+/* Ask Crump 5.1 — premium billing and durable credit wallet (Apple UI v2).
+ * Token-mapped restyle only. Balance, allowance, packs, plans, and the
+ * credit ledger are rendered by crump-billing-5.1.js / crump-5.2.js
+ * from live server data; no pace claim and no per-day usage bars exist
+ * in that data, so none are rendered here. Exact-cost-before-run and
+ * charge-on-success disclosure copy and the credit-confirmation flow
+ * are untouched. */
+
+:root {
+  --ac-canvas: #0b0c0e;
+  --ac-canvas-raised: #101114;
+  --ac-surface: #15161a;
+  --ac-surface-2: #1b1c20;
+  --ac-surface-3: #222329;
+  --ac-material: rgba(17, 18, 21, 0.82);
+  --ac-material-strong: rgba(22, 23, 27, 0.94);
+  --ac-ink: #f4f0e8;
+  --ac-ink-soft: #c9c5bd;
+  --ac-ink-muted: #8f8d88;
+  --ac-ink-faint: #696a6e;
+  --ac-hairline: rgba(255, 255, 255, 0.09);
+  --ac-hairline-strong: rgba(255, 255, 255, 0.16);
+  --ac-gold: #d2a04f;
+  --ac-gold-bright: #efc878;
+  --ac-gold-soft: rgba(210, 160, 79, 0.16);
+  --ac-gold-wash: rgba(210, 160, 79, 0.08);
+  --ac-sage: #88a57b;
+  --ac-sage-soft: rgba(90, 130, 88, 0.18);
+  --ac-blue: #8ca9c8;
+  --ac-blue-soft: rgba(75, 112, 153, 0.2);
+  --ac-danger: #df846f;
+  --ac-shadow: 0 22px 60px rgba(0, 0, 0, 0.28);
+  --ac-radius-control: 14px;
+  --ac-radius-panel: 24px;
+  --ac-serif: ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --ac-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+}
+
+html[data-theme="light"] {
+  --ac-canvas: #f4f0e8;
+  --ac-canvas-raised: #f8f5ef;
+  --ac-surface: #fffdf9;
+  --ac-surface-2: #eee9df;
+  --ac-surface-3: #e7e1d5;
+  --ac-material: rgba(249, 246, 239, 0.82);
+  --ac-material-strong: rgba(255, 253, 249, 0.95);
+  --ac-ink: #171614;
+  --ac-ink-soft: #4f4c46;
+  --ac-ink-muted: #79756d;
+  --ac-ink-faint: #9a958b;
+  --ac-hairline: rgba(45, 40, 31, 0.1);
+  --ac-hairline-strong: rgba(45, 40, 31, 0.18);
+  --ac-gold: #aa7428;
+  --ac-gold-bright: #c8903d;
+  --ac-gold-soft: rgba(170, 116, 40, 0.13);
+  --ac-gold-wash: rgba(170, 116, 40, 0.07);
+  --ac-sage: #55704f;
+  --ac-sage-soft: rgba(85, 112, 79, 0.12);
+  --ac-blue: #526f8d;
+  --ac-blue-soft: rgba(82, 111, 141, 0.12);
+  --ac-shadow: 0 24px 60px rgba(67, 51, 28, 0.12);
+}
 
 .billing51-open { overflow: hidden; }
 
@@ -23,7 +84,7 @@
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(circle at 50% -20%, rgba(194, 168, 111, .10), transparent 34%),
+    radial-gradient(circle at 50% -20%, var(--ac-gold-soft), transparent 34%),
     rgba(3, 7, 11, .82);
   -webkit-backdrop-filter: blur(18px) saturate(110%);
   backdrop-filter: blur(18px) saturate(110%);
@@ -35,15 +96,14 @@
   max-height: min(860px, calc(100dvh - 44px));
   overflow: auto;
   overscroll-behavior: contain;
-  border: 1px solid rgba(221, 203, 161, .18);
-  border-radius: 26px;
+  border: 1px solid var(--ac-hairline-strong);
+  border-radius: var(--ac-radius-panel);
   background:
-    linear-gradient(180deg, rgba(255,255,255,.022), transparent 17%),
-    #0f1419;
-  box-shadow:
-    0 38px 90px rgba(0,0,0,.55),
-    inset 0 1px rgba(255,255,255,.025);
-  color: #f3f1ec;
+    linear-gradient(180deg, var(--ac-gold-wash), transparent 17%),
+    var(--ac-surface);
+  box-shadow: var(--ac-shadow);
+  color: var(--ac-ink);
+  font-family: var(--ac-sans);
   scrollbar-width: thin;
   transform: translateY(8px) scale(.994);
   transition: transform .22s cubic-bezier(.2,.8,.2,1);
@@ -60,8 +120,8 @@
   justify-content: space-between;
   min-height: 78px;
   padding: 16px 22px;
-  border-bottom: 1px solid rgba(255,255,255,.055);
-  background: rgba(15,20,25,.88);
+  border-bottom: 1px solid var(--ac-hairline);
+  background: var(--ac-material-strong);
   -webkit-backdrop-filter: blur(20px);
   backdrop-filter: blur(20px);
 }
@@ -77,71 +137,85 @@
   width: 38px;
   height: 38px;
   place-items: center;
-  border: 1px solid rgba(217,195,147,.28);
+  border: 1px solid var(--ac-gold);
   border-radius: 12px;
-  background: linear-gradient(145deg, rgba(217,195,147,.13), rgba(217,195,147,.035));
-  color: #d9c393;
+  background: var(--ac-gold-soft);
+  color: var(--ac-gold-bright);
   font-size: 17px;
   font-weight: 700;
   letter-spacing: -.04em;
 }
 
 .billing51-brand div { display: grid; gap: 2px; }
+/* Span-wrapped brand text stacks the same way: the title and subtitle
+   stay on separate block rows with a gap whatever wrapper carries them. */
+.billing51-brand > span:not(.billing51-mark) { display: grid; gap: 2px; }
 .billing51-brand div > span,
 .billing51-section-head div > span,
 .billing51-balance-card > div:first-child > span {
-  color: #978f81;
+  color: var(--ac-gold-bright);
   font-size: 10px;
   font-weight: 700;
   letter-spacing: .16em;
+  text-transform: uppercase;
 }
 
 .billing51-brand h2,
 .billing51-section-head h3 {
   margin: 0;
-  color: #f3f1ec;
-  font-weight: 620;
-  letter-spacing: -.025em;
+  color: var(--ac-ink);
+  font-family: var(--ac-serif);
+  font-weight: 600;
+  letter-spacing: -.02em;
 }
 
-.billing51-brand h2 { font-size: 20px; }
+.billing51-brand h2 { font-size: 22px; }
 
 .billing51-close {
-  width: 42px;
-  height: 42px;
-  border: 1px solid rgba(255,255,255,.075);
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--ac-hairline);
   border-radius: 13px;
-  background: rgba(255,255,255,.032);
-  color: #b9b5ad;
+  background: var(--ac-surface-2);
+  color: var(--ac-ink-soft);
   font: inherit;
   font-size: 25px;
   line-height: 1;
   cursor: pointer;
 }
-.billing51-close:hover { background: rgba(255,255,255,.065); color: #fff; }
+.billing51-close:hover { background: var(--ac-surface-3); color: var(--ac-ink); }
+
+.billing51-close:focus-visible,
+.billing51-buy:focus-visible,
+.billing51-plan-button:focus-visible,
+.billing51-footer-actions > button:focus-visible {
+  outline: 2px solid var(--ac-gold);
+  outline-offset: 3px;
+}
 
 .billing51-recovery {
   display: grid;
   gap: 6px;
   margin: 22px 22px 0;
   padding: 16px 18px;
-  border: 1px solid rgba(217,195,147,.24);
+  border: 1px solid var(--ac-gold);
   border-radius: 16px;
-  background: linear-gradient(135deg, rgba(217,195,147,.10), rgba(255,255,255,.018));
+  background: linear-gradient(135deg, var(--ac-gold-soft), transparent);
 }
 .billing51-recovery[data-recovery-kind="credits"] {
-  border-color: rgba(217,195,147,.34);
-  background: linear-gradient(135deg, rgba(217,195,147,.14), rgba(255,255,255,.018));
+  border-color: var(--ac-gold);
+  background: linear-gradient(135deg, var(--ac-gold-soft), transparent);
 }
 .billing51-recovery > span {
-  color: #bca774;
+  color: var(--ac-gold-bright);
   font-size: 9px;
   font-weight: 760;
   letter-spacing: .15em;
 }
 .billing51-recovery h3 {
   margin: 0;
-  color: #f0e7d2;
+  color: var(--ac-ink);
+  font-family: var(--ac-serif);
   font-size: 16px;
   font-weight: 650;
   letter-spacing: -.015em;
@@ -149,7 +223,7 @@
 .billing51-recovery p {
   max-width: 680px;
   margin: 0;
-  color: #aaa59c;
+  color: var(--ac-ink-soft);
   font-size: 12px;
   line-height: 1.5;
 }
@@ -157,23 +231,26 @@
 
 .billing51-plan-status {
   margin: 18px 22px 0;
-  color: #d9c393;
+  color: var(--ac-gold-bright);
   font-size: 13px;
   font-weight: 600;
   letter-spacing: .02em;
 }
 
+/* Balance card: the real server balance as a serif numeral, with the
+   real daily allowance beside it. No pace claim is rendered: the
+   billing data carries no usage rate to compute one from. */
 .billing51-balance-card {
   display: grid;
   grid-template-columns: 1.05fr .95fr;
   gap: 28px;
   margin: 22px;
-  padding: 24px;
-  border: 1px solid rgba(217,195,147,.23);
-  border-radius: 21px;
+  padding: 28px 30px;
+  border: 1px solid var(--ac-gold);
+  border-radius: var(--ac-radius-panel);
   background:
-    radial-gradient(circle at 10% 0%, rgba(217,195,147,.13), transparent 42%),
-    linear-gradient(145deg, rgba(217,195,147,.045), rgba(255,255,255,.014));
+    radial-gradient(circle at 70% 15%, var(--ac-gold-soft), transparent 35%),
+    var(--ac-surface-2);
 }
 
 .billing51-balance-card > div:first-child > strong {
@@ -183,20 +260,23 @@
   margin-top: 8px;
 }
 .billing51-balance-card > div:first-child > strong b {
-  font-size: clamp(42px, 7vw, 64px);
+  font-family: var(--ac-serif);
+  font-size: clamp(48px, 7vw, 72px);
   line-height: .95;
-  font-weight: 630;
-  letter-spacing: -.055em;
+  font-weight: 500;
+  letter-spacing: -3px;
 }
 .billing51-balance-card > div:first-child > strong small {
-  color: #a9a397;
-  font-size: 14px;
-  font-weight: 500;
+  color: var(--ac-gold-bright);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
 }
 .billing51-balance-card p {
   max-width: 430px;
   margin: 12px 0 0;
-  color: #aaa59c;
+  color: var(--ac-ink-soft);
   font-size: 13px;
   line-height: 1.5;
 }
@@ -212,25 +292,32 @@
   align-items: center;
   justify-content: space-between;
   gap: 16px;
-  color: #aaa59c;
+  color: var(--ac-ink-soft);
   font-size: 12px;
 }
 .billing51-allowance > div:first-child strong {
-  color: #e2ded5;
+  color: var(--ac-ink);
   font-size: 12px;
   font-weight: 600;
 }
 .billing51-progress {
-  height: 6px;
+  height: 5px;
   overflow: hidden;
   border-radius: 999px;
-  background: rgba(255,255,255,.07);
+  background: var(--ac-hairline);
 }
 .billing51-progress i {
   display: block;
   height: 100%;
   border-radius: inherit;
-  background: linear-gradient(90deg, #9a8354, #d8bf8b);
+  background: linear-gradient(90deg, var(--ac-gold), var(--ac-gold-bright));
+}
+/* Keep the child-combinator form for the motion-system coverage list. */
+.billing51-progress > i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--ac-gold), var(--ac-gold-bright));
 }
 
 .billing51-section {
@@ -238,7 +325,7 @@
 }
 .billing51-section + .billing51-section {
   padding-top: 24px;
-  border-top: 1px solid rgba(255,255,255,.055);
+  border-top: 1px solid var(--ac-hairline);
 }
 .billing51-section-head {
   display: flex;
@@ -248,11 +335,11 @@
   margin-bottom: 16px;
 }
 .billing51-section-head div { display: grid; gap: 5px; }
-.billing51-section-head h3 { font-size: 18px; }
+.billing51-section-head h3 { font-size: 20px; }
 .billing51-section-head > p {
   max-width: 390px;
   margin: 0;
-  color: #8f8b84;
+  color: var(--ac-ink-muted);
   font-size: 12px;
   line-height: 1.45;
   text-align: right;
@@ -260,14 +347,14 @@
 .billing51-rate-note {
   margin: -2px 0 16px;
   padding: 12px 14px;
-  border: 1px solid rgba(217,195,147,.14);
+  border: 1px solid var(--ac-gold-soft);
   border-radius: 12px;
-  background: rgba(217,195,147,.035);
-  color: #aaa59c;
+  background: var(--ac-gold-wash);
+  color: var(--ac-ink-soft);
   font-size: 12px;
   line-height: 1.55;
 }
-.billing51-rate-note strong { color: #ded8cb; }
+.billing51-rate-note strong { color: var(--ac-ink); }
 
 .billing51-packs {
   display: grid;
@@ -280,37 +367,39 @@
   min-height: 205px;
   flex-direction: column;
   padding: 18px;
-  border: 1px solid rgba(255,255,255,.07);
+  border: 1px solid var(--ac-hairline);
   border-radius: 17px;
-  background: rgba(255,255,255,.021);
+  background: var(--ac-surface-2);
 }
 .billing51-pack-amount {
   margin-top: 7px;
-  color: #f4f0e8;
+  color: var(--ac-ink);
+  font-family: var(--ac-serif);
   font-size: 34px;
-  font-weight: 630;
-  letter-spacing: -.045em;
+  font-weight: 600;
+  letter-spacing: -.02em;
+  line-height: 1;
 }
 .billing51-pack-label {
-  margin-top: 2px;
-  color: #8f8b84;
+  margin-top: 4px;
+  color: var(--ac-ink-soft);
   font-size: 11px;
 }
 .billing51-pack-price {
   margin: auto 0 12px;
-  color: #d3cec4;
+  color: var(--ac-ink);
   font-size: 14px;
   font-weight: 600;
 }
 .billing51-buy,
 .billing51-plan-button {
-  min-height: 43px;
-  border: 1px solid rgba(217,195,147,.28);
+  min-height: 44px;
+  border: 1px solid var(--ac-gold);
   border-radius: 12px;
-  background: #d8c08d;
-  color: #11161b;
+  background: var(--ac-gold);
+  color: #171614;
   font: inherit;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
   cursor: pointer;
 }
@@ -328,22 +417,22 @@
   display: grid;
   gap: 15px;
   padding: 18px;
-  border: 1px solid rgba(255,255,255,.07);
+  border: 1px solid var(--ac-hairline);
   border-radius: 17px;
-  background: rgba(255,255,255,.018);
+  background: var(--ac-surface-2);
 }
-.billing51-plan.is-featured { border-color: rgba(217,195,147,.20); }
+.billing51-plan.is-featured { border-color: var(--ac-gold); }
 .billing51-plan.is-intent {
-  border-color: rgba(222,196,133,.72);
-  box-shadow: 0 0 0 1px rgba(222,196,133,.18), 0 16px 34px rgba(0,0,0,.22);
+  border-color: var(--ac-gold);
+  box-shadow: 0 0 0 1px var(--ac-gold-soft), 0 16px 34px rgba(0,0,0,.22);
 }
 .crump52-plan-intent {
   margin: 0 0 14px;
   padding: 11px 13px;
-  border: 1px solid rgba(222,196,133,.24);
+  border: 1px solid var(--ac-gold-soft);
   border-radius: 12px;
-  background: rgba(222,196,133,.08);
-  color: #e7d6b0;
+  background: var(--ac-gold-wash);
+  color: var(--ac-gold-bright);
   font-size: 13px;
   line-height: 1.45;
 }
@@ -353,11 +442,15 @@
   justify-content: space-between;
   gap: 12px;
 }
-.billing51-plan-top strong { font-size: 16px; }
-.billing51-plan-top span { color: #d8c08d; font-size: 13px; font-weight: 650; }
+.billing51-plan-top strong {
+  font-family: var(--ac-serif);
+  font-size: 17px;
+  font-weight: 600;
+}
+.billing51-plan-top span { color: var(--ac-gold-bright); font-size: 13px; font-weight: 650; }
 .billing51-plan p {
   margin: 0;
-  color: #969188;
+  color: var(--ac-ink-soft);
   font-size: 12px;
   line-height: 1.55;
 }
@@ -369,7 +462,7 @@
   margin: 0;
   padding: 0;
   list-style: none;
-  color: #d4cfc6;
+  color: var(--ac-ink-soft);
   font-size: 12px;
   line-height: 1.45;
 }
@@ -380,46 +473,48 @@
 .billing51-plan-benefits li::before {
   position: absolute;
   left: 0;
-  color: #d8c08d;
+  color: var(--ac-gold-bright);
   content: '✓';
 }
 .billing51-plan .billing51-plan-meter-note {
-  color: #77736c;
+  color: var(--ac-ink-muted);
   font-size: 11px;
 }
-.billing51-plan-button {
-  background: rgba(217,195,147,.09);
-  color: #e4d2ab;
+.billing51-plan .billing51-plan-button {
+  background: var(--ac-gold-soft);
+  border-color: var(--ac-gold);
+  color: var(--ac-gold-bright);
 }
 
+/* Ledger: real server-side credit history rows, newest first. */
 .billing51-history-section { padding-bottom: 18px; }
 #billing51History {
   overflow: hidden;
-  border: 1px solid rgba(255,255,255,.055);
+  border: 1px solid var(--ac-hairline);
   border-radius: 15px;
-  background: rgba(0,0,0,.08);
+  background: var(--ac-canvas-raised);
 }
 .billing51-history-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  min-height: 45px;
-  padding: 0 14px;
-  color: #a8a39a;
-  font-size: 12px;
+  min-height: 48px;
+  padding: 0 16px;
+  color: var(--ac-ink-soft);
+  font-size: 13px;
 }
-.billing51-history-row + .billing51-history-row { border-top: 1px solid rgba(255,255,255,.045); }
-.billing51-history-row strong { color: #c0bbb2; font-variant-numeric: tabular-nums; }
-.billing51-history-row strong.is-positive { color: #d6c08d; }
-.billing51-empty { margin: 0; padding: 17px; color: #858078; font-size: 12px; }
+.billing51-history-row + .billing51-history-row { border-top: 1px solid var(--ac-hairline); }
+.billing51-history-row strong { color: var(--ac-ink); font-variant-numeric: tabular-nums; }
+.billing51-history-row strong.is-positive { color: var(--ac-gold-bright); }
+.billing51-empty { margin: 0; padding: 18px; color: var(--ac-ink-soft); font-size: 13px; }
 
 .billing51-footer {
   display: grid;
   gap: 11px;
   padding: 18px 22px max(22px, env(safe-area-inset-bottom));
-  border-top: 1px solid rgba(255,255,255,.055);
-  color: #77736c;
-  font-size: 10px;
+  border-top: 1px solid var(--ac-hairline);
+  color: var(--ac-ink-soft);
+  font-size: 11px;
   line-height: 1.5;
   text-align: center;
 }
@@ -431,27 +526,28 @@
   flex-wrap: wrap;
 }
 .billing51-footer-actions > button {
-  padding: 8px 13px;
-  border: 1px solid rgba(255,255,255,.06);
+  min-height: 44px;
+  padding: 8px 14px;
+  border: 1px solid var(--ac-hairline);
   border-radius: 10px;
-  background: rgba(255,255,255,.025);
-  color: #aaa59b;
+  background: var(--ac-surface-2);
+  color: var(--ac-ink-soft);
   font: inherit;
-  font-size: 11px;
+  font-size: 12px;
   cursor: pointer;
 }
-.billing51-footer-actions > button:hover { background: rgba(255,255,255,.05); }
+.billing51-footer-actions > button:hover { background: var(--ac-surface-3); color: var(--ac-ink); }
 .billing51-footer-actions > button:disabled { opacity: .5; cursor: wait; }
 .billing51-footer p { margin: 0; }
-.billing51-footer a { color: #9f9a91; }
+.billing51-footer a { color: var(--ac-ink-soft); }
 
 .billing51-sidebar-balance {
   margin-left: auto;
   padding: 3px 7px;
-  border: 1px solid rgba(217,195,147,.13);
+  border: 1px solid var(--ac-hairline-strong);
   border-radius: 999px;
-  color: #b9a77e;
-  background: rgba(217,195,147,.045);
+  color: var(--ac-gold-bright);
+  background: var(--ac-gold-soft);
   font-size: 9px;
   font-weight: 700;
   letter-spacing: .02em;
@@ -467,6 +563,68 @@
 }
 
 @keyframes billing51Shimmer { to { background-position: -200% 0; } }
+
+/* Light theme: small gold/muted text moves to ink tones, which is what
+   clears AA on the warm ground; gold stays on borders, fills, and art.
+   The sidebar balance keeps its dark styling here — the rail's light
+   treatment is owned by the design-pass override. */
+html[data-theme="light"] .billing51-brand div > span,
+html[data-theme="light"] .billing51-section-head div > span,
+html[data-theme="light"] .billing51-balance-card > div:first-child > span,
+html[data-theme="light"] .billing51-recovery > span {
+  color: var(--ac-ink-soft);
+}
+
+html[data-theme="light"] .billing51-mark {
+  color: var(--ac-gold);
+}
+
+html[data-theme="light"] .billing51-plan-status {
+  color: var(--ac-ink);
+}
+
+html[data-theme="light"] .billing51-balance-card > div:first-child > strong small {
+  color: var(--ac-ink-soft);
+}
+
+html[data-theme="light"] .billing51-section-head > p,
+html[data-theme="light"] .billing51-plan .billing51-plan-meter-note {
+  color: var(--ac-ink-soft);
+}
+
+html[data-theme="light"] .billing51-buy {
+  background: var(--ac-ink);
+  border-color: var(--ac-ink);
+  color: var(--ac-canvas);
+}
+
+html[data-theme="light"] .billing51-plan .billing51-plan-button {
+  background: var(--ac-surface-3);
+  border-color: var(--ac-hairline-strong);
+  color: var(--ac-ink);
+}
+
+html[data-theme="light"] .billing51-plan-top span {
+  color: var(--ac-ink);
+}
+
+html[data-theme="light"] .crump52-plan-intent {
+  color: var(--ac-ink);
+}
+
+html[data-theme="light"] .billing51-plan-benefits li::before {
+  color: var(--ac-gold);
+}
+
+html[data-theme="light"] .billing51-history-row strong.is-positive {
+  color: var(--ac-sage);
+}
+
+html[data-theme="light"] .billing51-skeleton {
+  background:
+    linear-gradient(90deg, rgba(45,40,31,.04), rgba(45,40,31,.1), rgba(45,40,31,.04));
+  background-size: 200% 100%;
+}
 
 @media (max-width: 720px) {
   .billing51-modal {
@@ -524,5 +682,5 @@
   .billing51-sheet,
   .billing51-balance-card,
   .billing51-pack,
-  .billing51-plan { border-color: rgba(255,255,255,.30); }
+  .billing51-plan { border-color: var(--ac-hairline-strong); }
 }

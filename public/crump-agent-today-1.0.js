@@ -886,6 +886,12 @@
 
   function briefRow(label, value) {
     var row = h('div', 'cat-brief-row');
+    // Timeline mark for the brief ledger: a decorative ring dot in
+    // the row's first column. It carries no text and no state — the
+    // label and value beside it are the row's content.
+    var mark = h('span', 'cat-brief-mark');
+    mark.setAttribute('aria-hidden', 'true');
+    row.appendChild(mark);
     row.appendChild(h('span', 'cat-brief-row-label', label));
     row.appendChild(h('span', 'cat-brief-row-value', value));
     return row;
