@@ -1,89 +1,14 @@
-/* Crump Vision — Studios (Apple UI v2).
- * Hero, studio cards, and the video console, composed from the v2 concept.
- * Production has exactly two studios — Image and Video — launched from
- * here into their real tools; no studio type is invented, and no mark of
- * any kind is rendered in the hero (the concept's placeholder mark is
- * excluded by the brand invariant). The recent-clips gallery shows only
- * real video jobs fetched for this account; there is no preview stage
- * and no provider state is implied.
- *
- * Shared shell note: .cv-view / .cv-card / .cv-btn are also used by the
- * Home, demo, chats, and shell views, so their base metrics stay put and
- * the v2 composition lives under .cv-studios. */
+/* Crump Vision — shared workspace presentation rules.
+ * Studios is no longer a primary destination, but this stylesheet remains in
+ * the bundle. Keep its global helpers aligned with the active product shell. */
 
-:root {
-  --ac-canvas: #0b0c0e;
-  --ac-canvas-raised: #101114;
-  --ac-surface: #15161a;
-  --ac-surface-2: #1b1c20;
-  --ac-surface-3: #222329;
-  --ac-material: rgba(17, 18, 21, 0.82);
-  --ac-material-strong: rgba(22, 23, 27, 0.94);
-  --ac-ink: #f4f0e8;
-  --ac-ink-soft: #c9c5bd;
-  --ac-ink-muted: #8f8d88;
-  --ac-ink-faint: #696a6e;
-  --ac-hairline: rgba(255, 255, 255, 0.09);
-  --ac-hairline-strong: rgba(255, 255, 255, 0.16);
-  --ac-gold: #d2a04f;
-  --ac-gold-bright: #efc878;
-  --ac-gold-soft: rgba(210, 160, 79, 0.16);
-  --ac-gold-wash: rgba(210, 160, 79, 0.08);
-  --ac-sage: #88a57b;
-  --ac-sage-soft: rgba(90, 130, 88, 0.18);
-  --ac-blue: #8ca9c8;
-  --ac-blue-soft: rgba(75, 112, 153, 0.2);
-  --ac-danger: #df846f;
-  --ac-shadow: 0 22px 60px rgba(0, 0, 0, 0.28);
-  --ac-radius-control: 14px;
-  --ac-radius-panel: 24px;
-  --ac-serif: ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
-  --ac-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
-  /* Legacy --cv-* names map onto the --ac-* tokens. */
-  --cv-ink: var(--ac-ink);
-  --cv-ink-soft: var(--ac-ink-soft);
-  --cv-gold: var(--ac-gold);
-  --cv-surface: var(--ac-surface);
-  --cv-hairline: var(--ac-hairline);
-}
-
-html[data-theme="light"] {
-  --ac-canvas: #f4f0e8;
-  --ac-canvas-raised: #f8f5ef;
-  --ac-surface: #fffdf9;
-  --ac-surface-2: #eee9df;
-  --ac-surface-3: #e7e1d5;
-  --ac-material: rgba(249, 246, 239, 0.82);
-  --ac-material-strong: rgba(255, 253, 249, 0.95);
-  --ac-ink: #171614;
-  --ac-ink-soft: #4f4c46;
-  --ac-ink-muted: #79756d;
-  --ac-ink-faint: #9a958b;
-  --ac-hairline: rgba(45, 40, 31, 0.1);
-  --ac-hairline-strong: rgba(45, 40, 31, 0.18);
-  --ac-gold: #aa7428;
-  --ac-gold-bright: #c8903d;
-  --ac-gold-soft: rgba(170, 116, 40, 0.13);
-  --ac-gold-wash: rgba(170, 116, 40, 0.07);
-  --ac-sage: #55704f;
-  --ac-sage-soft: rgba(85, 112, 79, 0.12);
-  --ac-blue: #526f8d;
-  --ac-blue-soft: rgba(82, 111, 141, 0.12);
-  --ac-shadow: 0 24px 60px rgba(67, 51, 28, 0.12);
-}
-
-/* Shared view shell: metrics unchanged for the other views that use it. */
 .cv-view {
-  background: var(--ac-canvas);
-  color: var(--ac-ink);
-  font-family: var(--ac-sans);
+  background: #0d1015;
+  color: #f7f4ec;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   min-height: 100%;
   padding: 48px 32px 96px;
   box-sizing: border-box;
-}
-
-.cv-studios {
-  padding-bottom: max(96px, env(safe-area-inset-bottom, 0px));
 }
 
 .cv-wrap {
@@ -91,146 +16,39 @@ html[data-theme="light"] {
   margin: 0 auto;
 }
 
-/* Hero: giant serif headline + lede. No mark is rendered here. */
-.cv-studios-hero {
-  max-width: 850px;
-  padding-top: 8px;
-  margin-bottom: 36px;
-}
-
 .cv-eyebrow {
-  font-size: 11px;
+  font-size: 12px;
   text-transform: uppercase;
-  letter-spacing: 1.55px;
-  color: var(--ac-gold-bright);
+  letter-spacing: 0.1em;
+  color: #dec57e;
   margin: 0 0 12px;
-  font-weight: 780;
+  font-weight: 700;
 }
 
 .cv-headline {
-  font-family: var(--ac-serif);
-  font-weight: 500;
-  font-size: clamp(46px, 6.4vw, 76px);
-  line-height: 0.95;
-  letter-spacing: -2.5px;
-  margin: 0 0 18px;
-  color: var(--ac-ink);
+  font-weight: 690;
+  font-size: clamp(34px, 5vw, 50px);
+  line-height: 1.06;
+  letter-spacing: -0.035em;
+  margin: 0 0 14px;
+  color: #f7f4ec;
 }
 
 .cv-sub {
-  font-size: 17px;
-  line-height: 1.6;
-  color: var(--ac-ink-soft);
-  margin: 0;
+  font-size: 16px;
+  line-height: 1.65;
+  color: #adb3bb;
+  margin: 0 0 44px;
   max-width: 60ch;
 }
 
-/* Studio cards */
-.cv-studio-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
-}
-
 .cv-card {
-  background: var(--ac-surface);
-  border: 1px solid var(--ac-hairline);
+  background: #15191f;
+  border: 1px solid rgba(255, 255, 255, 0.09);
   border-radius: 18px;
   padding: 32px;
   margin-bottom: 24px;
-  box-shadow: var(--ac-shadow);
-}
-
-.cv-studios .cv-card {
-  position: relative;
-  display: grid;
-  grid-template-columns: 38px 132px minmax(0, 1fr) 40px;
-  gap: 24px;
-  align-items: start;
-  overflow: hidden;
-  border-radius: var(--ac-radius-panel);
-  padding: 24px;
-  margin-bottom: 0;
-}
-
-.cv-studios .cv-card::before {
-  position: absolute;
-  inset: 0;
-  opacity: 0.65;
-  background: radial-gradient(circle at 32% 50%, var(--ac-gold-soft), transparent 33%);
-  content: "";
-  pointer-events: none;
-}
-
-.cv-studios .cv-card > * {
-  position: relative;
-  z-index: 1;
-  min-width: 0;
-}
-
-.cv-studio-number {
-  align-self: start;
-  padding-top: 4px;
-  color: var(--ac-ink-muted);
-  font-family: var(--ac-serif);
-  font-size: 13px;
-}
-
-/* Decorative gradient art tiles: bars and shapes only, never dots. */
-.cv-studio-art {
-  display: flex;
-  width: 132px;
-  height: 132px;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  overflow: hidden;
-  border-radius: 28px;
-  background: linear-gradient(145deg, #43372f, #201b18);
-  box-shadow: inset 0 0 30px rgba(255, 255, 255, 0.04), 0 18px 35px rgba(0, 0, 0, 0.2);
-}
-
-.cv-studio-art--image {
-  background: linear-gradient(145deg, #4d6a56, #8d6842);
-}
-
-.cv-studio-art--image i {
-  width: 76px;
-  height: 76px;
-  border-radius: 23px 50% 27px 50%;
-  background: rgba(255, 244, 213, 0.45);
-  transform: rotate(25deg);
-}
-
-.cv-studio-art--video {
-  background: linear-gradient(145deg, #30485d, #5d3f4e);
-}
-
-.cv-studio-art--video i {
-  width: 42px;
-  height: 76px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.12);
-  transform: rotate(-12deg);
-}
-
-.cv-studio-art--video i:nth-child(2) {
-  height: 95px;
-  transform: rotate(13deg);
-}
-
-.cv-studio-body {
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.cv-studio-arrow {
-  justify-self: end;
-  padding-top: 4px;
-  color: var(--ac-ink-muted);
-  font-size: 21px;
-  line-height: 1;
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.12);
 }
 
 .cv-card-head {
@@ -241,105 +59,72 @@ html[data-theme="light"] {
   margin-bottom: 8px;
 }
 
-.cv-studios .cv-card-head {
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 7px;
-}
-
 .cv-card-title {
   font-size: 22px;
   font-weight: 680;
   margin: 0;
-  color: var(--ac-ink);
+  color: #f7f4ec;
   letter-spacing: -0.02em;
 }
 
-.cv-studios .cv-card-title {
-  font-family: var(--ac-serif);
-  font-size: 23px;
-  font-weight: 600;
-  letter-spacing: 0;
-}
-
 .cv-card-kicker {
-  font-size: 10px;
+  font-size: 12px;
   text-transform: uppercase;
-  letter-spacing: 1.2px;
-  color: var(--ac-gold-bright);
+  letter-spacing: 0.1em;
+  color: #dec57e;
   white-space: nowrap;
-  font-weight: 750;
 }
 
 .cv-card-copy {
   font-size: 14px;
   line-height: 1.65;
-  color: var(--ac-ink-soft);
-  margin: 0 0 20px;
+  color: #adb3bb;
+  margin: 0 0 24px;
   max-width: 62ch;
 }
 
-.cv-studios .cv-card-copy {
-  margin-bottom: 20px;
-}
-
-/* Video console: full-width mode row + direction panel under the card head. */
-.cv-studio-console {
-  grid-column: 1 / -1;
-  border-top: 1px solid var(--ac-hairline);
-  padding-top: 20px;
-}
-
-.cv-studio-gallery {
-  grid-column: 1 / -1;
-  border-top: 1px solid var(--ac-hairline);
-  padding-top: 20px;
-}
-
-/* Mode pills: the three real video modes, as a mode row. */
+/* Mode pills */
 .cv-pills {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
+  display: flex;
+  gap: 8px;
   margin-bottom: 12px;
+  flex-wrap: wrap;
 }
 
 .cv-pill {
   appearance: none;
-  background: var(--ac-surface-2);
-  border: 1px solid var(--ac-hairline);
-  border-radius: var(--ac-radius-control);
-  color: var(--ac-ink-soft);
-  font-family: var(--ac-serif);
-  font-size: 18px;
-  font-weight: 600;
-  min-height: 56px;
-  padding: 12px 16px;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 999px;
+  color: #adb3bb;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 9px 20px;
   cursor: pointer;
-  text-align: left;
   transition: color 0.15s ease, border-color 0.15s ease, background 0.15s ease;
 }
 
 .cv-pill:hover {
-  color: var(--ac-ink);
-  border-color: var(--ac-gold);
+  color: #f7f4ec;
+  border-color: rgba(222, 197, 126, 0.48);
 }
 
 .cv-pill[aria-pressed="true"] {
-  background: var(--ac-gold-wash);
-  border-color: var(--ac-gold);
-  color: var(--ac-gold-bright);
+  background: rgba(222, 197, 126, 0.12);
+  border-color: #c6a95f;
+  color: #dec57e;
 }
 
 .cv-pill:focus-visible {
-  outline: 2px solid var(--ac-gold);
+  outline: 2px solid #dec57e;
   outline-offset: 3px;
 }
 
 .cv-mode-desc {
   font-size: 13px;
   line-height: 1.6;
-  color: var(--ac-ink-soft);
+  color: #adb3bb;
   margin: 0 0 20px;
   min-height: 21px;
 }
@@ -347,22 +132,22 @@ html[data-theme="light"] {
 /* Prompt */
 .cv-field-label {
   display: block;
-  font-size: 11px;
+  font-size: 12px;
   text-transform: uppercase;
-  letter-spacing: 1.2px;
-  color: var(--ac-gold-bright);
+  letter-spacing: 0.1em;
+  color: #dec57e;
   margin: 0 0 10px;
-  font-weight: 700;
+  font-weight: 600;
 }
 
 .cv-textarea {
   width: 100%;
   box-sizing: border-box;
-  background: var(--ac-canvas-raised);
-  border: 1px solid var(--ac-hairline);
-  border-radius: var(--ac-radius-control);
-  color: var(--ac-ink);
-  font-family: var(--ac-sans);
+  background: #10141a;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 14px;
+  color: #f7f4ec;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 14px;
   line-height: 1.6;
   padding: 14px 16px;
@@ -371,20 +156,14 @@ html[data-theme="light"] {
   margin-bottom: 20px;
 }
 
-.cv-studios .cv-textarea {
-  font-family: var(--ac-serif);
-  font-size: 17px;
-  line-height: 1.5;
-}
-
 .cv-textarea::placeholder {
-  color: var(--ac-ink-muted);
+  color: #7f8790;
 }
 
 .cv-textarea:focus {
-  outline: 2px solid var(--ac-gold);
+  outline: 2px solid #dec57e;
   outline-offset: 3px;
-  border-color: var(--ac-gold);
+  border-color: #c6a95f;
 }
 
 /* Buttons */
@@ -397,40 +176,40 @@ html[data-theme="light"] {
 
 .cv-btn {
   appearance: none;
-  border-radius: var(--ac-radius-control);
-  font-family: var(--ac-sans);
+  border-radius: 12px;
+  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-size: 14px;
-  font-weight: 650;
-  min-height: 44px;
-  padding: 12px 28px;
+  font-weight: 600;
+  padding: 13px 28px;
   cursor: pointer;
   border: 1px solid transparent;
   transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 
 .cv-btn-primary {
-  background: var(--ac-ink);
-  color: var(--ac-canvas);
-  border-color: var(--ac-ink);
+  background: #dec57e;
+  color: #15120a;
+  border-color: #dec57e;
 }
 
 .cv-btn-primary:hover {
-  opacity: 0.88;
+  background: #ead392;
+  border-color: #ead392;
 }
 
 .cv-btn-ghost {
   background: transparent;
-  color: var(--ac-gold-bright);
-  border-color: var(--ac-gold);
+  color: #dec57e;
+  border-color: rgba(222, 197, 126, 0.44);
 }
 
 .cv-btn-ghost:hover {
-  background: var(--ac-gold-wash);
-  color: var(--ac-gold-bright);
+  border-color: #dec57e;
+  color: #ead392;
 }
 
 .cv-btn:focus-visible {
-  outline: 2px solid var(--ac-gold);
+  outline: 2px solid #dec57e;
   outline-offset: 3px;
 }
 
@@ -441,62 +220,54 @@ html[data-theme="light"] {
 
 .cv-status {
   font-size: 13px;
-  color: var(--ac-ink-soft);
+  color: #adb3bb;
   margin: 14px 0 0;
   min-height: 20px;
 }
 
-.cv-status:empty {
-  display: none;
-}
-
 .cv-status.is-error {
-  color: var(--ac-danger);
+  color: #dec57e;
 }
 
-/* Gallery: real jobs only, as quiet tiles. */
+/* Gallery */
 .cv-gallery-head {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  margin: 0 0 16px;
-}
-
-.cv-gallery-head .cv-field-label {
-  margin: 0;
+  margin: 8px 0 18px;
 }
 
 .cv-gallery-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 16px;
+  gap: 12px;
 }
 
 .cv-gallery-item {
-  background: var(--ac-surface-2);
-  border: 1px solid var(--ac-hairline);
-  border-radius: 18px;
+  background: #10141a;
+  border: 1px solid rgba(255, 255, 255, 0.09);
+  border-radius: 16px;
   padding: 18px;
   text-decoration: none;
-  color: var(--ac-ink);
+  color: #f7f4ec;
   display: block;
   transition: border-color 0.15s ease;
 }
 
 a.cv-gallery-item:hover {
-  border-color: var(--ac-gold);
+  border-color: rgba(222, 197, 126, 0.48);
 }
 
 a.cv-gallery-item:focus-visible {
-  outline: 2px solid var(--ac-gold);
+  outline: 2px solid #dec57e;
   outline-offset: 3px;
 }
 
 .cv-gallery-item strong {
   display: block;
   font-size: 13px;
-  font-weight: 650;
-  color: var(--ac-gold-bright);
+  font-weight: 600;
+  color: #dec57e;
   margin-bottom: 6px;
   text-transform: capitalize;
 }
@@ -504,96 +275,33 @@ a.cv-gallery-item:focus-visible {
 .cv-gallery-item span {
   display: block;
   font-size: 12px;
-  color: var(--ac-ink-soft);
+  color: #adb3bb;
   line-height: 1.5;
 }
 
 .cv-gallery-empty {
-  border: 1px dashed var(--ac-hairline-strong);
-  border-radius: 18px;
+  border: 1px dashed rgba(222, 197, 126, 0.32);
+  border-radius: 16px;
   padding: 36px 24px;
   text-align: center;
-  color: var(--ac-ink-soft);
+  color: #adb3bb;
   font-size: 14px;
   line-height: 1.7;
 }
 
 .cv-gallery-empty strong {
   display: block;
-  font-family: var(--ac-serif);
-  font-weight: 600;
-  font-size: 20px;
-  color: var(--ac-ink);
+  font-weight: 650;
+  font-size: 18px;
+  color: #f7f4ec;
   margin-bottom: 8px;
 }
 
-.cv-gallery-empty p {
-  margin: 0;
-}
-
 .cv-loading {
-  color: var(--ac-ink-soft);
+  color: #adb3bb;
   font-size: 14px;
   padding: 28px 0;
   text-align: center;
-}
-
-/* Light theme: small gold/muted text moves to ink tones, which is what
-   clears AA on the warm ground; gold stays on borders, fills, and art. */
-html[data-theme="light"] .cv-eyebrow,
-html[data-theme="light"] .cv-card-kicker,
-html[data-theme="light"] .cv-field-label {
-  color: var(--ac-ink-soft);
-}
-
-html[data-theme="light"] .cv-studio-number,
-html[data-theme="light"] .cv-studio-arrow {
-  color: var(--ac-ink-soft);
-}
-
-html[data-theme="light"] .cv-pill[aria-pressed="true"] {
-  color: var(--ac-ink);
-}
-
-html[data-theme="light"] .cv-btn-ghost {
-  color: var(--ac-ink);
-  border-color: var(--ac-hairline-strong);
-}
-
-html[data-theme="light"] .cv-btn-ghost:hover {
-  color: var(--ac-ink);
-  background: var(--ac-gold-wash);
-}
-
-html[data-theme="light"] .cv-textarea::placeholder {
-  color: var(--ac-ink-soft);
-}
-
-html[data-theme="light"] .cv-status.is-error {
-  color: var(--ac-ink);
-  font-weight: 600;
-}
-
-html[data-theme="light"] .cv-gallery-item strong {
-  color: var(--ac-ink);
-}
-
-@media (max-width: 1100px) {
-  .cv-studios .cv-card {
-    grid-template-columns: 28px 110px minmax(0, 1fr) 28px;
-    gap: 16px;
-  }
-
-  .cv-studio-art {
-    width: 105px;
-    height: 105px;
-  }
-}
-
-@media (max-width: 900px) {
-  .cv-studio-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 @media (max-width: 640px) {
@@ -603,93 +311,6 @@ html[data-theme="light"] .cv-gallery-item strong {
 
   .cv-card {
     padding: 24px 20px;
-  }
-
-  /* Narrow cards stack: number + art + arrow on the first row, the body
-     (kicker, title, description, CTA) full-width beneath, so the copy
-     never compresses into a thin column and the CTA never wraps. */
-  .cv-studios .cv-card {
-    grid-template-columns: 25px minmax(0, 1fr) 24px;
-    gap: 12px;
-    padding: 16px;
-  }
-
-  .cv-studio-body {
-    grid-column: 1 / -1;
-    grid-row: 2;
-  }
-
-  .cv-studio-arrow {
-    grid-column: 3;
-    grid-row: 1;
-  }
-
-  .cv-studios .cv-actions {
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-  .cv-studio-art {
-    width: 82px;
-    height: 82px;
-    border-radius: 21px;
-  }
-
-  .cv-studio-art--image i {
-    width: 48px;
-    height: 48px;
-  }
-
-  .cv-studio-art--video i {
-    width: 26px;
-    height: 48px;
-  }
-
-  .cv-studio-art--video i:nth-child(2) {
-    height: 60px;
-  }
-
-  .cv-studios .cv-card-title {
-    font-size: 19px;
-  }
-
-  .cv-pills {
-    grid-template-columns: 1fr;
-  }
-
-  .cv-pill {
-    min-height: 56px;
-  }
-}
-
-@media (max-width: 360px) {
-  .cv-studios .cv-card {
-    grid-template-columns: 22px minmax(0, 1fr);
-    padding: 13px;
-  }
-
-  .cv-studio-arrow {
-    display: none;
-  }
-
-  .cv-studio-art {
-    width: 68px;
-    height: 68px;
-    border-radius: 18px;
-  }
-
-  .cv-studio-art--image i {
-    width: 40px;
-    height: 40px;
-  }
-
-  .cv-studio-art--video i {
-    width: 22px;
-    height: 40px;
-  }
-
-  .cv-studio-art--video i:nth-child(2) {
-    height: 50px;
   }
 }
 

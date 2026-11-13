@@ -211,24 +211,17 @@ def test_response_utilities_use_readable_semantic_colors_in_both_themes() -> Non
         styles,
         'html[data-theme="dark"] body.crump-v1-body .outcome-project-btn',
     )
-    # One theme-flipping rule carries the button in both appearances:
-    # ink on canvas renders 15.9:1 in light and 17.2:1 in dark, so no
-    # separate dark base rule exists. (The dark :hover rule survives —
-    # it prevents the hover inversion — but it is not a base rule.)
-    assert declarations_contain(light_project, "background: var(--ac-ink) !important", "color: var(--ac-canvas) !important")
-    assert dark_project == []
+    assert declarations_contain(light_project, "background: var(--atelier-ink) !important", "color: #fffdf9 !important")
+    assert declarations_contain(dark_project, "background: #e7deca !important", "color: #15171a !important")
 
     keepsake_badge = css_blocks(
         styles,
         "body.crump-v1-body .crump50-artifact.cv-keepsake-real::before",
     )
     assert declarations_contain(keepsake_badge, "grid-column: 1 / -1")
-    # The dark overrides for these three surfaces are gone: their
-    # pairs pass on the theme-flipping tokens, and the base selectors
-    # above still carry final-theme coverage.
-    assert 'html[data-theme="dark"] body.crump-v1-body .outcome-continuity' not in styles
-    assert 'html[data-theme="dark"] body.crump-v1-body .crump50-artifact' not in styles
-    assert 'html[data-theme="dark"] body.crump-v1-body .message-action-btn' not in styles
+    assert 'html[data-theme="dark"] body.crump-v1-body .outcome-continuity' in styles
+    assert 'html[data-theme="dark"] body.crump-v1-body .crump50-artifact' in styles
+    assert 'html[data-theme="dark"] body.crump-v1-body .message-action-btn' in styles
 
 
 def test_release_quality_contract_covers_the_exact_reported_mobile_surfaces() -> None:

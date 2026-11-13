@@ -501,7 +501,7 @@
         '<span class="cv-rail-brand-copy"><strong>Ask Crump</strong><small>AI workspace</small></span>' +
       '</button>' +
       '<div class="cv-rail-actions" aria-label="Conversation controls">' +
-        '<button type="button" class="cv-rail-new" data-cv-new-conversation>' + ICONS.new + '<span>New conversation</span><kbd>⇧⌘N</kbd></button>' +
+        '<button type="button" class="cv-rail-new" data-cv-new-conversation>' + ICONS.new + '<span>New</span></button>' +
       '</div>' +
       '<div class="cv-rail-section-label" aria-hidden="true">Workspace</div>' +
       '<nav class="cv-rail-nav" aria-label="Workspace destinations">' + buttons + '</nav>' +

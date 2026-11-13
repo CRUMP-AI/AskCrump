@@ -208,67 +208,49 @@
   function render(root) {
     mountedStudiosRoot = root;
     var authBoundary = captureAuthBoundary();
-    root.classList.add('cv-view', 'cv-studios');
+    root.classList.add('cv-view');
     root.innerHTML =
       '<div class="cv-wrap">' +
-        '<header class="cv-studios-hero">' +
-          '<p class="cv-eyebrow">Studios</p>' +
-          '<h1 class="cv-headline">Make something worth keeping.</h1>' +
-          '<p class="cv-sub">Two purpose-built studios for work that starts as an idea and ends as something you can keep.</p>' +
-        '</header>' +
-        '<div class="cv-studio-grid">' +
+        '<p class="cv-eyebrow">Create</p>' +
+        '<h1 class="cv-headline">Studios</h1>' +
+        '<p class="cv-sub">Two purpose-built studios for work that starts as an idea and ends as something you can keep.</p>' +
 
-        '<section class="cv-card cv-studio-card cv-studio-card--image" aria-labelledby="cvImageTitle">' +
-          '<span class="cv-studio-number" aria-hidden="true">01</span>' +
-          '<span class="cv-studio-art cv-studio-art--image" aria-hidden="true"><i></i></span>' +
-          '<div class="cv-studio-body">' +
-            '<div class="cv-card-head">' +
-              '<span class="cv-card-kicker">Still frames</span>' +
-              '<h2 class="cv-card-title" id="cvImageTitle">Image Studio</h2>' +
-            '</div>' +
-            '<p class="cv-card-copy">Choose aspect ratio, quality, and optional references inside Image Studio, then create or edit a frame and keep it in your workspace.</p>' +
-            '<div class="cv-actions">' +
-              '<button type="button" class="cv-btn cv-btn-primary" data-cv-open-image>Open Image Studio</button>' +
-            '</div>' +
-            '<p class="cv-status" data-cv-image-status></p>' +
+        '<section class="cv-card" aria-labelledby="cvImageTitle">' +
+          '<div class="cv-card-head">' +
+            '<h2 class="cv-card-title" id="cvImageTitle">Image Studio</h2>' +
+            '<span class="cv-card-kicker">Still frames</span>' +
           '</div>' +
-          '<span class="cv-studio-arrow" aria-hidden="true">→</span>' +
+          '<p class="cv-card-copy">Choose aspect ratio, quality, and optional references inside Image Studio, then create or edit a frame and keep it in your workspace.</p>' +
+          '<div class="cv-actions">' +
+            '<button type="button" class="cv-btn cv-btn-primary" data-cv-open-image>Open Image Studio</button>' +
+          '</div>' +
+          '<p class="cv-status" data-cv-image-status></p>' +
         '</section>' +
 
-        '<section class="cv-card cv-studio-card cv-studio-card--video" aria-labelledby="cvVideoTitle">' +
-          '<span class="cv-studio-number" aria-hidden="true">02</span>' +
-          '<span class="cv-studio-art cv-studio-art--video" aria-hidden="true"><i></i><i></i></span>' +
-          '<div class="cv-studio-body">' +
-            '<div class="cv-card-head">' +
-              '<span class="cv-card-kicker">Motion</span>' +
-              '<h2 class="cv-card-title" id="cvVideoTitle">Video Studio</h2>' +
-            '</div>' +
-            '<p class="cv-card-copy">One studio, three modes. Pick the mode that fits the shot, write the direction, and generate the scene.</p>' +
+        '<section class="cv-card" aria-labelledby="cvVideoTitle">' +
+          '<div class="cv-card-head">' +
+            '<h2 class="cv-card-title" id="cvVideoTitle">Video Studio</h2>' +
+            '<span class="cv-card-kicker">Motion</span>' +
           '</div>' +
-          '<span class="cv-studio-arrow" aria-hidden="true">→</span>' +
-          '<div class="cv-studio-console">' +
-            '<div class="cv-pills" role="group" aria-label="Video mode" data-cv-mode-pills>' +
-              MODES.map(function (m, i) {
-                return '<button type="button" class="cv-pill" data-cv-mode="' + esc(m.id) + '" aria-pressed="' + (i === 0 ? 'true' : 'false') + '">' + esc(m.label) + '</button>';
-              }).join('') +
-            '</div>' +
-            '<p class="cv-mode-desc" data-cv-mode-desc>' + esc(MODES[0].desc) + '</p>' +
-            '<label class="cv-field-label" for="cvVideoPrompt">Direction</label>' +
-            '<textarea class="cv-textarea" id="cvVideoPrompt" data-cv-video-prompt placeholder="A lighthouse keeper waves from a cliff at dawn, gulls crossing the frame…"></textarea>' +
-            '<div class="cv-actions">' +
-              '<button type="button" class="cv-btn cv-btn-primary" data-cv-open-video>Continue in Video Studio</button>' +
-              '<button type="button" class="cv-btn cv-btn-ghost" data-cv-refresh-gallery>Refresh gallery</button>' +
-            '</div>' +
-            '<p class="cv-status" data-cv-video-status></p>' +
+          '<p class="cv-card-copy">One studio, three modes. Pick the mode that fits the shot, write the direction, and generate the scene.</p>' +
+          '<div class="cv-pills" role="group" aria-label="Video mode" data-cv-mode-pills>' +
+            MODES.map(function (m, i) {
+              return '<button type="button" class="cv-pill" data-cv-mode="' + esc(m.id) + '" aria-pressed="' + (i === 0 ? 'true' : 'false') + '">' + esc(m.label) + '</button>';
+            }).join('') +
           '</div>' +
-          '<div class="cv-studio-gallery">' +
-            '<div class="cv-gallery-head">' +
-              '<h3 class="cv-field-label" style="margin:0">Recent clips</h3>' +
-            '</div>' +
-            '<div class="cv-gallery-grid" data-cv-gallery></div>' +
+          '<p class="cv-mode-desc" data-cv-mode-desc>' + esc(MODES[0].desc) + '</p>' +
+          '<label class="cv-field-label" for="cvVideoPrompt">Direction</label>' +
+          '<textarea class="cv-textarea" id="cvVideoPrompt" data-cv-video-prompt placeholder="A lighthouse keeper waves from a cliff at dawn, gulls crossing the frame…"></textarea>' +
+          '<div class="cv-actions">' +
+            '<button type="button" class="cv-btn cv-btn-primary" data-cv-open-video>Continue in Video Studio</button>' +
+            '<button type="button" class="cv-btn cv-btn-ghost" data-cv-refresh-gallery>Refresh gallery</button>' +
           '</div>' +
+          '<p class="cv-status" data-cv-video-status></p>' +
+          '<div class="cv-gallery-head" style="margin-top:32px">' +
+            '<h3 class="cv-field-label" style="margin:0">Recent clips</h3>' +
+          '</div>' +
+          '<div class="cv-gallery-grid" data-cv-gallery></div>' +
         '</section>' +
-        '</div>' +
       '</div>';
 
     var selectedMode = 'quick';

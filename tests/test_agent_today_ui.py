@@ -19,8 +19,8 @@ def read(relative: str) -> str:
 
 def test_app_html_loads_agent_today_layer_last_with_versioned_assets():
     app = read('public/app.html')
-    css = '/crump-agent-today-1.0.css?v=5.9.76-agent-today-19'
-    js = '/crump-agent-today-1.0.js?v=5.9.76-agent-today-19'
+    css = '/crump-agent-today-1.0.css?v=5.9.76-agent-today-18'
+    js = '/crump-agent-today-1.0.js?v=5.9.76-agent-today-18'
     assert css in app
     assert js in app
     assert (PUBLIC / 'crump-agent-today-1.0.css').exists()
@@ -73,19 +73,11 @@ def test_today_layer_declutters_without_removing_features():
     assert '#tutorialOverlay' in css
 
 
-def test_today_layer_uses_the_apple_ui_v2_palette_and_type():
+def test_today_layer_uses_the_house_palette_and_type():
     css = read('public/crump-agent-today-1.0.css')
-    # The v2 concept tokens are the system of record in this layer:
-    # dark canvas/ink/gold, the serif stack (Georgia survives only as
-    # the stack's fallback), and the 44px minimum touch target.
-    for needle in ('#0b0c0e', '#d2a04f', '#efc878', '#f4f0e8', '#8f8d88', 'ui-serif', 'Georgia'):
+    for needle in ('#070a0e', '#d5b971', '#b69855', '#f1efe9', '#8a9196', 'Georgia'):
         assert needle in css, needle
     assert 'min-height: 44px' in css
-    # The light appearance carries the warm ivory canvas and the
-    # deeper gold; the retired house palette must not survive here.
-    assert '#f4f0e8' in css and '#aa7428' in css
-    for retired in ('#070a0e', '#d5b971', '#b69855', '#f1efe9', '#8a9196', '#111417'):
-        assert retired not in css, retired
 
 
 def css_block(css: str, selector: str) -> str:
@@ -277,12 +269,10 @@ def test_composer_finish_is_gold_send_chip_attach_and_one_line_placeholder():
     # finish follows the design in the layer that loads last.
     send = css_block(css, ':is(#sendButton, .crump50-send):not(:disabled) {')
     assert 'background: var(--cat-gold-bright) !important' in send
-    # The send glyph sits on the gold in deep brown, readable in
-    # either appearance (the gold token itself flips with the theme).
-    assert 'color: #1f1509 !important' in send
+    assert 'color: var(--cat-ink) !important' in send
     attach = css_block(css, ':is(#attachBtn, .crump50-plus) {')
     assert 'background: transparent !important' in attach
-    assert 'border: 1px solid rgba(210, 160, 79, 0.65) !important' in attach
+    assert 'border: 1px solid rgba(213, 185, 113, 0.65) !important' in attach
     # The placeholder sets on one line with an ellipsis while it is
     # showing, so the pill never clips a wrapped second line; typed
     # text is unaffected (the rule is scoped to :placeholder-shown).
@@ -299,13 +289,12 @@ def test_brief_counts_and_rows_come_from_the_loaded_data():
     assert 'cat-brief-row' in js
 
 
-def test_today_cards_use_the_surface_token_with_quiet_section_eyebrows():
+def test_today_cards_use_the_dark_card_token_with_gold_section_eyebrows():
     css = read('public/crump-agent-today-1.0.css')
-    card = css_block(css, '.cat-today .cat-card {')
-    assert 'background: var(--ac-surface)' in card
-    assert 'border-color: var(--ac-hairline)' in card
+    assert '.cat-today .cat-card {' in css
+    assert 'background: #111417' in css
     section_title = css_block(css, '.cat-today-section-title {')
-    assert 'color: var(--cat-gray)' in section_title
+    assert 'color: var(--cat-gold-bright)' in section_title
 
 
 def test_connect_button_hit_target_is_at_least_44px():
@@ -349,9 +338,8 @@ def test_chat_surface_has_one_primary_card_and_quiet_secondary_rows():
     assert 'cat-chat-primary' in js
     assert 'cat-chat-row' in js
     assert 'chatSecondaryRow' in js
-    card = css_block(css, '.cat-chat-work .cat-card {')
-    assert 'background: var(--ac-surface)' in card
-    assert 'border-color: var(--ac-hairline)' in card
+    assert '.cat-chat-work .cat-card {' in css
+    assert 'background: #111417' in css
     # A secondary approval row routes to the full card in Tasks.
     assert "row.addEventListener('click', function () { openTasks(); });" in js
 
@@ -440,18 +428,17 @@ def test_tasks_waiting_group_keeps_every_approval_as_a_full_card():
     assert js.count('function approvalCard(') == 1
 
 
-def test_tasks_drawer_uses_the_canvas_ground_quiet_ledger_treatment():
+def test_tasks_drawer_uses_the_dark_record_treatment():
     css = read('public/crump-agent-today-1.0.css')
-    # The drawer follows the appearance on the canvas ground token,
-    # with quiet secondary-text group eyebrows, flat rows separated
-    # by hairlines, and the surface token scoped to cards inside it.
+    # The drawer is a dark surface in the design: ink ground, gold
+    # tracked group eyebrows, flat rows separated by gold hairlines,
+    # and the dark card token scoped to cards inside the drawer.
     assert 'background: var(--cat-ink)' in css_block(css, '.cat-drawer {')
-    assert 'color: var(--cat-gray)' in css_block(css, '.cat-group-title {')
-    drawer_card = css_block(css, '.cat-drawer .cat-card {')
-    assert 'background: var(--ac-surface)' in drawer_card
+    assert 'color: var(--cat-gold-bright)' in css_block(css, '.cat-group-title {')
+    assert '.cat-drawer .cat-card {' in css
     row = css_block(css, '.cat-task-row {')
     assert 'background: transparent' in row
-    assert 'border-bottom: 1px solid var(--ac-hairline)' in row
+    assert 'rgba(213, 185, 113' in row
     assert '.cat-row-marker' in css
 
 
@@ -529,8 +516,8 @@ def test_browser_panel_is_a_right_anchored_slide_over_with_gold_hairline():
     # to the right edge over a dimming backdrop.
     assert 'width: min(560px, 84vw)' in window
     assert 'height: 100%' in window
-    assert 'background: var(--ac-canvas-raised)' in window
-    assert 'border-left: 1px solid rgba(210, 160, 79, 0.35)' in window
+    assert 'background: #111417' in window
+    assert 'border-left: 1px solid rgba(213, 185, 113, 0.35)' in window
     backdrop = css[css.index('.cat-browser {'):css.index('.cat-browser[hidden]')]
     assert 'justify-content: flex-end' in backdrop
     assert 'background: rgba(7, 10, 14, 0.48)' in backdrop
@@ -645,14 +632,10 @@ def test_spacing_tokens_match_the_design_scale():
 
 def test_greeting_is_hero_scale_serif_and_card_titles_are_inter():
     css = read('public/crump-agent-today-1.0.css')
-    # The greeting is the hero: the concept's serif stack at the
-    # editorial clamp on desktop, the phone clamp at phone widths,
-    # 42px at 360px and under.
+    # The greeting is the hero: Georgia at a vw-driven hero scale.
     title = css_block(css, '.cat-today-title {')
-    assert 'var(--ac-serif' in title
     assert 'Georgia' in title
-    assert 'clamp(62px, 7.4vw, 94px)' in title
-    assert 'clamp(45px, 13vw, 58px)' in css
+    assert 'clamp(50px, 13.6vw, 76px)' in title
     # Card titles are Inter bold; serif is reserved for the greeting,
     # page titles, the brief title, and project names.
     card_title = css_block(css, '.cat-card-title {')
@@ -670,7 +653,7 @@ def test_eyebrow_pairs_the_monogram_chip_with_the_text():
     # The eyebrow is the gold C chip beside the tracked text, drawn
     # in CSS — no brand asset file is touched.
     chip = css_block(css, '.cat-eyebrow-chip {')
-    assert 'border: 1px solid color-mix(in srgb, var(--ac-gold-bright) 60%, transparent)' in chip
+    assert 'border: 1px solid rgba(213, 185, 113' in chip
     assert 'border-radius: 9px' in chip
     assert 'Georgia' in chip
     assert 'cat-eyebrow-chip' in js
