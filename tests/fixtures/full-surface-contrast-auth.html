@@ -17,7 +17,7 @@
        so they are deliberately absent here. -->
   <link rel="stylesheet" href="/public/styles.css?v=5.9.76">
   <link rel="stylesheet" href="/public/install-prompt.css?v=5.9.76">
-  <link rel="stylesheet" href="/public/auth-styles.css?v=5.9.76-guest-free-contract-3">
+  <link rel="stylesheet" href="/public/auth-styles.css?v=5.9.76-polka-followups-1">
   <link rel="stylesheet" href="/public/crump-v1-body.css?v=5.9.76-owned-workspace-access-3">
   <link rel="stylesheet" href="/public/appearance-controls.css?v=5.9.76-appearance-choice-4">
   <link rel="stylesheet" href="/public/crump-vision-shell-1.0.css?v=5.9.76-shell-truth-1">
@@ -46,7 +46,13 @@
           <h1>Welcome back.</h1>
           <p>Pick up exactly where you left off.</p>
         </div>
-        <div class="guest-wall-note" role="note"><strong>Switching accounts:</strong> Signing in switches to that account.</div>
+        <!-- Verbatim production switching-accounts notice (app.html #guestSigninNotice),
+             shown: the link inside it is the pairing the gate must measure. -->
+        <div id="guestSigninNotice" class="guest-wall-note" role="note">
+          <strong>Switching accounts:</strong> Signing in switches to that account. This guest conversation will not move with you.
+          To keep it in a new account, <a id="returnToGuestLink" class="auth-link" href="/app?source=guest-return&amp;plan=free">return to your guest workspace</a>
+          and choose <strong>Save conversation</strong>.
+        </div>
         <form class="auth-form-content">
           <div class="form-group">
             <label for="fixtureEmail">Email</label>

@@ -1240,7 +1240,7 @@ const outputProjectActionVersion = `${releaseVersion}-output-project-action-1`;
 const studioActionLabelsVersion = `${releaseVersion}-studio-action-labels-1`;
 const productStudioLazyLoadVersion = `${releaseVersion}-product-studio-lazy-load-2`;
 const visibleWorkspaceReturnVersion = `${releaseVersion}-visible-workspace-return-1`;
-const guestFreeContractVersion = `${releaseVersion}-guest-free-contract-3`;
+const polkaFollowupsVersion = `${releaseVersion}-polka-followups-1`;
 const guestFreeWorkspaceRelease = 'workspaceRelease=guest-free-contract-3';
 const releasedWorkspaceAsset = url => `${url}&${guestFreeWorkspaceRelease}`;
 const accountOwnerBoundaryVersion = `${releaseVersion}-account-owner-boundary-1`;
@@ -1282,9 +1282,9 @@ const ownedWorkspaceAccessVersion = `${releaseVersion}-owned-workspace-access-3`
 const shellNoTaglineVersion = `${releaseVersion}-shell-no-tagline-1`;
 const atelierWorkspaceVersion = `${releaseVersion}-atelier-workspace-2`;
 const projectResumeVersion = `${releaseVersion}-reorg-projects-you-2`;
-const projectResumeOwnerBoundaryVersion = `${releaseVersion}-reorg-projects-you-2`;
+const projectResumeOwnerBoundaryVersion = polkaFollowupsVersion;
 const legacyProjectResumeTruthVersion = `${releaseVersion}-legacy-project-resume-truth-2`;
-const reorgProjectsYouVersion = `${releaseVersion}-reorg-projects-you-2`;
+const reorgProjectsYouVersion = polkaFollowupsVersion;
 const responseContinuityCleanupVersion = `${releaseVersion}-response-continuity-cleanup-1`;
 const manuscriptExportDeliveryVersion = `${releaseVersion}-manuscript-export-delivery-1`;
 const libraryCrudPrivacyVersion = `${releaseVersion}-library-crud-privacy-1`;
@@ -1318,7 +1318,7 @@ const precisionEditStudioVersion = `${releaseVersion}-precision-studio-1`;
 const creationSheetContainmentVersion = `${releaseVersion}-creation-sheet-containment-1`;
 const referenceFidelityVersion = `${releaseVersion}-reference-fidelity-hard-contract-1`;
 const groundedResearchVersion = `${releaseVersion}-grounded-research-1`;
-const appOwnerBoundaryVersion = serverOnlyActivationVersion;
+const appOwnerBoundaryVersion = polkaFollowupsVersion;
 const productAnalyticsVersion = serverOnlyActivationVersion;
 const presenceManagerVersion = nativePushOwnerFenceVersion;
 const productOwnerBoundaryVersion = legacyProjectResumeTruthVersion;
@@ -1583,7 +1583,7 @@ if (!referringAcquisitionSource ||
   process.exit(1);
 }
 const requiredHtmlSignals = [
-  `/auth-styles.css?v=${guestFreeContractVersion}`,
+  `/auth-styles.css?v=${polkaFollowupsVersion}`,
   `/runtime-body-v1.js?v=${runtimeBodyVersion}`,
   `/auth-controller.js?v=${authControllerVersion}`,
   `/telemetry-config.js?v=${releaseVersion}`,
@@ -2098,7 +2098,7 @@ for (const [pathname, expectedVersion] of [
     }
   }
 }
-if (!serviceWorker.includes('ask-crump-new-body-v1-r302-apple-ui-v2-1') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r303-polka-followups-1') ||
     !serviceWorker.includes(`'${shellBrandUrl}'`) ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||
@@ -2209,7 +2209,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r302-apple-ui-v2-1') ||
   process.exit(1);
 }
 const guestFreeServiceWorkerAssets = [
-  `/auth-styles.css?v=${guestFreeContractVersion}`,
+  `/auth-styles.css?v=${polkaFollowupsVersion}`,
   `/runtime-body-v1.js?v=${runtimeBodyVersion}`,
   `/auth-controller.js?v=${authControllerVersion}`,
   ...guestFreeRuntimeAssets,

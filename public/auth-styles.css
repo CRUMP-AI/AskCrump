@@ -364,3 +364,13 @@ html[data-theme="dark"] .free-text-allowance-link { color: #d5b971; }
   font-size: 14px;
   line-height: 1.5;
 }
+
+/* The notice box is fixed cream in both themes, so its link cannot use
+   the pale gold the dark auth island uses for links (#d7c18e measured
+   1.59:1 on this box). The atelier panel-label tone — the same tone the
+   design pass already uses for auth links on light surfaces — measures
+   above AA on the cream box. The body-scoped selector outranks the
+   !important dark-island link rule in crump-v1-body.css. */
+body.crump-v1-body .guest-wall-note .auth-link {
+  color: #705d38 !important;
+}

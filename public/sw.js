@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r302-apple-ui-v2-1';
+const CACHE_NAME = 'ask-crump-new-body-v1-r303-polka-followups-1';
 
 const CORE = [
   '/app',
@@ -16,7 +16,7 @@ const CORE = [
   '/install-prompt.css?v=5.9.76',
   '/onboarding.css?v=5.9.76-reorg-five-destinations-2',
   '/conversation.css?v=5.9.76-muse-release-repair-2',
-  '/auth-styles.css?v=5.9.76-guest-free-contract-3',
+  '/auth-styles.css?v=5.9.76-polka-followups-1',
   '/crump-v1-body.css?v=5.9.76-owned-workspace-access-3',
   '/credit-confirmation.css?v=5.9.76-credit-confirmation-1',
   '/lifecycle.css?v=5.9.76-lifecycle-activation-2',
@@ -36,9 +36,9 @@ const CORE = [
   '/crump-vision-chats-1.0.css?v=5.9.76-atelier-workspace-2',
   '/crump-vision-chats-1.0.js?v=5.9.76-atelier-workspace-2',
   '/crump-vision-library-1.0.css?v=5.9.76-reorg-projects-you-2',
-  '/crump-vision-library-1.0.js?v=5.9.76-reorg-projects-you-2',
+  '/crump-vision-library-1.0.js?v=5.9.76-polka-followups-1',
   '/crump-vision-projects-1.0.css?v=5.9.76-reorg-projects-you-2',
-  '/crump-vision-projects-1.0.js?v=5.9.76-reorg-projects-you-2',
+  '/crump-vision-projects-1.0.js?v=5.9.76-polka-followups-1',
   '/crump-vision-studios-1.0.css?v=5.9.76-premium-workspace-2',
   '/crump-vision-studios-1.0.js?v=5.9.76-premium-workspace-2',
   '/crump-code-loader.js?v=5.9.76-account-owner-boundary-1&workspaceRelease=guest-free-contract-3',
@@ -70,7 +70,7 @@ const CORE = [
   '/sync-manager.js?v=5.9.76-auth-boundary-sync-1',
   '/chat-sync.js?v=5.9.76-initial-chat-owner-reconciliation-1',
   '/account-manager.js?v=5.9.76-account-owner-boundary-1',
-  '/app.js?v=5.9.76-server-only-activation-1&workspaceRelease=guest-free-contract-3',
+  '/app.js?v=5.9.76-polka-followups-1&workspaceRelease=guest-free-contract-3',
   '/product-analytics.js?v=5.9.76-server-only-activation-1',
   '/lifecycle-share.js?v=5.9.76-settings-invite-1',
   '/lifecycle-manager.js?v=5.9.76-lifecycle-idle-send-1',

@@ -9,9 +9,14 @@
     // shapes: the Projects destination (vision projects view + the
     // Library shelf it now carries), the full-screen Library view, and
     // the You view (vision you view + the Settings Connections mount the
-    // agent layer renders). ?state=full|empty picks the data set,
+    // agent layer renders). ?state=full|empty picks the data set;
+    // ?state=gate makes the Projects and Library list endpoints answer
+    // with the exact backend account-gate body (403, AUTH_REQUIRED),
+    // and ?state=error makes them answer with a transient 503 instead.
     // ?google=partial|full|disconnected picks the single Google record,
-    // ?guest=1 renders the signed-out session (no workspace fetches).
+    // ?guest=1 renders the signed-out session (no workspace fetches),
+    // ?session=guest-account renders a guest WITH an owner id — the
+    // session that reaches the fetch and meets the account gate.
     // ?stage=projects composes the page the way the real shell does
     // while Projects is the mounted destination: the stage holds the
     // Projects view alone, the workspace sits away underneath it, and
@@ -23,6 +28,7 @@
       var state = params.get('state') || 'full';
       var googleState = params.get('google') || 'partial';
       var guest = params.get('guest') === '1';
+      var guestAccount = params.get('session') === 'guest-account';
       var stageProjects = params.get('stage') === 'projects';
       var readerPopulated = params.get('reader') === 'populated';
       if (stageProjects) {
@@ -70,6 +76,17 @@
         window.CrumpAccess = { isGuest: function () { return true; } };
         window.CrumpAuthBoundary = {
           authenticatedUserId: function () { return ''; },
+          revision: function () { return 0; },
+          register: function () {},
+        };
+      } else if (guestAccount) {
+        // A guest with an owner id: the views fetch, and the backend
+        // answers the account gate. The placeholder address mirrors the
+        // server-minted guest email shape.
+        window.currentUser = { id: 'fixture-guest-id', isGuest: true, email: 'guest-fixture-guest-id@guest.askcrump.local' };
+        window.CrumpAccess = { isGuest: function () { return true; } };
+        window.CrumpAuthBoundary = {
+          authenticatedUserId: function () { return 'fixture-guest-id'; },
           revision: function () { return 0; },
           register: function () {},
         };
@@ -128,7 +145,20 @@
         var target = String(path);
         window.__fetchCalls.push(target);
         var data = {};
-        if (target.indexOf('/api/connections/google/status') === 0) data = googleStatus;
+        var status = 200;
+        var ok = true;
+        if ((state === 'gate' || state === 'error')
+            && (target.indexOf('/api/projects') === 0 || target.indexOf('/api/library/books') === 0)) {
+          if (state === 'gate') {
+            ok = false;
+            status = 403;
+            data = { success: false, authenticated: false, error: 'Create your free account to use this feature.', code: 'AUTH_REQUIRED' };
+          } else {
+            ok = false;
+            status = 503;
+            data = { success: false, error: 'The service is temporarily unavailable. Try again in a moment.', code: 'SERVICE_UNAVAILABLE' };
+          }
+        } else if (target.indexOf('/api/connections/google/status') === 0) data = googleStatus;
         else if (target.indexOf('/api/projects/') === 0 && target.indexOf('/chats') > 0) data = { conversations: [] };
         else if (target.indexOf('/api/projects/') === 0) {
           var pid = decodeURIComponent(target.slice('/api/projects/'.length));
@@ -144,8 +174,8 @@
         else if (target.indexOf('/api/agent/today') === 0) data = { brief: {} };
         else if (target.indexOf('/api/agent/runs') === 0) data = { runs: [] };
         return Promise.resolve({
-          ok: true,
-          status: 200,
+          ok: ok,
+          status: status,
           json: function () { return Promise.resolve(data); },
         });
       };
@@ -176,8 +206,8 @@
   <section class="settings-sheet v1-settings-sheet" aria-label="Settings connections mount">
     <div data-cat-you-connections></div>
   </section>
-  <script src="/public/crump-vision-projects-1.0.js?v=5.9.76-reorg-projects-you-2"></script>
-  <script src="/public/crump-vision-library-1.0.js?v=5.9.76-reorg-projects-you-2"></script>
+  <script src="/public/crump-vision-projects-1.0.js?v=5.9.76-polka-followups-1"></script>
+  <script src="/public/crump-vision-library-1.0.js?v=5.9.76-polka-followups-1"></script>
   <script src="/public/crump-vision-you-1.0.js?v=reorg-projects-you-fixture-1"></script>
   <script src="/public/crump-agent-today-1.0.js?v=5.9.76-agent-today-19"></script>
   <script>

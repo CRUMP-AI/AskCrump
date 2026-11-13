@@ -136,6 +136,8 @@
       if (!response.ok || data.success === false) {
         var error = new Error(data.error || data.message || 'Request failed (' + response.status + ')');
         error.status = response.status;
+        error.code = data.code || '';
+        error.guestAccountRequired = data.guestAccountRequired === true;
         throw error;
       }
       return data;
@@ -150,6 +152,20 @@
       clearTimeout(timer);
       libraryRequests.delete(controller);
     }
+  }
+
+  /* The account gate (a guest reaching an account-only surface) is not a
+     load failure: retries can never succeed, so the surface must name the
+     next step instead of inviting one. The backend reports the gate as a
+     403 carrying the account-creation message (require_account) or as
+     GUEST_ACCOUNT_REQUIRED (feature routes); anything else keeps the
+     transient-failure presentation with its retry. */
+  function isAccountGateError(error) {
+    if (!error) return false;
+    if (error.guestAccountRequired === true) return true;
+    if (String(error.code || '').toUpperCase() === 'GUEST_ACCOUNT_REQUIRED') return true;
+    return error.status === 403
+      && String(error.message || '').indexOf('Create your free account') === 0;
   }
 
   function scrubLibraryAuthBoundary() {
@@ -426,6 +442,18 @@
       renderShelf(root, shelf, books, authBoundary);
     }).catch(function (error) {
       if (!root.isConnected || !authBoundaryIsCurrent(authBoundary)) return;
+      if (isAccountGateError(error)) {
+        shelf.innerHTML =
+          '<div class="cvl-panel" role="status">' +
+            '<h2>The Library needs an account.</h2>' +
+            '<p>Create your free account to keep the books and manuscripts you create or import with Crump.</p>' +
+            '<button type="button" class="cvl-button" data-cvl-create-account>Create free account</button>' +
+          '</div>';
+        shelf.querySelector('[data-cvl-create-account]').addEventListener('click', function () {
+          window.location.href = '/app?signup=1&source=library-gate&plan=free';
+        });
+        return;
+      }
       shelf.innerHTML =
         '<div class="cvl-panel cvl-error" role="alert">' +
           '<h2>The Library could not load.</h2>' +

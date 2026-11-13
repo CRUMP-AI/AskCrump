@@ -134,21 +134,21 @@ def test_reorg_pins_stepped_exactly_once():
     worker = read("public/sw.js")
     for url in (
         "/crump-vision-projects-1.0.css?v=5.9.76-reorg-projects-you-2",
-        "/crump-vision-projects-1.0.js?v=5.9.76-reorg-projects-you-2",
+        "/crump-vision-projects-1.0.js?v=5.9.76-polka-followups-1",
         "/crump-vision-library-1.0.css?v=5.9.76-reorg-projects-you-2",
-        "/crump-vision-library-1.0.js?v=5.9.76-reorg-projects-you-2",
+        "/crump-vision-library-1.0.js?v=5.9.76-polka-followups-1",
         "/crump-agent-today-1.0.css?v=5.9.76-agent-today-19",
         "/crump-agent-today-1.0.js?v=5.9.76-agent-today-19",
     ):
         assert url in app, url
     for url in (
         "/crump-vision-projects-1.0.css?v=5.9.76-reorg-projects-you-2",
-        "/crump-vision-projects-1.0.js?v=5.9.76-reorg-projects-you-2",
+        "/crump-vision-projects-1.0.js?v=5.9.76-polka-followups-1",
         "/crump-vision-library-1.0.css?v=5.9.76-reorg-projects-you-2",
-        "/crump-vision-library-1.0.js?v=5.9.76-reorg-projects-you-2",
+        "/crump-vision-library-1.0.js?v=5.9.76-polka-followups-1",
     ):
         assert url in worker, url
-    assert worker.startswith("const CACHE_NAME = 'ask-crump-new-body-v1-r302-apple-ui-v2-1';")
+    assert worker.startswith("const CACHE_NAME = 'ask-crump-new-body-v1-r303-polka-followups-1';")
     for retired in (
         "5.9.76-project-resume-1",
         "5.9.76-project-resume-owner-boundary-1",

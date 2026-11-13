@@ -196,9 +196,25 @@
     if (!response.ok || data.success === false) {
       var error = new Error(data.error || data.message || 'Request failed (' + response.status + ')');
       error.status = response.status;
+      error.code = data.code || '';
+      error.guestAccountRequired = data.guestAccountRequired === true;
       throw error;
     }
     return data;
+  }
+
+  /* The account gate (a guest reaching an account-only surface) is not a
+     load failure: retries can never succeed, so the surface must name the
+     next step instead of inviting one. The backend reports the gate as a
+     403 carrying the account-creation message (require_account) or as
+     GUEST_ACCOUNT_REQUIRED (feature routes); anything else keeps the
+     transient-failure presentation with its retry. */
+  function isAccountGateError(error) {
+    if (!error) return false;
+    if (error.guestAccountRequired === true) return true;
+    if (String(error.code || '').toUpperCase() === 'GUEST_ACCOUNT_REQUIRED') return true;
+    return error.status === 403
+      && String(error.message || '').indexOf('Create your free account') === 0;
   }
 
   /* ------------------------------------------------------------------ */
@@ -345,6 +361,19 @@
     }).catch(function (error) {
       if (!projectsViewIsCurrent(root, authBoundary)) return;
       switcher.innerHTML = '';
+      if (isAccountGateError(error)) {
+        detail.innerHTML =
+          '<div class="cvp-panel" role="status">' +
+            '<h2>Projects need an account.</h2>' +
+            '<p>Create your free account to save conversations as Projects and keep their context, conversations, and books together.</p>' +
+            '<button type="button" class="cvp-button" data-cvp-create-account>Create free account</button>' +
+          '</div>';
+        var create = detail.querySelector('[data-cvp-create-account]');
+        if (create) create.addEventListener('click', function () {
+          window.location.href = '/app?signup=1&source=projects-gate&plan=free';
+        });
+        return;
+      }
       detail.innerHTML =
         '<div class="cvp-panel cvp-error" role="alert">' +
           '<h2>Projects could not load.</h2>' +
@@ -785,9 +814,11 @@
           window.location.href = '/app';
         });
       });
-    }).catch(function () {
+    }).catch(function (error) {
       if (!projectsViewIsCurrent(root, authBoundary)) return;
-      mount.innerHTML = '<p class="cvp-quiet">Your library could not load just now.</p>';
+      mount.innerHTML = isAccountGateError(error)
+        ? '<p class="cvp-quiet">Create a free account to keep finished artifacts in your Library.</p>'
+        : '<p class="cvp-quiet">Your library could not load just now.</p>';
     });
   }
 
