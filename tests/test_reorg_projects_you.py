@@ -113,6 +113,26 @@ def test_you_connections_single_model_in_settings_panel():
     assert "api('/api/connections/google/disconnect'" in js
 
 
+def test_you_identity_guest_session_presentation():
+    js = read("public/crump-vision-you-1.0.js")
+    # A genuinely unauthenticated guest is labeled "Guest session" /
+    # "Temporary preview" — the Profile panel's distinction, reused —
+    # never the server-minted placeholder address, never "Signed in".
+    # The guest check mirrors app.js: the isGuest flag, or the exact
+    # placeholder-address match for the visitor's own id.
+    assert "function isGuestIdentity(user, email)" in js
+    assert "user.isGuest === true || user.is_guest === true" in js
+    assert "@guest.askcrump.local" in js
+    body = js.split("function identityInfo()")[1].split("/* ---------- View render")[0]
+    assert "isGuestIdentity(user, email)" in body
+    assert "name: 'Guest session', subline: 'Temporary preview'" in body
+    # The guest branch returns before the signed-in presentation, which
+    # stays exactly as it was: name/email identity, "Signed in" only
+    # for an authenticated account.
+    assert body.index("Guest session") < body.index("'Signed in'")
+    assert "subline: (name && email) ? email : (signedIn ? 'Signed in' : 'Signed out')" in body
+
+
 def test_memory_entries_stay_editable_and_deletable():
     js = read("public/crump-vision-you-1.0.js")
     for marker in ("data-memory-edit", "data-memory-delete", "data-memory-add", "data-memory-save"):
