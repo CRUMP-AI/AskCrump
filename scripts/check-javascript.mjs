@@ -1229,7 +1229,7 @@ const creditEntitlementSyncVersion = `${releaseVersion}-credit-entitlement-sync-
 const planStatusLineVersion = `${releaseVersion}-plan-status-line-1`;
 const checkoutDestinationLabelVersion = `${releaseVersion}-checkout-destination-label-1`;
 const creditPackTruthVersion = `${releaseVersion}-credit-pack-truth-1`;
-const creditTruthVersion = `${releaseVersion}-credit-truth-1`;
+const creditTruthVersion = `${releaseVersion}-credit-truth-2`;
 const brandDeliveryVersion = `${releaseVersion}-brand-retina-1`;
 const attachCreationRoutingVersion = `${releaseVersion}-explicit-button-types-1`;
 const creditConfirmationVersion = `${releaseVersion}-credit-confirmation-1`;
@@ -1240,8 +1240,9 @@ const outputProjectActionVersion = `${releaseVersion}-output-project-action-1`;
 const studioActionLabelsVersion = `${releaseVersion}-studio-action-labels-1`;
 const productStudioLazyLoadVersion = `${releaseVersion}-product-studio-lazy-load-2`;
 const visibleWorkspaceReturnVersion = `${releaseVersion}-visible-workspace-return-1`;
-const guestFreeContractVersion = `${releaseVersion}-guest-free-contract-2`;
-const guestFreeWorkspaceRelease = 'workspaceRelease=guest-free-contract-2';
+const polkaFollowupsVersion = `${releaseVersion}-polka-followups-1`;
+const safeAreaVersion = `${releaseVersion}-safe-area-1`;
+const guestFreeWorkspaceRelease = 'workspaceRelease=guest-free-contract-3';
 const releasedWorkspaceAsset = url => `${url}&${guestFreeWorkspaceRelease}`;
 const accountOwnerBoundaryVersion = `${releaseVersion}-account-owner-boundary-1`;
 const privateOwnerBoundaryVersion = `${releaseVersion}-private-owner-boundary-1`;
@@ -1272,19 +1273,19 @@ const outcomeIssueCategoriesVersion = `${releaseVersion}-outcome-issue-categorie
 const projectSaveOfferVersion = `${releaseVersion}-project-save-offer-1`;
 const navigationDiscoveryVersion = `${releaseVersion}-navigation-discovery-1`;
 const imageStudioEntryVersion = `${releaseVersion}-image-studio-entry-1`;
-const museReleaseRepairVersion = `${releaseVersion}-muse-release-repair-1`;
+const museReleaseRepairVersion = `${releaseVersion}-muse-release-repair-2`;
 const nativePushHandoffVersion = `${releaseVersion}-native-push-handoff-1`;
 const nativePushOwnerFenceVersion = `${releaseVersion}-native-push-owner-fence-1`;
 const cacheIntegrityVersion = `${releaseVersion}-friendly-workspace-1`;
-const premiumWorkspaceVersion = `${releaseVersion}-premium-workspace-1`;
-const mobileNavApplePolishVersion = `${releaseVersion}-reorg-five-destinations-1`;
-const ownedWorkspaceAccessVersion = `${releaseVersion}-owned-workspace-access-2`;
+const premiumWorkspaceVersion = `${releaseVersion}-premium-workspace-2`;
+const mobileNavApplePolishVersion = `${releaseVersion}-reorg-five-destinations-2`;
+const ownedWorkspaceAccessVersion = safeAreaVersion;
 const shellNoTaglineVersion = `${releaseVersion}-shell-no-tagline-1`;
-const atelierWorkspaceVersion = `${releaseVersion}-atelier-workspace-1`;
-const projectResumeVersion = `${releaseVersion}-reorg-projects-you-1`;
-const projectResumeOwnerBoundaryVersion = `${releaseVersion}-reorg-projects-you-1`;
+const atelierWorkspaceVersion = `${releaseVersion}-atelier-workspace-2`;
+const projectResumeVersion = safeAreaVersion;
+const projectResumeOwnerBoundaryVersion = polkaFollowupsVersion;
 const legacyProjectResumeTruthVersion = `${releaseVersion}-legacy-project-resume-truth-2`;
-const reorgProjectsYouVersion = `${releaseVersion}-reorg-projects-you-1`;
+const reorgProjectsYouVersion = polkaFollowupsVersion;
 const responseContinuityCleanupVersion = `${releaseVersion}-response-continuity-cleanup-1`;
 const manuscriptExportDeliveryVersion = `${releaseVersion}-manuscript-export-delivery-1`;
 const libraryCrudPrivacyVersion = `${releaseVersion}-library-crud-privacy-1`;
@@ -1293,9 +1294,9 @@ const homeDocumentEntryVersion = `${releaseVersion}-home-document-entry-1`;
 const autonomousContinuityVersion = `${releaseVersion}-autonomous-continuity-1`;
 const precisionAiPersistenceVersion = `${releaseVersion}-precision-ai-persistence-1`;
 const runtimeBodyVersion = mobileNavApplePolishVersion;
-const appearanceChoiceVersion = `${releaseVersion}-appearance-choice-3`;
+const appearanceChoiceVersion = `${releaseVersion}-appearance-choice-4`;
 const uiReleaseAuditVersion = mobileNavApplePolishVersion;
-const designPassVersion = `${releaseVersion}-contrast-sweep-1`;
+const designPassVersion = `${releaseVersion}-contrast-sweep-2`;
 const activityCenterVersion = autonomousContinuityVersion;
 const uiGuardrailsVersion = `${releaseVersion}-ui-guardrails-1`;
 const motionSystemVersion = `${releaseVersion}-motion-system-2`;
@@ -1318,7 +1319,7 @@ const precisionEditStudioVersion = `${releaseVersion}-precision-studio-1`;
 const creationSheetContainmentVersion = `${releaseVersion}-creation-sheet-containment-1`;
 const referenceFidelityVersion = `${releaseVersion}-reference-fidelity-hard-contract-1`;
 const groundedResearchVersion = `${releaseVersion}-grounded-research-1`;
-const appOwnerBoundaryVersion = serverOnlyActivationVersion;
+const appOwnerBoundaryVersion = polkaFollowupsVersion;
 const productAnalyticsVersion = serverOnlyActivationVersion;
 const presenceManagerVersion = nativePushOwnerFenceVersion;
 const productOwnerBoundaryVersion = legacyProjectResumeTruthVersion;
@@ -1583,7 +1584,7 @@ if (!referringAcquisitionSource ||
   process.exit(1);
 }
 const requiredHtmlSignals = [
-  `/auth-styles.css?v=${guestFreeContractVersion}`,
+  `/auth-styles.css?v=${polkaFollowupsVersion}`,
   `/runtime-body-v1.js?v=${runtimeBodyVersion}`,
   `/auth-controller.js?v=${authControllerVersion}`,
   `/telemetry-config.js?v=${releaseVersion}`,
@@ -2098,7 +2099,7 @@ for (const [pathname, expectedVersion] of [
     }
   }
 }
-if (!serviceWorker.includes('ask-crump-new-body-v1-r301-composer-prompt-1') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r304-safe-area-1') ||
     !serviceWorker.includes(`'${shellBrandUrl}'`) ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||
@@ -2209,7 +2210,7 @@ if (!serviceWorker.includes('ask-crump-new-body-v1-r301-composer-prompt-1') ||
   process.exit(1);
 }
 const guestFreeServiceWorkerAssets = [
-  `/auth-styles.css?v=${guestFreeContractVersion}`,
+  `/auth-styles.css?v=${polkaFollowupsVersion}`,
   `/runtime-body-v1.js?v=${runtimeBodyVersion}`,
   `/auth-controller.js?v=${authControllerVersion}`,
   ...guestFreeRuntimeAssets,

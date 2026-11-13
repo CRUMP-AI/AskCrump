@@ -20,8 +20,12 @@
   <div id="settingsModal">
     <section class="settings-sheet" role="dialog" aria-modal="true" aria-label="Settings">
       <button id="saveSettingsBtn" type="button" disabled aria-disabled="true" title="No changes to save">Save changes</button>
+      <p id="settingsProfileHeadline">These details follow your account across signed-in devices.</p>
       <label class="settings-row">Your name <input id="settingsName" type="text"></label>
-      <label class="settings-row">Account email <input id="settingsEmail" type="email" readonly></label>
+      <div class="settings-row">
+        <div class="settings-row-text"><div class="settings-label" id="settingsEmailLabel">Email</div><div class="settings-help" id="settingsEmailHelp">Used for account and recovery</div></div>
+        <input id="settingsEmail" type="email" readonly aria-label="Account email">
+      </div>
       <label class="settings-row">Assistant name <input id="assistantName" type="text"></label>
       <label><input id="workMode" type="checkbox"> Work Mode</label>
       <div id="workHoursGroup">
@@ -44,6 +48,7 @@
   </div>
   <script>
     const fixtureGuest = new URLSearchParams(location.search).get('guest') === '1';
+    const fixturePlaceholderGuest = new URLSearchParams(location.search).get('guest') === 'placeholder';
     const fixtureSaveCase = new URLSearchParams(location.search).get('save_case') || '';
     window.fixtureErrors = [];
     window.fixtureToasts = [];
@@ -52,14 +57,22 @@
     window.fixtureProfileAttempts = 0;
     window.addEventListener('error', event => window.fixtureErrors.push(event.message || 'error'));
     window.addEventListener('unhandledrejection', event => window.fixtureErrors.push(String(event.reason || 'rejection')));
-    window.currentUser = fixtureGuest
-      ? {id: 'fixture-guest', email: '   '}
-      : {id: 'fixture-user', fullName: 'Ask Crump Demo', email: '   '};
+    window.currentUser = fixturePlaceholderGuest
+      ? {id: 'guest-fixture-1', email: 'guest-guest-fixture-1@guest.askcrump.local', isGuest: true}
+      : fixtureGuest
+        ? {id: 'fixture-guest', email: '   '}
+        : {id: 'fixture-user', fullName: 'Ask Crump Demo', email: '   '};
     window.deviceAuth = {
       session: null,
       async checkSession() {
         await new Promise(resolve => setTimeout(resolve, 60));
         if (fixtureGuest) return {authenticated: false};
+        if (fixturePlaceholderGuest) {
+          return {
+            authenticated: true,
+            data: {user: {id: 'guest-fixture-1', email: 'guest-guest-fixture-1@guest.askcrump.local', isGuest: true}},
+          };
+        }
         return {
           authenticated: true,
           data: {user: {id: 'fixture-user', fullName: 'Ask Crump Demo', email: 'demo@example.com'}},

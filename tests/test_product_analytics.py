@@ -1512,9 +1512,9 @@ def test_workspace_return_waits_for_a_visible_authenticated_workspace():
 
 def test_workspace_opened_retry_assets_are_cache_version_coherent():
     analytics_version = "5.9.76-server-only-activation-1"
-    app_version = "5.9.76-server-only-activation-1"
+    app_version = "5.9.76-polka-followups-1"
     auth_version = "5.9.76-login-recovery-visible-1"
-    runtime_body_version = "5.9.76-reorg-five-destinations-1"
+    runtime_body_version = "5.9.76-reorg-five-destinations-2"
     shell = (ROOT / "public" / "app.html").read_text(encoding="utf-8")
     runtime = (ROOT / "public" / "runtime-body-v1.js").read_text(encoding="utf-8")
     worker = (ROOT / "public" / "sw.js").read_text(encoding="utf-8")
@@ -1523,7 +1523,7 @@ def test_workspace_opened_retry_assets_are_cache_version_coherent():
     runtime_url = f"/runtime-body-v1.js?v={runtime_body_version}"
     auth_url = f"/auth-controller.js?v={auth_version}"
     analytics_url = f"/product-analytics.js?v={analytics_version}"
-    app_url = f"/app.js?v={app_version}&workspaceRelease=guest-free-contract-2"
+    app_url = f"/app.js?v={app_version}&workspaceRelease=guest-free-contract-3"
     assert runtime_url in shell
     assert runtime_url in worker
     assert auth_url in shell

@@ -6,9 +6,9 @@
   color-scheme: dark;
   --ac-bg: #0d1015;
   --ac-bg-2: #11151a;
-  --ac-surface: #171b21;
-  --ac-surface-2: #1c2128;
-  --ac-surface-3: #222831;
+  --ac-surface: #15161a;
+  --ac-surface-2: #1b1c20;
+  --ac-surface-3: #222329;
   --ac-glass: rgba(20,24,30,.9);
   --ac-glass-strong: rgba(14,17,22,.97);
   --ac-line: rgba(255,255,255,.085);
@@ -18,17 +18,42 @@
   --ac-text-2: #c4c5c1;
   --ac-text-3: #9ba1a6;
   --ac-text-4: #71787e;
-  --ac-gold: #dec57e;
+  --ac-gold: #d2a04f;
   --ac-gold-2: #b99756;
   --ac-gold-3: #806438;
-  --ac-gold-soft: rgba(217,191,132,.10);
+  --ac-gold-soft: rgba(210,160,79,.16);
   --ac-gold-softer: rgba(217,191,132,.045);
-  --ac-danger: #d7837f;
+  --ac-danger: #df846f;
   --ac-success: #86ca97;
   --ac-warning: #dcad67;
+  /* Apple UI v2 tokens (dark defaults). The light appearance flips them in
+     the html[data-theme="light"] block below. Auth rules in this sheet keep
+     hardcoded graphite-island colors on purpose and must not read the
+     flipping tokens for text. */
+  --ac-canvas: #0b0c0e;
+  --ac-canvas-raised: #101114;
+  --ac-material: rgba(17,18,21,.82);
+  --ac-material-strong: rgba(22,23,27,.94);
+  --ac-ink: #f4f0e8;
+  --ac-ink-soft: #c9c5bd;
+  --ac-ink-muted: #8f8d88;
+  --ac-ink-faint: #696a6e;
+  --ac-hairline: rgba(255,255,255,.09);
+  --ac-hairline-strong: rgba(255,255,255,.16);
+  --ac-gold-bright: #efc878;
+  --ac-gold-wash: rgba(210,160,79,.08);
+  --ac-sage: #88a57b;
+  --ac-sage-soft: rgba(90,130,88,.18);
+  --ac-blue: #8ca9c8;
+  --ac-blue-soft: rgba(75,112,153,.2);
+  --ac-shadow: 0 22px 60px rgba(0,0,0,.28);
+  --ac-radius-control: 14px;
+  --ac-radius-panel: 24px;
+  --ac-serif: ui-serif,"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
+  --ac-sans: -apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif;
   --ac-font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display",
              "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-  --ac-display: var(--ac-font);
+  --ac-display: var(--ac-serif);
   --ac-mono: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
   /* Match the final five-destination navigation layer before it loads so the
      conversation-library wordmark never shifts during the runtime handoff. */
@@ -46,6 +71,32 @@
   --ac-shadow-2: 0 26px 70px rgba(0,0,0,.38);
   --ac-shadow-3: 0 42px 110px rgba(0,0,0,.56);
   --ac-ease: cubic-bezier(.2,.78,.2,1);
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+  --ac-canvas: #f4f0e8;
+  --ac-canvas-raised: #f8f5ef;
+  --ac-surface: #fffdf9;
+  --ac-surface-2: #eee9df;
+  --ac-surface-3: #e7e1d5;
+  --ac-material: rgba(249,246,239,.82);
+  --ac-material-strong: rgba(255,253,249,.95);
+  --ac-ink: #171614;
+  --ac-ink-soft: #4f4c46;
+  --ac-ink-muted: #79756d;
+  --ac-ink-faint: #9a958b;
+  --ac-hairline: rgba(45,40,31,.1);
+  --ac-hairline-strong: rgba(45,40,31,.18);
+  --ac-gold: #aa7428;
+  --ac-gold-bright: #c8903d;
+  --ac-gold-soft: rgba(170,116,40,.13);
+  --ac-gold-wash: rgba(170,116,40,.07);
+  --ac-sage: #55704f;
+  --ac-sage-soft: rgba(85,112,79,.12);
+  --ac-blue: #526f8d;
+  --ac-blue-soft: rgba(82,111,141,.12);
+  --ac-shadow: 0 24px 60px rgba(67,51,28,.12);
 }
 
 html {
@@ -115,7 +166,7 @@ body.crump-v1-body :is(.chat-container,.v1-library-list,.settings-sheet-body,.bi
 }
 
 .v1-kicker {
-  color: var(--ac-gold);
+  color: var(--ac-gold-bright);
   font-size: 9px;
   font-weight: 760;
   letter-spacing: .18em;
@@ -245,7 +296,7 @@ body.crump-v1-body .v1-auth-stage {
     max(34px, env(safe-area-inset-bottom))
     max(28px, env(safe-area-inset-left));
   background:
-    radial-gradient(520px 360px at 50% 22%, rgba(217,191,132,.035), transparent 70%),
+    radial-gradient(520px 360px at 50% 22%, color-mix(in srgb, var(--ac-gold) 4%, transparent), transparent 70%),
     var(--ac-bg);
 }
 
@@ -268,7 +319,7 @@ body.crump-v1-body .v1-auth-card .auth-header {
 
 body.crump-v1-body .v1-auth-eyebrow {
   margin-bottom: 13px;
-  color: var(--ac-gold);
+  color: var(--ac-gold-bright);
   font-size: 9px;
   font-weight: 760;
   letter-spacing: .18em;
@@ -277,10 +328,11 @@ body.crump-v1-body .v1-auth-eyebrow {
 body.crump-v1-body .v1-auth-card .auth-header h1 {
   margin: 0 0 9px !important;
   color: #f5f2ec !important;
+  font-family: var(--ac-serif) !important;
   font-size: clamp(34px, 4vw, 44px) !important;
-  font-weight: 670 !important;
-  line-height: 1.04 !important;
-  letter-spacing: -.05em !important;
+  font-weight: 500 !important;
+  line-height: 1.02 !important;
+  letter-spacing: -.03em !important;
 }
 
 body.crump-v1-body .v1-auth-card .auth-header p {
@@ -313,7 +365,7 @@ body.crump-v1-body .v1-auth-card .form-input {
   min-height: 57px !important;
   padding: 0 16px !important;
   border: 1px solid rgba(255,255,255,.10) !important;
-  border-radius: 16px !important;
+  border-radius: 14px !important;
   background: #0d1116 !important;
   color: #f2efea !important;
   font-size: 16px !important;
@@ -345,8 +397,8 @@ body.crump-v1-body .v1-password-toggle {
   transform: translateY(-50%);
   border: 0;
   border-radius: 10px;
-  background: rgba(217,191,132,.08);
-  color: #d7c18e;
+  background: var(--ac-gold-soft);
+  color: var(--ac-gold-bright);
   font: inherit;
   font-size: 10px;
   font-weight: 700;
@@ -355,8 +407,8 @@ body.crump-v1-body .v1-password-toggle {
 
 body.crump-v1-body .v1-password-toggle:hover,
 body.crump-v1-body .v1-password-toggle:focus-visible {
-  background: rgba(217,191,132,.14);
-  outline: 1px solid rgba(217,191,132,.32);
+  background: color-mix(in srgb, var(--ac-gold) 14%, transparent);
+  outline: 1px solid color-mix(in srgb, var(--ac-gold) 32%, transparent);
 }
 
 body.crump-v1-body .v1-auth-card .form-hint {
@@ -539,10 +591,10 @@ body.crump-v1-body .v1-registration-confirmation {
   height: 52px;
   margin-bottom: 25px;
   place-items: center;
-  border: 1px solid rgba(217,191,132,.28);
+  border: 1px solid color-mix(in srgb, var(--ac-gold) 28%, transparent);
   border-radius: 17px;
-  background: rgba(217,191,132,.08);
-  color: var(--ac-gold);
+  background: var(--ac-gold-soft);
+  color: var(--ac-gold-bright);
   font-size: 23px;
   font-weight: 760;
 }
@@ -550,10 +602,11 @@ body.crump-v1-body .v1-registration-confirmation {
 body.crump-v1-body .v1-registration-pending h2 {
   margin: 0 0 12px;
   color: #f5f2ec;
+  font-family: var(--ac-serif);
   font-size: clamp(34px,4vw,44px);
-  font-weight: 670;
-  line-height: 1.04;
-  letter-spacing: -.05em;
+  font-weight: 500;
+  line-height: 1.02;
+  letter-spacing: -.03em;
 }
 
 body.crump-v1-body .v1-registration-pending > p:not(.v1-registration-help) {
@@ -613,6 +666,7 @@ body.crump-v1-body .v1-modal-brand img {
 body.crump-v1-body .v1-terms-card h2,
 body.crump-v1-body .v1-onboarding-card h2 {
   color: var(--ac-text);
+  font-family: var(--ac-serif);
   letter-spacing: -.035em;
 }
 body.crump-v1-body :is(.terms-summary,.terms-detail,.terms-consent) {
@@ -694,7 +748,7 @@ body.crump-v1-body .v1-runtime-gate-card img {
 }
 body.crump-v1-body .v1-runtime-gate-card > span {
   margin-bottom: 9px;
-  color: #bca469;
+  color: var(--ac-gold-bright);
   font-size: 9px;
   font-weight: 800;
   letter-spacing: .22em;
@@ -833,6 +887,20 @@ body.crump-v1-body .v1-rail-primary {
   border-color: rgba(217,191,132,.19);
   background: rgba(217,191,132,.075);
   color: #ddc78f;
+}
+/* The rail follows the appearance, so the legacy rail buttons step to
+   theme tokens in light: the graphite-era grays and golds are
+   unreadable on the light rail. The dark values above are untouched. */
+html[data-theme="light"] body.crump-v1-body .v1-rail-button { color: var(--ac-ink-soft); }
+html[data-theme="light"] body.crump-v1-body .v1-rail-button:hover {
+  border-color: var(--ac-hairline);
+  background: var(--ac-surface-2);
+  color: var(--ac-ink);
+}
+html[data-theme="light"] body.crump-v1-body :is(.v1-rail-button.is-active,.v1-rail-button[aria-expanded="true"],.v1-rail-primary) {
+  border-color: color-mix(in srgb, var(--ac-gold) 32%, transparent);
+  background: var(--ac-gold-soft);
+  color: var(--ac-ink);
 }
 
 /* Chats sidebar (legacy library class names retained for compatibility). */
@@ -1076,8 +1144,8 @@ body.crump-v1-body .v1-workspace {
   grid-template-rows: var(--ac-header) minmax(0,1fr);
   overflow: hidden;
   background:
-    radial-gradient(780px 420px at 55% -18%, rgba(217,191,132,.035), transparent 72%),
-    #090c10 !important;
+    radial-gradient(780px 420px at 55% -18%, color-mix(in srgb, var(--ac-gold) 4%, transparent), transparent 72%),
+    var(--ac-canvas) !important;
 }
 
 body.crump-v1-body .v1-workspace-header {
@@ -1095,8 +1163,8 @@ body.crump-v1-body .v1-workspace-header {
   gap: 13px;
   padding: 0 max(18px, env(safe-area-inset-right)) 0 max(18px, env(safe-area-inset-left)) !important;
   border: 0 !important;
-  border-bottom: 1px solid rgba(255,255,255,.055) !important;
-  background: rgba(9,12,16,.82) !important;
+  border-bottom: 1px solid var(--ac-hairline) !important;
+  background: var(--ac-material) !important;
   -webkit-backdrop-filter: blur(24px) saturate(120%);
   backdrop-filter: blur(24px) saturate(120%);
 }
@@ -1107,7 +1175,7 @@ body.crump-v1-body .v1-workspace-header::after {
   bottom: -1px;
   left: 16%;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(217,191,132,.14), transparent);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--ac-gold) 14%, transparent), transparent);
 }
 body.crump-v1-body .v1-mobile-menu {
   display: none;
@@ -1143,23 +1211,24 @@ body.crump-v1-body .v1-body-header-logo {
 body.crump-v1-body .v1-workspace-context {
   min-width: 0;
   padding-left: 10px;
-  border-left: 1px solid var(--ac-line);
+  border-left: 1px solid var(--ac-hairline);
 }
 body.crump-v1-body .v1-workspace-context span {
   display: block;
-  color: #555b60;
-  font-size: 7.5px;
-  font-weight: 760;
-  letter-spacing: .13em;
+  color: var(--ac-ink-soft);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .08em;
 }
 body.crump-v1-body .v1-workspace-context strong {
   display: block;
   max-width: min(50vw, 520px);
-  margin-top: 3px;
+  margin-top: 2px;
   overflow: hidden;
-  color: #aaaead;
-  font-size: 10px;
-  font-weight: 570;
+  color: var(--ac-ink);
+  font-family: var(--ac-serif);
+  font-size: 20px;
+  font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1243,27 +1312,27 @@ body.crump-v1-body .v1-launchpad-mark img {
 }
 body.crump-v1-body .v1-launchpad-greeting {
   margin-bottom: 9px;
-  color: var(--ac-gold);
-  font-size: 9px;
-  font-weight: 710;
-  letter-spacing: .08em;
+  color: var(--ac-gold-bright);
+  font-size: 10px;
+  font-weight: 760;
+  letter-spacing: .14em;
 }
 body.crump-v1-body .v1-launchpad h1 {
   max-width: 700px;
   margin: 0;
-  color: #f4f0e8;
-  font-family: var(--ac-display);
-  font-size: clamp(40px, 4.7vw, 58px);
-  font-weight: 690;
-  line-height: 1.02;
-  letter-spacing: -.045em;
+  color: var(--ac-ink);
+  font-family: var(--ac-serif);
+  font-size: clamp(44px, 5vw, 66px);
+  font-weight: 500;
+  line-height: .98;
+  letter-spacing: -.03em;
 }
 body.crump-v1-body .v1-launchpad > p {
   max-width: 600px;
   margin: 16px 0 0;
-  color: #a6aaa9;
-  font-size: 15px;
-  line-height: 1.55;
+  color: var(--ac-ink-soft);
+  font-size: 16px;
+  line-height: 1.6;
 }
 /* Tappable conversation-starter chips under the launchpad headline. */
 body.crump-v1-body .v1-starter-chips {
@@ -1277,18 +1346,18 @@ body.crump-v1-body .v1-starter-chips {
 body.crump-v1-body .v1-starter-chip {
   min-height: 42px;
   padding: 10px 16px;
-  border: 1px solid rgba(217, 191, 132, 0.32);
+  border: 1px solid var(--ac-hairline);
   border-radius: 999px;
-  background: rgba(217, 191, 132, 0.07);
-  color: #eee8dc;
+  background: var(--ac-surface);
+  color: var(--ac-ink);
   font-size: 13px;
   line-height: 1.2;
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
 }
 body.crump-v1-body .v1-starter-chip:hover {
-  background: rgba(217, 191, 132, 0.16);
-  border-color: rgba(217, 191, 132, 0.62);
+  background: var(--ac-surface-2);
+  border-color: var(--ac-hairline-strong);
   transform: translateY(-1px);
 }
 body.crump-v1-body .v1-starter-chip:active {
@@ -1303,9 +1372,9 @@ body.crump-v1-body .v1-profile-nudge {
   gap: 18px;
   margin-top: 20px;
   padding: 12px 13px 12px 16px;
-  border: 1px solid rgba(217,191,132,.16);
+  border: 1px solid var(--ac-hairline);
   border-radius: 16px;
-  background: linear-gradient(135deg, rgba(217,191,132,.055), rgba(255,255,255,.012));
+  background: var(--ac-surface);
   text-align: left;
 }
 body.crump-v1-body .v1-profile-nudge[hidden] { display: none; }
@@ -1315,18 +1384,18 @@ body.crump-v1-body .v1-profile-nudge-copy {
   gap: 3px;
 }
 body.crump-v1-body .v1-profile-nudge-copy span {
-  color: #8d7950;
+  color: var(--ac-gold-bright);
   font-size: 7.5px;
   font-weight: 760;
   letter-spacing: .14em;
 }
 body.crump-v1-body .v1-profile-nudge-copy strong {
-  color: #e4dfd5;
+  color: var(--ac-ink);
   font-size: 11px;
   font-weight: 650;
 }
 body.crump-v1-body .v1-profile-nudge-copy small {
-  color: #6f7578;
+  color: var(--ac-ink-soft);
   font-size: 8.5px;
   line-height: 1.4;
 }
@@ -1338,10 +1407,10 @@ body.crump-v1-body .v1-profile-nudge-actions {
 body.crump-v1-body .v1-profile-nudge-actions button {
   min-height: 38px;
   padding: 0 11px;
-  border: 1px solid rgba(217,191,132,.18);
+  border: 1px solid color-mix(in srgb, var(--ac-gold) 18%, transparent);
   border-radius: 11px;
-  background: rgba(217,191,132,.07);
-  color: #cfbd91;
+  background: var(--ac-gold-soft);
+  color: var(--ac-gold-bright);
   font-size: 8.5px;
   font-weight: 650;
   cursor: pointer;
@@ -1349,12 +1418,12 @@ body.crump-v1-body .v1-profile-nudge-actions button {
 body.crump-v1-body .v1-profile-nudge-actions button:last-child {
   border-color: transparent;
   background: transparent;
-  color: #707578;
+  color: var(--ac-ink-soft);
 }
 body.crump-v1-body .v1-profile-nudge-actions button:hover,
 body.crump-v1-body .v1-profile-nudge-actions button:focus-visible {
-  border-color: rgba(217,191,132,.34);
-  color: #eadfc5;
+  border-color: color-mix(in srgb, var(--ac-gold) 34%, transparent);
+  color: var(--ac-ink);
 }
 body.crump-v1-body .v1-recent-work {
   display: grid;
@@ -1365,7 +1434,7 @@ body.crump-v1-body .v1-recent-work {
 }
 body.crump-v1-body .v1-recent-work[hidden] { display: none; }
 body.crump-v1-body .v1-recent-work-label {
-  color: #85734e;
+  color: var(--ac-gold-bright);
   font-size: 8px;
   font-weight: 720;
   letter-spacing: .13em;
@@ -1377,26 +1446,26 @@ body.crump-v1-body .v1-recent-work-button {
   align-items: center;
   gap: 11px;
   padding: 10px 13px;
-  border: 1px solid rgba(209,191,150,.2);
+  border: 1px solid var(--ac-hairline);
   border-radius: 16px;
-  background: linear-gradient(135deg, rgba(209,191,150,.075), rgba(255,255,255,.018));
+  background: var(--ac-surface);
   color: inherit;
   text-align: left;
   cursor: pointer;
 }
 body.crump-v1-body .v1-recent-work-button:hover,
 body.crump-v1-body .v1-recent-work-button:focus-visible {
-  border-color: rgba(209,191,150,.42);
-  background: linear-gradient(135deg, rgba(209,191,150,.105), rgba(255,255,255,.028));
+  border-color: color-mix(in srgb, var(--ac-gold) 42%, transparent);
+  background: var(--ac-surface-2);
 }
 body.crump-v1-body .v1-recent-work-icon {
   display: grid;
   width: 40px;
   height: 40px;
   place-items: center;
-  border: 1px solid rgba(209,191,150,.16);
+  border: 1px solid color-mix(in srgb, var(--ac-gold) 16%, transparent);
   border-radius: 12px;
-  color: #cfb97f;
+  color: var(--ac-gold-bright);
   font-size: 17px;
 }
 body.crump-v1-body .v1-recent-work-button > span:nth-child(2) {
@@ -1406,7 +1475,7 @@ body.crump-v1-body .v1-recent-work-button > span:nth-child(2) {
 }
 body.crump-v1-body .v1-recent-work-button strong {
   overflow: hidden;
-  color: #e7e2d8;
+  color: var(--ac-ink);
   font-size: 11px;
   font-weight: 650;
   text-overflow: ellipsis;
@@ -1414,13 +1483,13 @@ body.crump-v1-body .v1-recent-work-button strong {
 }
 body.crump-v1-body .v1-recent-work-button small {
   overflow: hidden;
-  color: #71777a;
+  color: var(--ac-ink-soft);
   font-size: 9px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 body.crump-v1-body .v1-recent-work-button b {
-  color: #6f6247;
+  color: var(--ac-gold-bright);
   font-size: 15px;
   font-weight: 400;
 }
@@ -1434,7 +1503,7 @@ body.crump-v1-body .v1-launchpad-grid {
 body.crump-v1-body .v1-launchpad-actions-label {
   width: min(760px, 100%);
   margin: 26px 0 0 !important;
-  color: #8d9291 !important;
+  color: var(--ac-ink-soft) !important;
   font-size: 11px !important;
   font-weight: 720;
   line-height: 1.2 !important;
@@ -1449,40 +1518,39 @@ body.crump-v1-body .v1-launch-card {
   align-items: center;
   gap: 11px;
   padding: 12px 14px;
-  border: 1px solid var(--ac-line);
+  border: 1px solid var(--ac-hairline);
   border-radius: 17px;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,.022), rgba(255,255,255,.01));
-  color: #d2d1cc;
+  background: var(--ac-surface);
+  color: var(--ac-ink);
   text-align: left;
   cursor: pointer;
   transition: border-color .15s ease, background .15s ease, transform .15s ease;
 }
 body.crump-v1-body .v1-launch-card:hover {
-  border-color: rgba(217,191,132,.18);
-  background: rgba(217,191,132,.032);
+  border-color: color-mix(in srgb, var(--ac-gold) 18%, transparent);
+  background: var(--ac-gold-wash);
   transform: translateY(-1px);
 }
 body.crump-v1-body .v1-launch-card-primary {
-  border-color: rgba(217,191,132,.18);
-  background: linear-gradient(140deg, rgba(217,191,132,.07), rgba(255,255,255,.012));
+  border-color: color-mix(in srgb, var(--ac-gold) 18%, transparent);
+  background: var(--ac-gold-wash);
 }
 body.crump-v1-body .v1-launch-icon {
   display: grid;
   width: 44px;
   height: 44px;
   place-items: center;
-  border: 1px solid rgba(217,191,132,.13);
+  border: 1px solid color-mix(in srgb, var(--ac-gold) 13%, transparent);
   border-radius: 13px;
-  background: rgba(217,191,132,.045);
-  color: #cfb97f;
+  background: var(--ac-gold-soft);
+  color: var(--ac-gold-bright);
   font-size: 16px;
 }
 body.crump-v1-body .v1-launch-icon svg { width: 19px; height: 19px; }
 body.crump-v1-body .v1-launch-card > span:nth-child(2) { display: grid; gap: 4px; min-width: 0; }
-body.crump-v1-body .v1-launch-card strong { color: #eee9df; font-size: 14px; font-weight: 650; }
-body.crump-v1-body .v1-launch-card small { color: #8f9494; font-size: 11.5px; line-height: 1.4; }
-body.crump-v1-body .v1-launch-card b { color: #555b5f; font-size: 15px; font-weight: 400; }
+body.crump-v1-body .v1-launch-card strong { color: var(--ac-ink); font-size: 14px; font-weight: 650; }
+body.crump-v1-body .v1-launch-card small { color: var(--ac-ink-soft); font-size: 11.5px; line-height: 1.4; }
+body.crump-v1-body .v1-launch-card b { color: var(--ac-ink-muted); font-size: 15px; font-weight: 400; }
 body.crump-v1-body .v1-launchpad-foot {
   display: flex;
   flex-wrap: wrap;
@@ -1490,7 +1558,7 @@ body.crump-v1-body .v1-launchpad-foot {
   justify-content: center;
   gap: 8px;
   margin-top: 22px;
-  color: #50565a;
+  color: var(--ac-ink-soft);
   font-size: 8px;
   letter-spacing: .05em;
 }
@@ -1498,7 +1566,7 @@ body.crump-v1-body .v1-launchpad-foot i {
   width: 2px;
   height: 2px;
   border-radius: 50%;
-  background: #695b41;
+  background: var(--ac-gold);
 }
 
 /* Conversation */
@@ -1544,7 +1612,7 @@ body.crump-v1-body .assistant-message .message-content {
   border: 0 !important;
   border-radius: 0 !important;
   background: transparent !important;
-  color: #ece9e3 !important;
+  color: var(--ac-ink) !important;
   box-shadow: none !important;
   font-size: clamp(15.5px, 1.25vw, 17px) !important;
   line-height: 1.73 !important;
@@ -1554,18 +1622,18 @@ body.crump-v1-body .assistant-message .message-content :is(p,ul,ol,blockquote,pr
 body.crump-v1-body .assistant-message .message-content blockquote {
   margin-left: 0;
   padding: 12px 16px;
-  border-left: 2px solid #d9bf84;
+  border-left: 2px solid var(--ac-gold);
   border-radius: 0 12px 12px 0;
-  background: rgba(217,191,132,.055);
-  color: #e9e3d7;
+  background: var(--ac-gold-wash);
+  color: var(--ac-ink-soft);
 }
 body.crump-v1-body .assistant-message .markdown-table-wrap {
   width: 100%;
   overflow-x: auto;
   margin: 0 0 18px;
-  border: 1px solid var(--ac-line);
+  border: 1px solid var(--ac-hairline);
   border-radius: 14px;
-  background: rgba(255,255,255,.018);
+  background: var(--ac-surface);
 }
 body.crump-v1-body .assistant-message .message-content table {
   width: 100%;
@@ -1576,13 +1644,13 @@ body.crump-v1-body .assistant-message .message-content table {
 }
 body.crump-v1-body .assistant-message .message-content :is(th,td) {
   padding: 11px 13px;
-  border-bottom: 1px solid var(--ac-line);
+  border-bottom: 1px solid var(--ac-hairline);
   text-align: left;
   vertical-align: top;
 }
 body.crump-v1-body .assistant-message .message-content th {
-  background: rgba(217,191,132,.075);
-  color: #f4ead2;
+  background: var(--ac-gold-soft);
+  color: var(--ac-ink);
   font-size: .83em;
   letter-spacing: .055em;
   text-transform: uppercase;
@@ -1590,32 +1658,33 @@ body.crump-v1-body .assistant-message .message-content th {
 body.crump-v1-body .assistant-message .message-content tr:last-child td { border-bottom: 0; }
 body.crump-v1-body .assistant-message .message-content :is(h1,h2,h3) {
   margin: 27px 0 11px;
-  color: #f8f5ef;
-  font-weight: 680;
+  color: var(--ac-ink);
+  font-family: var(--ac-serif);
+  font-weight: 600;
   line-height: 1.2;
-  letter-spacing: -.035em;
+  letter-spacing: -.025em;
 }
 body.crump-v1-body .assistant-message .message-content h1 { font-size: 25px; }
 body.crump-v1-body .assistant-message .message-content h2 { font-size: 20px; }
 body.crump-v1-body .assistant-message .message-content h3 { font-size: 16px; }
 body.crump-v1-body .assistant-message .message-content a {
-  color: #dec78e !important;
-  text-decoration-color: rgba(222,199,142,.4);
+  color: var(--ac-gold-bright) !important;
+  text-decoration-color: color-mix(in srgb, var(--ac-gold) 40%, transparent);
   text-underline-offset: 3px;
 }
 body.crump-v1-body .assistant-message :is(code,.inline-code) {
-  border: 1px solid var(--ac-line);
+  border: 1px solid var(--ac-hairline);
   border-radius: 7px;
-  background: rgba(255,255,255,.04);
-  color: #e5d6b6;
+  background: var(--ac-surface-2);
+  color: var(--ac-gold-bright);
   font-family: var(--ac-mono);
 }
 body.crump-v1-body .assistant-message :is(pre,.code-block) {
   overflow-x: auto;
   padding: 17px 18px !important;
-  border: 1px solid var(--ac-line) !important;
+  border: 1px solid var(--ac-hairline) !important;
   border-radius: 15px !important;
-  background: #090d12 !important;
+  background: var(--ac-canvas-raised) !important;
 }
 
 body.crump-v1-body .user-message { justify-content: flex-end !important; }
@@ -1623,10 +1692,10 @@ body.crump-v1-body .user-message .message-content {
   width: fit-content;
   max-width: 100%;
   padding: 12px 15px !important;
-  border: 1px solid rgba(217,191,132,.14) !important;
-  border-radius: 19px 19px 5px 19px !important;
-  background: linear-gradient(145deg, rgba(48,53,60,.95), rgba(28,34,41,.98)) !important;
-  color: #f3f0eb !important;
+  border: 1px solid var(--ac-hairline) !important;
+  border-radius: 18px 18px 4px 18px !important;
+  background: var(--ac-surface-2) !important;
+  color: var(--ac-ink) !important;
   box-shadow: 0 10px 30px rgba(0,0,0,.11), inset 0 1px rgba(255,255,255,.025) !important;
   font-size: 15px !important;
   line-height: 1.52 !important;
@@ -1639,7 +1708,7 @@ body.crump-v1-body .crump-message-meta {
   gap: 8px;
   min-height: 28px;
   margin-bottom: 8px;
-  color: #717679;
+  color: var(--ac-ink-soft);
   font-size: 9.5px;
   font-weight: 640;
 }
@@ -1672,17 +1741,17 @@ body.crump-v1-body .message-action-btn {
   border: 0 !important;
   border-radius: 9px !important;
   background: transparent !important;
-  color: #6d7275 !important;
+  color: var(--ac-ink-soft) !important;
   font-size: 10px !important;
 }
-body.crump-v1-body .message-action-btn:hover { background: rgba(255,255,255,.035) !important; color: #afb2b0 !important; }
+body.crump-v1-body .message-action-btn:hover { background: var(--ac-surface-2) !important; color: var(--ac-ink) !important; }
 body.crump-v1-body .message-status {
   min-height: 19px;
   margin-top: 5px !important;
-  color: #62676a !important;
+  color: var(--ac-ink-muted) !important;
   font-size: 8.5px !important;
 }
-body.crump-v1-body .message-status.seen { color: rgba(217,191,132,.68) !important; }
+body.crump-v1-body .message-status.seen { color: var(--ac-gold-bright) !important; }
 
 body.crump-v1-body .presence-bubble {
   padding: 5px 0 !important;
@@ -1693,19 +1762,19 @@ body.crump-v1-body .typing-dots i { background: var(--ac-gold) !important; opaci
 
 /* Durable files/images/artifacts */
 body.crump-v1-body :is(.crump50-file-card,.crump52-file-attachment,.message-attachment) {
-  border-color: var(--ac-line) !important;
+  border-color: var(--ac-hairline) !important;
   border-radius: 16px !important;
-  background: linear-gradient(180deg, rgba(255,255,255,.025), rgba(255,255,255,.012)) !important;
-  color: var(--ac-text) !important;
+  background: var(--ac-surface) !important;
+  color: var(--ac-ink) !important;
 }
 body.crump-v1-body :is(.crump50-file-card,.crump52-file-attachment):hover {
-  border-color: rgba(217,191,132,.18) !important;
-  background: rgba(217,191,132,.026) !important;
+  border-color: color-mix(in srgb, var(--ac-gold) 18%, transparent) !important;
+  background: var(--ac-gold-wash) !important;
 }
 body.crump-v1-body .crump52-rich-attachments { width: min(540px,100%) !important; gap: 8px !important; margin-top: 10px !important; }
 body.crump-v1-body .crump52-image-gallery { gap: 7px !important; border-radius: 19px !important; }
 body.crump-v1-body .crump52-image-attachment {
-  border-color: var(--ac-line) !important;
+  border-color: var(--ac-hairline) !important;
   border-radius: 18px !important;
   background: var(--ac-surface) !important;
 }
@@ -1717,21 +1786,21 @@ body.crump-v1-body .crump50-artifact {
   gap: 13px;
   margin-top: 14px;
   padding: 13px;
-  border: 1px solid rgba(217,191,132,.17) !important;
+  border: 1px solid color-mix(in srgb, var(--ac-gold) 17%, transparent) !important;
   border-radius: 18px !important;
   background:
-    radial-gradient(320px 160px at 0 0, rgba(217,191,132,.07), transparent 75%),
-    rgba(255,255,255,.018) !important;
+    radial-gradient(320px 160px at 0 0, var(--ac-gold-wash), transparent 75%),
+    var(--ac-surface) !important;
 }
 body.crump-v1-body .crump50-artifact > span {
   display: grid;
   width: 50px;
   height: 50px;
   place-items: center;
-  border: 1px solid rgba(217,191,132,.15);
+  border: 1px solid color-mix(in srgb, var(--ac-gold) 15%, transparent);
   border-radius: 14px;
-  background: rgba(217,191,132,.055);
-  color: #d6bd83;
+  background: var(--ac-gold-soft);
+  color: var(--ac-gold-bright);
   font-size: 8px;
   font-weight: 800;
   letter-spacing: .07em;
@@ -1739,10 +1808,10 @@ body.crump-v1-body .crump50-artifact > span {
 body.crump-v1-body .crump50-artifact button {
   min-height: 42px;
   padding: 0 13px;
-  border: 1px solid rgba(217,191,132,.17);
+  border: 1px solid color-mix(in srgb, var(--ac-gold) 17%, transparent);
   border-radius: 12px;
-  background: rgba(217,191,132,.055);
-  color: #ddcda8;
+  background: var(--ac-gold-soft);
+  color: var(--ac-gold-bright);
   font-size: 10px;
   font-weight: 650;
 }
@@ -1789,24 +1858,17 @@ body.crump-v1-body .input-container {
   align-items: flex-end !important;
   gap: 7px !important;
   padding: 8px !important;
-  border: 1px solid rgba(255,255,255,.105) !important;
-  border-radius: 25px !important;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,.026), rgba(255,255,255,.01)),
-    rgba(19,24,31,.94) !important;
+  border: 1px solid var(--ac-hairline-strong) !important;
+  border-radius: 22px !important;
+  background: var(--ac-material-strong) !important;
   -webkit-backdrop-filter: blur(28px) saturate(125%);
   backdrop-filter: blur(28px) saturate(125%);
-  box-shadow:
-    0 24px 66px rgba(0,0,0,.40),
-    inset 0 1px rgba(255,255,255,.04) !important;
+  box-shadow: var(--ac-shadow) !important;
   transition: border-color .16s ease, box-shadow .16s ease;
 }
 body.crump-v1-body .input-container:focus-within {
-  border-color: rgba(217,191,132,.24) !important;
-  box-shadow:
-    0 28px 72px rgba(0,0,0,.43),
-    0 0 0 1px rgba(217,191,132,.03),
-    inset 0 1px rgba(255,255,255,.045) !important;
+  border-color: color-mix(in srgb, var(--ac-gold) 24%, transparent) !important;
+  box-shadow: var(--ac-shadow), 0 0 0 1px var(--ac-gold-soft) !important;
 }
 body.crump-v1-body .message-input {
   flex: 1;
@@ -1815,13 +1877,13 @@ body.crump-v1-body .message-input {
   padding: 12px 7px 9px !important;
   border: 0 !important;
   background: transparent !important;
-  color: #f2efea !important;
+  color: var(--ac-ink) !important;
   box-shadow: none !important;
   font-size: 16px !important;
   line-height: 1.42 !important;
   resize: none !important;
 }
-body.crump-v1-body .message-input::placeholder { color: #666c71 !important; }
+body.crump-v1-body .message-input::placeholder { color: var(--ac-ink-muted) !important; }
 
 body.crump-v1-body :is(.crump50-plus,.crump50-send,#attachBtn,#sendButton) {
   display: grid;
@@ -1837,15 +1899,15 @@ body.crump-v1-body :is(.crump50-plus,.crump50-send,#attachBtn,#sendButton) {
 }
 body.crump-v1-body :is(.crump50-plus,#attachBtn) {
   background: transparent !important;
-  color: #91979a !important;
+  color: var(--ac-ink-soft) !important;
 }
 body.crump-v1-body :is(.crump50-plus,#attachBtn):hover {
-  background: rgba(255,255,255,.035) !important;
-  color: #e1dfda !important;
+  background: var(--ac-surface-2) !important;
+  color: var(--ac-ink) !important;
 }
 body.crump-v1-body :is(.crump50-send,#sendButton) {
-  background: rgba(255,255,255,.055) !important;
-  color: #737a7f !important;
+  background: var(--ac-surface-2) !important;
+  color: var(--ac-ink-muted) !important;
 }
 body.crump-v1-body :is(.crump50-plus,.crump50-send,#attachBtn,#sendButton) svg {
   width: 21px;
@@ -1853,19 +1915,19 @@ body.crump-v1-body :is(.crump50-plus,.crump50-send,#attachBtn,#sendButton) svg {
 }
 body.crump-v1-body .input-container.has-content :is(.crump50-send,#sendButton),
 body.crump-v1-body.v1-composer-active :is(.crump50-send,#sendButton) {
-  background: linear-gradient(180deg, #dfca96, #ba9e60) !important;
-  color: #080b0e !important;
-  box-shadow: inset 0 1px rgba(255,255,255,.32);
+  background: var(--ac-gold) !important;
+  color: #21160b !important;
+  box-shadow: none;
 }
 body.crump-v1-body :is(.crump50-plus,.crump50-send,#attachBtn,#sendButton):active { transform: scale(.94); }
 
 /* tool chip & attachment tray */
 body.crump-v1-body .crump50-tool-chip {
   margin: 0 0 6px 7px !important;
-  border-color: rgba(217,191,132,.15) !important;
+  border-color: color-mix(in srgb, var(--ac-gold) 15%, transparent) !important;
   border-radius: 11px !important;
-  background: rgba(217,191,132,.05) !important;
-  color: #d9c9a5 !important;
+  background: var(--ac-gold-soft) !important;
+  color: var(--ac-gold-bright) !important;
 }
 body.crump-v1-body #filePreview.crump50-attachment-tray {
   position: absolute !important;
@@ -1882,10 +1944,10 @@ body.crump-v1-body #filePreview.crump50-attachment-tray {
 }
 body.crump-v1-body .crump50-upload-card {
   height: 68px !important;
-  border-color: var(--ac-line) !important;
+  border-color: var(--ac-hairline) !important;
   border-radius: 17px !important;
-  background: rgba(17,22,29,.985) !important;
-  box-shadow: var(--ac-shadow-1) !important;
+  background: var(--ac-material-strong) !important;
+  box-shadow: var(--ac-shadow) !important;
 }
 
 /* Scroll button */
@@ -1896,13 +1958,13 @@ body.crump-v1-body #scrollToEndBtn {
   z-index: 235 !important;
   width: 46px !important;
   height: 46px !important;
-  border: 1px solid rgba(217,191,132,.20) !important;
+  border: 1px solid color-mix(in srgb, var(--ac-gold) 20%, transparent) !important;
   border-radius: 50% !important;
-  background: #151b22 !important;
-  color: #d7c28f !important;
-  box-shadow: 0 14px 36px rgba(0,0,0,.34), inset 0 1px rgba(255,255,255,.035) !important;
+  background: var(--ac-surface) !important;
+  color: var(--ac-gold-bright) !important;
+  box-shadow: var(--ac-shadow) !important;
 }
-body.crump-v1-body #scrollToEndBtn:hover { background: #1a212a !important; }
+body.crump-v1-body #scrollToEndBtn:hover { background: var(--ac-surface-2) !important; }
 body.crump-v1-body #scrollToEndBtn svg { width: 19px; height: 19px; }
 
 /* Sidebar overlay is mobile-only */
@@ -1917,26 +1979,24 @@ body.crump-v1-body.crump50-sheet-open::after {
   backdrop-filter: blur(9px);
 }
 body.crump-v1-body :is(.crump50-sheet,.crump52-attach-sheet) {
-  border: 1px solid var(--ac-line-2) !important;
-  border-radius: 27px !important;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,.022), transparent 22%),
-    rgba(15,20,26,.985) !important;
-  box-shadow: var(--ac-shadow-3) !important;
+  border: 1px solid var(--ac-hairline-strong) !important;
+  border-radius: 24px !important;
+  background: var(--ac-material-strong) !important;
+  box-shadow: var(--ac-shadow) !important;
 }
 body.crump-v1-body :is(.crump50-menu-row,.crump52-attach-choice) {
   min-height: 65px !important;
   border-radius: 15px !important;
-  color: var(--ac-text-2) !important;
+  color: var(--ac-ink-soft) !important;
 }
 body.crump-v1-body :is(.crump50-menu-row,.crump52-attach-choice):hover {
-  background: rgba(255,255,255,.035) !important;
-  color: var(--ac-text) !important;
+  background: var(--ac-surface-2) !important;
+  color: var(--ac-ink) !important;
 }
 body.crump-v1-body :is(.crump50-menu-icon,.crump52-choice-icon) {
-  border: 1px solid rgba(217,191,132,.12) !important;
-  background: rgba(217,191,132,.04) !important;
-  color: #cab98f !important;
+  border: 1px solid color-mix(in srgb, var(--ac-gold) 12%, transparent) !important;
+  background: var(--ac-gold-soft) !important;
+  color: var(--ac-gold-bright) !important;
 }
 
 body.crump-v1-body .crump44-panel {
@@ -1944,32 +2004,32 @@ body.crump-v1-body .crump44-panel {
   right: 18px !important;
   width: min(420px, calc(100vw - 28px)) !important;
   max-height: min(750px, calc(100dvh - 105px)) !important;
-  border: 1px solid var(--ac-line-2) !important;
-  border-radius: 25px !important;
+  border: 1px solid var(--ac-hairline-strong) !important;
+  border-radius: 24px !important;
   background:
-    radial-gradient(380px 180px at 0 0, rgba(217,191,132,.05), transparent 75%),
-    rgba(13,18,24,.988) !important;
-  box-shadow: var(--ac-shadow-3) !important;
+    radial-gradient(380px 180px at 0 0, var(--ac-gold-wash), transparent 75%),
+    var(--ac-material-strong) !important;
+  box-shadow: var(--ac-shadow) !important;
 }
-body.crump-v1-body .crump44-panel-header { min-height: 84px !important; border-bottom-color: var(--ac-line) !important; }
-body.crump-v1-body .crump44-eyebrow { color: var(--ac-gold) !important; }
+body.crump-v1-body .crump44-panel-header { min-height: 84px !important; border-bottom-color: var(--ac-hairline) !important; }
+body.crump-v1-body .crump44-eyebrow { color: var(--ac-gold-bright) !important; }
 body.crump-v1-body .crump44-panel-content { padding: 12px !important; }
 body.crump-v1-body .crump44-section {
-  border-color: var(--ac-line) !important;
+  border-color: var(--ac-hairline) !important;
   border-radius: 17px !important;
-  background: rgba(255,255,255,.016) !important;
+  background: var(--ac-surface) !important;
 }
-body.crump-v1-body .crump44-segmented { border-color: var(--ac-line) !important; background: rgba(0,0,0,.18) !important; }
-body.crump-v1-body .crump44-segment.active { background: rgba(217,191,132,.10) !important; color: #eadab8 !important; }
+body.crump-v1-body .crump44-segmented { border-color: var(--ac-hairline) !important; background: var(--ac-canvas) !important; }
+body.crump-v1-body .crump44-segment.active { background: var(--ac-gold-soft) !important; color: var(--ac-ink) !important; }
 body.crump-v1-body .crump44-toggle.is-on {
-  border-color: rgba(217,191,132,.32) !important;
-  background: rgba(217,191,132,.22) !important;
+  border-color: color-mix(in srgb, var(--ac-gold) 32%, transparent) !important;
+  background: var(--ac-gold-soft) !important;
 }
 body.crump-v1-body :is(.crump44-row-button,.crump44-clear-memory) {
   min-height: 43px !important;
-  border-color: var(--ac-line) !important;
+  border-color: var(--ac-hairline) !important;
   border-radius: 12px !important;
-  background: rgba(255,255,255,.018) !important;
+  background: var(--ac-surface) !important;
 }
 
 /* =========================================================
@@ -1984,10 +2044,10 @@ body.crump-v1-body .v1-settings-sheet {
   max-height: calc(100dvh - 42px) !important;
   grid-template-rows: 82px minmax(0,1fr);
   overflow: hidden !important;
-  border: 1px solid var(--ac-line-2) !important;
-  border-radius: 29px !important;
-  background: #0e1319 !important;
-  box-shadow: var(--ac-shadow-3) !important;
+  border: 1px solid var(--ac-hairline-strong) !important;
+  border-radius: 24px !important;
+  background: var(--ac-canvas-raised) !important;
+  box-shadow: var(--ac-shadow) !important;
 }
 body.crump-v1-body .v1-settings-header {
   display: grid !important;
@@ -1995,28 +2055,28 @@ body.crump-v1-body .v1-settings-header {
   align-items: center;
   gap: 13px;
   padding: 12px 15px !important;
-  border-bottom: 1px solid var(--ac-line) !important;
-  background: rgba(13,18,24,.96) !important;
+  border-bottom: 1px solid var(--ac-hairline) !important;
+  background: var(--ac-material-strong) !important;
 }
 body.crump-v1-body .settings-icon-btn {
   width: 44px !important;
   height: 44px !important;
-  border: 1px solid var(--ac-line) !important;
-  border-radius: 13px !important;
-  background: rgba(255,255,255,.018) !important;
-  color: #8a8f92 !important;
+  border: 1px solid var(--ac-hairline) !important;
+  border-radius: 14px !important;
+  background: var(--ac-surface) !important;
+  color: var(--ac-ink-soft) !important;
 }
 body.crump-v1-body .settings-icon-btn svg { width: 19px; height: 19px; }
-body.crump-v1-body .settings-title { margin-top: 2px; color: var(--ac-text) !important; font-size: 18px !important; font-weight: 670 !important; letter-spacing: -.025em; }
-body.crump-v1-body .settings-subtitle { margin-top: 2px; color: #666c70 !important; font-size: 9px !important; }
+body.crump-v1-body .settings-title { margin-top: 2px; color: var(--ac-ink) !important; font-family: var(--ac-serif) !important; font-size: 20px !important; font-weight: 600 !important; letter-spacing: -.025em; }
+body.crump-v1-body .settings-subtitle { margin-top: 2px; color: var(--ac-ink-soft) !important; font-size: 11px !important; }
 body.crump-v1-body .settings-primary-btn {
   min-height: 44px !important;
   padding: 0 15px !important;
-  border: 1px solid rgba(217,191,132,.17) !important;
-  border-radius: 13px !important;
-  background: rgba(217,191,132,.065) !important;
-  color: #dbc99f !important;
-  font-size: 10px !important;
+  border: 1px solid color-mix(in srgb, var(--ac-gold) 17%, transparent) !important;
+  border-radius: 14px !important;
+  background: var(--ac-gold-soft) !important;
+  color: var(--ac-gold-bright) !important;
+  font-size: 12px !important;
   font-weight: 670 !important;
 }
 body.crump-v1-body .settings-primary-btn:disabled {
@@ -2035,25 +2095,25 @@ body.crump-v1-body .v1-settings-nav {
   flex-direction: column;
   gap: 3px;
   padding: 16px 10px;
-  border-right: 1px solid var(--ac-line);
-  background: #0b0f14;
+  border-right: 1px solid var(--ac-hairline);
+  background: var(--ac-canvas);
 }
 body.crump-v1-body .v1-settings-nav button {
-  min-height: 43px;
+  min-height: 44px;
   padding: 0 12px;
   border: 1px solid transparent;
-  border-radius: 12px;
+  border-radius: 11px;
   background: transparent;
-  color: #73787b;
-  font-size: 10px;
+  color: var(--ac-ink-soft);
+  font-size: 12px;
   font-weight: 620;
   text-align: left;
 }
-body.crump-v1-body .v1-settings-nav button:hover { background: rgba(255,255,255,.025); color: #b6b7b3; }
+body.crump-v1-body .v1-settings-nav button:hover { background: var(--ac-surface-2); color: var(--ac-ink); }
 body.crump-v1-body .v1-settings-nav button.is-active {
-  border-color: rgba(217,191,132,.12);
-  background: rgba(217,191,132,.05);
-  color: #dfd2b4;
+  border-color: transparent;
+  background: var(--ac-gold-soft);
+  color: var(--ac-ink);
 }
 body.crump-v1-body .settings-sheet-body {
   min-height: 0;
@@ -2072,35 +2132,36 @@ body.crump-v1-body .v1-settings-panel-head {
 }
 body.crump-v1-body .v1-settings-panel-head h3 {
   margin: 5px 0 0;
-  color: #f0ede7;
-  font-size: 24px;
-  font-weight: 650;
-  letter-spacing: -.04em;
+  color: var(--ac-ink);
+  font-family: var(--ac-serif);
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -.02em;
 }
 body.crump-v1-body .v1-settings-panel-head p {
   margin: 0;
-  color: #6d7376;
-  font-size: 10px;
+  color: var(--ac-ink-soft);
+  font-size: 11px;
   line-height: 1.55;
 }
 body.crump-v1-body .settings-group-title {
   margin: 0 !important;
   padding: 0 !important;
-  color: var(--ac-gold) !important;
-  font-size: 8px !important;
+  color: var(--ac-gold-bright) !important;
+  font-size: 10px !important;
   font-weight: 760 !important;
-  letter-spacing: .14em !important;
+  letter-spacing: .12em !important;
   text-transform: uppercase;
 }
 body.crump-v1-body .settings-list {
   overflow: hidden;
-  border: 1px solid var(--ac-line) !important;
-  border-radius: 18px !important;
-  background: rgba(255,255,255,.015) !important;
+  border: 1px solid var(--ac-hairline) !important;
+  border-radius: 24px !important;
+  background: var(--ac-surface) !important;
 }
 body.crump-v1-body .settings-row {
   display: flex !important;
-  min-height: 68px !important;
+  min-height: 70px !important;
   align-items: center;
   justify-content: space-between;
   gap: 18px;
@@ -2110,45 +2171,45 @@ body.crump-v1-body .settings-row {
   text-align: left;
 }
 body.crump-v1-body .settings-row + .settings-row,
-body.crump-v1-body .settings-row-divider { border-top: 1px solid rgba(255,255,255,.05) !important; }
+body.crump-v1-body .settings-row-divider { border-top: 1px solid var(--ac-hairline) !important; }
 body.crump-v1-body .settings-row-text { min-width: 0; }
-body.crump-v1-body .settings-label { color: #dedcd7 !important; font-size: 11px !important; font-weight: 620 !important; }
-body.crump-v1-body .settings-help { margin-top: 3px; color: #686e71 !important; font-size: 9px !important; line-height: 1.4; }
+body.crump-v1-body .settings-label { color: var(--ac-ink) !important; font-size: 13px !important; font-weight: 620 !important; }
+body.crump-v1-body .settings-help { margin-top: 3px; color: var(--ac-ink-soft) !important; font-size: 10px !important; line-height: 1.4; }
 body.crump-v1-body :is(.settings-field,.settings-select) {
   min-height: 42px !important;
-  border: 1px solid var(--ac-line) !important;
-  border-radius: 12px !important;
-  background: #0a0e13 !important;
-  color: #dcdad5 !important;
-  font-size: 10px !important;
+  border: 1px solid var(--ac-hairline) !important;
+  border-radius: 14px !important;
+  background: var(--ac-canvas-raised) !important;
+  color: var(--ac-ink) !important;
+  font-size: 13px !important;
 }
 body.crump-v1-body .settings-field { width: min(270px, 48%) !important; padding: 0 12px !important; }
 body.crump-v1-body .settings-select { padding: 0 10px !important; }
-body.crump-v1-body .settings-danger .settings-label { color: #c7817d !important; }
-body.crump-v1-body .v1-delete-row { background: rgba(215,131,127,.015) !important; }
+body.crump-v1-body .settings-danger .settings-label { color: var(--ac-danger) !important; }
+body.crump-v1-body .v1-delete-row { background: color-mix(in srgb, var(--ac-danger) 6%, transparent) !important; }
 body.crump-v1-body .v1-delete-web {
   display: inline-block;
   margin-top: 13px;
-  color: #7d8284;
+  color: var(--ac-ink-soft);
   font-size: 9px;
   text-decoration: none;
 }
-body.crump-v1-body .v1-delete-web:hover { color: #c7b88f; }
+body.crump-v1-body .v1-delete-web:hover { color: var(--ac-gold-bright); }
 body.crump-v1-body .v1-about-signature {
   display: flex;
   align-items: center;
   gap: 15px;
   margin-top: 22px;
   padding: 18px 2px;
-  color: #565c60;
+  color: var(--ac-ink-soft);
   font-size: 9px;
 }
 body.crump-v1-body .v1-about-signature img { width: 170px; max-height: 46px; object-fit: contain; }
 body.crump-v1-body .ios-switch-ui {
-  border-color: var(--ac-line) !important;
-  background: rgba(255,255,255,.07) !important;
+  border-color: var(--ac-hairline) !important;
+  background: var(--ac-surface-2) !important;
 }
-body.crump-v1-body .ios-switch input:checked + .ios-switch-ui { background: #ad9259 !important; }
+body.crump-v1-body .ios-switch input:checked + .ios-switch-ui { background: var(--ac-sage) !important; }
 
 /* =========================================================
    BILLING
@@ -2160,15 +2221,15 @@ body.crump-v1-body .billing51-backdrop {
 body.crump-v1-body .billing51-sheet {
   width: min(980px,100%) !important;
   max-height: min(880px,calc(100dvh - 48px)) !important;
-  border: 1px solid var(--ac-line-2) !important;
-  border-radius: 30px !important;
-  background: linear-gradient(180deg, rgba(255,255,255,.018), transparent 16%), #0e1319 !important;
-  box-shadow: var(--ac-shadow-3) !important;
+  border: 1px solid var(--ac-hairline-strong) !important;
+  border-radius: 24px !important;
+  background: var(--ac-canvas-raised) !important;
+  box-shadow: var(--ac-shadow) !important;
 }
 body.crump-v1-body .billing51-header {
   min-height: 82px !important;
-  border-bottom-color: var(--ac-line) !important;
-  background: rgba(13,18,24,.95) !important;
+  border-bottom-color: var(--ac-hairline) !important;
+  background: var(--ac-material-strong) !important;
 }
 body.crump-v1-body .billing51-mark {
   width: 48px !important;
@@ -2180,18 +2241,18 @@ body.crump-v1-body .billing51-mark {
   font-size: 0 !important;
 }
 body.crump-v1-body .billing51-balance-card {
-  border: 1px solid rgba(217,191,132,.18) !important;
-  border-radius: 22px !important;
-  background: radial-gradient(circle at 8% 0%, rgba(217,191,132,.095), transparent 48%), rgba(255,255,255,.016) !important;
+  border: 1px solid color-mix(in srgb, var(--ac-gold) 18%, transparent) !important;
+  border-radius: 24px !important;
+  background: radial-gradient(circle at 8% 0%, var(--ac-gold-wash), transparent 48%), var(--ac-surface) !important;
 }
 body.crump-v1-body :is(.billing51-pack,.billing51-plan) {
-  border-color: var(--ac-line) !important;
+  border-color: var(--ac-hairline) !important;
   border-radius: 18px !important;
-  background: rgba(255,255,255,.016) !important;
+  background: var(--ac-surface) !important;
 }
 body.crump-v1-body .billing51-pack:hover {
-  border-color: rgba(217,191,132,.22) !important;
-  background: rgba(217,191,132,.028) !important;
+  border-color: color-mix(in srgb, var(--ac-gold) 22%, transparent) !important;
+  background: var(--ac-gold-wash) !important;
   transform: translateY(-1px);
 }
 body.crump-v1-body .billing51-buy {
@@ -2214,19 +2275,50 @@ body.crump-v1-body .toast-container {
 }
 body.crump-v1-body .toast {
   min-height: 54px;
-  border: 1px solid var(--ac-line-2) !important;
-  border-radius: 15px !important;
-  background: rgba(17,22,29,.97) !important;
-  color: #b8bbb9 !important;
-  box-shadow: var(--ac-shadow-2) !important;
+  border: 1px solid var(--ac-hairline-strong) !important;
+  border-radius: 14px !important;
+  background: var(--ac-material-strong) !important;
+  color: var(--ac-ink-soft) !important;
+  box-shadow: var(--ac-shadow) !important;
   -webkit-backdrop-filter: blur(20px);
   backdrop-filter: blur(20px);
 }
 body.crump-v1-body :is(.confirm-dialog__card,.account-modal-card) {
-  border: 1px solid var(--ac-line-2) !important;
+  border: 1px solid var(--ac-hairline-strong) !important;
   border-radius: 24px !important;
-  background: #10151b !important;
-  box-shadow: var(--ac-shadow-3) !important;
+  background: var(--ac-canvas-raised) !important;
+  box-shadow: var(--ac-shadow) !important;
+  color: var(--ac-ink) !important;
+}
+/* Dialog cards follow the appearance (see above), so their text must
+   too: the conversation sheet's fixed dark --color-* text tokens are
+   unreadable on the light card. Error and warning tones keep their
+   dark values in dark and step to deep tones in light. */
+body.crump-v1-body .confirm-dialog__card p,
+body.crump-v1-body .account-modal-card > p {
+  color: var(--ac-ink-soft) !important;
+}
+body.crump-v1-body .account-modal-close {
+  border-color: var(--ac-hairline-strong) !important;
+  background: var(--ac-surface-2) !important;
+  color: var(--ac-ink) !important;
+}
+body.crump-v1-body .account-modal-error {
+  color: #ffb4ab !important;
+}
+body.crump-v1-body .account-field {
+  color: var(--ac-ink) !important;
+}
+body.crump-v1-body .account-field input {
+  border-color: var(--ac-hairline-strong) !important;
+  background: var(--ac-surface) !important;
+  color: var(--ac-ink) !important;
+}
+html[data-theme="light"] body.crump-v1-body .account-modal-error {
+  color: #8c3b2e !important;
+}
+html[data-theme="light"] body.crump-v1-body .account-modal-warning {
+  color: #7a5410 !important;
 }
 
 /* =========================================================
@@ -2234,7 +2326,7 @@ body.crump-v1-body :is(.confirm-dialog__card,.account-modal-card) {
    ========================================================= */
 
 @media (max-width: 1100px) {
-  :root { --ac-header: 72px; }
+  :root { --ac-header: 62px; }
 
   body.crump-v1-body .v1-shell {
     display: block;
@@ -2437,6 +2529,12 @@ body.crump-v1-body :is(.confirm-dialog__card,.account-modal-card) {
     border-left: 0 !important;
     border-radius: 28px 28px 0 0 !important;
   }
+
+  /* The sticky header clears the island even when the sheet-height
+     formula lands high; the 12px design padding stays underneath. */
+  body.crump-v1-body .v1-settings-header {
+    padding-top: calc(12px + env(safe-area-inset-top, 0px)) !important;
+  }
   body.crump-v1-body .v1-settings-layout {
     grid-template-columns: 1fr;
     grid-template-rows: auto minmax(0,1fr);
@@ -2451,7 +2549,7 @@ body.crump-v1-body :is(.confirm-dialog__card,.account-modal-card) {
   }
   body.crump-v1-body .v1-settings-nav button {
     flex: 0 0 auto;
-    min-height: 38px;
+    min-height: 44px;
     padding: 0 12px;
     text-align: center;
   }
@@ -2570,7 +2668,7 @@ body.crump-v1-body :is(.confirm-dialog__card,.account-modal-card) {
   body.crump-v1-body .message-action-btn {
     min-height: 44px !important;
     padding: 9px 10px !important;
-    color: #a7abad !important;
+    color: var(--ac-ink-soft) !important;
     font-size: 12px !important;
   }
   body.crump-v1-body .outcome-feedback {
@@ -2655,13 +2753,15 @@ body.crump-v1-body :is(.confirm-dialog__card,.account-modal-card) {
     border-left: 0;
   }
   body.crump-v1-body .v1-workspace-context span {
-    color: #5f6467;
-    font-size: 8px;
+    color: var(--ac-ink-soft);
+    font-size: 11px;
   }
   body.crump-v1-body .v1-workspace-context strong {
     max-width: min(60vw, 720px);
-    color: #b2b3af;
-    font-size: 11px;
+    color: var(--ac-ink);
+    font-family: var(--ac-serif);
+    font-size: 20px;
+    font-weight: 600;
   }
 }
 
@@ -2681,10 +2781,10 @@ body.crump-v1-body .crump52-file-icon {
   width: 44px;
   height: 44px;
   place-items: center;
-  border: 1px solid rgba(217,191,132,.14);
+  border: 1px solid color-mix(in srgb, var(--ac-gold) 14%, transparent);
   border-radius: 12px;
-  background: rgba(217,191,132,.05);
-  color: #d0b779;
+  background: var(--ac-gold-soft);
+  color: var(--ac-gold-bright);
   font-size: 8px;
   font-weight: 800;
   letter-spacing: .05em;
@@ -2696,18 +2796,18 @@ body.crump-v1-body .crump52-file-copy {
 }
 body.crump-v1-body .crump52-file-copy strong {
   overflow: hidden;
-  color: #e7e3dc;
+  color: var(--ac-ink);
   font-size: 11px;
   font-weight: 650;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 body.crump-v1-body .crump52-file-copy small {
-  color: #6f7477;
+  color: var(--ac-ink-soft);
   font-size: 9px;
 }
 body.crump-v1-body .crump52-file-arrow {
-  color: #696f72;
+  color: var(--ac-ink-muted);
   font-size: 15px;
 }
 body.crump-v1-body .crump50-artifact > div {
@@ -2717,7 +2817,7 @@ body.crump-v1-body .crump50-artifact > div {
 }
 body.crump-v1-body .crump50-artifact strong {
   overflow: hidden;
-  color: #ece8df;
+  color: var(--ac-ink);
   font-size: 12px;
   font-weight: 660;
   text-overflow: ellipsis;
@@ -2725,7 +2825,7 @@ body.crump-v1-body .crump50-artifact strong {
 }
 body.crump-v1-body .crump50-artifact small {
   display: block;
-  color: #6d7275;
+  color: var(--ac-ink-soft);
   font-size: 9px;
 }
 
@@ -2774,7 +2874,7 @@ body.crump-v1-body .v1-command-dock {
   min-height: var(--ac-dock);
   padding-top: 2px;
   background:
-    linear-gradient(180deg, rgba(9,12,16,0), rgba(9,12,16,.84) 18%, #090c10 62%);
+    linear-gradient(180deg, transparent, color-mix(in srgb, var(--ac-canvas) 84%, transparent) 18%, var(--ac-canvas) 62%);
 }
 
 body.crump-v1-body .chat-container {

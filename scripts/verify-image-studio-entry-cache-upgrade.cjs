@@ -14,7 +14,7 @@ const installGatePath = '/delete-account.html';
 const immediatePredecessor = Object.freeze({
   cache: 'ask-crump-new-body-v1-r273-account-owner-boundary-1',
   runtime: '/runtime-body-v1.js?v=5.9.76-account-owner-boundary-1',
-  billing52: '/crump-5.2.js?v=5.9.76-private-owner-boundary-1&workspaceRelease=guest-free-contract-2',
+  billing52: '/crump-5.2.js?v=5.9.76-private-owner-boundary-1&workspaceRelease=guest-free-contract-3',
 });
 const contentTypes = Object.freeze({
   '.css': 'text/css; charset=utf-8',
@@ -100,7 +100,7 @@ function resolveRelease(swSource, shellSource, runtimeSource, frozenSource) {
     libraryLoader: matchOne(frozenSource, /'([^']*\/crump-library-loader\.js\?[^']+)'/, 'frozen Library loader URL'),
   });
   assert.equal(previous.cache, 'ask-crump-new-body-v1-r272-project-resume-auth-boundary-1');
-    assert.equal(current.cache, 'ask-crump-new-body-v1-r301-composer-prompt-1');
+    assert.equal(current.cache, 'ask-crump-new-body-v1-r304-safe-area-1');
   assert.notEqual(current.cache, immediatePredecessor.cache);
   assert.notEqual(current.runtime, immediatePredecessor.runtime);
   assert.notEqual(current.billing52, immediatePredecessor.billing52);

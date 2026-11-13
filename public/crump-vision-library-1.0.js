@@ -56,6 +56,21 @@
     return String(n);
   }
 
+  /* Preview gradient families, in concept order: umber, bronze/olive,
+     slate-blue, sage-green. The family is a stable hash of the record
+     id, so a book keeps its preview across renders. Presentation
+     only — the family never carries meaning. */
+  var COVER_FAMILIES = ['umber', 'bronze', 'slate', 'sage'];
+
+  function coverFamilyFor(value) {
+    var text = String(value == null ? '' : value);
+    var hash = 5381;
+    for (var i = 0; i < text.length; i++) {
+      hash = ((hash << 5) + hash + text.charCodeAt(i)) >>> 0;
+    }
+    return COVER_FAMILIES[hash % COVER_FAMILIES.length];
+  }
+
   function capitalize(value) {
     var s = String(value || '');
     return s ? s.charAt(0).toUpperCase() + s.slice(1) : '';
@@ -121,6 +136,8 @@
       if (!response.ok || data.success === false) {
         var error = new Error(data.error || data.message || 'Request failed (' + response.status + ')');
         error.status = response.status;
+        error.code = data.code || '';
+        error.guestAccountRequired = data.guestAccountRequired === true;
         throw error;
       }
       return data;
@@ -135,6 +152,20 @@
       clearTimeout(timer);
       libraryRequests.delete(controller);
     }
+  }
+
+  /* The account gate (a guest reaching an account-only surface) is not a
+     load failure: retries can never succeed, so the surface must name the
+     next step instead of inviting one. The backend reports the gate as a
+     403 carrying the account-creation message (require_account) or as
+     GUEST_ACCOUNT_REQUIRED (feature routes); anything else keeps the
+     transient-failure presentation with its retry. */
+  function isAccountGateError(error) {
+    if (!error) return false;
+    if (error.guestAccountRequired === true) return true;
+    if (String(error.code || '').toUpperCase() === 'GUEST_ACCOUNT_REQUIRED') return true;
+    return error.status === 403
+      && String(error.message || '').indexOf('Create your free account') === 0;
   }
 
   function scrubLibraryAuthBoundary() {
@@ -178,13 +209,23 @@
     var ext = fileExtension(book.sourceFile && book.sourceFile.name);
     var updated = fmtDate(book.updatedAt);
     var created = fmtDate(book.createdAt);
-    var words = fmtCount(book.wordCount) + ' words';
-    var sections = Number(book.sectionCount || 0) + (Number(book.sectionCount || 0) === 1 ? ' section' : ' sections');
+    var family = coverFamilyFor(book.id);
+    var subtitle = String(book.subtitle || '').replace(/\s+/g, ' ').trim();
+    /* Meta carries only fields the record carries: word and section
+       counts appear only when the book data has them. */
+    var metaBits = [];
+    if (book.wordCount != null) metaBits.push(fmtCount(book.wordCount) + ' words');
+    if (book.sectionCount != null) {
+      var sectionTotal = Number(book.sectionCount || 0);
+      metaBits.push(sectionTotal + (sectionTotal === 1 ? ' section' : ' sections'));
+    }
+    if (updated) metaBits.push('Updated ' + updated);
 
     return (
       '<article class="cvl-book" data-cvl-book="' + id + '">' +
-        '<div class="cvl-cover" aria-hidden="true">' +
+        '<div class="cvl-cover cvl-cover--' + family + '" aria-hidden="true">' +
           '<span class="cvl-cover-initial">' + esc(bookInitial(book.title)) + '</span>' +
+          (subtitle ? '<span class="cvl-cover-sub">' + esc(subtitle) + '</span>' : '') +
           '<span class="cvl-cover-spine"></span>' +
         '</div>' +
         '<div class="cvl-book-body">' +
@@ -194,8 +235,7 @@
           '</div>' +
           '<h3 class="cvl-book-title" title="' + title + '">' + title + '</h3>' +
           '<p class="cvl-book-author">' + author + '</p>' +
-          '<p class="cvl-book-meta">' + esc(words) + ' · ' + esc(sections) +
-            (updated ? ' · Updated ' + esc(updated) : '') + '</p>' +
+          (metaBits.length ? '<p class="cvl-book-meta">' + esc(metaBits.join(' · ')) + '</p>' : '') +
           '<details class="cvl-history">' +
             '<summary>Version history</summary>' +
             '<div class="cvl-history-body">' +
@@ -402,6 +442,18 @@
       renderShelf(root, shelf, books, authBoundary);
     }).catch(function (error) {
       if (!root.isConnected || !authBoundaryIsCurrent(authBoundary)) return;
+      if (isAccountGateError(error)) {
+        shelf.innerHTML =
+          '<div class="cvl-panel" role="status">' +
+            '<h2>The Library needs an account.</h2>' +
+            '<p>Create your free account to keep the books and manuscripts you create or import with Crump.</p>' +
+            '<button type="button" class="cvl-button" data-cvl-create-account>Create free account</button>' +
+          '</div>';
+        shelf.querySelector('[data-cvl-create-account]').addEventListener('click', function () {
+          window.location.href = '/app?signup=1&source=library-gate&plan=free';
+        });
+        return;
+      }
       shelf.innerHTML =
         '<div class="cvl-panel cvl-error" role="alert">' +
           '<h2>The Library could not load.</h2>' +

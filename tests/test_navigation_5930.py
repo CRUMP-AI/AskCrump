@@ -22,11 +22,11 @@ def test_six_destination_navigation_is_final_runtime_layer_and_boot_critical():
 
     assert runtime.index("/crump-library-loader.js") < runtime.index("/crump-navigation-5.9.30.js")
     assert "/crump-library-5.7.js" not in runtime
-    assert "ask-crump-new-body-v1-r301-composer-prompt-1" in worker
+    assert "ask-crump-new-body-v1-r304-safe-area-1" in worker
     navigation_css = "/crump-navigation-5.9.30.css?v=5.9.76-nav-focus-visibility-1"
     for source in (runtime, worker, native):
         assert navigation_css in source
-    assert "/crump-navigation-5.9.30.js?v=5.9.76-premium-workspace-1" in runtime
+    assert "/crump-navigation-5.9.30.js?v=5.9.76-premium-workspace-2" in runtime
 
 
 def test_vision_shell_owns_navigation_while_adapter_preserves_destinations():
@@ -189,7 +189,7 @@ def test_navigation_consolidation_fixture_uses_the_production_layers():
     assert '/public/crump-product-5.3.css?v=5.9.76-file-library-window-1' in fixture
     assert '/public/crump-navigation-5.9.30.js' in fixture
     assert '5.9.76-mobile-drawer-destinations-1' in fixture
-    assert '5.9.76-premium-workspace-1' in fixture
+    assert '5.9.76-premium-workspace-2' in fixture
     assert 'window.fixtureErrors = []' in fixture
     assert "dataset.fixtureErrorCount = '0'" in fixture
     assert 'id="v1OpenPlanBtn"' in fixture

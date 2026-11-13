@@ -175,7 +175,13 @@ const legacyDestination = {today: 'ask', projects: 'projects'};
     assert(baseline.minimumTouchWidth >= 44, JSON.stringify(baseline));
     assert(baseline.minimumTouchHeight >= 44, JSON.stringify(baseline));
     assert.equal(baseline.documentOverflow, 0);
-    assert.equal(baseline.navBottom, baseline.viewportHeight);
+    // Apple UI v2: the mobile nav is a floating dock — 63px tall, floating
+    // 5px above the viewport bottom (5 + 63 = the 68px clearance the
+    // sheets measure from). The old flush-to-edge pin encoded the previous
+    // bottom bar's styling, not a behavior: sheet abutment, destination
+    // reachability, and the touch-target bounds are all preserved. Pin the
+    // floating geometry exactly instead.
+    assert.equal(baseline.navBottom, baseline.viewportHeight - 5);
     assert.equal(baseline.you.visible, true, JSON.stringify(baseline));
     assert(baseline.you.minimumTouchWidth >= 44, JSON.stringify(baseline));
     assert(baseline.you.minimumTouchHeight >= 44, JSON.stringify(baseline));
