@@ -908,3 +908,38 @@ jobs:
             --command=rollback
           after="$(psql -X -qAt --set=ON_ERROR_STOP=1 --command="select oid::text || ':' || md5(prosrc) from pg_proc where oid = 'public.read_email_queue_backlog_v1()'::regprocedure")"
           test "$before" = "$after"
+
+  sessions-user-fk-hardening:
+    name: Sessions owner foreign-key hardening
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17.11
+        env:
+          POSTGRES_DB: askcrump_test
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres-ci-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d askcrump_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      PGHOST: localhost
+      PGPORT: "5432"
+      PGDATABASE: askcrump_test
+      PGUSER: postgres
+      PGPASSWORD: postgres-ci-only
+
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install PostgreSQL client
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes postgresql-client
+      - name: Prove first apply, exact reapply, cascade, drift refusal, and orphan rollback
+        run: bash tests/postgres/test_sessions_user_fk_hardening.sh
