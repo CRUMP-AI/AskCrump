@@ -1649,6 +1649,43 @@ function wireSettingsSaveState() {
     modal.addEventListener('change', update);
 }
 
+/* The server mints a placeholder address for guest rows
+   (guest-<id>@guest.askcrump.local) that is never mailed and must never be
+   shown as the visitor's identity. Mirror the backend's exact-match check,
+   and treat the isGuest flag the same way. */
+function isGuestPlaceholderEmail(email, userId) {
+    const value = String(email || '').trim().toLowerCase();
+    const expected = `guest-${String(userId || '').trim().toLowerCase()}@guest.askcrump.local`;
+    return Boolean(value) && value === expected;
+}
+
+function isGuestIdentity(user, email) {
+    if (user && (user.isGuest === true || user.is_guest === true)) return true;
+    return isGuestPlaceholderEmail(email, user && user.id);
+}
+
+/* The Profile panel's identity row must never present a guest's transient
+   identifier as a recovery email or a saved account. Guests get a
+   guest-specific presentation; signed-in users keep the exact current copy.
+   Runs on every settings load, so an account switch in the same document
+   resets the presentation deterministically. Returns true for guests. */
+function syncSettingsProfileIdentityPresentation(user, email) {
+    const guest = isGuestIdentity(user, email);
+    const label = document.getElementById('settingsEmailLabel');
+    const help = document.getElementById('settingsEmailHelp');
+    const headline = document.getElementById('settingsProfileHeadline');
+    const emailField = document.getElementById('settingsEmail');
+    if (label) label.textContent = guest ? 'Guest session' : 'Email';
+    if (help) help.textContent = guest
+        ? 'Temporary preview — create a free account to keep your work'
+        : 'Used for account and recovery';
+    if (headline) headline.textContent = guest
+        ? 'You are previewing as a guest. Create a free account to keep your work across devices.'
+        : 'These details follow your account across signed-in devices.';
+    if (emailField) emailField.setAttribute('aria-label', guest ? 'Guest session' : 'Account email');
+    return guest;
+}
+
 function syncSettingsIdentityPresentation() {
     const emailField = document.getElementById('settingsEmail');
     if (!emailField) return;
@@ -1685,6 +1722,10 @@ async function restoreSettingsIdentity() {
             const userEmail = String(user?.email || '').trim();
             if (!userEmail || String(user?.id || '').trim() !== authBoundary.ownerId
                 || !appAuthBoundaryIsCurrent(authBoundary)) return;
+            // A guest's placeholder address must never be filled into the
+            // identity row or cached as profile email; the guest
+            // presentation applied at load already covers this session.
+            if (isGuestIdentity(user, userEmail)) return;
             window.currentUser = { ...(window.currentUser || {}), ...user };
             window.configureUserStorage?.(user.id);
             const profileManager = bindProfileManagerToAuthenticatedUser(user);
@@ -1718,7 +1759,9 @@ function loadSettingsValues() {
     const profile = profileManager?.getProfile?.() || {};
     const settingsEmail = document.getElementById('settingsEmail');
     document.getElementById('settingsName').value = user.fullName || profile.name || '';
-    settingsEmail.value = String(user.email || profile.email || '').trim();
+    const resolvedEmail = String(user.email || profile.email || '').trim();
+    const guestIdentity = syncSettingsProfileIdentityPresentation(user, resolvedEmail);
+    settingsEmail.value = guestIdentity ? '' : resolvedEmail;
     syncSettingsIdentityPresentation();
     if (!String(settingsEmail.value || '').trim()) void restoreSettingsIdentity();
     document.getElementById('assistantName').value = SafeStorage.getItem(STORAGE_KEYS.ASSISTANT_NAME) || 'Crump';

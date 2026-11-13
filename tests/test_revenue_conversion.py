@@ -552,7 +552,7 @@ def test_release_version_and_cache_advance_together():
 
     assert '"version": "5.9.76"' in package
     assert "__version__ = '5.9.76'" in backend
-    assert "ask-crump-new-body-v1-r302-apple-ui-v2-1" in worker
+    assert "ask-crump-new-body-v1-r303-polka-followups-1" in worker
     assert "/landing-5.6.css?v=5.9.76-signin-escape-2" in worker
     assert "/use-case.css?v=5.9.76-contrast-1" in worker
     assert "/landing.js?v=5.9.76-explicit-guest-entry-1" in worker
@@ -575,7 +575,7 @@ def test_changed_activation_assets_are_release_versioned():
         "/conversation.css?v=5.9.76-muse-release-repair-2",
             "/ui-functions.js?v=5.9.76-private-owner-boundary-1",
         "/product-analytics.js?v=5.9.76-server-only-activation-1",
-        "/app.js?v=5.9.76-server-only-activation-1",
+        "/app.js?v=5.9.76-polka-followups-1",
     ):
         assert asset not in shell
         assert asset in runtime

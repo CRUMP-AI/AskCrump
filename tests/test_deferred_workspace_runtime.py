@@ -18,7 +18,7 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
     assert styles == [
         '/styles.css',
         '/install-prompt.css?v=5.9.76',
-        '/auth-styles.css?v=5.9.76-guest-free-contract-3',
+        '/auth-styles.css?v=5.9.76-polka-followups-1',
         '/crump-v1-body.css?v=5.9.76-owned-workspace-access-3',
         '/appearance-controls.css?v=5.9.76-appearance-choice-4',
         # The signed-out shell and authenticated workspace share the small
@@ -37,8 +37,8 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
         '/home-document-entry.js?v=5.9.76-home-document-entry-1',
         '/crump-vision-shell-1.0.js?v=5.9.76-reorg-five-destinations-2',
         '/crump-vision-chats-1.0.js?v=5.9.76-atelier-workspace-2',
-        '/crump-vision-projects-1.0.js?v=5.9.76-reorg-projects-you-2',
-        '/crump-vision-library-1.0.js?v=5.9.76-reorg-projects-you-2',
+        '/crump-vision-projects-1.0.js?v=5.9.76-polka-followups-1',
+        '/crump-vision-library-1.0.js?v=5.9.76-polka-followups-1',
         '/crump-vision-studios-1.0.js?v=5.9.76-premium-workspace-2',
         '/native-runtime.js',
         '/mobile-bridge.js?v=5.9.76-private-owner-boundary-1',
@@ -79,7 +79,7 @@ def test_workspace_runtime_is_complete_idempotent_and_authentication_gated():
         '/sync-manager.js?v=5.9.76-auth-boundary-sync-1',
         '/chat-sync.js?v=5.9.76-initial-chat-owner-reconciliation-1',
         '/account-manager.js?v=5.9.76-account-owner-boundary-1',
-        '/app.js?v=5.9.76-server-only-activation-1',
+        '/app.js?v=5.9.76-polka-followups-1',
         '/product-analytics.js?v=5.9.76-server-only-activation-1',
     ]
     for asset in deferred_assets:

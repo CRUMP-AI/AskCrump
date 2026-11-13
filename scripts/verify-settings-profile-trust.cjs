@@ -25,6 +25,10 @@ const baseUrl = process.env.ASKCRUMP_FIXTURE_ORIGIN || 'http://127.0.0.1:8765';
       email: document.getElementById('settingsEmail')?.value || '',
       emailReadOnly: document.getElementById('settingsEmail')?.readOnly || false,
       emailBusy: document.getElementById('settingsEmail')?.getAttribute('aria-busy'),
+      emailLabel: document.getElementById('settingsEmailLabel')?.textContent || '',
+      emailHelp: document.getElementById('settingsEmailHelp')?.textContent || '',
+      profileHeadline: document.getElementById('settingsProfileHeadline')?.textContent || '',
+      emailAriaLabel: document.getElementById('settingsEmail')?.getAttribute('aria-label') || '',
       saveDisabled: document.getElementById('saveSettingsBtn')?.disabled || false,
       saveAriaDisabled: document.getElementById('saveSettingsBtn')?.getAttribute('aria-disabled'),
       saveTitle: document.getElementById('saveSettingsBtn')?.title || '',
@@ -70,6 +74,30 @@ const baseUrl = process.env.ASKCRUMP_FIXTURE_ORIGIN || 'http://127.0.0.1:8765';
   }));
   await guestPage.close();
 
+  const placeholderPage = await browser.newPage({viewport: {width: 390, height: 844}});
+  const placeholderErrors = [];
+  placeholderPage.on('console', message => { if (message.type() === 'error') placeholderErrors.push(message.text()); });
+  placeholderPage.on('pageerror', error => placeholderErrors.push(error.message));
+  await placeholderPage.goto(`${baseUrl}/tests/fixtures/settings-profile-trust.html?guest=placeholder`, {waitUntil: 'networkidle'});
+  await placeholderPage.getByRole('button', {name: 'Open settings'}).click();
+  await placeholderPage.waitForTimeout(500);
+  const placeholder = await placeholderPage.evaluate(() => ({
+    email: document.getElementById('settingsEmail')?.value || '',
+    emailReadOnly: document.getElementById('settingsEmail')?.readOnly || false,
+    emailBusy: document.getElementById('settingsEmail')?.getAttribute('aria-busy'),
+    emailPlaceholder: document.getElementById('settingsEmail')?.placeholder || '',
+    emailLabel: document.getElementById('settingsEmailLabel')?.textContent || '',
+    emailHelp: document.getElementById('settingsEmailHelp')?.textContent || '',
+    profileHeadline: document.getElementById('settingsProfileHeadline')?.textContent || '',
+    emailAriaLabel: document.getElementById('settingsEmail')?.getAttribute('aria-label') || '',
+    panelText: document.querySelector('.settings-sheet')?.textContent || '',
+    saveDisabled: document.getElementById('saveSettingsBtn')?.disabled || false,
+    saveAriaDisabled: document.getElementById('saveSettingsBtn')?.getAttribute('aria-disabled'),
+    horizontalOverflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
+    fixtureErrors: window.fixtureErrors,
+  }));
+  await placeholderPage.close();
+
   const saveCases = {};
   for (const saveCase of ['sync', 'presence', 'profile']) {
     const page = await browser.newPage({viewport: {width: 390, height: 844}});
@@ -103,6 +131,10 @@ const baseUrl = process.env.ASKCRUMP_FIXTURE_ORIGIN || 'http://127.0.0.1:8765';
     result.initial.email !== 'demo@example.com'
     || !result.initial.emailReadOnly
     || result.initial.emailBusy !== null
+    || result.initial.emailLabel !== 'Email'
+    || result.initial.emailHelp !== 'Used for account and recovery'
+    || result.initial.profileHeadline !== 'These details follow your account across signed-in devices.'
+    || result.initial.emailAriaLabel !== 'Account email'
     || !result.initial.saveDisabled
     || result.initial.saveAriaDisabled !== 'true'
     || result.initial.saveTitle !== 'No changes to save'
@@ -126,6 +158,21 @@ const baseUrl = process.env.ASKCRUMP_FIXTURE_ORIGIN || 'http://127.0.0.1:8765';
     || guest.horizontalOverflow
     || guest.fixtureErrors.length
     || guestErrors.length;
+  const placeholderFailed = placeholder.email
+    || !placeholder.emailReadOnly
+    || placeholder.emailBusy !== null
+    || placeholder.emailPlaceholder !== 'Sign in to view account email'
+    || placeholder.emailLabel !== 'Guest session'
+    || placeholder.emailHelp !== 'Temporary preview — create a free account to keep your work'
+    || placeholder.profileHeadline !== 'You are previewing as a guest. Create a free account to keep your work across devices.'
+    || placeholder.emailAriaLabel !== 'Guest session'
+    || placeholder.panelText.includes('guest.askcrump.local')
+    || placeholder.panelText.includes('Used for account and recovery')
+    || !placeholder.saveDisabled
+    || placeholder.saveAriaDisabled !== 'true'
+    || placeholder.horizontalOverflow
+    || placeholder.fixtureErrors.length
+    || placeholderErrors.length;
   const syncCase = saveCases.sync;
   const presenceCase = saveCases.presence;
   const profileCase = saveCases.profile;
@@ -157,8 +204,8 @@ const baseUrl = process.env.ASKCRUMP_FIXTURE_ORIGIN || 'http://127.0.0.1:8765';
     || !profileCase.toasts.at(-1)?.message.includes('Your name could not be saved')
     || profileCase.fixtureErrors.length
     || profileCase.errors.length;
-  if (failed || guestFailed || saveCaseFailed) throw new Error(JSON.stringify({results, guest, guestErrors, saveCases}));
-  process.stdout.write(`${JSON.stringify({results, guest, saveCases})}\n`);
+  if (failed || guestFailed || placeholderFailed || saveCaseFailed) throw new Error(JSON.stringify({results, guest, guestErrors, placeholder, placeholderErrors, saveCases}));
+  process.stdout.write(`${JSON.stringify({results, guest, placeholder, saveCases})}\n`);
 })().catch(error => {
   process.stderr.write(`${error.stack || error}\n`);
   process.exitCode = 1;
