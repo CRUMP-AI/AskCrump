@@ -165,21 +165,6 @@
     return String(n);
   }
 
-  /* Cover gradient families, in concept order: umber, bronze/olive,
-     slate-blue, sage-green. The family is a stable hash of the record
-     id, so a project keeps its cover across renders. Presentation
-     only — the family never carries meaning. */
-  var COVER_FAMILIES = ['umber', 'bronze', 'slate', 'sage'];
-
-  function coverFamilyFor(value) {
-    var text = String(value == null ? '' : value);
-    var hash = 5381;
-    for (var i = 0; i < text.length; i++) {
-      hash = ((hash << 5) + hash + text.charCodeAt(i)) >>> 0;
-    }
-    return COVER_FAMILIES[hash % COVER_FAMILIES.length];
-  }
-
   async function api(path, authBoundary) {
     if (!authBoundary || !authBoundary.ownerId || !projectsAuthBoundaryIsCurrent(authBoundary)) {
       throw new Error('The signed-in account changed before this request began.');
@@ -196,25 +181,9 @@
     if (!response.ok || data.success === false) {
       var error = new Error(data.error || data.message || 'Request failed (' + response.status + ')');
       error.status = response.status;
-      error.code = data.code || '';
-      error.guestAccountRequired = data.guestAccountRequired === true;
       throw error;
     }
     return data;
-  }
-
-  /* The account gate (a guest reaching an account-only surface) is not a
-     load failure: retries can never succeed, so the surface must name the
-     next step instead of inviting one. The backend reports the gate as a
-     403 carrying the account-creation message (require_account) or as
-     GUEST_ACCOUNT_REQUIRED (feature routes); anything else keeps the
-     transient-failure presentation with its retry. */
-  function isAccountGateError(error) {
-    if (!error) return false;
-    if (error.guestAccountRequired === true) return true;
-    if (String(error.code || '').toUpperCase() === 'GUEST_ACCOUNT_REQUIRED') return true;
-    return error.status === 403
-      && String(error.message || '').indexOf('Create your free account') === 0;
   }
 
   /* ------------------------------------------------------------------ */
@@ -361,19 +330,6 @@
     }).catch(function (error) {
       if (!projectsViewIsCurrent(root, authBoundary)) return;
       switcher.innerHTML = '';
-      if (isAccountGateError(error)) {
-        detail.innerHTML =
-          '<div class="cvp-panel" role="status">' +
-            '<h2>Projects need an account.</h2>' +
-            '<p>Create your free account to save conversations as Projects and keep their context, conversations, and books together.</p>' +
-            '<button type="button" class="cvp-button" data-cvp-create-account>Create free account</button>' +
-          '</div>';
-        var create = detail.querySelector('[data-cvp-create-account]');
-        if (create) create.addEventListener('click', function () {
-          window.location.href = '/app?signup=1&source=projects-gate&plan=free';
-        });
-        return;
-      }
       detail.innerHTML =
         '<div class="cvp-panel cvp-error" role="alert">' +
           '<h2>Projects could not load.</h2>' +
@@ -425,18 +381,12 @@
         var active = String(project.id) === String(selectedProjectId);
         var name = String(project.name || 'Untitled project');
         var meta = projectMetaLine(project);
-        var family = coverFamilyFor(project.id);
-        var coverSub = String((project && project.description) || '').replace(/\s+/g, ' ').trim();
         return (
           '<button type="button" class="cvp-switch cvp-row' + (active ? ' is-active' : '') + '" role="tab" ' +
             'id="cvpProjectTab-' + index + '" aria-controls="cvpProjectDetail" tabindex="' + (active ? '0' : '-1') + '" ' +
             'aria-selected="' + (active ? 'true' : 'false') + '" ' +
             'aria-label="' + esc(name) + '" title="' + esc(name) + '" ' +
             'data-cvp-project="' + esc(project.id) + '">' +
-            '<span class="cvp-cover cvp-cover--' + family + '" aria-hidden="true">' +
-              '<span class="cvp-cover-title">' + esc(name) + '</span>' +
-              (coverSub ? '<span class="cvp-cover-sub">' + esc(coverSub) + '</span>' : '') +
-            '</span>' +
             '<span class="cvp-row-main">' +
               '<span class="cvp-switch-name">' + esc(name) + '</span>' +
               (meta ? '<span class="cvp-switch-date cvp-row-meta">' + esc(meta) + '</span>' : '') +
@@ -526,21 +476,6 @@
 
   function renderDetail(detail, project, context, conversations, keepsakes, authBoundary) {
     var timeline = buildTimeline(project, context);
-    var family = coverFamilyFor(project && project.id);
-    var coverSub = String((project && project.description) || '').replace(/\s+/g, ' ').trim();
-    /* Honest room counts only: conversations, books, and history
-       entries actually returned for this project. No milestone or
-       readiness data exists, so none is shown. */
-    var countBits = [];
-    if (conversations.length) {
-      countBits.push(fmtCount(conversations.length) + (conversations.length === 1 ? ' conversation' : ' conversations'));
-    }
-    if (keepsakes.length) {
-      countBits.push(fmtCount(keepsakes.length) + (keepsakes.length === 1 ? ' book' : ' books'));
-    }
-    if (timeline.length) {
-      countBits.push(fmtCount(timeline.length) + (timeline.length === 1 ? ' history entry' : ' history entries'));
-    }
     var timelineHTML;
     if (!timeline.length) {
       timelineHTML =
@@ -571,20 +506,13 @@
 
     detail.innerHTML =
       '<section class="cvp-project-head">' +
-        '<span class="cvp-cover cvp-cover--' + family + ' cvp-room-cover" aria-hidden="true">' +
-          '<span class="cvp-cover-title">' + esc(project.name || 'Untitled project') + '</span>' +
-          (coverSub ? '<span class="cvp-cover-sub">' + esc(coverSub) + '</span>' : '') +
-        '</span>' +
-        '<div class="cvp-room-intro">' +
-          eyebrowHTML('Project overview') +
-          '<h2>' + esc(project.name || 'Untitled project') + '</h2>' +
-          (project.description ? '<p class="cvp-project-desc">' + esc(project.description) + '</p>' : '') +
-          '<p class="cvp-project-meta">' +
-            (project.created_at ? '<span>Created ' + esc(fmtDate(project.created_at)) + '</span>' : '') +
-            (project.updated_at ? '<span>Updated ' + esc(fmtDate(project.updated_at)) + '</span>' : '') +
-            countBits.map(function (bit) { return '<span>' + esc(bit) + '</span>'; }).join('') +
-          '</p>' +
-        '</div>' +
+        eyebrowHTML('Project overview') +
+        '<h2>' + esc(project.name || 'Untitled project') + '</h2>' +
+        (project.description ? '<p class="cvp-project-desc">' + esc(project.description) + '</p>' : '') +
+        '<p class="cvp-project-meta">' +
+          (project.created_at ? '<span>Created ' + esc(fmtDate(project.created_at)) + '</span>' : '') +
+          (project.updated_at ? '<span>Updated ' + esc(fmtDate(project.updated_at)) + '</span>' : '') +
+        '</p>' +
       '</section>' +
       '<div class="cvp-grid">' +
         '<section class="cvp-panel" aria-label="Project history">' +
@@ -785,17 +713,16 @@
         '<div class="cvp-library-grid">' +
         books.map(function (book) {
           var title = String(book.title || 'Untitled manuscript');
-          var family = coverFamilyFor(book.id);
           var metaBits = [];
           if (book.wordCount != null) metaBits.push(fmtCount(book.wordCount) + ' words');
           var updated = fmtDate(book.updatedAt);
           if (updated) metaBits.push('Updated ' + updated);
           return (
             '<article class="cvp-artifact">' +
-              '<div class="cvp-artifact-top cvp-cover--' + family + '" aria-hidden="true">' +
-                '<span class="cvp-artifact-initial">' + esc(bookInitialFor(title)) + '</span>' +
+              '<div class="cvp-artifact-top">' +
+                '<span class="cvp-artifact-kind">' + esc(libraryTileKind(book)) + '</span>' +
+                '<span class="cvp-artifact-initial" aria-hidden="true">' + esc(bookInitialFor(title)) + '</span>' +
               '</div>' +
-              '<span class="cvp-artifact-kind">' + esc(libraryTileKind(book)) + '</span>' +
               '<h3 class="cvp-artifact-title" title="' + esc(title) + '">' + esc(title) + '</h3>' +
               (metaBits.length ? '<p class="cvp-artifact-meta">' + esc(metaBits.join(' · ')) + '</p>' : '') +
               '<button type="button" class="cvp-link cvp-artifact-open" data-cvp-open-library ' +
@@ -814,11 +741,9 @@
           window.location.href = '/app';
         });
       });
-    }).catch(function (error) {
+    }).catch(function () {
       if (!projectsViewIsCurrent(root, authBoundary)) return;
-      mount.innerHTML = isAccountGateError(error)
-        ? '<p class="cvp-quiet">Create a free account to keep finished artifacts in your Library.</p>'
-        : '<p class="cvp-quiet">Your library could not load just now.</p>';
+      mount.innerHTML = '<p class="cvp-quiet">Your library could not load just now.</p>';
     });
   }
 

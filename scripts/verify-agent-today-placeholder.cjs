@@ -368,10 +368,8 @@ function assertReorgStatics(m, label, state, viewportWidth) {
   assert.match(m.creditText, /2 credits/, `${label}: credit line "${m.creditText}"`);
   assert.equal(m.creditBeforeActions, true, `${label}: credit line must precede the buttons`);
   assert.equal(m.approvePresent, true, `${label}: Approve button missing`);
-  // Section eyebrows are the quiet secondary-text token, tracked and
-  // uppercase — ink-muted in dark, ink-soft in light.
-  assert.ok(['rgb(143, 141, 136)', 'rgb(79, 76, 70)'].includes(m.sectionTitleColor),
-    `${label}: section eyebrow color ${m.sectionTitleColor}`);
+  // Section eyebrows are the gold token, tracked and uppercase.
+  assert.equal(m.sectionTitleColor, 'rgb(213, 185, 113)', `${label}: section eyebrow color`);
   // Live work shows a current step and the neutral browser tile.
   assert.equal(m.browserTilePresent, true, `${label}: browser preview tile missing`);
   assert.match(m.stepText, /Current step/, `${label}: step line "${m.stepText}"`);
@@ -641,7 +639,7 @@ async function runTasksScenarios(browser) {
       await openTasksFixture(page, `${fixtureUrl}?theme=${theme}&state=live&tasks=mixed`);
       const m = await measureTasks(page);
       assert.equal(m.panelVisible, true, `${label}: Tasks panel not visible`);
-      assert.equal(m.panelBackground, theme === 'dark' ? 'rgb(11, 12, 14)' : 'rgb(244, 240, 232)', `${label}: drawer ground ${m.panelBackground}`);
+      assert.equal(m.panelBackground, 'rgb(7, 10, 14)', `${label}: drawer ground ${m.panelBackground}`);
       // Ledger genre: the header carries no utility pills — the only
       // control is the quiet close affordance — and the title sets at
       // the page-title scale in serif.
@@ -651,7 +649,7 @@ async function runTasksScenarios(browser) {
       assert.deepEqual(m.groupTitles, ['Waiting on you', 'Running', 'Scheduled', 'Done'],
         `${label}: group order ${JSON.stringify(m.groupTitles)}`);
       const [waiting, running, scheduled, done] = m.groups;
-      assert.equal(waiting.titleColor, theme === 'dark' ? 'rgb(143, 141, 136)' : 'rgb(79, 76, 70)', `${label}: group eyebrow color`);
+      assert.equal(waiting.titleColor, 'rgb(213, 185, 113)', `${label}: group eyebrow color`);
       // PR2 dependency: every pending approval renders in full here.
       assert.equal(waiting.cards, 4, `${label}: waiting approval cards ${waiting.cards}`);
       // The group eyebrow already names the state: no card inside the
@@ -866,20 +864,15 @@ async function measureProjectsYou(page) {
 async function measureProjectsRowVisibility(page) {
   // Paint-level visibility, not DOM presence: each project row's
   // center must hit-test to the row itself or one of its children.
-  // The gallery scrolls — book covers are tall by design, and the
-  // concept collapses the grid to two columns under 1100px — so each
-  // row is scrolled into view before its center is probed. A covering
-  // layer would still intercept the hit after the scroll, so the
-  // gate keeps its purpose: the composed fixture stacks the shell
-  // workspace and the Settings sheet over the rows' band, and DOM
-  // assertions alone let the covered rows through, the same blind
-  // spot the Chat nonintersection guard closed.
+  // The composed fixture stacks the shell workspace and the Settings
+  // sheet over the rows' band, so the staged composition is measured
+  // here — DOM assertions alone let the covered rows through, the
+  // same blind spot the Chat nonintersection guard closed.
   return page.evaluate(() => {
     const describe = el => (el
       ? `${el.tagName.toLowerCase()} ${String(el.className || '').trim()}`.trim()
       : 'nothing');
     const rows = [...document.querySelectorAll('#projectsRoot .cvp-row')].map(row => {
-      row.scrollIntoView({ behavior: 'instant', block: 'center' });
       const box = row.getBoundingClientRect();
       const hit = document.elementFromPoint(box.left + box.width / 2, box.top + box.height / 2);
       return {
@@ -972,11 +965,7 @@ async function runProjectsYouScenarios(browser) {
       if (viewport.name === '390x844') {
         // The pre-rebuild screen measured 2594px in this state; the
         // row build must stay a settings list, not an editorial page.
-        // The v2 identity hero (eyebrow, page title, avatar + name
-        // row) adds a fixed block above the four groups, so the bound
-        // is calibrated to the hero-plus-groups composition: it still
-        // sits ~900px below the editorial page it guards against.
-        assert.ok(m.youGenre.rootHeight <= 1650,
+        assert.ok(m.youGenre.rootHeight <= 1500,
           `${label}: You height ${m.youGenre.rootHeight}px reads as a scroll page, not a list`);
       }
       assert.ok(m.documentScrollWidth <= viewport.width,
@@ -1123,7 +1112,7 @@ async function runChatScenarios(browser) {
         assert.deepEqual(m.composerChildIds, ['attachBtn', 'userInput', 'sendButton'],
           `${label}: composer bar ${JSON.stringify(m.composerChildIds)}`);
         // The composer's finish follows the design at every size and
-        // in both themes: the send button is the concept gold, the
+        // in both themes: the send button is the house gold, the
         // attach control is a gold-outline chip on a transparent
         // ground, and the placeholder sets on one line — its box
         // never grows a clipped second line.
@@ -1139,16 +1128,16 @@ async function runChatScenarios(browser) {
         // trailing into an ellipsis at the send button.
         assert.ok(m.composer.placeholderWidth <= m.composer.contentWidth + 0.5,
           `${label}: placeholder truncates (${m.composer.placeholderWidth.toFixed(1)}px of text in ${m.composer.contentWidth.toFixed(1)}px of field)`);
-        assert.equal(m.composer.sendBackground, theme === 'dark' ? 'rgb(239, 200, 120)' : 'rgb(200, 144, 61)',
+        assert.equal(m.composer.sendBackground, 'rgb(213, 185, 113)',
           `${label}: send button background ${m.composer.sendBackground}`);
         assert.equal(m.composer.attachBackground, 'rgba(0, 0, 0, 0)',
           `${label}: attach chip background ${m.composer.attachBackground}`);
         assert.equal(m.composer.attachBorderStyle, 'solid',
           `${label}: attach chip border style ${m.composer.attachBorderStyle}`);
         const attachBorder = parseColor(m.composer.attachBorderColor);
-        assert.ok(Math.abs(attachBorder.r - 210) <= 2 && Math.abs(attachBorder.g - 160) <= 2 &&
-          Math.abs(attachBorder.b - 79) <= 2,
-          `${label}: attach chip border ${m.composer.attachBorderColor} is not the concept gold`);
+        assert.ok(Math.abs(attachBorder.r - 213) <= 2 && Math.abs(attachBorder.g - 185) <= 2 &&
+          Math.abs(attachBorder.b - 113) <= 2,
+          `${label}: attach chip border ${m.composer.attachBorderColor} is not the house gold`);
         assert.ok(m.documentScrollWidth <= viewport.width,
           `${label}: document scrollWidth ${m.documentScrollWidth} > ${viewport.width}`);
         assert.equal(m.todayVisible, false, `${label}: Today surface visible in a conversation`);
@@ -1442,10 +1431,10 @@ async function runBrowserPanelScenarios(browser) {
       // Gold hairline on the anchored edge.
       assert.equal(m.borderLeftWidth, '1px', `${label}: border-left width`);
       const borderColor = parseColor(m.borderLeftColor);
-      assert.ok(Math.abs(borderColor.r - 210) <= 2 && Math.abs(borderColor.g - 160) <= 2 &&
-        Math.abs(borderColor.b - 79) <= 2 && Math.abs(borderColor.a - 0.35) <= 0.02,
+      assert.ok(Math.abs(borderColor.r - 213) <= 2 && Math.abs(borderColor.g - 185) <= 2 &&
+        Math.abs(borderColor.b - 113) <= 2 && Math.abs(borderColor.a - 0.35) <= 0.02,
         `${label}: border-left color ${m.borderLeftColor} is not the gold hairline`);
-      assert.equal(m.winBackground, theme === 'dark' ? 'rgb(16, 17, 20)' : 'rgb(248, 245, 239)', `${label}: panel ground ${m.winBackground}`);
+      assert.equal(m.winBackground, 'rgb(17, 20, 23)', `${label}: panel ground ${m.winBackground}`);
       // The backdrop covers the whole viewport, composer dock
       // included, so dismissal is always reachable over the chat.
       assert.ok(m.panelRect.left <= 0.6 && m.panelRect.top <= 0.6 &&
@@ -1705,12 +1694,12 @@ async function run() {
           await page.waitForTimeout(150);
           const m = await measure(page);
 
-          // The greeting is present, at full opacity, in ink on the
-          // layer's own canvas ground — never ink-on-ink ghosted. The fix is
+          // The greeting is present, at full opacity, in off-white on the
+          // layer's own ink ground — never ink-on-ink ghosted. The fix is
           // the text color against its ground, in both appearances.
           assert.match(m.titleText, /^Good (morning|afternoon|evening), Gregory\./, label);
-          assert.equal(m.titleColor, theme === 'dark' ? 'rgb(244, 240, 232)' : 'rgb(23, 22, 20)', `${label}: greeting color`);
-          assert.equal(m.titleBackground, theme === 'dark' ? 'rgb(11, 12, 14)' : 'rgb(244, 240, 232)', `${label}: greeting ground`);
+          assert.equal(m.titleColor, 'rgb(241, 239, 233)', `${label}: greeting color`);
+          assert.equal(m.titleBackground, 'rgb(7, 10, 14)', `${label}: greeting ground`);
           assert.equal(m.titleOpacity, 1, `${label}: greeting opacity`);
           const greetingRatio = contrastRatio(m.titleColor, m.titleBackground);
           assert.ok(greetingRatio >= 4.5, `${label}: greeting contrast ${greetingRatio}`);
@@ -1730,19 +1719,15 @@ async function run() {
           // never forced to ink (the shell's hero text there is dark
           // on light by design).
           if (theme === 'dark') {
-            assert.equal(m.workspaceBackground, 'rgb(11, 12, 14)',
+            assert.equal(m.workspaceBackground, 'rgb(7, 10, 14)',
               `${label}: workspace ground behind the surface ${m.workspaceBackground}`);
           } else {
-            assert.notEqual(m.workspaceBackground, 'rgb(11, 12, 14)',
-              `${label}: workspace ground forced to the dark canvas in the light appearance`);
+            assert.notEqual(m.workspaceBackground, 'rgb(7, 10, 14)',
+              `${label}: workspace ground forced to ink in the light appearance`);
           }
           assert.equal(m.chipPresent, true, `${label}: eyebrow monogram chip missing`);
-          // Hero type scale: the concept's editorial greeting clamp —
-          // clamp(62px, 7.4vw, 94px) on desktop, clamp(45px, 13vw, 58px)
-          // at phone widths, 42px at 360px and under — set on two lines.
-          const expectedGreeting = viewport.width <= 360 ? 42
-            : viewport.width <= 760 ? Math.min(Math.max(45, viewport.width * 0.13), 58)
-            : Math.min(Math.max(62, viewport.width * 0.074), 94);
+          // Hero type scale: the vw-driven clamp, set on two lines.
+          const expectedGreeting = Math.min(Math.max(50, viewport.width * 0.136), 76);
           assert.ok(Math.abs(m.titleFontPx - expectedGreeting) <= 1,
             `${label}: greeting ${m.titleFontPx}px, expected ~${expectedGreeting}px`);
           if (viewport.width >= 390) {

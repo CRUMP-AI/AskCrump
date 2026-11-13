@@ -148,7 +148,7 @@ function assertClean(fixture) {
   assert.equal(recovered.error, null);
   assert.equal(style.state(), 'ready');
   assert.equal(style.attempts.filter(item => item.url === '/billing.css').length, 3);
-  assert.equal(style.attempts.filter(item => item.url === '/conversation.css?v=5.9.76-muse-release-repair-2').length, 1, 'successful styles survive asset-only recovery');
+  assert.equal(style.attempts.filter(item => item.url === '/conversation.css?v=5.9.76-muse-release-repair-1').length, 1, 'successful styles survive asset-only recovery');
   assert.equal(style.executed.length, 35);
   assert.deepEqual(style.events, ['crump:body-runtime-ready']);
   assertClean(style);

@@ -1,61 +1,4 @@
 /* Appearance chooser only. The app-wide palettes live in crump-design-pass.css. */
-
-/* Apple UI v2 tokens (dark defaults); the light appearance flips them below. */
-:root {
-  --ac-canvas: #0b0c0e;
-  --ac-canvas-raised: #101114;
-  --ac-surface: #15161a;
-  --ac-surface-2: #1b1c20;
-  --ac-surface-3: #222329;
-  --ac-material: rgba(17,18,21,.82);
-  --ac-material-strong: rgba(22,23,27,.94);
-  --ac-ink: #f4f0e8;
-  --ac-ink-soft: #c9c5bd;
-  --ac-ink-muted: #8f8d88;
-  --ac-ink-faint: #696a6e;
-  --ac-hairline: rgba(255,255,255,.09);
-  --ac-hairline-strong: rgba(255,255,255,.16);
-  --ac-gold: #d2a04f;
-  --ac-gold-bright: #efc878;
-  --ac-gold-soft: rgba(210,160,79,.16);
-  --ac-gold-wash: rgba(210,160,79,.08);
-  --ac-sage: #88a57b;
-  --ac-sage-soft: rgba(90,130,88,.18);
-  --ac-blue: #8ca9c8;
-  --ac-blue-soft: rgba(75,112,153,.2);
-  --ac-danger: #df846f;
-  --ac-shadow: 0 22px 60px rgba(0,0,0,.28);
-  --ac-radius-control: 14px;
-  --ac-radius-panel: 24px;
-  --ac-serif: ui-serif,"Iowan Old Style","Palatino Linotype",Palatino,Georgia,serif;
-  --ac-sans: -apple-system,BlinkMacSystemFont,"SF Pro Display","Segoe UI",sans-serif;
-}
-
-html[data-theme="light"] {
-  color-scheme: light;
-  --ac-canvas: #f4f0e8;
-  --ac-canvas-raised: #f8f5ef;
-  --ac-surface: #fffdf9;
-  --ac-surface-2: #eee9df;
-  --ac-surface-3: #e7e1d5;
-  --ac-material: rgba(249,246,239,.82);
-  --ac-material-strong: rgba(255,253,249,.95);
-  --ac-ink: #171614;
-  --ac-ink-soft: #4f4c46;
-  --ac-ink-muted: #79756d;
-  --ac-ink-faint: #9a958b;
-  --ac-hairline: rgba(45,40,31,.1);
-  --ac-hairline-strong: rgba(45,40,31,.18);
-  --ac-gold: #aa7428;
-  --ac-gold-bright: #c8903d;
-  --ac-gold-soft: rgba(170,116,40,.13);
-  --ac-gold-wash: rgba(170,116,40,.07);
-  --ac-sage: #55704f;
-  --ac-sage-soft: rgba(85,112,79,.12);
-  --ac-blue: #526f8d;
-  --ac-blue-soft: rgba(82,111,141,.12);
-  --ac-shadow: 0 24px 60px rgba(67,51,28,.12);
-}
 body.crump-v1-body .settings-list.appearance-list {
   padding: 10px !important;
   overflow: visible !important;
@@ -64,7 +7,7 @@ body.crump-v1-body .settings-list.appearance-list {
 body.crump-v1-body .appearance-choices {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
+  gap: 10px;
   min-width: 0;
   margin: 0;
   padding: 0;
@@ -86,28 +29,27 @@ body.crump-v1-body .appearance-choice {
   position: relative;
   display: grid;
   min-width: 0;
-  grid-template-columns: minmax(0, 1fr) 18px;
-  grid-template-rows: 80px auto;
-  align-items: start;
-  gap: 13px 10px;
-  min-height: 160px;
+  grid-template-columns: 58px minmax(0, 1fr) 18px;
+  align-items: center;
+  gap: 12px;
+  min-height: 92px;
   padding: 12px;
-  border: 1px solid var(--ac-hairline);
-  border-radius: 17px;
-  background: transparent;
-  color: var(--ac-ink) !important;
+  border: 1px solid var(--atelier-line, #e4ded2);
+  border-radius: 16px;
+  background: var(--atelier-white, #fffdf9);
+  color: var(--atelier-panel-text, #22252a) !important;
   cursor: pointer;
   transition: border-color .18s ease, box-shadow .18s ease, transform .18s ease;
 }
 
 body.crump-v1-body .appearance-choice:hover {
-  border-color: var(--ac-hairline-strong);
+  border-color: color-mix(in srgb, var(--atelier-brass, #b2914e) 48%, var(--atelier-line, #e4ded2));
   transform: translateY(-1px);
 }
 
 body.crump-v1-body .appearance-choice.is-selected {
-  border-color: var(--ac-gold);
-  box-shadow: 0 0 0 2px var(--ac-gold-soft);
+  border-color: var(--atelier-brass, #b2914e);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--atelier-brass, #b2914e) 15%, transparent);
 }
 
 body.crump-v1-body .appearance-choice input {
@@ -119,80 +61,73 @@ body.crump-v1-body .appearance-choice input {
 }
 
 body.crump-v1-body .appearance-choice:has(input:focus-visible) {
-  outline: 2px solid var(--ac-gold) !important;
+  outline: 2px solid var(--atelier-brass, #b2914e) !important;
   outline-offset: 3px !important;
 }
 
 body.crump-v1-body .appearance-preview {
   display: grid;
-  grid-column: 1 / -1;
-  grid-row: 1;
-  width: 100%;
-  height: 80px;
-  grid-template-columns: 25% 1fr;
+  width: 58px;
+  height: 52px;
+  grid-template-columns: 17px 1fr;
   overflow: hidden;
-  border: 1px solid rgba(127, 127, 127, .18);
-  border-radius: 11px;
+  border: 1px solid rgba(20, 22, 25, .14);
+  border-radius: 10px;
+  box-shadow: 0 5px 14px rgba(22, 20, 16, .08);
 }
 
 body.crump-v1-body .appearance-preview::before {
   content: '';
   grid-row: 1;
-  background: var(--appearance-preview-rail);
+  background: #111419;
 }
 
 body.crump-v1-body .appearance-preview::after {
   content: '';
   grid-row: 1;
   background:
-    linear-gradient(90deg, transparent 12px, color-mix(in srgb, var(--ac-gold) 70%, transparent) 12px 30px, transparent 30px) 0 18px / 100% 2px no-repeat,
-    linear-gradient(90deg, transparent 12px, currentColor 12px 52px, transparent 52px) 0 34px / 100% 2px no-repeat,
-    linear-gradient(90deg, transparent 12px, currentColor 12px 42px, transparent 42px) 0 50px / 100% 2px no-repeat,
+    linear-gradient(90deg, transparent 8px, rgba(178, 145, 78, .7) 8px 21px, transparent 21px) 0 11px / 100% 2px no-repeat,
+    linear-gradient(90deg, transparent 8px, currentColor 8px 31px, transparent 31px) 0 23px / 100% 2px no-repeat,
+    linear-gradient(90deg, transparent 8px, currentColor 8px 25px, transparent 25px) 0 34px / 100% 2px no-repeat,
     var(--appearance-preview-surface);
   color: var(--appearance-preview-line);
 }
 
 body.crump-v1-body .appearance-preview-light {
-  --appearance-preview-rail: #e8e2d8;
-  --appearance-preview-surface: #fffdf9;
-  --appearance-preview-line: #b9b2a4;
+  --appearance-preview-surface: #f8f5ee;
+  --appearance-preview-line: #9da0a4;
 }
 
 body.crump-v1-body .appearance-preview-dark {
-  --appearance-preview-rail: #16171a;
-  --appearance-preview-surface: #0b0c0e;
+  --appearance-preview-surface: #1b1e23;
   --appearance-preview-line: #777d84;
+  border-color: rgba(255, 255, 255, .13);
 }
 
 body.crump-v1-body .appearance-choice-copy {
   display: grid;
-  grid-column: 1;
-  grid-row: 2;
   gap: 4px;
   min-width: 0;
 }
 
 body.crump-v1-body .appearance-choice-copy strong {
-  color: var(--ac-ink) !important;
+  color: var(--atelier-panel-text, #22252a) !important;
   font-size: 12px;
   font-weight: 680;
 }
 
 body.crump-v1-body .appearance-choice-copy small {
-  color: var(--ac-ink-soft) !important;
+  color: var(--atelier-panel-muted, #6e747a) !important;
   font-size: 9px;
   line-height: 1.4;
 }
 
 body.crump-v1-body .appearance-check {
   display: grid;
-  grid-column: 2;
-  grid-row: 2;
-  align-self: center;
   width: 18px;
   height: 18px;
   place-items: center;
-  border: 1px solid var(--ac-hairline-strong);
+  border: 1px solid var(--atelier-line, #e4ded2);
   border-radius: 50%;
   color: transparent;
   font-size: 11px;
@@ -200,34 +135,21 @@ body.crump-v1-body .appearance-check {
 }
 
 body.crump-v1-body .appearance-choice.is-selected .appearance-check {
-  border-color: var(--ac-gold);
-  background: var(--ac-gold);
-  color: #21160b;
+  border-color: var(--atelier-brass, #b2914e);
+  background: var(--atelier-brass, #b2914e);
+  color: #111317;
 }
 
 body.crump-v1-body .appearance-device-note {
   margin: 12px 2px 0;
-  color: var(--ac-ink-soft) !important;
+  color: var(--atelier-panel-muted, #6e747a) !important;
   font-size: 9px;
   line-height: 1.55;
 }
 
 @media (max-width: 640px) {
   body.crump-v1-body .appearance-choices { grid-template-columns: 1fr; }
-  body.crump-v1-body .appearance-choice {
-    grid-template-columns: 94px minmax(0, 1fr) 18px;
-    grid-template-rows: auto;
-    align-items: center;
-    min-height: 94px;
-  }
-  body.crump-v1-body .appearance-preview {
-    grid-column: 1;
-    grid-row: 1;
-    width: 94px;
-    height: 68px;
-  }
-  body.crump-v1-body .appearance-choice-copy { grid-column: 2; grid-row: 1; }
-  body.crump-v1-body .appearance-check { grid-column: 3; grid-row: 1; }
+  body.crump-v1-body .appearance-choice { min-height: 82px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

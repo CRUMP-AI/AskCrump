@@ -3,94 +3,27 @@
  *
  * Additive home surface: Today brief, approvals, live work, Tasks drawer,
  * and the browser panel shell. Loaded last so it can sit on top of the
- * vision shell without editing any existing module. Visual system follows
- * the Ask Crump Apple Standard UI Concept v2: --ac-* tokens (dark
- * defaults, light override below), editorial serif hierarchy, warm gold
- * accent, hairline borders. The concept's placeholder mark is never
- * rendered here; no brand asset is touched.
+ * vision shell without editing any existing module. Palette and type follow
+ * the house standard: ink, gold, off-white, Georgia display, Inter body.
  */
 
 :root {
-  color-scheme: dark;
-  /* Apple UI v2 tokens (dark defaults). --ac-* is the system of record. */
-  --ac-canvas: #0b0c0e;
-  --ac-canvas-raised: #101114;
-  --ac-surface: #15161a;
-  --ac-surface-2: #1b1c20;
-  --ac-surface-3: #222329;
-  --ac-material: rgba(17, 18, 21, 0.82);
-  --ac-material-strong: rgba(22, 23, 27, 0.94);
-  --ac-ink: #f4f0e8;
-  --ac-ink-soft: #c9c5bd;
-  --ac-ink-muted: #8f8d88;
-  --ac-ink-faint: #696a6e;
-  --ac-hairline: rgba(255, 255, 255, 0.09);
-  --ac-hairline-strong: rgba(255, 255, 255, 0.16);
-  --ac-gold: #d2a04f;
-  --ac-gold-bright: #efc878;
-  --ac-gold-soft: rgba(210, 160, 79, 0.16);
-  --ac-gold-wash: rgba(210, 160, 79, 0.08);
-  --ac-sage: #88a57b;
-  --ac-sage-soft: rgba(90, 130, 88, 0.18);
-  --ac-blue: #8ca9c8;
-  --ac-blue-soft: rgba(75, 112, 153, 0.2);
-  --ac-danger: #df846f;
-  --ac-shadow: 0 22px 60px rgba(0, 0, 0, 0.28);
-  --ac-radius-control: 14px;
-  --ac-radius-panel: 24px;
-  --ac-serif: ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
-  --ac-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
-  /* Legacy layer tokens, mapped onto the system above. --cat-ink is
-     the ground token (canvas) and --cat-paper the primary text token
-     (ink) — the names predate the token system, the values follow it.
-     --cat-gray is secondary text: muted in dark, soft in light (see
-     the light override), because muted fails AA on the light canvas. */
-  --cat-ink: var(--ac-canvas);
-  --cat-panel: var(--ac-surface);
-  --cat-gold: var(--ac-gold);
-  --cat-gold-bright: var(--ac-gold-bright);
-  --cat-paper: var(--ac-ink);
-  --cat-paper-dim: var(--ac-ink-soft);
-  --cat-gray: var(--ac-ink-muted);
-  --cat-gray-on-light: var(--ac-ink-soft);
-  --cat-card: var(--ac-surface);
-  --cat-line: var(--ac-hairline);
-  --cat-line-light: var(--ac-hairline-strong);
-  --cat-ink-soft: var(--ac-ink-soft);
+  --cat-ink: #070a0e;
+  --cat-panel: #0f1419;
+  --cat-gold: #b69855;
+  --cat-gold-bright: #d5b971;
+  --cat-paper: #f1efe9;
+  --cat-paper-dim: rgba(241, 239, 233, 0.72);
+  --cat-gray: #8a9196;
+  --cat-gray-on-light: #595f64;
+  --cat-card: #fffefa;
+  --cat-line: rgba(7, 10, 14, 0.1);
+  --cat-line-light: rgba(241, 239, 233, 0.16);
+  --cat-ink-soft: rgba(7, 10, 14, 0.72);
   --cat-radius: 24px;
   --cat-section-gap: 44px;
   --cat-card-padding: 28px;
   --cat-stack-gap: 28px;
-}
-
-html[data-theme="light"] {
-  color-scheme: light;
-  --ac-canvas: #f4f0e8;
-  --ac-canvas-raised: #f8f5ef;
-  --ac-surface: #fffdf9;
-  --ac-surface-2: #eee9df;
-  --ac-surface-3: #e7e1d5;
-  --ac-material: rgba(249, 246, 239, 0.82);
-  --ac-material-strong: rgba(255, 253, 249, 0.95);
-  --ac-ink: #171614;
-  --ac-ink-soft: #4f4c46;
-  --ac-ink-muted: #79756d;
-  --ac-ink-faint: #9a958b;
-  --ac-hairline: rgba(45, 40, 31, 0.1);
-  --ac-hairline-strong: rgba(45, 40, 31, 0.18);
-  --ac-gold: #aa7428;
-  --ac-gold-bright: #c8903d;
-  --ac-gold-soft: rgba(170, 116, 40, 0.13);
-  --ac-gold-wash: rgba(170, 116, 40, 0.07);
-  --ac-sage: #55704f;
-  --ac-sage-soft: rgba(85, 112, 79, 0.12);
-  --ac-blue: #526f8d;
-  --ac-blue-soft: rgba(82, 111, 141, 0.12);
-  --ac-shadow: 0 24px 60px rgba(67, 51, 28, 0.12);
-  /* Secondary text steps up to ink-soft in light: ink-muted on the
-     light canvas is ~4.0:1, below AA for normal text. */
-  --cat-gray: var(--ac-ink-soft);
-  --cat-gray-on-light: var(--ac-ink-soft);
 }
 
 /* The layer owns its box model. Its geometry used to depend on the
@@ -152,33 +85,27 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
 /* Today surface                                                       */
 /* ------------------------------------------------------------------ */
 
-/* The Today surface owns the ground: it paints the canvas edge-to-edge
+/* The Today surface owns the ground: it paints the ink edge-to-edge
    with no sheet treatment — no width cap, no inset margin, no border,
    no radius — so the destination itself is the ground the design
-   specifies, not a bordered panel floating over the shell. The ground
-   follows the appearance: dark canvas in dark, warm paper in light,
-   with the greeting in the matching ink at full contrast in either. */
+   specifies, not a bordered panel floating over the shell's black.
+   The layer originally assumed the light paper workspace: its greeting
+   and quiet states were ink text with no ground of their own, so on
+   the dark workspace ground the greeting rendered ink-on-ink at
+   roughly 1:1 contrast and read as ghosted. On its own ink ground the
+   greeting is off-white on ink at full contrast in either theme, and
+   no neighbouring surface can dim or cover it. */
 .cat-today {
   width: 100%;
   margin: 0;
   padding: 36px 32px 32px;
   background: var(--cat-ink);
   color: var(--cat-paper);
-  font-family: var(--ac-sans);
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 .cat-today[hidden] {
   display: none !important;
-}
-
-/* The surface stays edge-to-edge, but its content column centres at
-   the concept's 1120px measure on wide screens. */
-.cat-today-head,
-.cat-today-section,
-.cat-brief-connect {
-  max-width: 1120px;
-  margin-left: auto;
-  margin-right: auto;
 }
 
 .cat-today-eyebrow {
@@ -190,7 +117,7 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
   font-weight: 700;
   letter-spacing: 0.22em;
   text-transform: uppercase;
-  color: var(--cat-gray);
+  color: var(--cat-gold);
 }
 
 /* The gold C monogram chip paired with the eyebrow text: a small
@@ -202,9 +129,9 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
   place-items: center;
   width: 30px;
   height: 30px;
-  border: 1px solid color-mix(in srgb, var(--ac-gold-bright) 60%, transparent);
+  border: 1px solid rgba(213, 185, 113, 0.6);
   border-radius: 9px;
-  font-family: var(--ac-serif, Georgia, serif);
+  font-family: Georgia, "Times New Roman", serif;
   font-size: 16px;
   font-weight: 600;
   line-height: 1;
@@ -215,29 +142,28 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
 
 .cat-today-title {
   margin: 0;
-  font-family: var(--ac-serif, Georgia, serif);
-  /* The concept's editorial greeting: clamp(62px, 7.4vw, 94px) on
-     desktop, clamp(45px, 13vw, 58px) at phone widths (see the 760px
-     breakpoint below), 42px at 360px and under. Fit was measured
-     headless in the VM's fallback serif (wider than Georgia or
-     Palatino, so conservative): "Good afternoon," — the longest
-     daypart line — measures 297.7px at 50.7px (390px viewport) against
-     a 350px content box, and 240.8px at 42px (320px viewport) against
-     a 280px box, so the two-line greeting fits at 320/390 without
-     clipping. The tight letter-spacing is part of the fit math. */
-  font-size: clamp(62px, 7.4vw, 94px);
+  font-family: Georgia, "Times New Roman", serif;
+  /* The mockup's greeting sets at ~62px, but its first line is the
+     constraint: "Good afternoon," measures 398px wide at 62px in
+     Georgia (406px in the widest measurement on record) against a
+     350px content box at 390px wide, so 62px wraps the daypart and
+     breaks the two-line greeting. The fit cap at 390 is ~53.4px;
+     13.6vw lands at 53px there — the largest step that keeps two
+     lines at 390 under both measurements — with the 76px ceiling
+     unchanged on desktop and the 50px floor unchanged at 320. */
+  font-size: clamp(50px, 13.6vw, 76px);
   font-weight: 500;
-  line-height: 0.9;
-  letter-spacing: -4px;
+  line-height: 1.04;
+  letter-spacing: -0.01em;
   color: var(--cat-paper);
 }
 
 .cat-today-sub {
-  margin: 14px 0 0;
-  font-size: 18px;
+  margin: 10px 0 0;
+  font-size: 15px;
   line-height: 1.55;
-  color: var(--ac-ink-soft);
-  max-width: 500px;
+  color: var(--cat-gray);
+  max-width: 56ch;
 }
 
 .cat-today-section {
@@ -245,12 +171,12 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
 }
 
 .cat-today-section-title {
-  margin: 0 0 16px;
+  margin: 0 0 12px;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--cat-gray);
+  color: var(--cat-gold-bright);
 }
 
 .cat-today-stack {
@@ -259,11 +185,10 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
 }
 
 .cat-card {
-  background: var(--ac-surface);
-  border: 1px solid var(--ac-hairline);
+  background: var(--cat-card);
+  border: 1px solid var(--cat-line);
   border-radius: var(--cat-radius);
   padding: var(--cat-card-padding);
-  color: var(--ac-ink);
 }
 
 .cat-card-head {
@@ -271,7 +196,7 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
-  color: var(--cat-gray);
+  color: var(--cat-gray-on-light);
 }
 
 .cat-card-head > * {
@@ -284,7 +209,7 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
   font-size: 21px;
   font-weight: 700;
   line-height: 1.3;
-  color: var(--ac-ink);
+  color: var(--cat-ink);
 }
 
 /* The approval headline is a one-line ask, not a card title: it sets
@@ -295,15 +220,13 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
    keep the 21px token. */
 .cat-card-exact {
   font-size: 18px;
-  font-family: var(--ac-serif, Georgia, serif);
-  font-weight: 600;
 }
 
 .cat-card-summary {
   margin: 6px 0 0;
   font-size: 14px;
   line-height: 1.55;
-  color: var(--ac-ink-soft);
+  color: var(--cat-ink-soft);
   overflow-wrap: anywhere;
 }
 
@@ -311,7 +234,7 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
   margin: 8px 0 0;
   font-size: 12.5px;
   line-height: 1.5;
-  color: var(--cat-gray);
+  color: var(--cat-gray-on-light);
 }
 
 .cat-status {
@@ -321,40 +244,37 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
   min-height: 26px;
   padding: 3px 10px;
   border-radius: 999px;
-  border: 1px solid var(--ac-hairline-strong);
-  background: var(--ac-surface-2);
+  border: 1px solid var(--cat-line);
+  background: var(--cat-paper);
   font-size: 11.5px;
   font-weight: 600;
   letter-spacing: 0.04em;
-  color: var(--ac-ink-soft);
+  color: var(--cat-ink-soft);
   white-space: nowrap;
 }
 
 .cat-status-live {
-  border-color: var(--ac-gold);
-  background: var(--ac-gold-soft);
-  color: var(--ac-gold-bright);
+  border-color: rgba(182, 152, 85, 0.55);
+  color: #7c6427;
 }
 
 .cat-status-waiting {
-  border-color: var(--ac-gold);
-  background: var(--ac-gold-soft);
-  color: var(--ac-gold-bright);
+  border-color: rgba(182, 152, 85, 0.55);
+  background: rgba(213, 185, 113, 0.16);
+  color: #7c6427;
 }
 
 .cat-status-done {
-  border-color: transparent;
-  background: var(--ac-sage-soft);
-  color: var(--ac-sage);
+  color: var(--cat-gray-on-light);
 }
 
 .cat-status-failed {
-  color: var(--ac-danger);
+  color: #8c3b2e;
 }
 
 .cat-payload {
   margin: 14px 0 0;
-  border-top: 1px solid var(--ac-hairline);
+  border-top: 1px solid var(--cat-line);
   padding-top: 12px;
   display: grid;
   gap: 8px;
@@ -370,13 +290,13 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
 
 .cat-payload-row dt {
   font-weight: 600;
-  color: var(--cat-gray);
+  color: var(--cat-gray-on-light);
   overflow-wrap: anywhere;
 }
 
 .cat-payload-row dd {
   margin: 0;
-  color: var(--ac-ink);
+  color: var(--cat-ink);
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
@@ -391,10 +311,10 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
 
 .cat-btn {
   appearance: none;
-  border: 1px solid var(--ac-hairline-strong);
+  border: 1px solid var(--cat-line);
   background: transparent;
-  color: var(--ac-ink);
-  border-radius: var(--ac-radius-control);
+  color: var(--cat-ink);
+  border-radius: 999px;
   min-height: 44px;
   max-width: 100%;
   padding: 10px 20px;
@@ -405,25 +325,25 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
 }
 
 .cat-btn:hover {
-  border-color: var(--ac-gold);
+  border-color: var(--cat-gold);
 }
 
 .cat-btn:focus-visible,
 .cat-task-row-head:focus-visible,
 .cat-icon-btn:focus-visible {
-  outline: 2px solid var(--ac-gold);
+  outline: 2px solid var(--cat-gold);
   outline-offset: 2px;
 }
 
 .cat-btn-primary {
-  background: var(--ac-ink);
-  border-color: var(--ac-ink);
-  color: var(--ac-canvas);
+  background: var(--cat-ink);
+  border-color: var(--cat-ink);
+  color: var(--cat-paper);
 }
 
 .cat-btn-primary:hover {
-  border-color: var(--ac-gold);
-  opacity: 0.92;
+  background: #141a21;
+  border-color: #141a21;
 }
 
 .cat-btn[disabled] {
@@ -435,28 +355,28 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
   margin: 12px 0 0;
   font-size: 13px;
   line-height: 1.5;
-  color: var(--ac-ink-soft);
+  color: var(--cat-ink-soft);
 }
 
 .cat-card-note-error {
-  color: var(--ac-danger);
+  color: #8c3b2e;
 }
 
 .cat-empty {
   margin: 0;
   padding: var(--cat-card-padding);
-  border: 1px dashed var(--ac-hairline-strong);
+  border: 1px dashed var(--cat-line-light);
   border-radius: var(--cat-radius);
   font-size: 14.5px;
   line-height: 1.6;
-  color: var(--ac-ink-soft);
+  color: var(--cat-paper-dim);
   background: transparent;
   overflow-wrap: anywhere;
 }
 
 .cat-empty .cat-btn {
-  border-color: var(--ac-hairline-strong);
-  color: var(--ac-ink);
+  border-color: rgba(241, 239, 233, 0.35);
+  color: var(--cat-paper);
   margin-left: 8px;
   vertical-align: middle;
 }
@@ -491,10 +411,10 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
   flex: none;
   display: inline-flex;
   align-items: center;
-  border: 1px solid color-mix(in srgb, var(--ac-gold-bright) 55%, transparent);
+  border: 1px solid rgba(213, 185, 113, 0.55);
   background: transparent;
   color: var(--cat-gold-bright);
-  border-radius: var(--ac-radius-control);
+  border-radius: 999px;
   min-height: 44px;
   max-width: 100%;
   padding: 10px 18px;
@@ -509,7 +429,7 @@ html[data-cv-shell="ready"] body.crump-v1-body #cvMobileNav {
 }
 
 .cat-connect-btn:focus-visible {
-  outline: 2px solid var(--ac-gold);
+  outline: 2px solid var(--cat-gold);
   outline-offset: 2px;
 }
 
@@ -635,17 +555,13 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
   background: var(--cat-ink) !important;
 }
 
-/* The workbench's top hairline is drawn as an inset shadow so the
-   section itself keeps no sheet edge (its edge-to-edge sheetless
-   geometry is asserted). */
 .cat-chat-work {
   width: 100%;
   margin: 0;
   padding: 28px 32px;
   background: var(--cat-ink);
   color: var(--cat-paper);
-  font-family: var(--ac-sans);
-  box-shadow: inset 0 1px 0 var(--ac-hairline);
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
 }
 
 .cat-chat-work[hidden] {
@@ -653,13 +569,12 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
 }
 
 .cat-chat-title {
-  margin: 0 0 20px;
-  font-family: var(--ac-serif, Georgia, serif);
-  font-size: 25px;
-  font-weight: 600;
-  letter-spacing: -0.6px;
-  line-height: 1.15;
-  color: var(--ac-ink);
+  margin: 0 0 12px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--cat-gold-bright);
 }
 
 .cat-chat-stack {
@@ -670,10 +585,6 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
 .cat-chat-more {
   display: grid;
   gap: 8px;
-  /* Work lines are numbered in the order they render — ordinals of
-     real items, not content — in the concept's numbered work-line
-     language. */
-  counter-reset: cat-work-line;
 }
 
 .cat-chat-row {
@@ -685,29 +596,14 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
   gap: 12px;
   min-height: 44px;
   padding: 10px 14px;
-  border: 1px solid var(--ac-hairline);
-  border-radius: var(--ac-radius-control);
+  border: 1px solid rgba(241, 239, 233, 0.14);
+  border-radius: 12px;
   background: transparent;
-  color: var(--ac-ink-soft);
+  color: var(--cat-paper-dim);
   font: inherit;
   font-size: 13.5px;
   line-height: 1.45;
   text-align: left;
-  counter-increment: cat-work-line;
-}
-
-.cat-chat-row::before {
-  content: counter(cat-work-line);
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 27px;
-  height: 27px;
-  border: 1px solid var(--ac-hairline-strong);
-  border-radius: 50%;
-  color: var(--cat-gray);
-  font-size: 10px;
-  font-weight: 600;
 }
 
 .cat-chat-row-action {
@@ -715,24 +611,23 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
 }
 
 .cat-chat-row-action:hover {
-  border-color: var(--ac-gold);
-  color: var(--ac-ink);
+  border-color: rgba(213, 185, 113, 0.55);
+  color: var(--cat-paper);
 }
 
 .cat-chat-row-action:focus-visible {
-  outline: 2px solid var(--ac-gold);
+  outline: 2px solid var(--cat-gold);
   outline-offset: 2px;
 }
 
 .cat-chat-row-main {
   min-width: 0;
-  flex: 1 1 auto;
   display: grid;
   gap: 2px;
 }
 
 .cat-chat-row-title {
-  color: var(--ac-ink);
+  color: var(--cat-paper);
   font-weight: 600;
   overflow-wrap: anywhere;
 }
@@ -747,7 +642,7 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
   font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.04em;
-  color: var(--ac-gold-bright);
+  color: var(--cat-gold-bright);
   white-space: nowrap;
 }
 
@@ -780,8 +675,8 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
   flex-direction: column;
   transform: translateX(102%);
   transition: transform 0.22s ease;
-  font-family: var(--ac-sans);
-  box-shadow: var(--ac-shadow);
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  box-shadow: -18px 0 44px rgba(7, 10, 14, 0.42);
 }
 
 .cat-drawer.is-open {
@@ -798,12 +693,12 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
   justify-content: space-between;
   gap: 12px;
   padding: 18px 20px 14px;
-  border-bottom: 1px solid var(--ac-hairline);
+  border-bottom: 1px solid rgba(213, 185, 113, 0.22);
 }
 
 .cat-drawer-title {
   margin: 0;
-  font-family: var(--ac-serif, Georgia, serif);
+  font-family: Georgia, "Times New Roman", serif;
   font-size: 34px;
   font-weight: 600;
 }
@@ -834,16 +729,16 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
 }
 
 .cat-drawer-close:focus-visible {
-  outline: 2px solid var(--ac-gold);
+  outline: 2px solid var(--cat-gold);
   outline-offset: 2px;
 }
 
 .cat-icon-btn {
   appearance: none;
-  border: 1px solid var(--ac-hairline-strong);
-  background: var(--ac-surface);
-  color: var(--ac-ink);
-  border-radius: var(--ac-radius-control);
+  border: 1px solid var(--cat-line);
+  background: var(--cat-card);
+  color: var(--cat-ink);
+  border-radius: 999px;
   min-width: 44px;
   min-height: 44px;
   padding: 8px 14px;
@@ -870,7 +765,7 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
   font-weight: 700;
   letter-spacing: 0.2em;
   text-transform: uppercase;
-  color: var(--cat-gray);
+  color: var(--cat-gold-bright);
 }
 
 .cat-group-empty {
@@ -881,13 +776,13 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
   line-height: 1.55;
 }
 
-/* The Tasks record: one line per item on the canvas ground, separated
-   by hairline rules, with the design's generous whitespace kept —
-   rows are records, not cards. */
+/* The Tasks record: one line per item on the ink ground, separated by
+   hairline rules in the gold family at low contrast, with the design's
+   generous whitespace kept — rows are records, not cards. */
 .cat-task-row {
   background: transparent;
   border: 0;
-  border-bottom: 1px solid var(--ac-hairline);
+  border-bottom: 1px solid rgba(213, 185, 113, 0.16);
   border-radius: 0;
   margin-bottom: 0;
   overflow: hidden;
@@ -910,68 +805,25 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
   cursor: pointer;
 }
 
-/* The row marker is the concept's task icon: a rounded square in the
-   surface tone. Waiting rows carry the gold "?" icon; done rows a
-   sage check; live rows a gold dot; failed rows a danger "!". The
-   marker is aria-hidden — the row's group and meta text already state
-   its status — so the glyphs are redundant visual signals only. */
 .cat-row-marker {
   flex: none;
-  display: inline-grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  border-radius: 12px;
-  background: var(--ac-surface-2);
-  color: var(--ac-ink-soft);
-  font-family: var(--ac-serif, Georgia, serif);
-  font-size: 18px;
-  line-height: 1;
-}
-
-.cat-row-marker-live {
-  background: var(--ac-gold-soft);
-}
-
-.cat-row-marker-live::after {
-  content: "";
   width: 8px;
   height: 8px;
-  border-radius: 50%;
-  background: var(--ac-gold-bright);
+  transform: rotate(45deg);
+  background: var(--cat-gray);
 }
 
+.cat-row-marker-live,
 .cat-row-marker-waiting {
-  background: var(--ac-gold-soft);
-  color: var(--ac-gold-bright);
-}
-
-.cat-row-marker-waiting::after {
-  content: "?";
+  background: var(--cat-gold-bright);
 }
 
 .cat-row-marker-done {
-  background: var(--ac-sage-soft);
-  color: var(--ac-sage);
-  font-family: var(--ac-sans);
-  font-size: 15px;
-  font-weight: 700;
-}
-
-.cat-row-marker-done::after {
-  content: "✓";
+  background: var(--cat-gray);
 }
 
 .cat-row-marker-failed {
-  background: var(--ac-surface-2);
-  color: var(--ac-danger);
-  font-family: var(--ac-sans);
-  font-size: 15px;
-  font-weight: 700;
-}
-
-.cat-row-marker-failed::after {
-  content: "!";
+  background: #e59a8a;
 }
 
 .cat-task-row-main {
@@ -997,7 +849,7 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
 }
 
 .cat-task-detail {
-  border-top: 1px solid var(--ac-hairline);
+  border-top: 1px solid rgba(241, 239, 233, 0.12);
   padding: 14px 4px 18px;
 }
 
@@ -1059,7 +911,8 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
   justify-content: flex-end;
   padding: 0;
   background: rgba(7, 10, 14, 0.48);
-  /* The panel's text tone follows the appearance through the tokens. */
+  /* The panel is a dark slide-over wherever it opens from, so its
+     text tone is pinned here instead of inherited. */
   color: var(--cat-paper);
 }
 
@@ -1074,15 +927,15 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
   width: min(560px, 84vw);
   height: 100%;
   max-height: 100vh;
-  background: var(--ac-canvas-raised);
+  background: #111417;
   color: var(--cat-paper);
-  border-left: 1px solid rgba(210, 160, 79, 0.35);
+  border-left: 1px solid rgba(213, 185, 113, 0.35);
   border-radius: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  font-family: var(--ac-sans);
-  box-shadow: var(--ac-shadow);
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  box-shadow: -24px 0 60px rgba(7, 10, 14, 0.45);
   animation: cat-browser-in 0.22s ease;
 }
 
@@ -1100,8 +953,8 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
   flex-direction: column;
   gap: 8px;
   padding: 18px 20px 14px;
-  border-bottom: 1px solid var(--ac-hairline);
-  background: var(--ac-canvas-raised);
+  border-bottom: 1px solid rgba(213, 185, 113, 0.22);
+  background: #111417;
   color: var(--cat-paper);
 }
 
@@ -1115,7 +968,7 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
 
 .cat-browser-title {
   margin: 0;
-  font-family: var(--ac-sans);
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -1143,7 +996,7 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
 
 .cat-browser .cat-btn,
 .cat-browser .cat-icon-btn {
-  border-color: var(--ac-hairline-strong);
+  border-color: rgba(241, 239, 233, 0.3);
   background: transparent;
   color: var(--cat-paper);
 }
@@ -1154,7 +1007,7 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
 }
 
 .cat-browser .cat-browser-pause {
-  border-color: color-mix(in srgb, var(--ac-gold-bright) 55%, transparent);
+  border-color: rgba(213, 185, 113, 0.55);
   color: var(--cat-gold-bright);
   min-height: 44px;
   padding: 8px 16px;
@@ -1167,14 +1020,14 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
 .cat-browser .cat-btn-unavailable[disabled] {
   opacity: 0.55;
   border-style: dashed;
-  border-color: color-mix(in srgb, var(--ac-gold-bright) 45%, transparent);
+  border-color: rgba(213, 185, 113, 0.45);
   color: var(--cat-paper-dim);
   background: transparent;
   cursor: not-allowed;
 }
 
 .cat-browser .cat-btn-unavailable[disabled]:hover {
-  border-color: color-mix(in srgb, var(--ac-gold-bright) 45%, transparent);
+  border-color: rgba(213, 185, 113, 0.45);
 }
 
 .cat-browser-viewport {
@@ -1188,7 +1041,7 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
   gap: 20px;
   padding: 28px 24px;
   text-align: center;
-  background: var(--ac-canvas-raised);
+  background: #111417;
 }
 
 .cat-browser-viewport p {
@@ -1204,9 +1057,9 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
 .cat-browser-frame {
   width: 100%;
   max-width: 520px;
-  border: 1px solid var(--ac-hairline-strong);
-  border-radius: var(--ac-radius-control);
-  background: var(--ac-surface);
+  border: 1px solid rgba(241, 239, 233, 0.16);
+  border-radius: 14px;
+  background: #171b1f;
   overflow: hidden;
   text-align: left;
 }
@@ -1216,8 +1069,8 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
   align-items: center;
   gap: 6px;
   padding: 10px 12px;
-  border-bottom: 1px solid var(--ac-hairline);
-  background: var(--ac-surface-2);
+  border-bottom: 1px solid rgba(241, 239, 233, 0.1);
+  background: rgba(241, 239, 233, 0.04);
 }
 
 .cat-browser-frame-url {
@@ -1225,7 +1078,7 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
   height: 22px;
   margin-left: 6px;
   border-radius: 999px;
-  background: var(--ac-surface-3);
+  background: rgba(241, 239, 233, 0.09);
 }
 
 .cat-browser-frame-body {
@@ -1238,13 +1091,13 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
   display: block;
   height: 10px;
   border-radius: 999px;
-  background: var(--ac-surface-3);
+  background: rgba(241, 239, 233, 0.13);
 }
 
 .cat-browser-bar-lead {
   height: 14px;
   width: 58%;
-  background: var(--ac-hairline-strong);
+  background: rgba(241, 239, 233, 0.22);
 }
 
 .cat-browser-bar-wide {
@@ -1264,21 +1117,18 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
   flex-wrap: wrap;
   gap: 10px;
   padding: 14px 20px 18px;
-  border-top: 1px solid var(--ac-hairline);
-  background: var(--ac-canvas-raised);
+  border-top: 1px solid rgba(213, 185, 113, 0.22);
+  background: #111417;
   color: var(--cat-paper);
 }
 
 /* ------------------------------------------------------------------ */
-/* Cards on the Today, Chat, and Tasks surfaces                        */
+/* Reorganized Today: dark cards, approval detail, queue, brief        */
 /*                                                                     */
-/* The base card already follows the appearance through the tokens,    */
-/* so the surface-scoped rules below carry only what differs per       */
-/* surface: the focus treatment for Today's top approval, the          */
-/* decision treatment for Chat's approval card, and the drawer's       */
-/* card spacing. Text/background pairings are the token pairs, which   */
-/* pass AA in both appearances (see the light-appearance overrides     */
-/* at the end of this file for the gold-text cases).                   */
+/* On the Today surface the cards sit on the layer's own ink ground,   */
+/* so they take the dark card token (#111417) with hairline borders    */
+/* and paper text. The Tasks drawer keeps the light card treatment:    */
+/* every dark rule below is scoped to the Today surface.               */
 /* ------------------------------------------------------------------ */
 
 .cat-card-exact {
@@ -1289,7 +1139,7 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
   appearance: none;
   border: 0;
   background: transparent;
-  color: var(--cat-gold-bright);
+  color: #7c6427;
   padding: 6px 2px;
   margin-top: 10px;
   min-height: 32px;
@@ -1300,7 +1150,7 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
 }
 
 .cat-detail-toggle:focus-visible {
-  outline: 2px solid var(--ac-gold);
+  outline: 2px solid var(--cat-gold);
   outline-offset: 2px;
 }
 
@@ -1311,9 +1161,9 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
 .cat-queue-row {
   appearance: none;
   width: 100%;
-  border: 1px solid var(--ac-hairline-strong);
+  border: 1px solid var(--cat-line-light);
   background: transparent;
-  color: var(--ac-ink-soft);
+  color: var(--cat-paper-dim);
   border-radius: 999px;
   min-height: 44px;
   padding: 10px 18px;
@@ -1325,12 +1175,12 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
 }
 
 .cat-queue-row:hover {
-  border-color: var(--ac-gold);
-  color: var(--ac-ink);
+  border-color: rgba(213, 185, 113, 0.55);
+  color: var(--cat-paper);
 }
 
 .cat-queue-row:focus-visible {
-  outline: 2px solid var(--ac-gold);
+  outline: 2px solid var(--cat-gold);
   outline-offset: 2px;
 }
 
@@ -1338,7 +1188,7 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
   margin: 12px 0 0;
   font-size: 14px;
   line-height: 1.55;
-  color: var(--ac-ink-soft);
+  color: var(--cat-ink-soft);
   overflow-wrap: anywhere;
 }
 
@@ -1348,15 +1198,15 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--cat-gray);
+  color: var(--cat-gray-on-light);
   margin-bottom: 2px;
 }
 
 .cat-browser-tile {
   margin-top: 12px;
-  border: 1px solid var(--ac-hairline);
+  border: 1px solid var(--cat-line);
   border-radius: 12px;
-  background: var(--ac-canvas-raised);
+  background: var(--cat-panel);
   padding: 0;
   overflow: hidden;
 }
@@ -1366,15 +1216,15 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
   align-items: center;
   gap: 6px;
   padding: 9px 12px;
-  border-bottom: 1px solid var(--ac-hairline);
-  background: var(--ac-surface-2);
+  border-bottom: 1px solid rgba(241, 239, 233, 0.1);
+  background: rgba(241, 239, 233, 0.04);
 }
 
 .cat-browser-dot {
   width: 8px;
   height: 8px;
   border-radius: 999px;
-  background: var(--ac-hairline-strong);
+  background: rgba(241, 239, 233, 0.35);
   flex: none;
 }
 
@@ -1383,7 +1233,7 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
   height: 16px;
   margin-left: 4px;
   border-radius: 999px;
-  background: var(--ac-surface-3);
+  background: rgba(241, 239, 233, 0.09);
 }
 
 .cat-browser-tile-body {
@@ -1413,147 +1263,346 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
   padding: 2px 2px 0;
   font-size: 13.5px;
   line-height: 1.55;
-  color: var(--ac-ink-soft);
+  color: var(--cat-paper-dim);
 }
 
-/* The connected brief renders as a quiet ledger, not a boxed card:
-   no panel fill, a hairline rule above, hairline-separated rows with
-   timeline marks. It keeps the .cat-card class (and its content), so
-   the brief card's presence and rows are unchanged. */
 .cat-brief-card {
   display: grid;
-  gap: 0;
-  background: transparent;
-  border: 0;
-  border-top: 1px solid var(--ac-hairline);
-  border-radius: 0;
-  padding: 20px 2px 4px;
-  box-shadow: none;
+  gap: 10px;
 }
 
 .cat-brief-title {
-  margin: 0 0 8px;
-  font-family: var(--ac-serif, Georgia, serif);
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
   font-size: 21px;
   font-weight: 600;
   line-height: 1.3;
-  color: var(--ac-ink);
 }
 
 .cat-brief-counts {
-  margin: 0 0 6px;
+  margin: 0;
   font-size: 13.5px;
   line-height: 1.55;
-  color: var(--cat-gray);
 }
 
 .cat-brief-row {
   display: grid;
-  grid-template-columns: 20px 88px minmax(0, 1fr);
+  grid-template-columns: 88px minmax(0, 1fr);
   gap: 12px;
-  align-items: baseline;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--ac-hairline);
   font-size: 14px;
   line-height: 1.55;
 }
 
-.cat-brief-row:last-child {
-  border-bottom: 0;
-}
-
-.cat-brief-mark {
-  width: 9px;
-  height: 9px;
-  border: 2px solid var(--ac-hairline-strong);
-  border-radius: 50%;
-  background: var(--ac-canvas);
-  transform: translateY(-1px);
-}
-
 .cat-brief-row-label {
   font-weight: 600;
-  color: var(--ac-ink-soft);
 }
 
 .cat-brief-row-value {
   overflow-wrap: anywhere;
-  color: var(--ac-ink);
 }
 
-/* Surface-scoped card rules. The base card already follows the
-   appearance through the tokens; these rules carry only what differs
-   per surface. */
-
-/* Focus treatment: the top approval on Today — the concept's
-   next-best-move card (gold gradient, serif headline via
-   .cat-card-exact, gold go-button). Only the first approval card in
-   the Waiting section carries it; the one-visible-approval rule, the
-   queue row, the frozen detail, and approve/deny behavior are
-   unchanged — this is finish only. */
+/* Dark card treatment, Today surface only. */
 .cat-today .cat-card {
-  background: var(--ac-surface);
-  border-color: var(--ac-hairline);
-  color: var(--ac-ink);
+  background: #111417;
+  border-color: rgba(241, 239, 233, 0.14);
+  color: var(--cat-paper);
 }
 
-.cat-today section[aria-label="Waiting on you"] .cat-today-stack > .cat-card:has(.cat-card-exact) {
-  background: linear-gradient(105deg, var(--ac-gold-soft), var(--ac-gold-wash) 50%, var(--ac-surface));
-  border-color: rgba(210, 160, 79, 0.34);
-  box-shadow: var(--ac-shadow);
+.cat-today .cat-card .cat-card-head {
+  color: var(--cat-gray);
 }
 
-.cat-today section[aria-label="Waiting on you"] .cat-today-stack > .cat-card:has(.cat-card-exact) .cat-btn-primary {
-  background: var(--ac-gold);
-  border-color: var(--ac-gold);
-  color: #1f1509;
+.cat-today .cat-card .cat-card-title {
+  color: var(--cat-paper);
 }
 
-.cat-today section[aria-label="Waiting on you"] .cat-today-stack > .cat-card:has(.cat-card-exact) .cat-btn-primary:hover {
-  border-color: var(--ac-gold);
-  opacity: 0.92;
+.cat-today .cat-card .cat-card-summary {
+  color: var(--cat-paper-dim);
 }
 
-/* Decision treatment: the approval card in Chat — the concept's
-   decision strip (gold wash over the surface). Run and result cards
-   in Chat keep the plain surface. */
+.cat-today .cat-card .cat-card-meta {
+  color: var(--cat-gray);
+}
+
+.cat-today .cat-card .cat-card-note {
+  color: var(--cat-paper-dim);
+}
+
+.cat-today .cat-card .cat-card-note-error {
+  color: #e59a8a;
+}
+
+.cat-today .cat-card .cat-payload {
+  border-top-color: rgba(241, 239, 233, 0.14);
+}
+
+.cat-today .cat-card .cat-payload-row dt {
+  color: var(--cat-gray);
+}
+
+.cat-today .cat-card .cat-payload-row dd {
+  color: var(--cat-paper);
+}
+
+.cat-today .cat-card .cat-status {
+  border-color: rgba(241, 239, 233, 0.22);
+  background: transparent;
+  color: var(--cat-paper-dim);
+}
+
+.cat-today .cat-card .cat-status-live,
+.cat-today .cat-card .cat-status-waiting {
+  border-color: rgba(213, 185, 113, 0.55);
+  background: rgba(213, 185, 113, 0.14);
+  color: var(--cat-gold-bright);
+}
+
+.cat-today .cat-card .cat-status-failed {
+  color: #e59a8a;
+}
+
+.cat-today .cat-card .cat-btn {
+  border-color: rgba(241, 239, 233, 0.3);
+  color: var(--cat-paper);
+}
+
+.cat-today .cat-card .cat-btn:hover {
+  border-color: var(--cat-gold-bright);
+}
+
+.cat-today .cat-card .cat-btn-primary {
+  background: var(--cat-gold-bright);
+  border-color: var(--cat-gold-bright);
+  color: var(--cat-ink);
+}
+
+.cat-today .cat-card .cat-btn-primary:hover {
+  background: var(--cat-gold);
+  border-color: var(--cat-gold);
+}
+
+.cat-today .cat-card .cat-detail-toggle {
+  color: var(--cat-gold-bright);
+}
+
+.cat-today .cat-card .cat-card-step {
+  color: var(--cat-paper-dim);
+}
+
+.cat-today .cat-card .cat-card-step-label {
+  color: var(--cat-gray);
+}
+
+.cat-today .cat-card .cat-browser-tile {
+  border-color: rgba(241, 239, 233, 0.14);
+}
+
+.cat-today .cat-card .cat-brief-title {
+  color: var(--cat-paper);
+}
+
+.cat-today .cat-card .cat-brief-counts {
+  color: var(--cat-gray);
+}
+
+.cat-today .cat-card .cat-brief-row-label {
+  color: var(--cat-gray);
+}
+
+.cat-today .cat-card .cat-brief-row-value {
+  color: var(--cat-paper);
+}
+
+/* Dark card treatment, Chat surface: the conversation cards sit on
+   the section's own ink ground, so they take the same dark card
+   token and paper text as Today's cards. */
 .cat-chat-work .cat-card {
-  background: var(--ac-surface);
-  border-color: var(--ac-hairline);
-  color: var(--ac-ink);
+  background: #111417;
+  border-color: rgba(241, 239, 233, 0.14);
+  color: var(--cat-paper);
 }
 
-.cat-chat-work .cat-card:has(.cat-card-exact) {
-  background: linear-gradient(105deg, var(--ac-gold-wash), var(--ac-surface) 60%);
-  border-color: var(--ac-hairline-strong);
+.cat-chat-work .cat-card .cat-card-head {
+  color: var(--cat-gray);
 }
 
-/* Cards inside the Tasks drawer keep the surface treatment with the
-   record's card spacing. */
+.cat-chat-work .cat-card .cat-card-title {
+  color: var(--cat-paper);
+}
+
+.cat-chat-work .cat-card .cat-card-summary {
+  color: var(--cat-paper-dim);
+}
+
+.cat-chat-work .cat-card .cat-card-meta {
+  color: var(--cat-gray);
+}
+
+.cat-chat-work .cat-card .cat-card-note {
+  color: var(--cat-paper-dim);
+}
+
+.cat-chat-work .cat-card .cat-card-note-error {
+  color: #e59a8a;
+}
+
+.cat-chat-work .cat-card .cat-payload {
+  border-top-color: rgba(241, 239, 233, 0.14);
+}
+
+.cat-chat-work .cat-card .cat-payload-row dt {
+  color: var(--cat-gray);
+}
+
+.cat-chat-work .cat-card .cat-payload-row dd {
+  color: var(--cat-paper);
+}
+
+.cat-chat-work .cat-card .cat-status {
+  border-color: rgba(241, 239, 233, 0.22);
+  background: transparent;
+  color: var(--cat-paper-dim);
+}
+
+.cat-chat-work .cat-card .cat-status-live,
+.cat-chat-work .cat-card .cat-status-waiting {
+  border-color: rgba(213, 185, 113, 0.55);
+  background: rgba(213, 185, 113, 0.14);
+  color: var(--cat-gold-bright);
+}
+
+.cat-chat-work .cat-card .cat-status-failed {
+  color: #e59a8a;
+}
+
+.cat-chat-work .cat-card .cat-btn {
+  border-color: rgba(241, 239, 233, 0.3);
+  color: var(--cat-paper);
+}
+
+.cat-chat-work .cat-card .cat-btn:hover {
+  border-color: var(--cat-gold-bright);
+}
+
+.cat-chat-work .cat-card .cat-btn-primary {
+  background: var(--cat-gold-bright);
+  border-color: var(--cat-gold-bright);
+  color: var(--cat-ink);
+}
+
+.cat-chat-work .cat-card .cat-btn-primary:hover {
+  background: var(--cat-gold);
+  border-color: var(--cat-gold);
+}
+
+.cat-chat-work .cat-card .cat-detail-toggle {
+  color: var(--cat-gold-bright);
+}
+
+.cat-chat-work .cat-card .cat-card-step {
+  color: var(--cat-paper-dim);
+}
+
+.cat-chat-work .cat-card .cat-card-step-label {
+  color: var(--cat-gray);
+}
+
+.cat-chat-work .cat-card .cat-browser-tile {
+  border-color: rgba(241, 239, 233, 0.14);
+}
+
+/* Dark card treatment, Tasks drawer: approval cards inside the drawer
+   sit on the drawer's ink ground, so they take the same dark card
+   token and paper text as Today's and Chat's cards. Row-level detail
+   controls (Cancel run, Open browser) and payload lists inside the
+   drawer follow the same pairing. */
 .cat-drawer .cat-card {
-  background: var(--ac-surface);
-  border-color: var(--ac-hairline);
-  color: var(--ac-ink);
+  background: #111417;
+  border-color: rgba(241, 239, 233, 0.14);
+  color: var(--cat-paper);
   margin-bottom: var(--cat-stack-gap);
+}
+
+.cat-drawer .cat-card .cat-card-head {
+  color: var(--cat-gray);
+}
+
+.cat-drawer .cat-card .cat-card-title {
+  color: var(--cat-paper);
+}
+
+.cat-drawer .cat-card .cat-card-summary {
+  color: var(--cat-paper-dim);
+}
+
+.cat-drawer .cat-card .cat-card-meta {
+  color: var(--cat-gray);
+}
+
+.cat-drawer .cat-card .cat-card-note {
+  color: var(--cat-paper-dim);
+}
+
+.cat-drawer .cat-card .cat-card-note-error {
+  color: #e59a8a;
+}
+
+.cat-drawer .cat-card .cat-status {
+  border-color: rgba(241, 239, 233, 0.22);
+  background: transparent;
+  color: var(--cat-paper-dim);
+}
+
+.cat-drawer .cat-card .cat-status-live,
+.cat-drawer .cat-card .cat-status-waiting {
+  border-color: rgba(213, 185, 113, 0.55);
+  background: rgba(213, 185, 113, 0.14);
+  color: var(--cat-gold-bright);
+}
+
+.cat-drawer .cat-card .cat-status-failed {
+  color: #e59a8a;
+}
+
+.cat-drawer .cat-btn {
+  border-color: rgba(241, 239, 233, 0.3);
+  color: var(--cat-paper);
+}
+
+.cat-drawer .cat-btn:hover {
+  border-color: var(--cat-gold-bright);
+}
+
+.cat-drawer .cat-btn-primary {
+  background: var(--cat-gold-bright);
+  border-color: var(--cat-gold-bright);
+  color: var(--cat-ink);
+}
+
+.cat-drawer .cat-btn-primary:hover {
+  background: var(--cat-gold);
+  border-color: var(--cat-gold);
+}
+
+.cat-drawer .cat-detail-toggle {
+  color: var(--cat-gold-bright);
+}
+
+.cat-drawer .cat-payload {
+  border-top-color: rgba(241, 239, 233, 0.14);
+}
+
+.cat-drawer .cat-payload-row dt {
+  color: var(--cat-gray);
+}
+
+.cat-drawer .cat-payload-row dd {
+  color: var(--cat-paper);
 }
 
 /* ------------------------------------------------------------------ */
 /* Small screens                                                       */
 /* ------------------------------------------------------------------ */
-
-@media (max-width: 760px) {
-  /* The concept's phone greeting: clamp(45px, 13vw, 58px). At 390px
-     this lands at 50.7px — measured fitting (see the title rule). */
-  .cat-today-title {
-    font-size: clamp(45px, 13vw, 58px);
-    line-height: 0.93;
-    letter-spacing: -2.3px;
-  }
-
-  .cat-today-sub {
-    font-size: 15px;
-  }
-}
 
 @media (max-width: 640px) {
   .cat-today {
@@ -1573,7 +1622,7 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
   }
 
   .cat-brief-row {
-    grid-template-columns: 20px 72px minmax(0, 1fr);
+    grid-template-columns: 72px minmax(0, 1fr);
   }
 
   /* The browser panel keeps its slide-over proportion at phone
@@ -1597,12 +1646,6 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
 }
 
 @media (max-width: 360px) {
-  /* The concept's narrowest greeting: a fixed 42px, measured fitting
-     at 320px (see the title rule). */
-  .cat-today-title {
-    font-size: 42px;
-  }
-
   .cat-actions .cat-btn {
     flex: 1 1 auto;
   }
@@ -1620,20 +1663,6 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
     grid-template-columns: minmax(0, 1fr);
     gap: 2px;
   }
-
-  /* Brief rows stack label over value beside the timeline mark. */
-  .cat-brief-row {
-    grid-template-columns: 20px minmax(0, 1fr);
-  }
-
-  .cat-brief-mark {
-    grid-row: 1 / span 2;
-  }
-
-  .cat-brief-row-label,
-  .cat-brief-row-value {
-    grid-column: 2;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1646,123 +1675,36 @@ html[data-theme="dark"] body.crump-v1-body .v1-workspace-body:has(> .cat-chat-wo
   }
 }
 
-/* ---- Chat messages: user bubble, plain assistant turns ----
-   The shell owns the message DOM; this layer only finishes it. The
-   user turn is the concept's right-aligned bubble (the shell already
-   justifies it right; the bubble's surface, radius, and ink follow
-   the tokens here). Assistant turns are plain: no bubble fill, no
-   avatar mark — the turn is text on the canvas. Message tools are
-   untouched. The fixture's simplified .message.user/.assistant rows
-   carry none of these classes, so these rules cannot move them. */
-html[data-theme] body.crump-v1-body .message.user-message .message-content {
-  background: var(--ac-surface-2);
-  border: 1px solid var(--ac-hairline);
-  border-radius: 18px 18px 4px 18px;
-  padding: 15px 18px;
-  color: var(--ac-ink);
-}
-
-html[data-theme] body.crump-v1-body .message.assistant-message .message-content {
-  background: transparent;
-  border-color: transparent;
-  border-radius: 0;
-  padding: 12px 2px;
-  color: var(--ac-ink);
-}
-
-/* ---- Composer: floating material bar, gold send, gold-outline ----
-   attach chip, one-line placeholder. The composer contract is
-   unchanged — attach, input, send, in that order — only its finish
-   follows the design: the bar is the concept's floating material
-   surface (blurred material fill, hairline edge drawn as an inset
-   shadow so no border width is added, panel radius, soft shadow),
-   the send button is the house gold with a dark arrow, the attach
+/* ---- Composer: gold send, gold-outline attach chip, one-line ----
+   placeholder. The composer contract is unchanged — attach, input,
+   send, in that order — only its finish follows the design: the
+   send button is the house gold with an ink arrow, the attach
    control is a gold-outline chip instead of a dark disc, and the
    placeholder sets on a single line with an ellipsis, so the pill
    never clips a wrapped second line at any width or theme. The
    nowrap applies only while the placeholder is showing; typed
-   text wraps and grows exactly as before. No width, padding, or
-   flex rule here touches the text field: the placeholder must still
-   render complete at 320px. */
-html[data-theme] body.crump-v1-body .input-container {
-  background: var(--ac-material) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(135%) !important;
-  backdrop-filter: blur(28px) saturate(135%) !important;
-  border-radius: 22px !important;
-  box-shadow: var(--ac-shadow), inset 0 0 0 1px var(--ac-hairline-strong) !important;
-}
-
+   text wraps and grows exactly as before. */
 html[data-theme] body.crump-v1-body .input-container :is(#sendButton, .crump50-send):not(:disabled) {
   background: var(--cat-gold-bright) !important;
-  color: #1f1509 !important;
+  color: var(--cat-ink) !important;
 }
 
 html[data-theme] body.crump-v1-body .input-container :is(#attachBtn, .crump50-plus) {
   background: transparent !important;
-  border: 1px solid rgba(210, 160, 79, 0.65) !important;
+  border: 1px solid rgba(213, 185, 113, 0.65) !important;
   border-radius: 12px !important;
   color: var(--cat-gold-bright) !important;
 }
 
 html[data-theme] body.crump-v1-body .input-container :is(#attachBtn, .crump50-plus):hover {
-  background: var(--ac-gold-soft) !important;
+  background: rgba(213, 185, 113, 0.14) !important;
   color: var(--cat-gold-bright) !important;
-}
-
-html[data-theme] body.crump-v1-body .message-input::placeholder {
-  color: var(--ac-ink-muted);
-  opacity: 1;
 }
 
 html[data-theme] body.crump-v1-body .message-input:placeholder-shown {
   white-space: nowrap !important;
   text-overflow: ellipsis !important;
   overflow-y: hidden !important;
-}
-
-/* ---- Light appearance: text-safety overrides ----
-   Gold text that passes on the dark canvas fails AA on the light
-   canvas (gold-bright ~2.9:1, gold ~3.5:1 for normal text), so in
-   light every gold-text pairing steps to ink or ink-soft while gold
-   stays on borders, fills, and glyphs. Danger text steps to the
-   deep error tone, which the token set does not carry for light.
-   Secondary text already steps up through the --cat-gray alias. */
-html[data-theme="light"] .cat-today-eyebrow,
-html[data-theme="light"] .cat-today-section-title,
-html[data-theme="light"] .cat-group-title,
-html[data-theme="light"] .cat-chat-row-status,
-html[data-theme="light"] .cat-browser-title {
-  color: var(--ac-ink-soft);
-}
-
-html[data-theme="light"] .cat-eyebrow-chip {
-  color: var(--ac-ink-soft);
-}
-
-html[data-theme="light"] .cat-status-live,
-html[data-theme="light"] .cat-status-waiting,
-html[data-theme="light"] .cat-detail-toggle,
-html[data-theme="light"] .cat-connect-btn,
-html[data-theme="light"] .cat-browser .cat-browser-pause {
-  color: var(--ac-ink);
-}
-
-html[data-theme="light"] .cat-card-note-error,
-html[data-theme="light"] .cat-status-failed,
-html[data-theme="light"] .cat-row-marker-failed {
-  color: #8c3b2e;
-}
-
-html[data-theme="light"] .cat-today section[aria-label="Waiting on you"] .cat-today-stack > .cat-card:has(.cat-card-exact) .cat-btn-primary {
-  color: #100c06;
-}
-
-html[data-theme="light"] body.crump-v1-body .input-container :is(#attachBtn, .crump50-plus) {
-  color: var(--ac-ink) !important;
-}
-
-html[data-theme="light"] body.crump-v1-body .message-input::placeholder {
-  color: var(--ac-ink-soft);
 }
 
 /* ---- You surface: Settings Connections rows ----
@@ -1783,5 +1725,5 @@ html[data-theme="light"] body.crump-v1-body .message-input::placeholder {
 .cat-you-action {
   margin-top: 16px;
   color: inherit;
-  border-color: var(--ac-hairline-strong);
+  border-color: rgba(140, 140, 140, 0.45);
 }

@@ -28,8 +28,8 @@ EXPECTED_BUTTON_INVENTORY = {
     "public/crump-product-5.3.1.js": 10,
     "public/crump-product-5.3.js": 61,
     "public/crump-vision-home-1.0.js": 1,
-    "public/crump-vision-library-1.0.js": 7,
-    "public/crump-vision-projects-1.0.js": 8,
+    "public/crump-vision-library-1.0.js": 6,
+    "public/crump-vision-projects-1.0.js": 7,
     "public/crump-vision-shell-1.0.js": 5,
     "public/crump-vision-studios-1.0.js": 4,
     "public/crump-vision-you-1.0.js": 8,
@@ -305,7 +305,7 @@ def test_rendered_button_inventory_requires_explicit_review() -> None:
             inventory[page.relative_to(ROOT).as_posix()] = len(parser.buttons)
 
     assert inventory == EXPECTED_BUTTON_INVENTORY
-    assert sum(inventory.values()) == 231
+    assert sum(inventory.values()) == 229
 
 
 def test_programmatically_created_button_inventory_requires_explicit_review() -> None:
@@ -317,7 +317,7 @@ def test_programmatically_created_button_inventory_requires_explicit_review() ->
 
     assert inventory == DYNAMIC_BUTTON_INVENTORY
     assert sum(inventory.values()) == 105
-    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 336
+    assert sum(EXPECTED_BUTTON_INVENTORY.values()) + sum(inventory.values()) == 334
 
 
 def test_programmatically_created_buttons_declare_type_and_runtime_owner() -> None:
@@ -596,7 +596,7 @@ def test_send_button_is_really_disabled_until_the_composer_has_content() -> None
 
 
 def test_send_button_actionability_release_is_cache_addressable_everywhere() -> None:
-    asset = "/crump-4.3.js?v=5.9.76-atelier-workspace-2"
+    asset = "/crump-4.3.js?v=5.9.76-atelier-workspace-1"
 
     for relative in ("public/runtime-body-v1.js", "public/sw.js", "scripts/build-native.mjs"):
         assert asset in (ROOT / relative).read_text(encoding="utf-8")
@@ -652,7 +652,7 @@ def test_browser_control_matrix_is_fail_closed_and_one_command() -> None:
     workflow = (ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     verifier_names = sorted(path.name for path in (ROOT / "scripts").glob("verify-*.cjs"))
 
-    assert len(verifier_names) == 73
+    assert len(verifier_names) == 72
     for name in verifier_names:
         assert f"'{name}'" in runner
     assert "Browser verifier inventory drifted." in runner
