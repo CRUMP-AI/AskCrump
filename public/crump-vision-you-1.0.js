@@ -480,14 +480,31 @@
      Names come from the authenticated user record first, then the
      owner-bound device profile — the same sources planInfo() already
      reads. There is no joined date on either record, so none is shown.
-     Guests get the honest signed-out state, never an invented name. */
+     Guests get the guest-session presentation ("Guest session" /
+     "Temporary preview"), the same distinction the Profile panel
+     uses — never the placeholder address, never a signed-in
+     implication. "Signed in" stays reserved for an authenticated
+     account. */
+
+  /* The server mints a placeholder address for guest rows
+     (guest-<id>@guest.askcrump.local) that is never mailed and must never be
+     shown as the visitor's identity. Mirror the backend's exact-match check,
+     and treat the isGuest flag the same way — the same check app.js applies
+     in the settings Profile panel. */
+  function isGuestIdentity(user, email) {
+    if (user && (user.isGuest === true || user.is_guest === true)) return true;
+    var value = String(email || '').trim().toLowerCase();
+    var expected = 'guest-' + String((user && user.id) || '').trim().toLowerCase() + '@guest.askcrump.local';
+    return Boolean(value) && value === expected;
+  }
 
   function identityInfo() {
     var name = '';
     var email = '';
+    var user = {};
     var signedIn = Boolean(window.currentUser && window.currentUser.id);
     try {
-      var user = window.currentUser || {};
+      user = window.currentUser || {};
       name = String(user.fullName || '').trim();
       email = String(user.email || '').trim();
     } catch (_) {}
@@ -498,6 +515,9 @@
         if (!email) email = String(profile.email || '').trim();
       }
     } catch (_) {}
+    if (isGuestIdentity(user, email)) {
+      return { initials: '', name: 'Guest session', subline: 'Temporary preview' };
+    }
     var initials = '';
     if (name) {
       initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map(function (word) {
