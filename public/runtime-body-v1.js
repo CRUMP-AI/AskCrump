@@ -20,16 +20,16 @@ window.CRUMP_CONFIG = Object.freeze({
 
   const workspaceStyles = Object.freeze([
     ['/billing.css', 'workspacebilling'],
-    ['/onboarding.css?v=5.9.76-reorg-five-destinations-1', 'workspaceonboarding'],
-    ['/conversation.css?v=5.9.76-muse-release-repair-1', 'workspaceconversation'],
+    ['/onboarding.css?v=5.9.76-reorg-five-destinations-2', 'workspaceonboarding'],
+    ['/conversation.css?v=5.9.76-muse-release-repair-2', 'workspaceconversation'],
     ['/crump-4.3.css', 'crump43'],
     ['/crump-4.4.css?v=5.9.76-friendly-workspace-1', 'crump44'],
     ['/crump-5.0.css?v=5.9.76-reference-fidelity-hard-contract-1', 'crump50'],
-    ['/crump-billing-5.1.css?v=5.9.76-credit-truth-1', 'billing51'],
+    ['/crump-billing-5.1.css?v=5.9.76-credit-truth-2', 'billing51'],
     ['/crump-5.2.css', 'crump52'],
     ['/crump-5.2.2.css?v=5.9.76-new-response-cue-1', 'crump522'],
     ['/credit-confirmation.css?v=5.9.76-credit-confirmation-1', 'creditconfirmation'],
-    ['/crump-v1-body.css?v=5.9.76-owned-workspace-access-2', 'crumpbodyv1'],
+    ['/crump-v1-body.css?v=5.9.76-safe-area-1', 'crumpbodyv1'],
     ['/lifecycle.css?v=5.9.76-lifecycle-activation-2', 'lifecycleactivation'],
   ]);
 
@@ -42,51 +42,51 @@ window.CRUMP_CONFIG = Object.freeze({
   ]);
 
   const finalStyles = Object.freeze([
-    ['/crump-design-pass.css?v=5.9.76-contrast-sweep-1', 'crumpdesignpass'],
+    ['/crump-design-pass.css?v=5.9.76-contrast-sweep-2', 'crumpdesignpass'],
     ['/crump-activity-center-1.0.css?v=5.9.76-autonomous-continuity-1', 'crumpactivitycenter10'],
     ['/crump-ui-guardrails.css?v=5.9.76-ui-guardrails-1', 'crumpuiguardrails'],
     ['/crump-motion-system.css?v=5.9.76-motion-system-2', 'crumpmotionsystem'],
   ]);
 
   const workspaceScripts = Object.freeze([
-    ['/onboarding.js?v=5.9.76-reorg-five-destinations-1', 'workspaceonboarding'],
-    ['/scroll-manager.js?v=5.9.76-muse-release-repair-1', 'workspacescroll'],
+    ['/onboarding.js?v=5.9.76-reorg-five-destinations-2', 'workspaceonboarding'],
+    ['/scroll-manager.js?v=5.9.76-muse-release-repair-2', 'workspacescroll'],
     ['/profile-manager.js?v=5.9.76-account-owner-boundary-1', 'workspaceprofile'],
     ['/billing-manager.js?v=5.9.76-private-owner-boundary-1', 'workspacebilling'],
     ['/subscription-ui.js?v=5.9.76-private-owner-boundary-1', 'workspacesubscription'],
     ['/credit-confirmation.js?v=5.9.76-private-owner-boundary-1', 'workspacecreditconfirmation'],
-    ['/chat-resilience.js?v=5.9.76-chat-owner-boundary-1&workspaceRelease=guest-free-contract-2', 'workspacechatresilience'],
+    ['/chat-resilience.js?v=5.9.76-chat-owner-boundary-1&workspaceRelease=guest-free-contract-3', 'workspacechatresilience'],
     ['/ui-functions.js?v=5.9.76-private-owner-boundary-1', 'workspaceui'],
     ['/presence-manager.js?v=5.9.76-native-push-owner-fence-1', 'workspacepresence'],
     ['/sync-manager.js?v=5.9.76-auth-boundary-sync-1', 'workspacesync'],
     ['/chat-sync.js?v=5.9.76-initial-chat-owner-reconciliation-1', 'workspacechatsync'],
     ['/account-manager.js?v=5.9.76-account-owner-boundary-1', 'workspaceaccount'],
-    ['/app.js?v=5.9.76-server-only-activation-1&workspaceRelease=guest-free-contract-2', 'workspaceapp'],
+    ['/app.js?v=5.9.76-polka-followups-1&workspaceRelease=guest-free-contract-3', 'workspaceapp'],
     ['/product-analytics.js?v=5.9.76-server-only-activation-1', 'workspaceanalytics'],
   ]);
 
   const enhancementScripts = Object.freeze([
-    ['/crump-4.3.js?v=5.9.76-atelier-workspace-1', 'crump43'],
+    ['/crump-4.3.js?v=5.9.76-atelier-workspace-2', 'crump43'],
     ['/crump-4.4.js?v=5.9.76-private-owner-boundary-1', 'crump44'],
-    ['/crump-5.0.js?v=5.9.76-chat-owner-boundary-1&workspaceRelease=guest-free-contract-2', 'crump50'],
+    ['/crump-5.0.js?v=5.9.76-chat-owner-boundary-1&workspaceRelease=guest-free-contract-3', 'crump50'],
     ['/crump-precision-image-edit-loader.js?v=5.9.76-precision-ai-persistence-1', 'crumpprecisionloader'],
-    ['/crump-billing-5.1.js?v=5.9.76-private-owner-boundary-1&workspaceRelease=guest-free-contract-2', 'billing51'],
-    ['/crump-5.2.js?v=5.9.76-legacy-attachment-owner-fence-1&workspaceRelease=guest-free-contract-2', 'crump52'],
-    ['/crump-5.2.2.js?v=5.9.76-private-owner-boundary-1&workspaceRelease=guest-free-contract-2', 'crump522'],
-    ['/crump-v1-body.js?v=5.9.76-premium-workspace-1&workspaceRelease=guest-free-contract-2', 'crumpbodyv1'],
+    ['/crump-billing-5.1.js?v=5.9.76-private-owner-boundary-1&workspaceRelease=guest-free-contract-3', 'billing51'],
+    ['/crump-5.2.js?v=5.9.76-legacy-attachment-owner-fence-1&workspaceRelease=guest-free-contract-3', 'crump52'],
+    ['/crump-5.2.2.js?v=5.9.76-private-owner-boundary-1&workspaceRelease=guest-free-contract-3', 'crump522'],
+    ['/crump-v1-body.js?v=5.9.76-premium-workspace-2&workspaceRelease=guest-free-contract-3', 'crumpbodyv1'],
     ['/crump-v1-stability.js?v=5.9.76-intelligence-architecture-1', 'crumpv1stability'],
   ]);
 
   const finalScripts = Object.freeze([
     ['/crump-navigation-5.2.5.js?v=5.9.76-chats-language-1', 'crumpnav525'],
-    ['/crump-product-loader.js?v=5.9.76-legacy-project-resume-truth-2&workspaceRelease=guest-free-contract-2', 'crumpproductloader'],
+    ['/crump-product-loader.js?v=5.9.76-legacy-project-resume-truth-2&workspaceRelease=guest-free-contract-3', 'crumpproductloader'],
     ['/crump-product-5.3.1.js?v=5.9.76-conversation-action-labels-2', 'crumpproduct531'],
     ['/crump-subscriptions-5.3.2.js?v=5.9.76-private-owner-boundary-1', 'crumpsubscriptions532'],
-    ['/crump-polish-5.6.js?v=5.9.76-reorg-five-destinations-1', 'crumppolish56'],
+    ['/crump-polish-5.6.js?v=5.9.76-reorg-five-destinations-2', 'crumppolish56'],
     ['/crump-media-save.js?v=5.9.76-library-crud-privacy-1', 'crumpmediasave'],
     ['/crump-library-loader.js?v=5.9.76-account-owner-boundary-1', 'crumplibraryloader'],
-    ['/crump-navigation-5.9.30.js?v=5.9.76-premium-workspace-1', 'crumpnav5930'],
-    ['/crump-code-loader.js?v=5.9.76-account-owner-boundary-1&workspaceRelease=guest-free-contract-2', 'crumpcodeloader'],
+    ['/crump-navigation-5.9.30.js?v=5.9.76-premium-workspace-2', 'crumpnav5930'],
+    ['/crump-code-loader.js?v=5.9.76-account-owner-boundary-1&workspaceRelease=guest-free-contract-3', 'crumpcodeloader'],
     ['/lifecycle-share.js?v=5.9.76-settings-invite-1', 'lifecycleshare'],
     ['/lifecycle-manager.js?v=5.9.76-lifecycle-idle-send-1', 'lifecyclemanager'],
     ['/crump-activity-center-1.0.js?v=5.9.76-private-owner-boundary-1', 'crumpactivitycenter10'],

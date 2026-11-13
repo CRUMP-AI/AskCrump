@@ -1,49 +1,139 @@
-/* Ask Crump — Director's Cut · Library view styles (1.0) */
+/* Ask Crump — Apple Standard UI Concept v2 · Library view styles (1.0)
+ *
+ * Artifact grid and reader over the shared concept tokens. Preview
+ * gradients are presentation only: the family is a deterministic
+ * function of the book id (see the companion script). Meta lines carry
+ * only fields the book record carries — word and section counts and
+ * dates appear only where the data has them.
+ *
+ * Contrast discipline (rendered-DOM axe gate is the enforcement): small
+ * secondary text uses --ac-text-secondary and accent text uses
+ * --ac-accent-text. Both aliases resolve to the concept tokens per
+ * theme — muted gold-family text in dark, ink-soft in light — so every
+ * meaningful pair clears WCAG AA in both appearances. --ac-ink-faint is
+ * never used for meaningful text. Preview text stays light on the dark
+ * gradients in both themes, as in the concept.
+ *
+ * The reader overlay is appended to document.body, outside the Library
+ * root, so its rules are scoped to the overlay itself — never to the
+ * root — and the sheet stays a solid panel: reader text can never
+ * overlap the bookshelf behind it.
+ */
+
+:root {
+  color-scheme: dark;
+  --ac-canvas: #0b0c0e;
+  --ac-canvas-raised: #101114;
+  --ac-surface: #15161a;
+  --ac-surface-2: #1b1c20;
+  --ac-surface-3: #222329;
+  --ac-material: rgba(17, 18, 21, 0.82);
+  --ac-material-strong: rgba(22, 23, 27, 0.94);
+  --ac-ink: #f4f0e8;
+  --ac-ink-soft: #c9c5bd;
+  --ac-ink-muted: #8f8d88;
+  --ac-ink-faint: #696a6e;
+  --ac-hairline: rgba(255, 255, 255, 0.09);
+  --ac-hairline-strong: rgba(255, 255, 255, 0.16);
+  --ac-gold: #d2a04f;
+  --ac-gold-bright: #efc878;
+  --ac-gold-soft: rgba(210, 160, 79, 0.16);
+  --ac-gold-wash: rgba(210, 160, 79, 0.08);
+  --ac-sage: #88a57b;
+  --ac-sage-soft: rgba(90, 130, 88, 0.18);
+  --ac-blue: #8ca9c8;
+  --ac-blue-soft: rgba(75, 112, 153, 0.2);
+  --ac-danger: #df846f;
+  --ac-shadow: 0 22px 60px rgba(0, 0, 0, 0.28);
+  --ac-radius-control: 14px;
+  --ac-radius-panel: 24px;
+  --ac-serif: ui-serif, "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+  --ac-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", sans-serif;
+  /* Theme-mapped text aliases: muted/gold text clears AA on the dark
+     ground; in light the same roles fall back to ink-soft. */
+  --ac-text-secondary: var(--ac-ink-muted);
+  --ac-accent-text: var(--ac-gold);
+  --ac-focus: var(--ac-gold-bright);
+}
+
+html[data-theme="light"] {
+  color-scheme: light;
+  --ac-canvas: #f4f0e8;
+  --ac-canvas-raised: #f8f5ef;
+  --ac-surface: #fffdf9;
+  --ac-surface-2: #eee9df;
+  --ac-surface-3: #e7e1d5;
+  --ac-material: rgba(249, 246, 239, 0.82);
+  --ac-material-strong: rgba(255, 253, 249, 0.95);
+  --ac-ink: #171614;
+  --ac-ink-soft: #4f4c46;
+  --ac-ink-muted: #79756d;
+  --ac-ink-faint: #9a958b;
+  --ac-hairline: rgba(45, 40, 31, 0.1);
+  --ac-hairline-strong: rgba(45, 40, 31, 0.18);
+  --ac-gold: #aa7428;
+  --ac-gold-bright: #c8903d;
+  --ac-gold-soft: rgba(170, 116, 40, 0.13);
+  --ac-gold-wash: rgba(170, 116, 40, 0.07);
+  --ac-sage: #55704f;
+  --ac-sage-soft: rgba(85, 112, 79, 0.12);
+  --ac-blue: #526f8d;
+  --ac-blue-soft: rgba(82, 111, 141, 0.12);
+  --ac-shadow: 0 24px 60px rgba(67, 51, 28, 0.12);
+  --ac-text-secondary: var(--ac-ink-soft);
+  --ac-accent-text: var(--ac-ink-soft);
+  --ac-focus: var(--ac-gold);
+}
 
 .cvl-root {
-  --cvl-bg: #0d1015;
-  --cvl-panel: #15191f;
-  --cvl-panel-raised: #1a1f26;
-  --cvl-hairline: rgba(255, 255, 255, 0.09);
-  --cvl-gold: #dec57e;
-  --cvl-gold-deep: #c6a95f;
-  --cvl-text: #f7f4ec;
-  --cvl-muted: #adb3bb;
-  background: var(--cvl-bg);
-  color: var(--cvl-text);
-  font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  padding: 48px 40px 80px;
-  max-width: 1180px;
+  /* Legacy variables mapped onto the concept tokens. */
+  --cvl-bg: var(--ac-canvas);
+  --cvl-panel: var(--ac-surface);
+  --cvl-panel-raised: var(--ac-surface-2);
+  --cvl-hairline: var(--ac-hairline);
+  --cvl-gold: var(--ac-gold);
+  --cvl-gold-deep: var(--ac-gold);
+  --cvl-text: var(--ac-ink);
+  --cvl-muted: var(--ac-text-secondary);
+  background: var(--ac-canvas);
+  color: var(--ac-ink);
+  font-family: var(--ac-sans);
+  padding: calc(48px + env(safe-area-inset-top, 0px)) 36px calc(96px + env(safe-area-inset-bottom, 0px));
+  max-width: 1120px;
   margin: 0 auto;
   min-height: 60vh;
+  min-width: 0;
 }
 
 .cvl-root .cv-eyebrow,
 .cvl-overlay .cv-eyebrow {
-  font-size: 12px;
+  font-size: 10px;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  color: var(--cvl-gold);
+  letter-spacing: 1.55px;
+  color: var(--ac-accent-text);
   margin: 0 0 12px;
-  font-weight: 700;
+  font-weight: 780;
 }
 
-.cvl-header { margin-bottom: 32px; max-width: 720px; }
+.cvl-header { margin-bottom: 34px; max-width: 720px; }
 
 .cvl-title {
-  font-weight: 690;
-  font-size: clamp(34px, 4.5vw, 50px);
-  line-height: 1.06;
-  margin: 0 0 14px;
-  color: var(--cvl-text);
-  letter-spacing: -0.035em;
+  font-family: var(--ac-serif);
+  font-weight: 500;
+  font-size: clamp(44px, 5vw, 66px);
+  line-height: 0.98;
+  margin: 8px 0 10px;
+  color: var(--ac-ink);
+  letter-spacing: -2px;
+  overflow-wrap: anywhere;
 }
 
 .cvl-lede {
   font-size: 16px;
   line-height: 1.6;
-  color: var(--cvl-muted);
+  color: var(--ac-text-secondary);
   margin: 0;
+  max-width: 650px;
 }
 
 /* ---- toolbar ---- */
@@ -52,91 +142,128 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 20px;
-  margin-bottom: 28px;
+  gap: 18px;
+  margin-bottom: 30px;
 }
 
 .cvl-search {
   display: flex;
   align-items: center;
   gap: 10px;
-  background: var(--cvl-panel);
-  border: 1px solid var(--cvl-hairline);
-  border-radius: 14px;
+  background: var(--ac-surface);
+  border: 1px solid var(--ac-hairline);
+  border-radius: var(--ac-radius-control);
   padding: 0 14px;
-  width: min(360px, 100%);
+  width: min(430px, 100%);
+  min-height: 46px;
 }
 
-.cvl-search-icon { color: var(--cvl-muted); display: flex; flex: 0 0 auto; }
+.cvl-search-icon { color: var(--ac-text-secondary); display: flex; flex: 0 0 auto; }
 
 .cvl-search input {
   flex: 1;
   background: none;
   border: none;
-  color: var(--cvl-text);
+  color: var(--ac-ink);
   font: inherit;
   font-size: 14px;
-  padding: 12px 0;
+  padding: 0;
+  min-height: 44px;
   min-width: 0;
 }
-.cvl-search input::placeholder { color: var(--cvl-muted); }
+.cvl-search input::placeholder { color: var(--ac-text-secondary); opacity: 1; }
 .cvl-search input:focus { outline: none; }
-/* Visible focus indicator on the wrapper (brand-law gold outline). */
+/* Visible focus indicator on the wrapper. */
 .cvl-search:focus-within {
-  outline: 2px solid var(--cvl-gold);
+  outline: 2px solid var(--ac-focus);
   outline-offset: 3px;
-  border-color: rgba(222, 197, 126, 0.48);
+  border-color: var(--ac-hairline-strong);
 }
 
 .cvl-count {
   font-size: 12.5px;
-  color: var(--cvl-muted);
+  color: var(--ac-text-secondary);
   letter-spacing: 0;
   margin: 0;
   white-space: nowrap;
 }
 
-/* ---- bookshelf ---- */
+/* ---- artifact grid ---- */
 
 .cvl-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
-  gap: 24px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 22px;
 }
 
 .cvl-book {
-  background: var(--cvl-panel);
-  border: 1px solid var(--cvl-hairline);
-  border-radius: 18px;
+  background: var(--ac-surface);
+  border: 1px solid var(--ac-hairline);
+  border-radius: 22px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease;
-  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.12);
+  transition: border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+  min-width: 0;
 }
 .cvl-book:hover {
-  border-color: rgba(222, 197, 126, 0.46);
-  background: var(--cvl-panel-raised);
-  transform: translateY(-2px);
+  border-color: var(--ac-hairline-strong);
+  background: var(--ac-surface);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.12);
 }
 
+/* Preview tile. Gradient families come from the concept; the family
+   class is assigned deterministically from the book id. Preview text
+   stays light on the dark gradients in both themes. */
 .cvl-cover {
   position: relative;
-  height: 190px;
-  /* Flat ink, no glows. The large initial and restrained spine carry it. */
-  background: #10141a;
-  border-bottom: 1px solid var(--cvl-hairline);
+  aspect-ratio: 4 / 3;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 7px;
+  overflow: hidden;
+  border-bottom: 1px solid var(--ac-hairline);
+  color: #f8f0e2;
+  background: linear-gradient(145deg, #4c3d31, #251e19);
 }
+.cvl-cover::after {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.1), transparent 40%, rgba(0, 0, 0, 0.14));
+  content: "";
+  pointer-events: none;
+}
+.cvl-cover > * { position: relative; z-index: 1; }
+.cvl-cover--umber { background: linear-gradient(145deg, #4c3d31, #251e19); }
+.cvl-cover--bronze { background: linear-gradient(145deg, #926038, #34443b); }
+.cvl-cover--slate { background: linear-gradient(145deg, #546f8b, #23384e); }
+.cvl-cover--sage { background: linear-gradient(145deg, #4e7257, #24392d); }
 
 .cvl-cover-initial {
-  font-size: 68px;
-  font-weight: 720;
-  color: var(--cvl-gold);
-  opacity: 0.9;
+  font-family: var(--ac-serif);
+  font-size: 29px;
+  font-weight: 500;
+  letter-spacing: 2px;
+  color: #f8f0e2;
   line-height: 1;
+}
+
+.cvl-cover-sub {
+  font-family: var(--ac-serif);
+  font-size: 10px;
+  font-style: italic;
+  opacity: 0.72;
+  line-height: 1.4;
+  text-align: center;
+  padding: 0 16px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
 }
 
 .cvl-cover-spine {
@@ -144,24 +271,28 @@
   left: 0;
   top: 0;
   bottom: 0;
-  width: 10px;
-  background: linear-gradient(90deg, rgba(222, 197, 126, 0.3), rgba(222, 197, 126, 0.05));
+  width: 8px;
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0));
+  z-index: 1;
 }
 
-.cvl-book-body { padding: 20px 20px 22px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+.cvl-book-body { padding: 17px 17px 18px; display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 0; }
 
 .cvl-book-top {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 8px 10px;
 }
 
 .cvl-type-chip {
-  font-size: 11px;
-  letter-spacing: 0.08em;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.9px;
   text-transform: uppercase;
-  color: var(--cvl-muted);
+  color: var(--ac-text-secondary);
+  overflow-wrap: anywhere;
 }
 
 .cvl-version-pill {
@@ -169,47 +300,54 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--cvl-gold);
-  border: 1px solid rgba(222, 197, 126, 0.44);
+  color: var(--ac-accent-text);
+  background: var(--ac-gold-soft);
+  border: 1px solid transparent;
   border-radius: 999px;
   padding: 4px 12px;
   white-space: nowrap;
 }
 
 .cvl-book-title {
-  font-weight: 680;
-  font-size: 19px;
-  line-height: 1.25;
+  font-weight: 650;
+  font-size: 15px;
+  line-height: 1.3;
+  color: var(--ac-ink);
   margin: 2px 0 0;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  overflow-wrap: anywhere;
 }
 
-.cvl-book-author { font-size: 13px; color: var(--cvl-muted); margin: 0; }
+.cvl-book-author { font-size: 13px; color: var(--ac-text-secondary); margin: 0; overflow-wrap: anywhere; }
 
-.cvl-book-meta { font-size: 12.5px; color: var(--cvl-muted); margin: 0 0 4px; }
+.cvl-book-meta { font-size: 12.5px; color: var(--ac-text-secondary); margin: 0 0 4px; overflow-wrap: anywhere; }
 
-.cvl-history { margin: 2px 0 4px; border-top: 1px solid var(--cvl-hairline); padding-top: 10px; }
+.cvl-history { margin: 2px 0 4px; border-top: 1px solid var(--ac-hairline); padding-top: 10px; }
 
 .cvl-history summary {
   font-size: 12.5px;
   letter-spacing: 0;
-  color: var(--cvl-gold);
+  color: var(--ac-accent-text);
   cursor: pointer;
   list-style: none;
   display: flex;
   align-items: center;
   gap: 8px;
+  min-height: 44px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
 }
 .cvl-history summary::-webkit-details-marker { display: none; }
 .cvl-history summary::before {
   content: "";
   width: 6px;
   height: 6px;
-  border-right: 1px solid var(--cvl-gold);
-  border-bottom: 1px solid var(--cvl-gold);
+  flex: 0 0 auto;
+  border-right: 1px solid currentColor;
+  border-bottom: 1px solid currentColor;
   transform: rotate(-45deg);
   transition: transform 0.18s ease;
 }
@@ -223,40 +361,44 @@
   gap: 12px;
   font-size: 13px;
   padding: 6px 0;
-  border-bottom: 1px dotted rgba(255, 255, 255, 0.12);
+  border-bottom: 1px dotted var(--ac-hairline-strong);
 }
-.cvl-history-row span { color: var(--cvl-text); }
-.cvl-history-row time { color: var(--cvl-muted); }
+.cvl-history-row span { color: var(--ac-ink); }
+.cvl-history-row time { color: var(--ac-text-secondary); white-space: nowrap; }
 
 .cvl-history-note {
   font-size: 12px;
   line-height: 1.6;
-  color: var(--cvl-muted);
+  color: var(--ac-text-secondary);
   margin: 10px 0 0;
 }
 
 .cvl-open {
   margin-top: auto;
   align-self: flex-start;
-  background: transparent;
-  border: 1px solid rgba(222, 197, 126, 0.44);
-  border-radius: 12px;
-  color: var(--cvl-gold);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  background: var(--ac-surface);
+  border: 1px solid var(--ac-hairline-strong);
+  border-radius: var(--ac-radius-control);
+  color: var(--ac-ink-soft);
   font: inherit;
   font-size: 13.5px;
-  font-weight: 600;
+  font-weight: 650;
   letter-spacing: 0;
-  padding: 9px 22px;
+  padding: 0 22px;
   cursor: pointer;
-  transition: background 0.18s ease;
+  transition: background 0.18s ease, border-color 0.18s ease;
 }
-.cvl-open:hover { background: rgba(222, 197, 126, 0.1); }
+.cvl-open:hover { background: var(--ac-gold-wash); border-color: var(--ac-hairline-strong); }
 .cvl-open:focus-visible,
 .cvl-close:focus-visible,
 .cvl-button:focus-visible,
 .cvl-reader-nav-list button:focus-visible,
 .cvl-history summary:focus-visible {
-  outline: 2px solid var(--cvl-gold);
+  outline: 2px solid var(--ac-focus);
   outline-offset: 3px;
 }
 
@@ -265,67 +407,94 @@
 .cvl-overlay {
   position: fixed;
   inset: 0;
-  /* The overlay is appended to document.body, outside .cvl-root, so the
-     --cvl-* custom properties are declared here as well. Without them the
-     sheet below computes to a transparent background and the reader text
-     floats over the dimmed bookshelf. */
-  --cvl-bg: #0d1015;
-  --cvl-panel: #15191f;
-  --cvl-hairline: rgba(255, 255, 255, 0.09);
-  --cvl-gold: #dec57e;
-  --cvl-gold-deep: #c6a95f;
-  --cvl-text: #f7f4ec;
-  --cvl-muted: #adb3bb;
+  /* Legacy variables mapped onto the concept tokens. The overlay is
+     appended to document.body, outside the Library root. */
+  --cvl-bg: var(--ac-canvas);
+  --cvl-panel: var(--ac-surface);
+  --cvl-panel-raised: var(--ac-surface-2);
+  --cvl-hairline: var(--ac-hairline);
+  --cvl-gold: var(--ac-gold);
+  --cvl-gold-deep: var(--ac-gold);
+  --cvl-text: var(--ac-ink);
+  --cvl-muted: var(--ac-text-secondary);
   /* Below the demo banner (9999) so the banner stays on top in demo mode. */
   z-index: 9000;
-  background: rgba(5, 7, 10, 0.86);
+  background: rgba(5, 7, 10, 0.72);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 32px 20px;
+  font-family: var(--ac-sans);
+}
+
+html[data-theme="light"] .cvl-overlay {
+  background: rgba(43, 38, 30, 0.45);
 }
 
 .cvl-sheet {
-  /* Solid ink panel — never translucent, so reader text can never overlap
+  /* Solid panel — never translucent, so reader text can never overlap
      the bookshelf cards behind the overlay. */
-  background: var(--cvl-bg);
-  border: 1px solid var(--cvl-hairline);
-  border-radius: 18px;
-  width: min(960px, 100%);
+  background: var(--ac-canvas-raised);
+  color: var(--ac-ink);
+  border: 1px solid var(--ac-hairline);
+  border-radius: var(--ac-radius-panel);
+  box-shadow: var(--ac-shadow);
+  width: min(1120px, 100%);
   max-height: calc(100vh - 64px);
+  max-height: calc(100dvh - 64px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
+/* Reader toolbar: centered title and meta, close action at the end.
+   The close control is the reader's only toolbar action in production;
+   its behavior, focus order, and Escape handling are unchanged. */
 .cvl-sheet-head {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 20px;
-  padding: 28px 32px 22px;
-  border-bottom: 1px solid var(--cvl-hairline);
+  display: grid;
+  grid-template-columns: minmax(44px, 1fr) auto minmax(44px, 1fr);
+  align-items: center;
+  gap: 16px;
+  padding: 20px 28px;
+  border-bottom: 1px solid var(--ac-hairline);
 }
+.cvl-sheet-head > div {
+  grid-column: 2;
+  text-align: center;
+  min-width: 0;
+}
+.cvl-sheet-head .cv-eyebrow { margin: 0 0 6px; }
 .cvl-sheet-head h3 {
-  font-weight: 680;
-  font-size: 24px;
-  margin: 0 0 6px;
+  font-family: var(--ac-serif);
+  font-weight: 600;
+  font-size: 19px;
+  line-height: 1.25;
+  margin: 0 0 4px;
+  color: var(--ac-ink);
+  overflow-wrap: anywhere;
 }
-.cvl-sheet-head p { font-size: 13.5px; color: var(--cvl-muted); margin: 0; }
+.cvl-sheet-head p { font-size: 11px; color: var(--ac-text-secondary); margin: 0; }
 
 .cvl-close {
-  background: none;
-  border: 1px solid var(--cvl-hairline);
-  border-radius: 12px;
-  color: var(--cvl-text);
+  grid-column: 3;
+  justify-self: end;
+  display: grid;
+  place-items: center;
+  background: var(--ac-surface);
+  border: 1px solid var(--ac-hairline);
+  border-radius: var(--ac-radius-control);
+  color: var(--ac-ink);
   font-size: 20px;
   line-height: 1;
-  width: 38px;
-  height: 38px;
+  width: 44px;
+  height: 44px;
   cursor: pointer;
   flex: 0 0 auto;
+  padding: 0;
 }
-.cvl-close:hover { border-color: rgba(222, 197, 126, 0.48); color: var(--cvl-gold); }
+.cvl-close:hover { border-color: var(--ac-hairline-strong); color: var(--ac-accent-text); }
 
 .cvl-reader-loading {
   padding: 64px 32px;
@@ -338,116 +507,160 @@
 .cvl-reader-loading strong {
   font-weight: 650;
   font-size: 20px;
+  color: var(--ac-ink);
 }
-.cvl-reader-loading span { font-size: 14px; color: var(--cvl-muted); }
+.cvl-reader-loading span { font-size: 14px; color: var(--ac-text-secondary); }
 
 .cvl-reader {
   display: grid;
-  grid-template-columns: 250px minmax(0, 1fr);
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 56px;
+  padding: 40px 40px 48px;
   min-height: 0;
   flex: 1;
   overflow: hidden;
 }
 
 .cvl-reader-nav {
-  border-right: 1px solid var(--cvl-hairline);
-  padding: 22px 0;
+  padding: 6px 0 22px;
   overflow-y: auto;
+  min-width: 0;
 }
 
 .cvl-reader-nav-head {
-  font-size: 11px;
-  letter-spacing: 0.1em;
+  font-size: 10px;
+  font-weight: 780;
+  letter-spacing: 1.55px;
   text-transform: uppercase;
-  color: var(--cvl-muted);
-  margin: 0 0 12px;
-  padding: 0 22px;
+  color: var(--ac-text-secondary);
+  margin: 0 10px 10px;
+  padding: 0 12px;
 }
 
 .cvl-reader-nav-list button {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   align-items: baseline;
-  width: 100%;
+  width: calc(100% - 20px);
+  margin: 0 10px 2px;
+  min-height: 44px;
   background: none;
   border: none;
-  border-left: 2px solid transparent;
-  color: var(--cvl-text);
+  border-radius: 11px;
+  color: var(--ac-text-secondary);
   font: inherit;
-  font-size: 13.5px;
+  font-size: 12.5px;
   text-align: left;
-  padding: 10px 22px;
+  padding: 10px 12px;
   cursor: pointer;
+  overflow-wrap: anywhere;
 }
-.cvl-reader-nav-list button small { color: var(--cvl-muted); font-size: 11.5px; }
-.cvl-reader-nav-list button:hover { background: rgba(222, 197, 126, 0.06); }
+.cvl-reader-nav-list button small { color: var(--ac-text-secondary); font-size: 11px; flex: 0 0 auto; }
+.cvl-reader-nav-list button:hover { background: var(--ac-surface-2); }
 .cvl-reader-nav-list button.is-active {
-  border-left-color: var(--cvl-gold);
-  background: rgba(222, 197, 126, 0.08);
+  background: var(--ac-gold-soft);
+  color: var(--ac-ink);
 }
+.cvl-reader-nav-list button.is-active small { color: var(--ac-ink); }
 
+/* The page: a serif card centered in its column. */
 .cvl-reader-main {
-  padding: 34px 44px 60px;
+  padding: 64px 72px;
   overflow-y: auto;
+  width: 100%;
   max-width: 720px;
+  margin: 0 auto;
+  background: var(--ac-surface);
+  border: 1px solid var(--ac-hairline);
+  border-radius: 8px;
+  box-shadow: var(--ac-shadow);
+  min-width: 0;
 }
 .cvl-reader-main h4 {
-  font-weight: 680;
-  font-size: 24px;
-  margin: 0 0 20px;
+  font-family: var(--ac-serif);
+  font-weight: 500;
+  font-size: clamp(38px, 4vw, 54px);
+  line-height: 1.05;
+  letter-spacing: -1px;
+  color: var(--ac-ink);
+  margin: 0 0 38px;
+  overflow-wrap: anywhere;
 }
 .cvl-reader-main p {
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 16.5px;
-  line-height: 1.85;
-  color: var(--cvl-text);
-  margin: 0 0 1.2em;
+  font-family: var(--ac-serif);
+  font-size: 18px;
+  line-height: 1.9;
+  color: var(--ac-ink);
+  margin: 0 0 24px;
+  overflow-wrap: anywhere;
 }
-.cvl-reader-empty { color: var(--cvl-muted); font-style: italic; }
+.cvl-reader-main > p:first-of-type::first-letter {
+  float: left;
+  margin: 5px 8px 0 0;
+  color: var(--ac-gold);
+  font-size: 66px;
+  line-height: 0.8;
+}
+.cvl-reader-main > p.cvl-reader-empty:first-of-type::first-letter {
+  float: none;
+  margin: 0;
+  color: inherit;
+  font-size: inherit;
+  line-height: inherit;
+}
+.cvl-reader-empty { color: var(--ac-text-secondary); font-style: italic; }
 
 .cvl-button {
-  background: transparent;
-  border: 1px solid rgba(222, 197, 126, 0.44);
-  border-radius: 12px;
-  color: var(--cvl-gold);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  background: var(--ac-surface);
+  border: 1px solid var(--ac-hairline-strong);
+  border-radius: var(--ac-radius-control);
+  color: var(--ac-ink-soft);
   font: inherit;
   font-size: 13.5px;
-  font-weight: 600;
+  font-weight: 650;
   letter-spacing: 0;
-  padding: 10px 22px;
+  padding: 0 22px;
   cursor: pointer;
   margin-top: 12px;
+  transition: background 0.18s ease, border-color 0.18s ease;
 }
-.cvl-button:hover { background: rgba(222, 197, 126, 0.1); }
+.cvl-button:hover { background: var(--ac-gold-wash); border-color: var(--ac-hairline-strong); }
 
 /* ---- states ---- */
 
-.cvl-skeleton { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 24px; margin-bottom: 12px; }
+.cvl-skeleton { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 22px; margin-bottom: 12px; }
 .cvl-skeleton i {
   display: block;
   height: 340px;
-  border-radius: 18px;
-  background: rgba(222, 197, 126, 0.06);
+  border-radius: 22px;
+  background: var(--ac-gold-wash);
   animation: cvl-pulse 1.6s ease-in-out infinite;
 }
 @keyframes cvl-pulse { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
 
-.cvl-status { font-size: 13px; color: var(--cvl-muted); margin: 0; }
+.cvl-status { font-size: 13px; color: var(--ac-text-secondary); margin: 0; }
 
 .cvl-panel {
-  background: var(--cvl-panel);
-  border: 1px solid var(--cvl-hairline);
-  border-radius: 18px;
+  background: var(--ac-surface);
+  border: 1px solid var(--ac-hairline);
+  border-radius: var(--ac-radius-panel);
   padding: 32px;
   max-width: 560px;
+  color: var(--ac-ink);
 }
 
 .cvl-error h2 {
-  font-weight: 650;
+  font-family: var(--ac-serif);
+  font-weight: 500;
   font-size: 24px;
   margin: 0 0 10px;
+  color: var(--ac-ink);
 }
-.cvl-error p { font-size: 14px; color: var(--cvl-muted); margin: 0 0 6px; line-height: 1.6; }
+.cvl-error p { font-size: 14px; color: var(--ac-text-secondary); margin: 0 0 6px; line-height: 1.6; }
 
 .cvl-empty {
   text-align: center;
@@ -461,151 +674,255 @@
 }
 
 .cvl-empty h2 {
-  font-weight: 680;
+  font-family: var(--ac-serif);
+  font-weight: 500;
   font-size: clamp(26px, 3.4vw, 36px);
+  line-height: 1.1;
   margin: 0 0 14px;
+  color: var(--ac-ink);
 }
 
-.cvl-empty p { font-size: 15px; color: var(--cvl-muted); line-height: 1.65; margin: 0 0 24px; }
+.cvl-empty p { font-size: 15px; color: var(--ac-text-secondary); line-height: 1.65; margin: 0 0 24px; }
 
 .cvl-nomatch { text-align: center; padding: 64px 24px; }
 .cvl-nomatch h2 {
-  font-weight: 650;
+  font-family: var(--ac-serif);
+  font-weight: 500;
   font-size: 24px;
   margin: 0 0 10px;
+  color: var(--ac-ink);
 }
-.cvl-nomatch p { font-size: 14px; color: var(--cvl-muted); margin: 0; }
+.cvl-nomatch p { font-size: 14px; color: var(--ac-text-secondary); margin: 0; }
+
+/* ---- responsive ---- */
+
+@media (max-width: 1100px) {
+  .cvl-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cvl-skeleton { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cvl-reader { gap: 36px; padding: 32px 28px 40px; }
+  .cvl-reader-main { padding: 48px 40px; }
+}
 
 @media (max-width: 900px) {
-  .cvl-root { padding: 32px 20px 64px; }
+  .cvl-root { padding: calc(32px + env(safe-area-inset-top, 0px)) 20px calc(64px + env(safe-area-inset-bottom, 0px)); }
   .cvl-toolbar { flex-direction: column; align-items: stretch; }
   .cvl-search { width: 100%; }
-  .cvl-reader { grid-template-columns: 1fr; }
-  .cvl-reader-nav { border-right: none; border-bottom: 1px solid var(--cvl-hairline); max-height: 180px; }
-  .cvl-reader-main { padding: 24px 22px 48px; }
-  .cvl-overlay { padding: 16px 12px; }
+  .cvl-overlay { padding: max(12px, env(safe-area-inset-top, 0px)) 12px max(16px, env(safe-area-inset-bottom, 0px)); }
+  .cvl-sheet { max-height: 100%; }
   .cvl-skeleton { grid-template-columns: 1fr; }
+  .cvl-skeleton i { height: 220px; }
+}
+
+@media (max-width: 760px) {
+  .cvl-grid { gap: 18px 12px; }
+  .cvl-sheet-head { padding: 16px 18px; gap: 10px; }
+  .cvl-sheet-head h3 { font-size: 18px; }
+  /* Contents stay reachable on small screens as a horizontal strip
+     above the page — the concept hides the nav, but hiding it would
+     remove section navigation from the real reader. */
+  .cvl-reader {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+    gap: 0;
+    padding: 0;
+  }
+  .cvl-reader-nav { padding: 14px 0 12px; border-bottom: 1px solid var(--ac-hairline); overflow: visible; }
+  .cvl-reader-nav-head { margin: 0 0 8px; padding: 0 16px; }
+  .cvl-reader-nav-list {
+    display: flex;
+    gap: 4px;
+    overflow-x: auto;
+    padding: 0 12px 2px;
+    scrollbar-width: thin;
+  }
+  .cvl-reader-nav-list button { flex: 0 0 auto; width: auto; margin: 0; white-space: nowrap; }
+  .cvl-reader-main { width: auto; margin: 16px; padding: 42px 26px; max-width: none; }
+  .cvl-reader-main h4 { font-size: 45px; margin-bottom: 28px; }
+  .cvl-reader-main p { font-size: 17px; line-height: 1.82; }
+}
+
+@media (max-width: 360px) {
+  .cvl-root { padding-inline: 13px; }
+  .cvl-grid { gap: 14px 10px; }
+  .cvl-book-body { padding: 14px 14px 15px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .cvl-book { transition: none; }
-  .cvl-book:hover { transform: none; }
   .cvl-skeleton i { animation: none; }
   .cvl-history summary::before { transition: none; }
 }
 
-/* ---- Reorganization: Library on the locked tokens ----
-   The full-screen Library carries the ink ground in both appearances,
-   like Today and the Tasks record. Artifact titles stay bounded to two
-   lines with a deliberate ellipsis at every width (the full title is on
-   the title attribute and the Open control's aria-label). */
+/* ---- Workspace shell layer ----
+   The design-pass sheet loads after this one and themes the older
+   shell; doubled selectors keep the concept paint ahead of it. Every
+   value below resolves through the theme tokens, so one block serves
+   both appearances (including the design-pass dark overrides). The
+   overlay rules are scoped to the overlay: it lives on document.body,
+   outside the Library root. */
 body.crump-v1-body .cvl-root.cvl-root,
 body.crump-v1-body .cvl-root.cvl-root.cvl-root {
-  --cvl-bg: #070a0e;
-  --cvl-panel: #111417;
-  --cvl-panel-raised: #15181c;
-  --cvl-hairline: rgba(213, 185, 113, 0.16);
-  --cvl-gold: #d5b971;
-  --cvl-gold-deep: #b69855;
-  --cvl-text: #f1efe9;
-  --cvl-muted: #8a9196;
-  background: #070a0e !important;
-  color: #f1efe9 !important;
-  padding: 48px 24px 80px;
+  background: var(--ac-canvas) !important;
+  color: var(--ac-ink) !important;
+  font-family: var(--ac-sans) !important;
+  padding: calc(48px + env(safe-area-inset-top, 0px)) 36px calc(96px + env(safe-area-inset-bottom, 0px));
+  max-width: 1120px;
+  min-height: 100%;
 }
-body.crump-v1-body .cvl-root .cvl-title,
+body.crump-v1-body .cvl-root.cvl-root .cvl-header { max-width: 720px; margin-bottom: 34px; }
+body.crump-v1-body .cvl-root.cvl-root .cv-eyebrow { color: var(--ac-accent-text); }
 body.crump-v1-body .cvl-root.cvl-root .cvl-title {
-  font-family: Georgia, "Times New Roman", serif;
-  font-weight: 400;
-  color: #f1efe9 !important;
-  letter-spacing: -0.01em;
+  font-family: var(--ac-serif);
+  font-weight: 500;
+  font-size: clamp(44px, 5vw, 66px);
+  line-height: 0.98;
+  letter-spacing: -2px;
+  color: var(--ac-ink);
 }
-body.crump-v1-body .cvl-root .cv-eyebrow { color: #d5b971 !important; }
-body.crump-v1-body .cvl-root .cvl-lede,
-body.crump-v1-body .cvl-root .cvl-count,
-body.crump-v1-body .cvl-root .cvl-book-author,
-body.crump-v1-body .cvl-root .cvl-book-meta,
-body.crump-v1-body .cvl-root .cvl-type-chip { color: #8a9196 !important; }
-body.crump-v1-body .cvl-root .cvl-book,
-body.crump-v1-body .cvl-root.cvl-root .cvl-book {
-  background: #111417 !important;
-  border-color: rgba(213, 185, 113, 0.16) !important;
-  border-radius: 12px;
+body.crump-v1-body .cvl-root.cvl-root .cvl-lede { color: var(--ac-text-secondary); font-size: 16px; }
+body.crump-v1-body .cvl-root.cvl-root .cvl-search {
+  border-color: var(--ac-hairline);
+  background: var(--ac-surface);
   box-shadow: none;
 }
-body.crump-v1-body .cvl-root .cvl-book-title,
-body.crump-v1-body .cvl-root.cvl-root .cvl-book-title {
-  color: #f1efe9 !important;
-  min-width: 0;
-  overflow-wrap: anywhere;
+body.crump-v1-body .cvl-root.cvl-root .cvl-search-icon,
+body.crump-v1-body .cvl-root.cvl-root .cvl-count { color: var(--ac-text-secondary); }
+body.crump-v1-body .cvl-root.cvl-root .cvl-search input { color: var(--ac-ink); }
+body.crump-v1-body .cvl-root.cvl-root .cvl-search input::placeholder { color: var(--ac-text-secondary); opacity: 1; }
+body.crump-v1-body .cvl-root.cvl-root .cvl-search:focus-within {
+  border-color: var(--ac-hairline-strong);
+  outline: 2px solid var(--ac-focus);
+  outline-offset: 3px;
 }
-body.crump-v1-body .cvl-root .cvl-search,
-body.crump-v1-body .cvl-root.cvl-root .cvl-search {
-  background: #111417 !important;
-  border-color: rgba(213, 185, 113, 0.16) !important;
+body.crump-v1-body .cvl-root.cvl-root .cvl-grid { gap: 22px; }
+body.crump-v1-body .cvl-root.cvl-root .cvl-book {
+  border-color: var(--ac-hairline);
+  border-radius: 22px;
+  background: var(--ac-surface);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
 }
-body.crump-v1-body .cvl-root .cvl-search input { color: #f1efe9 !important; }
-body.crump-v1-body .cvl-root .cvl-version-pill {
-  color: #d5b971 !important;
-  border-color: rgba(213, 185, 113, 0.44) !important;
-  background: transparent !important;
+body.crump-v1-body .cvl-root.cvl-root .cvl-book:hover {
+  border-color: var(--ac-hairline-strong);
+  background: var(--ac-surface);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.12);
 }
-body.crump-v1-body .cvl-root .cvl-history summary,
-body.crump-v1-body .cvl-root .cvl-open,
-body.crump-v1-body .cvl-root .cvl-button { color: #d5b971 !important; }
-body.crump-v1-body .cvl-root .cvl-open,
-body.crump-v1-body .cvl-root .cvl-button {
-  border-color: rgba(213, 185, 113, 0.44) !important;
-  background: transparent !important;
+body.crump-v1-body .cvl-root.cvl-root .cvl-cover {
+  height: auto;
+  aspect-ratio: 4 / 3;
+  border-bottom-color: var(--ac-hairline);
 }
-body.crump-v1-body .cvl-root .cvl-history-row span { color: #f1efe9 !important; }
-body.crump-v1-body .cvl-root .cvl-history-row time,
-body.crump-v1-body .cvl-root .cvl-history-note { color: #8a9196 !important; }
-body.crump-v1-body .cvl-root .cvl-panel {
-  background: #111417 !important;
-  border-color: rgba(213, 185, 113, 0.16) !important;
-  border-radius: 12px;
-  color: #f1efe9;
+body.crump-v1-body .cvl-root.cvl-root .cvl-cover-initial {
+  color: #f8f0e2;
+  font-family: var(--ac-serif);
+  font-size: 29px;
+  font-weight: 500;
 }
-body.crump-v1-body .cvl-root .cvl-skeleton i { background: rgba(213, 185, 113, 0.07) !important; }
-
-/* Contrast lock: see the Projects sheet — the search glyph keeps the
-   quiet pairing on the ink ground. */
-body.crump-v1-body .cvl-root.cvl-root .cvl-search-icon {
-  color: #8a9196 !important;
-}
-body.crump-v1-body .cvl-root.cvl-root .cvl-sheet {
-  background: #111417 !important;
-  color: #f1efe9 !important;
-}
-body.crump-v1-body .cvl-root.cvl-root .cvl-sheet-head {
-  border-color: rgba(213, 185, 113, 0.16) !important;
-}
-body.crump-v1-body .cvl-root.cvl-root .cvl-sheet-head h3 {
-  color: #f1efe9 !important;
-}
+body.crump-v1-body .cvl-root.cvl-root .cvl-cover-spine { background: linear-gradient(90deg, rgba(255, 255, 255, 0.07), rgba(255, 255, 255, 0)); }
+body.crump-v1-body .cvl-root.cvl-root .cvl-book-title { color: var(--ac-ink); font-size: 15px; font-weight: 650; }
+body.crump-v1-body .cvl-root.cvl-root .cvl-book-author,
+body.crump-v1-body .cvl-root.cvl-root .cvl-book-meta,
+body.crump-v1-body .cvl-root.cvl-root .cvl-type-chip { color: var(--ac-text-secondary); }
 body.crump-v1-body .cvl-root.cvl-root .cvl-version-pill {
-  background: rgba(213, 185, 113, 0.16) !important;
+  border-color: transparent;
+  background: var(--ac-gold-soft);
+  color: var(--ac-accent-text);
 }
-body.crump-v1-body .cvl-root.cvl-root .cvl-reader-nav {
-  background: transparent !important;
-  border-color: rgba(213, 185, 113, 0.16) !important;
+body.crump-v1-body .cvl-root.cvl-root .cvl-history { border-top-color: var(--ac-hairline); }
+body.crump-v1-body .cvl-root.cvl-root .cvl-history summary,
+body.crump-v1-body .cvl-root.cvl-root .cvl-open,
+body.crump-v1-body .cvl-root.cvl-root .cvl-button { color: var(--ac-accent-text); }
+body.crump-v1-body .cvl-root.cvl-root .cvl-open,
+body.crump-v1-body .cvl-root.cvl-root .cvl-button {
+  border-color: var(--ac-hairline-strong);
+  background: var(--ac-surface);
+  color: var(--ac-ink-soft);
 }
-body.crump-v1-body .cvl-root.cvl-root .cvl-reader-nav-list button {
-  color: #f1efe9 !important;
+body.crump-v1-body .cvl-root.cvl-root .cvl-open:hover,
+body.crump-v1-body .cvl-root.cvl-root .cvl-button:hover { border-color: var(--ac-hairline-strong); background: var(--ac-gold-wash); }
+body.crump-v1-body .cvl-root.cvl-root .cvl-history-row { border-bottom-color: var(--ac-hairline-strong); }
+body.crump-v1-body .cvl-root.cvl-root .cvl-history-row span { color: var(--ac-ink); }
+body.crump-v1-body .cvl-root.cvl-root .cvl-history-row time,
+body.crump-v1-body .cvl-root.cvl-root .cvl-history-note { color: var(--ac-text-secondary); }
+body.crump-v1-body .cvl-root.cvl-root .cvl-panel {
+  background: var(--ac-surface);
+  border-color: var(--ac-hairline);
+  border-radius: var(--ac-radius-panel);
+  color: var(--ac-ink);
 }
-body.crump-v1-body .cvl-root.cvl-root .cvl-reader-main h4 {
-  color: #f1efe9 !important;
+body.crump-v1-body .cvl-root.cvl-root .cvl-skeleton i { background: var(--ac-gold-wash); }
+body.crump-v1-body .cvl-root.cvl-root .cvl-empty h2,
+body.crump-v1-body .cvl-root.cvl-root .cvl-nomatch h2,
+body.crump-v1-body .cvl-root.cvl-root .cvl-error h2 {
+  color: var(--ac-ink);
+  font-family: var(--ac-serif);
+  font-weight: 500;
 }
-body.crump-v1-body .cvl-root.cvl-root .cvl-reader-main p {
-  color: #f1efe9 !important;
+
+/* Reader overlay under the workspace shell. */
+body.crump-v1-body .cvl-overlay.cvl-overlay {
+  background: rgba(5, 7, 10, 0.72);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
 }
-body.crump-v1-body .cvl-root.cvl-root .cvl-close {
-  color: #8a9196 !important;
+html[data-theme="light"] body.crump-v1-body .cvl-overlay.cvl-overlay {
+  background: rgba(43, 38, 30, 0.45);
 }
-body.crump-v1-body .cvl-root.cvl-root .cvl-reader-main {
-  background: transparent !important;
+body.crump-v1-body .cvl-overlay.cvl-overlay .cvl-sheet {
+  border-color: var(--ac-hairline);
+  background: var(--ac-canvas-raised);
+  color: var(--ac-ink);
+  box-shadow: var(--ac-shadow);
 }
-body.crump-v1-body .cvl-root.cvl-root .cvl-close {
-  background: rgba(241, 239, 233, 0.06) !important;
+body.crump-v1-body .cvl-overlay.cvl-overlay .cv-eyebrow { color: var(--ac-accent-text); }
+body.crump-v1-body .cvl-overlay.cvl-overlay .cvl-sheet-head { border-bottom-color: var(--ac-hairline); }
+body.crump-v1-body .cvl-overlay.cvl-overlay .cvl-sheet-head h3 {
+  color: var(--ac-ink);
+  font-family: var(--ac-serif);
+  font-weight: 600;
+}
+body.crump-v1-body .cvl-overlay.cvl-overlay .cvl-sheet-head p { color: var(--ac-text-secondary); }
+body.crump-v1-body .cvl-overlay.cvl-overlay .cvl-close {
+  border-color: var(--ac-hairline);
+  background: var(--ac-surface);
+  color: var(--ac-ink);
+}
+body.crump-v1-body .cvl-overlay.cvl-overlay .cvl-reader-nav {
+  border-color: var(--ac-hairline);
+  background: transparent;
+}
+body.crump-v1-body .cvl-overlay.cvl-overlay .cvl-reader-nav-head { color: var(--ac-text-secondary); }
+body.crump-v1-body .cvl-overlay.cvl-overlay .cvl-reader-nav-list button { color: var(--ac-text-secondary); }
+body.crump-v1-body .cvl-overlay.cvl-overlay .cvl-reader-nav-list button:hover { background: var(--ac-surface-2); }
+body.crump-v1-body .cvl-overlay.cvl-overlay .cvl-reader-nav-list button.is-active {
+  background: var(--ac-gold-soft);
+  color: var(--ac-ink);
+}
+body.crump-v1-body .cvl-overlay.cvl-overlay .cvl-reader-main {
+  background: var(--ac-surface);
+  border-color: var(--ac-hairline);
+}
+body.crump-v1-body .cvl-overlay.cvl-overlay .cvl-reader-main h4 {
+  color: var(--ac-ink);
+  font-family: var(--ac-serif);
+  font-weight: 500;
+}
+body.crump-v1-body .cvl-overlay.cvl-overlay .cvl-reader-main p {
+  color: var(--ac-ink);
+  font-family: var(--ac-serif);
+}
+
+/* Workspace shell responsive mirrors: the few responsive values the
+   design pass contests with unconditional rules. */
+@media (max-width: 1100px) {
+  body.crump-v1-body .cvl-root.cvl-root .cvl-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 900px) {
+  body.crump-v1-body .cvl-root.cvl-root { padding: calc(32px + env(safe-area-inset-top, 0px)) 20px calc(64px + env(safe-area-inset-bottom, 0px)); }
+}
+@media (max-width: 760px) {
+  body.crump-v1-body .cvl-root.cvl-root .cvl-grid { gap: 18px 12px; }
+}
+@media (max-width: 360px) {
+  body.crump-v1-body .cvl-root.cvl-root { padding-inline: 13px; }
+  body.crump-v1-body .cvl-root.cvl-root .cvl-grid { gap: 14px 10px; }
 }

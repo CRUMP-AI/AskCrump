@@ -41,7 +41,7 @@ def test_appearance_controller_runs_before_paint_and_exposes_a_small_public_cont
     shell = read("public/app.html")
     controller = read("public/appearance-theme.js")
 
-    appearance_asset = "/appearance-theme.js?v=5.9.76-appearance-choice-3"
+    appearance_asset = "/appearance-theme.js?v=5.9.76-appearance-choice-4"
     assert appearance_asset in shell
     assert shell.index(appearance_asset) < shell.index("/crump-v1-body.css")
     assert shell.index(appearance_asset) < shell.index("</head>")
@@ -124,12 +124,24 @@ def test_conversation_drawer_uses_explicit_theme_semantics_not_inherited_text_co
         assert token in drawer_block, token
 
 
-def test_dark_palette_covers_primary_workspace_and_product_surfaces() -> None:
+def test_theme_tokens_cover_primary_workspace_and_product_surfaces() -> None:
     styles = read("public/crump-design-pass.css")
+    # The v2 tokens are the system of record: dark values are the
+    # :root defaults and the light block flips them, so surfaces that
+    # read the tokens are themed in both appearances without
+    # per-surface dark overrides.
+    assert "--ac-canvas: #0b0c0e;" in styles
+    assert "--ac-ink: #f4f0e8;" in styles
+    light = styles[styles.index('html[data-theme="light"] {') :]
+    assert "--ac-canvas: #f4f0e8;" in light
+    assert "--ac-ink: #171614;" in light
+    # The dark atelier section still flips the atelier tokens the
+    # panel surfaces consume.
     dark = styles[styles.index("/* Dark atelier") :]
-
+    assert 'html[data-theme="dark"]' in dark
+    assert "--atelier-ink: #f4f1e9;" in dark
+    # Every primary surface is styled in the finishing layer.
     for fragment in (
-        'html[data-theme="dark"]',
         '#sidebar.v1-library',
         '.v1-workspace',
         '.input-container',
@@ -144,7 +156,7 @@ def test_dark_palette_covers_primary_workspace_and_product_surfaces() -> None:
         '.cv-mobile-nav',
         '.cv-more-sheet',
     ):
-        assert fragment in dark, fragment
+        assert fragment in styles, fragment
 
 
 def test_browser_fixture_exercises_real_theme_assets_and_drawer_markup() -> None:
@@ -152,9 +164,9 @@ def test_browser_fixture_exercises_real_theme_assets_and_drawer_markup() -> None
     verifier = read("scripts/verify-appearance-theme.cjs")
     matrix = read("scripts/verify-browser-control-matrix.mjs")
 
-    assert "/public/appearance-theme.js?v=5.9.76-appearance-choice-3" in fixture
+    assert "/public/appearance-theme.js?v=5.9.76-appearance-choice-4" in fixture
     assert "/public/crump-design-pass.css" in fixture
-    assert "/public/appearance-controls.css?v=5.9.76-appearance-choice-3" in fixture
+    assert "/public/appearance-controls.css?v=5.9.76-appearance-choice-4" in fixture
     assert "/public/crump-ui-guardrails.css?v=5.9.76-ui-guardrails-1" in fixture
     assert "/public/crump-motion-system.css?v=5.9.76-motion-system-2" in fixture
     for asset in (

@@ -78,6 +78,8 @@ const expectedVerifiers = Object.freeze([
   'verify-theme-switch-cache-upgrade.cjs',
   'verify-video-destination.cjs',
   'verify-video-reference-browser.cjs',
+  'verify-vision-account-gate-copy.cjs',
+  'verify-safe-area-terms.cjs',
   'verify-visual-media-browser.cjs',
   'verify-word-pdf-guide-render.cjs',
   'verify-workspace-opened-retry.cjs',

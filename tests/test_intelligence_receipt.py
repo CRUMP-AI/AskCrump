@@ -61,9 +61,9 @@ def test_intelligence_receipt_assets_are_cache_versioned_atomically():
     shell = read("public/app.html")
     runtime = read("public/runtime-body-v1.js")
     worker = read("public/sw.js")
-    receipt_version = "5.9.76-muse-release-repair-1"
+    receipt_version = "5.9.76-muse-release-repair-2"
     image_node_version = "5.9.76-private-owner-boundary-1"
-    loader_version = "5.9.76-reorg-five-destinations-1"
+    loader_version = "5.9.76-reorg-five-destinations-2"
 
     assert f"/runtime-body-v1.js?v={loader_version}" in shell
     assert f"/runtime-body-v1.js?v={loader_version}" in worker
@@ -75,5 +75,5 @@ def test_intelligence_receipt_assets_are_cache_versioned_atomically():
         assert versioned in runtime
         assert versioned in worker
     for source in (runtime, worker):
-        assert "/app.js?v=5.9.76-server-only-activation-1" in source
-    assert "ask-crump-new-body-v1-r301-composer-prompt-1" in worker
+        assert "/app.js?v=5.9.76-polka-followups-1" in source
+    assert "ask-crump-new-body-v1-r304-safe-area-1" in worker
