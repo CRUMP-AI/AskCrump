@@ -1,4 +1,4 @@
-const CACHE_NAME = 'ask-crump-new-body-v1-r304-safe-area-1';
+const CACHE_NAME = 'ask-crump-new-body-v1-r305-settings-row-1';
 
 const CORE = [
   '/app',
@@ -17,7 +17,7 @@ const CORE = [
   '/onboarding.css?v=5.9.76-reorg-five-destinations-2',
   '/conversation.css?v=5.9.76-muse-release-repair-2',
   '/auth-styles.css?v=5.9.76-polka-followups-1',
-  '/crump-v1-body.css?v=5.9.76-safe-area-1',
+  '/crump-v1-body.css?v=5.9.76-settings-row-1',
   '/credit-confirmation.css?v=5.9.76-credit-confirmation-1',
   '/lifecycle.css?v=5.9.76-lifecycle-activation-2',
   '/crump-design-pass.css?v=5.9.76-contrast-sweep-2',

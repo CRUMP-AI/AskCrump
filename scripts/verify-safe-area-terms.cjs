@@ -118,6 +118,14 @@ const settingsMobile = mediaBlock(body, '@media (max-width: 820px)') || '';
 check('settings header 820px top inset', (ruleBody(settingsMobile, 'body.crump-v1-body .v1-settings-header {') || '')
   .includes('padding-top: calc(12px + env(safe-area-inset-top, 0px)) !important;'));
 
+// Settings sheet grid: the 820px first row must grow by the same top inset
+// as the header padding, or the taller header overflows its 82px row and
+// paints over the tab row. The base 82px row stays flat for desktop.
+check('settings sheet base row stays 82px', (ruleBody(body, 'body.crump-v1-body .v1-settings-sheet {') || '')
+  .includes('grid-template-rows: 82px minmax(0,1fr);'));
+check('settings sheet 820px row grows with top inset', settingsMobile
+  .includes('grid-template-rows: calc(82px + env(safe-area-inset-top, 0px)) minmax(0,1fr);'));
+
 if (failures.length) {
   throw new Error(JSON.stringify({missingSafeAreaTerms: failures}));
 }

@@ -168,7 +168,7 @@ def test_reorg_pins_stepped_exactly_once():
         "/crump-vision-library-1.0.js?v=5.9.76-polka-followups-1",
     ):
         assert url in worker, url
-    assert worker.startswith("const CACHE_NAME = 'ask-crump-new-body-v1-r304-safe-area-1';")
+    assert worker.startswith("const CACHE_NAME = 'ask-crump-new-body-v1-r305-settings-row-1';")
     for retired in (
         "5.9.76-project-resume-1",
         "5.9.76-project-resume-owner-boundary-1",

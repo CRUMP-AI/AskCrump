@@ -168,7 +168,7 @@ def test_guest_free_frontend_release_is_atomic_across_web_native_and_pwa():
     assert "/auth-styles.css?v=5.9.76-polka-followups-1" in worker
     assert "/runtime-body-v1.js?v=5.9.76-reorg-five-destinations-2" in app
     assert "/runtime-body-v1.js?v=5.9.76-reorg-five-destinations-2" in worker
-    assert "ask-crump-new-body-v1-r304-safe-area-1" in worker
+    assert "ask-crump-new-body-v1-r305-settings-row-1" in worker
 
     released_assets = (
         "/chat-resilience.js?v=5.9.76-chat-owner-boundary-1&workspaceRelease=guest-free-contract-3",

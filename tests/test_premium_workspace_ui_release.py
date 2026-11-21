@@ -107,7 +107,7 @@ def test_web_service_worker_and_native_loader_use_one_ui_revision() -> None:
             "crump-polish-5.6.js",
         ):
             assert f"/{asset}?v={revision}" in source
-    assert "ask-crump-new-body-v1-r304-safe-area-1" in service_worker
+    assert "ask-crump-new-body-v1-r305-settings-row-1" in service_worker
 
 
 def test_tutorial_and_store_copy_match_the_visible_release() -> None:
