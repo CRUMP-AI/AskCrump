@@ -1242,6 +1242,7 @@ const productStudioLazyLoadVersion = `${releaseVersion}-product-studio-lazy-load
 const visibleWorkspaceReturnVersion = `${releaseVersion}-visible-workspace-return-1`;
 const polkaFollowupsVersion = `${releaseVersion}-polka-followups-1`;
 const safeAreaVersion = `${releaseVersion}-safe-area-1`;
+const settingsRowVersion = `${releaseVersion}-settings-row-1`;
 const guestFreeWorkspaceRelease = 'workspaceRelease=guest-free-contract-3';
 const releasedWorkspaceAsset = url => `${url}&${guestFreeWorkspaceRelease}`;
 const accountOwnerBoundaryVersion = `${releaseVersion}-account-owner-boundary-1`;
@@ -1279,7 +1280,7 @@ const nativePushOwnerFenceVersion = `${releaseVersion}-native-push-owner-fence-1
 const cacheIntegrityVersion = `${releaseVersion}-friendly-workspace-1`;
 const premiumWorkspaceVersion = `${releaseVersion}-premium-workspace-2`;
 const mobileNavApplePolishVersion = `${releaseVersion}-reorg-five-destinations-2`;
-const ownedWorkspaceAccessVersion = safeAreaVersion;
+const ownedWorkspaceAccessVersion = settingsRowVersion;
 const shellNoTaglineVersion = `${releaseVersion}-shell-no-tagline-1`;
 const atelierWorkspaceVersion = `${releaseVersion}-atelier-workspace-2`;
 const projectResumeVersion = safeAreaVersion;
@@ -2099,7 +2100,7 @@ for (const [pathname, expectedVersion] of [
     }
   }
 }
-if (!serviceWorker.includes('ask-crump-new-body-v1-r304-safe-area-1') ||
+if (!serviceWorker.includes('ask-crump-new-body-v1-r305-settings-row-1') ||
     !serviceWorker.includes(`'${shellBrandUrl}'`) ||
     serviceWorker.includes("'/assets/brand/crump-mark.webp'") ||
     serviceWorker.includes("'/assets/brand/crump-mark-320.webp'") ||

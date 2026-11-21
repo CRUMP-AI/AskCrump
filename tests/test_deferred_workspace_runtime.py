@@ -19,7 +19,7 @@ def test_signed_out_shell_loads_only_authentication_critical_assets():
         '/styles.css',
         '/install-prompt.css?v=5.9.76',
         '/auth-styles.css?v=5.9.76-polka-followups-1',
-        '/crump-v1-body.css?v=5.9.76-safe-area-1',
+        '/crump-v1-body.css?v=5.9.76-settings-row-1',
         '/appearance-controls.css?v=5.9.76-appearance-choice-4',
         # The signed-out shell and authenticated workspace share the small
         # navigation/view frame; private data still waits for authentication.
